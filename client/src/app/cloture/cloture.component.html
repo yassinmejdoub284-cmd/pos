@@ -1,0 +1,499 @@
+<div class="min-h-screen bg-gray-50 p-6">
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">Clôture Caisse</h1>
+    <p class="text-gray-600 mt-2">Gestion des sessions de caisse</p>
+  </div>
+
+  <!-- Error Message -->
+  @if (error()) {
+    <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm text-red-800">{{ error() }}</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  }
+
+  <!-- No Active Session - Open Session Form -->
+  @if (!currentSession() && !loading()) {
+    <div class="max-w-2xl mx-auto">
+      <div class="bg-white shadow rounded-lg p-6">
+        <div class="text-center mb-6">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+            <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            </svg>
+          </div>
+          <h2 class="mt-4 text-2xl font-bold text-gray-900">Ouvrir la caisse</h2>
+          <p class="mt-2 text-gray-600">Démarrez une nouvelle session de caisse</p>
+        </div>
+
+        <form (ngSubmit)="openSession()" class="space-y-6">
+          <div>
+            <label for="openingFund" class="block text-sm font-medium text-gray-700">Fonds de caisse (TND)</label>
+            <input
+              type="number"
+              id="openingFund"
+              [(ngModel)]="openSessionForm.openingFund"
+              name="openingFund"
+              step="0.001"
+              min="0"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              required
+            >
+          </div>
+
+          <div>
+            <label for="posId" class="block text-sm font-medium text-gray-700">Point de vente</label>
+            <select
+              id="posId"
+              [(ngModel)]="openSessionForm.posId"
+              name="posId"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            >
+              <option value="1">POS 1</option>
+              <option value="2">POS 2</option>
+              <option value="3">POS 3</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="note" class="block text-sm font-medium text-gray-700">Note (optionnel)</label>
+            <textarea
+              id="note"
+              [(ngModel)]="openSessionForm.note"
+              name="note"
+              rows="3"
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            ></textarea>
+          </div>
+
+          <div class="flex justify-end space-x-3">
+            <button
+              type="button"
+              (click)="goToHistory()"
+              class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Historique
+            </button>
+            <button
+              type="submit"
+              [disabled]="loading()"
+              class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              Ouvrir la caisse
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- Active Session - Close Session Interface -->
+  @if (currentSession() && !loading()) {
+    <div class="space-y-6">
+      <!-- Session Header -->
+      <div class="bg-white shadow rounded-lg p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Clôture du jour</h2>
+            <p class="text-gray-600">Session #{{ currentSession()?.id }} - {{ currentSession()?.user?.firstName }} {{ currentSession()?.user?.lastName }}</p>
+            <p class="text-sm text-gray-500">Ouverte le {{ currentSession()?.openedAt | date:'dd/MM/yyyy HH:mm' }}</p>
+          </div>
+          <div class="flex space-x-3">
+            <button
+              (click)="printXReport()"
+              class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Imprimer X
+            </button>
+            <button
+              (click)="goToHistory()"
+              class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Historique
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session Summary Cards -->
+      @if (currentSession()?.summary) {
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+              </div>
+              <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500">Ventes TTC</p>
+                <p class="text-2xl font-semibold text-gray-900">{{ formatCurrency(currentSession()?.summary?.totalSales || 0) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+              </div>
+              <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500">Espèces</p>
+                <p class="text-2xl font-semibold text-gray-900">{{ formatCurrency(currentSession()?.summary?.cashSales || 0) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                  <svg class="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+              </div>
+              <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500">Espèces attendues</p>
+                <p class="text-2xl font-semibold text-gray-900">{{ formatCurrency(currentSession()?.expectedCash || 0) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <svg class="w-5 h-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              </div>
+              <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500">Tickets</p>
+                <p class="text-2xl font-semibold text-gray-900">{{ currentSession()?.summary?.totalTickets || 0 }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Quick Actions -->
+      <div class="bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Opérations de caisse</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button
+            (click)="showCashMovementModal.set(true); cashMovementForm.type = 'ENTREE'"
+            class="flex items-center justify-center px-4 py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Entrée de caisse
+          </button>
+          <button
+            (click)="showCashMovementModal.set(true); cashMovementForm.type = 'SORTIE'"
+            class="flex items-center justify-center px-4 py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+            </svg>
+            Sortie de caisse
+          </button>
+          <button
+            (click)="showCashMovementModal.set(true); cashMovementForm.type = 'DEPOT_COFFRE'"
+            class="flex items-center justify-center px-4 py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            Dépôt coffre
+          </button>
+        </div>
+      </div>
+
+      <!-- Cash Movements List -->
+      @if (currentSession()?.cashMovements && currentSession()?.cashMovements!.length > 0) {
+<div class="bg-white shadow rounded-lg p-6">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">Mouvements de caisse</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motif</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Heure</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                @for (movement of currentSession()?.cashMovements; track movement.id) {
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                            [class]="movement.type === 'ENTREE' ? 'bg-green-100 text-green-800' : 
+                                     movement.type === 'SORTIE' ? 'bg-red-100 text-red-800' : 
+                                     'bg-blue-100 text-blue-800'">
+                        {{ getCashMovementTypeLabel(movement.type) }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {{ formatCurrency(movement.amount) }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500">{{ movement.reason }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {{ movement.createdAt | date:'HH:mm' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- Close Session Button -->
+      <div class="flex justify-center">
+        <button
+          (click)="showCloseForm.set(true)"
+          class="px-8 py-3 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+        >
+          Clôturer la caisse
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Cash Movement Modal -->
+  @if (showCashMovementModal()) {
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">Mouvement de caisse</h3>
+          
+          <form (ngSubmit)="addCashMovement()" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Type</label>
+              <select
+                [(ngModel)]="cashMovementForm.type"
+                name="type"
+                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                <option value="ENTREE">Entrée de caisse</option>
+                <option value="SORTIE">Sortie de caisse</option>
+                <option value="DEPOT_COFFRE">Dépôt coffre</option>
+                <option value="RETRAIT_CENTRALE">Retrait centrale</option>
+                <option value="AJUSTEMENT">Ajustement</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Montant (TND)</label>
+              <input
+                type="number"
+                [(ngModel)]="cashMovementForm.amount"
+                name="amount"
+                step="0.001"
+                min="0"
+                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              >
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Motif</label>
+              <input
+                type="text"
+                [(ngModel)]="cashMovementForm.reason"
+                name="reason"
+                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              >
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Ticket # (optionnel)</label>
+              <input
+                type="number"
+                [(ngModel)]="cashMovementForm.ticketId"
+                name="ticketId"
+                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                (click)="showCashMovementModal.set(false)"
+                class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                [disabled]="loading()"
+                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                Ajouter
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Close Session Modal -->
+  @if (showCloseForm()) {
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">Clôture de la caisse</h3>
+          
+          <form (ngSubmit)="closeSession()" class="space-y-6">
+            <!-- Cash Counting Section -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+              <h4 class="text-md font-medium text-gray-900 mb-4">Comptage espèces</h4>
+              
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                @for (denomination of getDenominationKeys(); track denomination) {
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ denomination }} TND</label>
+                    <input
+                      type="number"
+                      [(ngModel)]="closeSessionForm.denominations[denomination]"
+                      name="denomination_{{ denomination }}"
+                      min="0"
+                      (input)="updateDenominationsTotal()"
+                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                  </div>
+                }
+              </div>
+              
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-700">Total compté:</span>
+                <span class="text-lg font-bold text-gray-900">{{ formatCurrency(denominationsTotal()) }}</span>
+              </div>
+            </div>
+
+            <!-- Manual Cash Input -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Espèces comptées (TND)</label>
+              <input
+                type="number"
+                [(ngModel)]="closeSessionForm.countedCash"
+                name="countedCash"
+                step="0.001"
+                min="0"
+                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                required
+              >
+            </div>
+
+            <!-- Variance Display -->
+            @if (varianceInfo()) {
+              <div class="p-4 rounded-lg"
+                   [class]="varianceInfo()?.variance === 0 ? 'bg-green-50 border border-green-200' : 
+                            varianceInfo()?.requiresApproval ? 'bg-red-50 border border-red-200' : 
+                            'bg-yellow-50 border border-yellow-200'">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0">
+                    @if (varianceInfo()?.variance === 0) {
+                      <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      </svg>
+                    } @else if (varianceInfo()?.requiresApproval) {
+                      <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                      </svg>
+                    } @else {
+                      <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                      </svg>
+                    }
+                  </div>
+                  <div class="ml-3">
+                    <p class="text-sm font-medium"
+                       [class]="varianceInfo()?.variance === 0 ? 'text-green-800' : 
+                                varianceInfo()?.requiresApproval ? 'text-red-800' : 
+                                'text-yellow-800'">
+                      {{ varianceInfo()?.message }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- Close Session Settings -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Fonds de caisse (TND)</label>
+                <input
+                  type="number"
+                  [(ngModel)]="closeSessionForm.fonds"
+                  name="fonds"
+                  step="0.001"
+                  min="0"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  required
+                >
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Retrait vers Caisse Centrale (TND)</label>
+                <input
+                  type="number"
+                  [(ngModel)]="closeSessionForm.retraitCentrale"
+                  name="retraitCentrale"
+                  step="0.001"
+                  min="0"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                >
+              </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                (click)="showCloseForm.set(false)"
+                class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                [disabled]="loading()"
+                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+              >
+                Clôturer la caisse
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  }
+</div> 

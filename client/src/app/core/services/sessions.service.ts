@@ -1,0 +1,283 @@
+import { Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
+export interface SessionCaisse {
+  id: number;
+  posId: number;
+  userId: number;
+  depotId?: number;
+  magasinId?: number;
+  openedAt: Date;
+  closedAt?: Date;
+  openingFund: number;
+  expectedCash: number;
+  countedCash?: number;
+  variance?: number;
+  status: 'OPEN' | 'CLOSED' | 'REOPENED';
+  xSeq: number;
+  zSeq: number;
+  note?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  user?: {
+    firstName: string;
+    lastName: string;
+  };
+  depot?: {
+    name: string;
+    code: string;
+  };
+  cashMovements?: CashMovement[];
+  summary?: SessionSummary;
+}
+
+export interface CashMovement {
+  id: number;
+  sessionId: number;
+  type: 'ENTREE' | 'SORTIE' | 'DEPOT_COFFRE' | 'RETRAIT_CENTRALE' | 'AJUSTEMENT';
+  amount: number;
+  reason: string;
+  ticketId?: number;
+  createdById: number;
+  createdAt: Date;
+}
+
+export interface SessionSummary {
+  expectedCash: number;
+  cashSales: number;
+  entree: number;
+  sortie: number;
+  salesByPayment: { [key: string]: { amount: number; count: number } };
+  totalSales: number;
+  totalTickets: number;
+}
+
+export interface OpenSessionRequest {
+  openingFund: number;
+  posId?: number;
+  note?: string;
+}
+
+export interface CashMovementRequest {
+  type: 'ENTREE' | 'SORTIE' | 'DEPOT_COFFRE' | 'RETRAIT_CENTRALE' | 'AJUSTEMENT';
+  amount: number;
+  reason: string;
+  ticketId?: number;
+}
+
+export interface CloseSessionRequest {
+  countedCash: number;
+  fonds: number;
+  retraitCentrale?: number;
+  denominations: { [key: string]: number };
+}
+
+export interface SessionFilters {
+  startDate?: string;
+  endDate?: string;
+  userId?: number;
+  posId?: number;
+  status?: string;
+  hasVariance?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface ZReportData {
+  session: SessionCaisse;
+  summary: SessionSummary;
+  generatedAt: Date;
+  reportType: 'Z';
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class SessionsService {
+  private readonly API_URL = `${environment.apiUrl}/sessions`;
+  
+  private currentSessionSubject = new BehaviorSubject<SessionCaisse | null>(null);
+  public currentSession$ = this.currentSessionSubject.asObservable();
+  
+  public currentSession = signal<SessionCaisse | null>(null);
+  public isSessionOpen = signal(false);
+
+  constructor(private http: HttpClient) {
+    this.loadCurrentSession();
+  }
+
+  // Get active session for current user
+  getActiveSession(posId?: number): Observable<SessionCaisse | null> {
+    const params: any = {};
+    if (posId) params.posId = posId.toString();
+    
+    return this.http.get<SessionCaisse | null>(`${this.API_URL}/active`, { params }).pipe(
+      tap(session => {
+        this.currentSessionSubject.next(session);
+        this.currentSession.set(session);
+        this.isSessionOpen.set(!!session);
+      })
+    );
+  }
+
+  // Open new session
+  openSession(request: OpenSessionRequest): Observable<SessionCaisse> {
+    return this.http.post<SessionCaisse>(`${this.API_URL}/open`, request).pipe(
+      tap(session => {
+        this.currentSessionSubject.next(session);
+        this.currentSession.set(session);
+        this.isSessionOpen.set(true);
+      })
+    );
+  }
+
+  // Add cash movement
+  addCashMovement(sessionId: number, movement: CashMovementRequest): Observable<CashMovement> {
+    return this.http.post<CashMovement>(`${this.API_URL}/${sessionId}/movements`, movement);
+  }
+
+  // Get session summary
+  getSessionSummary(sessionId: number): Observable<SessionSummary> {
+    return this.http.get<SessionSummary>(`${this.API_URL}/${sessionId}/summary`);
+  }
+
+  // Close session
+  closeSession(sessionId: number, request: CloseSessionRequest): Observable<{
+    session: SessionCaisse;
+    zReport: ZReportData;
+    requiresApproval: boolean;
+    variance: number;
+  }> {
+    return this.http.post<any>(`${this.API_URL}/${sessionId}/close`, request).pipe(
+      tap(() => {
+        this.currentSessionSubject.next(null);
+        this.currentSession.set(null);
+        this.isSessionOpen.set(false);
+      })
+    );
+  }
+
+  // Get sessions history
+  getSessions(filters: SessionFilters = {}): Observable<SessionCaisse[]> {
+    const params: any = {};
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        params[key] = value.toString();
+      }
+    });
+    
+    return this.http.get<SessionCaisse[]>(`${this.API_URL}`, { params });
+  }
+
+  // Get session report (X or Z)
+  getSessionReport(sessionId: number, type: 'X' | 'Z' = 'Z', format: 'html' | 'escpos' | 'pdf' = 'html'): Observable<any> {
+    const params = { type, format };
+    return this.http.get(`${this.API_URL}/${sessionId}/report`, { params });
+  }
+
+  // Admin: Reopen session
+  reopenSession(sessionId: number, reason: string): Observable<{
+    session: SessionCaisse;
+    changeRequest: any;
+  }> {
+    return this.http.post<any>(`${this.API_URL}/${sessionId}/reopen`, { reason });
+  }
+
+  // Print report
+  printReport(sessionId: number, type: 'X' | 'Z' = 'Z'): Observable<any> {
+    return this.getSessionReport(sessionId, type, 'escpos');
+  }
+
+  // Load current session on service initialization
+  private loadCurrentSession(): void {
+    this.getActiveSession().subscribe();
+  }
+
+  // Refresh current session
+  refreshCurrentSession(): void {
+    this.loadCurrentSession();
+  }
+
+  // Get cash movement type label in French
+  getCashMovementTypeLabel(type: string): string {
+    const labels: { [key: string]: string } = {
+      'ENTREE': 'Entrée de caisse',
+      'SORTIE': 'Sortie de caisse',
+      'DEPOT_COFFRE': 'Dépôt coffre',
+      'RETRAIT_CENTRALE': 'Retrait centrale',
+      'AJUSTEMENT': 'Ajustement'
+    };
+    return labels[type] || type;
+  }
+
+  // Get session status label in French
+  getSessionStatusLabel(status: string): string {
+    const labels: { [key: string]: string } = {
+      'OPEN': 'Ouverte',
+      'CLOSED': 'Fermée',
+      'REOPENED': 'Réouverte'
+    };
+    return labels[status] || status;
+  }
+
+  // Format currency for display
+  formatCurrency(amount: number): string {
+    return `${amount.toFixed(3)} TND`;
+  }
+
+  // Calculate denominations total
+  calculateDenominationsTotal(denominations: { [key: string]: number }): number {
+    return Object.entries(denominations).reduce((total, [denomination, quantity]) => {
+      return total + (parseFloat(denomination) * quantity);
+    }, 0);
+  }
+
+  // Get default denominations
+  getDefaultDenominations(): { [key: string]: number } {
+    return {
+      '50': 0,
+      '20': 0,
+      '10': 0,
+      '5': 0,
+      '2': 0,
+      '1': 0,
+      '0.5': 0,
+      '0.2': 0,
+      '0.1': 0,
+      '0.05': 0
+    };
+  }
+
+  // Validate cash counting
+  validateCashCounting(countedCash: number, expectedCash: number, threshold: number = 5.0): {
+    isValid: boolean;
+    variance: number;
+    requiresApproval: boolean;
+    message: string;
+  } {
+    const variance = countedCash - expectedCash;
+    const requiresApproval = Math.abs(variance) > threshold;
+    
+    let message = '';
+    if (variance === 0) {
+      message = 'Comptage parfait';
+    } else if (variance > 0) {
+      message = `Surplus de ${variance.toFixed(3)} TND`;
+    } else {
+      message = `Manque de ${Math.abs(variance).toFixed(3)} TND`;
+    }
+    
+    if (requiresApproval) {
+      message += ` (Approbation requise - seuil: ${threshold} TND)`;
+    }
+    
+    return {
+      isValid: true,
+      variance,
+      requiresApproval,
+      message
+    };
+  }
+}

@@ -1,0 +1,540 @@
+<div class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-4">
+  <!-- Home Button - Top Right -->
+  <div class="fixed top-6 right-6 z-40">
+    <a routerLink="/home"
+      class="w-12 h-12 bg-gray-800 text-pink-400 rounded-full shadow-2xl hover:bg-gray-700 transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+      title="Accueil">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+        </path>
+      </svg>
+    </a>
+  </div>
+
+  <div *ngIf="loading" class="flex items-center justify-center">
+    <div class="text-center">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-400 mx-auto mb-4"></div>
+      <p class="text-gray-400">Chargement...</p>
+    </div>
+  </div>
+
+  <div *ngIf="error" class="mb-4 p-4 bg-red-900/50 border border-red-500/50 text-red-300 rounded-xl">
+    {{ error }}
+  </div>
+
+  <div *ngIf="!loading" class="space-y-4 overflow-hidden">
+    <!-- Statistics Summary -->
+    <div *ngIf="stats" class="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+      <h3 class="text-lg font-semibold text-white mb-3">Résumé des dépenses</h3>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="text-center">
+          <p class="text-2xl font-bold text-pink-400">{{ formatCurrency(stats.total.amount) }}</p>
+          <p class="text-xs text-gray-400">Total dépenses</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-purple-400">{{ stats.total.count }}</p>
+          <p class="text-xs text-gray-400">Nombre total</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-green-400">{{ stats.approved.count }}</p>
+          <p class="text-xs text-gray-400">Approuvées</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-orange-400">{{ stats.pending.count }}</p>
+          <p class="text-xs text-gray-400">En attente</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 overflow-hidden">
+      <!-- Categories Section -->
+      <div class="xl:col-span-2">
+        <div class="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 overflow-hidden">
+          <h2 class="text-lg font-semibold text-white mb-4">Catégories de dépenses</h2>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-3 gap-3 h-full overflow-y-auto">
+            <div *ngFor="let category of categories" (click)="selectCategory(category)"
+              [class]="'bg-gray-700/50 hover:bg-gray-600/50 border-2 rounded-lg text-center cursor-pointer transition-all py-4 2xl:py-12 duration-300 transform hover:scale-95 flex flex-col items-center justify-center' + (selectedCategory?.id === category.id ? ' border-pink-400 bg-pink-400/10' : ' border-gray-600/50')">
+              <div class="w-12 h-12 bg-gray-600 rounded-full mx-auto mb-2 flex items-center justify-center shadow-lg">
+                <span class="text-2xl">{{ category.icon }}</span>
+              </div>
+              <h3 class="font-semibold text-white text-xs sm:text-sm mb-1">{{ category.name }}</h3>
+              <p class="text-pink-400 font-bold text-sm mb-1">
+                {{ formatCurrency(getCategoryAmount(category.id)) }}
+              </p>
+              <p class="text-gray-400 text-xs">{{ getCategoryCount(category.id) }} dépense(s)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Expenses -->
+      <div class="xl:col-span-1 flex flex-col">
+        <div class="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 flex-1 flex flex-col">
+          <h2 class="text-lg font-semibold text-white mb-4">Dépenses Récentes</h2>
+
+          <div class="flex-1 overflow-y-auto space-y-2">
+            <div *ngFor="let expense of getDisplayedExpenses()"
+              class="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30">
+              <div class="flex justify-between items-start mb-2">
+                <h4 class="font-semibold text-white text-xs">{{ expense.description }}</h4>
+                <span class="text-pink-400 font-bold text-sm">{{ formatCurrency(expense.amount) }}</span>
+              </div>
+              <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
+                <span>{{ expense.category?.name }}</span>
+                <span>{{ formatDate(expense.date) }}</span>
+              </div>
+              <div class="flex justify-between items-center text-xs text-gray-400">
+                <span class="flex items-center space-x-1">
+                  <span>{{ getPaymentTypeIcon(expense.paymentType) }}</span>
+                  <span>{{ getPaymentTypeLabel(expense.paymentType) }}</span>
+                </span>
+                <span *ngIf="expense.collectionDate !== expense.date">
+                  Encaissé: {{ formatDate(expense.collectionDate) }}
+                </span>
+              </div>
+              <div class="mt-1">
+                <span *ngIf="expense.isApproved"
+                  class="inline-block bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded-full">
+                  Approuvée
+                </span>
+                <span *ngIf="!expense.isApproved"
+                  class="inline-block bg-orange-500/20 text-orange-400 text-xs px-2 py-0.5 rounded-full">
+                  En attente
+                </span>
+              </div>
+            </div>
+            
+            <div *ngIf="expenses.length > 3" class="text-center pt-2">
+              <button (click)="openAllExpensesModal()" 
+                class="inline-flex items-center space-x-1 text-pink-400 hover:text-pink-300 transition-colors duration-200 group">
+                <span class="text-xs font-medium">Voir toutes ({{ expenses.length }})</span>
+                <svg class="w-3 h-3 transition-transform duration-200 group-hover:scale-110" 
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Expense Modal -->
+<div *ngIf="showAddExpenseModal"
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+  <div class="bg-gray-800 rounded-xl border border-gray-700/50 w-full max-w-sm 2xl:max-w-2xl max-h-[95vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-gray-700/50">
+      <h3 class="text-lg font-semibold text-white">Nouvelle Dépense</h3>
+      <button (click)="closeAddExpenseModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Montant (TND)</label>
+        <input type="number" [(ngModel)]="newExpense.amount" step="0.01"
+          class="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all"
+          placeholder="0.00">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Description</label>
+        <input type="text" [(ngModel)]="newExpense.description"
+          class="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all"
+          placeholder="Description de la dépense">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Date de Dépense</label>
+        <input type="date" [(ngModel)]="newExpense.date"
+          class="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Type de Paiement</label>
+        <div class="grid grid-cols-2 gap-2">
+          <div *ngFor="let paymentType of paymentTypes" (click)="selectPaymentType(paymentType.value)"
+            [class]="'flex items-center space-x-2 p-2 rounded-lg border-2 cursor-pointer transition-all' + (newExpense.paymentType === paymentType.value ? ' bg-pink-500/20 border-pink-400 text-pink-400' : ' bg-gray-700/50 border-gray-600/50 text-gray-300 hover:bg-gray-600/50')">
+            <span class="text-base">{{ paymentType.icon }}</span>
+            <span class="text-xs font-medium">{{ paymentType.label }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Date d'Encaissement</label>
+        <input type="date" [(ngModel)]="newExpense.collectionDate"
+          class="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Catégorie</label>
+        <div class="grid grid-cols-3 gap-2 max-h-24 overflow-y-auto">
+          <div *ngFor="let category of categories" (click)="selectCategory(category)"
+            [class]="'flex flex-col items-center p-2 rounded-lg border-2 cursor-pointer transition-all transform hover:scale-95' + (selectedCategory?.id === category.id ? ' bg-pink-500/20 border-pink-400 text-pink-400' : ' bg-gray-700/50 border-gray-600/50 text-gray-300 hover:bg-gray-600/50')">
+            <span class="text-xl mb-1">{{ category.icon }}</span>
+            <span class="text-xs text-center font-medium">{{ category.name }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Notes (optionnel)</label>
+        <textarea [(ngModel)]="newExpense.notes" rows="2"
+          class="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all resize-none"
+          placeholder="Notes supplémentaires"></textarea>
+      </div>
+    </div>
+
+    <div class="flex space-x-3 p-4 border-t border-gray-700/50 bg-gray-800/50">
+      <button (click)="closeAddExpenseModal()"
+        class="flex-1 bg-gray-700 text-white font-semibold py-3 px-4 rounded-xl hover:bg-gray-600 transition-all">
+        Annuler
+      </button>
+      <button (click)="saveExpense()"
+        class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-pink-600 hover:to-purple-700 transition-all">
+        Enregistrer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Category Modal -->
+<div *ngIf="showAddCategoryModal"
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+  <div class="bg-gray-800 rounded-xl border border-gray-700/50 w-full max-w-sm max-h-[95vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-gray-700/50">
+      <h3 class="text-lg font-semibold text-white">Nouvelle Catégorie</h3>
+      <button (click)="closeAddCategoryModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Nom</label>
+        <input type="text" [(ngModel)]="newCategory.name"
+          class="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all"
+          placeholder="Nom de la catégorie">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Description</label>
+        <textarea [(ngModel)]="newCategory.description" rows="3"
+          class="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all resize-none"
+          placeholder="Description de la catégorie"></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Couleur</label>
+          <input type="color" [(ngModel)]="newCategory.color"
+            class="w-full h-10 bg-gray-700/50 border border-gray-600/50 rounded-lg cursor-pointer">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Icône</label>
+          <input type="text" [(ngModel)]="newCategory.icon"
+            class="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all text-center text-xl"
+            placeholder="💰">
+        </div>
+      </div>
+    </div>
+
+    <div class="flex space-x-3 p-4 border-t border-gray-700/50 bg-gray-800/50">
+      <button (click)="closeAddCategoryModal()"
+        class="flex-1 bg-gray-700 text-white font-semibold py-3 px-4 rounded-xl hover:bg-gray-600 transition-all">
+        Annuler
+      </button>
+      <button (click)="saveCategory()"
+        class="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-blue-600 hover:to-cyan-700 transition-all">
+        Créer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Approval Modal -->
+<div *ngIf="showApprovalModal"
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+  <div class="bg-gray-800 rounded-xl border border-gray-700/50 w-full max-w-2xl max-h-[95vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-gray-700/50">
+      <h3 class="text-lg font-semibold text-white">Approbation des Dépenses</h3>
+      <button (click)="closeApprovalModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4">
+      <div *ngIf="pendingExpenses.length === 0" class="text-center py-6">
+        <p class="text-gray-400">Aucune dépense en attente d'approbation</p>
+      </div>
+
+      <div *ngFor="let expense of pendingExpenses" class="bg-gray-700/30 rounded-lg p-3 mb-3 border border-gray-600/30">
+        <div class="flex justify-between items-start mb-2">
+          <div class="flex-1">
+            <h4 class="font-semibold text-white text-sm">{{ expense.description }}</h4>
+            <p class="text-gray-400 text-xs">{{ expense.category?.name }} • {{ formatDate(expense.date) }}</p>
+            <p *ngIf="expense.notes" class="text-gray-400 text-xs mt-1">{{ expense.notes }}</p>
+          </div>
+          <div class="text-right">
+            <p class="text-pink-400 font-bold text-lg">{{ formatCurrency(expense.amount) }}</p>
+            <p class="text-gray-400 text-xs">{{ expense.user?.firstName }} {{ expense.user?.lastName }}</p>
+          </div>
+        </div>
+
+        <div class="flex space-x-2">
+          <button (click)="approveExpense(expense, true)"
+            class="flex-1 bg-green-600 text-white font-semibold py-2 px-3 rounded-lg hover:bg-green-700 transition-all text-sm">
+            Approuver
+          </button>
+          <button (click)="approveExpense(expense, false)"
+            class="flex-1 bg-red-600 text-white font-semibold py-2 px-3 rounded-lg hover:bg-red-700 transition-all text-sm">
+            Rejeter
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Statistics Modal -->
+<div *ngIf="showStatsModal"
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+  <div class="bg-gray-800 rounded-xl border border-gray-700/50 w-full max-w-4xl max-h-[95vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-gray-700/50">
+      <h3 class="text-lg font-semibold text-white">Statistiques Détaillées</h3>
+      <button (click)="closeStatsModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <!-- Pie Chart -->
+        <div class="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30">
+          <h4 class="text-base font-semibold text-white mb-3">Répartition par Catégorie</h4>
+          <div class="h-48 relative">
+            <canvas #pieChartCanvas></canvas>
+          </div>
+        </div>
+
+        <!-- Line Chart -->
+        <div class="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30">
+          <h4 class="text-base font-semibold text-white mb-3">Évolution des Dépenses</h4>
+          <div class="h-48 relative">
+            <canvas #lineChartCanvas></canvas>
+          </div>
+        </div>
+
+        <!-- Category Breakdown -->
+        <div class="xl:col-span-2 bg-gray-700/30 rounded-lg p-4 border border-gray-600/30">
+          <h4 class="text-base font-semibold text-white mb-3">Détail par Catégorie</h4>
+          <div class="space-y-2">
+            <div *ngFor="let category of stats?.byCategory"
+              class="flex justify-between items-center p-2 bg-gray-600/20 rounded-lg">
+              <div class="flex items-center space-x-2">
+                <span class="text-xl">{{ category.categoryIcon }}</span>
+                <div>
+                  <p class="font-semibold text-white text-sm">{{ category.categoryName }}</p>
+                  <p class="text-gray-400 text-xs">{{ category.count }} dépense(s)</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="text-pink-400 font-bold text-base">{{ formatCurrency(category.totalAmount) }}</p>
+                <p class="text-gray-400 text-xs">{{ ((category.totalAmount / stats!.total.amount) * 100).toFixed(1) }}%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- All Expenses Modal -->
+<div *ngIf="showAllExpensesModal"
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+  <div class="bg-gray-800 rounded-xl border border-gray-700/50 w-full max-w-4xl 2xl:max-w-7xl h-[95vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-gray-700/50">
+      <h3 class="text-lg font-semibold text-white">Toutes les Dépenses ({{ getFilteredExpenses().length }})</h3>
+      <button (click)="closeAllExpensesModal()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="p-4 border-b border-gray-700/50">
+      <div class="relative">
+        <input 
+          type="text" 
+          [(ngModel)]="searchQuery"
+          placeholder="Rechercher par description, catégorie, utilisateur, montant..."
+          class="w-full pl-3 pr-10 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all text-sm">
+        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+          <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+        <button 
+          *ngIf="searchQuery"
+          (click)="clearSearch()"
+          class="absolute inset-y-0 right-8 pr-2 flex items-center text-gray-400 hover:text-white transition-colors">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Quick Filters -->
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button 
+          (click)="setFilter('all')"
+          [class]="'px-3 py-1 rounded-full text-xs font-medium transition-all' + (activeFilter === 'all' ? ' bg-pink-500 text-white' : ' bg-gray-600/50 text-gray-300 hover:bg-gray-500/50')">
+          Toutes
+        </button>
+        <button 
+          (click)="setFilter('pending')"
+          [class]="'px-3 py-1 rounded-full text-xs font-medium transition-all' + (activeFilter === 'pending' ? ' bg-orange-500 text-white' : ' bg-gray-600/50 text-gray-300 hover:bg-gray-500/50')">
+          En attente
+        </button>
+        <button 
+          (click)="setFilter('approved')"
+          [class]="'px-3 py-1 rounded-full text-xs font-medium transition-all' + (activeFilter === 'approved' ? ' bg-green-500 text-white' : ' bg-gray-600/50 text-gray-300 hover:bg-gray-500/50')">
+          Approuvées
+        </button>
+        <button 
+          (click)="setFilter('cash')"
+          [class]="'px-3 py-1 rounded-full text-xs font-medium transition-all' + (activeFilter === 'cash' ? ' bg-yellow-500 text-white' : ' bg-gray-600/50 text-gray-300 hover:bg-gray-500/50')">
+          💵 Espèces
+        </button>
+        <button 
+          (click)="setFilter('check')"
+          [class]="'px-3 py-1 rounded-full text-xs font-medium transition-all' + (activeFilter === 'check' ? ' bg-blue-500 text-white' : ' bg-gray-600/50 text-gray-300 hover:bg-gray-500/50')">
+          🏦 Chèque
+        </button>
+        <button 
+          (click)="setFilter('transfer')"
+          [class]="'px-3 py-1 rounded-full text-xs font-medium transition-all' + (activeFilter === 'transfer' ? ' bg-purple-500 text-white' : ' bg-gray-600/50 text-gray-300 hover:bg-gray-500/50')">
+          💳 Virement
+        </button>
+        <button 
+          (click)="setFilter('wire')"
+          [class]="'px-3 py-1 rounded-full text-xs font-medium transition-all' + (activeFilter === 'wire' ? ' bg-indigo-500 text-white' : ' bg-gray-600/50 text-gray-300 hover:bg-gray-500/50')">
+          📄 Traite
+        </button>
+      </div>
+    </div>
+
+          <div class="flex-1 overflow-y-auto p-4">
+        <div *ngIf="getFilteredExpenses().length === 0" class="text-center py-8">
+          <p class="text-gray-400">{{ searchQuery ? 'Aucune dépense trouvée pour cette recherche' : 'Aucune dépense trouvée' }}</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+          <div *ngFor="let expense of getFilteredExpenses()" 
+            class="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30 hover:bg-gray-600/20 transition-colors">
+          <div class="flex justify-between items-start mb-3">
+            <div class="flex-1">
+              <h4 class="font-semibold text-white text-sm mb-1">{{ expense.description }}</h4>
+              <p class="text-gray-400 text-xs">{{ expense.category?.name }} • {{ formatDate(expense.date) }}</p>
+              <p *ngIf="expense.notes" class="text-gray-400 text-xs mt-1 italic">{{ expense.notes }}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-pink-400 font-bold text-lg">{{ formatCurrency(expense.amount) }}</p>
+              <p class="text-gray-400 text-xs">{{ expense.user?.firstName }} {{ expense.user?.lastName }}</p>
+            </div>
+          </div>
+
+          <div class="flex justify-between items-center text-xs text-gray-400 mb-2">
+            <span class="flex items-center space-x-1">
+              <span>{{ getPaymentTypeIcon(expense.paymentType) }}</span>
+              <span>{{ getPaymentTypeLabel(expense.paymentType) }}</span>
+            </span>
+            <span *ngIf="expense.collectionDate !== expense.date">
+              Encaissé: {{ formatDate(expense.collectionDate) }}
+            </span>
+          </div>
+
+          <div class="flex justify-between items-center">
+            <span *ngIf="expense.isApproved"
+              class="inline-block bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full">
+              Approuvée
+            </span>
+            <span *ngIf="!expense.isApproved"
+              class="inline-block bg-orange-500/20 text-orange-400 text-xs px-2 py-1 rounded-full">
+              En attente
+            </span>
+            <span class="text-gray-400 text-xs">
+              ID: {{ expense.id }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Floating Action Buttons -->
+<div class="fixed bottom-4 right-4 z-40 flex flex-col space-y-2">
+  <!-- Add Expense -->
+  <button (click)="openAddExpenseModal()"
+    class="w-12 h-12 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full shadow-2xl hover:from-pink-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+    title="Nouvelle Dépense">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+    </svg>
+  </button>
+
+  <!-- Add Category -->
+  <button (click)="openAddCategoryModal()"
+    class="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-full shadow-2xl hover:from-blue-600 hover:to-cyan-700 transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+    title="Nouvelle Catégorie">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+      </path>
+    </svg>
+  </button>
+
+  <!-- Approvals -->
+  <button (click)="openApprovalModal()"
+    class="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-full shadow-2xl hover:from-orange-600 hover:to-red-700 transition-all duration-300 transform hover:scale-95 flex items-center justify-center relative"
+    title="Approbations">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <span *ngIf="pendingExpenses.length > 0"
+      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 py-0.5 rounded-full min-w-[16px] text-center font-bold">{{
+      pendingExpenses.length }}</span>
+  </button>
+
+  <!-- Statistics -->
+  <button (click)="openStatsModal()"
+    class="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full shadow-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+    title="Statistiques">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+      </path>
+    </svg>
+  </button>
+
+
+</div>

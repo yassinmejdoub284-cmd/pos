@@ -1,0 +1,572 @@
+<div class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h1 class="text-3xl font-bold text-white">Gestion des Clients</h1>
+        <div class="flex gap-3">
+          <button (click)="openCreatePopup()" 
+            class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            <span>Nouveau Client</span>
+          </button>
+          <a routerLink="/home" 
+            class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            <span>Retour</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6 mb-6">
+      <h2 class="text-xl font-bold text-white mb-4">Filtres</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <!-- Search -->
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Recherche</label>
+          <input 
+            type="text" 
+            [(ngModel)]="searchQuery"
+            (input)="applyFilters()"
+            placeholder="Nom, email, téléphone, code..."
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-pink-400 transition-colors">
+        </div>
+
+        <!-- Type Filter -->
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Type de client</label>
+          <select [(ngModel)]="selectedType" (change)="applyFilters()" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400">
+            <option *ngFor="let type of clientTypes" [value]="type.value">{{ type.label }}</option>
+          </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Statut</label>
+          <select [(ngModel)]="selectedStatus" (change)="applyFilters()" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400">
+            <option value="true">Actifs</option>
+            <option value="false">Inactifs</option>
+            <option value="">Tous</option>
+          </select>
+        </div>
+
+        <!-- Results Count -->
+        <div class="flex items-end">
+          <div class="text-gray-300 text-sm">
+            {{ totalClients }} client{{ totalClients !== 1 ? 's' : '' }} trouvé{{ totalClients !== 1 ? 's' : '' }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-end">
+        <button (click)="clearFilters()" 
+          class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition-colors">
+          Effacer les filtres
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="text-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-400 mx-auto"></div>
+      <p class="text-gray-400 mt-4">Chargement des clients...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6">
+      <p class="text-red-400">{{ error }}</p>
+    </div>
+
+    <!-- Clients Table -->
+    <div *ngIf="!loading && !error" class="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="bg-gray-700/50 text-gray-300 border-b border-gray-600/30">
+              <th class="text-left p-4">Code</th>
+              <th class="text-left p-4">Nom</th>
+              <th class="text-left p-4">Contact</th>
+              <th class="text-left p-4">Type</th>
+              <th class="text-left p-4">Points Fidélité</th>
+              <th class="text-left p-4">Total Dépensé</th>
+              <th class="text-left p-4">Statut</th>
+              <th class="text-left p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let client of clients" class="border-b border-gray-600/20 hover:bg-gray-700/30 transition-colors">
+              <td class="p-4 text-white font-medium">{{ client.code }}</td>
+              <td class="p-4">
+                <div class="text-white font-medium">{{ client.firstName }} {{ client.lastName }}</div>
+                <div class="text-gray-400 text-sm">{{ client.city || 'Aucune ville' }}</div>
+              </td>
+              <td class="p-4">
+                <div class="text-white">{{ client.phone || 'Aucun téléphone' }}</div>
+              </td>
+              <td class="p-4">
+                <span [class]="'px-2 py-1 rounded-full text-xs font-medium ' + getClientTypeColor(client.clientType)">
+                  {{ getClientTypeLabel(client.clientType) }}
+                </span>
+              </td>
+              <td class="p-4 text-white">{{ client.loyaltyPoints }}</td>
+              <td class="p-4 text-pink-400 font-bold">{{ client.totalSpent | number:'1.3-3' }} dt</td>
+              <td class="p-4">
+                <span [class]="'px-2 py-1 rounded-full text-xs font-medium ' + (client.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400')">
+                  {{ client.isActive ? 'Actif' : 'Inactif' }}
+                </span>
+              </td>
+              <td class="p-4">
+                <div class="flex gap-2">
+                  <button (click)="openDetailsPopup(client)" class="text-blue-400 hover:text-blue-300 transition-colors p-1 rounded" title="Voir détails">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                  </button>
+                  <button (click)="openEditPopup(client)" class="text-yellow-400 hover:text-yellow-300 transition-colors p-1 rounded" title="Modifier">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                  </button>
+                  <button (click)="openDeletePopup(client)" class="text-red-400 hover:text-red-300 transition-colors p-1 rounded" title="Supprimer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="clients.length === 0" class="text-center py-12">
+        <svg class="w-16 h-16 mx-auto mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+        </svg>
+        <p class="text-gray-400">Aucun client trouvé</p>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="totalPages > 1" class="flex justify-center items-center space-x-2 mt-6">
+      <button 
+        (click)="changePage(currentPage - 1)"
+        [disabled]="currentPage === 1"
+        class="px-3 py-2 bg-gray-700/50 text-white rounded-lg hover:bg-gray-600/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        Précédent
+      </button>
+      
+      <div class="flex space-x-1">
+        <button 
+          *ngFor="let page of [].constructor(totalPages); let i = index"
+          (click)="changePage(i + 1)"
+          [class]="'px-3 py-2 rounded-lg transition-colors ' + 
+                   (currentPage === i + 1 ? 'bg-pink-600 text-white' : 'bg-gray-700/50 text-white hover:bg-gray-600/50')">
+          {{ i + 1 }}
+        </button>
+      </div>
+      
+      <button 
+        (click)="changePage(currentPage + 1)"
+        [disabled]="currentPage === totalPages"
+        class="px-3 py-2 bg-gray-700/50 text-white rounded-lg hover:bg-gray-600/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        Suivant
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Client Popup -->
+<div *ngIf="showCreatePopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Nouveau Client</h2>
+      <button (click)="closePopups()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Prénom *</label>
+          <input type="text" [(ngModel)]="createForm.firstName" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Nom *</label>
+          <input type="text" [(ngModel)]="createForm.lastName" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Téléphone</label>
+          <input type="tel" [(ngModel)]="createForm.phone" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Ville</label>
+          <select [(ngModel)]="createForm.city"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+            <option *ngFor="let city of tunisianCities" [value]="city">{{ city }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Tranche d'âge</label>
+          <select [(ngModel)]="createForm.ageGroup"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+            <option value="ADULT">Adulte</option>
+            <option value="TEEN">Adolescent</option>
+            <option value="ELDER">Senior</option>
+            <option value="CHILD">Enfant</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Type de client</label>
+          <select [(ngModel)]="createForm.clientType" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+            <option value="INDIVIDUAL">Particulier</option>
+            <option value="BUSINESS">Entreprise</option>
+            <option value="WHOLESALE">Gros</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm text-gray-300 mb-1">Notes</label>
+          <textarea [(ngModel)]="createForm.notes" rows="3"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors resize-none"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6">
+        <button (click)="closePopups()" 
+          class="px-4 py-2 bg-gray-700/60 rounded-md text-white hover:bg-gray-700 transition-colors">
+          Annuler
+        </button>
+        <button (click)="createClient()" 
+          class="px-4 py-2 bg-pink-600 rounded-md text-white hover:bg-pink-500 transition-colors">
+          Créer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Client Popup -->
+<div *ngIf="showEditPopup && selectedClient" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Modifier Client - {{ selectedClient.code }}</h2>
+      <button (click)="closePopups()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Prénom *</label>
+          <input type="text" [(ngModel)]="editForm.firstName" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Nom *</label>
+          <input type="text" [(ngModel)]="editForm.lastName" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Téléphone</label>
+          <input type="tel" [(ngModel)]="editForm.phone" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Ville</label>
+          <select [(ngModel)]="editForm.city"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+            <option *ngFor="let city of tunisianCities" [value]="city">{{ city }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Tranche d'âge</label>
+          <select [(ngModel)]="editForm.ageGroup"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+            <option value="ADULT">Adulte</option>
+            <option value="TEEN">Adolescent</option>
+            <option value="ELDER">Senior</option>
+            <option value="CHILD">Enfant</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Type de client</label>
+          <select [(ngModel)]="editForm.clientType" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+            <option value="INDIVIDUAL">Particulier</option>
+            <option value="BUSINESS">Entreprise</option>
+            <option value="WHOLESALE">Gros</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Points fidélité</label>
+          <input type="number" [(ngModel)]="editForm.loyaltyPoints" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Total dépensé (dt)</label>
+          <input type="number" step="0.001" [(ngModel)]="editForm.totalSpent" 
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm text-gray-300 mb-1">Produits favoris</label>
+          <textarea [(ngModel)]="editForm.favoriteProducts" rows="2"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors resize-none"></textarea>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm text-gray-300 mb-1">Notes</label>
+          <textarea [(ngModel)]="editForm.notes" rows="3"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors resize-none"></textarea>
+        </div>
+        <div class="md:col-span-2">
+          <label class="flex items-center">
+            <input type="checkbox" [(ngModel)]="editForm.isActive" 
+              class="mr-2 bg-gray-700/50 border border-gray-600/50 rounded text-pink-400 focus:ring-pink-400">
+            <span class="text-sm text-gray-300">Client actif</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6">
+        <button (click)="closePopups()" 
+          class="px-4 py-2 bg-gray-700/60 rounded-md text-white hover:bg-gray-700 transition-colors">
+          Annuler
+        </button>
+        <button (click)="updateClient()" 
+          class="px-4 py-2 bg-yellow-600 rounded-md text-white hover:bg-yellow-500 transition-colors">
+          Mettre à jour
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Popup -->
+<div *ngIf="showDeletePopup && selectedClient" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-md w-full">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Confirmer la suppression</h2>
+      <button (click)="closePopups()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-6">
+      <p class="text-gray-300 mb-4">
+        Êtes-vous sûr de vouloir supprimer le client <strong class="text-white">{{ selectedClient.firstName }} {{ selectedClient.lastName }}</strong> ({{ selectedClient.code }}) ?
+      </p>
+      <p class="text-red-400 text-sm mb-6">Cette action ne peut pas être annulée.</p>
+
+      <div class="flex justify-end gap-3">
+        <button (click)="closePopups()" 
+          class="px-4 py-2 bg-gray-700/60 rounded-md text-white hover:bg-gray-700 transition-colors">
+          Annuler
+        </button>
+        <button (click)="deleteClient()" 
+          class="px-4 py-2 bg-red-600 rounded-md text-white hover:bg-red-500 transition-colors">
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Client Details Popup -->
+<div *ngIf="showDetailsPopup && selectedClient" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Détails Client - {{ selectedClient.code }}</h2>
+      <button (click)="closePopups()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Client Info -->
+        <div class="bg-gray-700/30 rounded-lg p-4">
+          <h3 class="text-lg font-bold text-white mb-4">Informations personnelles</h3>
+          <div class="space-y-3">
+            <div>
+              <span class="text-gray-400 text-sm">Nom complet:</span>
+              <div class="text-white">{{ selectedClient.firstName }} {{ selectedClient.lastName }}</div>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Téléphone:</span>
+              <div class="text-white">{{ selectedClient.phone || 'Non renseigné' }}</div>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Ville:</span>
+              <div class="text-white">{{ selectedClient.city || 'Non renseignée' }}</div>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Tranche d'âge:</span>
+              <div class="text-white">
+                {{ selectedClient.ageGroup === 'ADULT' ? 'Adulte' : selectedClient.ageGroup === 'TEEN' ? 'Adolescent' : selectedClient.ageGroup === 'ELDER' ? 'Senior' : selectedClient.ageGroup === 'CHILD' ? 'Enfant' : 'Non renseignée' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Business Info -->
+        <div class="bg-gray-700/30 rounded-lg p-4">
+          <h3 class="text-lg font-bold text-white mb-4">Informations commerciales</h3>
+          <div class="space-y-3">
+            <div>
+              <span class="text-gray-400 text-sm">Type:</span>
+              <div>
+                <span [class]="'px-2 py-1 rounded-full text-xs font-medium ' + getClientTypeColor(selectedClient.clientType)">
+                  {{ getClientTypeLabel(selectedClient.clientType) }}
+                </span>
+              </div>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Points fidélité:</span>
+              <div class="text-white">{{ selectedClient.loyaltyPoints }}</div>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Total dépensé:</span>
+              <div class="text-pink-400 font-bold">{{ selectedClient.totalSpent | number:'1.3-3' }} dt</div>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Statut:</span>
+              <div>
+                <span [class]="'px-2 py-1 rounded-full text-xs font-medium ' + (selectedClient.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400')">
+                  {{ selectedClient.isActive ? 'Actif' : 'Inactif' }}
+                </span>
+              </div>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Date de création:</span>
+              <div class="text-white">{{ selectedClient.createdAt | date:'short' }}</div>
+            </div>
+            <div>
+              <span class="text-gray-400 text-sm">Dernière modification:</span>
+              <div class="text-white">{{ selectedClient.updatedAt | date:'short' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Additional Info -->
+        <div class="md:col-span-2 bg-gray-700/30 rounded-lg p-4">
+          <h3 class="text-lg font-bold text-white mb-4">Informations supplémentaires</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <span class="text-gray-400 text-sm">Produits favoris:</span>
+              <div class="text-white mt-1">{{ selectedClient.favoriteProducts || 'Aucun produit favori' }}</div>
+            </div>
+
+            <div class="md:col-span-2">
+              <span class="text-gray-400 text-sm">Notes:</span>
+              <div class="text-white mt-1">{{ selectedClient.notes || 'Aucune note' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Sales -->
+        <div *ngIf="selectedClient.sales && selectedClient.sales.length > 0" class="md:col-span-2 bg-gray-700/30 rounded-lg p-4">
+          <h3 class="text-lg font-bold text-white mb-4">Dernières ventes</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-gray-400 border-b border-gray-600/30">
+                  <th class="text-left p-2">Date</th>
+                  <th class="text-left p-2">Total</th>
+                  <th class="text-left p-2">Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let sale of selectedClient.sales" class="border-b border-gray-600/20">
+                  <td class="p-2 text-white">{{ sale.createdAt | date:'short' }}</td>
+                  <td class="p-2 text-pink-400">{{ sale.finalTotal | number:'1.3-3' }} dt</td>
+                  <td class="p-2">
+                    <span [class]="'px-2 py-0.5 rounded-full text-xs ' + 
+                      (sale.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' : 
+                       sale.status === 'PENDING' ? 'bg-yellow-500/20 text-yellow-400' : 
+                       'bg-gray-500/20 text-gray-400')">
+                      {{ sale.status }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end mt-6">
+        <button (click)="closePopups()" 
+          class="px-4 py-2 bg-gray-700/60 rounded-md text-white hover:bg-gray-700 transition-colors">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Alert System -->
+<div *ngIf="showAlert" 
+  class="fixed top-4 right-4 z-50 max-w-sm w-full transform transition-all duration-300 ease-in-out">
+  <div class="bg-gray-800/95 border border-gray-700/50 rounded-xl shadow-2xl overflow-hidden">
+    <div class="flex items-center justify-between p-4 border-b border-gray-600/30">
+      <div class="flex items-center space-x-3">
+        <div [class]="'w-3 h-3 rounded-full ' + 
+          (alertType === 'success' ? 'bg-green-400' : 
+           alertType === 'error' ? 'bg-red-400' : 'bg-blue-400')">
+        </div>
+        <h3 class="text-white font-medium">
+          {{ alertType === 'success' ? 'Succès' : 
+             alertType === 'error' ? 'Erreur' : 'Information' }}
+        </h3>
+      </div>
+      <button (click)="showAlert = false" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="p-4">
+      <div class="text-gray-300 text-sm whitespace-pre-line">{{ alertMessage }}</div>
+    </div>
+    <div class="h-1 bg-gray-700/50">
+      <div class="h-full transition-all duration-5000 ease-linear"
+        [class]="'bg-gradient-to-r ' + 
+          (alertType === 'success' ? 'from-green-400 to-green-500' : 
+           alertType === 'error' ? 'from-red-400 to-red-500' : 'from-blue-400 to-blue-500')">
+      </div>
+    </div>
+  </div>
+</div> 

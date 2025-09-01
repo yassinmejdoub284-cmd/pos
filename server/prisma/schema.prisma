@@ -1,0 +1,644 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique @db.VarChar(50)
+  email        String   @unique @db.VarChar(100)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  firstName    String   @map("first_name") @db.VarChar(50)
+  lastName     String   @map("last_name") @db.VarChar(50)
+  role         UserRole
+  depotId      Int?     @map("depot_id")
+  isActive     Boolean  @default(true) @map("is_active")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  depot        Depot?   @relation("DepotUsers", fields: [depotId], references: [id])
+  managedDepot Depot?   @relation("DepotManager")
+  sales        Sale[]
+  stockMovements StockMovement[]
+  requestedTransfers StockTransfer[] @relation("RequestedBy")
+  approvedTransfers StockTransfer[] @relation("ApprovedBy")
+  expenses     Expense[]
+  approvedExpenses Expense[] @relation("ExpenseApprover")
+  auditLogs    AuditLog[]
+  documentStatusHistory DocumentStatusHistory[]
+  debtTransactions ClientDebtTransaction[]
+  sessions     SessionCaisse[]
+  cashMovements CashMovement[]
+  requestedChanges ChangeRequest[] @relation("RequestedBy")
+  approvedChanges ChangeRequest[] @relation("ApprovedBy")
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Depot {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  code      String   @unique @db.VarChar(20)
+  type      DepotType
+  address   String   @db.Text
+  city      String   @db.VarChar(50)
+  phone     String?  @db.VarChar(20)
+  email     String?  @db.VarChar(100)
+  managerId Int?     @unique @map("manager_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  manager   User?    @relation("DepotManager", fields: [managerId], references: [id])
+  users     User[]   @relation("DepotUsers")
+  inventory Inventory[]
+  sales     Sale[]
+  stockMovements StockMovement[]
+  fromTransfers StockTransfer[] @relation("FromDepot")
+  toTransfers StockTransfer[] @relation("ToDepot")
+  fromStockMovements StockMovement[] @relation("FromDepot")
+  toStockMovements StockMovement[] @relation("ToDepot")
+  expenses Expense[]
+  emittedDocuments StockDocument[] @relation("Emetteur")
+  receivedDocuments StockDocument[] @relation("Destinataire")
+  productConservation ProductConservation[]
+  sessions     SessionCaisse[]
+
+  @@map("depots")
+}
+
+
+
+model ProductFamily {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  photo       String?  @db.VarChar(255)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  products    Product[]
+
+  @@map("product_families")
+}
+
+model Product {
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(200)
+  description   String?  @db.Text
+  familleId     Int      @map("famille_id")
+  barcode       String?  @unique @db.VarChar(50)
+  unite         String   @default("pcs") @db.VarChar(20)
+  prix_vente_TTC Decimal @db.Decimal(10, 2) @map("prix_vente_ttc")
+  tva           Decimal  @default(19) @db.Decimal(5, 2)
+  photo         String?  @db.VarChar(255)
+  duree_conservation Int? @map("duree_conservation")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  famille      ProductFamily @relation(fields: [familleId], references: [id])
+  inventory    Inventory[]
+  saleItems    SaleItem[] @relation("ProductSaleItems")
+  stockMovements StockMovement[]
+  stockTransferItems StockTransferItem[]
+  documentItems StockDocumentItem[]
+  conservation ProductConservation[]
+
+  @@map("products")
+}
+
+model ProductConservation {
+  id                Int      @id @default(autoincrement())
+  productId         Int      @map("product_id")
+  depotId           Int      @map("depot_id")
+  batchQuantity     Decimal  @map("batch_quantity") @db.Decimal(10, 3)
+  remainingQuantity Decimal  @map("remaining_quantity") @db.Decimal(10, 3)
+  productionDate    DateTime @map("production_date")
+  expirationDate    DateTime @map("expiration_date")
+  isExpired         Boolean  @default(false) @map("is_expired")
+  isWarningShown    Boolean  @default(false) @map("is_warning_shown")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  depot             Depot    @relation(fields: [depotId], references: [id], onDelete: Cascade)
+
+  @@map("product_conservation")
+}
+
+model Inventory {
+  id              Int      @id @default(autoincrement())
+  depotId         Int      @map("depot_id")
+  productId       Int      @map("product_id")
+  quantity        Int      @default(0)
+  reservedQuantity Int     @default(0) @map("reserved_quantity")
+  lastUpdated     DateTime @updatedAt @map("last_updated")
+
+  depot           Depot    @relation(fields: [depotId], references: [id])
+  product         Product  @relation(fields: [productId], references: [id])
+
+  @@unique([depotId, productId])
+  @@map("inventory")
+}
+
+model Client {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique @db.VarChar(20)
+  firstName       String   @map("first_name") @db.VarChar(50)
+  lastName        String   @map("last_name") @db.VarChar(50)
+  email           String?  @unique @db.VarChar(100)
+  phone           String?  @db.VarChar(20)
+  address         String?  @db.Text
+  city            String?  @db.VarChar(50)
+  postalCode      String?  @map("postal_code") @db.VarChar(10)
+  birthday        DateTime? @db.Date
+  clientType      ClientType @default(INDIVIDUAL) @map("client_type")
+  loyaltyPoints   Int      @default(0) @map("loyalty_points")
+  totalSpent      Decimal  @default(0) @map("total_spent") @db.Decimal(12, 3)
+  favoriteProducts String? @map("favorite_products") @db.Text
+  allergies       String?  @db.Text
+  notes           String?  @db.Text
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  ageGroup        String?  @map("age_group") @db.VarChar(20)
+  currentDebt     Decimal  @default(0) @map("current_debt") @db.Decimal(12, 3)
+  maxDebt         Decimal? @map("max_debt") @db.Decimal(12, 3)
+  allowDebt       Boolean  @default(true) @map("allow_debt")
+
+  sales           Sale[]
+  debtTransactions ClientDebtTransaction[]
+
+  @@map("clients")
+}
+
+model ClientDebtTransaction {
+  id        Int      @id @default(autoincrement())
+  clientId  Int      @map("client_id")
+  saleId    Int?     @map("sale_id")
+  amount    Decimal  @db.Decimal(12, 3)
+  type      String   @db.VarChar(20) // DEBT or PAYMENT
+  notes     String?  @db.Text
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  client    Client   @relation(fields: [clientId], references: [id])
+  sale      Sale?    @relation(fields: [saleId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("client_debt_transactions")
+}
+
+model AppSettings {
+  id                    Int      @id @default(autoincrement())
+  companyName           String?  @map("company_name") @db.VarChar(200)
+  logoUrl               String?  @map("logo_url") @db.VarChar(255)
+  loyaltyEnabled        Boolean  @default(false) @map("loyalty_enabled")
+  loyaltyRate           Decimal  @default(1) @map("loyalty_rate") @db.Decimal(8, 3) // points per 1 dt
+  maxDiscountPercent    Decimal  @default(50) @map("max_discount_percent") @db.Decimal(5, 2)
+  defaultClientMaxDebt  Decimal  @default(0) @map("default_client_max_debt") @db.Decimal(12, 3)
+  keyboardShortcuts     Json?
+  devicesConfig         Json?    @map("devices_config")
+  auditRetentionDays    Int      @default(90) @map("audit_retention_days")
+  // Clôture settings
+  varianceThreshold     Decimal  @default(5.0) @map("variance_threshold") @db.Decimal(8, 3)
+  defaultFonds          Decimal  @default(50.0) @map("default_fonds") @db.Decimal(12, 3)
+  denominations         Json?    // Array of denomination values
+  requireApprovalForVariance Boolean @default(true) @map("require_approval_for_variance")
+  ticketWidth           Int      @default(58) @map("ticket_width")
+  droitDeTimbre         Boolean  @default(false) @map("droit_de_timbre")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}
+
+model PaymentMethod {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(50)
+  type      PaymentMethodType
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  sales     Sale[]
+
+  @@map("payment_methods")
+}
+
+model Sale {
+  id              Int         @id @default(autoincrement())
+  total           Decimal     @db.Decimal(10, 3)
+  discount        Decimal     @default(0) @db.Decimal(10, 3)
+  finalTotal      Decimal     @map("final_total") @db.Decimal(10, 3)
+  status          SaleStatus  @default(PENDING)
+  expectedDate    DateTime?   @map("expected_date")
+  notes           String?     @db.Text
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  userId          Int         @map("user_id")
+  depotId         Int         @map("depot_id")
+  sessionId       Int?        @map("session_id")
+  paymentMethodId Int?        @map("payment_method_id")
+  clientId        Int?        @map("client_id")
+
+  user            User        @relation(fields: [userId], references: [id])
+  depot           Depot       @relation(fields: [depotId], references: [id])
+  session         SessionCaisse? @relation(fields: [sessionId], references: [id])
+  paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  client          Client?     @relation(fields: [clientId], references: [id])
+  items           SaleItem[]
+  debtTransactions ClientDebtTransaction[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id          Int      @id @default(autoincrement())
+  saleId      Int      @map("sale_id")
+  productId   Int      @map("product_id")
+  productName String   @map("product_name") @db.VarChar(200)
+  quantity    Int
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  total       Decimal  @db.Decimal(10, 2)
+  discount    Decimal  @default(0) @db.Decimal(10, 2)
+
+  sale        Sale     @relation(fields: [saleId], references: [id])
+  product     Product  @relation("ProductSaleItems", fields: [productId], references: [id])
+
+  @@map("sale_items")
+}
+
+model StockMovement {
+  id         Int      @id @default(autoincrement())
+  productId  Int      @map("product_id")
+  depotId    Int      @map("depot_id")
+  quantity   Int
+  type       StockMovementType
+  fromDepotId Int?    @map("from_depot_id")
+  toDepotId  Int?     @map("to_depot_id")
+  reason     String   @db.VarChar(200)
+  reference  String?  @db.VarChar(100)
+  userId     Int      @map("user_id")
+  date       DateTime @default(now())
+
+  product    Product  @relation(fields: [productId], references: [id])
+  depot      Depot    @relation(fields: [depotId], references: [id])
+  fromDepot  Depot?   @relation("FromDepot", fields: [fromDepotId], references: [id])
+  toDepot    Depot?   @relation("ToDepot", fields: [toDepotId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@map("stock_movements")
+}
+
+model StockTransfer {
+  id            Int      @id @default(autoincrement())
+  fromDepotId   Int      @map("from_depot_id")
+  toDepotId     Int      @map("to_depot_id")
+  status        TransferStatus @default(PENDING)
+  requestedBy   Int      @map("requested_by")
+  approvedBy    Int?     @map("approved_by")
+  requestedAt   DateTime @default(now()) @map("requested_at")
+  approvedAt    DateTime? @map("approved_at")
+  transferredAt DateTime? @map("transferred_at")
+  notes         String?  @db.Text
+
+  fromDepot     Depot    @relation("FromDepot", fields: [fromDepotId], references: [id])
+  toDepot       Depot    @relation("ToDepot", fields: [toDepotId], references: [id])
+  requester     User     @relation("RequestedBy", fields: [requestedBy], references: [id])
+  approver      User?    @relation("ApprovedBy", fields: [approvedBy], references: [id])
+  items         StockTransferItem[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id                  Int      @id @default(autoincrement())
+  transferId          Int      @map("transfer_id")
+  productId           Int      @map("product_id")
+  quantity            Int
+  transferredQuantity Int      @default(0) @map("transferred_quantity")
+
+  transfer            StockTransfer @relation(fields: [transferId], references: [id])
+  product             Product       @relation(fields: [productId], references: [id])
+
+  @@map("stock_transfer_items")
+}
+
+model ExpenseCategory {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(100)
+  description String?   @db.Text
+  color       String    @db.VarChar(20)
+  icon        String    @db.VarChar(50)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  expenses    Expense[]
+
+  @@map("expense_categories")
+}
+
+model Expense {
+  id           Int      @id @default(autoincrement())
+  amount       Decimal  @db.Decimal(10, 2)
+  description  String   @db.VarChar(200)
+  categoryId   Int      @map("category_id")
+  depotId      Int      @map("depot_id")
+  userId       Int      @map("user_id")
+  date         DateTime @default(now())
+  paymentType  PaymentType @default(CASH) @map("payment_type")
+  collectionDate DateTime @default(now()) @map("collection_date")
+  receiptUrl   String?  @map("receipt_url") @db.VarChar(255)
+  notes        String?  @db.Text
+  isApproved   Boolean  @default(false) @map("is_approved")
+  approvedBy   Int?     @map("approved_by")
+  approvedAt   DateTime? @map("approved_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  depot       Depot           @relation(fields: [depotId], references: [id])
+  user        User            @relation(fields: [userId], references: [id])
+  approver    User?           @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+
+  @@map("expenses")
+}
+
+model AuditLog {
+  id          Int       @id @default(autoincrement())
+  tableName   String    @map("table_name") @db.VarChar(100)
+  recordId    Int       @map("record_id")
+  action      String    @db.VarChar(20) // CREATE, UPDATE, DELETE
+  oldValues   Json?     @map("old_values")
+  newValues   Json?     @map("new_values")
+  userId      Int       @map("user_id")
+  ipAddress   String?   @map("ip_address") @db.VarChar(45)
+  userAgent   String?   @map("user_agent") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model StockDocument {
+  id              Int            @id @default(autoincrement())
+  numero          String         @unique @db.VarChar(50)
+  type            DocumentType
+  status          DocumentStatus @default(PREPARED)
+  emetteurId      Int            @map("emetteur_id")
+  destinataireId  Int            @map("destinataire_id")
+  notes           String?        @db.Text
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  emetteur        Depot          @relation("Emetteur", fields: [emetteurId], references: [id])
+  destinataire    Depot          @relation("Destinataire", fields: [destinataireId], references: [id])
+  items           StockDocumentItem[]
+  statusHistory   DocumentStatusHistory[]
+  sourceLinks     StockDocumentLink[] @relation("SourceDocument")
+  targetLinks     StockDocumentLink[] @relation("TargetDocument")
+
+  @@map("stock_documents")
+}
+
+model StockDocumentItem {
+  id                Int      @id @default(autoincrement())
+  documentId        Int      @map("document_id")
+  productId         Int      @map("product_id")
+  famille           String   @db.VarChar(100)
+  quantity          Int
+  batch             String?  @db.VarChar(50)
+  notes             String?  @db.Text
+  barcode           String?  @unique @db.VarChar(50)
+
+  document          StockDocument @relation(fields: [documentId], references: [id])
+  product           Product       @relation(fields: [productId], references: [id])
+
+  @@map("stock_document_items")
+}
+
+model DocumentStatusHistory {
+  id          Int            @id @default(autoincrement())
+  documentId  Int            @map("document_id")
+  status      DocumentStatus
+  userId      Int            @map("user_id")
+  notes       String?        @db.Text
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  document    StockDocument  @relation(fields: [documentId], references: [id])
+  user        User           @relation(fields: [userId], references: [id])
+
+  @@map("document_status_history")
+}
+
+model StockDocumentLink {
+  id                Int      @id @default(autoincrement())
+  sourceDocumentId  Int      @map("source_document_id")
+  targetDocumentId  Int      @map("target_document_id")
+  linkType          String   @db.VarChar(50)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  sourceDocument    StockDocument @relation("SourceDocument", fields: [sourceDocumentId], references: [id])
+  targetDocument    StockDocument @relation("TargetDocument", fields: [targetDocumentId], references: [id])
+
+  @@unique([sourceDocumentId, targetDocumentId])
+  @@map("stock_document_links")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  CASHIER
+  STOCK_MANAGER
+}
+
+enum DepotType {
+  MAIN
+  BRANCH
+  SHOP
+  WAREHOUSE
+}
+
+enum PaymentMethodType {
+  CASH
+  CARD
+  MOBILE
+  BANK_TRANSFER
+}
+
+enum SaleStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+  TEMPORARY
+  PENDING_ADMIN
+  CADEAU
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  TRANSFER
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  TRANSFERRED
+  CANCELLED
+}
+
+enum PaymentType {
+  CASH
+  CHECK
+  BANK_TRANSFER
+  WIRE_TRANSFER
+}
+
+enum DocumentType {
+  BON_EXPEDITION
+  BON_ENTREE_DEPOT
+  BON_TRANSFERT
+  BON_ENTREE_MAGASIN
+}
+
+enum DocumentStatus {
+  PREPARED
+  SENT
+  RECEIVED
+  CANCELLED
+}
+
+enum ClientType {
+  INDIVIDUAL
+  BUSINESS
+  WHOLESALE
+}
+
+model SessionCaisse {
+  id            Int      @id @default(autoincrement())
+  posId         Int      @map("pos_id")
+  userId        Int      @map("user_id")
+  depotId       Int?     @map("depot_id")
+  magasinId     Int?     @map("magasin_id")
+  openedAt      DateTime @default(now()) @map("opened_at")
+  closedAt      DateTime? @map("closed_at")
+  openingFund   Decimal  @map("opening_fund") @db.Decimal(12, 3)
+  expectedCash  Decimal  @map("expected_cash") @db.Decimal(12, 3)
+  countedCash   Decimal? @map("counted_cash") @db.Decimal(12, 3)
+  variance      Decimal? @db.Decimal(12, 3)
+  status        SessionStatus @default(OPEN)
+  xSeq          Int      @default(0) @map("x_seq")
+  zSeq          Int      @default(0) @map("z_seq")
+  note          String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user          User     @relation(fields: [userId], references: [id])
+  depot         Depot?   @relation(fields: [depotId], references: [id])
+  cashMovements CashMovement[]
+  sales         Sale[]
+
+  @@map("session_caisse")
+}
+
+model CashMovement {
+  id          Int      @id @default(autoincrement())
+  sessionId   Int      @map("session_id")
+  type        CashMovementType
+  amount      Decimal  @db.Decimal(12, 3)
+  reason      String   @db.VarChar(200)
+  ticketId    Int?     @map("ticket_id")
+  createdById Int      @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  session     SessionCaisse @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdBy   User          @relation(fields: [createdById], references: [id])
+
+  @@map("cash_movements")
+}
+
+model ChangeRequest {
+  id          Int      @id @default(autoincrement())
+  type        String   @db.VarChar(50) // SESSION_REOPEN, VARIANCE_APPROVAL
+  entityId    Int      @map("entity_id")
+  entityType  String   @map("entity_type") @db.VarChar(50)
+  reason      String   @db.Text
+  status      RequestStatus @default(PENDING)
+  requestedBy Int      @map("requested_by")
+  approvedBy  Int?     @map("approved_by")
+  approvedAt  DateTime? @map("approved_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  requester   User     @relation("RequestedBy", fields: [requestedBy], references: [id])
+  approver    User?    @relation("ApprovedBy", fields: [approvedBy], references: [id])
+
+  @@map("change_requests")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  type      String   @db.VarChar(50)
+  title     String   @db.VarChar(200)
+  message   String   @db.Text
+  data      Json?
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model Outbox {
+  id            Int      @id @default(autoincrement())
+  eventType     String   @map("event_type") @db.VarChar(100)
+  aggregateId   String   @map("aggregate_id") @db.VarChar(100)
+  eventData     Json     @map("event_data")
+  status        OutboxStatus @default(PENDING)
+  retryCount    Int      @default(0) @map("retry_count")
+  lastAttempt   DateTime? @map("last_attempt")
+  createdAt     DateTime @default(now()) @map("created_at")
+  processedAt   DateTime? @map("processed_at")
+
+  @@map("outbox")
+}
+
+enum SessionStatus {
+  OPEN
+  CLOSED
+  REOPENED
+}
+
+enum CashMovementType {
+  ENTREE
+  SORTIE
+  DEPOT_COFFRE
+  RETRAIT_CENTRALE
+  AJUSTEMENT
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+} 

@@ -1,0 +1,47 @@
+{
+  "name": "pos-patisserie-server",
+  "version": "1.0.0",
+  "description": "Tunisian Pâtisserie POS System Backend",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "node prisma/seed.js",
+    "db:studio": "prisma studio"
+  },
+  "keywords": [
+    "pos",
+    "patisserie",
+    "tunisia",
+    "inventory",
+    "sales"
+  ],
+  "dependencies": {
+    "@prisma/client": "^6.15.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.6.5",
+    "socket.io": "^4.7.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "prisma": "^6.15.0",
+    "supertest": "^6.3.3",
+    "vitest": "^1.0.4"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

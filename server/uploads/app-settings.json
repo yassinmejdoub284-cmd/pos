@@ -1,0 +1,11 @@
+{
+  "companyName": "",
+  "logoUrl": "",
+  "loyaltyEnabled": true,
+  "loyaltyRate": 1,
+  "maxDiscountPercent": 50,
+  "defaultClientMaxDebt": 0,
+  "keyboardShortcuts": {},
+  "devicesConfig": {},
+  "auditRetentionDays": 90
+}

@@ -1,0 +1,68 @@
+<!-- Modal Overlay -->
+<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700/50 w-full max-w-md">
+    <!-- Modal Header -->
+    <div class="p-6 border-b border-gray-700/50">
+      <h2 class="text-xl font-semibold text-white">
+        {{ family ? 'Modifier la famille' : 'Nouvelle famille' }}
+      </h2>
+      <p class="text-gray-400 text-sm mt-1">
+        {{ family ? 'Modifiez les informations de la famille' : 'Créez une nouvelle famille de produits' }}
+      </p>
+    </div>
+
+    <!-- Error Message -->
+    <div *ngIf="error" class="mx-6 mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm">
+      {{ error }}
+    </div>
+
+    <!-- Form -->
+    <form [formGroup]="familyForm" (ngSubmit)="onSubmit()" class="p-6">
+      <div class="space-y-4">
+        <!-- Family Name -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Nom de la famille *</label>
+          <input type="text" formControlName="name"
+            class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all"
+            placeholder="Ex: Pâtisseries Traditionnelles">
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Description</label>
+          <textarea formControlName="description" rows="3"
+            class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all resize-none"
+            placeholder="Description de la famille (optionnel)"></textarea>
+        </div>
+
+        <!-- Active Status -->
+        <div class="flex items-center">
+          <input type="checkbox" formControlName="isActive" id="isActive"
+            class="w-4 h-4 text-pink-600 bg-gray-700 border-gray-600 rounded focus:ring-pink-500 focus:ring-2">
+          <label for="isActive" class="ml-2 text-sm text-gray-300">
+            Famille active
+          </label>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="flex space-x-3 mt-6">
+        <button type="button" (click)="onCancel()"
+          class="flex-1 px-4 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg transition-all">
+          Annuler
+        </button>
+        <button type="submit" [disabled]="familyForm.invalid || loading"
+          class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-lg hover:from-rose-600 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          <span *ngIf="!loading">{{ family ? 'Mettre à jour' : 'Créer' }}</span>
+          <span *ngIf="loading" class="flex items-center justify-center">
+            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ family ? 'Mise à jour...' : 'Création...' }}
+          </span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

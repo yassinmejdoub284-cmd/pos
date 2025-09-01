@@ -1,0 +1,565 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg: #f8fafc;
+  --color-surface: #fff;
+  --color-primary: #6366f1; /* Vibrant Indigo */
+  --color-secondary: #06b6d4; /* Vibrant Teal */
+  --color-accent: #f59e42; /* Vibrant Orange */
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-warning: #facc15;
+  --color-info: #3b82f6;
+  --color-muted: #e5e7eb;
+  --color-border: #e0e7ef;
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+  --radius-lg: 1.25rem;
+  --radius-md: 0.75rem;
+  --radius-sm: 0.5rem;
+  --shadow-lg: 0 8px 32px 0 rgba(60,60,120,0.10);
+  --shadow-md: 0 4px 16px 0 rgba(60,60,120,0.08);
+  --shadow-sm: 0 2px 8px 0 rgba(60,60,120,0.06);
+}
+
+*, ::after, ::before, ::backdrop, ::file-selector-button{
+  border: 0;
+}
+
+html, body {
+  font-family: 'Inter', 'Roboto', Arial, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 16px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+}
+
+.marker-icon {
+  font-size: 3em !important;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
+}
+
+.marker-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: 'Inter', 'Roboto', Arial, sans-serif;
+  margin-left: -4rem !important;
+  background-color: white;
+  text-align: center;
+  margin-top: -10px;
+  border: 1px solid;
+}
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.btn {
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+  cursor: pointer;
+}
+.btn:hover, .btn:focus {
+  background: var(--color-secondary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px) scale(1.03);
+}
+
+input, select, textarea {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+  transition: border 0.2s, box-shadow 0.2s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary)22;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  background: var(--color-muted);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 8px;
+}
+
+/* Invisible scrollbar for modal content */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
+
+/* Mobile-specific styles for delivery tracking */
+@media (max-width: 768px) {
+  /* Ensure content doesn't overflow on mobile */
+  .min-h-screen {
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  /* Adjust map height for mobile */
+  #map {
+    height: 50vh !important;
+    min-height: 300px;
+  }
+  
+  /* Ensure cards don't overflow */
+  .bg-white {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  
+  /* Adjust text sizes for mobile */
+  .text-3xl {
+    font-size: 1.5rem;
+  }
+  
+  .text-2xl {
+    font-size: 1.25rem;
+  }
+  
+  .text-xl {
+    font-size: 1.125rem;
+  }
+  
+  .text-lg {
+    font-size: 1rem;
+  }
+  
+  /* Ensure buttons are properly sized */
+  .px-4 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  .py-2 {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  /* Adjust spacing for mobile */
+  .gap-4 {
+    gap: 0.75rem;
+  }
+  
+  .mb-8 {
+    margin-bottom: 1.5rem;
+  }
+  
+  .p-6 {
+    padding: 1rem;
+  }
+  
+  /* Ensure floating action button doesn't interfere */
+  .fixed {
+    z-index: 9999;
+  }
+  
+  /* Adjust legend positioning */
+  .absolute.bottom-6.right-6 {
+    bottom: 0.5rem;
+    right: 0.5rem;
+    max-width: 200px;
+  }
+  
+  /* Adjust card padding for mobile */
+  .p-4 {
+    padding: 0.75rem;
+  }
+  
+  /* Ensure text truncation works */
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* Adjust icon sizes for mobile */
+  .text-3xl {
+    font-size: 1.5rem;
+  }
+  
+  .text-2xl {
+    font-size: 1.25rem;
+  }
+  
+  .text-xl {
+    font-size: 1.125rem;
+  }
+}
+
+/* Additional mobile optimizations */
+@media (max-width: 480px) {
+  /* Further reduce sizes for very small screens */
+  .text-lg {
+    font-size: 0.875rem;
+  }
+  
+  .text-sm {
+    font-size: 0.75rem;
+  }
+  
+  .text-xs {
+    font-size: 0.625rem;
+  }
+  
+  /* Adjust padding for very small screens */
+  .px-4 {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  .py-2 {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+  }
+  
+  /* Ensure map controls are accessible */
+  .absolute.top-6.left-6 {
+    top: 0.5rem;
+    left: 0.5rem;
+  }
+  
+  /* Adjust floating action button size */
+  .h-16.w-16 {
+    height: 3rem;
+    width: 3rem;
+  }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Prevent zoom on input focus in iOS Safari */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  
+  /* Fix for iOS Safari viewport height issues */
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Fix for iOS Safari flexbox issues */
+  .flex {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    -ms-flex: 1;
+    flex: 1;
+  }
+  
+  /* Prevent iOS Safari from adding its own styling */
+  button, input, select, textarea {
+    border-radius: 0;
+  }
+  
+  /* Fix for iOS Safari position: fixed issues */
+  .fixed {
+    position: fixed;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+  
+  /* Ensure proper touch targets on iOS */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Fix for iOS Safari backdrop-filter issues */
+  .backdrop-blur-sm {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+  
+  /* Ensure proper z-index stacking on iOS */
+  .z-10, .z-20, .z-50, .z-\[9999\] {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+}
+
+a{
+  text-decoration-line: none !important;
+}
+
+input, select{
+  background-color: whitesmoke;
+  padding: 10px;
+  border-bottom: solid 1px black;
+  border-end-end-radius: 0;
+  border-end-start-radius: 0;
+  outline: none !important;
+}
+
+button{
+  cursor: pointer;
+}
+
+[dir=rtl] .mat-mdc-text-field-wrapper{
+  height: 40px !important;
+  padding: 0 !important;
+  margin-top: 5px;
+}
+.mdc-text-field{
+  border: none !important;
+  height: auto !important;
+}
+.mdc-text-field--no-label .mat-mdc-form-field-infix{
+  padding: 0 !important;
+  border-bottom: 0 !important;
+}
+
+/* Material Icons fixes */
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar Base */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background-color: transparent;
+}
+
+/* Track (Background) */
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+/* Thumb (Draggable Handle) */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #d1d5db 0%, #9ca3af 100%); /* subtle metallic gradient */
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.3s ease, border 0.3s ease;
+}
+
+/* Thumb Hover */
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%);
+  border: 2px solid #e5e7eb;
+}
+
+/* Thumb Active (While Dragging) */
+::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%);
+  border: 2px solid #d1d5db;
+  cursor: grabbing;
+}
+
+/* Corner between vertical and horizontal scrollbars */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+@media print {
+  @page{
+    margin: 0;
+  }
+}
+
+@media print {
+  html, body { height: auto !important; overflow: visible !important; }
+  .fixed, .sticky { position: static !important; }
+  .overflow-hidden, .overflow-x-auto, .overflow-y-auto, .overflow-auto { overflow: visible !important; }
+  .min-h-screen { min-height: 0 !important; }
+  .shadow, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl { box-shadow: none !important; }
+  .rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl { border-radius: 0 !important; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tr { page-break-inside: avoid; }
+  .bg-blue-50, .bg-blue-800, .bg-blue-900, .bg-gray-50 { background: transparent !important; }
+  .border-b-4 { border-bottom-width: 0 !important; }
+}
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+
+.fc-toolbar {
+  flex-wrap: wrap !important;
+}
+
+.fc-header-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+
+.fc-toolbar-title {
+  font-size: 16px !important; /* ✅ Smaller title */
+}
+
+@media (max-width: 768px) {
+  .fc-button {
+    font-size: 12px !important;
+    padding: 5px 8px !important;
+  }
+  .fc-toolbar-title{
+    font-size: 1rem !important;
+  }
+}
+
+/* Map container fixes */
+#map {
+  position: relative;
+  background-color: #f5f5f5;
+}
+
+/* Leaflet specific fixes */
+.leaflet-container {
+  background-color: #f5f5f5 !important;
+}
+
+.leaflet-tile {
+  filter: none !important;
+  visibility: visible !important;
+}
+
+.leaflet-top, .leaflet-bottom {
+  z-index: 1000 !important;
+}
+
+.leaflet-routing-container {
+  display: none !important;
+}
+
+/* Animation classes for shipment detail */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-fade-in-slow {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Map icons for shipment detail */
+.map-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-icon .inner-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.origin-icon .inner-circle {
+  background: #3b82f6; /* blue-500 */
+}
+
+.destination-icon .inner-circle {
+  background: #22c55e; /* green-500 */
+}
+
+.current-icon .inner-circle {
+  background: #f59e0b; /* amber-500 */
+}
+
+.current-icon .pulse {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #f59e0b;
+  opacity: 0.6;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+ 
+.reset-input-style {
+  background: #fff !important;
+  border-radius: 4px !important;
+  border: 1px solid #e0e7ef !important;
+  box-shadow: none !important;
+  padding: 0.75rem 1rem !important;
+  font-size: 1rem !important;
+  color: var(--color-text) !important;
+  outline: none !important;
+}
+
+.client-autocomplete input.mat-input-element {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
