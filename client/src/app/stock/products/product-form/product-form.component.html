@@ -1,0 +1,126 @@
+<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+  <div class="bg-gray-800 rounded-xl border border-gray-700/50 w-full max-w-2xl max-h-[95vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-gray-700/50">
+      <h3 class="text-lg font-semibold text-white">
+        {{ product ? 'Modifier le Produit' : 'Nouveau Produit' }}
+      </h3>
+      <button (click)="onCancel()" class="text-gray-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div *ngIf="error" class="mx-4 mt-4 p-3 bg-red-900/50 border border-red-500/50 text-red-300 rounded-lg">
+      {{ error }}
+    </div>
+
+    <form [formGroup]="productForm" (ngSubmit)="onSubmit()" class="flex-1 overflow-y-auto p-4 space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="lg:col-span-2">
+          <label class="block text-sm font-medium text-gray-300 mb-2">Nom *</label>
+          <input type="text" formControlName="name"
+            class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all"
+            placeholder="Nom du produit">
+        </div>
+
+        <div class="lg:col-span-2">
+          <label class="block text-sm font-medium text-gray-300 mb-2">Description</label>
+          <textarea formControlName="description" rows="2"
+            class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all resize-none"
+            placeholder="Description du produit"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Famille *</label>
+          <select formControlName="famille"
+            class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all">
+            <option value="Général">Général</option>
+            <option value="Pâtisserie">Pâtisserie</option>
+            <option value="Viennoiserie">Viennoiserie</option>
+            <option value="Boulangerie">Boulangerie</option>
+            <option value="Boissons">Boissons</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Code-barres</label>
+          <div class="flex space-x-2">
+            <input type="text" formControlName="barcode"
+              class="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all"
+              placeholder="Code-barres">
+            <button type="button" (click)="generateBarcode()"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all">
+              Générer
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Unité *</label>
+          <select formControlName="unite"
+            class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all">
+            <option value="pcs">Pièces</option>
+            <option value="kg">Kilogrammes</option>
+            <option value="g">Grammes</option>
+            <option value="l">Litres</option>
+            <option value="ml">Millilitres</option>
+            <option value="m">Mètres</option>
+            <option value="cm">Centimètres</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Prix de vente TTC *</label>
+          <input type="number" formControlName="prix_vente_TTC" step="0.01"
+            class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all"
+            placeholder="0.00">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">TVA (%) *</label>
+          <input type="number" formControlName="tva" step="0.01"
+            class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all"
+            placeholder="19">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Durée de conservation (jours)</label>
+          <input type="number" formControlName="duree_conservation"
+            class="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all"
+            placeholder="Durée en jours">
+        </div>
+
+        <div class="lg:col-span-2">
+          <label class="block text-sm font-medium text-gray-300 mb-2">Photo</label>
+          <div class="flex items-center space-x-4">
+            <input type="file" (change)="onFileSelected($event)" accept="image/*"
+              class="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-pink-600 file:text-white hover:file:bg-pink-700">
+            
+            <div *ngIf="imagePreview" class="w-20 h-20">
+              <img [src]="imagePreview" alt="Aperçu" class="w-full h-full object-cover rounded-lg">
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div class="flex space-x-3 p-4 border-t border-gray-700/50 bg-gray-800/50">
+      <button (click)="onCancel()" type="button"
+        class="flex-1 bg-gray-700 text-white font-semibold py-3 px-4 rounded-xl hover:bg-gray-600 transition-all">
+        Annuler
+      </button>
+      <button (click)="onSubmit()" type="submit" [disabled]="!productForm.valid || loading"
+        class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-pink-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+        <span *ngIf="loading" class="flex items-center justify-center">
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Enregistrement...
+        </span>
+        <span *ngIf="!loading">{{ product ? 'Modifier' : 'Créer' }}</span>
+      </button>
+    </div>
+  </div>
+</div> 

@@ -1,0 +1,106 @@
+<div class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-4">
+  <div class="max-w-7xl mx-auto">
+    <div class="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-2xl font-bold text-white">Centre d'approbation</h2>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div class="md:col-span-2">
+            <input type="text" [(ngModel)]="searchQuery" (input)="applyFilters()" placeholder="Rechercher (ID, notes)"
+              class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-pink-400 transition-colors" />
+          </div>
+          <div>
+            <input type="date" [(ngModel)]="startDate" (change)="applyFilters()"
+              class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors" />
+          </div>
+          <div>
+            <input type="date" [(ngModel)]="endDate" (change)="applyFilters()"
+              class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400 transition-colors" />
+          </div>
+        </div>
+        <div class="mt-3 flex justify-end">
+          <button (click)="clearFilters()" class="px-3 py-2 bg-gray-700/60 rounded-md text-white hover:bg-gray-700 transition-colors">Effacer</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex gap-2 mb-4">
+        <button (click)="selectedTab='PENDING_ADMIN'" [class]="'px-4 py-2 rounded-lg text-sm font-medium ' + (selectedTab==='PENDING_ADMIN' ? 'bg-orange-600 text-white' : 'bg-gray-700/60 text-gray-300 hover:bg-gray-700')">
+          En attente Admin
+          <span class="ml-2 px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 text-xs">{{ pendingGifts.length }}</span>
+        </button>
+        <button (click)="selectedTab='CADEAU'" [class]="'px-4 py-2 rounded-lg text-sm font-medium ' + (selectedTab==='CADEAU' ? 'bg-purple-600 text-white' : 'bg-gray-700/60 text-gray-300 hover:bg-gray-700')">
+          Cadeaux approuvés
+          <span class="ml-2 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs">{{ approvedGifts.length }}</span>
+        </button>
+      </div>
+
+      <!-- Lists -->
+      <div *ngIf="loading" class="text-gray-400">Chargement...</div>
+      <div *ngIf="!loading && error" class="text-red-400">{{ error }}</div>
+
+      <!-- Pending list -->
+      <div *ngIf="!loading && !error && selectedTab==='PENDING_ADMIN'">
+        <div *ngIf="pendingGifts.length===0" class="text-gray-400 text-sm">Aucune demande en attente</div>
+        <div *ngFor="let sale of pendingGifts" class="bg-gray-700/40 rounded-lg p-4 border border-gray-600/30 mb-2">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-white font-bold">#{{ sale.id }}</div>
+              <div class="text-xs text-gray-400">{{ sale.createdAt | date:'short' }}</div>
+              <div class="text-sm text-gray-300 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
+              <div class="text-sm text-gray-400 mt-1">Articles: {{ sale.items.length || 0 }}</div>
+            </div>
+            <div class="flex gap-2">
+              <button (click)="reject(sale)" class="px-3 py-1 bg-red-600/70 hover:bg-red-600 text-white rounded-md text-sm">Rejeter</button>
+              <button (click)="approve(sale)" class="px-3 py-1 bg-green-600/70 hover:bg-green-600 text-white rounded-md text-sm">Approuver</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Approved list -->
+      <div *ngIf="!loading && !error && selectedTab==='CADEAU'">
+        <div *ngIf="approvedGifts.length===0" class="text-gray-400 text-sm">Aucun cadeau approuvé</div>
+        <div *ngFor="let sale of approvedGifts" class="bg-gray-700/40 rounded-lg p-4 border border-gray-600/30 mb-2">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-white font-bold">#{{ sale.id }}</div>
+              <div class="text-xs text-gray-400">{{ sale.createdAt | date:'short' }}</div>
+              <div class="text-sm text-gray-300 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
+              <div class="text-sm text-gray-400 mt-1">Articles: {{ sale.items.length || 0 }}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-green-400 font-bold">0.000 dt</div>
+              <div class="text-xs text-gray-400">Cadeau</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Themed Alert System -->
+  <div *ngIf="showAlert" class="fixed top-4 right-4 z-50 max-w-sm w-full transform transition-all duration-300 ease-in-out">
+    <div class="bg-gray-800/95 border border-gray-700/50 rounded-xl shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between p-4 border-b border-gray-600/30">
+        <div class="flex items-center space-x-3">
+          <div [class]="'w-3 h-3 rounded-full ' + (alertType === 'success' ? 'bg-green-400' : alertType === 'error' ? 'bg-red-400' : 'bg-blue-400')"></div>
+          <h3 class="text-white font-medium">{{ alertType === 'success' ? 'Succès' : alertType === 'error' ? 'Erreur' : 'Information' }}</h3>
+        </div>
+        <button (click)="showAlert=false" class="text-gray-400 hover:text-white transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="p-4"><div class="text-gray-300 text-sm whitespace-pre-line">{{ alertMessage }}</div></div>
+      <div class="h-1 bg-gray-700/50">
+        <div class="h-full transition-all duration-5000 ease-linear" [class]="'bg-gradient-to-r ' + (alertType === 'success' ? 'from-green-400 to-green-500' : alertType === 'error' ? 'from-red-400 to-red-500' : 'from-blue-400 to-blue-500')"></div>
+      </div>
+    </div>
+  </div>
+</div> 

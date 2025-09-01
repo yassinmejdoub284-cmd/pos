@@ -1,0 +1,64 @@
+# -------------------------
+# Generated / Prisma
+# -------------------------
+server/generated/prisma
+
+# -------------------------
+# Global
+# -------------------------
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE / Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Dependency lock files (optional: remove these lines if you want to commit them)
+# package-lock.json
+# yarn.lock
+
+# -------------------------
+# Angular (client)
+# -------------------------
+
+client/node_modules
+client/dist
+client/.angular/cache
+client/out-tsc
+client/coverage
+client/tmp
+
+# Environment files (don’t commit secrets)
+client/src/environments/environment*.ts
+
+# -------------------------
+# Node.js (server)
+# -------------------------
+
+server/node_modules
+server/dist
+server/coverage
+server/logs
+server/tmp
+
+# Runtime data
+server/pids
+server/*.pid
+server/*.seed
+server/*.pid.lock
+
+# Environment file
+server/.env

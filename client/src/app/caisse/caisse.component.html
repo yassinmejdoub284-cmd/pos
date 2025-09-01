@@ -1,0 +1,1230 @@
+<div class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+  <!-- Home Button - Top Right -->
+  <div class="fixed bottom-6 left-6 z-40">
+    <a routerLink="/home"
+      class="w-12 h-12 bg-gray-800 text-pink-400 rounded-full shadow-2xl hover:bg-gray-700 transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+      title="Accueil">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+        </path>
+      </svg>
+    </a>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="grid grid-cols-1 lg:grid-cols-7 gap-6">
+
+    <!-- Left Column - Receipt Panel (2/3) -->
+    <div class="lg:col-span-3 bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 pb-0 flex flex-col">
+
+  <!-- Top Header Bar -->
+  <div class="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 mb-4">
+    <div class="flex justify-between items-center">
+      <div class="flex items-center space-x-8">
+        <div>
+          <div class="text-lg font-bold text-white">{{ currentCustomer }}</div>
+          <div class="text-sm text-gray-300">CAISSIER +</div>
+              <!-- Temporary Sale Badge -->
+              <div *ngIf="isTemporarySale" class="mt-2">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                  <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  Vente temporaire: {{ getTemporarySaleBadge() }}
+                </span>
+              </div>
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-lg font-bold text-white">TOTAL</div>
+            <div class="text-3xl font-bold text-pink-400">{{ total | number:'1.3-3' }}<span class="text-xs font-serif">dt</span></div>
+      </div>
+    </div>
+  </div>
+      
+      <!-- Order List Header -->
+      <div class="bg-gray-700/50 p-3">
+        <div class="grid grid-cols-12 gap-2 text-sm font-medium text-gray-300">
+          <div class="col-span-3">Code</div>
+          <div class="col-span-4">Des.</div>
+          <div class="col-span-1">Qté</div>
+          <div class="col-span-2">Prix</div>
+          <div class="col-span-1">Mnt.</div>
+        </div>
+      </div>
+
+      <!-- Order Items List -->
+      <div class="flex-1 overflow-y-auto mb-3 max-h-[100px] 2xl:max-h-[260px]">
+        <div *ngFor="let item of receiptItems"
+          class="grid grid-cols-12 gap-2 text-sm py-2 border-b border-gray-600/30 text-white">
+          <div class="col-span-3 text-gray-300">{{ truncate(item.product.barcode || '', 8) }}</div>
+          <div class="col-span-4 font-medium">{{ truncate(item.product.name, 14) }}</div>
+          <div class="col-span-1">{{ item.quantity }}</div>
+          <div class="col-span-2">{{ item.unitPrice }}</div>
+          <div class="col-span-1 font-bold text-pink-400">{{ item.total | number:'1.3-3' }}</div>
+        </div>
+      </div>
+
+      <!-- Summary Area -->
+      <div class="bg-gray-700/50 rounded-lg p-3 space-y-2 mb-3">
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-300">Sous-total:</span>
+          <span class="text-white">{{ subtotal | number:'1.3-3' }}<span class="text-xs font-serif">dt</span></span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-300">Remise:</span>
+          <span class="text-green-400">{{ discount | number:'1.3-3' }}<span class="text-xs font-serif">dt</span></span>
+        </div>
+        <div class="flex justify-between text-sm font-semibold border-t border-gray-600/30 pt-2">
+          <span class="text-white">Net à payer:</span>
+          <span class="text-pink-400">{{ netTotal | number:'1.3-3' }}<span class="text-xs font-serif">dt</span></span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-300">Rendu espèce:</span>
+          <span class="text-blue-400">{{ change | number:'1.3-3' }}<span class="text-xs font-serif">dt</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column - Actions (1/3) -->
+    <div class="lg:col-span-4 bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 pb-0 flex flex-col">
+      
+      <!-- Action Buttons Grid -->
+      <div class="grid grid-cols-4 xl:grid-cols-3 gap-3 mb-6">
+        <button *ngFor="let button of actionButtons" (click)="button.action()"
+          class="text-white rounded-md transition-all text-sm font-medium flex flex-col items-center justify-center py-5 2xl:py-6 relative"
+          [style.background-color]="button.color">
+          <svg class="w-12 h-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="button.icon"></path>
+          </svg>
+          {{ button.label }}
+          <!-- Badge for pending temporary sales -->
+          <div *ngIf="button.id === 'temporary' && pendingTemporarySalesCount > 0" 
+            class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+            {{ pendingTemporarySalesCount }}
+          </div>
+          <!-- Badge for pending gift sales -->
+          <div *ngIf="button.id === 'gift' && pendingGiftSalesCount > 0" 
+            class="absolute -top-2 -right-2 bg-purple-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+            {{ pendingGiftSalesCount }}
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+      <!-- Right Column - Actions (1/3) -->
+    <div class="grid grid-cols-3 bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 gap-4">
+
+      <!-- Product Grid -->
+      <div class="overflow-y-auto col-span-2">
+        <!-- Search Bar -->
+        <div class="mb-4">
+          <input 
+            type="text" 
+            [(ngModel)]="searchQuery"
+            (input)="onSearchChange()"
+            placeholder="Rechercher un produit..."
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-pink-400 transition-colors">
+        </div>
+
+        <!-- Quick Filter Buttons -->
+        <div class="mb-4 flex flex-wrap gap-2">
+          <button 
+            *ngFor="let category of productCategories"
+            (click)="selectCategory(category)"
+            [class]="'px-3 py-1 rounded-full text-xs font-medium transition-all ' + 
+                     (selectedCategory === category ? 'bg-pink-400 text-white' : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50')">
+            {{ category }}
+          </button>
+        </div>
+
+        <!-- Products Grid with Horizontal Scrolling -->
+        <div class="relative" (keydown)="onKeyDown($event)" tabindex="0">
+          <!-- Navigation Arrows for PC -->
+          <button *ngIf="filteredProducts.length > 4" 
+            (click)="scrollLeft()"
+            class="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-gray-800/90 text-white p-2 rounded-full hover:bg-gray-700/90 transition-all shadow-lg hover:scale-110">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+          </button>
+          
+          <button *ngIf="filteredProducts.length > 4" 
+            (click)="scrollRight()"
+            class="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-gray-800/90 text-white p-2 rounded-full hover:bg-gray-700/90 transition-all shadow-lg hover:scale-110">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </button>
+
+          <!-- Products Grid -->
+          <div class="flex gap-3 overflow-x-auto pb-4 products-scroll-container px-8 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800/30 cursor-grab"
+               (mousedown)="onMouseDown($event)"
+               (mousemove)="onMouseMove($event)"
+               (mouseup)="onMouseUp($event)"
+               (mouseleave)="onMouseLeave($event)">
+                        <button *ngFor="let product of filteredProducts" 
+            (click)="onProductClick($event, product)"
+              class="bg-gray-700/50 hover:bg-gray-600/50 border border-gray-600/50 rounded-lg p-3 text-center transition-all duration-300 transform hover:scale-95 flex-shrink-0 w-32 cursor-pointer">
+            <!-- Product Image -->
+            <div class="w-full h-20 mb-2 bg-gray-600/50 rounded-lg flex items-center justify-center overflow-hidden">
+              <img *ngIf="product.photo" 
+                [src]="product.photo" 
+                [alt]="product.name"
+                class="w-full h-full object-cover">
+              <svg *ngIf="!product.photo" class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <div class="font-medium text-xs mb-1 text-white truncate">{{ product.name }}</div>
+            <div class="text-pink-400 font-bold text-sm">{{ product.prix_vente_TTC | number:'1.3-3' }}<span class="text-xs font-serif">dt</span></div>
+          </button>
+        </div>
+
+
+        </div>
+
+        <!-- No Products Message -->
+        <div *ngIf="filteredProducts.length === 0" class="text-center py-8 text-gray-400">
+          <svg class="w-12 h-12 mx-auto mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+          <p>Aucun produit trouvé</p>
+        </div>
+      </div>
+
+    <div>
+      <!-- Numeric Keypad -->
+      <div class="grid grid-cols-4 gap-1 mb-4 col-span-1">
+        <button *ngFor="let num of [7,8,9,'-',4,5,6,'+',1,2,3,'▄',0]" (click)="addToInput(num.toString())"
+          class="bg-gray-700/50 text-white p-4 rounded-sm hover:bg-gray-600 transition-all text-2xl font-medium border border-gray-600/50">
+          {{ num }}
+        </button>
+        <button (click)="addDecimal()"
+          class="bg-gray-700/50 text-white p-3 rounded-lg hover:bg-gray-600 transition-all text-lg font-medium border border-gray-600/50">
+          .
+        </button>
+        <button (click)="clearInput()"
+          class="bg-red-600/70 text-white p-3 rounded-lg hover:bg-red-600 transition-all text-sm font-medium border border-red-500/50">
+          C
+        </button>
+        <button (click)="enterValue()"
+          class="bg-green-600/70 text-white p-3 rounded-lg hover:bg-green-600 transition-all text-sm font-medium border border-green-500/50 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- Alert System -->
+<div *ngIf="showAlert" 
+  class="fixed top-4 right-4 z-50 max-w-sm w-full transform transition-all duration-300 ease-in-out"
+  [class]="'animate-in slide-in-from-right-2'">
+  <div class="bg-gray-800/95 border border-gray-700/50 rounded-xl shadow-2xl overflow-hidden">
+    <!-- Alert Header -->
+    <div class="flex items-center justify-between p-4 border-b border-gray-600/30">
+      <div class="flex items-center space-x-3">
+        <div [class]="'w-3 h-3 rounded-full ' + 
+          (alertType === 'success' ? 'bg-green-400' : 
+           alertType === 'error' ? 'bg-red-400' : 'bg-blue-400')">
+        </div>
+        <h3 class="text-white font-medium">
+          {{ alertType === 'success' ? 'Succès' : 
+             alertType === 'error' ? 'Erreur' : 'Information' }}
+        </h3>
+      </div>
+      <button (click)="hideAlert()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Alert Content -->
+    <div class="p-4">
+      <div class="text-gray-300 text-sm whitespace-pre-line">{{ alertMessage }}</div>
+    </div>
+    
+    <!-- Progress Bar -->
+    <div class="h-1 bg-gray-700/50">
+      <div class="h-full transition-all duration-5000 ease-linear"
+        [class]="'bg-gradient-to-r ' + 
+          (alertType === 'success' ? 'from-green-400 to-green-500' : 
+           alertType === 'error' ? 'from-red-400 to-red-500' : 'from-blue-400 to-blue-500')">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Articles Popup -->
+<div *ngIf="showArticlesPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-6xl w-full max-h-[90vh] overflow-hidden">
+    <!-- Header -->
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Articles - Stock Magasin</h2>
+      <button (click)="closeArticlesPopup()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+      <!-- Search and Filters -->
+      <div class="mb-4 flex gap-4">
+        <input 
+          type="text" 
+          placeholder="Rechercher un article..."
+          class="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-pink-400 transition-colors">
+        <select class="bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400">
+          <option value="">Tous les statuts</option>
+          <option value="OK">OK</option>
+          <option value="ATTENTION">ATTENTION</option>
+          <option value="URGENT">URGENT</option>
+          <option value="EXPIRÉ">EXPIRÉ</option>
+        </select>
+      </div>
+
+      <!-- Materials Table -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-700/50 text-gray-300 border-b border-gray-600/30">
+              <th class="text-left p-3">Article</th>
+              <th class="text-left p-3">Code</th>
+              <th class="text-left p-3">Famille</th>
+              <th class="text-left p-3">Stock Magasin</th>
+              <th class="text-left p-3">Conservation</th>
+              <th class="text-left p-3">Statut</th>
+              <th class="text-left p-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <ng-container *ngFor="let material of materialsWithStock">
+              <tr class="border-b border-gray-600/20 hover:bg-gray-700/30 transition-colors">
+                <td class="p-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-gray-600/50 rounded-lg flex items-center justify-center overflow-hidden">
+                      <img *ngIf="material.photo" 
+                        [src]="material.photo" 
+                        [alt]="material.name"
+                        class="w-full h-full object-cover">
+                      <svg *ngIf="!material.photo" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2V6a2 2 0 00-2-2v12a2 2 0 002 2z"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <div class="font-medium text-white">{{ material.name }}</div>
+                      <div class="text-gray-400 text-xs">{{ material.prix_vente_TTC | number:'1.3-3' }} dt</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="p-3 text-gray-300">{{ material.barcode || '-' }}</td>
+                <td class="p-3 text-gray-300">{{ material.famille }}</td>
+                <td class="p-3">
+                  <span class="font-medium text-white">{{ material.stockQuantity }}</span>
+                  <span class="text-gray-400 text-xs ml-1">{{ material.unite }}</span>
+                </td>
+                <td class="p-3">
+                  <div class="text-sm space-y-1">
+                    <div class="text-gray-300">Lots: {{ material.batches?.length || 0 }}</div>
+                    <div *ngIf="(material.daysUntilExpiry ?? 0) > 0" class="text-green-400 text-xs">
+                      {{ material.daysUntilExpiry }} jours restants (lot le plus proche)
+                    </div>
+                    <div *ngIf="(material.daysUntilExpiry ?? 0) <= 0 && (material.daysUntilExpiry ?? 0) !== 0" class="text-red-400 text-xs">
+                      Expiré depuis {{ Math.abs(material.daysUntilExpiry) }} jours (lot le plus proche)
+                    </div>
+                  </div>
+                </td>
+                <td class="p-3">
+                  <span [class]="'px-2 py-1 rounded-full text-xs font-medium ' + 
+                    (material.conservationStatus === 'Normal' ? 'bg-green-500/20 text-green-400' :
+                     material.conservationStatus === 'Proche de péremption' ? 'bg-yellow-500/20 text-yellow-400' :
+                     material.conservationStatus === 'Périmé' ? 'bg-red-500/20 text-red-400' :
+                     'bg-gray-500/20 text-gray-400')">
+                    {{ material.conservationStatus }}
+                  </span>
+                </td>
+                <td class="p-3">
+                  <button (click)="material.showDetails = !material.showDetails" class="text-pink-400 hover:text-pink-300 transition-colors text-sm">
+                    {{ material.showDetails ? 'Masquer' : 'Voir' }} détails
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="material.showDetails" class="bg-gray-800/60">
+                <td colspan="7" class="p-3">
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                      <thead>
+                        <tr class="text-gray-400">
+                          <th class="text-left p-2">Date prod.</th>
+                          <th class="text-left p-2">Date exp.</th>
+                          <th class="text-left p-2">Qté restante</th>
+                          <th class="text-left p-2">Jours restants</th>
+                          <th class="text-left p-2">Statut</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let batch of material.batches" class="border-t border-gray-700/50">
+                          <td class="p-2 text-gray-300">{{ batch.productionDate ? (batch.productionDate | date:'shortDate') : '-' }}</td>
+                          <td class="p-2 text-gray-300">{{ batch.expirationDate ? (batch.expirationDate | date:'shortDate') : '-' }}</td>
+                          <td class="p-2 text-white">{{ batch.remainingQuantity }}</td>
+                          <td class="p-2" [class]="(batch.daysUntilExpiry <= 2 && batch.daysUntilExpiry >= 0) ? 'text-yellow-400' : (batch.daysUntilExpiry < 0 ? 'text-red-400' : 'text-green-400')">
+                            {{ batch.daysUntilExpiry }}
+                          </td>
+                          <td class="p-2">
+                            <span [class]="'px-2 py-0.5 rounded-full ' + (batch.isExpired ? 'bg-red-500/20 text-red-400' : (batch.daysUntilExpiry <= 2 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'))">
+                              {{ batch.isExpired ? 'Périmé' : (batch.daysUntilExpiry <= 2 ? 'Proche' : 'OK') }}
+                            </span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>
+            </ng-container>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Remise Popup -->
+<!-- Discount Type Selection Popup -->
+<div *ngIf="showDiscountTypeSelection" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-md w-full overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Type de remise</h2>
+      <button (click)="cancelDiscount()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4">
+      <p class="text-gray-300 text-center mb-6">Choisissez le type de remise à appliquer</p>
+      
+      <div class="space-y-3">
+        <button (click)="selectDiscountType('percentage')" 
+          class="w-full py-10 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white p-4 rounded-lg transition-all flex items-center justify-center space-x-3">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+          </svg>
+          <span class="font-medium">Remise en pourcentage (%)</span>
+        </button>
+        
+        <button (click)="selectDiscountType('amount')" 
+          class="w-full py-10 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-white p-4 rounded-lg transition-all flex items-center justify-center space-x-3">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+          </svg>
+          <span class="font-medium">Remise en montant (dt)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showDiscountPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-lg w-full overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+     <h2 class="text-xl font-bold text-white">Appliquer une remise {{ discountType === 'percentage' ? '(%)' : '(dt)' }}</h2>
+      <button (click)="cancelDiscount()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-4 space-y-4">
+      <div>
+        <label class="block text-sm text-gray-300 mb-1">Catégorie cible</label>
+        <select [(ngModel)]="discountTarget" class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400">
+          <option value="Tous">Toutes les catégories</option>
+          <option *ngFor="let category of productCategories" [ngValue]="category">{{ category }}</option>
+        </select>
+      </div>
+
+      <!-- Percentage Input -->
+      <div *ngIf="discountType === 'percentage'">
+        <label class="block text-sm text-gray-300 mb-1">Pourcentage de remise (%)</label>
+        <div class="flex gap-2 mb-2">
+          <button *ngFor="let percent of quickPercentages" (click)="setQuickPercent(percent)" class="px-2 py-1 bg-gray-700/60 rounded text-white hover:bg-gray-700">{{ percent }}%</button>
+        </div>
+        <input type="number" min="0" max="100" step="0.1" [(ngModel)]="discountPercent" class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400" />
+      </div>
+
+      <!-- Amount Input -->
+      <div *ngIf="discountType === 'amount'">
+        <label class="block text-sm text-gray-300 mb-1">Montant de remise (dt)</label>
+        <div class="flex gap-2 mb-2">
+          <button *ngFor="let percent of quickAmounts" (click)="setQuickDiscountAmount(percent)" class="px-2 py-1 bg-gray-700/60 rounded text-white hover:bg-gray-700">{{ percent }}%</button>
+        </div>
+        <input type="number" min="0" step="0.001" [(ngModel)]="discountAmount" class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400" />
+      </div>
+
+      <div class="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30 text-sm">
+        <div class="flex justify-between text-gray-300">
+          <span>Total ciblé</span>
+          <span class="text-white">{{ getTargetedTotal() | number:'1.3-3' }} dt</span>
+        </div>
+        <div class="flex justify-between text-gray-300">
+          <span>Remise estimée</span>
+          <span class="text-green-400">{{ getDiscountPreview() | number:'1.3-3' }} dt</span>
+        </div>
+        <div class="flex justify-between text-gray-300" *ngIf="discountType === 'percentage'">
+          <span>Montant calculé</span>
+          <span class="text-blue-400">{{ getCalculatedAmount() | number:'1.3-3' }} dt</span>
+        </div>
+        <div class="flex justify-between text-gray-300" *ngIf="discountType === 'amount'">
+          <span>Pourcentage calculé</span>
+          <span class="text-blue-400">{{ getCalculatedPercent() | number:'1.2-2' }}%</span>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button (click)="cancelDiscount()" class="px-4 py-2 bg-gray-700/60 rounded-md text-white hover:bg-gray-700">Annuler</button>
+        <button (click)="confirmDiscount()" class="px-4 py-2 bg-pink-600 rounded-md text-white hover:bg-pink-500">Appliquer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Payment Popup -->
+<div *ngIf="showPaymentPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-lg w-full overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Finaliser la vente</h2>
+      <button (click)="cancelPayment()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-4 space-y-4">
+      <!-- Order Summary -->
+      <div class="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30 text-sm">
+        <div class="flex justify-between text-gray-300">
+          <span>Total à payer:</span>
+          <span class="text-white font-bold text-lg">{{ netTotal | number:'1.3-3' }} dt</span>
+        </div>
+      </div>
+
+      <!-- Payment Type Selection -->
+      <div>
+        <label class="block text-sm text-gray-300 mb-2">Type de paiement</label>
+        <div class="grid grid-cols-1 gap-2">
+          <button (click)="selectPaymentType('cash')" 
+            [class]="'flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all ' + 
+                     (paymentType === 'cash' ? 'bg-green-600/20 border-green-500 text-green-400' : 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-600/50')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            <span class="font-medium">Espèces</span>
+          </button>
+          
+          <button (click)="selectPaymentType('card')" 
+            [class]="'flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all ' + 
+                     (paymentType === 'card' ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-600/50')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+            </svg>
+            <span class="font-medium">Carte bancaire</span>
+          </button>
+          
+          <button (click)="selectPaymentType('check')" 
+            [class]="'flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all ' + 
+                     (paymentType === 'check' ? 'bg-purple-600/20 border-purple-500 text-purple-400' : 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-600/50')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <span class="font-medium">Chèque</span>
+          </button>
+         
+         <button (click)="selectPaymentType('virement')" 
+           [class]="'flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all ' + 
+                    (paymentType === 'virement' ? 'bg-orange-600/20 border-orange-500 text-orange-400' : 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-600/50')">
+           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+          </svg>
+           <span class="font-medium">Virement</span>
+         </button>
+        </div>
+      </div>
+
+      <!-- Cash Payment Amount -->
+      <div *ngIf="paymentType === 'cash'">
+        <label class="block text-sm text-gray-300 mb-1">Montant reçu (dt)</label>
+        <div class="flex gap-2 mb-2">
+         <button *ngFor="let amount of getQuickAmounts()" 
+           (click)="setQuickAmount(amount)" 
+           class="px-4 py-3 bg-gray-700/60 rounded-lg text-white hover:bg-gray-700 transition-colors text-sm font-medium min-w-[60px]">
+           {{ amount | number:'1.1-1' }}
+         </button>
+        </div>
+        <input type="number" min="0" step="0.001" [(ngModel)]="amountPaid" (input)="onAmountPaidChange()"
+          class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-green-400 transition-colors text-lg font-medium" 
+          placeholder="Entrez le montant reçu..." />
+      </div>
+
+      <!-- Cheque Details -->
+      <div *ngIf="paymentType === 'check'" class="space-y-3">
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Numéro du chèque</label>
+          <input 
+            type="text" 
+            [(ngModel)]="chequeId"
+            placeholder="Entrez le numéro du chèque..."
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-400 transition-colors" />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Date d'encaissement</label>
+          <input 
+            type="date" 
+            [(ngModel)]="encaissementDate"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-400 transition-colors" />
+        </div>
+      </div>
+
+      <!-- Virement Details -->
+      <div *ngIf="paymentType === 'virement'" class="space-y-3">
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Numéro de virement</label>
+          <input 
+            type="text" 
+            [(ngModel)]="virementNumber"
+            placeholder="Entrez le numéro de virement..."
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-400 transition-colors" />
+        </div>
+      </div>
+
+      <!-- Change Calculation -->
+      <div *ngIf="paymentType && amountPaid && paymentType !== 'check' && paymentType !== 'virement' && paymentType !== 'card'" class="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30">
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between text-gray-300">
+            <span>Montant reçu:</span>
+            <span class="text-white">{{ amountPaid | number:'1.3-3' }} dt</span>
+          </div>
+          <div class="flex justify-between text-gray-300">
+            <span>Total à payer:</span>
+            <span class="text-white">{{ netTotal | number:'1.3-3' }} dt</span>
+          </div>
+          <div class="flex justify-between text-lg font-bold border-t border-gray-600/30 pt-2" 
+               [class]="calculatedChange >= 0 ? 'text-green-400' : 'text-red-400'">
+            <span>Rendu monnaie:</span>
+            <span>{{ calculatedChange | number:'1.3-3' }} dt</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-end gap-2 pt-2">
+        <button (click)="cancelPayment()" 
+          class="px-4 py-2 bg-gray-700/60 rounded-md text-white hover:bg-gray-700 transition-colors">
+          Annuler
+        </button>
+        <button (click)="confirmPayment()" 
+         [disabled]="!paymentType || (paymentType === 'cash' && (!selectedClientId && (!amountPaid || amountPaid < netTotal))) || (paymentType === 'check' && (!chequeId.trim() || !encaissementDate)) || (paymentType === 'virement' && !virementNumber.trim())"
+         class="px-4 py-2 bg-green-600 rounded-md text-white hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          Valider & Imprimer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Temporary Sale Popup -->
+<div *ngIf="showTemporarySalePopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-lg w-full overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Vente Temporaire</h2>
+      <button (click)="cancelTemporarySale()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-4 space-y-4">
+      <!-- Order Summary -->
+      <div class="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30 text-sm">
+        <div class="flex justify-between text-gray-300 mb-2">
+          <span>Articles:</span>
+          <span class="text-white">{{ getTemporarySaleBadge() }}</span>
+        </div>
+        <div class="flex justify-between text-gray-300">
+          <span>Total:</span>
+          <span class="text-white font-bold">{{ netTotal | number:'1.3-3' }} dt</span>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <!-- Expected Sale Date -->
+        <div class="grow">
+          <label class="block text-sm text-gray-300 mb-1">Date de vente prévue *</label>
+          <input 
+            type="date" 
+            [(ngModel)]="temporarySaleExpectedDate"
+            [min]="getTodayDate()"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-yellow-400 transition-colors" />
+          <p class="text-xs text-gray-400 mt-1">Cette vente sera rappelée à cette date</p>
+        </div>
+  
+        <!-- Expected Sale Time -->
+        <div class="grow">
+          <label class="block text-sm text-gray-300 mb-1">Heure de vente prévue *</label>
+          <input 
+            type="time" 
+            [(ngModel)]="temporarySaleExpectedTime"
+            [step]="getTimeStep() * 60"
+            [value]="getDefaultTime()"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-yellow-400 transition-colors" />
+        </div>
+      </div>
+
+      <!-- Quick Note Buttons -->
+      <div>
+        <label class="block text-sm text-gray-300 mb-2">Raison rapide</label>
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <button *ngFor="let note of quickNoteOptions" 
+            (click)="setQuickNote(note)"
+            class="px-3 py-2 bg-gray-700/60 rounded-lg text-white hover:bg-gray-600/60 transition-colors text-sm font-medium">
+            {{ note }}
+          </button>
+        </div>
+        <div class="flex gap-2">
+          <button (click)="clearNotes()" 
+            class="px-3 py-1 bg-red-600/60 rounded text-white hover:bg-red-600 transition-colors text-xs">
+            Effacer
+          </button>
+          <span class="text-xs text-gray-400 self-center">ou tapez manuellement ci-dessous</span>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div>
+        <label class="block text-sm text-gray-300 mb-1">Notes détaillées (optionnel)</label>
+        <textarea 
+          [(ngModel)]="temporarySaleNotes"
+          rows="3"
+          placeholder="Informations supplémentaires, détails du client, instructions spéciales..."
+          class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 transition-colors resize-none"></textarea>
+      </div>
+
+      <!-- Reminder Info -->
+      <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+        <div class="flex items-start space-x-2">
+          <svg class="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+          <div class="text-sm text-yellow-300">
+            <p class="font-medium mb-1">Rappel automatique</p>
+            <p>Vous recevrez une notification à la date prévue pour finaliser cette vente.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-end gap-2 pt-2">
+        <button (click)="cancelTemporarySale()" 
+          class="px-4 py-2 bg-gray-700/60 rounded-md text-white hover:bg-gray-700 transition-colors">
+          Annuler
+        </button>
+        <button (click)="confirmTemporarySale()" 
+          [disabled]="!temporarySaleExpectedDate || !temporarySaleExpectedTime"
+          class="px-4 py-2 bg-yellow-600 rounded-md text-white hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          Enregistrer Temporairement
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Temporary Sale Selection Popup -->
+<div *ngIf="showTemporarySaleSelectionPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-md w-full overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Vente Temporaire</h2>
+      <button (click)="closeTemporarySaleSelection()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4">
+      <p class="text-gray-300 text-center mb-6">Que souhaitez-vous faire ?</p>
+      
+      <div class="space-y-3">
+        <button (click)="selectTemporarySaleOption('new')" 
+          [disabled]="receiptItems.length === 0"
+          [class]="'w-full py-10 p-4 rounded-lg transition-all flex items-center justify-center space-x-3 ' + 
+                   (receiptItems.length === 0 ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white')">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+          </svg>
+          <span class="font-medium">{{ receiptItems.length === 0 ? 'Panier vide' : 'Créer une nouvelle vente temporaire' }}</span>
+        </button>
+        
+        <button (click)="selectTemporarySaleOption('view')" 
+          class="w-full py-10 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white p-4 rounded-lg transition-all flex items-center justify-center space-x-3">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+          </svg>
+          <span class="font-medium">Consulter les ventes temporaires</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Existing Temporary Sales Popup -->
+<div *ngIf="showExistingTemporarySalesPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Ventes Temporaires</h2>
+      <button (click)="closeExistingTemporarySales()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+      <div *ngIf="existingTemporarySales.length === 0" class="text-center py-8 text-gray-400">
+        <svg class="w-12 h-12 mx-auto mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+        </svg>
+        <p>Aucune vente temporaire trouvée</p>
+      </div>
+
+      <div *ngIf="existingTemporarySales.length > 0" class="space-y-3">
+        <div *ngFor="let sale of existingTemporarySales" 
+          class="bg-gray-700/50 rounded-lg p-4 border border-gray-600/30 hover:bg-gray-700/70 transition-colors cursor-pointer"
+          (click)="selectExistingTemporarySale(sale)">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <div class="flex items-center space-x-3 mb-2">
+                <span class="text-lg font-bold text-white">#{{ sale.id }}</span>
+                <span class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400">
+                  Temporaire
+                </span>
+              </div>
+              <div class="text-sm text-gray-300 mb-2">
+                <div>Date prévue: {{ sale.expectedDate | date:'shortDate' }} à {{ sale.expectedDate | date:'shortTime' }}</div>
+                <div *ngIf="sale.notes" class="mt-1">Notes: {{ sale.notes }}</div>
+              </div>
+              <div class="text-sm text-gray-400">
+                Articles: {{ sale.items.length }} article{{ sale.items.length > 1 ? 's' : '' }}
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-lg font-bold text-pink-400">{{ sale.finalTotal | number:'1.3-3' }} dt</div>
+              <div class="text-xs text-gray-400">Cliquez pour finaliser</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Temporary Sale Payment Popup -->
+<div *ngIf="showTemporarySalePaymentPopup && selectedTemporarySale" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-lg w-full overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Finaliser Vente Temporaire #{{ selectedTemporarySale.id }}</h2>
+      <button (click)="closeTemporarySalePayment()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-4 space-y-4">
+      <!-- Order Summary -->
+      <div class="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30 text-sm">
+        <div class="flex justify-between text-gray-300 mb-2">
+          <span>Articles:</span>
+          <span class="text-white">{{ selectedTemporarySale.items.length }} article{{ selectedTemporarySale.items.length > 1 ? 's' : '' }}</span>
+        </div>
+        <div class="flex justify-between text-gray-300">
+          <span>Total à payer:</span>
+          <span class="text-white font-bold text-lg">{{ selectedTemporarySale.finalTotal | number:'1.3-3' }} dt</span>
+        </div>
+      </div>
+
+      <!-- Payment Type Selection -->
+      <div>
+        <label class="block text-sm text-gray-300 mb-2">Type de paiement</label>
+        <div class="grid grid-cols-1 gap-2">
+          <button (click)="selectPaymentType('cash')" 
+            [class]="'flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all ' + 
+                     (paymentType === 'cash' ? 'bg-green-600/20 border-green-500 text-green-400' : 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-600/50')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            <span class="font-medium">Espèces</span>
+          </button>
+          
+          <button (click)="selectPaymentType('card')" 
+            [class]="'flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all ' + 
+                     (paymentType === 'card' ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-600/50')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+            </svg>
+            <span class="font-medium">Carte bancaire</span>
+          </button>
+          
+          <button (click)="selectPaymentType('check')" 
+            [class]="'flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all ' + 
+                     (paymentType === 'check' ? 'bg-purple-600/20 border-purple-500 text-purple-400' : 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-600/50')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <span class="font-medium">Chèque</span>
+          </button>
+         
+         <button (click)="selectPaymentType('virement')" 
+           [class]="'flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all ' + 
+                    (paymentType === 'virement' ? 'bg-orange-600/20 border-orange-500 text-orange-400' : 'bg-gray-700/50 border-gray-600 text-white hover:bg-gray-600/50')">
+           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+           </svg>
+           <span class="font-medium">Virement</span>
+        </button>
+        </div>
+      </div>
+
+      <!-- Cash Payment Amount -->
+      <div *ngIf="paymentType === 'cash'">
+        <label class="block text-sm text-gray-300 mb-1">Montant reçu (dt)</label>
+        <div class="flex gap-2 mb-2">
+         <button *ngFor="let amount of getQuickAmounts()" 
+           (click)="setQuickAmount(amount)" 
+           class="px-4 py-3 bg-gray-700/60 rounded-lg text-white hover:bg-gray-700 transition-colors text-sm font-medium min-w-[60px]">
+           {{ amount | number:'1.1-1' }}
+         </button>
+        </div>
+        <input type="number" min="0" step="0.001" [(ngModel)]="amountPaid" (input)="onAmountPaidChange()"
+          class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-green-400 transition-colors text-lg font-medium" 
+          placeholder="Entrez le montant reçu..." />
+      </div>
+
+      <!-- Cheque Details -->
+      <div *ngIf="paymentType === 'check'" class="space-y-3">
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Numéro du chèque</label>
+          <input 
+            type="text" 
+            [(ngModel)]="chequeId"
+            placeholder="Entrez le numéro du chèque..."
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-400 transition-colors" />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Date d'encaissement</label>
+          <input 
+            type="date" 
+            [(ngModel)]="encaissementDate"
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-400 transition-colors" />
+        </div>
+      </div>
+
+      <!-- Virement Details -->
+      <div *ngIf="paymentType === 'virement'" class="space-y-3">
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Numéro de virement</label>
+          <input 
+            type="text" 
+            [(ngModel)]="virementNumber"
+            placeholder="Entrez le numéro de virement..."
+            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-orange-400 transition-colors" />
+        </div>
+      </div>
+
+      <!-- Change Calculation -->
+      <div *ngIf="paymentType && amountPaid && paymentType !== 'check' && paymentType !== 'virement' && paymentType !== 'card'" class="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30">
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between text-gray-300">
+            <span>Montant reçu:</span>
+            <span class="text-white">{{ amountPaid | number:'1.3-3' }} dt</span>
+          </div>
+          <div class="flex justify-between text-gray-300">
+            <span>Total à payer:</span>
+            <span class="text-white">{{ selectedTemporarySale.finalTotal | number:'1.3-3' }} dt</span>
+          </div>
+          <div class="flex justify-between text-lg font-bold border-t border-gray-600/30 pt-2" 
+               [class]="calculatedChange >= 0 ? 'text-green-400' : 'text-red-400'">
+            <span>Rendu monnaie:</span>
+            <span>{{ calculatedChange | number:'1.3-3' }} dt</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-end gap-2 pt-2">
+        <button (click)="closeTemporarySalePayment()" 
+          class="px-4 py-2 bg-gray-700/60 rounded-md text-white hover:bg-gray-700 transition-colors">
+          Annuler
+        </button>
+        <button (click)="finalizeTemporarySale()" 
+         [disabled]="!paymentType || (paymentType === 'cash' && (!selectedTemporarySale?.client && (!amountPaid || amountPaid < selectedTemporarySale.finalTotal))) || (paymentType === 'check' && (!chequeId.trim() || !encaissementDate)) || (paymentType === 'virement' && !virementNumber.trim())"
+         class="px-4 py-2 bg-green-600 rounded-md text-white hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          Finaliser & Imprimer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gift Popup -->
+<div *ngIf="showGiftPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-lg w-full overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Demande de Cadeau</h2>
+      <button (click)="cancelGift()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-4 space-y-4">
+      <!-- Order Summary -->
+      <div class="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30 text-sm">
+        <div class="flex justify-between text-gray-300 mb-2">
+          <span>Articles:</span>
+          <span class="text-white">{{ getTemporarySaleBadge() }}</span>
+        </div>
+        <div class="flex justify-between text-gray-300">
+          <span>Valeur totale:</span>
+          <span class="text-white font-bold">{{ netTotal | number:'1.3-3' }} dt</span>
+        </div>
+        <div class="flex justify-between text-green-400 font-bold">
+          <span>Prix final:</span>
+          <span>0.000 dt (Cadeau)</span>
+        </div>
+      </div>
+
+      <!-- Quick Gift Reason Buttons -->
+      <div>
+        <label class="block text-sm text-gray-300 mb-2">Raison du cadeau *</label>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <button *ngFor="let reason of quickGiftReasons" 
+            (click)="setQuickGiftReason(reason)"
+            class="px-3 py-2 bg-gray-700/60 rounded-lg text-white hover:bg-gray-600/60 transition-colors text-sm font-medium">
+            {{ reason }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Gift Reason Input -->
+      <div>
+        <label class="block text-sm text-gray-300 mb-1">Raison détaillée *</label>
+        <input 
+          type="text" 
+          [(ngModel)]="giftReason"
+          placeholder="Spécifiez la raison du cadeau..."
+          class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 transition-colors" />
+      </div>
+
+      <!-- Gift Recipient Input -->
+      <div>
+        <label class="block text-sm text-gray-300 mb-1">Destinataire (optionnel)</label>
+        <input 
+          type="text" 
+          [(ngModel)]="giftRecipient"
+          placeholder="Nom du destinataire..."
+          class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 transition-colors" />
+      </div>
+
+      <!-- Approval Info -->
+      <div class="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+        <div class="flex items-start space-x-2">
+          <svg class="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+          <div class="text-sm text-purple-300">
+            <p class="font-medium mb-1">Approbation requise</p>
+            <p>Cette demande de cadeau sera envoyée à l'administrateur pour approbation.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-end gap-2 pt-2">
+        <button (click)="cancelGift()" 
+          class="px-4 py-2 bg-gray-700/60 rounded-md text-white hover:bg-gray-700 transition-colors">
+          Annuler
+        </button>
+        <button (click)="confirmGift()" 
+          [disabled]="!giftReason.trim()"
+          class="px-4 py-2 bg-purple-600 rounded-md text-white hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          Envoyer pour Approbation
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Existing Gift Sales Popup -->
+<div *ngIf="showExistingGiftSalesPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Demandes de Cadeaux</h2>
+      <button (click)="closeExistingGiftSales()" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+      <div *ngIf="existingGiftSales.length === 0" class="text-center py-8 text-gray-400">
+        <svg class="w-12 h-12 mx-auto mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+        </svg>
+        <p>Aucune demande de cadeau trouvée</p>
+      </div>
+
+      <div *ngIf="existingGiftSales.length > 0" class="space-y-3">
+        <div *ngFor="let sale of existingGiftSales" 
+          class="bg-gray-700/50 rounded-lg p-4 border border-gray-600/30">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <div class="flex items-center space-x-3 mb-2">
+                <span class="text-lg font-bold text-white">#{{ sale.id }}</span>
+                <span [class]="'px-2 py-1 rounded-full text-xs font-medium ' + 
+                  (sale.status === 'PENDING_ADMIN' ? 'bg-orange-500/20 text-orange-400' : 'bg-purple-500/20 text-purple-400')">
+                  {{ sale.status === 'PENDING_ADMIN' ? 'En attente Admin' : 'Cadeau' }}
+                </span>
+              </div>
+              <div class="text-sm text-gray-300 mb-2">
+                <div>Date: {{ sale.createdAt | date:'shortDate' }} à {{ sale.createdAt | date:'shortTime' }}</div>
+                <div *ngIf="sale.notes" class="mt-1">{{ sale.notes }}</div>
+              </div>
+              <div class="text-sm text-gray-400">
+                Articles: {{ sale.items.length }} article{{ sale.items.length > 1 ? 's' : '' }}
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-lg font-bold text-green-400">0.000 dt</div>
+              <div class="text-xs text-gray-400">Cadeau</div>
+            </div>
+      </div>
+
+          <!-- Action Buttons for Pending Admin -->
+          <div *ngIf="sale.status === 'PENDING_ADMIN'" class="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-600/30">
+            <button (click)="rejectGiftSale(sale)" 
+              class="px-3 py-1 bg-red-600/60 rounded text-white hover:bg-red-600 transition-colors text-sm">
+              Rejeter
+            </button>
+            <button (click)="approveGiftSale(sale)" 
+              class="px-3 py-1 bg-green-600/60 rounded text-white hover:bg-green-600 transition-colors text-sm">
+              Approuver
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Client Search Popup -->
+<div *ngIf="showClientSearchPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div class="bg-gray-700/50 p-4 border-b border-gray-600/30 flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">Rechercher un Client</h2>
+      <button (click)="showClientSearchPopup = false" class="text-gray-400 hover:text-white transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-6">
+      <!-- Search Input -->
+      <div class="mb-6">
+        <label class="block text-sm text-gray-300 mb-2">Rechercher par nom, email, téléphone ou code</label>
+        <div class="flex gap-2">
+          <input 
+            type="text" 
+            [(ngModel)]="clientSearchQuery"
+            (input)="searchClients()"
+            placeholder="Tapez pour rechercher..."
+            class="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-pink-400 transition-colors">
+          <button (click)="searchClients()" 
+            class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="searchingClients" class="text-center py-8">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-400 mx-auto"></div>
+        <p class="text-gray-400 mt-2">Recherche en cours...</p>
+      </div>
+
+      <!-- Search Results -->
+      <div *ngIf="!searchingClients && searchResults.length > 0" class="space-y-3 max-h-96 overflow-y-auto">
+        <div *ngFor="let client of searchResults" 
+          (click)="selectClient(client)"
+          class="bg-gray-700/50 rounded-lg p-4 border border-gray-600/30 hover:bg-gray-700/70 transition-colors cursor-pointer">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <div class="text-white font-medium">{{ client.firstName }} {{ client.lastName }}</div>
+              <div class="text-gray-400 text-sm">{{ client.code }}</div>
+              <div class="text-gray-400 text-sm">{{ client.email || 'Aucun email' }}</div>
+              <div class="text-gray-400 text-sm">{{ client.phone || 'Aucun téléphone' }}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-pink-400 font-bold">{{ client.totalSpent | number:'1.3-3' }} dt</div>
+              <div class="text-gray-400 text-xs">{{ client.loyaltyPoints }} pts</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- No Results -->
+      <div *ngIf="!searchingClients && clientSearchQuery.length >= 2 && searchResults.length === 0" class="text-center py-8 text-gray-400">
+        <svg class="w-12 h-12 mx-auto mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+        </svg>
+        <p>Aucun client trouvé</p>
+      </div>
+
+      <!-- Selected Client Info -->
+      <div *ngIf="selectedClient" class="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-green-400 font-medium">Client sélectionné</div>
+            <div class="text-white">{{ selectedClient.firstName }} {{ selectedClient.lastName }}</div>
+            <div class="text-gray-400 text-sm">{{ selectedClient.code }}</div>
+          </div>
+          <button (click)="clearSelectedClient()" 
+            class="text-red-400 hover:text-red-300 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
