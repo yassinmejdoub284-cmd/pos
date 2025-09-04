@@ -30,7 +30,23 @@ export class StockComponent implements OnInit {
   }
 
   openWorkspace(depot: Depot): void {
-    const section = depot.type === 'SHOP' ? 'reception-magasin' : 'workspace';
-    this.router.navigate(['/stock/site', depot.id, section]);
+    switch (depot.type) {
+      case 'SHOP':
+        // For shops, go to shop transfer module
+        this.router.navigate(['/stock/shop-transfer', depot.id]);
+        break;
+      case 'MAIN':
+        // For main depot, go to prepare lot module
+        this.router.navigate(['/stock/prepare-lot', depot.id]);
+        break;
+      case 'BRANCH':
+        // For branch depot, go to branch inventory module
+        this.router.navigate(['/stock/branch-inventory', depot.id]);
+        break;
+      default:
+        // Fallback to generic site module
+        this.router.navigate(['/stock/site', depot.id, 'workspace']);
+        break;
+    }
   }
 } 

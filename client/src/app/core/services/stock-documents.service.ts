@@ -74,4 +74,25 @@ export class StockDocumentsService {
       notes
     });
   }
+
+  scanTransfer(fromDepotId: number, toDepotId: number, barcode: string): Observable<ScanResult> {
+    return this.http.post<ScanResult>(`${this.apiUrl}/scan-transfer`, {
+      fromDepotId,
+      toDepotId,
+      barcode
+    });
+  }
+
+  getInventory(depotId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/inventory/${depotId}`);
+  }
+
+  createTransfer(emetteurId: number, destinataireId: number, items: any[], notes?: string): Observable<StockDocument> {
+    return this.http.post<StockDocument>(`${this.apiUrl}/transfer`, {
+      emetteurId,
+      destinataireId,
+      items,
+      notes
+    });
+  }
 } 

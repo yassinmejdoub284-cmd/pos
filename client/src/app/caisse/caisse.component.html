@@ -119,16 +119,6 @@
 
       <!-- Product Grid -->
       <div class="overflow-y-auto col-span-2">
-        <!-- Search Bar -->
-        <div class="mb-4">
-          <input 
-            type="text" 
-            [(ngModel)]="searchQuery"
-            (input)="onSearchChange()"
-            placeholder="Rechercher un produit..."
-            class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-pink-400 transition-colors">
-        </div>
-
         <!-- Quick Filter Buttons -->
         <div class="mb-4 flex flex-wrap gap-2">
           <button 
@@ -143,7 +133,7 @@
         <!-- Products Grid with Horizontal Scrolling -->
         <div class="relative" (keydown)="onKeyDown($event)" tabindex="0">
           <!-- Navigation Arrows for PC -->
-          <button *ngIf="filteredProducts.length > 4" 
+          <button *ngIf="filteredProducts.length > 15" 
             (click)="scrollLeft()"
             class="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-gray-800/90 text-white p-2 rounded-full hover:bg-gray-700/90 transition-all shadow-lg hover:scale-110">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,7 +141,7 @@
             </svg>
           </button>
           
-          <button *ngIf="filteredProducts.length > 4" 
+          <button *ngIf="filteredProducts.length > 15" 
             (click)="scrollRight()"
             class="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-gray-800/90 text-white p-2 rounded-full hover:bg-gray-700/90 transition-all shadow-lg hover:scale-110">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,31 +149,23 @@
             </svg>
           </button>
 
-          <!-- Products Grid -->
-          <div class="flex gap-3 overflow-x-auto pb-4 products-scroll-container px-8 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800/30 cursor-grab"
+          <!-- Products Grid Container -->
+          <div class="overflow-x-auto pb-4 products-scroll-container px-8 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800/30 cursor-grab"
                (mousedown)="onMouseDown($event)"
                (mousemove)="onMouseMove($event)"
                (mouseup)="onMouseUp($event)"
                (mouseleave)="onMouseLeave($event)">
-                        <button *ngFor="let product of filteredProducts" 
-            (click)="onProductClick($event, product)"
-              class="bg-gray-700/50 hover:bg-gray-600/50 border border-gray-600/50 rounded-lg p-3 text-center transition-all duration-300 transform hover:scale-95 flex-shrink-0 w-32 cursor-pointer">
-            <!-- Product Image -->
-            <div class="w-full h-20 mb-2 bg-gray-600/50 rounded-lg flex items-center justify-center overflow-hidden">
-              <img *ngIf="product.photo" 
-                [src]="product.photo" 
-                [alt]="product.name"
-                class="w-full h-full object-cover">
-              <svg *ngIf="!product.photo" class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-              </svg>
+            
+            <!-- Grid Layout: 5 columns x 3 rows = 15 products per page -->
+            <div class="grid grid-cols-5 gap-3 w-max">
+              <button *ngFor="let product of filteredProducts; let i = index" 
+                (click)="onProductClick($event, product)"
+                class="bg-gray-700/50 hover:bg-gray-600/50 border border-gray-600/50 rounded-lg p-3 text-center transition-all duration-300 transform hover:scale-95 cursor-pointer min-w-[120px] h-24 flex flex-col justify-center">
+                <div class="font-medium text-xs mb-1 text-white truncate">{{ product.name }}</div>
+                <div class="text-pink-400 font-bold text-sm">{{ product.prix_vente_TTC | number:'1.3-3' }}<span class="text-xs font-serif">dt</span></div>
+              </button>
             </div>
-            <div class="font-medium text-xs mb-1 text-white truncate">{{ product.name }}</div>
-            <div class="text-pink-400 font-bold text-sm">{{ product.prix_vente_TTC | number:'1.3-3' }}<span class="text-xs font-serif">dt</span></div>
-          </button>
-        </div>
-
-
+          </div>
         </div>
 
         <!-- No Products Message -->
@@ -195,9 +177,9 @@
         </div>
       </div>
 
-    <div>
+    <div class="col-span-1">
       <!-- Numeric Keypad -->
-      <div class="grid grid-cols-4 gap-1 mb-4 col-span-1">
+      <div class="grid grid-cols-4 gap-1 mb-4">
         <button *ngFor="let num of [7,8,9,'-',4,5,6,'+',1,2,3,'▄',0]" (click)="addToInput(num.toString())"
           class="bg-gray-700/50 text-white p-4 rounded-sm hover:bg-gray-600 transition-all text-2xl font-medium border border-gray-600/50">
           {{ num }}
@@ -460,18 +442,12 @@
       <!-- Percentage Input -->
       <div *ngIf="discountType === 'percentage'">
         <label class="block text-sm text-gray-300 mb-1">Pourcentage de remise (%)</label>
-        <div class="flex gap-2 mb-2">
-          <button *ngFor="let percent of quickPercentages" (click)="setQuickPercent(percent)" class="px-2 py-1 bg-gray-700/60 rounded text-white hover:bg-gray-700">{{ percent }}%</button>
-        </div>
         <input type="number" min="0" max="100" step="0.1" [(ngModel)]="discountPercent" class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400" />
       </div>
 
       <!-- Amount Input -->
       <div *ngIf="discountType === 'amount'">
         <label class="block text-sm text-gray-300 mb-1">Montant de remise (dt)</label>
-        <div class="flex gap-2 mb-2">
-          <button *ngFor="let percent of quickAmounts" (click)="setQuickDiscountAmount(percent)" class="px-2 py-1 bg-gray-700/60 rounded text-white hover:bg-gray-700">{{ percent }}%</button>
-        </div>
         <input type="number" min="0" step="0.001" [(ngModel)]="discountAmount" class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-400" />
       </div>
 
@@ -568,13 +544,6 @@
       <!-- Cash Payment Amount -->
       <div *ngIf="paymentType === 'cash'">
         <label class="block text-sm text-gray-300 mb-1">Montant reçu (dt)</label>
-        <div class="flex gap-2 mb-2">
-         <button *ngFor="let amount of getQuickAmounts()" 
-           (click)="setQuickAmount(amount)" 
-           class="px-4 py-3 bg-gray-700/60 rounded-lg text-white hover:bg-gray-700 transition-colors text-sm font-medium min-w-[60px]">
-           {{ amount | number:'1.1-1' }}
-         </button>
-        </div>
         <input type="number" min="0" step="0.001" [(ngModel)]="amountPaid" (input)="onAmountPaidChange()"
           class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-green-400 transition-colors text-lg font-medium" 
           placeholder="Entrez le montant reçu..." />
@@ -912,13 +881,6 @@
       <!-- Cash Payment Amount -->
       <div *ngIf="paymentType === 'cash'">
         <label class="block text-sm text-gray-300 mb-1">Montant reçu (dt)</label>
-        <div class="flex gap-2 mb-2">
-         <button *ngFor="let amount of getQuickAmounts()" 
-           (click)="setQuickAmount(amount)" 
-           class="px-4 py-3 bg-gray-700/60 rounded-lg text-white hover:bg-gray-700 transition-colors text-sm font-medium min-w-[60px]">
-           {{ amount | number:'1.1-1' }}
-         </button>
-        </div>
         <input type="number" min="0" step="0.001" [(ngModel)]="amountPaid" (input)="onAmountPaidChange()"
           class="w-full bg-gray-700/50 border border-gray-600/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-green-400 transition-colors text-lg font-medium" 
           placeholder="Entrez le montant reçu..." />
@@ -1287,13 +1249,6 @@
       <div *ngIf="productModalMode === 'quantity'" class="space-y-4">
         <div>
           <label class="block text-sm text-gray-300 mb-2">Quantité</label>
-          <div class="flex gap-2 mb-2">
-            <button *ngFor="let qty of [1, 2, 3, 5, 10]" 
-              (click)="productModalQuantity = qty; onProductModalQuantityChange()" 
-              class="px-4 py-2 bg-gray-700/60 rounded-lg text-white hover:bg-gray-600/60 transition-colors text-sm font-medium">
-              {{ qty }}
-            </button>
-          </div>
           <input 
             type="number" 
             min="0.001" 
@@ -1316,13 +1271,6 @@
       <div *ngIf="productModalMode === 'amount'" class="space-y-4">
         <div>
           <label class="block text-sm text-gray-300 mb-2">Montant total</label>
-          <div class="flex gap-2 mb-2">
-            <button *ngFor="let amount of [5, 10, 15, 20, 25]" 
-              (click)="productModalAmount = amount; onProductModalAmountChange()" 
-              class="px-4 py-2 bg-gray-700/60 rounded-lg text-white hover:bg-gray-600/60 transition-colors text-sm font-medium">
-              {{ amount | number:'1.1-1' }}
-            </button>
-          </div>
           <input 
             type="number" 
             min="0.001" 

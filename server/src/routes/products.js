@@ -75,6 +75,20 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/familles', authenticateToken, async (req, res) => {
+  try {
+    const familles = await prisma.productFamily.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' }
+    });
+    
+    res.json(familles);
+  } catch (error) {
+    console.error('Error fetching familles:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des familles' });
+  }
+});
+
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const product = await prisma.product.findUnique({
@@ -110,7 +124,10 @@ router.post('/', authenticateToken, async (req, res) => {
       unite,
       prix_vente_TTC,
       tva,
-      duree_conservation
+      duree_conservation,
+      isVrague,
+      originalProductId,
+      isStockable
     } = req.body;
     
     if (!name || !prix_vente_TTC || !familleId) {
@@ -146,28 +163,34 @@ router.post('/', authenticateToken, async (req, res) => {
       unite: unite || 'pcs',
       prix_vente_TTC: parseFloat(prix_vente_TTC),
       tva: tva ? parseFloat(tva) : 19,
-      duree_conservation: duree_conservation ? parseInt(duree_conservation) : null
+      duree_conservation: duree_conservation ? parseInt(duree_conservation) : null,
+      isVrague: isVrague || false,
+      originalProductId: originalProductId ? parseInt(originalProductId) : null,
+      isStockable: isStockable !== undefined ? isStockable : true
     };
     
     const product = await prisma.product.create({
       data: productData
     });
     
-    const depots = await prisma.depot.findMany({
-      where: { isActive: true }
-    });
-    
-    const inventoryPromises = depots.map(depot =>
-      prisma.inventory.create({
-        data: {
-          depotId: depot.id,
-          productId: product.id,
-          quantity: 0
-        }
-      })
-    );
-    
-    await Promise.all(inventoryPromises);
+    // Only create inventory for stockable products
+    if (productData.isStockable) {
+      const depots = await prisma.depot.findMany({
+        where: { isActive: true }
+      });
+      
+      const inventoryPromises = depots.map(depot =>
+        prisma.inventory.create({
+          data: {
+            depotId: depot.id,
+            productId: product.id,
+            quantity: 0
+          }
+        })
+      );
+      
+      await Promise.all(inventoryPromises);
+    }
     
     await logAudit(req.user.id, 'products', product.id, 'CREATE', null, productData);
     
@@ -200,7 +223,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
       unite,
       prix_vente_TTC,
       tva,
-      duree_conservation
+      duree_conservation,
+      isVrague,
+      originalProductId,
+      isStockable
     } = req.body;
     
     if (prix_vente_TTC !== undefined && prix_vente_TTC < 0) {
@@ -227,6 +253,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (prix_vente_TTC !== undefined) updateData.prix_vente_TTC = parseFloat(prix_vente_TTC);
     if (tva !== undefined) updateData.tva = parseFloat(tva);
     if (duree_conservation !== undefined) updateData.duree_conservation = duree_conservation ? parseInt(duree_conservation) : null;
+    if (isVrague !== undefined) updateData.isVrague = isVrague;
+    if (originalProductId !== undefined) updateData.originalProductId = originalProductId ? parseInt(originalProductId) : null;
+    if (isStockable !== undefined) updateData.isStockable = isStockable;
     
     const product = await prisma.product.update({
       where: { id: productId },
@@ -440,20 +469,6 @@ router.get('/export/csv', authenticateToken, async (req, res) => {
   }
 });
 
-router.get('/familles', authenticateToken, async (req, res) => {
-  try {
-    const familles = await prisma.productFamily.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' }
-    });
-    
-    res.json(familles);
-  } catch (error) {
-    console.error('Error fetching familles:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des familles' });
-  }
-});
-
 // Conservation management endpoints
 router.post('/:id/conservation', authenticateToken, async (req, res) => {
   try {
@@ -551,6 +566,153 @@ router.put('/conservation/:id/dismiss', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error dismissing conservation warning:', error);
     res.status(500).json({ error: 'Erreur lors de la fermeture de l\'avertissement' });
+  }
+});
+
+// Vrague price management endpoints
+router.post('/:id/vrague-prices', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { price, startDate, endDate } = req.body;
+    
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id) }
+    });
+    
+    if (!product) {
+      return res.status(404).json({ error: 'Produit non trouvé' });
+    }
+    
+    if (!product.isVrague) {
+      return res.status(400).json({ error: 'Ce produit n\'est pas un produit vrague' });
+    }
+    
+    // Deactivate current active price if exists
+    await prisma.vraguePrice.updateMany({
+      where: {
+        productId: parseInt(id),
+        isActive: true
+      },
+      data: {
+        isActive: false,
+        endDate: new Date()
+      }
+    });
+    
+    const vraguePrice = await prisma.vraguePrice.create({
+      data: {
+        productId: parseInt(id),
+        price: parseFloat(price),
+        startDate: new Date(startDate),
+        endDate: endDate ? new Date(endDate) : null,
+        isActive: true
+      }
+    });
+    
+    await logAudit(req.user.id, 'vrague_prices', vraguePrice.id, 'CREATE', null, vraguePrice);
+    
+    res.status(201).json(vraguePrice);
+  } catch (error) {
+    console.error('Error creating vrague price:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du prix vrague' });
+  }
+});
+
+router.get('/:id/vrague-prices', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate } = req.query;
+    
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id) }
+    });
+    
+    if (!product) {
+      return res.status(404).json({ error: 'Produit non trouvé' });
+    }
+    
+    const whereClause = {
+      productId: parseInt(id)
+    };
+    
+    if (startDate && endDate) {
+      whereClause.OR = [
+        {
+          startDate: { lte: new Date(endDate) },
+          endDate: { gte: new Date(startDate) }
+        },
+        {
+          startDate: { lte: new Date(endDate) },
+          endDate: null
+        }
+      ];
+    }
+    
+    const vraguePrices = await prisma.vraguePrice.findMany({
+      where: whereClause,
+      orderBy: { startDate: 'desc' }
+    });
+    
+    res.json(vraguePrices);
+  } catch (error) {
+    console.error('Error fetching vrague prices:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des prix vrague' });
+  }
+});
+
+router.get('/vrague/statistics', authenticateToken, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Dates de début et de fin sont requises' });
+    }
+    
+    const vragueProducts = await prisma.product.findMany({
+      where: {
+        isVrague: true,
+        vraguePrices: {
+          some: {
+            startDate: { lte: new Date(endDate) },
+            OR: [
+              { endDate: { gte: new Date(startDate) } },
+              { endDate: null }
+            ]
+          }
+        }
+      },
+      include: {
+        famille: true,
+        vraguePrices: {
+          where: {
+            startDate: { lte: new Date(endDate) },
+            OR: [
+              { endDate: { gte: new Date(startDate) } },
+              { endDate: null }
+            ]
+          },
+          orderBy: { startDate: 'desc' }
+        },
+        originalProduct: true
+      }
+    });
+    
+    const statistics = vragueProducts.map(product => ({
+      id: product.id,
+      name: product.name,
+      originalProductName: product.originalProduct?.name,
+      famille: product.famille.name,
+      isStockable: product.isStockable,
+      prices: product.vraguePrices,
+      averagePrice: product.vraguePrices.length > 0 
+        ? product.vraguePrices.reduce((sum, price) => sum + parseFloat(price.price), 0) / product.vraguePrices.length
+        : 0
+    }));
+    
+    res.json(statistics);
+  } catch (error) {
+    console.error('Error fetching vrague statistics:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des statistiques vrague' });
   }
 });
 

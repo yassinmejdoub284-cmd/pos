@@ -10,10 +10,17 @@ export interface Product {
   tva: number;
   photo?: string;
   duree_conservation?: number;
+  // Vrague fields
+  isVrague?: boolean;
+  originalProductId?: number;
+  originalProduct?: Product;
+  isStockable?: boolean;
   createdAt: Date;
   updatedAt: Date;
   inventory?: Inventory[];
   conservation?: ProductConservation[];
+  vragueProducts?: Product[];
+  vraguePrices?: VraguePrice[];
 }
 
 export interface ProductFamily {
@@ -85,6 +92,17 @@ export interface StockMovement {
   reference?: string;
   date: Date;
   userId: number;
+}
+
+export interface VraguePrice {
+  id: number;
+  productId: number;
+  price: number;
+  startDate: Date;
+  endDate?: Date;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface BulkImportResult {

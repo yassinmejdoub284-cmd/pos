@@ -1,4 +1,60 @@
-<div class="bg-white shadow rounded-lg p-6">
-  <h2 class="text-2xl font-bold text-gray-900 mb-4">Rapports</h2>
-  <p class="text-gray-600">Module de rapports en cours de développement</p>
+<div class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black px-4 py-6">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold text-white mb-2">Rapports</h1>
+      <p class="text-gray-300">Choisissez le type de rapport à consulter</p>
+    </div>
+
+    <!-- Report Type Selection Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+      <!-- Daily Extract Card -->
+      <div class="group cursor-pointer" (click)="navigateToDailyExtract()">
+        <div class="bg-gray-800/50 rounded-xl border border-gray-700/50 hover:border-teal-400/50 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px]">
+          <!-- Background Gradient Effect -->
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          
+          <!-- Icon Container -->
+          <div class="relative z-10">
+            <div class="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+              </svg>
+            </div>
+            
+            <!-- Title and Description -->
+            <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-teal-400 transition-colors duration-300">Extrait Journalière</h3>
+            <p class="text-gray-400 group-hover:text-gray-300 transition-colors duration-300">Consultez les extraits des 10 derniers jours avec détails par famille et produit</p>
+          </div>
+          
+          <!-- Hover Border Effect -->
+          <div class="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-teal-400/20 transition-all duration-300"></div>
+        </div>
+      </div>
+
+      <!-- General Reports Card -->
+      <div class="group cursor-pointer" (click)="navigateToGeneralReports()">
+        <div class="bg-gray-800/50 rounded-xl border border-gray-700/50 hover:border-purple-400/50 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px]">
+          <!-- Background Gradient Effect -->
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          
+          <!-- Icon Container -->
+          <div class="relative z-10">
+            <div class="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            
+            <!-- Title and Description -->
+            <h3 class="text-xl font-semibold text-white mb-2 group-hover:text-purple-400 transition-colors duration-300">Rapports Généraux</h3>
+            <p class="text-gray-400 group-hover:text-gray-300 transition-colors duration-300">Rapports détaillés et analyses avancées (à définir)</p>
+          </div>
+          
+          <!-- Hover Border Effect -->
+          <div class="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-purple-400/20 transition-all duration-300"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div> 

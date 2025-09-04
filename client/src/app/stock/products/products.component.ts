@@ -22,8 +22,10 @@ export class ProductsComponent implements OnInit {
   showAddModal = false;
   showImportModal = false;
   showImageUploadModal = false;
+  showVragueModal = false;
   editingProduct: Product | null = null;
   selectedProductForImage: Product | null = null;
+  selectedProductForVrague: Product | null = null;
   families: ProductFamily[] = [];
 
   constructor(private productsService: ProductsService) {}
@@ -114,7 +116,9 @@ export class ProductsComponent implements OnInit {
   closeModal(): void {
     this.showAddModal = false;
     this.showImportModal = false;
+    this.showVragueModal = false;
     this.editingProduct = null;
+    this.selectedProductForVrague = null;
   }
 
   onProductSaved(): void {
@@ -216,5 +220,51 @@ export class ProductsComponent implements OnInit {
 
   onWarningsUpdated(): void {
     // Refresh warnings if needed
+  }
+
+  openVragueModal(product: Product): void {
+    this.selectedProductForVrague = product;
+    this.showVragueModal = true;
+  }
+
+  closeVragueModal(): void {
+    this.showVragueModal = false;
+    this.selectedProductForVrague = null;
+  }
+
+  convertToVrague(vragueData: { isStockable: boolean; price: number }): void {
+    if (!this.selectedProductForVrague) return;
+
+    // Find the vrague family
+    const vragueFamily = this.families.find(f => f.name === 'Vrague');
+    if (!vragueFamily) {
+      this.error = 'Famille Vrague non trouvée';
+      return;
+    }
+
+    const vragueProduct = {
+      name: `${this.selectedProductForVrague.name} (Vrague)`,
+      description: `Version vrague de ${this.selectedProductForVrague.name}`,
+      familleId: vragueFamily.id,
+      barcode: '', // Will be generated or left empty
+      unite: this.selectedProductForVrague.unite,
+      prix_vente_TTC: vragueData.price,
+      tva: this.selectedProductForVrague.tva,
+      photo: this.selectedProductForVrague.photo,
+      duree_conservation: this.selectedProductForVrague.duree_conservation,
+      isVrague: true,
+      originalProductId: this.selectedProductForVrague.id,
+      isStockable: vragueData.isStockable
+    };
+
+    this.productsService.createProduct(vragueProduct).subscribe({
+      next: () => {
+        this.closeVragueModal();
+        this.loadProducts();
+      },
+      error: (error) => {
+        this.error = 'Erreur lors de la création du produit vrague';
+      }
+    });
   }
 } 

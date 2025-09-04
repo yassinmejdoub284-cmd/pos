@@ -40,9 +40,8 @@ export class CaisseComponent implements OnInit {
   // Product catalog
   allProducts: Product[] = [];
   filteredProducts: Product[] = [];
-  productCategories: string[] = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons'];
+  productCategories: string[] = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrague'];
   selectedCategory: string = 'Tous';
-  searchQuery: string = '';
 
   // Input handling
   currentInput: string = '';
@@ -60,8 +59,6 @@ export class CaisseComponent implements OnInit {
   discountAmount: number | undefined;
   discountTarget: string = 'Tous';
   discountType: 'percentage' | 'amount' | undefined;
-  quickPercentages = [2, 4, 5, 10, 15];
-  quickAmounts = [2, 4, 5, 10, 15]; // For discount percentages
 
   // Payment popup
   showPaymentPopup = false;
@@ -270,34 +267,24 @@ export class CaisseComponent implements OnInit {
       filtered = filtered.filter(p => p.famille?.name === this.selectedCategory);
     }
     
-    // Filter by search query
-    if (this.searchQuery.trim()) {
-      const query = this.searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(query) || 
-        (p.barcode && p.barcode.toLowerCase().includes(query))
-      );
-    }
-    
     // Store all filtered results
     this.filteredProducts = filtered;
   }
 
-  onSearchChange(): void {
-    this.filterProducts();
-  }
 
   scrollLeft(): void {
     const container = document.querySelector('.products-scroll-container') as HTMLElement;
     if (container) {
-      container.scrollBy({ left: -400, behavior: 'smooth' });
+      // Scroll by 5 columns (one full row) plus gap
+      container.scrollBy({ left: -640, behavior: 'smooth' });
     }
   }
 
   scrollRight(): void {
     const container = document.querySelector('.products-scroll-container') as HTMLElement;
     if (container) {
-      container.scrollBy({ left: 400, behavior: 'smooth' });
+      // Scroll by 5 columns (one full row) plus gap
+      container.scrollBy({ left: 640, behavior: 'smooth' });
     }
   }
 
@@ -1294,72 +1281,9 @@ export class CaisseComponent implements OnInit {
     return Number(rounded.toFixed(3));
   }
 
-  setQuickPercent(p: number): void {
-    if (this.discountType === 'percentage') {
-      this.discountPercent = p;
-      this.discountAmount = undefined;
-    }
-  }
 
-  setQuickDiscountAmount(percent: number, calculatedAmount?: number): void {
-    if (this.discountType === 'amount') {
-      if (calculatedAmount !== undefined) {
-        this.discountAmount = calculatedAmount;
-      } else {
-        const targetTotal = this.getTargetedTotal();
-        this.discountAmount = this.roundToTenthAsThreeDecimals((targetTotal * percent) / 100);
-      }
-      this.discountPercent = undefined;
-    }
-  }
 
-  setQuickAmount(amount: number): void {
-    if (this.paymentType === 'cash') {
-      this.amountPaid = amount;
-      this.onAmountPaidChange();
-    }
-  }
 
-  getQuickAmounts(): number[] {
-    const total = this.selectedTemporarySale ? this.selectedTemporarySale.finalTotal : this.netTotal;
-    const netTotal = Number(total);
-    const amounts = new Set<number>();
-    
-    // Always include exact amount
-    amounts.add(netTotal);
-    
-    // Round to nearest 0.5 (if different from exact)
-    const rounded05 = Math.ceil(netTotal * 2) / 2;
-    if (rounded05 !== netTotal) {
-      amounts.add(rounded05);
-    }
-    
-    // Round to nearest whole number (if different)
-    const rounded1 = Math.ceil(netTotal);
-    if (rounded1 !== netTotal && rounded1 !== rounded05) {
-      amounts.add(rounded1);
-    }
-    
-    // Round to nearest 5 (if different)
-    const rounded5 = Math.ceil(netTotal / 5) * 5;
-    if (rounded5 !== netTotal && rounded5 !== rounded05 && rounded5 !== rounded1) {
-      amounts.add(rounded5);
-    }
-    
-    // Round to nearest 10 (if different)
-    const rounded10 = Math.ceil(netTotal / 10) * 10;
-    if (rounded10 !== netTotal && rounded10 !== rounded05 && rounded10 !== rounded1 && rounded10 !== rounded5) {
-      amounts.add(rounded10);
-    }
-    
-    // Round to nearest 20 (if different)
-    const rounded20 = Math.ceil(netTotal / 20) * 20;
-    if (rounded20 !== netTotal && rounded20 !== rounded05 && rounded20 !== rounded1 && rounded20 !== rounded5 && rounded20 !== rounded10) {
-      amounts.add(rounded20);
-    }
-    
-    return Array.from(amounts).sort((a, b) => a - b);
-  }
 
   confirmDiscount(): void {
     const targetTotal = this.getTargetedTotal();

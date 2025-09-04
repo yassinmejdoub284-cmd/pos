@@ -100,16 +100,23 @@ model Product {
   tva           Decimal  @default(19) @db.Decimal(5, 2)
   photo         String?  @db.VarChar(255)
   duree_conservation Int? @map("duree_conservation")
+  // Vrague fields
+  isVrague      Boolean  @default(false) @map("is_vrague")
+  originalProductId Int?  @map("original_product_id")
+  isStockable   Boolean  @default(true) @map("is_stockable")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   famille      ProductFamily @relation(fields: [familleId], references: [id])
+  originalProduct Product? @relation("VragueProducts", fields: [originalProductId], references: [id])
+  vragueProducts Product[] @relation("VragueProducts")
   inventory    Inventory[]
   saleItems    SaleItem[] @relation("ProductSaleItems")
   stockMovements StockMovement[]
   stockTransferItems StockTransferItem[]
   documentItems StockDocumentItem[]
   conservation ProductConservation[]
+  vraguePrices VraguePrice[]
 
   @@map("products")
 }
@@ -131,6 +138,21 @@ model ProductConservation {
   depot             Depot    @relation(fields: [depotId], references: [id], onDelete: Cascade)
 
   @@map("product_conservation")
+}
+
+model VraguePrice {
+  id          Int      @id @default(autoincrement())
+  productId   Int      @map("product_id")
+  price       Decimal  @db.Decimal(10, 2)
+  startDate   DateTime @map("start_date")
+  endDate     DateTime? @map("end_date")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("vrague_prices")
 }
 
 model Inventory {

@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { Product, ProductFamily, BulkImportResult } from '../models/product.model';
+import { Product, ProductFamily, BulkImportResult, VraguePrice } from '../models/product.model';
 
 @Injectable({
   providedIn: 'root'
@@ -78,5 +78,26 @@ export class ProductsService {
 
   dismissConservationWarning(conservationId: number): Observable<any> {
     return this.http.put<any>(`${this.apiUrl}/conservation/${conservationId}/dismiss`, {});
+  }
+
+  // Vrague price management
+  createVraguePrice(productId: number, priceData: { price: number; startDate: string; endDate?: string }): Observable<VraguePrice> {
+    return this.http.post<VraguePrice>(`${this.apiUrl}/${productId}/vrague-prices`, priceData);
+  }
+
+  getVraguePrices(productId: number, startDate?: string, endDate?: string): Observable<VraguePrice[]> {
+    let params = new HttpParams();
+    if (startDate) params = params.set('startDate', startDate);
+    if (endDate) params = params.set('endDate', endDate);
+    
+    return this.http.get<VraguePrice[]>(`${this.apiUrl}/${productId}/vrague-prices`, { params });
+  }
+
+  getVragueStatistics(startDate: string, endDate: string): Observable<any[]> {
+    const params = new HttpParams()
+      .set('startDate', startDate)
+      .set('endDate', endDate);
+    
+    return this.http.get<any[]>(`${this.apiUrl}/vrague/statistics`, { params });
   }
 } 

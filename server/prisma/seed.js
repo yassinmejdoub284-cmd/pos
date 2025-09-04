@@ -67,7 +67,8 @@ async function main() {
     { name: 'Viennoiserie', description: 'Viennoiseries et croissants' },
     { name: 'Pâtisserie', description: 'Pâtisseries et gâteaux' },
     { name: 'Boissons', description: 'Cafés et boissons' },
-    { name: 'Boulangerie', description: 'Pain et boulangerie' }
+    { name: 'Boulangerie', description: 'Pain et boulangerie' },
+    { name: 'Vrague', description: 'Produits vrague - vente au poids' }
   ];
 
   const families = [];
@@ -96,7 +97,17 @@ async function main() {
     { name: 'Tarte aux Pommes', description: 'Tarte aux pommes traditionnelle', price: 4.50, familleName: 'Pâtisserie', barcode: '1234567890127' },
     { name: 'Café Expresso', description: 'Expresso italien', price: 1.80, familleName: 'Boissons', barcode: '1234567890128' },
     { name: 'Thé à la Menthe', description: 'Thé vert à la menthe fraîche', price: 2.00, familleName: 'Boissons', barcode: '1234567890129' },
-    { name: 'Cookie Chocolat', description: 'Cookie aux pépites de chocolat', price: 1.00, familleName: 'Boulangerie', barcode: '1234567890130' }
+    { name: 'Cookie Chocolat', description: 'Cookie aux pépites de chocolat', price: 1.00, familleName: 'Boulangerie', barcode: '1234567890130' },
+    { name: 'Gâteau au Chocolat', description: 'Gâteau moelleux au chocolat noir', price: 5.50, familleName: 'Pâtisserie', barcode: '1234567890131' },
+    { name: 'Tarte Tatin', description: 'Tarte tatin aux pommes caramélisées', price: 6.00, familleName: 'Pâtisserie', barcode: '1234567890132' },
+    { name: 'Profiteroles', description: 'Profiteroles à la crème chantilly et chocolat', price: 4.80, familleName: 'Pâtisserie', barcode: '1234567890133' },
+    { name: 'Cheesecake', description: 'Cheesecake aux fruits rouges', price: 5.20, familleName: 'Pâtisserie', barcode: '1234567890134' },
+    { name: 'Tiramisu', description: 'Tiramisu classique italien', price: 6.50, familleName: 'Pâtisserie', barcode: '1234567890135' },
+    { name: 'Macarons Assortis', description: 'Macarons aux saveurs variées', price: 8.00, familleName: 'Pâtisserie', barcode: '1234567890136' },
+    { name: 'Opéra', description: 'Gâteau Opéra aux amandes et café', price: 7.50, familleName: 'Pâtisserie', barcode: '1234567890137' },
+    { name: 'Saint-Honoré', description: 'Saint-Honoré à la crème chiboust', price: 6.80, familleName: 'Pâtisserie', barcode: '1234567890138' },
+    { name: 'Paris-Brest', description: 'Paris-Brest aux noisettes', price: 5.90, familleName: 'Pâtisserie', barcode: '1234567890139' },
+    { name: 'Religieuse', description: 'Religieuse au chocolat et café', price: 4.20, familleName: 'Pâtisserie', barcode: '1234567890140' }
   ];
 
   const products = [];
