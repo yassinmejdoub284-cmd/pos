@@ -2,12 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ProductFamily } from '../models/product-family.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class FamiliesService {
-  private apiUrl = 'http://localhost:3000/api/families';
+  private apiUrl = environment.apiUrl + '/families';
 
   constructor(private http: HttpClient) { }
 
