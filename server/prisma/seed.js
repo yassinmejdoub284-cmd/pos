@@ -57,7 +57,9 @@ async function main() {
     'Viennoiserie', 
     'Boulangerie',
     'Boissons',
-    'Glaces'
+    'Glaces',
+    'Pâtisserie Tunisienne',
+    'Jus et Smoothies'
   ];
 
   console.log('✅ Product families defined');
@@ -68,7 +70,9 @@ async function main() {
     { name: 'Pâtisserie', description: 'Pâtisseries et gâteaux' },
     { name: 'Boissons', description: 'Cafés et boissons' },
     { name: 'Boulangerie', description: 'Pain et boulangerie' },
-    { name: 'Vrague', description: 'Produits vrague - vente au poids' }
+    { name: 'Vrac', description: 'Produits vrac - vente au poids' },
+    { name: 'Pâtisserie Tunisienne', description: 'Pâtisseries traditionnelles tunisiennes' },
+    { name: 'Jus et Smoothies', description: 'Jus de fruits frais et smoothies' }
   ];
 
   const families = [];
@@ -107,7 +111,33 @@ async function main() {
     { name: 'Opéra', description: 'Gâteau Opéra aux amandes et café', price: 7.50, familleName: 'Pâtisserie', barcode: '1234567890137' },
     { name: 'Saint-Honoré', description: 'Saint-Honoré à la crème chiboust', price: 6.80, familleName: 'Pâtisserie', barcode: '1234567890138' },
     { name: 'Paris-Brest', description: 'Paris-Brest aux noisettes', price: 5.90, familleName: 'Pâtisserie', barcode: '1234567890139' },
-    { name: 'Religieuse', description: 'Religieuse au chocolat et café', price: 4.20, familleName: 'Pâtisserie', barcode: '1234567890140' }
+    { name: 'Religieuse', description: 'Religieuse au chocolat et café', price: 4.20, familleName: 'Pâtisserie', barcode: '1234567890140' },
+    
+    // Tunisian Pastries
+    { name: 'Baklava', description: 'Baklava aux noix et miel', price: 3.50, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890141' },
+    { name: 'Makroudh', description: 'Makroudh aux dattes et semoule', price: 2.80, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890142' },
+    { name: 'Zlabia', description: 'Zlabia frite au miel', price: 1.50, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890143' },
+    { name: 'Ghrayba', description: 'Ghrayba aux amandes', price: 2.20, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890144' },
+    { name: 'Kaak Warka', description: 'Kaak warka aux amandes', price: 3.00, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890145' },
+    { name: 'Samsa', description: 'Samsa aux amandes et miel', price: 2.50, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890146' },
+    { name: 'Cornes de Gazelle', description: 'Cornes de gazelle aux amandes', price: 4.00, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890147' },
+    { name: 'Mhalbiya', description: 'Mhalbiya à la rose', price: 2.80, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890148' },
+    { name: 'Assida', description: 'Assida au beurre et miel', price: 3.20, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890149' },
+    { name: 'Bambalouni', description: 'Bambalouni frit au sucre', price: 1.80, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890150' },
+    
+    // Juices and Smoothies
+    { name: 'Jus d\'Orange Frais', description: 'Jus d\'orange pressé', price: 3.50, familleName: 'Jus et Smoothies', barcode: '1234567890151' },
+    { name: 'Jus de Pomme', description: 'Jus de pomme naturel', price: 3.00, familleName: 'Jus et Smoothies', barcode: '1234567890152' },
+    { name: 'Jus de Grenade', description: 'Jus de grenade frais', price: 4.50, familleName: 'Jus et Smoothies', barcode: '1234567890153' },
+    { name: 'Jus de Citron', description: 'Jus de citron pressé', price: 2.50, familleName: 'Jus et Smoothies', barcode: '1234567890154' },
+    { name: 'Smoothie Banane', description: 'Smoothie banane et lait', price: 4.00, familleName: 'Jus et Smoothies', barcode: '1234567890155' },
+    { name: 'Smoothie Fraise', description: 'Smoothie fraise et yaourt', price: 4.20, familleName: 'Jus et Smoothies', barcode: '1234567890156' },
+    { name: 'Smoothie Mangue', description: 'Smoothie mangue et ananas', price: 4.80, familleName: 'Jus et Smoothies', barcode: '1234567890157' },
+    { name: 'Jus de Carotte', description: 'Jus de carotte frais', price: 3.20, familleName: 'Jus et Smoothies', barcode: '1234567890158' },
+    { name: 'Jus de Betterave', description: 'Jus de betterave et pomme', price: 3.80, familleName: 'Jus et Smoothies', barcode: '1234567890159' },
+    { name: 'Smoothie Vert', description: 'Smoothie épinards et kiwi', price: 5.00, familleName: 'Jus et Smoothies', barcode: '1234567890160' },
+    { name: 'Jus de Raisin', description: 'Jus de raisin naturel', price: 3.50, familleName: 'Jus et Smoothies', barcode: '1234567890161' },
+    { name: 'Smoothie Tropical', description: 'Smoothie fruits tropicaux', price: 5.50, familleName: 'Jus et Smoothies', barcode: '1234567890162' }
   ];
 
   const products = [];
@@ -196,17 +226,21 @@ async function main() {
 
   console.log('✅ Expense categories created');
 
-  // Create or update users
-  const hashedPassword = await bcrypt.hash('admin123', 12);
+  // Create or update demo users with different passwords
+  const adminPassword = await bcrypt.hash('Admin2024!', 12);
+  const managerPassword = await bcrypt.hash('Manager2024!', 12);
+  const cashierPassword = await bcrypt.hash('Cashier2024!', 12);
+  const stockPassword = await bcrypt.hash('Stock2024!', 12);
   
   const users = await Promise.all([
     prisma.user.upsert({
       where: { username: 'admin' },
-      update: {},
+      update: { passwordHash: adminPassword, pin: '00010001' },
       create: {
         username: 'admin',
         email: 'admin@patisserie.tn',
-        passwordHash: hashedPassword,
+        passwordHash: adminPassword,
+        pin: '00010001',
         firstName: 'Admin',
         lastName: 'Principal',
         role: 'ADMIN',
@@ -215,11 +249,17 @@ async function main() {
     }),
     prisma.user.upsert({
       where: { username: 'manager_sfax' },
-      update: {},
+      update: { 
+        username: 'manager',
+        email: 'manager@patisserie.tn',
+        passwordHash: managerPassword,
+        pin: '00020002'
+      },
       create: {
-        username: 'manager_sfax',
-        email: 'manager.sfax@patisserie.tn',
-        passwordHash: hashedPassword,
+        username: 'manager',
+        email: 'manager@patisserie.tn',
+        passwordHash: managerPassword,
+        pin: '00020002',
         firstName: 'Ahmed',
         lastName: 'Ben Ali',
         role: 'MANAGER',
@@ -228,11 +268,17 @@ async function main() {
     }),
     prisma.user.upsert({
       where: { username: 'cashier1' },
-      update: {},
+      update: { 
+        username: 'cashier',
+        email: 'cashier@patisserie.tn',
+        passwordHash: cashierPassword,
+        pin: '00030003'
+      },
       create: {
-        username: 'cashier1',
-        email: 'cashier1@patisserie.tn',
-        passwordHash: hashedPassword,
+        username: 'cashier',
+        email: 'cashier@patisserie.tn',
+        passwordHash: cashierPassword,
+        pin: '00030003',
         firstName: 'Fatma',
         lastName: 'Trabelsi',
         role: 'CASHIER',
@@ -241,11 +287,17 @@ async function main() {
     }),
     prisma.user.upsert({
       where: { username: 'stock_manager' },
-      update: {},
-      create: {
-        username: 'stock_manager',
+      update: { 
+        username: 'stock',
         email: 'stock@patisserie.tn',
-        passwordHash: hashedPassword,
+        passwordHash: stockPassword,
+        pin: '00040004'
+      },
+      create: {
+        username: 'stock',
+        email: 'stock@patisserie.tn',
+        passwordHash: stockPassword,
+        pin: '00040004',
         firstName: 'Mohamed',
         lastName: 'Hassan',
         role: 'STOCK_MANAGER',

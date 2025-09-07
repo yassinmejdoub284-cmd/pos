@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { Product, ProductFamily, BulkImportResult, VraguePrice } from '../models/product.model';
+import { Product, ProductFamily, BulkImportResult, VracPrice } from '../models/product.model';
 
 @Injectable({
   providedIn: 'root'
@@ -45,6 +45,16 @@ export class ProductsService {
     return this.http.post<{ imageUrl: string }>(`${this.apiUrl}/upload-image`, formData);
   }
 
+  uploadProductPhoto(productId: number, file: File): Observable<{ imageUrl: string; product: any }> {
+    const formData = new FormData();
+    formData.append('photo', file);
+    return this.http.post<{ imageUrl: string; product: any }>(`${this.apiUrl}/${productId}/photo`, formData);
+  }
+
+  deleteProductPhoto(productId: number): Observable<{ product: any }> {
+    return this.http.delete<{ product: any }>(`${this.apiUrl}/${productId}/photo`);
+  }
+
   generateBarcode(): Observable<{ barcode: string }> {
     return this.http.post<{ barcode: string }>(`${this.apiUrl}/generate-barcode`, {});
   }
@@ -80,24 +90,24 @@ export class ProductsService {
     return this.http.put<any>(`${this.apiUrl}/conservation/${conservationId}/dismiss`, {});
   }
 
-  // Vrague price management
-  createVraguePrice(productId: number, priceData: { price: number; startDate: string; endDate?: string }): Observable<VraguePrice> {
-    return this.http.post<VraguePrice>(`${this.apiUrl}/${productId}/vrague-prices`, priceData);
+  // Vrac price management
+  createVracPrice(productId: number, priceData: { price: number; startDate: string; endDate?: string }): Observable<VracPrice> {
+    return this.http.post<VracPrice>(`${this.apiUrl}/${productId}/vrac-prices`, priceData);
   }
 
-  getVraguePrices(productId: number, startDate?: string, endDate?: string): Observable<VraguePrice[]> {
+  getVracPrices(productId: number, startDate?: string, endDate?: string): Observable<VracPrice[]> {
     let params = new HttpParams();
     if (startDate) params = params.set('startDate', startDate);
     if (endDate) params = params.set('endDate', endDate);
     
-    return this.http.get<VraguePrice[]>(`${this.apiUrl}/${productId}/vrague-prices`, { params });
+    return this.http.get<VracPrice[]>(`${this.apiUrl}/${productId}/vrac-prices`, { params });
   }
 
-  getVragueStatistics(startDate: string, endDate: string): Observable<any[]> {
+  getVracStatistics(startDate: string, endDate: string): Observable<any[]> {
     const params = new HttpParams()
       .set('startDate', startDate)
       .set('endDate', endDate);
     
-    return this.http.get<any[]>(`${this.apiUrl}/vrague/statistics`, { params });
+    return this.http.get<any[]>(`${this.apiUrl}/vrac/statistics`, { params });
   }
 } 

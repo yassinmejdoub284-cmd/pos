@@ -1,14 +1,14 @@
-<div class="min-h-screen bg-gray-50 p-6">
+<div class="min-h-screen bg-indigo-50 p-6">
   <!-- Header -->
   <div class="mb-6">
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-gray-900">Historique des clôtures</h1>
-        <p class="text-gray-600 mt-2">Consultation et gestion des sessions de caisse</p>
+        <p class="text-slate-600 mt-2">Consultation et gestion des sessions de caisse</p>
       </div>
       <button
         (click)="goBack()"
-        class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        class="px-4 py-2 border border-slate-200 rounded-lg shadow-md text-sm font-medium text-slate-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
       >
         Retour
       </button>
@@ -17,10 +17,10 @@
 
   <!-- Error Message -->
   @if (error()) {
-    <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+    <div class="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
       <div class="flex">
         <div class="flex-shrink-0">
-          <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+          <svg class="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
           </svg>
         </div>
@@ -32,12 +32,12 @@
   }
 
   <!-- Filters -->
-  <div class="bg-white shadow rounded-lg p-6 mb-6">
+  <div class="bg-white shadow rounded-2xl p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-medium text-gray-900">Filtres</h3>
       <button
         (click)="showFilters.set(!showFilters())"
-        class="text-sm text-blue-600 hover:text-blue-500"
+        class="text-sm text-blue-600 hover:text-secondary-500"
       >
         {{ showFilters() ? 'Masquer' : 'Afficher' }} les filtres
       </button>
@@ -47,32 +47,32 @@
       <div class="space-y-4">
         <!-- Quick Filters -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Filtres rapides</label>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Filtres rapides</label>
           <div class="flex space-x-2">
             <button
               (click)="applyQuickFilter('today')"
-              [class]="quickFilters.today ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'"
+              [class]="quickFilters.today ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-800'"
               class="px-3 py-1 rounded-full text-xs font-medium hover:bg-blue-200"
             >
               Aujourd'hui
             </button>
             <button
               (click)="applyQuickFilter('yesterday')"
-              [class]="quickFilters.yesterday ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'"
+              [class]="quickFilters.yesterday ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-800'"
               class="px-3 py-1 rounded-full text-xs font-medium hover:bg-blue-200"
             >
               Hier
             </button>
             <button
               (click)="applyQuickFilter('thisWeek')"
-              [class]="quickFilters.thisWeek ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'"
+              [class]="quickFilters.thisWeek ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-800'"
               class="px-3 py-1 rounded-full text-xs font-medium hover:bg-blue-200"
             >
               Cette semaine
             </button>
             <button
               (click)="applyQuickFilter('thisMonth')"
-              [class]="quickFilters.thisMonth ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'"
+              [class]="quickFilters.thisMonth ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-800'"
               class="px-3 py-1 rounded-full text-xs font-medium hover:bg-blue-200"
             >
               Ce mois
@@ -83,21 +83,21 @@
         <!-- Date Range -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700">Date de début</label>
+            <label class="block text-sm font-medium text-slate-700">Date de début</label>
             <input
               type="date"
               [(ngModel)]="filters.startDate"
               name="startDate"
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              class="mt-1 block w-full border-slate-200 rounded-lg shadow-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Date de fin</label>
+            <label class="block text-sm font-medium text-slate-700">Date de fin</label>
             <input
               type="date"
               [(ngModel)]="filters.endDate"
               name="endDate"
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              class="mt-1 block w-full border-slate-200 rounded-lg shadow-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
           </div>
         </div>
@@ -105,11 +105,11 @@
         <!-- Other Filters -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700">Statut</label>
+            <label class="block text-sm font-medium text-slate-700">Statut</label>
             <select
               [(ngModel)]="filters.status"
               name="status"
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              class="mt-1 block w-full border-slate-200 rounded-lg shadow-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
               <option value="">Tous</option>
               <option value="OPEN">Ouverte</option>
@@ -119,11 +119,11 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Point de vente</label>
+            <label class="block text-sm font-medium text-slate-700">Point de vente</label>
             <select
               [(ngModel)]="filters.posId"
               name="posId"
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              class="mt-1 block w-full border-slate-200 rounded-lg shadow-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
               <option value="">Tous</option>
               <option value="1">POS 1</option>
@@ -133,11 +133,11 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Écart</label>
+            <label class="block text-sm font-medium text-slate-700">Écart</label>
             <select
               [(ngModel)]="filters.hasVariance"
               name="hasVariance"
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              class="mt-1 block w-full border-slate-200 rounded-lg shadow-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
               <option value="">Tous</option>
               <option value="true">Avec écart</option>
@@ -150,13 +150,13 @@
         <div class="flex justify-end space-x-3">
           <button
             (click)="clearFilters()"
-            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            class="px-4 py-2 border border-slate-200 rounded-lg shadow-md text-sm font-medium text-slate-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            Effacer
+            Tout afficher
           </button>
           <button
             (click)="applyFilters()"
-            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            class="px-4 py-2 border border-transparent rounded-lg shadow-md text-sm font-medium text-slate-800 bg-cyan-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Appliquer
           </button>
@@ -174,39 +174,39 @@
 
   <!-- Sessions List -->
   @if (!loading() && sessions().length > 0) {
-    <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="bg-white shadow rounded-2xl overflow-hidden">
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+          <thead class="bg-indigo-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Caissier</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">POS</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ouverte</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fermée</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Espèces attendues</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Espèces comptées</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Écart</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Session</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Caissier</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">POS</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Ouverte</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Fermée</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Espèces attendues</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Espèces comptées</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Écart</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Statut</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
             @for (session of sessions(); track session.id) {
-              <tr class="hover:bg-gray-50">
+              <tr class="hover:bg-indigo-50">
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   #{{ session.id }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {{ session.user?.firstName }} {{ session.user?.lastName }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                   POS {{ session.posId }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                   {{ formatDateTime(session.openedAt) }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                   {{ session.closedAt ? formatDateTime(session.closedAt) : '-' }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -241,7 +241,7 @@
                     @if (session.status === 'CLOSED') {
                       <button
                         (click)="printSessionReport(session, 'Z')"
-                        class="text-green-600 hover:text-green-900"
+                        class="text-emerald-600 hover:text-green-900"
                         title="Imprimer Z"
                       >
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -296,18 +296,18 @@
   <!-- Empty State -->
   @if (!loading() && sessions().length === 0) {
     <div class="text-center py-12">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg class="mx-auto h-12 w-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
       <h3 class="mt-2 text-sm font-medium text-gray-900">Aucune session trouvée</h3>
-      <p class="mt-1 text-sm text-gray-500">Aucune session ne correspond aux critères de recherche.</p>
+      <p class="mt-1 text-sm text-slate-500">Aucune session ne correspond aux critères de recherche.</p>
     </div>
   }
 
   <!-- Session Details Modal -->
   @if (showSessionDetails() && selectedSession()) {
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+    <div class="fixed inset-0 bg-slate-200 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-vibrant rounded-lg bg-white">
         <div class="mt-3">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-gray-900">
@@ -315,7 +315,7 @@
             </h3>
             <button
               (click)="showSessionDetails.set(false)"
-              class="text-gray-400 hover:text-gray-600"
+              class="text-slate-500 hover:text-slate-600"
             >
               <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -326,35 +326,35 @@
           <div class="space-y-6">
             <!-- Session Info -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="bg-gray-50 p-4 rounded-lg">
+              <div class="bg-indigo-50 p-4 rounded-2xl">
                 <h4 class="text-md font-medium text-gray-900 mb-3">Informations générales</h4>
                 <dl class="space-y-2">
                   <div class="flex justify-between">
-                    <dt class="text-sm text-gray-500">Caissier:</dt>
+                    <dt class="text-sm text-slate-500">Caissier:</dt>
                     <dd class="text-sm font-medium text-gray-900">
                       {{ selectedSession()?.user?.firstName }} {{ selectedSession()?.user?.lastName }}
                     </dd>
                   </div>
                   <div class="flex justify-between">
-                    <dt class="text-sm text-gray-500">POS:</dt>
+                    <dt class="text-sm text-slate-500">POS:</dt>
                     <dd class="text-sm font-medium text-gray-900">POS {{ selectedSession()?.posId }}</dd>
                   </div>
                   <div class="flex justify-between">
-                    <dt class="text-sm text-gray-500">Ouverte:</dt>
+                    <dt class="text-sm text-slate-500">Ouverte:</dt>
                     <dd class="text-sm font-medium text-gray-900">
                       {{ formatDateTime(selectedSession()?.openedAt!) }}
                     </dd>
                   </div>
                   @if (selectedSession()?.closedAt) {
                     <div class="flex justify-between">
-                      <dt class="text-sm text-gray-500">Fermée:</dt>
+                      <dt class="text-sm text-slate-500">Fermée:</dt>
                       <dd class="text-sm font-medium text-gray-900">
                         {{ formatDateTime(selectedSession()?.closedAt!) }}
                       </dd>
                     </div>
                   }
                   <div class="flex justify-between">
-                    <dt class="text-sm text-gray-500">Statut:</dt>
+                    <dt class="text-sm text-slate-500">Statut:</dt>
                     <dd class="text-sm font-medium">
                       <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                             [class]="getSessionStatusClass(selectedSession()?.status!)">
@@ -365,30 +365,30 @@
                 </dl>
               </div>
 
-              <div class="bg-gray-50 p-4 rounded-lg">
+              <div class="bg-indigo-50 p-4 rounded-2xl">
                 <h4 class="text-md font-medium text-gray-900 mb-3">Résumé financier</h4>
                 <dl class="space-y-2">
                   <div class="flex justify-between">
-                    <dt class="text-sm text-gray-500">Fonds de caisse:</dt>
+                    <dt class="text-sm text-slate-500">Fonds de caisse:</dt>
                     <dd class="text-sm font-medium text-gray-900">
                       {{ formatCurrency(selectedSession()?.openingFund!) }}
                     </dd>
                   </div>
                   <div class="flex justify-between">
-                    <dt class="text-sm text-gray-500">Espèces attendues:</dt>
+                    <dt class="text-sm text-slate-500">Espèces attendues:</dt>
                     <dd class="text-sm font-medium text-gray-900">
                       {{ formatCurrency(selectedSession()?.expectedCash!) }}
                     </dd>
                   </div>
                   @if (selectedSession()?.countedCash) {
                     <div class="flex justify-between">
-                      <dt class="text-sm text-gray-500">Espèces comptées:</dt>
+                      <dt class="text-sm text-slate-500">Espèces comptées:</dt>
                       <dd class="text-sm font-medium text-gray-900">
                         {{ formatCurrency(selectedSession()?.countedCash!) }}
                       </dd>
                     </div>
                     <div class="flex justify-between">
-                      <dt class="text-sm text-gray-500">Écart:</dt>
+                      <dt class="text-sm text-slate-500">Écart:</dt>
                       <dd class="text-sm font-medium"
                           [class]="getVarianceClass(selectedSession()?.variance!)">
                         {{ formatCurrency(selectedSession()?.variance!) }}
@@ -405,12 +405,12 @@
                 <h4 class="text-md font-medium text-gray-900 mb-3">Mouvements de caisse</h4>
                 <div class="overflow-x-auto">
                   <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                    <thead class="bg-indigo-50">
                       <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motif</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Heure</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Montant</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Motif</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Heure</th>
                       </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -427,8 +427,8 @@
                           <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {{ formatCurrency(movement.amount) }}
                           </td>
-                          <td class="px-6 py-4 text-sm text-gray-500">{{ movement.reason }}</td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td class="px-6 py-4 text-sm text-slate-500">{{ movement.reason }}</td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                             {{ formatDateTime(movement.createdAt) }}
                           </td>
                         </tr>
@@ -444,7 +444,7 @@
               @if (selectedSession()?.status === 'CLOSED') {
                 <button
                   (click)="printSessionReport(selectedSession()!, 'Z')"
-                  class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  class="px-4 py-2 border border-transparent rounded-lg shadow-md text-sm font-medium text-slate-800 bg-emerald-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
                   Imprimer Z
                 </button>
@@ -452,21 +452,21 @@
               @if (selectedSession()?.status === 'OPEN') {
                 <button
                   (click)="printSessionReport(selectedSession()!, 'X')"
-                  class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  class="px-4 py-2 border border-transparent rounded-lg shadow-md text-sm font-medium text-slate-800 bg-cyan-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   Imprimer X
                 </button>
               }
               <button
                 (click)="exportToPDF(selectedSession()!)"
-                class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                class="px-4 py-2 border border-slate-200 rounded-lg shadow-md text-sm font-medium text-slate-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Exporter PDF
               </button>
               @if (canReopenSession(selectedSession()!)) {
                 <button
                   (click)="reopenSession(selectedSession()!)"
-                  class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                  class="px-4 py-2 border border-transparent rounded-lg shadow-md text-sm font-medium text-slate-800 bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
                 >
                   Réouvrir
                 </button>

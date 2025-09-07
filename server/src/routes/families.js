@@ -205,7 +205,7 @@ router.post('/:id/photo', authenticateToken, upload.single('photo'), async (req,
       return res.status(404).json({ error: 'Famille non trouvée' });
     }
     
-    const imageUrl = `/uploads/families/${req.file.filename}`;
+    const imageUrl = `${process.env.API_URL || 'http://localhost:3255'}/uploads/families/${req.file.filename}`;
     
     const updatedFamily = await prisma.productFamily.update({
       where: { id: familyId },

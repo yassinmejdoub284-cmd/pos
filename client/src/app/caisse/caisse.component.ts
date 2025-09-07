@@ -3,9 +3,14 @@ import { Router } from '@angular/router';
 import { ProductsService } from '../core/services/products.service';
 import { SalesService, CreateSaleRequest } from '../core/services/sales.service';
 import { ClientsService } from '../core/services/clients.service';
+import { StockDocumentsService } from '../core/services/stock-documents.service';
+import { ReportsService, ProductSalesData } from '../core/services/reports.service';
+import { SettingsService } from '../core/services/settings.service';
+import { SessionsService } from '../core/services/sessions.service';
+import { DailyExtractService } from '../core/services/daily-extract.service';
+import { PrintService } from '../core/services/print.service';
 import { Product } from '../core/models/product.model';
 import { Sale } from '../core/models/sale.model';
-
 import { Client } from '../core/models/client.model';
 
 interface ReceiptItem {
@@ -14,6 +19,20 @@ interface ReceiptItem {
   unitPrice: number;
   total: number;
   isGift: boolean;
+  hasCustomTotal?: boolean;
+}
+
+interface ClientCart {
+  id: number;
+  clientName: string;
+  clientId?: number;
+  client?: Client;
+  items: ReceiptItem[];
+  subtotal: number;
+  discount: number;
+  netTotal: number;
+  isActive: boolean;
+  createdAt: Date;
 }
 
 @Component({
@@ -27,30 +46,66 @@ export class CaisseComponent implements OnInit {
   currentCashier: string = 'CAISSIER +';
   total: number = 0;
 
+  // Ticket number management
+  currentTicketNumber: number = 1;
+  lastTicketDate: string = '';
+  isShiftOpen: boolean = true;
+
   // Math reference for template
   Math = Math;
 
-  // Receipt data
-  receiptItems: ReceiptItem[] = [];
-  subtotal: number = 0;
-  discount: number = 0;
-  netTotal: number = 0;
+  // Multi-client system
+  clientCarts: ClientCart[] = [];
+  activeCartId: number = 1;
+  maxClients: number = 10; // Increased max for dynamic addition
+  
+  // Receipt data (now refers to active cart)
+  get receiptItems(): ReceiptItem[] {
+    return this.getActiveCart()?.items || [];
+  }
+  
+  get subtotal(): number {
+    return this.getActiveCart()?.subtotal || 0;
+  }
+  
+  get discount(): number {
+    return this.getActiveCart()?.discount || 0;
+  }
+  
+  get netTotal(): number {
+    return this.getActiveCart()?.netTotal || 0;
+  }
+  
   change: number = 0;
 
   // Product catalog
   allProducts: Product[] = [];
   filteredProducts: Product[] = [];
-  productCategories: string[] = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrague'];
+  productCategories: string[] = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrac', 'Pâtisserie Tunisienne', 'Jus et Smoothies'];
   selectedCategory: string = 'Tous';
+  searchQuery: string = '';
+
+  // Sales data for ordering
+  productSalesData: ProductSalesData[] = [];
+
+  // Pagination
+  currentPage: number = 0;
+  productsPerPage: number = 20; // Adjust based on screen size
+  totalPages: number = 0;
+
+  // Shop inventory
+  shopInventory: any[] = [];
+  currentShopDepotId: number = 1; // Shop depot ID (SHOP-CV)
 
   // Input handling
   currentInput: string = '';
   isTemporarySale: boolean = false;
+  
+  // Quantity/Price toggle mode
+  inputMode: 'quantity' | 'price' = 'quantity';
+  pendingProduct: Product | null = null;
+  lastEnteredValue: string = '';
 
-  // Articles popup
-  showArticlesPopup: boolean = false;
-  allMaterials: Product[] = [];
-  materialsWithStock: any[] = [];
 
   // Remise popup
   showDiscountPopup: boolean = false;
@@ -62,7 +117,41 @@ export class CaisseComponent implements OnInit {
 
   // Payment popup
   showPaymentPopup = false;
+  showPaymentConfirmation = false;
   invoiceMode = false;
+
+  // Remise payment popup
+  showRemisePaymentPopup = false;
+  remisePaymentAmount: number | undefined;
+
+  // Temporary sales history popup
+  showTemporarySalesHistory = false;
+  allTemporarySales: any[] = [];
+
+  // Temporary sale customer selection
+  temporarySaleCustomerType: 'passager' | 'existing' | 'new' = 'passager';
+  temporarySaleCustomerSearch = '';
+  temporarySaleCustomerResults: any[] = [];
+  temporarySaleSelectedCustomer: any = null;
+  temporarySaleNewCustomer = {
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: ''
+  };
+
+  // Settings
+  maxDiscountPercent: number = 50; // Default value
+
+  // Session management
+  currentSession: any = null;
+  showClosurePopup = false;
+  closureForm = {
+    countedCash: 0,
+    retraitCentrale: 0,
+    note: ''
+  };
+
   paymentType: 'cash' | 'card' | 'check' | 'virement' | undefined;
   amountPaid: number | undefined;
   calculatedChange = 0;
@@ -86,6 +175,15 @@ export class CaisseComponent implements OnInit {
   showTemporarySalePaymentPopup = false;
   pendingTemporarySalesCount: number = 0;
 
+  // Advance payment for temporary sales
+  showAdvancePaymentPopup = false;
+  advancePaymentAmount: number | undefined;
+  advancePaymentMethod: 'cash' | 'card' | 'check' | 'virement' | undefined;
+  advancePaymentNotes: string = '';
+  advancePaymentChequeId: string = '';
+  advancePaymentEncaissementDate: string = '';
+  advancePaymentVirementNumber: string = '';
+
   // Gift functionality
   showGiftPopup = false;
   giftReason: string = '';
@@ -103,6 +201,19 @@ export class CaisseComponent implements OnInit {
   productModalAmount: number = 0;
   productModalCalculatedQuantity: number = 0;
   productModalCalculatedAmount: number = 0;
+
+  // Stock warning modal
+  showStockWarningModal = false;
+  stockWarningProduct: Product | null = null;
+  stockWarningQuantity: number = 0;
+  stockWarningCurrentStock: number = 0;
+
+  // Last validated sale for printing
+  lastValidatedSale: any = null;
+
+  // Selected receipt item for modification
+  selectedReceiptItem: ReceiptItem | null = null;
+  selectedReceiptItemIndex: number = -1;
 
   // Quick note options for pastry
   quickNoteOptions = [
@@ -132,121 +243,364 @@ export class CaisseComponent implements OnInit {
   // Alert system
   showAlert = false;
   alertMessage = '';
-  alertType: 'success' | 'error' | 'info' = 'info';
+  alertType: 'success' | 'error' | 'info' | 'warning' = 'info';
 
-  // Mouse drag scrolling
-  isDragging: boolean = false;
-  startX: number = 0;
-  startScrollLeft: number = 0;
-  mouseStartX: number = 0;
 
   // Action buttons configuration
   actionButtons = [
     {
       id: 'close',
       label: 'Clôturer',
-      icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
-      color: '#e9539a',
+      icon: 'M17 16l4-4-4-4m-6 8H3V8h8', // door with arrow
+      color: '#ef4444', // Red-500: urgent/critical
       action: () => this.closeShift()
     },
     {
       id: 'invoice',
       label: 'Facture',
-      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-      color: '#3884c2',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586l6.414 6.414V19a2 2 0 01-2 2z',
+      color: '#2563eb', // Blue-600: professional
       action: () => this.generateInvoice()
     },
     {
       id: 'client',
       label: 'Client',
       icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
-      color: '#25496b',
+      color: '#9333ea', // Purple-600: identity/people
       action: () => this.openClientSearch()
-    },
-    {
-      id: 'discount',
-      label: 'Remise',
-      icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z',
-      color: '#dd9830',
-      action: () => this.applyDiscount()
     },
     {
       id: 'history',
       label: 'Historique',
       icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-      color: '#16959e',
+      color: '#0ea5e9', // Cyan-500: time/history
       action: () => this.showHistory()
     },
     {
-      id: 'reset',
-      label: 'Reset',
-      icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
-      color: '#ba3333',
-      action: () => this.resetSale()
-    },
-    {
-      id: 'cancel',
-      label: 'Annulation',
-      icon: 'M6 18L18 6M6 6l12 12',
-      color: '#555',
-      action: () => this.cancelLastItem()
-    },
-    {
       id: 'temporary',
-      label: 'Vente temporaire',
-      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-      color: '#766ed0',
+      label: 'Temporaire',
+      icon: 'M12 6v6l4 2m-4-8a9 9 0 100 18 9 9 0 000-18z', // clock/hourglass style
+      color: '#f97316', // Orange-500: pending/in-progress
       action: () => this.toggleTemporarySale()
-    },
-    {
-      id: 'products',
-      label: 'Articles',
-      icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
-      color: '#bb9999',
-      action: () => this.openArticlesPopup()
-    },
-    {
-      id: 'validate',
-      label: 'Valider',
-      icon: 'M5 13l4 4L19 7',
-      color: '#2ca37d',
-      action: () => this.validateSale()
     },
     {
       id: 'gift',
       label: 'Cadeau',
-      icon: 'M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7',
-      color: '#85ba33',
+      icon: 'M12 8v13m0-13V6a2 2 0 112 2h-2zM5 12h14M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7',
+      color: '#84cc16', // Lime-500: joyful
       action: () => this.markAsGift()
     },
     {
-      id: 'settings',
-      label: 'Paramètres',
-      icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
-      color: '#3884c2',
-      action: () => this.openSettings()
+      id: 'discount',
+      label: 'Remise',
+      icon: 'M7 7h.01M7 3h5l7 7-7 7-7-7V7a4 4 0 014-4z',
+      color: '#f59e0b', // Amber-500: discount
+      action: () => this.applyDiscount()
     },
+    {
+      id: 'validate',
+      label: 'Régler',
+      icon: 'M4 6h16M4 10h16M4 14h10', // credit card
+      color: '#10b981', // Green-500: confirm/positive
+      action: () => this.validateSale()
+    }
+  ];
+
+  commandButtons = [
+    {
+      id: 'validate-esp',
+      label: 'Espèces',
+      icon: 'M5 13l4 4L19 7', // checkmark
+      color: '#22c55e', // Green-500: cash OK
+      action: () => this.validateESP()
+    },
+    
+    {
+      id: 'reset',
+      label: 'Reset',
+      icon: 'M4 4v5h.582m15.356 2A8 8 0 004.582 9m0 0H9m11 11v-5h-.581',
+      color: '#ef4444', // Red-500: clear
+      action: () => this.resetSale()
+    },
+    {
+      id: 'remise',
+      label: 'Régler Rem.',
+      icon: 'M9 5h6m-3 0v14m-7-7h14M4 9l2 2m0-2l-2 2m12-2l2 2m0-2l-2 2', // ticket with cut lines
+      color: '#eab308', // Yellow-500: discount
+      action: () => this.openRemisePaymentPopup()
+    }
   ];
 
   constructor(
     private router: Router,
     private productsService: ProductsService,
     private salesService: SalesService,
-    private clientsService: ClientsService
+    private clientsService: ClientsService,
+    private stockDocumentsService: StockDocumentsService,
+    private reportsService: ReportsService,
+    private settingsService: SettingsService,
+    private sessionsService: SessionsService,
+    private dailyExtractService: DailyExtractService,
+    private printService: PrintService
   ) {}
 
   ngOnInit(): void {
+    this.loadTicketState(); // Initialize ticket number system
+    this.initializeMultiClientSystem();
     this.loadProducts();
-    this.loadMaterialsWithStock();
     this.loadPendingTemporarySalesCount();
     this.loadPendingGiftSalesCount();
+    this.loadShopInventory();
+    this.loadSettings();
+    this.loadCurrentSession();
+  }
+
+  // Multi-client system methods
+  initializeMultiClientSystem(): void {
+    this.clientCarts = [];
+    // Start with only Client 1
+    this.clientCarts.push({
+      id: 1,
+      clientName: `Client 1`,
+      items: [],
+      subtotal: 0,
+      discount: 0,
+      netTotal: 0,
+      isActive: true,
+      createdAt: new Date()
+    });
+    this.activeCartId = 1;
+  }
+
+  getActiveCart(): ClientCart | undefined {
+    return this.clientCarts.find(cart => cart.id === this.activeCartId);
+  }
+
+  getCartById(id: number): ClientCart | undefined {
+    return this.clientCarts.find(cart => cart.id === id);
+  }
+
+  switchToCart(cartId: number): void {
+    if (cartId < 1 || cartId > this.maxClients) return;
+    
+    // Auto-remove empty clients before switching
+    this.autoRemoveEmptyClients();
+    
+    this.switchToCartDirectly(cartId);
+  }
+
+  switchToCartDirectly(cartId: number): void {
+    if (cartId < 1 || cartId > this.maxClients) return;
+    
+    // Deactivate current cart
+    const currentCart = this.getActiveCart();
+    if (currentCart) {
+      currentCart.isActive = false;
+    }
+    
+    // Activate new cart
+    this.activeCartId = cartId;
+    const newCart = this.getActiveCart();
+    if (newCart) {
+      newCart.isActive = true;
+    }
+    
+    // Clear any pending product selection
+    this.pendingProduct = null;
+    this.selectedReceiptItem = null;
+    this.selectedReceiptItemIndex = -1;
+    this.currentInput = '';
+    
+    this.showAlertMessage(`Basculé vers ${newCart?.clientName}`, 'info');
+  }
+
+  clearCart(cartId: number): void {
+    const cart = this.getCartById(cartId);
+    if (!cart) return;
+    
+    cart.items = [];
+    cart.subtotal = 0;
+    cart.discount = 0;
+    cart.netTotal = 0;
+    
+    // If this was the active cart, clear selections
+    if (cartId === this.activeCartId) {
+      this.pendingProduct = null;
+      this.selectedReceiptItem = null;
+      this.selectedReceiptItemIndex = -1;
+      this.currentInput = '';
+    }
+    
+    // Auto-remove the client if it's not Client 1
+    if (cartId !== 1) {
+      this.removeClientDirectly(cartId);
+      this.showAlertMessage(`${cart.clientName} supprimé (panier vidé)`, 'info');
+    } else {
+      this.showAlertMessage(`Panier de ${cart.clientName} vidé`, 'info');
+    }
+  }
+
+  getCartItemCount(cartId: number): number {
+    const cart = this.getCartById(cartId);
+    return cart ? cart.items.length : 0;
+  }
+
+  getCartTotal(cartId: number): number {
+    const cart = this.getCartById(cartId);
+    return cart ? cart.netTotal : 0;
+  }
+
+  isCartEmpty(cartId: number): boolean {
+    const cart = this.getCartById(cartId);
+    return cart ? cart.items.length === 0 : true;
+  }
+
+  getCartStatus(cartId: number): 'empty' | 'active' | 'ready' | 'processing' {
+    const cart = this.getCartById(cartId);
+    if (!cart) return 'empty';
+    
+    if (cart.items.length === 0) return 'empty';
+    if (cart.id === this.activeCartId) return 'active';
+    return 'ready';
+  }
+
+  getCartButtonClass(cartId: number): string {
+    const status = this.getCartStatus(cartId);
+    const baseClass = 'relative px-2 py-1 rounded border transition-all duration-200 hover:scale-105 min-w-0 flex-shrink-0';
+    
+    switch (status) {
+      case 'active':
+        return `${baseClass} bg-blue-100 border-blue-500 shadow-md`;
+      case 'ready':
+        return `${baseClass} bg-green-100 border-green-500`;
+      case 'empty':
+        return `${baseClass} bg-gray-100 border-gray-300`;
+      default:
+        return `${baseClass} bg-gray-100 border-gray-300`;
+    }
+  }
+
+  getCartStatusColor(cartId: number): string {
+    const status = this.getCartStatus(cartId);
+    
+    switch (status) {
+      case 'active':
+        return 'bg-blue-500';
+      case 'ready':
+        return 'bg-green-500';
+      case 'empty':
+        return 'bg-gray-300';
+      default:
+        return 'bg-gray-300';
+    }
+  }
+
+  addNewClient(): void {
+    if (this.clientCarts.length >= this.maxClients) {
+      this.showAlertMessage(`Maximum ${this.maxClients} clients allowed`, 'error');
+      return;
+    }
+
+    // Auto-remove empty clients before adding new one
+    this.autoRemoveEmptyClients();
+
+    const newClientId = this.getNextClientId();
+    const newCart: ClientCart = {
+      id: newClientId,
+      clientName: `Client ${newClientId}`,
+      items: [],
+      subtotal: 0,
+      discount: 0,
+      netTotal: 0,
+      isActive: false,
+      createdAt: new Date()
+    };
+
+    this.clientCarts.push(newCart);
+    
+    // Manually switch to the newly added client without calling autoRemoveEmptyClients again
+    this.switchToCartDirectly(newClientId);
+    
+    this.showAlertMessage(`Client ${newClientId} ajouté et sélectionné`, 'success');
+  }
+
+  removeClient(cartId: number): void {
+    if (this.clientCarts.length <= 1) {
+      this.showAlertMessage('Au moins un client doit rester', 'error');
+      return;
+    }
+
+    this.removeClientDirectly(cartId);
+  }
+
+  removeClientDirectly(cartId: number): void {
+    const cartIndex = this.clientCarts.findIndex(cart => cart.id === cartId);
+    if (cartIndex === -1) return;
+
+    // If removing the active cart, switch to the first remaining cart
+    if (cartId === this.activeCartId) {
+      const remainingCarts = this.clientCarts.filter(cart => cart.id !== cartId);
+      if (remainingCarts.length > 0) {
+        this.switchToCartDirectly(remainingCarts[0].id);
+      }
+    }
+
+    this.clientCarts.splice(cartIndex, 1);
+    this.showAlertMessage(`Client ${cartId} supprimé`, 'info');
+  }
+
+  private getNextClientId(): number {
+    const existingIds = this.clientCarts.map(cart => cart.id);
+    let nextId = 1;
+    while (existingIds.includes(nextId)) {
+      nextId++;
+    }
+    return nextId;
+  }
+
+  canAddMoreClients(): boolean {
+    return this.clientCarts.length < this.maxClients;
+  }
+
+  canRemoveClient(cartId: number): boolean {
+    return this.clientCarts.length > 1;
+  }
+
+  autoRemoveEmptyClients(): void {
+    // Remove empty clients except Client 1
+    const emptyClients = this.clientCarts.filter(cart => 
+      cart.id !== 1 && cart.items.length === 0
+    );
+    
+    emptyClients.forEach(cart => {
+      this.removeClientDirectly(cart.id);
+    });
+  }
+
+  autoRemoveClientAfterPayment(cartId: number): void {
+    const cart = this.getCartById(cartId);
+    if (!cart) return;
+    
+    // If it's Client 1, just clear the cart but keep the client
+    if (cartId === 1) {
+      cart.items = [];
+      cart.subtotal = 0;
+      cart.discount = 0;
+      cart.netTotal = 0;
+      this.calculateTotals();
+      return;
+    }
+    
+    // For other clients, remove them after payment
+    this.removeClientDirectly(cartId);
   }
 
   loadProducts(): void {
+    // Load products and sales data in parallel
     this.productsService.getProducts().subscribe({
       next: (products) => {
         this.allProducts = products;
-        this.filterProducts();
+        this.loadProductSalesData();
       },
       error: (error) => {
         console.error('Error loading products:', error);
@@ -254,8 +608,59 @@ export class CaisseComponent implements OnInit {
     });
   }
 
+  loadProductSalesData(): void {
+    // Get sales data for the last 30 days to order products by popularity
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+
+    this.reportsService.getProductSales(
+      startDate.toISOString().split('T')[0],
+      endDate.toISOString().split('T')[0],
+      this.currentShopDepotId
+    ).subscribe({
+      next: (salesData) => {
+        this.productSalesData = salesData;
+        this.orderProductsBySales();
+        this.filterProducts();
+      },
+      error: (error) => {
+        console.error('Error loading product sales data:', error);
+        // If sales data fails to load, just use the products as they are
+        this.filterProducts();
+      }
+    });
+  }
+
+  orderProductsBySales(): void {
+    // Create a map of product ID to sales data for quick lookup
+    const salesMap = new Map<number, ProductSalesData>();
+    this.productSalesData.forEach(sales => {
+      salesMap.set(sales.productId, sales);
+    });
+
+    // Sort products by sales data (most sold first)
+    this.allProducts.sort((a, b) => {
+      const salesA = salesMap.get(a.id);
+      const salesB = salesMap.get(b.id);
+      
+      // If both have sales data, sort by total sold (descending)
+      if (salesA && salesB) {
+        return salesB.totalSold - salesA.totalSold;
+      }
+      
+      // If only one has sales data, prioritize it
+      if (salesA && !salesB) return -1;
+      if (!salesA && salesB) return 1;
+      
+      // If neither has sales data, maintain original order
+      return 0;
+    });
+  }
+
   selectCategory(category: string): void {
     this.selectedCategory = category;
+    this.currentPage = 0; // Reset to first page when changing category
     this.filterProducts();
   }
 
@@ -267,144 +672,69 @@ export class CaisseComponent implements OnInit {
       filtered = filtered.filter(p => p.famille?.name === this.selectedCategory);
     }
     
+    // Filter by search query
+    if (this.searchQuery.trim()) {
+      const query = this.searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(p => 
+        p.name.toLowerCase().includes(query) || 
+        (p.barcode && p.barcode.toLowerCase().includes(query))
+      );
+    }
+    
     // Store all filtered results
     this.filteredProducts = filtered;
+    
+    // Update pagination
+    this.updatePagination();
   }
 
+  onSearchChange(): void {
+    this.filterProducts();
+  }
 
-  scrollLeft(): void {
-    const container = document.querySelector('.products-scroll-container') as HTMLElement;
-    if (container) {
-      // Scroll by 5 columns (one full row) plus gap
-      container.scrollBy({ left: -640, behavior: 'smooth' });
+  // Pagination methods
+  updatePagination(): void {
+    this.totalPages = Math.ceil(this.filteredProducts.length / this.productsPerPage);
+    if (this.currentPage >= this.totalPages) {
+      this.currentPage = Math.max(0, this.totalPages - 1);
     }
   }
 
-  scrollRight(): void {
-    const container = document.querySelector('.products-scroll-container') as HTMLElement;
-    if (container) {
-      // Scroll by 5 columns (one full row) plus gap
-      container.scrollBy({ left: 640, behavior: 'smooth' });
+  getCurrentPageProducts(): Product[] {
+    const startIndex = this.currentPage * this.productsPerPage;
+    const endIndex = startIndex + this.productsPerPage;
+    return this.filteredProducts.slice(startIndex, endIndex);
+  }
+
+  goToNextPage(): void {
+    if (this.currentPage < this.totalPages - 1) {
+      this.currentPage++;
+    }
+  }
+
+  goToPreviousPage(): void {
+    if (this.currentPage > 0) {
+      this.currentPage--;
     }
   }
 
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      this.scrollLeft();
+      this.goToPreviousPage();
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      this.scrollRight();
+      this.goToNextPage();
     }
   }
 
-  onMouseDown(event: MouseEvent): void {
-    // Track mouse position for all interactions
-    this.mouseStartX = event.pageX;
-    
-    // Only start dragging if clicking on the container, not on product buttons
-    if ((event.target as HTMLElement).closest('button')) {
-      return;
-    }
-    
-    this.isDragging = true;
-    this.startX = event.pageX;
-    const container = event.currentTarget as HTMLElement;
-    this.startScrollLeft = container.scrollLeft;
-    
-    // Force cursor to grabbing state
-    container.style.setProperty('cursor', 'grabbing', 'important');
-    container.style.setProperty('user-select', 'none', 'important');
-    container.style.setProperty('-webkit-user-select', 'none', 'important');
-    container.style.setProperty('-moz-user-select', 'none', 'important');
-    container.style.setProperty('-ms-user-select', 'none', 'important');
-    
-    // Prevent text selection globally during drag
-    document.body.style.setProperty('user-select', 'none', 'important');
-    document.body.style.setProperty('-webkit-user-select', 'none', 'important');
-    document.body.style.setProperty('-moz-user-select', 'none', 'important');
-    document.body.style.setProperty('-ms-user-select', 'none', 'important');
-    
-    // Prevent default drag behavior
-    event.preventDefault();
-    
-    // Force cursor update
-    setTimeout(() => {
-      container.style.setProperty('cursor', 'grabbing', 'important');
-    }, 0);
-  }
 
-  onMouseMove(event: MouseEvent): void {
-    if (!this.isDragging) return;
-    
-    event.preventDefault();
-    const container = event.currentTarget as HTMLElement;
-    const x = event.pageX;
-    const walk = (x - this.startX) * 1.5;
-    
-    // Only scroll if we've moved a significant distance (prevents accidental scrolling)
-    if (Math.abs(walk) > 5) {
-      container.scrollLeft = this.startScrollLeft - walk;
-    }
-  }
-
-  onMouseUp(event: MouseEvent): void {
-    this.isDragging = false;
-    const container = event.currentTarget as HTMLElement;
-    container.style.setProperty('cursor', 'grab', 'important');
-    container.style.setProperty('user-select', 'auto', 'important');
-    container.style.setProperty('-webkit-user-select', 'auto', 'important');
-    container.style.setProperty('-moz-user-select', 'auto', 'important');
-    container.style.setProperty('-ms-user-select', 'auto', 'important');
-    
-    // Restore global text selection
-    document.body.style.setProperty('user-select', 'auto', 'important');
-    document.body.style.setProperty('-webkit-user-select', 'auto', 'important');
-    document.body.style.setProperty('-moz-user-select', 'auto', 'important');
-    document.body.style.setProperty('-ms-user-select', 'auto', 'important');
-  }
-
-  onMouseLeave(event: MouseEvent): void {
-    this.isDragging = false;
-    const container = event.currentTarget as HTMLElement;
-    container.style.setProperty('cursor', 'grab', 'important');
-    container.style.setProperty('user-select', 'auto', 'important');
-    container.style.setProperty('-webkit-user-select', 'auto', 'important');
-    container.style.setProperty('-moz-user-select', 'auto', 'important');
-    container.style.setProperty('-ms-user-select', 'auto', 'important');
-    
-    // Restore global text selection
-    document.body.style.setProperty('user-select', 'auto', 'important');
-    document.body.style.setProperty('-webkit-user-select', 'auto', 'important');
-    document.body.style.setProperty('-moz-user-select', 'auto', 'important');
-    document.body.style.setProperty('-ms-user-select', 'auto', 'important');
-  }
-
-  onProductClick(event: MouseEvent, product: Product): void {
-    // If we were dragging, don't add the product
-    if (this.isDragging) {
-      event.preventDefault();
-      return;
-    }
-    
-    // Check if this was a significant movement (drag) or just a click
-    const moveDistance = Math.abs(event.pageX - this.mouseStartX);
-    if (moveDistance > 10) {
-      event.preventDefault();
-      return;
-    }
-    
-    this.selectedProduct = product;
-    this.showProductModal = true;
-    this.productModalMode = 'quantity';
-    this.productModalQuantity = 1;
-    this.productModalAmount = 0;
-    this.productModalCalculatedQuantity = 0;
-    this.productModalCalculatedAmount = 0;
-  }
 
   addProductToReceipt(product: Product): void {
-    const existingItem = this.receiptItems.find(item => item.product.id === product.id);
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id);
     
     if (existingItem) {
       existingItem.quantity += 1;
@@ -412,14 +742,23 @@ export class CaisseComponent implements OnInit {
       // Ensure all values are numbers
       existingItem.quantity = Number(existingItem.quantity);
       existingItem.unitPrice = Number(existingItem.unitPrice);
+      
+      // Select the existing item
+      this.selectedReceiptItem = existingItem;
+      this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
     } else {
-      this.receiptItems.push({
+      const newItem = {
         product,
         quantity: 1,
         unitPrice: Number(product.prix_vente_TTC),
         total: Number(product.prix_vente_TTC),
         isGift: false
-      });
+      };
+      activeCart.items.unshift(newItem);
+      
+      // Select the newly added item (now at index 0)
+      this.selectedReceiptItem = newItem;
+      this.selectedReceiptItemIndex = 0;
     }
     
     this.calculateTotals();
@@ -432,14 +771,24 @@ export class CaisseComponent implements OnInit {
   }
 
   calculateTotals(): void {
-    this.subtotal = this.receiptItems.reduce((sum, item) => sum + Number(item.total), 0);
-    this.netTotal = Number(this.subtotal) - Number(this.discount);
-    this.total = Number(this.netTotal);
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    activeCart.subtotal = activeCart.items.reduce((sum, item) => sum + Number(item.total), 0);
+    activeCart.netTotal = Number(activeCart.subtotal) - Number(activeCart.discount);
+    // Round up the total to nearest 0.050 increment
+    this.total = this.roundUpToFiftyMillimes(activeCart.netTotal);
+  }
+
+  // Round up to 50 millimes increments (0.050, 0.100, 0.150, etc.)
+  roundUpToFiftyMillimes(value: number): number {
+    return Math.ceil(value / 0.05) * 0.05;
   }
 
   // Action buttons
   generateInvoice(): void {
-    if (this.receiptItems.length === 0) {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
       this.showAlertMessage('Aucun article dans le panier', 'error');
       return;
     }
@@ -502,14 +851,30 @@ export class CaisseComponent implements OnInit {
   }
 
   selectClient(client: any): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
     this.selectedClient = client;
     this.selectedClientId = client.id;
     this.currentCustomer = `${client.firstName} ${client.lastName}`;
+    
+    // Update the active cart with client information
+    activeCart.client = client;
+    activeCart.clientId = client.id;
+    activeCart.clientName = `${client.firstName} ${client.lastName}`;
+    
     this.showClientSearchPopup = false;
     this.showAlertMessage(`Client sélectionné: ${client.firstName} ${client.lastName}`, 'success');
   }
 
   clearSelectedClient(): void {
+    const activeCart = this.getActiveCart();
+    if (activeCart) {
+      activeCart.client = undefined;
+      activeCart.clientId = undefined;
+      activeCart.clientName = `Client ${activeCart.id}`;
+    }
+    
     this.selectedClient = null;
     this.selectedClientId = null;
     this.currentCustomer = 'PASSAGER';
@@ -524,14 +889,16 @@ export class CaisseComponent implements OnInit {
   }
 
   cancelLastItem(): void {
-    if (this.receiptItems.length > 0) {
-      this.receiptItems.pop();
+    const activeCart = this.getActiveCart();
+    if (activeCart && activeCart.items.length > 0) {
+      activeCart.items.pop();
       this.calculateTotals();
     }
   }
 
   validateSale(): void {
-    if (this.receiptItems.length === 0) {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
       this.showAlertMessage('Aucun article dans le panier', 'error');
       return;
     }
@@ -571,7 +938,16 @@ export class CaisseComponent implements OnInit {
   }
 
   onAmountPaidChange(): void {
-    const total = this.selectedTemporarySale ? this.selectedTemporarySale.finalTotal : this.netTotal;
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    let total = this.selectedTemporarySale ? this.selectedTemporarySale.finalTotal : activeCart.netTotal;
+    
+    // Subtract advance payment if it exists
+    if (this.selectedTemporarySale && this.selectedTemporarySale.advancePayment) {
+      total = total - this.selectedTemporarySale.advancePayment;
+    }
+    
     if (this.amountPaid && this.amountPaid > 0) {
       this.calculatedChange = this.roundToTenthAsThreeDecimals(this.amountPaid - total);
     } else {
@@ -605,12 +981,123 @@ export class CaisseComponent implements OnInit {
       return;
     }
     
-    const requiresFullPayment = !this.selectedClientId;
-    if (requiresFullPayment && (!this.amountPaid || Number(this.amountPaid) < Number(this.netTotal))) {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const requiresFullPayment = !activeCart.clientId;
+    if (requiresFullPayment && (!this.amountPaid || Number(this.amountPaid) < Number(activeCart.netTotal))) {
       this.showAlertMessage('Montant insuffisant', 'error');
       return;
     }
 
+    // Show confirmation dialog instead of directly processing
+    this.showPaymentConfirmation = true;
+  }
+
+  // Cancel payment confirmation dialog
+  cancelPaymentConfirmation(): void {
+    this.showPaymentConfirmation = false;
+  }
+
+  // Remise payment methods
+  openRemisePaymentPopup(): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
+      this.showAlertMessage('Aucun article dans le panier', 'error');
+      return;
+    }
+    this.showRemisePaymentPopup = true;
+    this.remisePaymentAmount = undefined;
+  }
+
+  cancelRemisePayment(): void {
+    this.showRemisePaymentPopup = false;
+    this.remisePaymentAmount = undefined;
+  }
+
+  // Temporary sales history methods
+  openTemporarySalesHistory(): void {
+    this.showTemporarySalesHistory = true;
+    this.loadAllTemporarySales();
+  }
+
+  closeTemporarySalesHistory(): void {
+    this.showTemporarySalesHistory = false;
+    this.allTemporarySales = [];
+  }
+
+  loadAllTemporarySales(): void {
+    this.salesService.getSales().subscribe({
+      next: (sales: any) => {
+        // Filter for temporary sales (both pending and completed)
+        this.allTemporarySales = sales.filter((sale: any) => 
+          sale.status === 'TEMPORARY' || sale.status === 'CMD_TERMINEE' || sale.isTemporary
+        );
+      },
+      error: (error: any) => {
+        console.error('Error loading temporary sales history:', error);
+        this.showAlertMessage('Erreur lors du chargement de l\'historique', 'error');
+      }
+    });
+  }
+
+  confirmRemisePayment(): void {
+    if (this.remisePaymentAmount === undefined || this.remisePaymentAmount === null) {
+      this.showAlertMessage('Veuillez entrer le montant reçu', 'error');
+      return;
+    }
+
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const total = Number(activeCart.netTotal);
+    const received = Number(this.remisePaymentAmount);
+    
+    // Calculate discount (difference between total and received amount)
+    const discountAmount = total - received;
+    const discountPercent = (discountAmount / total) * 100;
+    
+    // Validate against max discount percentage
+    if (discountPercent > this.maxDiscountPercent) {
+      const maxDiscountAmount = (total * this.maxDiscountPercent) / 100;
+      this.showAlertMessage(`La remise ne peut pas dépasser ${this.maxDiscountPercent}% du total (${maxDiscountAmount.toFixed(3)} dt). Montant minimum à recevoir: ${(total - maxDiscountAmount).toFixed(3)} dt`, 'error');
+      return;
+    }
+    
+    // Apply the discount
+    activeCart.discount = discountAmount;
+    this.discountType = 'amount';
+    this.discountTarget = 'Tous';
+    
+    // Recalculate totals to reflect the discount
+    this.calculateTotals();
+    
+    // Set payment details
+    this.paymentType = 'cash';
+    this.amountPaid = received;
+    this.calculatedChange = 0; // No change since we're accepting partial payment
+    
+    // Close popup and show payment confirmation
+    this.showRemisePaymentPopup = false;
+    this.showPaymentConfirmation = true;
+    
+    this.showAlertMessage(`Remise appliquée: ${discountAmount.toFixed(3)} dt (${discountPercent.toFixed(1)}%)`, 'success');
+  }
+
+  // Process payment with receipt printing
+  processPaymentWithReceipt(): void {
+    this.showPaymentConfirmation = false;
+    this.processPayment(true);
+  }
+
+  // Process payment without receipt printing
+  processPaymentWithoutReceipt(): void {
+    this.showPaymentConfirmation = false;
+    this.processPayment(false);
+  }
+
+  // Main payment processing method
+  private processPayment(shouldPrintReceipt: boolean): void {
     const paymentMethodMap: { [key: string]: number } = {
       'cash': 1,
       'card': 2,
@@ -618,8 +1105,11 @@ export class CaisseComponent implements OnInit {
       'virement': 4
     };
 
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
     const saleData: CreateSaleRequest = {
-      items: this.receiptItems.map(item => ({
+      items: activeCart.items.map(item => ({
         productId: item.product.id,
         productName: item.product.name,
         quantity: item.quantity,
@@ -627,25 +1117,50 @@ export class CaisseComponent implements OnInit {
         total: Number(item.total),
         discount: 0
       })),
-      total: Number(this.subtotal),
-      discount: Number(this.discount),
-      finalTotal: Number(this.netTotal),
-      paymentMethodId: paymentMethodMap[this.paymentType] || 1,
-      clientId: this.selectedClientId || undefined,
-      amountPaid: this.amountPaid !== undefined ? Number(this.amountPaid) : Number(this.netTotal)
+      total: Number(activeCart.subtotal),
+      discount: Number(activeCart.discount),
+      finalTotal: Number(activeCart.netTotal),
+      paymentMethodId: paymentMethodMap[this.paymentType!] || 1,
+      clientId: activeCart.clientId || undefined,
+      amountPaid: this.amountPaid !== undefined ? Number(this.amountPaid) : Number(activeCart.netTotal)
     };
 
     this.salesService.createSale(saleData).subscribe({
       next: (savedSale: any) => {
         const loyaltyEarned = savedSale?.loyaltyPointsEarned || 0;
-        if (this.invoiceMode) {
-          this.printInvoice();
-        } else {
-          this.printReceiptWithClient(loyaltyEarned);
+        
+        // Store the last validated sale for printing
+        this.lastValidatedSale = {
+          ...savedSale,
+          loyaltyEarned,
+          receiptItems: [...activeCart.items],
+          subtotal: activeCart.subtotal,
+          discount: activeCart.discount,
+          netTotal: activeCart.netTotal,
+          paymentType: this.paymentType,
+          amountPaid: this.amountPaid,
+          calculatedChange: this.calculatedChange,
+          selectedClient: activeCart.client,
+          invoiceMode: this.invoiceMode
+        };
+        
+        // Print receipt if requested
+        if (shouldPrintReceipt) {
+          this.printReceipt();
         }
-        this.receiptItems = [];
-        this.discount = 0;
-        this.calculateTotals();
+        
+        // Increment ticket number after successful sale
+        this.incrementTicketNumber();
+        
+        // Refresh shop inventory to show updated stock quantities
+        this.loadShopInventory();
+        
+        // Refresh session data to update sales totals
+        this.sessionsService.getActiveSession().subscribe();
+        
+        // Auto-remove client after successful payment (except Client 1)
+        this.autoRemoveClientAfterPayment(activeCart.id);
+        
         this.showPaymentPopup = false;
         this.paymentType = undefined;
         this.amountPaid = undefined;
@@ -656,6 +1171,9 @@ export class CaisseComponent implements OnInit {
         this.selectedClient = null;
         this.selectedClientId = null;
         this.currentCustomer = 'PASSAGER';
+        this.invoiceMode = false;
+        
+        this.showAlertMessage('Vente validée avec succès!', 'success');
       },
       error: (error) => {
         this.showAlertMessage(error?.error?.error || 'Erreur lors de la sauvegarde de la vente. Veuillez réessayer.', 'error');
@@ -806,6 +1324,9 @@ export class CaisseComponent implements OnInit {
   }
 
   generateReceiptData(): any {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return {};
+    
     const now = new Date();
     return {
       storeName: 'PÂTISSERIE DELICE',
@@ -814,10 +1335,10 @@ export class CaisseComponent implements OnInit {
       phone: 'Tél: +216 XX XXX XXX',
       date: now.toLocaleDateString('fr-FR'),
       time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-      items: this.receiptItems,
-      subtotal: this.subtotal,
-      discount: this.discount,
-      netTotal: this.netTotal,
+      items: activeCart.items,
+      subtotal: activeCart.subtotal,
+      discount: activeCart.discount,
+      netTotal: activeCart.netTotal,
       paymentType: this.paymentType,
       amountPaid: this.amountPaid,
       change: this.calculatedChange
@@ -825,8 +1346,11 @@ export class CaisseComponent implements OnInit {
   }
 
   resetSale(): void {
-    this.receiptItems = [];
-    this.discount = 0;
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    activeCart.items = [];
+    activeCart.discount = 0;
     this.calculateTotals();
   }
 
@@ -838,29 +1362,128 @@ export class CaisseComponent implements OnInit {
     this.showTemporarySaleSelectionPopup = true;
   }
 
+  // Temporary sale customer methods
+  searchTemporarySaleCustomers(): void {
+    if (!this.temporarySaleCustomerSearch.trim()) {
+      this.temporarySaleCustomerResults = [];
+      return;
+    }
+
+    const query = this.temporarySaleCustomerSearch.trim().toLowerCase();
+    this.temporarySaleCustomerResults = this.allClientsCache.filter(client => 
+      client.firstName.toLowerCase().includes(query) ||
+      client.lastName.toLowerCase().includes(query) ||
+      client.code.toLowerCase().includes(query) ||
+      (client.phone && client.phone.includes(query))
+    ).slice(0, 10);
+  }
+
+  selectTemporarySaleCustomer(customer: any): void {
+    this.temporarySaleSelectedCustomer = customer;
+    this.temporarySaleCustomerSearch = `${customer.firstName} ${customer.lastName}`;
+    this.temporarySaleCustomerResults = [];
+  }
+
+  clearTemporarySaleCustomer(): void {
+    this.temporarySaleSelectedCustomer = null;
+    this.temporarySaleCustomerSearch = '';
+    this.temporarySaleCustomerResults = [];
+  }
+
+  createTemporarySaleNewCustomer(): void {
+    if (!this.temporarySaleNewCustomer.firstName || !this.temporarySaleNewCustomer.lastName) {
+      this.showAlertMessage('Prénom et nom sont requis', 'error');
+      return;
+    }
+
+    const newCustomerData = {
+      firstName: this.temporarySaleNewCustomer.firstName,
+      lastName: this.temporarySaleNewCustomer.lastName,
+      phone: this.temporarySaleNewCustomer.phone || undefined,
+      email: this.temporarySaleNewCustomer.email || undefined,
+      clientType: 'INDIVIDUAL' as const
+    };
+
+    this.clientsService.createClient(newCustomerData).subscribe({
+      next: (newCustomer) => {
+        this.temporarySaleSelectedCustomer = newCustomer;
+        this.showAlertMessage(`Nouveau client créé: ${newCustomer.firstName} ${newCustomer.lastName}`, 'success');
+        this.resetTemporarySaleNewCustomerForm();
+      },
+      error: (error) => {
+        this.showAlertMessage('Erreur lors de la création du client', 'error');
+      }
+    });
+  }
+
+  resetTemporarySaleNewCustomerForm(): void {
+    this.temporarySaleNewCustomer = {
+      firstName: '',
+      lastName: '',
+      phone: '',
+      email: ''
+    };
+  }
+
+  getTemporarySaleCustomerDisplayName(): string {
+    if (this.temporarySaleCustomerType === 'passager') {
+      return 'Passager';
+    } else if (this.temporarySaleSelectedCustomer) {
+      return `${this.temporarySaleSelectedCustomer.firstName} ${this.temporarySaleSelectedCustomer.lastName}`;
+    }
+    return 'Aucun client sélectionné';
+  }
+
+  getTemporarySaleClientId(): number | undefined {
+    if (this.temporarySaleCustomerType === 'existing' && this.temporarySaleSelectedCustomer) {
+      return this.temporarySaleSelectedCustomer.id;
+    } else if (this.temporarySaleCustomerType === 'new' && this.temporarySaleSelectedCustomer) {
+      return this.temporarySaleSelectedCustomer.id;
+    }
+    return undefined;
+  }
+
   confirmTemporarySale(): void {
     if (!this.temporarySaleExpectedDate || !this.temporarySaleExpectedTime) {
       this.showAlertMessage('Veuillez spécifier la date et l\'heure de vente prévue', 'error');
       return;
     }
+
+    // Validate customer selection
+    if (this.temporarySaleCustomerType === 'existing' && !this.temporarySaleSelectedCustomer) {
+      this.showAlertMessage('Veuillez sélectionner un client existant', 'error');
+      return;
+    }
+
+    if (this.temporarySaleCustomerType === 'new' && !this.temporarySaleSelectedCustomer) {
+      this.showAlertMessage('Veuillez créer un nouveau client', 'error');
+      return;
+    }
+    
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
     
     // Create temporary sale data
     const tempSaleData = {
-      items: this.receiptItems.map(item => ({
+      items: activeCart.items.map(item => ({
         productId: item.product.id,
         productName: item.product.name,
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
         total: Number(item.total)
       })),
-      total: Number(this.subtotal),
-      discount: Number(this.discount),
-      finalTotal: Number(this.netTotal),
+      total: Number(activeCart.subtotal),
+      discount: Number(activeCart.discount),
+      finalTotal: Number(activeCart.netTotal),
       expectedDate: this.temporarySaleExpectedDate,
       expectedTime: this.temporarySaleExpectedTime,
       notes: this.temporarySaleNotes,
       status: 'TEMPORARY',
-      clientId: this.selectedClientId || undefined
+      clientId: this.getTemporarySaleClientId(),
+      // Advance payment fields
+      advancePayment: this.advancePaymentAmount || undefined,
+      advancePaymentMethod: this.advancePaymentMethod || undefined,
+      advancePaymentNotes: this.advancePaymentNotes || undefined
     };
     
     // Save temporary sale to backend
@@ -869,10 +1492,8 @@ export class CaisseComponent implements OnInit {
         console.log('Temporary sale saved successfully:', savedSale);
         this.showAlertMessage('Vente temporaire enregistrée avec succès!', 'success');
         
-        // Reset everything
-        this.receiptItems = [];
-        this.discount = 0;
-        this.calculateTotals();
+        // Auto-remove client after successful temporary sale (except Client 1)
+        this.autoRemoveClientAfterPayment(activeCart.id);
         this.showTemporarySalePopup = false;
         this.isTemporarySale = false;
         this.temporarySaleExpectedDate = '';
@@ -893,12 +1514,119 @@ export class CaisseComponent implements OnInit {
     this.temporarySaleExpectedDate = '';
     this.temporarySaleExpectedTime = '';
     this.temporarySaleNotes = '';
+    this.resetAdvancePayment();
+    
+    // Reset customer selection
+    this.temporarySaleCustomerType = 'passager';
+    this.temporarySaleCustomerSearch = '';
+    this.temporarySaleCustomerResults = [];
+    this.temporarySaleSelectedCustomer = null;
+    this.resetTemporarySaleNewCustomerForm();
+  }
+
+  // Advance payment methods
+  openAdvancePaymentPopup(): void {
+    this.showAdvancePaymentPopup = true;
+    this.advancePaymentAmount = undefined;
+    this.advancePaymentMethod = undefined;
+    this.advancePaymentNotes = '';
+    this.advancePaymentChequeId = '';
+    this.advancePaymentEncaissementDate = '';
+    this.advancePaymentVirementNumber = '';
+  }
+
+  closeAdvancePaymentPopup(): void {
+    this.showAdvancePaymentPopup = false;
+    this.resetAdvancePayment();
+  }
+
+  resetAdvancePayment(): void {
+    this.advancePaymentAmount = undefined;
+    this.advancePaymentMethod = undefined;
+    this.advancePaymentNotes = '';
+    this.advancePaymentChequeId = '';
+    this.advancePaymentEncaissementDate = '';
+    this.advancePaymentVirementNumber = '';
+  }
+
+  selectAdvancePaymentMethod(method: 'cash' | 'card' | 'check' | 'virement'): void {
+    this.advancePaymentMethod = method;
+    
+    // Set default amount to full total if not set
+    const activeCart = this.getActiveCart();
+    if (!this.advancePaymentAmount && activeCart) {
+      this.advancePaymentAmount = activeCart.netTotal;
+    }
+    
+    // Clear method-specific fields when switching
+    this.advancePaymentChequeId = '';
+    this.advancePaymentEncaissementDate = '';
+    this.advancePaymentVirementNumber = '';
+  }
+
+  confirmAdvancePayment(): void {
+    if (!this.advancePaymentMethod) {
+      this.showAlertMessage('Veuillez sélectionner un type de paiement', 'error');
+      return;
+    }
+
+    if (!this.advancePaymentAmount || this.advancePaymentAmount <= 0) {
+      this.showAlertMessage('Veuillez entrer un montant valide', 'error');
+      return;
+    }
+
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    if (this.advancePaymentAmount > activeCart.netTotal) {
+      this.showAlertMessage('Le paiement d\'avance ne peut pas dépasser le montant total', 'error');
+      return;
+    }
+
+    if (this.advancePaymentMethod === 'check' && (!this.advancePaymentChequeId.trim() || !this.advancePaymentEncaissementDate)) {
+      this.showAlertMessage('Veuillez remplir les détails du chèque (ID et date d\'encaissement)', 'error');
+      return;
+    }
+
+    if (this.advancePaymentMethod === 'virement' && !this.advancePaymentVirementNumber.trim()) {
+      this.showAlertMessage('Veuillez entrer le numéro de virement', 'error');
+      return;
+    }
+
+    // Add payment method details to notes if needed
+    let notes = this.advancePaymentNotes;
+    if (this.advancePaymentMethod === 'check' && this.advancePaymentChequeId) {
+      notes += (notes ? ' | ' : '') + `Chèque: ${this.advancePaymentChequeId}`;
+    }
+    if (this.advancePaymentMethod === 'virement' && this.advancePaymentVirementNumber) {
+      notes += (notes ? ' | ' : '') + `Virement: ${this.advancePaymentVirementNumber}`;
+    }
+
+    this.advancePaymentNotes = notes;
+    this.showAdvancePaymentPopup = false;
+    
+    this.showAlertMessage(`Paiement d'avance configuré: ${this.advancePaymentAmount.toFixed(3)}dt (${this.advancePaymentMethod.toUpperCase()})`, 'success');
+  }
+
+  getAdvancePaymentRemainingAmount(): number {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return 0;
+    
+    if (!this.advancePaymentAmount) return activeCart.netTotal;
+    return Math.max(0, activeCart.netTotal - this.advancePaymentAmount);
+  }
+
+  hasAdvancePayment(): boolean {
+    return !!(this.advancePaymentAmount && this.advancePaymentAmount > 0);
   }
 
   getTemporarySaleBadge(): string {
     if (!this.isTemporarySale) return '';
-    const itemCount = this.receiptItems.length;
-    const totalQuantity = this.receiptItems.reduce((sum, item) => sum + item.quantity, 0);
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return '';
+    
+    const itemCount = activeCart.items.length;
+    const totalQuantity = activeCart.items.reduce((sum, item) => sum + item.quantity, 0);
     return `${itemCount} article${itemCount > 1 ? 's' : ''} (${totalQuantity} unités)`;
   }
 
@@ -952,7 +1680,8 @@ export class CaisseComponent implements OnInit {
     this.showTemporarySaleSelectionPopup = false;
     
     if (option === 'new') {
-      if (this.receiptItems.length === 0) {
+      const activeCart = this.getActiveCart();
+      if (!activeCart || activeCart.items.length === 0) {
         this.showAlertMessage('Aucun article dans le panier pour une vente temporaire', 'error');
         return;
       }
@@ -1013,11 +1742,17 @@ export class CaisseComponent implements OnInit {
   finalizeTemporarySale(): void {
     if (!this.selectedTemporarySale) return;
     
+    // Calculate the remaining amount to pay (considering advance payment)
+    const advancePaid = Math.abs(this.selectedTemporarySale.advancePayment || 0);
+    const remainingAmount = this.selectedTemporarySale.finalTotal - advancePaid;
+    
     // Validate payment details
+    console.log('Validation check - paymentType:', this.paymentType, 'amountPaid:', this.amountPaid, 'calculatedChange:', this.calculatedChange);
     if (!this.paymentType || 
-        (this.paymentType === 'cash' && (!this.amountPaid || this.amountPaid < this.selectedTemporarySale.finalTotal)) ||
+        (this.paymentType === 'cash' && (!this.amountPaid || this.calculatedChange < 0)) ||
         (this.paymentType === 'check' && (!this.chequeId.trim() || !this.encaissementDate)) ||
         (this.paymentType === 'virement' && !this.virementNumber.trim())) {
+      console.log('Validation failed - showing error message');
       this.showAlertMessage('Veuillez remplir tous les champs requis', 'error');
       return;
     }
@@ -1036,12 +1771,22 @@ export class CaisseComponent implements OnInit {
       next: (completedSale) => {
         console.log('Temporary sale completed successfully:', completedSale);
         this.showAlertMessage('Vente temporaire finalisée avec succès!', 'success');
+        
+        // Increment ticket number after successful temporary sale completion
+        this.incrementTicketNumber();
+        
+        // Refresh shop inventory to show updated stock quantities
+        this.loadShopInventory();
+        
         this.closeTemporarySalePayment();
         this.loadPendingTemporarySalesCount(); // Refresh the count
         // Refresh the existing temporary sales list to remove the finalized sale
         if (this.showExistingTemporarySalesPopup) {
           this.loadExistingTemporarySales();
         }
+        
+        // Auto-remove empty clients after temporary sale finalization
+        this.autoRemoveEmptyClients();
       },
       error: (error) => {
         console.error('Error completing temporary sale:', error);
@@ -1051,7 +1796,8 @@ export class CaisseComponent implements OnInit {
   }
 
   markAsGift(): void {
-    if (this.receiptItems.length === 0) {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
       this.showAlertMessage('Aucun article dans le panier pour un cadeau', 'error');
       return;
     }
@@ -1070,22 +1816,25 @@ export class CaisseComponent implements OnInit {
       return;
     }
     
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
     // Create gift sale data
     const giftSaleData = {
-      items: this.receiptItems.map(item => ({
+      items: activeCart.items.map(item => ({
         productId: item.product.id,
         productName: item.product.name,
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
         total: Number(item.total)
       })),
-      total: Number(this.subtotal),
-      discount: Number(this.discount),
+      total: Number(activeCart.subtotal),
+      discount: Number(activeCart.discount),
       finalTotal: 0, // Gift is free
       reason: this.giftReason,
       recipient: this.giftRecipient,
       status: 'PENDING_ADMIN',
-      clientId: this.selectedClientId || undefined
+      clientId: activeCart.clientId || undefined
     };
     
     // Save gift sale to backend
@@ -1094,10 +1843,8 @@ export class CaisseComponent implements OnInit {
         console.log('Gift sale saved successfully:', savedSale);
         this.showAlertMessage('Demande de cadeau envoyée pour approbation!', 'success');
         
-        // Reset everything
-        this.receiptItems = [];
-        this.discount = 0;
-        this.calculateTotals();
+        // Auto-remove client after successful gift sale (except Client 1)
+        this.autoRemoveClientAfterPayment(activeCart.id);
         this.showGiftPopup = false;
         this.giftReason = '';
         this.giftRecipient = '';
@@ -1174,48 +1921,126 @@ export class CaisseComponent implements OnInit {
     });
   }
 
-  closeShift(): void {
-    if (confirm('Êtes-vous sûr de vouloir clôturer la session ?')) {
-      console.log('Close shift');
+  loadSettings(): void {
+    this.settingsService.getSettings().subscribe({
+      next: (settings) => {
+        if (settings?.maxDiscountPercent) {
+          this.maxDiscountPercent = settings.maxDiscountPercent;
+        }
+      },
+      error: (error) => {
+        console.error('Error loading settings:', error);
+      }
+    });
+  }
+
+  loadCurrentSession(): void {
+    this.sessionsService.getActiveSession().subscribe({
+      next: (session) => {
+        this.currentSession = session;
+        this.isShiftOpen = !!session;
+      },
+      error: (error) => {
+        console.error('Error loading current session:', error);
+      }
+    });
+  }
+
+  openClosurePopup(): void {
+    if (!this.currentSession) {
+      this.showAlertMessage('Aucune session active trouvée', 'error');
+      return;
     }
+    this.showClosurePopup = true;
+  }
+
+  closeClosurePopup(): void {
+    this.showClosurePopup = false;
+    this.closureForm = {
+      countedCash: 0,
+      retraitCentrale: 0,
+      note: ''
+    };
+  }
+
+  confirmClosure(): void {
+    if (!this.currentSession) {
+      this.showAlertMessage('Aucune session active trouvée', 'error');
+      return;
+    }
+
+    if (!this.closureForm.countedCash || this.closureForm.countedCash < 0) {
+      this.showAlertMessage('Veuillez entrer le montant compté', 'error');
+      return;
+    }
+
+    const closureData = {
+      countedCash: this.closureForm.countedCash,
+      fonds: 50, // Default fonds, could be from settings
+      retraitCentrale: this.closureForm.retraitCentrale || undefined,
+      denominations: {} // Could be enhanced with denomination counting
+    };
+
+    this.sessionsService.closeSession(this.currentSession.id, closureData).subscribe({
+      next: (result) => {
+        this.showAlertMessage('Session fermée avec succès', 'success');
+        this.closeClosurePopup();
+        this.currentSession = null;
+        this.isShiftOpen = false;
+        
+        // Reset ticket number for new shift
+        this.resetTicketNumber();
+        this.saveTicketState();
+        
+        // Auto-print daily extract if withdrawal was made
+        if (this.closureForm.retraitCentrale > 0) {
+          this.printDailyExtract(result);
+        }
+      },
+      error: (error) => {
+        console.error('Error closing session:', error);
+        this.showAlertMessage('Erreur lors de la fermeture de la session', 'error');
+      }
+    });
+  }
+
+  printDailyExtract(sessionData: any): void {
+    // Get today's date for the daily extract
+    const today = new Date();
+    const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    // Call the daily extract service to get today's data
+    this.dailyExtractService.getExtractDetail(dateString).subscribe({
+      next: (dailyExtract) => {
+        // Enhance the daily extract with withdrawal information
+        const enhancedExtract = {
+          ...dailyExtract,
+          withdrawalAmount: this.closureForm.retraitCentrale || 0,
+          remainingBalance: (this.closureForm.countedCash || 0) - (this.closureForm.retraitCentrale || 0),
+          closureTimestamp: new Date()
+        };
+        
+        // Print the enhanced daily extract
+        this.printService.printDailyExtractWithWithdrawal(enhancedExtract);
+        this.showAlertMessage(`Extrait journalière imprimé - Retrait: ${this.closureForm.retraitCentrale} TND`, 'success');
+      },
+      error: (error) => {
+        console.error('Error fetching daily extract:', error);
+        this.showAlertMessage('Erreur lors de l\'impression de l\'extrait journalier', 'error');
+      }
+    });
+  }
+
+  closeShift(): void {
+    // Redirect to the cloture page
+    this.router.navigate(['/cloture']);
   }
 
   openProducts(): void {
     this.router.navigate(['/stock/products']);
   }
 
-  openArticlesPopup(): void {
-    this.showArticlesPopup = true;
-    this.loadMaterialsWithStock();
-  }
 
-  loadMaterialsWithStock(): void {
-    this.productsService.getProducts().subscribe({
-      next: (products) => {
-        this.allMaterials = products;
-        this.materialsWithStock = products.map(product => {
-          const summary = this.computeConservationSummary(product);
-          return {
-            ...product,
-            stockQuantity: this.getShopStock(product),
-            conservationStatus: summary.status,
-            daysUntilExpiry: summary.minDaysUntilExpiry,
-            batches: summary.batches,
-            showDetails: false
-          };
-        });
-      },
-      error: (error) => {
-        console.error('Error loading materials:', error);
-      }
-    });
-  }
-
-  getShopStock(product: Product): number {
-    const batches = product.conservation || [];
-    const qty = batches.reduce((sum, b) => sum + Number(b.remainingQuantity || 0), 0);
-    return Number(qty);
-  }
 
   computeConservationSummary(product: Product): { status: 'Normal' | 'Proche de péremption' | 'Périmé' | 'Valide'; minDaysUntilExpiry: number; batches: Array<{ productionDate: Date | null; expirationDate: Date | null; remainingQuantity: number; daysUntilExpiry: number; isExpired: boolean; }>; } {
     const batches = (product.conservation || []).map(c => {
@@ -1248,9 +2073,6 @@ export class CaisseComponent implements OnInit {
     return { status, minDaysUntilExpiry: minDays === Infinity ? 0 : minDays, batches };
   }
 
-  closeArticlesPopup(): void {
-    this.showArticlesPopup = false;
-  }
 
   openDiscountPopup(): void {
     this.showDiscountTypeSelection = true;
@@ -1288,27 +2110,49 @@ export class CaisseComponent implements OnInit {
   confirmDiscount(): void {
     const targetTotal = this.getTargetedTotal();
     let amount: number;
+    let discountPercent: number;
     
     if (this.discountType === 'percentage') {
       const percent = Number(this.discountPercent) || 0;
+      
+      // Validate against max discount percentage
+      if (percent > this.maxDiscountPercent) {
+        this.showAlertMessage(`Le pourcentage de remise ne peut pas dépasser ${this.maxDiscountPercent}%`, 'error');
+        return;
+      }
+      
       const raw = (targetTotal * percent) / 100;
       amount = this.roundToTenthAsThreeDecimals(raw);
+      discountPercent = percent;
     } else {
       amount = this.roundToTenthAsThreeDecimals(Number(this.discountAmount) || 0);
+      discountPercent = (amount / targetTotal) * 100;
+      
+      // Validate against max discount percentage
+      if (discountPercent > this.maxDiscountPercent) {
+        this.showAlertMessage(`Le montant de remise ne peut pas dépasser ${this.maxDiscountPercent}% du total (${(targetTotal * this.maxDiscountPercent / 100).toFixed(3)} dt)`, 'error');
+        return;
+      }
     }
     
-    this.discount = amount;
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    activeCart.discount = amount;
     this.calculateTotals();
     this.showDiscountPopup = false;
     this.showDiscountTypeSelection = false;
+    
+    this.showAlertMessage(`Remise appliquée: ${amount.toFixed(3)} dt (${discountPercent.toFixed(1)}%)`, 'success');
   }
 
   getTargetedTotal(): number {
-    if (!this.receiptItems || this.receiptItems.length === 0) return 0;
+    const activeCart = this.getActiveCart();
+    if (!activeCart || !activeCart.items || activeCart.items.length === 0) return 0;
     if (this.discountTarget === 'Tous') {
-      return this.receiptItems.reduce((sum, item) => sum + Number(item.total || 0), 0);
+      return activeCart.items.reduce((sum, item) => sum + Number(item.total || 0), 0);
     }
-    return this.receiptItems
+    return activeCart.items
       .filter(item => item.product && item.product.famille?.name === this.discountTarget)
       .reduce((sum, item) => sum + Number(item.total || 0), 0);
   }
@@ -1345,6 +2189,12 @@ export class CaisseComponent implements OnInit {
 
   // Numeric keypad
   addToInput(value: string): void {
+    // Skip empty buttons
+    if (value === '▄') {
+      return;
+    }
+    
+    // Add the value as is
     this.currentInput += value;
   }
 
@@ -1352,19 +2202,126 @@ export class CaisseComponent implements OnInit {
     this.currentInput = '';
   }
 
-  addDecimal(): void {
-    if (!this.currentInput.includes('.')) {
-      this.currentInput += '.';
+  // Simple multiply functionality - toggle between quantity and price mode
+  handleMultiply(): void {
+    console.log('Multiply button clicked - current mode:', this.inputMode);
+    if (this.inputMode === 'quantity') {
+      this.inputMode = 'price';
+      console.log('Switched to price mode');
+    } else {
+      this.inputMode = 'quantity';
+      console.log('Switched to quantity mode');
     }
+    this.currentInput = '';
+  }
+
+  addDecimal(): void {
+    // Add . as per requirement
+    this.currentInput += '.';
   }
 
   enterValue(): void {
-    const value = parseFloat(this.currentInput);
-    if (!isNaN(value)) {
-      // TODO: Apply value (quantity, price, etc.)
-      console.log('Entered value:', value);
+    console.log('enterValue called - current inputMode:', this.inputMode);
+    if (this.selectedReceiptItem && this.selectedReceiptItemIndex !== -1) {
+      // Handle selected receipt item modification
+      let value = parseFloat(this.currentInput);
+      
+      if (isNaN(value) || value < 0.001) {
+        this.showAlertMessage('Valeur invalide (minimum 0.001)', 'error');
+        return;
+      }
+      
+      if (this.inputMode === 'price') {
+        // Update total price and calculate quantity based on unit price
+        this.selectedReceiptItem.total = value;
+        this.selectedReceiptItem.quantity = value / Number(this.selectedReceiptItem.unitPrice);
+        this.selectedReceiptItem.hasCustomTotal = true; // Mark as custom price
+        console.log('Set hasCustomTotal = true for item:', this.selectedReceiptItem.product.name, 'total:', value);
+        this.calculateTotals();
+        // this.showAlertMessage(`Prix total mis à jour: ${value}€ (Qté: ${this.selectedReceiptItem.quantity.toFixed(2)})`, 'success');
+      } else {
+        // Update quantity
+        this.selectedReceiptItem.quantity = value;
+        this.selectedReceiptItem.total = Number(this.selectedReceiptItem.quantity) * Number(this.selectedReceiptItem.unitPrice);
+        this.calculateTotals();
+        // this.showAlertMessage(`Quantité mise à jour: ${value}`, 'success');
+      }
+      
+      // Clear selection
+      this.selectedReceiptItem = null;
+      this.selectedReceiptItemIndex = -1;
+      this.pendingProduct = null;
+    } else if (this.pendingProduct) {
+      // Handle new product addition
+      let value = parseFloat(this.currentInput);
+      
+      // If no input or invalid input, use default values
+      if (isNaN(value) || value < 0.001) {
+        if (this.inputMode === 'quantity') {
+          value = 1; // Default quantity
+        } else if (this.inputMode === 'price') {
+          value = Number(this.pendingProduct.prix_vente_TTC); // Default price
+        }
+      }
+      
+      if (this.inputMode === 'quantity') {
+        // Replace the existing quantity with the new one
+        this.replaceProductQuantity(this.pendingProduct, value);
+      } else if (this.inputMode === 'price') {
+        this.addProductToReceiptWithTotalPrice(this.pendingProduct, value);
+      }
+      this.pendingProduct = null;
     }
+    
+    // Store the last entered value and reset current input
+    this.lastEnteredValue = this.currentInput;
     this.currentInput = '';
+    
+    // Only reset to quantity mode if we were in quantity mode
+    // If we're in price mode, stay in price mode until manually toggled
+    if (this.inputMode === 'quantity') {
+      console.log('Resetting inputMode to quantity (was already quantity)');
+      this.inputMode = 'quantity';
+    } else {
+      console.log('Keeping inputMode as:', this.inputMode);
+    }
+
+    this.inputMode = 'quantity';
+  }
+
+  // ⌫ button - backspace (delete one character)
+  clearDisplay(): void {
+    if (this.currentInput.length > 0) {
+      this.currentInput = this.currentInput.slice(0, -1);
+    }
+  }
+
+  // Remove specific line from receipt
+  removeReceiptLine(index: number): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || index < 0 || index >= activeCart.items.length) return;
+    
+    activeCart.items.splice(index, 1);
+    
+    // Clear selection if the removed item was selected
+    if (this.selectedReceiptItemIndex === index) {
+      this.selectedReceiptItem = null;
+      this.selectedReceiptItemIndex = -1;
+      this.pendingProduct = null;
+      this.currentInput = '';
+    } else if (this.selectedReceiptItemIndex > index) {
+      // Adjust index if a previous item was removed
+      this.selectedReceiptItemIndex--;
+    }
+    
+    this.calculateTotals();
+  }
+
+  // Toggle between quantity and price input modes
+  toggleInputMode(): void {
+    this.pendingProduct = null;
+    this.currentInput = '';
+    // Don't auto-switch modes - let user choose
   }
 
   // Utility function to truncate text
@@ -1373,7 +2330,7 @@ export class CaisseComponent implements OnInit {
     return text.length > limit ? text.substring(0, limit) + '...' : text;
   }
 
-  showAlertMessage(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+  showAlertMessage(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void {
     this.alertMessage = message;
     this.alertType = type;
     this.showAlert = true;
@@ -1417,7 +2374,9 @@ export class CaisseComponent implements OnInit {
     if (!this.paymentType) return true;
     
     if (this.paymentType === 'cash') {
-      return !this.selectedTemporarySale?.client && (!this.amountPaid || this.amountPaid < (this.selectedTemporarySale?.finalTotal || 0));
+      // Enable button if change is 0 or more (meaning customer paid enough)
+      console.log('Button disabled check - calculatedChange:', this.calculatedChange, 'amountPaid:', this.amountPaid);
+      return !this.selectedTemporarySale?.client && (!this.amountPaid || this.calculatedChange < 0);
     }
     
     if (this.paymentType === 'check') {
@@ -1432,8 +2391,11 @@ export class CaisseComponent implements OnInit {
   }
 
   printInvoice(): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
     const now = new Date();
-    const lines = this.receiptItems.map(item => `
+    const lines = activeCart.items.map(item => `
       <tr>
         <td style=\"padding:6px;border:1px solid #ddd;\">${this.truncate(item.product.name, 40)}</td>
         <td style=\"padding:6px;border:1px solid #ddd;text-align:center;\">${item.quantity}</td>
@@ -1442,7 +2404,7 @@ export class CaisseComponent implements OnInit {
       </tr>
     `).join('');
 
-    const customer = this.selectedClient ? `${this.selectedClient.firstName} ${this.selectedClient.lastName}` : 'PASSAGER';
+    const customer = activeCart.client ? `${activeCart.client.firstName} ${activeCart.client.lastName}` : 'PASSAGER';
 
     const html = `
       <html>
@@ -1490,11 +2452,11 @@ export class CaisseComponent implements OnInit {
             </tbody>
           </table>
           <table class=\"totals\">
-            <tr><td>Sous-total:</td><td class=\"right\">${Number(this.subtotal).toFixed(3)} dt</td></tr>
-            ${Number(this.discount) > 0 ? `<tr><td>Remise:</td><td class=\"right\">-${Number(this.discount).toFixed(3)} dt</td></tr>` : ''}
-            <tr><td style=\"font-weight:700\">TOTAL:</td><td class=\"right\" style=\"font-weight:700\">${Number(this.netTotal).toFixed(3)} dt</td></tr>
+            <tr><td>Sous-total:</td><td class=\"right\">${Number(activeCart.subtotal).toFixed(3)} dt</td></tr>
+            ${Number(activeCart.discount) > 0 ? `<tr><td>Remise:</td><td class=\"right\">-${Number(activeCart.discount).toFixed(3)} dt</td></tr>` : ''}
+            <tr><td style=\"font-weight:700\">TOTAL:</td><td class=\"right\" style=\"font-weight:700\">${Number(activeCart.netTotal).toFixed(3)} dt</td></tr>
             <tr><td>Paiement:</td><td class=\"right\">${this.paymentType?.toUpperCase() || ''}</td></tr>
-            ${this.selectedClient && this.amountPaid !== undefined && Number(this.amountPaid) < Number(this.netTotal) ? `<tr><td>Crédit client:</td><td class=\"right\">${(Number(this.netTotal)-Number(this.amountPaid)).toFixed(3)} dt</td></tr>` : ''}
+            ${activeCart.client && this.amountPaid !== undefined && Number(this.amountPaid) < Number(activeCart.netTotal) ? `<tr><td>Crédit client:</td><td class=\"right\">${(Number(activeCart.netTotal)-Number(this.amountPaid)).toFixed(3)} dt</td></tr>` : ''}
           </table>
         </div>
         <script>window.onload = function(){ window.print(); setTimeout(()=>window.close(), 400); };</script>
@@ -1532,32 +2494,185 @@ export class CaisseComponent implements OnInit {
     }
   }
 
-  confirmProductModal(): void {
-    if (this.selectedProduct && this.productModalQuantity > 0) {
-      this.addProductToReceiptWithQuantity(this.selectedProduct, this.productModalQuantity);
-      this.closeProductModal();
-    }
-  }
 
   addProductToReceiptWithQuantity(product: Product, quantity: number): void {
-    const existingItem = this.receiptItems.find(item => item.product.id === product.id);
+    console.log('addProductToReceiptWithQuantity called:', product.name, 'quantity:', quantity);
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id);
     
     if (existingItem) {
       existingItem.quantity += quantity;
       existingItem.total = Number(existingItem.quantity) * Number(existingItem.unitPrice);
       existingItem.quantity = Number(existingItem.quantity);
       existingItem.unitPrice = Number(existingItem.unitPrice);
+      
+      // Select the existing item
+      this.selectedReceiptItem = existingItem;
+      this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
     } else {
-      this.receiptItems.push({
+      const newItem = {
         product,
         quantity: quantity,
         unitPrice: Number(product.prix_vente_TTC),
         total: quantity * Number(product.prix_vente_TTC),
-        isGift: false
-      });
+        isGift: false,
+        hasCustomTotal: false
+      };
+      activeCart.items.unshift(newItem);
+      
+      // Select the newly added item (now at index 0)
+      this.selectedReceiptItem = newItem;
+      this.selectedReceiptItemIndex = 0;
     }
     
     this.calculateTotals();
+  }
+
+  addProductToReceiptWithCustomTotal(product: Product, customTotal: number): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id);
+    
+    if (existingItem) {
+      existingItem.quantity += 1;
+      existingItem.total = customTotal; // Use the custom total directly
+      existingItem.quantity = Number(existingItem.quantity);
+      existingItem.unitPrice = customTotal; // Set unit price to the total (since quantity is 1)
+      
+      // Select the existing item
+      this.selectedReceiptItem = existingItem;
+      this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
+    } else {
+      const newItem = {
+        product,
+        quantity: 1,
+        unitPrice: customTotal, // Set unit price to the total
+        total: customTotal, // Use the custom total directly
+        isGift: false
+      };
+      activeCart.items.unshift(newItem);
+      
+      // Select the newly added item (now at index 0)
+      this.selectedReceiptItem = newItem;
+      this.selectedReceiptItemIndex = 0;
+    }
+    
+    this.calculateTotals();
+  }
+
+  replaceProductQuantity(product: Product, newQuantity: number): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id);
+    
+    if (existingItem) {
+      // Replace the quantity with the new one
+      existingItem.quantity = newQuantity;
+      existingItem.total = Number(existingItem.quantity) * Number(existingItem.unitPrice);
+      existingItem.quantity = Number(existingItem.quantity);
+      existingItem.unitPrice = Number(existingItem.unitPrice);
+      
+      // Select the existing item
+      this.selectedReceiptItem = existingItem;
+      this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
+    } else {
+      // If item doesn't exist, add it with the new quantity
+      this.addProductToReceiptWithQuantity(product, newQuantity);
+    }
+    
+    this.calculateTotals();
+  }
+
+  addProductToReceiptWithPrice(product: Product, customTotalAmount: number): void {
+    // Round total amount to 50 millimes increments (0.050, 0.100, 0.150, etc.)
+    const roundedTotalAmount = this.roundToFiftyMillimes(customTotalAmount);
+    
+    // Calculate quantity: montant / unit_price and round to 3 decimal places
+    const originalPrice = Number(product.prix_vente_TTC);
+    const calculatedQuantity = originalPrice > 0 ? 
+      Math.round((roundedTotalAmount / originalPrice) * 1000) / 1000 : 1;
+    
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id);
+    
+    if (existingItem) {
+      // Replace the existing item with new calculated values
+      existingItem.quantity = calculatedQuantity;
+      existingItem.unitPrice = originalPrice;
+      existingItem.total = roundedTotalAmount;
+      existingItem.hasCustomTotal = true;
+      
+      // Select the existing item
+      this.selectedReceiptItem = existingItem;
+      this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
+    } else {
+      // Add new item with calculated quantity and custom total amount
+      const newItem = {
+        product,
+        quantity: calculatedQuantity, // Calculated: montant / unit_price
+        unitPrice: originalPrice, // Keep original unit price
+        total: roundedTotalAmount, // Use the custom total amount
+        isGift: false,
+        hasCustomTotal: true
+      };
+      activeCart.items.unshift(newItem);
+      
+      // Select the newly added item (now at index 0)
+      this.selectedReceiptItem = newItem;
+      this.selectedReceiptItemIndex = 0;
+    }
+    
+    this.calculateTotals();
+  }
+
+  addProductToReceiptWithTotalPrice(product: Product, customTotalPrice: number): void {
+    console.log('addProductToReceiptWithTotalPrice called:', product.name, 'total:', customTotalPrice);
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id);
+    
+    if (existingItem) {
+      // Update existing item with new total price and calculate quantity
+      existingItem.total = customTotalPrice;
+      existingItem.quantity = customTotalPrice / Number(existingItem.unitPrice);
+      existingItem.hasCustomTotal = true;
+      
+      // Select the existing item
+      this.selectedReceiptItem = existingItem;
+      this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
+    } else {
+      // Add new item with custom total price and calculate quantity
+      const unitPrice = Number(product.prix_vente_TTC);
+      const calculatedQuantity = customTotalPrice / unitPrice;
+      
+      const newItem = {
+        product,
+        quantity: calculatedQuantity,
+        unitPrice: unitPrice,
+        total: customTotalPrice,
+        isGift: false,
+        hasCustomTotal: true
+      };
+      activeCart.items.unshift(newItem);
+      
+      // Select the newly added item (now at index 0)
+      this.selectedReceiptItem = newItem;
+      this.selectedReceiptItemIndex = 0;
+    }
+    
+    this.calculateTotals();
+  }
+
+  // Round to 50 millimes increments (0.050, 0.100, 0.150, etc.)
+  roundToFiftyMillimes(value: number): number {
+    return Math.round(value / 0.05) * 0.05;
   }
 
   closeProductModal(): void {
@@ -1565,6 +2680,19 @@ export class CaisseComponent implements OnInit {
     this.selectedProduct = null;
     this.productModalQuantity = 1;
     this.productModalAmount = 0;
+  }
+
+  validateESP(): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
+      this.showAlertMessage('Aucun article dans le panier', 'error');
+      return;
+    }
+    
+    // Auto-submit the sale with ESP payment method and exact pricing
+    this.paymentType = 'cash';
+    this.amountPaid = activeCart.netTotal;
+    this.confirmPayment();
   }
 
   getProductModalCalculatedAmount(): number {
@@ -1579,5 +2707,474 @@ export class CaisseComponent implements OnInit {
       return this.productModalAmount / Number(this.selectedProduct.prix_vente_TTC);
     }
     return this.productModalQuantity;
+  }
+
+  // Shop inventory methods
+  loadShopInventory(): void {
+    console.log('Loading shop inventory for depot ID:', this.currentShopDepotId);
+    this.stockDocumentsService.getInventory(this.currentShopDepotId).subscribe({
+      next: (inventory) => {
+        this.shopInventory = inventory;
+        console.log('Shop inventory loaded successfully:', inventory.length, 'items');
+        console.log('First few items:', inventory.slice(0, 3));
+      },
+      error: (error) => {
+        console.error('Error loading shop inventory:', error);
+        this.showAlertMessage('Erreur lors du chargement de l\'inventaire du magasin', 'error');
+      }
+    });
+  }
+
+  getShopStock(productId: number): number {
+    const inventoryItem = this.shopInventory.find(item => item.productId === productId);
+    const stock = inventoryItem ? inventoryItem.quantity : 0;
+    return stock;
+  }
+
+  getStockStatus(productId: number): 'sufficient' | 'low' | 'out' {
+    const stock = this.getShopStock(productId);
+    if (stock <= 0) return 'out';
+    if (stock <= 5) return 'low';
+    return 'sufficient';
+  }
+
+  getStockStatusColor(productId: number): string {
+    const status = this.getStockStatus(productId);
+    switch (status) {
+      case 'out': return 'text-red-600';
+      case 'low': return 'text-yellow-500';
+      default: return 'text-green-500';
+    }
+  }
+
+  getStockStatusText(productId: number): string {
+    const status = this.getStockStatus(productId);
+    switch (status) {
+      case 'out': return '(x)';
+      case 'low': return '(!)';
+      default: return '(+)';
+    }
+  }
+
+  moveItemToTop(item: any): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    // Remove the item from its current position
+    const index = activeCart.items.indexOf(item);
+    if (index > -1) {
+      activeCart.items.splice(index, 1);
+      // Add it to the top (beginning of array)
+      activeCart.items.unshift(item);
+    }
+  }
+
+  onProductClick(event: MouseEvent, product: Product): void {
+    
+    const currentStock = this.getShopStock(product.id);
+    const requestedQuantity = 1;
+    
+    console.log('Product clicked:', product.name, 'Current stock:', currentStock, 'Shop inventory loaded:', this.shopInventory.length);
+    
+    // Check if product already exists in receipt with custom price
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id);
+    
+    if (existingItem) {
+      // Check if the existing item has a custom total price
+      let hasCustomPrice = existingItem.hasCustomTotal === true;
+      
+      // If the flag is not set, try to detect custom price by checking if the total doesn't match expected calculation
+      if (!hasCustomPrice) {
+        const defaultPrice = Number(product.prix_vente_TTC);
+        const expectedTotal = Math.round(existingItem.quantity * defaultPrice * 100) / 100;
+        const totalMatches = Math.abs(existingItem.total - expectedTotal) <= 0.01;
+        
+        // If the total doesn't match the expected calculation, it's likely a custom price
+        hasCustomPrice = !totalMatches;
+        
+        console.log('Custom price detection - default price:', defaultPrice, 'quantity:', existingItem.quantity, 'expected total:', expectedTotal, 'actual total:', existingItem.total, 'total matches:', totalMatches, 'hasCustomPrice:', hasCustomPrice);
+        
+        // Fix the flag if we detect a custom price
+        if (hasCustomPrice) {
+          existingItem.hasCustomTotal = true;
+          console.log('Fixed hasCustomTotal flag to true for item:', product.name);
+        }
+      }
+      
+      console.log('Debug - hasCustomTotal value:', existingItem.hasCustomTotal, 'Type:', typeof existingItem.hasCustomTotal, 'hasCustomPrice:', hasCustomPrice);
+      
+      console.log('Existing item found:', {
+        productName: product.name,
+        existingQuantity: existingItem.quantity,
+        existingTotal: existingItem.total,
+        hasCustomTotal: existingItem.hasCustomTotal,
+        hasCustomPrice: hasCustomPrice
+      });
+      
+      if (hasCustomPrice) {
+        // Product exists with custom price - move to top, select it, and inform user
+        this.moveItemToTop(existingItem);
+        const index = this.receiptItems.indexOf(existingItem);
+        this.selectedReceiptItem = existingItem;
+        this.selectedReceiptItemIndex = index;
+        this.pendingProduct = product;
+        this.inputMode = 'price'; // Set to price mode for editing
+        this.currentInput = '';
+        
+        this.showAlertMessage(
+          `${product.name} sélectionné (Prix personnalisé: ${existingItem.total.toFixed(3)}dt)`, 
+          'info'
+        );
+        console.log('Custom price detected - returning early');
+        return;
+      }
+    }
+    
+    // Check if adding this product would result in negative stock
+    if (currentStock < requestedQuantity && !product.name.toLowerCase().includes('vrac')) {
+      console.log('Showing stock warning for product:', product.name);
+      this.showStockWarning(product, requestedQuantity, currentStock);
+      return;
+    }
+    
+    console.log('Current inputMode:', this.inputMode);
+    
+    if (this.inputMode === 'quantity') {
+      // In quantity mode: automatically add +1, but allow custom quantity input
+      console.log('Adding product in quantity mode');
+      this.addProductToReceiptWithQuantity(product, 1);
+      this.pendingProduct = product;
+      this.currentInput = ''; // Don't show "1" in input
+    } else if (this.inputMode === 'price') {
+      // In price mode: set pending product for price input (PU)
+      console.log('Setting product for price mode');
+      this.pendingProduct = product;
+      this.currentInput = '';
+    }
+  }
+
+  showStockWarning(product: Product, quantity: number, currentStock: number): void {
+    console.log('showStockWarning called:', product.name, quantity, currentStock);
+    
+    // First close any existing modals that might interfere
+    this.showProductModal = false;
+    this.showDiscountPopup = false;
+    this.showPaymentPopup = false;
+    this.showClientSearchPopup = false;
+    
+    // Set stock warning modal properties
+    this.stockWarningProduct = product;
+    this.stockWarningQuantity = quantity;
+    this.stockWarningCurrentStock = currentStock;
+    this.showStockWarningModal = true;
+    
+    console.log('showStockWarningModal set to:', this.showStockWarningModal);
+    console.log('stockWarningProduct set to:', this.stockWarningProduct?.name);
+    
+    // Force Angular change detection
+    setTimeout(() => {
+      console.log('After timeout - Modal state check...');
+      console.log('showStockWarningModal:', this.showStockWarningModal);
+      console.log('stockWarningProduct:', this.stockWarningProduct?.name);
+    }, 50);
+  }
+
+  closeStockWarning(): void {
+    this.showStockWarningModal = false;
+    this.stockWarningProduct = null;
+    this.stockWarningQuantity = 0;
+    this.stockWarningCurrentStock = 0;
+  }
+
+  proceedWithNegativeStock(): void {
+    if (this.stockWarningProduct) {
+      this.selectedProduct = this.stockWarningProduct;
+      this.showProductModal = true;
+      this.productModalMode = 'quantity';
+      this.productModalQuantity = this.stockWarningQuantity;
+      this.productModalAmount = 0;
+      this.productModalCalculatedQuantity = 0;
+      this.productModalCalculatedAmount = 0;
+    }
+    this.closeStockWarning();
+  }
+
+  confirmProductModal(): void {
+    if (this.selectedProduct && this.productModalQuantity > 0) {
+      const currentStock = this.getShopStock(this.selectedProduct.id);
+      
+      // Check if adding this quantity would result in negative stock
+      if (currentStock < this.productModalQuantity) {
+        this.showStockWarning(this.selectedProduct, this.productModalQuantity, currentStock);
+        this.closeProductModal();
+        return;
+      }
+      
+      this.addProductToReceiptWithQuantity(this.selectedProduct, this.productModalQuantity);
+      this.closeProductModal();
+    }
+  }
+
+  // Temporary test method
+  testStockWarning(): void {
+    const testProduct = this.allProducts[0];
+    if (testProduct) {
+      this.showStockWarning(testProduct, 1, 0);
+    }
+  }
+
+  // Print last validated sale
+  printLastSale(): void {
+    if (!this.lastValidatedSale) {
+      this.showAlertMessage('Aucune vente validée récente à imprimer', 'error');
+      return;
+    }
+
+    if (this.lastValidatedSale.invoiceMode) {
+      this.printLastInvoice();
+    } else {
+      this.printLastReceipt();
+    }
+  }
+
+  // Print last receipt
+  printLastReceipt(): void {
+    const data = this.generateLastReceiptData();
+    this.generateThermalReceipt(data);
+    this.showAlertMessage('Reçu imprimé avec succès!', 'success');
+  }
+
+  // Print last invoice
+  printLastInvoice(): void {
+    const now = new Date();
+    const lines = this.lastValidatedSale.receiptItems.map((item: any) => `
+      <tr>
+        <td style="padding:6px;border:1px solid #ddd;">${this.truncate(item.product.name, 40)}</td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:center;">${item.quantity}</td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:right;">${Number(item.unitPrice).toFixed(3)}</td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:right;">${Number(item.total).toFixed(3)}</td>
+      </tr>
+    `).join('');
+
+    const customer = this.lastValidatedSale.selectedClient ? 
+      `${this.lastValidatedSale.selectedClient.firstName} ${this.lastValidatedSale.selectedClient.lastName}` : 'PASSAGER';
+
+    const html = `
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Facture</title>
+        <style>
+          body { font-family: Arial, sans-serif; color:#111; }
+          .container { width: 800px; margin: 0 auto; }
+          .header { display:flex; justify-content:space-between; align-items:flex-start; }
+          .title { font-size: 22px; font-weight: 700; }
+          .muted { color:#666; font-size:12px; }
+          table { width:100%; border-collapse: collapse; margin-top: 16px; }
+          .totals { width: 300px; margin-left:auto; margin-top:12px; }
+          .totals td { padding:6px; }
+          .right { text-align:right; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div>
+              <div class="title">Facture</div>
+              <div class="muted">Date: ${now.toLocaleDateString('fr-FR')} ${now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div>
+              <div class="muted">Client: ${customer}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:700">${'PÂTISSERIE DELICE'}</div>
+              <div class="muted">123 Rue des Gourmandises</div>
+              <div class="muted">Tunis, Tunisie</div>
+              <div class="muted">Tél: +216 XX XXX XXX</div>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="padding:6px;border:1px solid #ddd;text-align:left">Article</th>
+                <th style="padding:6px;border:1px solid #ddd;text-align:center">Qté</th>
+                <th style="padding:6px;border:1px solid #ddd;text-align:right">P.U.</th>
+                <th style="padding:6px;border:1px solid #ddd;text-align:right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lines}
+            </tbody>
+          </table>
+          <table class="totals">
+            <tr><td>Sous-total:</td><td class="right">${Number(this.lastValidatedSale.subtotal).toFixed(3)} dt</td></tr>
+            ${Number(this.lastValidatedSale.discount) > 0 ? `<tr><td>Remise:</td><td class="right">-${Number(this.lastValidatedSale.discount).toFixed(3)} dt</td></tr>` : ''}
+            <tr><td style="font-weight:700">TOTAL:</td><td class="right" style="font-weight:700">${Number(this.lastValidatedSale.netTotal).toFixed(3)} dt</td></tr>
+            <tr><td>Paiement:</td><td class="right">${this.lastValidatedSale.paymentType?.toUpperCase() || ''}</td></tr>
+            ${this.lastValidatedSale.selectedClient && this.lastValidatedSale.amountPaid !== undefined && Number(this.lastValidatedSale.amountPaid) < Number(this.lastValidatedSale.netTotal) ? `<tr><td>Crédit client:</td><td class="right">${(Number(this.lastValidatedSale.netTotal)-Number(this.lastValidatedSale.amountPaid)).toFixed(3)} dt</td></tr>` : ''}
+          </table>
+        </div>
+        <script>window.onload = function(){ window.print(); setTimeout(()=>window.close(), 400); };</script>
+      </body>
+      </html>
+    `;
+
+    const w = window.open('', '_blank');
+    if (w) {
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    }
+  }
+
+  // Generate receipt data for last sale
+  generateLastReceiptData(): any {
+    const now = new Date();
+    return {
+      storeName: 'PÂTISSERIE DELICE',
+      address: '123 Rue des Gourmandises',
+      city: 'Tunis, Tunisie',
+      phone: 'Tél: +216 XX XXX XXX',
+      date: now.toLocaleDateString('fr-FR'),
+      time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      items: this.lastValidatedSale.receiptItems,
+      subtotal: this.lastValidatedSale.subtotal,
+      discount: this.lastValidatedSale.discount,
+      netTotal: this.lastValidatedSale.netTotal,
+      paymentType: this.lastValidatedSale.paymentType,
+      amountPaid: this.lastValidatedSale.amountPaid,
+      change: this.lastValidatedSale.calculatedChange,
+      clientName: this.lastValidatedSale.selectedClient ? 
+        `${this.lastValidatedSale.selectedClient.firstName} ${this.lastValidatedSale.selectedClient.lastName}` : null,
+      loyaltyEarned: this.lastValidatedSale.loyaltyEarned
+    };
+  }
+
+  // Select receipt item for modification
+  selectReceiptItem(item: ReceiptItem, index: number): void {
+    this.selectedReceiptItem = item;
+    this.selectedReceiptItemIndex = index;
+    this.pendingProduct = item.product;
+    this.inputMode = 'quantity';
+    // this.showAlertMessage(`Article sélectionné: ${item.product.name}`, 'info');
+  }
+
+  // Modify selected item quantity
+  modifySelectedItemQuantity(delta: number): void {
+    if (!this.selectedReceiptItem || this.selectedReceiptItemIndex === -1) {
+      this.showAlertMessage('Aucun article sélectionné', 'error');
+      return;
+    }
+
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+
+    const newQuantity = this.selectedReceiptItem.quantity + delta;
+    
+    if (newQuantity <= 0) {
+      // Remove item if quantity becomes 0 or negative
+      activeCart.items.splice(this.selectedReceiptItemIndex, 1);
+      this.selectedReceiptItem = null;
+      this.selectedReceiptItemIndex = -1;
+      this.pendingProduct = null;
+      this.currentInput = '';
+      // this.showAlertMessage('Article supprimé', 'info');
+    } else {
+      // Update quantity
+      this.selectedReceiptItem.quantity = newQuantity;
+      this.selectedReceiptItem.total = Number(this.selectedReceiptItem.quantity) * Number(this.selectedReceiptItem.unitPrice);
+      this.currentInput = newQuantity.toString();
+      // this.showAlertMessage(`Quantité mise à jour: ${newQuantity}`, 'info');
+    }
+    
+    this.calculateTotals();
+  }
+
+  // Ticket number management methods
+  getCurrentTicketNumber(): string {
+    return this.currentTicketNumber.toString().padStart(4, '0');
+  }
+
+  getCurrentDate(): string {
+    return new Date().toLocaleDateString('fr-FR');
+  }
+
+  getCurrentTime(): string {
+    return new Date().toLocaleTimeString('fr-FR', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+    });
+  }
+
+  getCurrentVendor(): string {
+    return 'Vendeur'; // You can replace this with actual vendor logic
+  }
+
+  getCurrentCashier(): string {
+    return this.currentCashier;
+  }
+
+  incrementTicketNumber(): void {
+    const today = new Date().toDateString();
+    
+    // Check if it's a new day
+    if (this.lastTicketDate !== today) {
+      this.currentTicketNumber = 1;
+      this.lastTicketDate = today;
+    } else {
+      this.currentTicketNumber++;
+    }
+    
+    // Save to localStorage for persistence
+    this.saveTicketState();
+  }
+
+  resetTicketNumber(): void {
+    this.currentTicketNumber = 1;
+    this.lastTicketDate = new Date().toDateString();
+    this.saveTicketState();
+  }
+
+  private saveTicketState(): void {
+    const ticketState = {
+      currentTicketNumber: this.currentTicketNumber,
+      lastTicketDate: this.lastTicketDate,
+      isShiftOpen: this.isShiftOpen
+    };
+    localStorage.setItem('pos_ticket_state', JSON.stringify(ticketState));
+  }
+
+  private loadTicketState(): void {
+    const savedState = localStorage.getItem('pos_ticket_state');
+    if (savedState) {
+      try {
+        const ticketState = JSON.parse(savedState);
+        const today = new Date().toDateString();
+        
+        // If it's a new day, reset ticket number
+        if (ticketState.lastTicketDate !== today) {
+          this.currentTicketNumber = 1;
+          this.lastTicketDate = today;
+        } else {
+          this.currentTicketNumber = ticketState.currentTicketNumber || 1;
+          this.lastTicketDate = ticketState.lastTicketDate || today;
+        }
+        
+        this.isShiftOpen = ticketState.isShiftOpen !== false; // Default to true
+      } catch (error) {
+        console.error('Error loading ticket state:', error);
+        this.initializeTicketState();
+      }
+    } else {
+      this.initializeTicketState();
+    }
+  }
+
+  private initializeTicketState(): void {
+    this.currentTicketNumber = 1;
+    this.lastTicketDate = new Date().toDateString();
+    this.isShiftOpen = true;
+    this.saveTicketState();
   }
 } 

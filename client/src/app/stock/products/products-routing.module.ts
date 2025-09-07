@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { ProductsComponent } from './products.component';
-import { VragueStatisticsComponent } from './vrague-statistics/vrague-statistics.component';
+import { VracStatisticsComponent } from './vrac-statistics/vrac-statistics.component';
 
 const routes: Routes = [
   {
@@ -9,8 +9,8 @@ const routes: Routes = [
     component: ProductsComponent
   },
   {
-    path: 'vrague-statistics',
-    component: VragueStatisticsComponent
+    path: 'vrac-statistics',
+    component: VracStatisticsComponent
   }
 ];
 

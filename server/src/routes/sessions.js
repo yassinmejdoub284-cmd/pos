@@ -45,8 +45,8 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
   try {
     const { openingFund, posId, note } = req.body;
 
-    if (!openingFund || openingFund < 0) {
-      return res.status(400).json({ error: 'Fonds de caisse requis et doit être positif' });
+    if (openingFund === undefined || openingFund === null || openingFund < 0) {
+      return res.status(400).json({ error: 'Fonds de caisse requis et doit être positif ou zéro' });
     }
 
     // Check if user already has an open session
@@ -75,9 +75,18 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
       });
       
       if (lastSession) {
-        // Get fonds from settings or use last session's fonds
-        const settings = await getClotureSettings();
-        defaultFonds = settings.defaultFonds || 50;
+        // Try to extract fonds from the last session's note
+        let fondsFromNote = 0;
+        if (lastSession.note && lastSession.note.includes('Fonds pour prochaine session:')) {
+          const match = lastSession.note.match(/Fonds pour prochaine session: ([\d.]+)/);
+          if (match) {
+            fondsFromNote = parseFloat(match[1]);
+          }
+        }
+        defaultFonds = fondsFromNote || 0;
+      } else {
+        // No previous session, use 0 as default
+        defaultFonds = 0;
       }
     }
 
@@ -257,7 +266,8 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
           closedAt: new Date(),
           countedCash: parseFloat(countedCash),
           variance: variance,
-          zSeq: session.zSeq + 1
+          zSeq: session.zSeq + 1,
+          note: fonds ? `Fonds pour prochaine session: ${fonds}` : session.note
         }
       });
 
@@ -283,8 +293,16 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
       variance: variance
     });
 
-    // Generate Z report data
-    const zReportData = await generateZReport(parseInt(id));
+    // Calculate remaining balance after withdrawal
+    const withdrawalAmount = retraitCentrale ? parseFloat(retraitCentrale) : 0;
+    const remainingBalance = parseFloat(countedCash) - withdrawalAmount;
+
+    // Generate Z report data with withdrawal information
+    const zReportData = await generateZReport(parseInt(id), {
+      withdrawalAmount,
+      remainingBalance,
+      countedCash: parseFloat(countedCash)
+    });
 
     // Emit socket notification
     if (req.app.get('io')) {
@@ -295,6 +313,8 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
         variance: variance,
         requiresApproval: requiresApproval,
         closedAt: result.closedAt,
+        withdrawalAmount,
+        remainingBalance,
         totals: {
           expectedCash: summary.expectedCash,
           countedCash: parseFloat(countedCash),
@@ -308,7 +328,9 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
       session: result,
       zReport: zReportData,
       requiresApproval,
-      variance
+      variance,
+      withdrawalAmount,
+      remainingBalance
     });
   } catch (error) {
     console.error('Error closing session:', error);
@@ -329,6 +351,9 @@ router.get('/', authenticateToken, async (req, res) => {
       page = 1, 
       limit = 50 
     } = req.query;
+
+    console.log('Sessions GET request - User:', req.user);
+    console.log('Sessions GET request - Query params:', { startDate, endDate, userId, posId, status, hasVariance, page, limit });
 
     const whereClause = {};
     
@@ -352,6 +377,8 @@ router.get('/', authenticateToken, async (req, res) => {
       whereClause.variance = { not: 0 };
     }
 
+    console.log('Sessions query whereClause:', whereClause);
+
     const sessions = await prisma.sessionCaisse.findMany({
       where: whereClause,
       include: {
@@ -362,6 +389,11 @@ router.get('/', authenticateToken, async (req, res) => {
       skip: (parseInt(page) - 1) * parseInt(limit),
       take: parseInt(limit)
     });
+
+    console.log('Found sessions:', sessions.length);
+    if (sessions.length > 0) {
+      console.log('First session:', { id: sessions[0].id, openedAt: sessions[0].openedAt, status: sessions[0].status });
+    }
 
     res.json(sessions);
   } catch (error) {
@@ -550,16 +582,24 @@ async function updateExpectedCash(sessionId) {
   }
 }
 
-async function generateZReport(sessionId) {
+async function generateZReport(sessionId, closureData = {}) {
   const session = await prisma.sessionCaisse.findUnique({
     where: { id: sessionId },
     include: {
       user: { select: { firstName: true, lastName: true } },
-      depot: { select: { name: true, code: true } },
+      depot: { select: { name: true, code: true, address: true, city: true, phone: true } },
       sales: {
         include: {
           paymentMethod: true,
-          items: true
+          items: {
+            include: {
+              product: {
+                include: {
+                  famille: true
+                }
+              }
+            }
+          }
         }
       },
       cashMovements: true
@@ -568,11 +608,63 @@ async function generateZReport(sessionId) {
 
   const summary = await calculateSessionSummary(sessionId);
   
+  // Group sales by families (like daily extract)
+  const familyMap = new Map();
+  
+  session.sales.forEach(sale => {
+    sale.items.forEach(item => {
+      const familyId = item.product.famille.id;
+      const familyName = item.product.famille.name;
+      
+      if (!familyMap.has(familyId)) {
+        familyMap.set(familyId, {
+          id: familyId,
+          name: familyName,
+          totalRevenue: 0,
+          totalDiscount: 0,
+          products: new Map()
+        });
+      }
+      
+      const family = familyMap.get(familyId);
+      family.totalRevenue += parseFloat(item.total);
+      family.totalDiscount += parseFloat(item.discount);
+      
+      const productId = item.product.id;
+      if (!family.products.has(productId)) {
+        family.products.set(productId, {
+          id: productId,
+          name: item.product.name,
+          quantity: 0,
+          revenue: 0,
+          discount: 0
+        });
+      }
+      
+      const product = family.products.get(productId);
+      product.quantity += item.quantity;
+      product.revenue += parseFloat(item.total);
+      product.discount += parseFloat(item.discount);
+    });
+  });
+
+  // Convert maps to arrays
+  const families = Array.from(familyMap.values()).map(family => ({
+    ...family,
+    products: Array.from(family.products.values())
+  }));
+  
   return {
     session,
     summary,
+    families,
     generatedAt: new Date(),
-    reportType: 'Z'
+    reportType: 'Z',
+    closureData: {
+      withdrawalAmount: closureData.withdrawalAmount || 0,
+      remainingBalance: closureData.remainingBalance || 0,
+      countedCash: closureData.countedCash || 0
+    }
   };
 }
 
@@ -638,7 +730,7 @@ async function getClotureSettings() {
     const settings = await prisma.appSettings.findFirst();
     return {
       varianceThreshold: settings?.varianceThreshold || 5.0,
-      defaultFonds: settings?.defaultFonds || 50.0,
+      defaultFonds: settings?.defaultFonds || 0.0,
       denominations: settings?.denominations || [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05],
       requireApprovalForVariance: settings?.requireApprovalForVariance !== false,
       ticketWidth: settings?.ticketWidth || 58,
@@ -647,7 +739,7 @@ async function getClotureSettings() {
   } catch (error) {
     return {
       varianceThreshold: 5.0,
-      defaultFonds: 50.0,
+      defaultFonds: 0.0,
       denominations: [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05],
       requireApprovalForVariance: true,
       ticketWidth: 58,

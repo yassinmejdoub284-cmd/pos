@@ -24,6 +24,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/sales', authenticateToken, salesRoutes);
 app.use('/api/products', authenticateToken, productsRoutes);

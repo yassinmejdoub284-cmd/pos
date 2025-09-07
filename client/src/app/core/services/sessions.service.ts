@@ -143,12 +143,15 @@ export class SessionsService {
     return this.http.get<SessionSummary>(`${this.API_URL}/${sessionId}/summary`);
   }
 
+
   // Close session
   closeSession(sessionId: number, request: CloseSessionRequest): Observable<{
     session: SessionCaisse;
     zReport: ZReportData;
     requiresApproval: boolean;
     variance: number;
+    withdrawalAmount?: number;
+    remainingBalance?: number;
   }> {
     return this.http.post<any>(`${this.API_URL}/${sessionId}/close`, request).pipe(
       tap(() => {
@@ -223,8 +226,9 @@ export class SessionsService {
   }
 
   // Format currency for display
-  formatCurrency(amount: number): string {
-    return `${amount.toFixed(3)} TND`;
+  formatCurrency(amount: number | string): string {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return `${(isNaN(numAmount) ? 0 : numAmount).toFixed(3)} TND`;
   }
 
   // Calculate denominations total

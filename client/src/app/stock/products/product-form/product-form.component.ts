@@ -34,7 +34,9 @@ export class ProductFormComponent implements OnInit {
       unite: ['pcs', Validators.required],
       prix_vente_TTC: [0, [Validators.required, Validators.min(0)]],
       tva: [19, [Validators.required, Validators.min(0), Validators.max(100)]],
-      duree_conservation: [null]
+      duree_conservation: [null],
+      isVraguable: [false],
+      isStockable: [false]
     });
   }
 
@@ -44,11 +46,26 @@ export class ProductFormComponent implements OnInit {
     if (this.product) {
       this.productForm.patchValue({
         ...this.product,
-        familleId: this.product.familleId
+        familleId: this.product.familleId,
+        isVraguable: this.product.isVraguable || false,
+        isStockable: this.product.isStockable || false
       });
+      
+      // Set initial disabled state based on vraguable status
+      const isVraguable = this.product.isVraguable || false;
+      const stockableControl = this.productForm.get('isStockable');
+      if (!isVraguable) {
+        stockableControl?.disable();
+      } else {
+        stockableControl?.enable();
+      }
+      
       if (this.product.photo) {
         this.imagePreview = this.product.photo;
       }
+    } else {
+      // For new products, disable stockable by default
+      this.productForm.get('isStockable')?.disable();
     }
   }
 
@@ -141,5 +158,29 @@ export class ProductFormComponent implements OnInit {
 
   onCancel(): void {
     this.cancelled.emit();
+  }
+
+  get isVraguable(): boolean {
+    return this.productForm.get('isVraguable')?.value || false;
+  }
+
+  get isStockable(): boolean {
+    return this.productForm.get('isStockable')?.value || false;
+  }
+
+  onVraguableChange(): void {
+    const isVraguable = this.productForm.get('isVraguable')?.value;
+    const stockableControl = this.productForm.get('isStockable');
+    
+    if (!isVraguable) {
+      this.productForm.patchValue({ isStockable: false });
+      stockableControl?.disable();
+    } else {
+      stockableControl?.enable();
+    }
+  }
+
+  onStockableChange(): void {
+    // Stock management logic can be added here if needed in the future
   }
 } 

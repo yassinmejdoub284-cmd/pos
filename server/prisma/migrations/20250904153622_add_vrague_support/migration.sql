@@ -1,10 +1,10 @@
 -- AlterTable
 ALTER TABLE `products` ADD COLUMN `is_stockable` BOOLEAN NOT NULL DEFAULT true,
-    ADD COLUMN `is_vrague` BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN `is_vrac` BOOLEAN NOT NULL DEFAULT false,
     ADD COLUMN `original_product_id` INTEGER NULL;
 
 -- CreateTable
-CREATE TABLE `vrague_prices` (
+CREATE TABLE `vrac_prices` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `product_id` INTEGER NOT NULL,
     `price` DECIMAL(10, 2) NOT NULL,
@@ -21,4 +21,4 @@ CREATE TABLE `vrague_prices` (
 ALTER TABLE `products` ADD CONSTRAINT `products_original_product_id_fkey` FOREIGN KEY (`original_product_id`) REFERENCES `products`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `vrague_prices` ADD CONSTRAINT `vrague_prices_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `vrac_prices` ADD CONSTRAINT `vrac_prices_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

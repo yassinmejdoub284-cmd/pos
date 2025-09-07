@@ -2,12 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import { ProductsService } from '../../../core/services/products.service';
 
 @Component({
-  selector: 'app-vrague-statistics',
-  templateUrl: './vrague-statistics.component.html',
-  styleUrls: ['./vrague-statistics.component.css'],
+  selector: 'app-vrac-statistics',
+  templateUrl: './vrac-statistics.component.html',
   standalone: false
 })
-export class VragueStatisticsComponent implements OnInit {
+export class VracStatisticsComponent implements OnInit {
   statistics: any[] = [];
   loading = false;
   error = '';
@@ -37,7 +36,7 @@ export class VragueStatisticsComponent implements OnInit {
     this.loading = true;
     this.error = '';
 
-    this.productsService.getVragueStatistics(this.startDate, this.endDate).subscribe({
+    this.productsService.getVracStatistics(this.startDate, this.endDate).subscribe({
       next: (stats) => {
         this.statistics = stats;
         this.loading = false;

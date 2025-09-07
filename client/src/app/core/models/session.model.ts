@@ -85,6 +85,11 @@ export interface ZReportData {
   summary: SessionSummary;
   generatedAt: Date;
   reportType: 'Z';
+  closureData?: {
+    withdrawalAmount: number;
+    remainingBalance: number;
+    countedCash: number;
+  };
 }
 
 export type SessionStatus = 'OPEN' | 'CLOSED' | 'REOPENED';

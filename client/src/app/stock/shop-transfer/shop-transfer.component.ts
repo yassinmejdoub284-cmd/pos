@@ -3,7 +3,9 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { StockDocumentsService } from '../../core/services/stock-documents.service';
 import { DepotsService } from '../../core/services/depots.service';
+import { ProductsService } from '../../core/services/products.service';
 import { Depot } from '../../core/models/depot.model';
+import { Product } from '../../core/models/product.model';
 
 @Component({
   selector: 'app-shop-transfer',
@@ -19,11 +21,21 @@ export class ShopTransferComponent implements OnInit {
   error = '';
   success = '';
 
+  // Current inventory
+  inventory: any[] = [];
+  products: Product[] = [];
+  showCurrentInventory = false;
+
+  // Transfer details
+  selectedTransfer: any = null;
+  showTransferDetails = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private stockDocumentsService: StockDocumentsService,
-    private depotsService: DepotsService
+    private depotsService: DepotsService,
+    private productsService: ProductsService
   ) {}
 
   ngOnInit(): void {
@@ -36,22 +48,30 @@ export class ShopTransferComponent implements OnInit {
   }
 
   loadData(depotId: number): void {
-    this.depotsService.get(depotId).subscribe({
-      next: (currentDepot) => {
+    this.loading = true;
+    
+    Promise.all([
+      this.depotsService.get(depotId).toPromise(),
+      this.productsService.getProducts().toPromise(),
+      this.stockDocumentsService.getInventory(depotId).toPromise()
+    ]).then(([currentDepot, products, inventory]) => {
+      if (currentDepot) {
         this.currentDepot = currentDepot;
         this.depotType = currentDepot.type;
-        this.loadPendingTransfers();
-      },
-      error: () => {
-        this.error = 'Erreur lors du chargement du dépôt';
       }
+      if (products) this.products = products;
+      if (inventory) this.inventory = inventory;
+      this.loadPendingTransfers();
+      this.loading = false;
+    }).catch(() => {
+      this.error = 'Erreur lors du chargement des données';
+      this.loading = false;
     });
   }
 
   loadPendingTransfers(): void {
     if (!this.currentDepot) return;
     
-    this.loading = true;
     this.error = '';
     
     console.log('Loading pending transfers for shop depot:', this.currentDepot.id);
@@ -61,10 +81,8 @@ export class ShopTransferComponent implements OnInit {
         console.log('Received transfer response:', response);
         this.pendingTransfers = response.data || [];
         console.log('Pending transfers:', this.pendingTransfers);
-        this.loading = false;
       },
       error: (err) => {
-        this.loading = false;
         this.error = err.error?.error || 'Erreur lors du chargement des transferts';
       }
     });
@@ -80,12 +98,33 @@ export class ShopTransferComponent implements OnInit {
         this.loading = false;
         this.success = 'Transfert confirmé avec succès';
         this.loadPendingTransfers(); // Reload the list
+        this.loadData(this.currentDepot.id); // Reload inventory
       },
       error: (err) => {
         this.loading = false;
         this.error = err.error?.error || 'Erreur lors de la confirmation';
       }
     });
+  }
+
+  getProductName(productId: number): string {
+    if (!productId || !this.products.length) return 'Chargement...';
+    const product = this.products.find(p => p.id === productId);
+    return product ? product.name : `Produit ID: ${productId}`;
+  }
+
+  toggleCurrentInventory(): void {
+    this.showCurrentInventory = !this.showCurrentInventory;
+  }
+
+  viewTransferDetails(transfer: any): void {
+    this.selectedTransfer = transfer;
+    this.showTransferDetails = true;
+  }
+
+  closeTransferDetails(): void {
+    this.showTransferDetails = false;
+    this.selectedTransfer = null;
   }
 
   goBack(): void {

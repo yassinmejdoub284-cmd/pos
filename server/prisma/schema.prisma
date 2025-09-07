@@ -12,6 +12,7 @@ model User {
   username     String   @unique @db.VarChar(50)
   email        String   @unique @db.VarChar(100)
   passwordHash String   @map("password_hash") @db.VarChar(255)
+  pin          String   @unique @db.VarChar(8)
   firstName    String   @map("first_name") @db.VarChar(50)
   lastName     String   @map("last_name") @db.VarChar(50)
   role         UserRole
@@ -27,8 +28,9 @@ model User {
   stockMovements StockMovement[]
   requestedTransfers StockTransfer[] @relation("RequestedBy")
   approvedTransfers StockTransfer[] @relation("ApprovedBy")
-  expenses     Expense[]
+  expenses     Expense[]               @relation("ExpenseCreator")
   approvedExpenses Expense[] @relation("ExpenseApprover")
+  paidExpenses Expense[]               @relation("ExpensePayer")
   auditLogs    AuditLog[]
   documentStatusHistory DocumentStatusHistory[]
   debtTransactions ClientDebtTransaction[]
@@ -100,23 +102,23 @@ model Product {
   tva           Decimal  @default(19) @db.Decimal(5, 2)
   photo         String?  @db.VarChar(255)
   duree_conservation Int? @map("duree_conservation")
-  // Vrague fields
-  isVrague      Boolean  @default(false) @map("is_vrague")
+  // Vrac fields
+  isVrac      Boolean  @default(false) @map("is_vrac")
   originalProductId Int?  @map("original_product_id")
   isStockable   Boolean  @default(true) @map("is_stockable")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   famille      ProductFamily @relation(fields: [familleId], references: [id])
-  originalProduct Product? @relation("VragueProducts", fields: [originalProductId], references: [id])
-  vragueProducts Product[] @relation("VragueProducts")
+  originalProduct Product? @relation("VracProducts", fields: [originalProductId], references: [id])
+  vracProducts Product[] @relation("VracProducts")
   inventory    Inventory[]
   saleItems    SaleItem[] @relation("ProductSaleItems")
   stockMovements StockMovement[]
   stockTransferItems StockTransferItem[]
   documentItems StockDocumentItem[]
   conservation ProductConservation[]
-  vraguePrices VraguePrice[]
+  vracPrices VracPrice[]
 
   @@map("products")
 }
@@ -140,7 +142,7 @@ model ProductConservation {
   @@map("product_conservation")
 }
 
-model VraguePrice {
+model VracPrice {
   id          Int      @id @default(autoincrement())
   productId   Int      @map("product_id")
   price       Decimal  @db.Decimal(10, 2)
@@ -152,15 +154,15 @@ model VraguePrice {
 
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@map("vrague_prices")
+  @@map("vrac_prices")
 }
 
 model Inventory {
   id              Int      @id @default(autoincrement())
   depotId         Int      @map("depot_id")
   productId       Int      @map("product_id")
-  quantity        Int      @default(0)
-  reservedQuantity Int     @default(0) @map("reserved_quantity")
+  quantity        Decimal  @default(0) @db.Decimal(10, 3)
+  reservedQuantity Decimal @default(0) @map("reserved_quantity") @db.Decimal(10, 3)
   lastUpdated     DateTime @updatedAt @map("last_updated")
 
   depot           Depot    @relation(fields: [depotId], references: [id])
@@ -250,6 +252,7 @@ model PaymentMethod {
   createdAt DateTime @default(now()) @map("created_at")
 
   sales     Sale[]
+  advancePaymentSales Sale[] @relation("AdvancePaymentMethod")
 
   @@map("payment_methods")
 }
@@ -269,11 +272,17 @@ model Sale {
   sessionId       Int?        @map("session_id")
   paymentMethodId Int?        @map("payment_method_id")
   clientId        Int?        @map("client_id")
+  // Advance payment fields for temporary sales
+  advancePayment  Decimal?    @default(0) @map("advance_payment") @db.Decimal(10, 3)
+  advancePaymentMethodId Int? @map("advance_payment_method_id")
+  advancePaymentDate DateTime? @map("advance_payment_date")
+  advancePaymentNotes String? @map("advance_payment_notes") @db.Text
 
   user            User        @relation(fields: [userId], references: [id])
   depot           Depot       @relation(fields: [depotId], references: [id])
   session         SessionCaisse? @relation(fields: [sessionId], references: [id])
   paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  advancePaymentMethod PaymentMethod? @relation("AdvancePaymentMethod", fields: [advancePaymentMethodId], references: [id])
   client          Client?     @relation(fields: [clientId], references: [id])
   items           SaleItem[]
   debtTransactions ClientDebtTransaction[]
@@ -286,7 +295,7 @@ model SaleItem {
   saleId      Int      @map("sale_id")
   productId   Int      @map("product_id")
   productName String   @map("product_name") @db.VarChar(200)
-  quantity    Int
+  quantity    Decimal  @db.Decimal(10, 3)
   unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
   total       Decimal  @db.Decimal(10, 2)
   discount    Decimal  @default(0) @db.Decimal(10, 2)
@@ -301,7 +310,7 @@ model StockMovement {
   id         Int      @id @default(autoincrement())
   productId  Int      @map("product_id")
   depotId    Int      @map("depot_id")
-  quantity   Int
+  quantity   Decimal  @db.Decimal(10, 3)
   type       StockMovementType
   fromDepotId Int?    @map("from_depot_id")
   toDepotId  Int?     @map("to_depot_id")
@@ -344,8 +353,8 @@ model StockTransferItem {
   id                  Int      @id @default(autoincrement())
   transferId          Int      @map("transfer_id")
   productId           Int      @map("product_id")
-  quantity            Int
-  transferredQuantity Int      @default(0) @map("transferred_quantity")
+  quantity            Decimal  @db.Decimal(10, 3)
+  transferredQuantity Decimal @default(0) @map("transferred_quantity") @db.Decimal(10, 3)
 
   transfer            StockTransfer @relation(fields: [transferId], references: [id])
   product             Product       @relation(fields: [productId], references: [id])
@@ -368,6 +377,27 @@ model ExpenseCategory {
   @@map("expense_categories")
 }
 
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(200)
+  contactName String?  @map("contact_name") @db.VarChar(100)
+  email       String?  @db.VarChar(100)
+  phone       String?  @db.VarChar(20)
+  address     String?  @db.Text
+  city        String?  @db.VarChar(50)
+  postalCode  String?  @map("postal_code") @db.VarChar(10)
+  taxNumber   String?  @map("tax_number") @db.VarChar(50)
+  paymentTerms String? @map("payment_terms") @db.VarChar(100)
+  notes       String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  expenses    Expense[]
+
+  @@map("suppliers")
+}
+
 model Expense {
   id           Int      @id @default(autoincrement())
   amount       Decimal  @db.Decimal(10, 2)
@@ -375,12 +405,17 @@ model Expense {
   categoryId   Int      @map("category_id")
   depotId      Int      @map("depot_id")
   userId       Int      @map("user_id")
+  supplierId   Int?     @map("supplier_id")
   date         DateTime @default(now())
+  dueDate      DateTime? @map("due_date")
   paymentType  PaymentType @default(CASH) @map("payment_type")
-  collectionDate DateTime @default(now()) @map("collection_date")
+  collectionDate DateTime? @map("collection_date")
   receiptUrl   String?  @map("receipt_url") @db.VarChar(255)
   notes        String?  @db.Text
   isApproved   Boolean  @default(false) @map("is_approved")
+  isPaid       Boolean  @default(false) @map("is_paid")
+  paidAt       DateTime? @map("paid_at")
+  paidBy       Int?     @map("paid_by")
   approvedBy   Int?     @map("approved_by")
   approvedAt   DateTime? @map("approved_at")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -388,8 +423,10 @@ model Expense {
 
   category    ExpenseCategory @relation(fields: [categoryId], references: [id])
   depot       Depot           @relation(fields: [depotId], references: [id])
-  user        User            @relation(fields: [userId], references: [id])
+  user        User            @relation("ExpenseCreator", fields: [userId], references: [id])
+  supplier    Supplier?       @relation(fields: [supplierId], references: [id])
   approver    User?           @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+  payer       User?           @relation("ExpensePayer", fields: [paidBy], references: [id])
 
   @@map("expenses")
 }
@@ -437,7 +474,7 @@ model StockDocumentItem {
   documentId        Int      @map("document_id")
   productId         Int      @map("product_id")
   famille           String   @db.VarChar(100)
-  quantity          Int
+  quantity          Decimal  @db.Decimal(10, 3)
   batch             String?  @db.VarChar(50)
   notes             String?  @db.Text
   barcode           String?  @unique @db.VarChar(50)
@@ -505,6 +542,7 @@ enum SaleStatus {
   TEMPORARY
   PENDING_ADMIN
   CADEAU
+  CMD_TERMINEE
 }
 
 enum StockMovementType {

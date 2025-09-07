@@ -5,6 +5,8 @@ import { Router } from '@angular/router';
 import { SessionsService, SessionCaisse, CashMovementRequest, CloseSessionRequest } from '../core/services/sessions.service';
 import { AuthService } from '../core/services/auth.service';
 import { PrintService } from '../core/services/print.service';
+import { DailyExtractService } from '../core/services/daily-extract.service';
+import { SettingsService } from '../core/services/settings.service';
 
 @Component({
   selector: 'app-cloture',
@@ -17,64 +19,39 @@ export class ClotureComponent implements OnInit {
   loading = signal(false);
   error = signal('');
   
-  // Open session form
-  openSessionForm = {
-    openingFund: 50,
-    posId: 1,
-    note: ''
-  };
-  
-  // Cash movement form
-  cashMovementForm = {
-    type: 'ENTREE' as 'ENTREE' | 'SORTIE' | 'DEPOT_COFFRE' | 'RETRAIT_CENTRALE' | 'AJUSTEMENT',
-    amount: 0,
-    reason: '',
-    ticketId: ''
-  };
-  
-  // Close session form
+  // Close session form - only withdrawal
   closeSessionForm = {
-    countedCash: 0,
-    fonds: 50,
-    retraitCentrale: 0,
-    denominations: {} as { [key: string]: number }
+    retraitCentrale: ''
   };
   
   // UI state
-  showOpenForm = signal(false);
-  showCashMovementModal = signal(false);
   showCloseForm = signal(false);
-  showDenominations = signal(false);
+  showFundForm = signal(false);
   
-  // Computed values
-  denominationsTotal = computed(() => 
-    this.sessionsService.calculateDenominationsTotal(this.closeSessionForm.denominations)
-  );
+  // Fund form
+  fundForm = {
+    amount: ''
+  };
   
-  varianceInfo = computed(() => {
-    const session = this.currentSession();
-    if (!session || !this.closeSessionForm.countedCash) {
-      return null;
-    }
-    return this.sessionsService.validateCashCounting(
-      this.closeSessionForm.countedCash,
-      session.expectedCash,
-      5.0 // TODO: Get from settings
-    );
-  });
 
   constructor(
     private sessionsService: SessionsService,
     private authService: AuthService,
     private router: Router,
-    private printService: PrintService
-  ) {
-    // Initialize denominations after service is available
-    this.closeSessionForm.denominations = this.sessionsService.getDefaultDenominations();
-  }
+    private printService: PrintService,
+    private dailyExtractService: DailyExtractService,
+    private settingsService: SettingsService
+  ) {}
 
   ngOnInit(): void {
     this.loadCurrentSession();
+    
+    // Refresh session data every 5 seconds to get updated sales
+    setInterval(() => {
+      if (this.currentSession()) {
+        this.loadCurrentSession();
+      }
+    }, 5000);
   }
 
   loadCurrentSession(): void {
@@ -83,106 +60,139 @@ export class ClotureComponent implements OnInit {
       next: (session) => {
         this.currentSession.set(session);
         this.loading.set(false);
+        
+        // If no active session, automatically open one
+        if (!session) {
+          this.autoOpenSession();
+        }
       },
       error: (error) => {
         this.error.set('Erreur lors du chargement de la session');
         this.loading.set(false);
+        // Try to auto-open session on error too
+        this.autoOpenSession();
       }
     });
   }
 
-  openSession(): void {
-    if (!this.openSessionForm.openingFund || this.openSessionForm.openingFund < 0) {
-      this.error.set('Fonds de caisse requis et doit être positif');
-      return;
-    }
-
+  autoOpenSession(): void {
     this.loading.set(true);
-    this.sessionsService.openSession(this.openSessionForm).subscribe({
+    const defaultSession = {
+      openingFund: 0, // No opening fund by default
+      posId: 1,
+      note: 'Session automatique'
+    };
+    
+    this.sessionsService.openSession(defaultSession).subscribe({
       next: (session) => {
         this.currentSession.set(session);
-        this.showOpenForm.set(false);
         this.loading.set(false);
         this.error.set('');
       },
       error: (error) => {
-        this.error.set(error.error?.error || 'Erreur lors de l\'ouverture de la session');
+        this.error.set('Erreur lors de l\'ouverture automatique de la session');
         this.loading.set(false);
       }
     });
   }
 
-  addCashMovement(): void {
-    if (!this.cashMovementForm.amount || !this.cashMovementForm.reason) {
-      this.error.set('Montant et motif requis');
-      return;
-    }
-
-    const session = this.currentSession();
-    if (!session) return;
-
-    const movement: CashMovementRequest = {
-      type: this.cashMovementForm.type,
-      amount: this.cashMovementForm.amount,
-      reason: this.cashMovementForm.reason,
-      ticketId: this.cashMovementForm.ticketId ? parseInt(this.cashMovementForm.ticketId) : undefined
-    };
-
-    this.loading.set(true);
-    this.sessionsService.addCashMovement(session.id, movement).subscribe({
-      next: () => {
-        this.loadCurrentSession(); // Refresh session data
-        this.showCashMovementModal.set(false);
-        this.cashMovementForm = {
-          type: 'ENTREE',
-          amount: 0,
-          reason: '',
-          ticketId: ''
-        };
-        this.loading.set(false);
-        this.error.set('');
-      },
-      error: (error) => {
-        this.error.set(error.error?.error || 'Erreur lors de l\'ajout du mouvement');
-        this.loading.set(false);
-      }
-    });
-  }
 
   closeSession(): void {
     const session = this.currentSession();
-    if (!session) return;
-
-    if (!this.closeSessionForm.countedCash || this.closeSessionForm.countedCash < 0) {
-      this.error.set('Espèces comptées requises et doivent être positives');
+    if (!session) {
+      this.error.set('Aucune session active trouvée');
       return;
     }
 
-    const request: CloseSessionRequest = {
-      countedCash: this.closeSessionForm.countedCash,
-      fonds: this.closeSessionForm.fonds,
-      retraitCentrale: this.closeSessionForm.retraitCentrale || undefined,
-      denominations: this.closeSessionForm.denominations
-    };
-
+    // Simple closure - just log withdrawal and print daily extract
+    const withdrawalAmount = parseFloat(this.closeSessionForm.retraitCentrale) || 0;
+    
+    console.log('Closing session:', session.id, 'with withdrawal:', withdrawalAmount);
     this.loading.set(true);
-    this.sessionsService.closeSession(session.id, request).subscribe({
-      next: (result) => {
-        this.currentSession.set(null);
-        this.showCloseForm.set(false);
-        this.loading.set(false);
-        this.error.set('');
+    
+    // Get session-specific extract and company settings, then print
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (sessionReport) => {
+        // Map session report data to daily extract format for printing
+        const enhancedExtract = {
+          date: new Date().toISOString().split('T')[0],
+          families: sessionReport.families || [],
+          totalDiscount: 0, // Session reports don't track discounts separately
+          totalRevenue: sessionReport.summary?.totalSales || 0,
+          soldeDebit: sessionReport.summary?.expectedCash || 0,
+          withdrawal: withdrawalAmount,
+          remainingCash: (sessionReport.summary?.expectedCash || 0) - withdrawalAmount,
+          closureTimestamp: new Date(),
+          alimentations: sessionReport.session?.cashMovements?.filter((movement: any) => movement.type === 'ENTREE') || []
+        };
         
-        // TODO: Handle approval requirement
-        if (result.requiresApproval) {
-          this.error.set('Session fermée - Approbation requise pour l\'écart');
-        }
+        // Fetch company settings and print with real data
+        this.settingsService.getSettings().subscribe({
+          next: (settings) => {
+            // Prepare company data for printing
+            const companyData = {
+              companyName: settings.companyName,
+              depotName: sessionReport.session?.depot?.name,
+              address: sessionReport.session?.depot?.address || '123 Rue de la Paix',
+              city: sessionReport.session?.depot?.city || 'Tunis, Tunisie',
+              phone: sessionReport.session?.depot?.phone || '+216 71 123 456'
+            };
+            
+            // Print the session extract with real company data
+            this.printService.printDailyExtractWithWithdrawal(enhancedExtract, companyData);
+          },
+          error: (error) => {
+            console.error('Error fetching settings:', error);
+            // Print without company data if settings fetch fails
+            this.printService.printDailyExtractWithWithdrawal(enhancedExtract);
+          }
+        });
         
-        // TODO: Print Z report
-        this.printZReport(result.zReport);
+        // Ensure we have valid countedCash value
+        const countedCash = sessionReport.summary?.expectedCash || 0;
+        console.log('Session report data:', sessionReport);
+        console.log('Enhanced extract for printing:', enhancedExtract);
+        console.log('Counted cash value:', countedCash);
+        
+        // Close the session (simple closure)
+        // Calculate remaining balance for next session's opening fund
+        const remainingBalance = countedCash - withdrawalAmount;
+        console.log('Sending close request for session:', session.id, 'with data:', {
+          countedCash: countedCash,
+          fonds: remainingBalance,
+          retraitCentrale: withdrawalAmount > 0 ? withdrawalAmount : undefined,
+          denominations: {}
+        });
+        
+        this.sessionsService.closeSession(session.id, {
+          countedCash: countedCash,
+          fonds: remainingBalance, // Use remaining balance as opening fund for next session
+          retraitCentrale: withdrawalAmount > 0 ? withdrawalAmount : undefined,
+          denominations: {}
+        }).subscribe({
+          next: () => {
+            this.showCloseForm.set(false);
+            this.loading.set(false);
+            this.error.set('');
+            
+            // Automatically open new session
+            this.autoOpenSession();
+            
+            // Redirect to register after successful closure
+            setTimeout(() => {
+              this.goToRegister();
+            }, 1000);
+          },
+          error: (error) => {
+            console.error('Session closure error:', error);
+            this.error.set('Erreur lors de la fermeture de la session: ' + (error.error?.error || error.message || 'Erreur inconnue'));
+            this.loading.set(false);
+          }
+        });
       },
       error: (error) => {
-        this.error.set(error.error?.error || 'Erreur lors de la fermeture de la session');
+        console.error('Error fetching daily extract:', error);
+        this.error.set('Erreur lors de l\'impression de l\'extrait journalier');
         this.loading.set(false);
       }
     });
@@ -206,14 +216,6 @@ export class ClotureComponent implements OnInit {
     this.printService.printZReport(zReport);
   }
 
-  updateDenominationsTotal(): void {
-    this.closeSessionForm.countedCash = this.denominationsTotal();
-  }
-
-  getCashMovementTypeLabel(type: string): string {
-    return this.sessionsService.getCashMovementTypeLabel(type);
-  }
-
   formatCurrency(amount: number): string {
     return this.sessionsService.formatCurrency(amount);
   }
@@ -222,7 +224,87 @@ export class ClotureComponent implements OnInit {
     this.router.navigate(['/cloture/historique']);
   }
 
-  getDenominationKeys(): string[] {
-    return Object.keys(this.closeSessionForm.denominations);
+  goToRegister(): void {
+    this.router.navigate(['/caisse']);
+  }
+
+  addDigit(digit: string): void {
+    const current = this.closeSessionForm.retraitCentrale.toString();
+    
+    if (digit === '.') {
+      // Only allow one decimal point
+      if (!current.includes('.')) {
+        this.closeSessionForm.retraitCentrale = current + '.';
+      }
+    } else {
+      // Add digit
+      if (current === '0' || current === '') {
+        this.closeSessionForm.retraitCentrale = digit;
+      } else {
+        this.closeSessionForm.retraitCentrale = current + digit;
+      }
+    }
+  }
+
+  clearAmount(): void {
+    this.closeSessionForm.retraitCentrale = '';
+  }
+
+  fundCashRegister(): void {
+    const session = this.currentSession();
+    if (!session) {
+      this.error.set('Aucune session active trouvée');
+      return;
+    }
+
+    const amount = parseFloat(this.fundForm.amount) || 0;
+    if (amount <= 0) {
+      this.error.set('Le montant doit être positif');
+      return;
+    }
+
+    this.loading.set(true);
+    
+    // Add cash movement for funding
+    this.sessionsService.addCashMovement(session.id, {
+      type: 'ENTREE',
+      amount: amount,
+      reason: 'Fonds de caisse ajoutés'
+    }).subscribe({
+      next: () => {
+        this.showFundForm.set(false);
+        this.fundForm.amount = '';
+        this.loading.set(false);
+        this.error.set('');
+        // Refresh session data
+        this.loadCurrentSession();
+      },
+      error: (error) => {
+        this.error.set('Erreur lors de l\'ajout des fonds: ' + (error.error?.error || error.message || 'Erreur inconnue'));
+        this.loading.set(false);
+      }
+    });
+  }
+
+  addFundDigit(digit: string): void {
+    const current = this.fundForm.amount.toString();
+    
+    if (digit === '.') {
+      // Only allow one decimal point
+      if (!current.includes('.')) {
+        this.fundForm.amount = current + '.';
+      }
+    } else {
+      // Add digit
+      if (current === '0' || current === '') {
+        this.fundForm.amount = digit;
+      } else {
+        this.fundForm.amount = current + digit;
+      }
+    }
+  }
+
+  clearFundAmount(): void {
+    this.fundForm.amount = '';
   }
 } 

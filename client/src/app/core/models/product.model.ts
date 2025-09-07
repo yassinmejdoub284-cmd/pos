@@ -10,17 +10,22 @@ export interface Product {
   tva: number;
   photo?: string;
   duree_conservation?: number;
-  // Vrague fields
-  isVrague?: boolean;
+  // Vrac fields
+  isVrac?: boolean;
   originalProductId?: number;
   originalProduct?: Product;
   isStockable?: boolean;
+  // New configuration fields
+  isVraguable?: boolean;
+  initialStock?: number;
+  minStock?: number;
+  maxStock?: number;
   createdAt: Date;
   updatedAt: Date;
   inventory?: Inventory[];
   conservation?: ProductConservation[];
-  vragueProducts?: Product[];
-  vraguePrices?: VraguePrice[];
+  vracProducts?: Product[];
+  vracPrices?: VracPrice[];
 }
 
 export interface ProductFamily {
@@ -94,7 +99,7 @@ export interface StockMovement {
   userId: number;
 }
 
-export interface VraguePrice {
+export interface VracPrice {
   id: number;
   productId: number;
   price: number;

@@ -22,10 +22,10 @@ export class ProductsComponent implements OnInit {
   showAddModal = false;
   showImportModal = false;
   showImageUploadModal = false;
-  showVragueModal = false;
+  showVracModal = false;
   editingProduct: Product | null = null;
   selectedProductForImage: Product | null = null;
-  selectedProductForVrague: Product | null = null;
+  selectedProductForVrac: Product | null = null;
   families: ProductFamily[] = [];
 
   constructor(private productsService: ProductsService) {}
@@ -116,9 +116,9 @@ export class ProductsComponent implements OnInit {
   closeModal(): void {
     this.showAddModal = false;
     this.showImportModal = false;
-    this.showVragueModal = false;
+    this.showVracModal = false;
     this.editingProduct = null;
-    this.selectedProductForVrague = null;
+    this.selectedProductForVrac = null;
   }
 
   onProductSaved(): void {
@@ -192,25 +192,18 @@ export class ProductsComponent implements OnInit {
   onImageUploadConfirmed(file: File): void {
     if (!this.selectedProductForImage) return;
 
-    this.productsService.uploadImage(file).subscribe({
+    // Store the product ID before starting upload to avoid null reference issues
+    const productId = this.selectedProductForImage.id;
+
+    this.productsService.uploadProductPhoto(productId, file).subscribe({
       next: (response) => {
-        // Update the product with the new image URL
-        this.productsService.updateProduct(this.selectedProductForImage!.id, {
-          photo: response.imageUrl
-        }).subscribe({
-          next: () => {
-            // Update the product in the local array
-            const product = this.allProducts.find(p => p.id === this.selectedProductForImage!.id);
-            if (product) {
-              product.photo = response.imageUrl;
-              this.applyFilters(); // Refresh the display
-            }
-            this.closeImageUploadModal();
-          },
-          error: (error) => {
-            this.error = 'Erreur lors de la mise à jour du produit';
-          }
-        });
+        // Update the product in the local array
+        const product = this.allProducts.find(p => p.id === productId);
+        if (product) {
+          product.photo = response.imageUrl;
+          this.applyFilters(); // Refresh the display
+        }
+        this.closeImageUploadModal();
       },
       error: (error) => {
         this.error = 'Erreur lors de l\'upload de l\'image';
@@ -222,49 +215,61 @@ export class ProductsComponent implements OnInit {
     // Refresh warnings if needed
   }
 
-  openVragueModal(product: Product): void {
-    this.selectedProductForVrague = product;
-    this.showVragueModal = true;
+  openVracModal(product: Product): void {
+    this.selectedProductForVrac = product;
+    this.showVracModal = true;
   }
 
-  closeVragueModal(): void {
-    this.showVragueModal = false;
-    this.selectedProductForVrague = null;
+  closeVracModal(): void {
+    this.showVracModal = false;
+    this.selectedProductForVrac = null;
   }
 
-  convertToVrague(vragueData: { isStockable: boolean; price: number }): void {
-    if (!this.selectedProductForVrague) return;
+  convertToVrac(vracData: { isStockable: boolean; price: number }): void {
+    if (!this.selectedProductForVrac) return;
 
-    // Find the vrague family
-    const vragueFamily = this.families.find(f => f.name === 'Vrague');
-    if (!vragueFamily) {
-      this.error = 'Famille Vrague non trouvée';
+    // Find the vrac family
+    const vracFamily = this.families.find(f => f.name === 'Vrac');
+    if (!vracFamily) {
+      this.error = 'Famille Vrac non trouvée';
       return;
     }
 
-    const vragueProduct = {
-      name: `${this.selectedProductForVrague.name} (Vrague)`,
-      description: `Version vrague de ${this.selectedProductForVrague.name}`,
-      familleId: vragueFamily.id,
+    const vracProduct = {
+      name: `${this.selectedProductForVrac.name} (Vrac)`,
+      description: `Version vrac de ${this.selectedProductForVrac.name}`,
+      familleId: vracFamily.id,
       barcode: '', // Will be generated or left empty
-      unite: this.selectedProductForVrague.unite,
-      prix_vente_TTC: vragueData.price,
-      tva: this.selectedProductForVrague.tva,
-      photo: this.selectedProductForVrague.photo,
-      duree_conservation: this.selectedProductForVrague.duree_conservation,
-      isVrague: true,
-      originalProductId: this.selectedProductForVrague.id,
-      isStockable: vragueData.isStockable
+      unite: this.selectedProductForVrac.unite,
+      prix_vente_TTC: vracData.price,
+      tva: this.selectedProductForVrac.tva,
+      photo: this.selectedProductForVrac.photo,
+      duree_conservation: this.selectedProductForVrac.duree_conservation,
+      isVrac: true,
+      originalProductId: this.selectedProductForVrac.id,
+      isStockable: vracData.isStockable
     };
 
-    this.productsService.createProduct(vragueProduct).subscribe({
+    this.productsService.createProduct(vracProduct).subscribe({
       next: () => {
-        this.closeVragueModal();
+        this.closeVracModal();
         this.loadProducts();
       },
       error: (error) => {
-        this.error = 'Erreur lors de la création du produit vrague';
+        this.error = 'Erreur lors de la création du produit vrac';
       }
     });
+  }
+
+  getVracConvertibleCount(): number {
+    return this.displayedProducts.filter(product => product.isVraguable === true).length;
+  }
+
+  getStockableCount(): number {
+    return this.displayedProducts.filter(product => product.isStockable === true).length;
+  }
+
+  getVracProductsCount(): number {
+    return this.displayedProducts.filter(product => product.isVrac === true).length;
   }
 } 

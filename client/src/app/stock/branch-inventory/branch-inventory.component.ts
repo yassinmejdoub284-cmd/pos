@@ -6,6 +6,7 @@ import { DepotsService } from '../../core/services/depots.service';
 import { ProductsService } from '../../core/services/products.service';
 import { Depot } from '../../core/models/depot.model';
 import { Product, ProductFamily } from '../../core/models/product.model';
+import { StockDocument } from '../../core/models/stock-document.model';
 
 @Component({
   selector: 'app-branch-inventory',
@@ -31,6 +32,18 @@ export class BranchInventoryComponent implements OnInit {
   selectedFamily: ProductFamily | null = null;
   selectedProduct: Product | null = null;
   productQuantity = 1;
+
+  // Pending transfers from MAIN
+  pendingTransfers: StockDocument[] = [];
+  selectedTransfer: StockDocument | null = null;
+  showTransferDetails = false;
+  approvingTransfer = false;
+
+  // UI state
+  showCurrentInventory = false;
+  showNotification = false;
+  notificationMessage = '';
+  notificationType: 'success' | 'error' | 'info' = 'info';
 
   constructor(
     private route: ActivatedRoute,
@@ -65,7 +78,8 @@ export class BranchInventoryComponent implements OnInit {
       this.depotsService.list().toPromise(),
       this.productsService.getFamilles().toPromise(),
       this.productsService.getProducts().toPromise(),
-      this.stockDocumentsService.getInventory(depotId).toPromise()
+      this.stockDocumentsService.getInventory(depotId).toPromise(),
+      this.loadPendingTransfers(depotId)
     ]).then(([currentDepot, depots, families, products, inventory]) => {
       if (currentDepot) {
         this.currentDepot = currentDepot;
@@ -107,6 +121,7 @@ export class BranchInventoryComponent implements OnInit {
     if (this.form.valid && this.items.length > 0) {
       this.loading = true;
       this.error = '';
+      this.success = '';
 
       const formData = this.form.getRawValue();
       
@@ -120,7 +135,7 @@ export class BranchInventoryComponent implements OnInit {
       ).subscribe({
         next: (document: any) => {
           this.loading = false;
-          this.success = '✅ Transfert envoyé avec succès ! En attente de confirmation par le magasin.';
+          this.showNotificationMessage('✅ Transfert envoyé avec succès ! En attente de confirmation par le magasin.', 'success');
           this.form.reset();
           this.items.clear();
           this.form.get('emetteurId')?.setValue(this.currentDepot?.id);
@@ -134,11 +149,11 @@ export class BranchInventoryComponent implements OnInit {
         },
         error: (err: any) => {
           this.loading = false;
-          this.error = err.error?.error || 'Erreur lors de l\'envoi du transfert';
+          this.showNotificationMessage(err.error?.error || 'Erreur lors de l\'envoi du transfert', 'error');
         }
       });
     } else if (this.items.length === 0) {
-      this.error = 'Veuillez ajouter au moins un produit au transfert';
+      this.showNotificationMessage('Veuillez ajouter au moins un produit au transfert', 'error');
     }
   }
 
@@ -215,5 +230,103 @@ export class BranchInventoryComponent implements OnInit {
 
   removeItem(index: number): void {
     this.items.removeAt(index);
+  }
+
+  // Pending transfers methods
+  loadPendingTransfers(depotId: number): Promise<void> {
+    return this.stockDocumentsService.getDocuments(1, 50, 'BON_EXPEDITION', undefined, depotId).toPromise()
+      .then((response: any) => {
+        if (response && response.data) {
+          this.pendingTransfers = response.data.filter((doc: StockDocument) => 
+            doc.emetteur?.type === 'MAIN' && 
+            doc.destinataireId === depotId &&
+            (doc.status === 'PREPARED' || doc.status === 'SENT')
+          );
+          console.log('Loaded pending transfers:', this.pendingTransfers);
+        }
+      })
+      .catch((error) => {
+        console.error('Error loading pending transfers:', error);
+      });
+  }
+
+  viewTransferDetails(transfer: StockDocument): void {
+    this.selectedTransfer = transfer;
+    this.showTransferDetails = true;
+  }
+
+  closeTransferDetails(): void {
+    this.showTransferDetails = false;
+    this.selectedTransfer = null;
+  }
+
+  approveTransfer(transfer: StockDocument): void {
+    this.approvingTransfer = true;
+    this.error = '';
+    this.success = '';
+
+    console.log('Approving transfer:', transfer.id, 'for depot:', this.currentDepot!.id);
+    console.log('Transfer status:', transfer.status);
+
+    this.stockDocumentsService.receiveDocument(transfer.id, this.currentDepot!.id).subscribe({
+      next: (updatedDocument) => {
+        console.log('Transfer approved successfully:', updatedDocument);
+        this.approvingTransfer = false;
+        this.showNotificationMessage('✅ Transfert approuvé et stock ajouté avec succès !', 'success');
+        this.closeTransferDetails();
+        this.loadPendingTransfers(this.currentDepot!.id);
+        this.loadData(this.currentDepot!.id);
+      },
+      error: (err) => {
+        console.error('Error approving transfer:', err);
+        this.approvingTransfer = false;
+        this.showNotificationMessage(err.error?.error || 'Erreur lors de l\'approbation du transfert', 'error');
+      }
+    });
+  }
+
+  rejectTransfer(transfer: StockDocument): void {
+    this.approvingTransfer = true;
+    this.error = '';
+    this.success = '';
+
+    this.stockDocumentsService.validateDocument(transfer.id, 'CANCELLED', 'Rejeté par le dépôt de destination').subscribe({
+      next: (updatedDocument) => {
+        this.approvingTransfer = false;
+        this.showNotificationMessage('❌ Transfert rejeté avec succès', 'success');
+        this.closeTransferDetails();
+        this.loadPendingTransfers(this.currentDepot!.id);
+      },
+      error: (err) => {
+        this.approvingTransfer = false;
+        this.showNotificationMessage(err.error?.error || 'Erreur lors du rejet du transfert', 'error');
+      }
+    });
+  }
+
+  getProductNameById(productId: number): string {
+    if (!productId || !this.products.length) return 'Chargement...';
+    const product = this.products.find(p => p.id === productId);
+    return product ? product.name : `Produit ID: ${productId}`;
+  }
+
+  toggleCurrentInventory(): void {
+    this.showCurrentInventory = !this.showCurrentInventory;
+  }
+
+  showNotificationMessage(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+    this.notificationMessage = message;
+    this.notificationType = type;
+    this.showNotification = true;
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      this.hideNotification();
+    }, 5000);
+  }
+
+  hideNotification(): void {
+    this.showNotification = false;
+    this.notificationMessage = '';
   }
 }

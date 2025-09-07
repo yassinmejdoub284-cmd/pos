@@ -5,12 +5,17 @@ import { ZReportData } from '../models/session.model';
   providedIn: 'root'
 })
 export class PrintService {
-  
-  constructor() {}
+
+  constructor() { }
 
   // Print Z Report using ESC/POS commands
   printZReport(zReportData: ZReportData): void {
     const escposData = this.generateESCReport(zReportData, 'Z');
+    this.sendToPrinter(escposData);
+  }
+
+  printDailyExtractWithWithdrawal(dailyExtract: any, companyData?: any): void {
+    const escposData = this.generateDailyExtractESC(dailyExtract, companyData);
     this.sendToPrinter(escposData);
   }
 
@@ -22,78 +27,78 @@ export class PrintService {
 
   // Generate ESC/POS commands for reports
   private generateESCReport(reportData: ZReportData, type: 'X' | 'Z'): string {
-    const { session, summary } = reportData;
-    
+    const { session, summary, closureData } = reportData;
+
     let escpos = '';
-    
+
     // Initialize printer
     escpos += '\x1B\x40';
-    
+
     // Set character size and alignment
     escpos += '\x1B\x21\x00'; // Normal size
     escpos += '\x1B\x61\x01'; // Center align
-    
+
     // Header
     escpos += '==================\n';
     escpos += 'RAPPORT ' + type + '\n';
     escpos += '==================\n\n';
-    
+
     // Company info (would come from settings)
     escpos += 'PATISSERIE MODERNE\n';
     escpos += '123 Rue de la Paix\n';
     escpos += 'Tunis, Tunisie\n';
     escpos += 'Tel: +216 71 123 456\n\n';
-    
+
     // Session info
     escpos += '\x1B\x61\x00'; // Left align
     escpos += 'Session: #' + session.id + '\n';
     escpos += 'Caissier: ' + session.user?.firstName + ' ' + session.user?.lastName + '\n';
     escpos += 'POS: ' + session.posId + '\n';
     escpos += 'Ouvert: ' + this.formatDateTime(session.openedAt) + '\n';
-    
+
     if (session.closedAt) {
       escpos += 'Fermé: ' + this.formatDateTime(session.closedAt) + '\n';
     }
-    
+
     escpos += '\n';
-    
+
     // Sales summary
     escpos += 'RÉCAPITULATIF VENTES\n';
     escpos += '===================\n';
-    
+
     if (summary.salesByPayment) {
       Object.entries(summary.salesByPayment).forEach(([method, data]) => {
         escpos += method + ': ' + this.formatCurrency(data.amount) + ' TND\n';
         escpos += '  (' + data.count + ' tickets)\n';
       });
     }
-    
+
     escpos += '\n';
     escpos += 'Total Ventes: ' + this.formatCurrency(summary.totalSales) + ' TND\n';
     escpos += 'Nombre Tickets: ' + summary.totalTickets + '\n\n';
-    
+
     // Cash movements
     if (session.cashMovements && session.cashMovements.length > 0) {
       escpos += 'MOUVEMENTS CAISSE\n';
       escpos += '=================\n';
-      
+
       session.cashMovements.forEach(movement => {
         escpos += this.getCashMovementTypeLabel(movement.type) + ': ' + this.formatCurrency(movement.amount) + ' TND\n';
         escpos += '  ' + movement.reason + '\n';
         escpos += '  ' + this.formatDateTime(movement.createdAt) + '\n\n';
       });
     }
-    
+
     // Cash counting
     escpos += 'COMPTAGE ESPÈCES\n';
     escpos += '================\n';
     escpos += 'Fonds de caisse: ' + this.formatCurrency(session.openingFund) + ' TND\n';
     escpos += 'Espèces attendues: ' + this.formatCurrency(summary.expectedCash) + ' TND\n';
-    
+
     if (session.countedCash) {
       escpos += 'Espèces comptées: ' + this.formatCurrency(session.countedCash) + ' TND\n';
       escpos += 'Écart: ' + this.formatCurrency(session.variance || 0) + ' TND\n';
-      
+
       if (session.variance && session.variance !== 0) {
         escpos += '\n';
         if (session.variance > 0) {
@@ -103,47 +108,157 @@ export class PrintService {
         }
       }
     }
-    
+
     escpos += '\n';
-    
+
     // Closing info
     if (session.closedAt) {
       escpos += 'Fonds pour prochaine session: ' + this.formatCurrency(session.openingFund) + ' TND\n';
-      
+
+      // Withdrawal information (only for Z reports with closure data)
+      if (type === 'Z' && closureData) {
+        if (closureData.withdrawalAmount > 0) {
+          escpos += 'Retrait vers Caisse Centrale: ' + this.formatCurrency(closureData.withdrawalAmount) + ' TND\n';
+          escpos += 'Solde restant en caisse: ' + this.formatCurrency(closureData.remainingBalance) + ' TND\n';
+        }
+      }
+
       // Calculate deposit amount
       const depositAmount = (session.countedCash || 0) - (session.openingFund || 0);
       if (depositAmount > 0) {
         escpos += 'Montant à déposer: ' + this.formatCurrency(depositAmount) + ' TND\n';
       }
     }
-    
+
     escpos += '\n';
-    
+
     // Signatures
     escpos += 'Signatures:\n';
     escpos += 'Caissier: _________________\n';
     escpos += 'Responsable: ______________\n\n';
-    
+
     // Footer
     escpos += '\x1B\x61\x01'; // Center align
     escpos += 'Merci de votre visite!\n';
     escpos += 'Rapport généré le ' + this.formatDateTime(new Date()) + '\n';
-    
+
     if (type === 'Z') {
       escpos += 'Rapport Z #' + session.zSeq + '\n';
     } else {
       escpos += 'Rapport X #' + session.xSeq + '\n';
     }
-    
+
     escpos += '\n\n\n';
-    
+
     // Cut paper
     escpos += '\x1D\x56\x00';
-    
+
     return escpos;
   }
 
   // Send data to printer
+  // Generate ESC/POS commands for daily extract with withdrawal
+  private generateDailyExtractESC(dailyExtract: any, companyData?: any): string {
+    let escpos = '';
+
+    // Initialize printer
+    escpos += '\x1B\x40';
+
+    // Left align everything
+    escpos += '\x1B\x61\x00';
+
+    // Stylish header with emojis (grayscale)
+    escpos += '╔══════════════════════════════════╗\n';
+    escpos += '📊 EXTRait JOURNALIÈRE 📊\n';
+    escpos += '╚══════════════════════════════════╝\n\n';
+
+    // Company info with style - use real data
+    const companyName = companyData?.companyName || 'PATISSERIE MODERNE';
+    const depotName = companyData?.depotName || '';
+    const address = companyData?.address || '123 Rue de la Paix';
+    const city = companyData?.city || 'Tunis, Tunisie';
+    const phone = companyData?.phone || '+216 71 123 456';
+
+    escpos += '🏪 ' + companyName + '\n';
+    if (depotName) {
+      escpos += '🏢 ' + depotName + '\n';
+    }
+    escpos += '📍 ' + address + '\n';
+    escpos += '🌍 ' + city + '\n';
+    escpos += '📞 ' + phone + '\n\n';
+
+    // Date with emojis
+    escpos += '📅 Date: ' + this.formatDate(dailyExtract.date) + '\n';
+    escpos += '🕐 Heure clôture: ' + this.formatDateTime(dailyExtract.closureTimestamp) + '\n\n';
+
+    // Families and Products with style
+    if (dailyExtract.families && dailyExtract.families.length > 0) {
+      dailyExtract.families.forEach((family: any) => {
+        escpos += '┌─ 🍰 ' + family.name.toUpperCase() + ' 🍰\n';
+        escpos += '├─────────────────────────────────\n';
+
+        if (family.products && family.products.length > 0) {
+          family.products.forEach((product: any) => {
+            const unitPrice = product.quantity > 0 ? product.revenue / product.quantity : 0;
+            escpos += '│ 🥐 ' + product.name + '\n';
+            escpos += '│    ' + product.quantity + ' x ' + this.formatCurrency(unitPrice) + ' = ' + this.formatCurrency(product.revenue) + ' TND\n';
+          });
+        }
+
+        escpos += '└─ 💰 Total ' + family.name + ': ' + this.formatCurrency(family.totalRevenue) + ' TND\n\n';
+      });
+    }
+
+    // Summary with style
+    escpos += '╔══════════════════════════════════╗\n';
+    escpos += '📈 RÉCAPITULATIF 📈\n';
+    escpos += '╚══════════════════════════════════╝\n';
+    escpos += '🎯 Totale Remise: ' + this.formatCurrency(dailyExtract.totalDiscount) + ' TND\n';
+    escpos += '💵 Totale Recette: ' + this.formatCurrency(dailyExtract.totalRevenue) + ' TND\n';
+    escpos += '🏦 Totale Caisse: ' + this.formatCurrency(dailyExtract.soldeDebit) + ' TND\n\n';
+
+    // Expenses with style
+    if (dailyExtract.expenses && dailyExtract.expenses.length > 0) {
+      escpos += '┌─ 💸 DÉPENSES 💸\n';
+      escpos += '├─────────────────────────────────\n';
+      dailyExtract.expenses.forEach((expense: any) => {
+        escpos += '│ 📋 ' + expense.category + ': ' + this.formatCurrency(expense.amount) + ' TND\n';
+      });
+      escpos += '└─ 💰 Total Dépenses: ' + this.formatCurrency(dailyExtract.totalExpenses) + ' TND\n\n';
+    }
+
+    // Alimentations with style
+    if (dailyExtract.alimentations && dailyExtract.alimentations.length > 0) {
+      escpos += '┌─ 💰 ALIMENTATIONS 💰\n';
+      escpos += '├─────────────────────────────────\n';
+      dailyExtract.alimentations.forEach((alimentation: any) => {
+        escpos += '│ 💵 ' + alimentation.reason + ': ' + this.formatCurrency(alimentation.amount) + ' TND\n';
+        escpos += '│    🕐 ' + this.formatDateTime(alimentation.createdAt) + '\n';
+      });
+      escpos += '└─────────────────────────────────\n\n';
+    }
+
+    // Withdrawal information with style
+    if (dailyExtract.withdrawal && dailyExtract.withdrawal > 0) {
+      escpos += '╔══════════════════════════════════╗\n';
+      escpos += '🏦 CLÔTURE CAISSE 🏦\n';
+      escpos += '╚══════════════════════════════════╝\n';
+      escpos += '💸 Retrait vers Caisse Centrale: ' + this.formatCurrency(dailyExtract.withdrawal) + ' TND\n';
+      escpos += '💰 Solde restant en caisse: ' + this.formatCurrency(dailyExtract.remainingCash) + ' TND\n\n';
+    }
+
+    // Stylish footer
+    escpos += '╔══════════════════════════════════╗\n';
+    escpos += '✅ Fin de l\'extrait ✅\n';
+    escpos += 'Merci de votre confiance! 💙\n';
+    escpos += '╚══════════════════════════════════╝\n\n';
+
+    // Cut paper
+    escpos += '\x1D\x56\x00';
+
+    return escpos;
+  }
+
   private sendToPrinter(escposData: string): void {
     // Check if running in Tauri environment
     if (typeof window !== 'undefined' && (window as any).__TAURI__) {
@@ -159,12 +274,12 @@ export class PrintService {
       // This would use Tauri's printer API
       // For now, we'll simulate it
       console.log('Printing with Tauri:', escposData);
-      
+
       // In a real implementation, you would:
       // 1. Use Tauri's invoke to call a Rust function
       // 2. The Rust function would send ESC/POS commands to the printer
       // 3. Handle printer status and errors
-      
+
       alert('Impression envoyée à l\'imprimante (Tauri)');
     } catch (error) {
       console.error('Tauri printing error:', error);
@@ -183,10 +298,10 @@ export class PrintService {
 
       // Convert ESC/POS to HTML for web printing
       const htmlContent = this.escposToHtml(escposData);
-      
+
       printWindow.document.write(htmlContent);
       printWindow.document.close();
-      
+
       // Wait for content to load then print
       printWindow.onload = () => {
         printWindow.print();
@@ -216,21 +331,23 @@ export class PrintService {
       <head>
         <title>Rapport de Caisse</title>
         <style>
+          @page {
+            margin: 0 !important;   /* 🔥 remove browser print margins */
+          }
           body {
             font-family: 'Courier New', monospace;
             font-size: 12px;
             line-height: 1.2;
-            margin: 0;
-            padding: 20px;
-            width: 58mm;
-            max-width: 58mm;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           .center { text-align: center; }
           .left { text-align: left; }
           .bold { font-weight: bold; }
           .underline { text-decoration: underline; }
           @media print {
-            body { margin: 0; padding: 10px; }
+            body { margin: 0; padding: 0; }
+            * { margin: 0; padding: 0; }
           }
         </style>
       </head>
@@ -244,8 +361,18 @@ export class PrintService {
   }
 
   // Utility methods
-  private formatCurrency(amount: number): string {
-    return amount.toFixed(3) + ' TND';
+  private formatCurrency(amount: number | string): string {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return (isNaN(numAmount) ? 0 : numAmount).toFixed(3) + ' TND';
+  }
+
+  private formatDate(date: Date | string): string {
+    const d = new Date(date);
+    return d.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   }
 
   private formatDateTime(date: Date | string): string {

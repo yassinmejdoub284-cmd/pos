@@ -7,27 +7,21 @@ const router = express.Router();
 
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { pin } = req.body;
 
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+    if (!pin) {
+      return res.status(400).json({ error: 'PIN is required' });
     }
 
     const user = await prisma.user.findFirst({
       where: {
-        username,
+        pin,
         isActive: true
       }
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Invalid PIN' });
     }
 
     const token = jwt.sign(

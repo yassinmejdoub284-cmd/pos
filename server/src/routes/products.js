@@ -125,7 +125,7 @@ router.post('/', authenticateToken, async (req, res) => {
       prix_vente_TTC,
       tva,
       duree_conservation,
-      isVrague,
+      isVrac,
       originalProductId,
       isStockable
     } = req.body;
@@ -164,7 +164,7 @@ router.post('/', authenticateToken, async (req, res) => {
       prix_vente_TTC: parseFloat(prix_vente_TTC),
       tva: tva ? parseFloat(tva) : 19,
       duree_conservation: duree_conservation ? parseInt(duree_conservation) : null,
-      isVrague: isVrague || false,
+      isVrac: isVrac || false,
       originalProductId: originalProductId ? parseInt(originalProductId) : null,
       isStockable: isStockable !== undefined ? isStockable : true
     };
@@ -224,7 +224,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       prix_vente_TTC,
       tva,
       duree_conservation,
-      isVrague,
+      isVrac,
       originalProductId,
       isStockable
     } = req.body;
@@ -253,7 +253,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (prix_vente_TTC !== undefined) updateData.prix_vente_TTC = parseFloat(prix_vente_TTC);
     if (tva !== undefined) updateData.tva = parseFloat(tva);
     if (duree_conservation !== undefined) updateData.duree_conservation = duree_conservation ? parseInt(duree_conservation) : null;
-    if (isVrague !== undefined) updateData.isVrague = isVrague;
+    if (isVrac !== undefined) updateData.isVrac = isVrac;
     if (originalProductId !== undefined) updateData.originalProductId = originalProductId ? parseInt(originalProductId) : null;
     if (isStockable !== undefined) updateData.isStockable = isStockable;
     
@@ -318,11 +318,78 @@ router.post('/upload-image', authenticateToken, upload.single('image'), async (r
       return res.status(400).json({ error: 'Aucune image fournie' });
     }
     
-    const imageUrl = `/uploads/products/${req.file.filename}`;
+    const imageUrl = `${process.env.API_URL || 'http://localhost:3255'}/uploads/products/${req.file.filename}`;
     res.json({ imageUrl });
   } catch (error) {
     console.error('Error uploading image:', error);
     res.status(500).json({ error: 'Erreur lors du téléchargement de l\'image' });
+  }
+});
+
+// Dedicated endpoint for uploading and saving product photo
+router.post('/:id/photo', authenticateToken, upload.single('photo'), async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier fourni' });
+    }
+    
+    const product = await prisma.product.findUnique({
+      where: { id: productId }
+    });
+    
+    if (!product) {
+      return res.status(404).json({ error: 'Produit non trouvé' });
+    }
+    
+    const imageUrl = `${process.env.API_URL || 'http://localhost:3255'}/uploads/products/${req.file.filename}`;
+    
+    const updatedProduct = await prisma.product.update({
+      where: { id: productId },
+      data: { photo: imageUrl }
+    });
+    
+    await logAudit(req.user.id, 'products', productId, 'UPDATE', product, { photo: imageUrl });
+    
+    res.json({ 
+      message: 'Photo mise à jour avec succès',
+      imageUrl: imageUrl,
+      product: updatedProduct
+    });
+  } catch (error) {
+    console.error('Error uploading product photo:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'upload de la photo' });
+  }
+});
+
+// Delete product photo
+router.delete('/:id/photo', authenticateToken, async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    
+    const product = await prisma.product.findUnique({
+      where: { id: productId }
+    });
+    
+    if (!product) {
+      return res.status(404).json({ error: 'Produit non trouvé' });
+    }
+    
+    const updatedProduct = await prisma.product.update({
+      where: { id: productId },
+      data: { photo: null }
+    });
+    
+    await logAudit(req.user.id, 'products', productId, 'UPDATE', product, { photo: null });
+    
+    res.json({ 
+      message: 'Photo supprimée avec succès',
+      product: updatedProduct
+    });
+  } catch (error) {
+    console.error('Error deleting product photo:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de la photo' });
   }
 });
 
@@ -569,8 +636,8 @@ router.put('/conservation/:id/dismiss', authenticateToken, async (req, res) => {
   }
 });
 
-// Vrague price management endpoints
-router.post('/:id/vrague-prices', authenticateToken, async (req, res) => {
+// Vrac price management endpoints
+router.post('/:id/vrac-prices', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { price, startDate, endDate } = req.body;
@@ -583,12 +650,12 @@ router.post('/:id/vrague-prices', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Produit non trouvé' });
     }
     
-    if (!product.isVrague) {
-      return res.status(400).json({ error: 'Ce produit n\'est pas un produit vrague' });
+    if (!product.isVrac) {
+      return res.status(400).json({ error: 'Ce produit n\'est pas un produit vrac' });
     }
     
     // Deactivate current active price if exists
-    await prisma.vraguePrice.updateMany({
+    await prisma.vracPrice.updateMany({
       where: {
         productId: parseInt(id),
         isActive: true
@@ -599,7 +666,7 @@ router.post('/:id/vrague-prices', authenticateToken, async (req, res) => {
       }
     });
     
-    const vraguePrice = await prisma.vraguePrice.create({
+    const vracPrice = await prisma.vracPrice.create({
       data: {
         productId: parseInt(id),
         price: parseFloat(price),
@@ -609,16 +676,16 @@ router.post('/:id/vrague-prices', authenticateToken, async (req, res) => {
       }
     });
     
-    await logAudit(req.user.id, 'vrague_prices', vraguePrice.id, 'CREATE', null, vraguePrice);
+    await logAudit(req.user.id, 'vrac_prices', vracPrice.id, 'CREATE', null, vracPrice);
     
-    res.status(201).json(vraguePrice);
+    res.status(201).json(vracPrice);
   } catch (error) {
-    console.error('Error creating vrague price:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du prix vrague' });
+    console.error('Error creating vrac price:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du prix vrac' });
   }
 });
 
-router.get('/:id/vrague-prices', authenticateToken, async (req, res) => {
+router.get('/:id/vrac-prices', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
@@ -648,19 +715,19 @@ router.get('/:id/vrague-prices', authenticateToken, async (req, res) => {
       ];
     }
     
-    const vraguePrices = await prisma.vraguePrice.findMany({
+    const vracPrices = await prisma.vracPrice.findMany({
       where: whereClause,
       orderBy: { startDate: 'desc' }
     });
     
-    res.json(vraguePrices);
+    res.json(vracPrices);
   } catch (error) {
-    console.error('Error fetching vrague prices:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des prix vrague' });
+    console.error('Error fetching vrac prices:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des prix vrac' });
   }
 });
 
-router.get('/vrague/statistics', authenticateToken, async (req, res) => {
+router.get('/vrac/statistics', authenticateToken, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
@@ -668,10 +735,10 @@ router.get('/vrague/statistics', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Dates de début et de fin sont requises' });
     }
     
-    const vragueProducts = await prisma.product.findMany({
+    const vracProducts = await prisma.product.findMany({
       where: {
-        isVrague: true,
-        vraguePrices: {
+        isVrac: true,
+        vracPrices: {
           some: {
             startDate: { lte: new Date(endDate) },
             OR: [
@@ -683,7 +750,7 @@ router.get('/vrague/statistics', authenticateToken, async (req, res) => {
       },
       include: {
         famille: true,
-        vraguePrices: {
+        vracPrices: {
           where: {
             startDate: { lte: new Date(endDate) },
             OR: [
@@ -697,22 +764,22 @@ router.get('/vrague/statistics', authenticateToken, async (req, res) => {
       }
     });
     
-    const statistics = vragueProducts.map(product => ({
+    const statistics = vracProducts.map(product => ({
       id: product.id,
       name: product.name,
       originalProductName: product.originalProduct?.name,
       famille: product.famille.name,
       isStockable: product.isStockable,
-      prices: product.vraguePrices,
-      averagePrice: product.vraguePrices.length > 0 
-        ? product.vraguePrices.reduce((sum, price) => sum + parseFloat(price.price), 0) / product.vraguePrices.length
+      prices: product.vracPrices,
+      averagePrice: product.vracPrices.length > 0 
+        ? product.vracPrices.reduce((sum, price) => sum + parseFloat(price.price), 0) / product.vracPrices.length
         : 0
     }));
     
     res.json(statistics);
   } catch (error) {
-    console.error('Error fetching vrague statistics:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des statistiques vrague' });
+    console.error('Error fetching vrac statistics:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des statistiques vrac' });
   }
 });
 

@@ -16,6 +16,11 @@ export interface Sale {
   client?: { firstName: string; lastName: string; code: string };
   user?: { firstName: string; lastName: string };
   loyaltyPointsEarned?: number;
+  // Advance payment fields for temporary sales
+  advancePayment?: number;
+  advancePaymentMethod?: PaymentMethod;
+  advancePaymentDate?: Date;
+  advancePaymentNotes?: string;
 }
 
 export interface SaleItem {

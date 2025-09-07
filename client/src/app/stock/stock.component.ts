@@ -13,9 +13,20 @@ export class StockComponent implements OnInit {
   loading = false;
   error = '';
 
-  constructor(private depotsService: DepotsService, private router: Router) {}
+  // Modal properties
+  showDepotChoiceModal = false;
+  selectedDepot: Depot | null = null;
+
+  constructor(
+    private depotsService: DepotsService, 
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
+    this.loadDepots();
+  }
+
+  loadDepots() {
     this.loading = true;
     this.depotsService.list().subscribe({
       next: (depots) => {
@@ -48,5 +59,26 @@ export class StockComponent implements OnInit {
         this.router.navigate(['/stock/site', depot.id, 'workspace']);
         break;
     }
+  }
+
+  // Choice modal methods
+  openDepotChoiceModal(depot: Depot): void {
+    this.selectedDepot = depot;
+    this.showDepotChoiceModal = true;
+  }
+
+  closeDepotChoiceModal(): void {
+    this.showDepotChoiceModal = false;
+    this.selectedDepot = null;
+  }
+
+  openStockManagement(depot: Depot): void {
+    this.closeDepotChoiceModal();
+    this.openWorkspace(depot);
+  }
+
+  openExpenseManagement(depot: Depot): void {
+    this.closeDepotChoiceModal();
+    this.router.navigate(['/stock/depot-expenses', depot.id]);
   }
 } 

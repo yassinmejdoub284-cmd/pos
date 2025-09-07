@@ -2,12 +2,11 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { Product } from '../../../core/models/product.model';
 
 @Component({
-  selector: 'app-vrague-conversion-form',
-  templateUrl: './vrague-conversion-form.component.html',
-  styleUrls: ['./vrague-conversion-form.component.css'],
+  selector: 'app-vrac-conversion-form',
+  templateUrl: './vrac-conversion-form.component.html',
   standalone: false
 })
-export class VragueConversionFormComponent {
+export class VracConversionFormComponent {
   @Input() product: Product | null = null;
   @Output() converted = new EventEmitter<{ isStockable: boolean; price: number }>();
   @Output() cancelled = new EventEmitter<void>();

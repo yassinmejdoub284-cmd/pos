@@ -32,6 +32,5 @@ export interface AuthResponse {
 }
 
 export interface LoginRequest {
-  username: string;
-  password: string;
+  pin: string;
 } 

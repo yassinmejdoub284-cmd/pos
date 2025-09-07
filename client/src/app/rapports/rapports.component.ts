@@ -10,12 +10,37 @@ export class RapportsComponent {
 
   constructor(private router: Router) {}
 
+  navigateToReport(reportType: string) {
+    switch (reportType) {
+      case 'daily-monthly':
+        this.router.navigate(['/rapports/daily-monthly']);
+        break;
+      case 'sales-by-category':
+        this.router.navigate(['/rapports/sales-by-category']);
+        break;
+      case 'credit-sales':
+        this.router.navigate(['/rapports/credit-sales']);
+        break;
+      case 'finance':
+        this.router.navigate(['/rapports/finance']);
+        break;
+      case 'expenses':
+        this.router.navigate(['/rapports/expenses']);
+        break;
+      case 'dashboard':
+        this.router.navigate(['/rapports/dashboard']);
+        break;
+      default:
+        console.log('Unknown report type:', reportType);
+    }
+  }
+
+  // Keep the old method for backward compatibility
   navigateToDailyExtract() {
     this.router.navigate(['/rapports/daily-extract']);
   }
 
-  navigateToGeneralReports() {
-    // For now, show a placeholder message
-    alert('Les rapports généraux seront disponibles prochainement.');
+  navigateToHome() {
+    this.router.navigate(['/home']);
   }
 } 

@@ -56,13 +56,15 @@ export class HistoriqueComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.setDefaultDateRange();
+    // First load without date filters to see if there are any sessions at all
     this.loadSessions();
+    // Then set default date range
+    this.setDefaultDateRange();
   }
 
   setDefaultDateRange(): void {
     const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1); // Start of current month
     
     this.filters.startDate = startOfMonth.toISOString().split('T')[0];
     this.filters.endDate = today.toISOString().split('T')[0];
@@ -72,13 +74,17 @@ export class HistoriqueComponent implements OnInit {
     this.loading.set(true);
     this.error.set('');
     
+    console.log('Loading sessions with filters:', this.filters);
+    
     this.sessionsService.getSessions(this.filters).subscribe({
       next: (sessions) => {
+        console.log('Sessions loaded:', sessions);
         this.sessions.set(sessions);
         this.loading.set(false);
       },
       error: (error) => {
-        this.error.set('Erreur lors du chargement des sessions');
+        console.error('Error loading sessions:', error);
+        this.error.set('Erreur lors du chargement des sessions: ' + (error.error?.error || error.message || 'Erreur inconnue'));
         this.loading.set(false);
       }
     });
@@ -107,7 +113,7 @@ export class HistoriqueComponent implements OnInit {
       thisWeek: false,
       thisMonth: false
     };
-    this.setDefaultDateRange();
+    // Don't set default date range when clearing - show all sessions
     this.loadSessions();
   }
 

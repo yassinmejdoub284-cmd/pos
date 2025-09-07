@@ -58,7 +58,15 @@ export class DailyExtractService {
   constructor(private http: HttpClient) {}
 
   getLast10DaysExtracts(): Observable<DailyExtract[]> {
-    return this.http.get<DailyExtract[]>(`${this.apiUrl}/daily-extracts`);
+    // Add cache-busting parameter to ensure fresh data
+    const timestamp = new Date().getTime();
+    return this.http.get<DailyExtract[]>(`${this.apiUrl}/daily-extracts?t=${timestamp}`);
+  }
+
+  getLastNDaysExtracts(days: number): Observable<DailyExtract[]> {
+    // Add cache-busting parameter to ensure fresh data
+    const timestamp = new Date().getTime();
+    return this.http.get<DailyExtract[]>(`${this.apiUrl}/daily-extracts?days=${days}&t=${timestamp}`);
   }
 
   getExtractDetail(date: string): Observable<DailyExtractDetail> {

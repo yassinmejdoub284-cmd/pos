@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { DailyExtractService, DailyExtract, FamilySummary, ProductSummary, DailyExtractDetail, ExpenseSummary } from '../../core/services/daily-extract.service';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-daily-extract',
@@ -12,10 +13,14 @@ export class DailyExtractComponent implements OnInit {
   selectedExtract: DailyExtractDetail | null = null;
   loading = false;
   showArchives = false;
+  loadingArchives = false;
+  currentLoadedDays = 0;
+  maxDaysToLoad = 30; // Maximum days to prevent infinite loading
 
   constructor(
     private router: Router,
-    private dailyExtractService: DailyExtractService
+    private dailyExtractService: DailyExtractService,
+    private authService: AuthService
   ) {}
 
   ngOnInit() {
@@ -24,8 +29,15 @@ export class DailyExtractComponent implements OnInit {
 
   loadDailyExtracts() {
     this.loading = true;
-    this.dailyExtractService.getLast10DaysExtracts().subscribe({
+    
+    // Check if user is admin to determine how many days to load
+    const isAdmin = this.isUserAdmin();
+    const daysToLoad = isAdmin ? 10 : 5;
+    this.currentLoadedDays = daysToLoad;
+    
+    this.dailyExtractService.getLastNDaysExtracts(daysToLoad).subscribe({
       next: (extracts) => {
+        console.log('Received extracts:', extracts);
         this.dailyExtracts = extracts;
         this.loading = false;
       },
@@ -34,6 +46,15 @@ export class DailyExtractComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  private isUserAdmin(): boolean {
+    const currentUser = this.authService.currentUser();
+    return currentUser?.role === 'ADMIN';
+  }
+
+  canLoadMoreArchives(): boolean {
+    return !this.loadingArchives && this.currentLoadedDays < this.maxDaysToLoad;
   }
 
   selectExtract(extract: DailyExtract) {
@@ -59,18 +80,47 @@ export class DailyExtractComponent implements OnInit {
   }
 
   showMoreArchives() {
-    this.showArchives = true;
-    // TODO: Implement archive loading
+    if (this.loadingArchives || this.currentLoadedDays >= this.maxDaysToLoad) {
+      return;
+    }
+
+    this.loadingArchives = true;
+    const additionalDays = 5;
+    const newTotalDays = this.currentLoadedDays + additionalDays;
+    
+    // Load additional days
+    this.dailyExtractService.getLastNDaysExtracts(newTotalDays).subscribe({
+      next: (extracts) => {
+        console.log('Received additional extracts:', extracts);
+        this.dailyExtracts = extracts;
+        this.currentLoadedDays = newTotalDays;
+        this.loadingArchives = false;
+        this.showArchives = true;
+      },
+      error: (error) => {
+        console.error('Error loading additional archives:', error);
+        this.loadingArchives = false;
+      }
+    });
   }
 
   formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        console.error('Invalid date:', dateString);
+        return dateString;
+      }
+      return date.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', dateString, error);
+      return dateString;
+    }
   }
 
   formatCurrency(amount: number): string {
@@ -78,6 +128,16 @@ export class DailyExtractComponent implements OnInit {
       style: 'currency',
       currency: 'TND'
     }).format(amount);
+  }
+
+  getTodayDate(): string {
+    const today = new Date();
+    return today.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   }
 
   printExtract(format: 'A4' | '80mm'): void {
@@ -143,7 +203,7 @@ export class DailyExtractComponent implements OnInit {
       
       content += `
           <div class="family-separator">========</div>
-          <div class="family-total">Total ${family.name}</div>
+          <div class="family-total">Total ${family.name}: ${this.formatCurrency(family.totalRevenue)}</div>
         </div>
       `;
     });

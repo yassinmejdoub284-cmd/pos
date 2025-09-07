@@ -637,7 +637,7 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
     const documentId = parseInt(req.params.id);
     const { depotId } = req.body;
     
-    console.log('Receive document request:', { documentId, depotId });
+    console.log('Receive document request:', { documentId, depotId, userId: req.user.id });
     
     const document = await prisma.stockDocument.findUnique({
       where: { id: documentId },
@@ -653,19 +653,35 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
     });
     
     if (!document) {
+      console.log('Document not found:', documentId);
       return res.status(404).json({ error: 'Document non trouvé' });
     }
     
+    console.log('Document found:', { 
+      id: document.id, 
+      status: document.status, 
+      destinataireId: document.destinataireId, 
+      requestedDepotId: parseInt(depotId),
+      emetteurType: document.emetteur?.type,
+      itemsCount: document.items?.length 
+    });
+    
     if (document.destinataireId !== parseInt(depotId)) {
+      console.log('Wrong destination depot:', { expected: document.destinataireId, received: parseInt(depotId) });
       return res.status(400).json({ error: 'Mauvais dépôt de destination' });
     }
     
-    if (document.status !== 'PREPARED') {
+    if (document.status !== 'PREPARED' && document.status !== 'SENT') {
+      console.log('Document not ready for reception:', { status: document.status });
       return res.status(400).json({ error: 'Document non prêt pour réception' });
     }
     
     await prisma.$transaction(async (tx) => {
+      console.log('Starting stock addition transaction for', document.items.length, 'items');
+      
       for (const item of document.items) {
+        console.log('Processing item:', { productId: item.productId, quantity: item.quantity });
+        
         const inventory = await tx.inventory.findUnique({
           where: {
             depotId_productId: {
@@ -676,6 +692,11 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
         });
         
         if (inventory) {
+          console.log('Updating existing inventory:', { 
+            currentQuantity: inventory.quantity, 
+            adding: item.quantity, 
+            newQuantity: inventory.quantity + item.quantity 
+          });
           await tx.inventory.update({
             where: { id: inventory.id },
             data: {
@@ -683,6 +704,11 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
             }
           });
         } else {
+          console.log('Creating new inventory entry:', { 
+            depotId: parseInt(depotId), 
+            productId: item.productId, 
+            quantity: item.quantity 
+          });
           await tx.inventory.create({
             data: {
               depotId: parseInt(depotId),
@@ -736,7 +762,7 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
       }
     });
     
-    await logAudit(req.user.id, 'stock_documents', documentId, 'UPDATE', { status: 'SENT' }, { status: 'RECEIVED' });
+    await logAudit(req.user.id, 'stock_documents', documentId, 'UPDATE', { status: document.status }, { status: 'RECEIVED' });
     
     res.json(updatedDocument);
   } catch (error) {

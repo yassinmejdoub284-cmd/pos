@@ -1,5 +1,5 @@
 .form-error {
-  @apply text-red-300 text-sm mt-1;
+  @apply text-red-600 text-sm mt-1;
 }
 
 .form-control-error {

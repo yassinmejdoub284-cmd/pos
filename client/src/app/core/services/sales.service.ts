@@ -38,6 +38,10 @@ export interface CreateTemporarySaleRequest {
   notes: string;
   status: string;
   clientId?: number;
+  // Advance payment fields
+  advancePayment?: number;
+  advancePaymentMethod?: string;
+  advancePaymentNotes?: string;
 }
 
 export interface CreateGiftSaleRequest {

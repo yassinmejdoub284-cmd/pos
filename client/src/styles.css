@@ -1,29 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #f8fafc;
-  --color-surface: #fff;
-  --color-primary: #6366f1; /* Vibrant Indigo */
-  --color-secondary: #06b6d4; /* Vibrant Teal */
-  --color-accent: #f59e42; /* Vibrant Orange */
-  --color-success: #22c55e;
-  --color-danger: #ef4444;
-  --color-warning: #facc15;
-  --color-info: #3b82f6;
-  --color-muted: #e5e7eb;
-  --color-border: #e0e7ef;
-  --color-text: #1e293b;
-  --color-text-muted: #64748b;
-  --radius-lg: 1.25rem;
-  --radius-md: 0.75rem;
-  --radius-sm: 0.5rem;
-  --shadow-lg: 0 8px 32px 0 rgba(60,60,120,0.10);
-  --shadow-md: 0 4px 16px 0 rgba(60,60,120,0.08);
-  --shadow-sm: 0 2px 8px 0 rgba(60,60,120,0.06);
-}
-
-*, ::after, ::before, ::backdrop, ::file-selector-button{
-  border: 0;
+  --color-bg: #fefbf3; /* Warm cream background - cozy and inviting */
+  --color-surface: #ffffff;
+  --color-primary: #f59e0b; /* Warm amber - professional and cozy */
+  --color-secondary: #f97316; /* Warm orange - energetic and friendly */
+  --color-accent: #fbbf24; /* Golden yellow - cheerful and cozy */
+  --color-success: #10b981; /* Emerald green - success and growth */
+  --color-danger: #ef4444; /* Red - clear danger indication */
+  --color-warning: #f59e0b; /* Amber - warm warning */
+  --color-info: #3b82f6; /* Blue - professional info */
+  --color-muted: #fef3c7; /* Very light amber */
+  --color-border: #fed7aa; /* Light amber border */
+  --color-text: #92400e; /* Dark amber text for contrast */
+  --color-text-muted: #a16207; /* Medium amber text */
+  --color-warm: #fef3c7; /* Warm cream background */
+  --color-cozy: #fef3c7; /* Cozy amber background */
+  --radius-lg: 1.5rem; /* More rounded for cozy feel */
+  --radius-md: 1rem;
+  --radius-sm: 0.75rem;
+  --shadow-lg: 0 10px 40px 0 rgba(245,158,11,0.15);
+  --shadow-md: 0 6px 20px 0 rgba(245,158,11,0.12);
+  --shadow-sm: 0 3px 12px 0 rgba(245,158,11,0.08);
 }
 
 html, body {
@@ -87,18 +85,19 @@ body {
 
 input, select, textarea {
   border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-border);
   padding: 0.75rem 1rem;
   font-size: 1rem;
   background: var(--color-surface);
   color: var(--color-text);
   box-shadow: var(--shadow-sm);
-  transition: border 0.2s, box-shadow 0.2s;
+  transition: border 0.2s, box-shadow 0.2s, background 0.2s;
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--color-primary);
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-primary)22;
+  box-shadow: 0 0 0 3px rgba(245,158,11,0.15);
+  background: var(--color-cozy);
 }
 
 ::-webkit-scrollbar {
@@ -312,12 +311,17 @@ a{
 }
 
 input, select{
-  background-color: whitesmoke;
+  background-color: var(--color-warm);
   padding: 10px;
-  border-bottom: solid 1px black;
-  border-end-end-radius: 0;
-  border-end-start-radius: 0;
+  border-bottom: solid 2px var(--color-primary);
+  border-end-end-radius: var(--radius-sm);
+  border-end-start-radius: var(--radius-sm);
   outline: none !important;
+  transition: all 0.2s ease;
+}
+input:focus, select:focus {
+  background-color: var(--color-cozy);
+  border-bottom-color: var(--color-secondary);
 }
 
 button{
@@ -370,7 +374,7 @@ button{
 
 /* Thumb (Draggable Handle) */
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #d1d5db 0%, #9ca3af 100%); /* subtle metallic gradient */
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); /* warm amber gradient */
   border-radius: 10px;
   border: 2px solid transparent;
   background-clip: content-box;
@@ -379,14 +383,14 @@ button{
 
 /* Thumb Hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%);
-  border: 2px solid #e5e7eb;
+  background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+  border: 2px solid #fef3c7;
 }
 
 /* Thumb Active (While Dragging) */
 ::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%);
-  border: 2px solid #d1d5db;
+  background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
+  border: 2px solid #fef3c7;
   cursor: grabbing;
 }
 
@@ -399,13 +403,18 @@ html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 
 @media print {
-  @page{
-    margin: 0;
+  @page {
+    margin: 0 !important;
   }
 }
 
 @media print {
-  html, body { height: auto !important; overflow: visible !important; }
+  html, body { 
+    height: auto !important; 
+    overflow: visible !important; 
+    margin: 0 !important;
+    padding: 0 !important;
+  }
   .fixed, .sticky { position: static !important; }
   .overflow-hidden, .overflow-x-auto, .overflow-y-auto, .overflow-auto { overflow: visible !important; }
   .min-h-screen { min-height: 0 !important; }
@@ -416,6 +425,39 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   tr { page-break-inside: avoid; }
   .bg-blue-50, .bg-blue-800, .bg-blue-900, .bg-gray-50 { background: transparent !important; }
   .border-b-4 { border-bottom-width: 0 !important; }
+  
+  /* Force zero margins on all elements */
+  * {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  @page {
+    margin: 0 !important;   /* 🔥 remove browser print margins */
+  }
+  
+  /* Specific rules for daily extract (extrait journalière) */
+  .extrait-journaliere,
+  .daily-extract,
+  [class*="extrait"],
+  [class*="journaliere"],
+  [class*="daily-extract"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Remove margins from all text elements in extract */
+  .extrait-journaliere *,
+  .daily-extract *,
+  [class*="extrait"] *,
+  [class*="journaliere"] *,
+  [class*="daily-extract"] * {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.2 !important;
+  }
 }
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
@@ -562,4 +604,3 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   font-size: inherit !important;
   color: inherit !important;
 }
-
