@@ -15,7 +15,31 @@ const routes: Routes = [
   { 
     path: 'documents', 
     loadChildren: () => import('./documents/documents.module').then(m => m.DocumentsModule) 
-  }
+  },
+  { 
+    path: 'families', 
+    loadChildren: () => import('./families/families.module').then(m => m.FamiliesModule) 
+  },
+  { 
+    path: 'depot-reception/:depotId', 
+    loadChildren: () => import('./depot-reception/depot-reception.module').then(m => m.DepotReceptionModule) 
+  },
+  { 
+    path: 'prepare-lot/:depotId', 
+    loadChildren: () => import('./prepare-lot/prepare-lot.module').then(m => m.PrepareLotModule) 
+  },
+                {
+                path: 'shop-transfer/:depotId',
+                loadChildren: () => import('./shop-transfer/shop-transfer.module').then(m => m.ShopTransferModule)
+              },
+              {
+                path: 'branch-inventory/:depotId',
+                loadChildren: () => import('./branch-inventory/branch-inventory.module').then(m => m.BranchInventoryModule)
+              },
+              {
+                path: 'depot-expenses/:id',
+                loadChildren: () => import('./depot-expenses/depot-expenses.module').then(m => m.DepotExpensesModule)
+              }
 ];
 
 @NgModule({

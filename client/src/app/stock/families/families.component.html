@@ -1,0 +1,128 @@
+<div class="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-4xl font-bold text-slate-800 mb-2">Gestion des Familles de Produits</h1>
+      <p class="text-slate-600">Organisez vos produits par familles avec des photos</p>
+    </div>
+
+    <!-- Error Message -->
+    <div *ngIf="error" class="mb-6 p-4 bg-red-500/20 border border-red-200 rounded-2xl text-red-700">
+      {{ error }}
+    </div>
+
+    <!-- Add Family Button -->
+    <div class="mb-6">
+      <button (click)="openAddModal()"
+        class="bg-gradient-to-r from-pink-500 to-rose-600 text-slate-800 px-6 py-3 rounded-2xl hover:from-rose-600 hover:to-pink-700 transition-all font-medium">
+        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+        Ajouter une Famille
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+    </div>
+
+    <!-- Families Grid -->
+    <div *ngIf="!loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div *ngFor="let family of families" 
+        class="bg-white rounded-2xl border border-indigo-100/50 overflow-hidden hover:border-pink-500/50 transition-all group">
+        
+        <!-- Family Photo -->
+        <div class="relative h-48 bg-slate-100/50">
+          <img *ngIf="family.photo" [src]="family.photo" [alt]="family.name"
+            class="w-full h-full object-cover">
+          <div *ngIf="!family.photo" class="w-full h-full flex items-center justify-center">
+            <svg class="w-16 h-16 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+          </div>
+          
+          <!-- Photo Actions -->
+          <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button (click)="openImageUploadModal(family)"
+              class="bg-blue-500/80 hover:bg-cyan-500 text-slate-800 p-2 rounded-2xl mr-1"
+              title="Changer la photo">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+            </button>
+            <button *ngIf="family.photo" (click)="deleteFamilyPhoto(family)"
+              class="bg-red-500/80 hover:bg-red-500 text-slate-800 p-2 rounded-2xl"
+              title="Supprimer la photo">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Family Info -->
+        <div class="p-4">
+          <h3 class="text-lg font-semibold text-slate-800 mb-2">{{ family.name }}</h3>
+          <p *ngIf="family.description" class="text-slate-600 text-sm mb-3">{{ family.description }}</p>
+          
+          <!-- Product Count -->
+          <div class="flex items-center text-sm text-slate-500 mb-4">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+            </svg>
+            {{ family._count?.products || 0 }} produit(s)
+          </div>
+
+          <!-- Actions -->
+          <div class="flex space-x-2">
+            <button (click)="openEditModal(family)"
+              class="flex-1 bg-blue-500/20 hover:bg-cyan-500/30 text-cyan-600 px-3 py-2 rounded-2xl transition-all text-sm">
+              Modifier
+            </button>
+            <button (click)="deleteFamily(family)"
+              class="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-600 px-3 py-2 rounded-2xl transition-all text-sm">
+              Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && families.length === 0" class="text-center py-12">
+      <svg class="w-24 h-24 text-slate-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+      </svg>
+      <h3 class="text-xl font-semibold text-slate-600 mb-2">Aucune famille créée</h3>
+      <p class="text-slate-500 mb-6">Commencez par créer votre première famille de produits</p>
+      <button (click)="openAddModal()"
+        class="bg-gradient-to-r from-pink-500 to-rose-600 text-slate-800 px-6 py-3 rounded-2xl hover:from-rose-600 hover:to-pink-700 transition-all">
+        Créer une famille
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Family Form Modal -->
+<app-family-form 
+  *ngIf="showAddModal || showEditModal"
+  [family]="editingFamily"
+  (saved)="onFamilySaved()"
+  (cancelled)="closeModals()">
+</app-family-form>
+
+<!-- Image Upload Modal -->
+<app-image-upload-modal
+  *ngIf="showImageUploadModal"
+  [show]="showImageUploadModal"
+  [currentImageUrl]="selectedFamilyForImage?.photo || null"
+  (uploadConfirmed)="onImageUploadConfirmed($event)"
+  (closed)="closeImageUploadModal()">
+</app-image-upload-modal>

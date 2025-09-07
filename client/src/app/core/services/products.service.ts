@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { Product, BulkImportResult } from '../models/product.model';
+import { Product, ProductFamily, BulkImportResult, VracPrice } from '../models/product.model';
 
 @Injectable({
   providedIn: 'root'
@@ -10,14 +11,20 @@ import { Product, BulkImportResult } from '../models/product.model';
 export class ProductsService {
   private apiUrl = `${environment.apiUrl}/products`;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient
+  ) {}
 
   getProducts(): Observable<Product[]> {
-    return this.http.get<Product[]>(this.apiUrl);
+    return this.http.get<Product[]>(this.apiUrl).pipe(
+      catchError((error) => throwError(() => error))
+    );
   }
 
   getProduct(id: number): Observable<Product> {
-    return this.http.get<Product>(`${this.apiUrl}/${id}`);
+    return this.http.get<Product>(`${this.apiUrl}/${id}`).pipe(
+      catchError((error) => throwError(() => error))
+    );
   }
 
   createProduct(product: Partial<Product>): Observable<Product> {
@@ -38,6 +45,16 @@ export class ProductsService {
     return this.http.post<{ imageUrl: string }>(`${this.apiUrl}/upload-image`, formData);
   }
 
+  uploadProductPhoto(productId: number, file: File): Observable<{ imageUrl: string; product: any }> {
+    const formData = new FormData();
+    formData.append('photo', file);
+    return this.http.post<{ imageUrl: string; product: any }>(`${this.apiUrl}/${productId}/photo`, formData);
+  }
+
+  deleteProductPhoto(productId: number): Observable<{ product: any }> {
+    return this.http.delete<{ product: any }>(`${this.apiUrl}/${productId}/photo`);
+  }
+
   generateBarcode(): Observable<{ barcode: string }> {
     return this.http.post<{ barcode: string }>(`${this.apiUrl}/generate-barcode`, {});
   }
@@ -54,8 +71,10 @@ export class ProductsService {
     });
   }
 
-  getFamilles(): Observable<string[]> {
-    return this.http.get<string[]>(`${this.apiUrl}/familles`);
+  getFamilles(): Observable<ProductFamily[]> {
+    return this.http.get<ProductFamily[]>(`${this.apiUrl}/familles`).pipe(
+      catchError((error) => throwError(() => error))
+    );
   }
 
   // Conservation management
@@ -69,5 +88,26 @@ export class ProductsService {
 
   dismissConservationWarning(conservationId: number): Observable<any> {
     return this.http.put<any>(`${this.apiUrl}/conservation/${conservationId}/dismiss`, {});
+  }
+
+  // Vrac price management
+  createVracPrice(productId: number, priceData: { price: number; startDate: string; endDate?: string }): Observable<VracPrice> {
+    return this.http.post<VracPrice>(`${this.apiUrl}/${productId}/vrac-prices`, priceData);
+  }
+
+  getVracPrices(productId: number, startDate?: string, endDate?: string): Observable<VracPrice[]> {
+    let params = new HttpParams();
+    if (startDate) params = params.set('startDate', startDate);
+    if (endDate) params = params.set('endDate', endDate);
+    
+    return this.http.get<VracPrice[]>(`${this.apiUrl}/${productId}/vrac-prices`, { params });
+  }
+
+  getVracStatistics(startDate: string, endDate: string): Observable<any[]> {
+    const params = new HttpParams()
+      .set('startDate', startDate)
+      .set('endDate', endDate);
+    
+    return this.http.get<any[]>(`${this.apiUrl}/vrac/statistics`, { params });
   }
 } 

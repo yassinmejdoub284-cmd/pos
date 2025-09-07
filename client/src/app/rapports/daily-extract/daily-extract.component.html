@@ -1,0 +1,208 @@
+<div class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 px-4 py-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center space-x-4">
+        <button (click)="goBack()" class="p-2 rounded-2xl bg-white border border-indigo-100/50 hover:border-cyan-300 transition-colors duration-300" title="Retour">
+          <svg class="w-6 h-6 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+        </button>
+        <div>
+          <h1 class="text-3xl font-bold text-slate-800">Extrait Journalière</h1>
+          <p class="text-slate-600">Consultez les extraits des {{ currentLoadedDays }} derniers jours</p>
+          <p class="text-sm text-slate-500 mt-1">Aujourd'hui: {{ getTodayDate() }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400"></div>
+    </div>
+
+    <!-- No Data Message -->
+    <div *ngIf="!loading && !selectedExtract && dailyExtracts.length === 0" class="text-center py-12">
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
+        <h3 class="text-lg font-semibold text-yellow-800 mb-2">Aucune donnée trouvée</h3>
+        <p class="text-yellow-700">Aucun extrait journalier disponible pour les 10 derniers jours.</p>
+      </div>
+    </div>
+
+    <!-- Daily Extracts Grid -->
+    <div *ngIf="!loading && !selectedExtract && dailyExtracts.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+      <div 
+        *ngFor="let extract of dailyExtracts" 
+        (click)="selectExtract(extract)"
+        class="group cursor-pointer"
+        [class.opacity-50]="!extract.hasData"
+        [class.cursor-not-allowed]="!extract.hasData"
+      >
+        <div class="bg-white rounded-2xl border border-indigo-100/50 hover:border-cyan-300 transition-all duration-300 transform hover:scale-105 p-4 text-center relative overflow-hidden min-h-[120px]">
+          <!-- Background Gradient Effect -->
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-cyan-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          
+          <div class="relative z-10">
+            <div class="text-sm text-slate-500 mb-2">{{ formatDate(extract.date) }}</div>
+            
+            <div *ngIf="extract.hasData" class="space-y-1">
+              <div class="text-lg font-semibold text-slate-800 group-hover:text-cyan-600 transition-colors duration-300">
+                {{ formatCurrency(extract.totalRevenue) }}
+              </div>
+              <div class="text-xs text-slate-500">
+                {{ extract.totalSales }} ventes
+              </div>
+              <div *ngIf="extract.totalDiscount > 0" class="text-xs text-orange-400">
+                Remise: {{ formatCurrency(extract.totalDiscount) }}
+              </div>
+            </div>
+            
+            <div *ngIf="!extract.hasData" class="text-slate-500 text-sm">
+              Aucune activité
+            </div>
+          </div>
+          
+          <!-- Hover Border Effect -->
+          <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-cyan-200 transition-all duration-300"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Show More Archives Button -->
+    <div *ngIf="!loading && !selectedExtract && canLoadMoreArchives()" class="text-center mb-8">
+      <button 
+        (click)="showMoreArchives()"
+        [disabled]="loadingArchives"
+        class="px-6 py-3 bg-white border border-indigo-100/50 rounded-2xl text-slate-800 hover:border-cyan-300 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <span *ngIf="!loadingArchives">Voir plus d'archives (+5 jours)</span>
+        <span *ngIf="loadingArchives" class="flex items-center gap-2">
+          <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600"></div>
+          Chargement...
+        </span>
+      </button>
+    </div>
+
+    <!-- Archive Loading State -->
+    <div *ngIf="loadingArchives" class="text-center mb-8">
+      <div class="inline-flex items-center gap-2 px-6 py-3 bg-white border border-indigo-100/50 rounded-2xl text-slate-600">
+        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600"></div>
+        Chargement de 5 jours supplémentaires...
+      </div>
+    </div>
+
+    <!-- Extract Detail View -->
+    <div *ngIf="selectedExtract" class="space-y-6">
+      <!-- Extract Header -->
+      <div class="bg-white rounded-2xl border border-indigo-100/50 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-bold text-slate-800">{{ formatDate(selectedExtract.date) }}</h2>
+          <div class="flex items-center space-x-3">
+            <button 
+              (click)="printExtract('A4')"
+              class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-800 rounded-2xl transition-colors duration-300"
+              title="Imprimer A4"
+            >
+              📄 A4
+            </button>
+            <button 
+              (click)="printExtract('80mm')"
+              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-800 rounded-2xl transition-colors duration-300"
+              title="Imprimer 80mm"
+            >
+              🧾 80mm
+            </button>
+            <button 
+              (click)="selectedExtract = null"
+              class="p-2 rounded-2xl bg-slate-100/50 hover:bg-slate-100/50 transition-colors duration-300"
+              title="Fermer"
+            >
+              <svg class="w-5 h-5 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Families and Products -->
+      <div *ngFor="let family of selectedExtract.families" class="bg-white rounded-2xl border border-indigo-100/50 p-6">
+        <h3 class="text-xl font-semibold text-slate-800 mb-4">{{ family.name }}</h3>
+        
+        <div class="space-y-3 mb-4">
+          <div *ngFor="let product of family.products" class="flex justify-between items-center py-2 border-b border-indigo-100/30">
+            <div>
+              <div class="text-slate-800 font-medium">{{ product.name }}</div>
+              <div class="text-sm text-slate-500">Quantité: {{ product.quantity }}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-slate-800 font-semibold">{{ formatCurrency(product.revenue) }}</div>
+              <div *ngIf="product.discount > 0" class="text-sm text-orange-400">
+                Remise: {{ formatCurrency(product.discount) }}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex justify-between items-center pt-3 border-t border-indigo-100/50">
+          <span class="text-lg font-semibold text-slate-800">Total {{ family.name }}</span>
+          <span class="text-lg font-bold text-teal-400">{{ formatCurrency(family.totalRevenue) }}</span>
+        </div>
+      </div>
+
+      <!-- Summary Section -->
+      <div class="bg-white rounded-2xl border border-indigo-100/50 p-6">
+        <h3 class="text-xl font-semibold text-slate-800 mb-4">Résumé de la journée</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Sales Summary -->
+          <div class="space-y-3">
+            <div class="flex justify-between items-center py-2 border-b border-indigo-100/30">
+              <span class="text-slate-800">Total Remise</span>
+              <span class="text-orange-400 font-semibold">{{ formatCurrency(selectedExtract.totalDiscount) }}</span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-indigo-100/30">
+              <span class="text-slate-800">Total Recette</span>
+              <span class="text-green-400 font-semibold">{{ formatCurrency(selectedExtract.totalRevenue) }}</span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-indigo-100/30">
+              <span class="text-slate-800">Total Caisse (Solde Débit)</span>
+              <span class="text-cyan-600 font-semibold">{{ formatCurrency(selectedExtract.soldeDebit) }}</span>
+            </div>
+          </div>
+
+          <!-- Expenses Summary -->
+          <div class="space-y-3">
+            <h4 class="text-lg font-semibold text-slate-800 mb-2">Dépenses</h4>
+            <div *ngFor="let expense of selectedExtract.expenses" class="flex justify-between items-center py-1">
+              <span class="text-slate-600">--- {{ expense.description }}</span>
+              <span class="text-red-600">{{ formatCurrency(expense.amount) }}</span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-t border-indigo-100/50 mt-3">
+              <span class="text-slate-800 font-semibold">Total Dépenses</span>
+              <span class="text-red-600 font-semibold">{{ formatCurrency(selectedExtract.totalExpenses) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Final Summary -->
+        <div class="mt-6 pt-6 border-t border-indigo-100/50">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="text-center">
+              <div class="text-sm text-slate-500 mb-1">Total Caisse</div>
+              <div class="text-xl font-bold text-cyan-600">{{ formatCurrency(selectedExtract.totalCaisse) }}</div>
+            </div>
+            <div class="text-center">
+              <div class="text-sm text-slate-500 mb-1">Retrait</div>
+              <div class="text-xl font-bold text-yellow-400">{{ formatCurrency(selectedExtract.withdrawal) }}</div>
+            </div>
+            <div class="text-center">
+              <div class="text-sm text-slate-500 mb-1">Reste Caisse</div>
+              <div class="text-xl font-bold text-green-400">{{ formatCurrency(selectedExtract.remainingCash) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

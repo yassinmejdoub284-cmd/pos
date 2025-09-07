@@ -9,11 +9,11 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
   imports: [CommonModule, FormsModule, ImageCropperComponent],
   template: `
     <div *ngIf="show" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div class="bg-gray-800 rounded-xl border border-gray-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="bg-white rounded-xl border border-gray-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
         <div class="p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-semibold text-white">Modifier l'image du produit</h3>
-            <button (click)="close()" class="text-gray-400 hover:text-white">
+            <h3 class="text-xl font-semibold text-gray-800">Modifier l'image du produit</h3>
+            <button (click)="close()" class="text-gray-500 hover:text-gray-800">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -21,12 +21,12 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
           </div>
 
           <div *ngIf="!selectedFile && !croppedImage" class="text-center py-8">
-            <div class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
               </svg>
             </div>
-            <p class="text-gray-400 mb-4">Cliquez pour sélectionner une image</p>
+            <p class="text-gray-600 mb-4">Cliquez pour sélectionner une image</p>
             <input 
               type="file" 
               #fileInput
@@ -42,7 +42,7 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
 
           <div *ngIf="selectedFile && !croppedImage" class="space-y-4">
             <div class="text-center">
-              <p class="text-gray-300 mb-2">Image sélectionnée: {{ selectedFile.name }}</p>
+              <p class="text-gray-700 mb-2">Image sélectionnée: {{ selectedFile.name }}</p>
               <app-image-cropper 
                 [imageSrc]="imagePreview || ''" 
                 (cropped)="onImageCropped($event)">
@@ -60,7 +60,7 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
 
           <div *ngIf="croppedImage" class="space-y-4">
             <div class="text-center">
-              <p class="text-gray-300 mb-2">Image recadrée</p>
+              <p class="text-gray-700 mb-2">Image recadrée</p>
               <img [src]="croppedImage" alt="Cropped" class="max-w-full max-h-64 mx-auto rounded-lg">
             </div>
             

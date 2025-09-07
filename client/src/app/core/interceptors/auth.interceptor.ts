@@ -10,7 +10,8 @@ export function authInterceptor(
   const authService = inject(AuthService);
   const token = authService.getToken();
   
-  if (token) {
+  // Skip adding Authorization header for login and register endpoints
+  if (token && !request.url.includes('/auth/login') && !request.url.includes('/auth/register')) {
     request = request.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`

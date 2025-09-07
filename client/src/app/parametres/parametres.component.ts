@@ -10,7 +10,19 @@ export class ParametresComponent implements OnInit {
   loading = false;
   saving = false;
   error = '';
-  settings: AppSettings = {};
+  settings: AppSettings = {
+    loyaltyEnabled: false,
+    loyaltyRate: 1,
+    maxDiscountPercent: 50,
+    defaultClientMaxDebt: 0,
+    auditRetentionDays: 90,
+    varianceThreshold: 5.0,
+    defaultFonds: 0.0,
+    denominations: [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05],
+    requireApprovalForVariance: true,
+    ticketWidth: 58,
+    droitDeTimbre: false
+  };
 
   constructor(private settingsService: SettingsService) {}
 

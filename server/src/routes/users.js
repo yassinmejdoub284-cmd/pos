@@ -17,7 +17,8 @@ router.get('/', requireRole(['ADMIN']), async (req, res) => {
         depotId: true,
         isActive: true,
         lastLogin: true,
-        createdAt: true
+        createdAt: true,
+        pin: true
       },
       orderBy: {
         createdAt: 'desc'
@@ -46,7 +47,8 @@ router.get('/:id', requireRole(['ADMIN']), async (req, res) => {
         depotId: true,
         isActive: true,
         lastLogin: true,
-        createdAt: true
+        createdAt: true,
+        pin: true
       }
     });
 
@@ -85,7 +87,8 @@ router.put('/:id', requireRole(['ADMIN']), async (req, res) => {
         depotId: true,
         isActive: true,
         lastLogin: true,
-        createdAt: true
+        createdAt: true,
+        pin: true
       }
     });
 

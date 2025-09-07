@@ -1,0 +1,55 @@
+/* Branch Inventory Component Styles */
+.inventory-card {
+  transition: all 0.3s ease;
+}
+
+.inventory-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.product-card {
+  transition: all 0.3s ease;
+}
+
+.product-card:hover {
+  transform: scale(1.02);
+}
+
+.quantity-input {
+  transition: all 0.2s ease;
+}
+
+.quantity-input:focus {
+  transform: scale(1.05);
+}
+
+/* Loading animation */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Success/Error messages */
+.message-success {
+  animation: slideIn 0.3s ease-out;
+}
+
+.message-error {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

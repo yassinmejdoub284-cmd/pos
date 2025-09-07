@@ -2,17 +2,43 @@ export interface Product {
   id: number;
   name: string;
   description?: string;
-  famille: string;
+  familleId: number;
+  famille?: ProductFamily;
   barcode?: string;
   unite: string;
   prix_vente_TTC: number;
   tva: number;
   photo?: string;
   duree_conservation?: number;
+  // Vrac fields
+  isVrac?: boolean;
+  originalProductId?: number;
+  originalProduct?: Product;
+  isStockable?: boolean;
+  // New configuration fields
+  isVraguable?: boolean;
+  initialStock?: number;
+  minStock?: number;
+  maxStock?: number;
   createdAt: Date;
   updatedAt: Date;
   inventory?: Inventory[];
   conservation?: ProductConservation[];
+  vracProducts?: Product[];
+  vracPrices?: VracPrice[];
+}
+
+export interface ProductFamily {
+  id: number;
+  name: string;
+  description?: string;
+  photo?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  _count?: {
+    products: number;
+  };
 }
 
 export interface ProductConservation {
@@ -71,6 +97,17 @@ export interface StockMovement {
   reference?: string;
   date: Date;
   userId: number;
+}
+
+export interface VracPrice {
+  id: number;
+  productId: number;
+  price: number;
+  startDate: Date;
+  endDate?: Date;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface BulkImportResult {

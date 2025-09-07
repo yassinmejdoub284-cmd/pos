@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { Sale, SaleItem } from '../models/sale.model';
 
@@ -37,6 +38,10 @@ export interface CreateTemporarySaleRequest {
   notes: string;
   status: string;
   clientId?: number;
+  // Advance payment fields
+  advancePayment?: number;
+  advancePaymentMethod?: string;
+  advancePaymentNotes?: string;
 }
 
 export interface CreateGiftSaleRequest {
@@ -62,22 +67,30 @@ export interface CreateGiftSaleRequest {
 export class SalesService {
   private apiUrl = `${environment.apiUrl}/sales`;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient
+  ) {}
 
   createSale(saleData: CreateSaleRequest): Observable<Sale> {
     return this.http.post<Sale>(this.apiUrl, saleData);
   }
 
   getSales(): Observable<Sale[]> {
-    return this.http.get<Sale[]>(this.apiUrl);
+    return this.http.get<Sale[]>(this.apiUrl).pipe(
+      catchError((error) => throwError(() => error))
+    );
   }
 
   getSale(id: number): Observable<Sale> {
-    return this.http.get<Sale>(`${this.apiUrl}/${id}`);
+    return this.http.get<Sale>(`${this.apiUrl}/${id}`).pipe(
+      catchError((error) => throwError(() => error))
+    );
   }
 
   getPaymentMethods(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/payment-methods/all`);
+    return this.http.get<any[]>(`${this.apiUrl}/payment-methods/all`).pipe(
+      catchError((error) => throwError(() => error))
+    );
   }
 
   createTemporarySale(saleData: CreateTemporarySaleRequest): Observable<Sale> {

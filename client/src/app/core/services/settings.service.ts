@@ -4,28 +4,38 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface AppSettings {
+  id?: number;
   companyName?: string;
   logoUrl?: string;
-  loyaltyEnabled?: boolean;
-  loyaltyRate?: number;
-  maxDiscountPercent?: number;
-  defaultClientMaxDebt?: number;
+  loyaltyEnabled: boolean;
+  loyaltyRate: number;
+  maxDiscountPercent: number;
+  defaultClientMaxDebt: number;
   keyboardShortcuts?: any;
   devicesConfig?: any;
-  auditRetentionDays?: number;
+  auditRetentionDays: number;
+  // Clôture settings
+  varianceThreshold: number;
+  defaultFonds: number;
+  denominations: number[];
+  requireApprovalForVariance: boolean;
+  ticketWidth: number;
+  droitDeTimbre: boolean;
 }
 
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root'
+})
 export class SettingsService {
-  private apiUrl = `${environment.apiUrl}/settings`;
+  private readonly API_URL = `${environment.apiUrl}/settings`;
 
   constructor(private http: HttpClient) {}
 
   getSettings(): Observable<AppSettings> {
-    return this.http.get<AppSettings>(this.apiUrl);
+    return this.http.get<AppSettings>(this.API_URL);
   }
 
-  updateSettings(data: AppSettings): Observable<AppSettings> {
-    return this.http.put<AppSettings>(this.apiUrl, data);
+  updateSettings(settings: Partial<AppSettings>): Observable<AppSettings> {
+    return this.http.put<AppSettings>(this.API_URL, settings);
   }
-} 
+}

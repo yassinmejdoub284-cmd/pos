@@ -13,6 +13,30 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
     }
 
     const sale = await prisma.$transaction(async (tx) => {
+      // Check stock availability before creating the sale
+      for (const item of items) {
+        const inventory = await tx.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: req.user.depotId,
+              productId: item.productId
+            }
+          }
+        });
+
+        if (!inventory || inventory.quantity < item.quantity) {
+          throw new Error(`Stock insuffisant pour le produit "${item.productName}". Disponible: ${inventory?.quantity || 0}, Demandé: ${item.quantity}`);
+        }
+      }
+
+      // Get the current active session for the user
+      const activeSession = await tx.sessionCaisse.findFirst({
+        where: {
+          userId: req.user.id,
+          status: 'OPEN'
+        }
+      });
+
       const newSale = await tx.sale.create({
         data: {
           total: parseFloat(total),
@@ -22,6 +46,7 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
           userId: req.user.id,
           clientId: clientId ? parseInt(clientId) : null,
           depotId: req.user.depotId,
+          sessionId: activeSession ? activeSession.id : null,
           status: 'COMPLETED'
         }
       });
@@ -147,7 +172,21 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
 
 router.post('/temporary', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
   try {
-    const { items, total, discount, finalTotal, expectedDate, expectedTime, notes, status, clientId } = req.body;
+    const { 
+      items, 
+      total, 
+      discount, 
+      finalTotal, 
+      expectedDate, 
+      expectedTime, 
+      notes, 
+      status, 
+      clientId,
+      // Advance payment fields
+      advancePayment,
+      advancePaymentMethod,
+      advancePaymentNotes
+    } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Temporary sale must have at least one item' });
@@ -157,19 +196,45 @@ router.post('/temporary', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (r
       return res.status(400).json({ error: 'Expected date and time are required' });
     }
 
+    // Validate advance payment
+    const advanceAmount = advancePayment ? parseFloat(advancePayment) : 0;
+    const finalTotalAmount = parseFloat(finalTotal);
+    
+    if (advanceAmount > finalTotalAmount) {
+      return res.status(400).json({ error: 'Advance payment cannot exceed final total' });
+    }
+
+    if (advanceAmount > 0 && !advancePaymentMethod) {
+      return res.status(400).json({ error: 'Payment method is required when advance payment is provided' });
+    }
+
+    // Map payment method string to ID
+    const paymentMethodMap = { 
+      cash: 1, 
+      card: 2, 
+      check: 3, 
+      virement: 4 
+    };
+    const advancePaymentMethodId = advancePaymentMethod ? paymentMethodMap[advancePaymentMethod] : null;
+
     const sale = await prisma.$transaction(async (tx) => {
       const newSale = await tx.sale.create({
         data: {
           total: parseFloat(total),
           discount: parseFloat(discount || 0),
-          finalTotal: parseFloat(finalTotal),
+          finalTotal: finalTotalAmount,
           paymentMethodId: null,
           userId: req.user.id,
           clientId: clientId ? parseInt(clientId) : null,
           depotId: req.user.depotId,
           status: 'TEMPORARY',
           expectedDate: new Date(`${expectedDate}T${expectedTime}`),
-          notes: notes || ''
+          notes: notes || '',
+          // Advance payment fields
+          advancePayment: advanceAmount,
+          advancePaymentMethodId: advancePaymentMethodId,
+          advancePaymentDate: advanceAmount > 0 ? new Date() : null,
+          advancePaymentNotes: advancePaymentNotes || null
         }
       });
 
@@ -192,7 +257,11 @@ router.post('/temporary', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (r
 
     const saleWithDetails = await prisma.sale.findUnique({
       where: { id: sale.id },
-      include: { items: true, client: { select: { firstName: true, lastName: true, code: true } } }
+      include: { 
+        items: true, 
+        client: { select: { firstName: true, lastName: true, code: true } },
+        advancePaymentMethod: { select: { id: true, name: true, type: true } }
+      }
     });
 
     res.status(201).json(saleWithDetails);
@@ -219,10 +288,26 @@ router.put('/temporary/:id/complete', requireRole(['ADMIN', 'MANAGER', 'CASHIER'
     const paymentMethodMap = { cash: 1, card: 2, check: 3, virement: 4 };
 
     const result = await prisma.$transaction(async (tx) => {
+      // Check stock availability before completing the temporary sale
+      for (const item of temporarySale.items) {
+        const inventory = await tx.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: req.user.depotId,
+              productId: item.productId
+            }
+          }
+        });
+
+        if (!inventory || inventory.quantity < item.quantity) {
+          throw new Error(`Stock insuffisant pour le produit "${item.productName}". Disponible: ${inventory?.quantity || 0}, Demandé: ${item.quantity}`);
+        }
+      }
+
       const updatedSale = await tx.sale.update({
         where: { id: parseInt(id) },
         data: {
-          status: 'COMPLETED',
+          status: 'CMD_TERMINEE',
           paymentMethodId: paymentMethodMap[paymentType] || null,
           expectedDate: null,
           notes: null,
@@ -257,8 +342,13 @@ router.put('/temporary/:id/complete', requireRole(['ADMIN', 'MANAGER', 'CASHIER'
           settings = await tx.appSettings.findFirst();
         }
         const client = await tx.client.findUnique({ where: { id: temporarySale.clientId } });
-        const paid = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : parseFloat(temporarySale.finalTotal);
-        const outstanding = Math.max(0, parseFloat(temporarySale.finalTotal) - paid);
+        
+        // Calculate total paid amount (advance payment + completion payment)
+        const advancePaid = parseFloat(temporarySale.advancePayment || 0);
+        const completionPaid = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : 0;
+        const totalPaid = advancePaid + completionPaid;
+        
+        const outstanding = Math.max(0, parseFloat(temporarySale.finalTotal) - totalPaid);
         if (outstanding > 0) {
           if (!client || client.allowDebt === false) {
             throw new Error('Debt not allowed for this client');
@@ -270,7 +360,14 @@ router.put('/temporary/:id/complete', requireRole(['ADMIN', 'MANAGER', 'CASHIER'
           }
           await tx.client.update({ where: { id: client.id }, data: { currentDebt: newDebt } });
           await tx.clientDebtTransaction.create({
-            data: { clientId: client.id, saleId: updatedSale.id, amount: outstanding, type: 'DEBT', userId: req.user.id, notes: 'Debt from temporary sale completion' }
+            data: { 
+              clientId: client.id, 
+              saleId: updatedSale.id, 
+              amount: outstanding, 
+              type: 'DEBT', 
+              userId: req.user.id, 
+              notes: `Debt from temporary sale completion (Advance: ${advancePaid.toFixed(3)}dt, Paid: ${completionPaid.toFixed(3)}dt, Outstanding: ${outstanding.toFixed(3)}dt)` 
+            }
           });
         }
         if (settings?.loyaltyEnabled) {
@@ -294,7 +391,12 @@ router.put('/temporary/:id/complete', requireRole(['ADMIN', 'MANAGER', 'CASHIER'
 
     const saleWithDetails = await prisma.sale.findUnique({
       where: { id: result.updatedSale.id },
-      include: { paymentMethod: { select: { name: true } }, items: true, client: { select: { firstName: true, lastName: true, code: true } } }
+      include: { 
+        paymentMethod: { select: { name: true } }, 
+        advancePaymentMethod: { select: { name: true, type: true } },
+        items: true, 
+        client: { select: { firstName: true, lastName: true, code: true } } 
+      }
     });
 
     res.json({ ...saleWithDetails, loyaltyPointsEarned: result.loyaltyPointsEarned });
@@ -428,9 +530,12 @@ router.put('/gift/:id/reject', requireRole(['ADMIN', 'MANAGER']), async (req, re
   }
 });
 
-router.get('/', async (req, res) => {
+router.get('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
   try {
     const { startDate, endDate, status, paymentMethod, page = 1, limit = 50 } = req.query;
+
+    console.log('Sales GET request - User:', req.user);
+    console.log('Sales GET request - Depot ID:', req.user.depotId);
 
     const whereClause = { depotId: req.user.depotId };
 
@@ -441,6 +546,8 @@ router.get('/', async (req, res) => {
     if (status) whereClause.status = status;
 
     if (paymentMethod) whereClause.paymentMethodId = parseInt(paymentMethod);
+
+    console.log('Sales query whereClause:', whereClause);
 
     const sales = await prisma.sale.findMany({
       where: whereClause,
@@ -454,6 +561,11 @@ router.get('/', async (req, res) => {
       skip: (parseInt(page) - 1) * parseInt(limit),
       take: parseInt(limit)
     });
+
+    console.log('Found sales:', sales.length);
+    if (sales.length > 0) {
+      console.log('First sale:', { id: sales[0].id, date: sales[0].createdAt, total: sales[0].finalTotal });
+    }
 
     res.json(sales);
   } catch (error) {

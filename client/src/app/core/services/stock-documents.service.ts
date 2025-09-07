@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { StockDocument, ScanResult, TransferItem } from '../models/stock-document.model';
 
@@ -10,7 +11,9 @@ import { StockDocument, ScanResult, TransferItem } from '../models/stock-documen
 export class StockDocumentsService {
   private apiUrl = `${environment.apiUrl}/stock-documents`;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient
+  ) {}
 
   getDocuments(page: number = 1, limit: number = 20, type?: string, status?: string, depotId?: number, dateFrom?: string, dateTo?: string): Observable<any> {
     let params = new HttpParams()
@@ -23,11 +26,15 @@ export class StockDocumentsService {
     if (dateFrom) params = params.set('dateFrom', dateFrom);
     if (dateTo) params = params.set('dateTo', dateTo);
 
-    return this.http.get<any>(this.apiUrl, { params });
+    return this.http.get<any>(this.apiUrl, { params }).pipe(
+      catchError((error) => throwError(() => error))
+    );
   }
 
   getDocument(id: number): Observable<StockDocument> {
-    return this.http.get<StockDocument>(`${this.apiUrl}/${id}`);
+    return this.http.get<StockDocument>(`${this.apiUrl}/${id}`).pipe(
+      catchError((error) => throwError(() => error))
+    );
   }
 
   createExpedition(emetteurId: number, destinataireId: number, items: any[], notes?: string): Observable<StockDocument> {
@@ -63,6 +70,27 @@ export class StockDocumentsService {
     return this.http.post<any>(`${this.apiUrl}/transfer`, {
       fromDepotId,
       toDepotId,
+      items,
+      notes
+    });
+  }
+
+  scanTransfer(fromDepotId: number, toDepotId: number, barcode: string): Observable<ScanResult> {
+    return this.http.post<ScanResult>(`${this.apiUrl}/scan-transfer`, {
+      fromDepotId,
+      toDepotId,
+      barcode
+    });
+  }
+
+  getInventory(depotId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/inventory/${depotId}`);
+  }
+
+  createTransfer(emetteurId: number, destinataireId: number, items: any[], notes?: string): Observable<StockDocument> {
+    return this.http.post<StockDocument>(`${this.apiUrl}/transfer`, {
+      emetteurId,
+      destinataireId,
       items,
       notes
     });

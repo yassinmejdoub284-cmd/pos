@@ -17,7 +17,14 @@ function ensureDefaults(data = {}) {
     defaultClientMaxDebt: data.defaultClientMaxDebt !== undefined ? Number(data.defaultClientMaxDebt) : 0,
     keyboardShortcuts: typeof data.keyboardShortcuts === 'object' ? data.keyboardShortcuts : (data.keyboardShortcuts || {}),
     devicesConfig: typeof data.devicesConfig === 'object' ? data.devicesConfig : (data.devicesConfig || {}),
-    auditRetentionDays: data.auditRetentionDays !== undefined ? Number(data.auditRetentionDays) : 90
+    auditRetentionDays: data.auditRetentionDays !== undefined ? Number(data.auditRetentionDays) : 90,
+    // Clôture settings
+    varianceThreshold: data.varianceThreshold !== undefined ? Number(data.varianceThreshold) : 5.0,
+    defaultFonds: data.defaultFonds !== undefined ? Number(data.defaultFonds) : 50.0,
+    denominations: Array.isArray(data.denominations) ? data.denominations : [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05],
+    requireApprovalForVariance: typeof data.requireApprovalForVariance === 'boolean' ? data.requireApprovalForVariance : true,
+    ticketWidth: data.ticketWidth !== undefined ? Number(data.ticketWidth) : 58,
+    droitDeTimbre: typeof data.droitDeTimbre === 'boolean' ? data.droitDeTimbre : false
   };
 }
 

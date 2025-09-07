@@ -51,63 +51,117 @@ async function main() {
 
   console.log('✅ Depots created');
 
-  // Create or update product categories
-  const categoryNames = [
-    { name: 'Pâtisseries', description: 'Gâteaux et pâtisseries traditionnelles' },
-    { name: 'Viennoiseries', description: 'Croissants, pains au chocolat, etc.' },
-    { name: 'Biscuits', description: 'Biscuits et cookies' },
-    { name: 'Boissons', description: 'Café, thé, jus de fruits' },
-    { name: 'Glaces', description: 'Crèmes glacées et sorbets' }
+  // Product families (categories)
+  const productFamilies = [
+    'Pâtisserie',
+    'Viennoiserie', 
+    'Boulangerie',
+    'Boissons',
+    'Glaces',
+    'Pâtisserie Tunisienne',
+    'Jus et Smoothies'
   ];
 
-  const categories = [];
-  for (const catData of categoryNames) {
-    let category = await prisma.productCategory.findFirst({
-      where: { name: catData.name }
+  console.log('✅ Product families defined');
+
+  // Create product families first
+  const familyData = [
+    { name: 'Viennoiserie', description: 'Viennoiseries et croissants' },
+    { name: 'Pâtisserie', description: 'Pâtisseries et gâteaux' },
+    { name: 'Boissons', description: 'Cafés et boissons' },
+    { name: 'Boulangerie', description: 'Pain et boulangerie' },
+    { name: 'Vrac', description: 'Produits vrac - vente au poids' },
+    { name: 'Pâtisserie Tunisienne', description: 'Pâtisseries traditionnelles tunisiennes' },
+    { name: 'Jus et Smoothies', description: 'Jus de fruits frais et smoothies' }
+  ];
+
+  const families = [];
+  for (const famData of familyData) {
+    let family = await prisma.productFamily.findFirst({
+      where: { name: famData.name }
     });
     
-    if (!category) {
-      category = await prisma.productCategory.create({
-        data: catData
+    if (!family) {
+      family = await prisma.productFamily.create({
+        data: famData
       });
     }
     
-    categories.push(category);
+    families.push(family);
   }
 
-  console.log('✅ Product categories created');
+  console.log('✅ Product families created');
 
   // Create or update products
   const productData = [
-    { name: 'Croissant Classique', description: 'Croissant au beurre traditionnel', price: 1.20, cost: 0.60, categoryIndex: 1, barcode: '1234567890123', sku: 'CRO-001', unit: 'pièce', minStockLevel: 50, maxStockLevel: 200 },
-    { name: 'Pain au Chocolat', description: 'Pain au chocolat noir', price: 1.50, cost: 0.75, categoryIndex: 1, barcode: '1234567890124', sku: 'PAC-001', unit: 'pièce', minStockLevel: 40, maxStockLevel: 150 },
-    { name: 'Éclair au Chocolat', description: 'Éclair garni de crème pâtissière et chocolat', price: 2.50, cost: 1.25, categoryIndex: 0, barcode: '1234567890125', sku: 'ECL-001', unit: 'pièce', minStockLevel: 30, maxStockLevel: 100 },
-    { name: 'Mille-Feuille', description: 'Mille-feuille à la vanille', price: 3.00, cost: 1.50, categoryIndex: 0, barcode: '1234567890126', sku: 'MF-001', unit: 'pièce', minStockLevel: 20, maxStockLevel: 80 },
-    { name: 'Tarte aux Pommes', description: 'Tarte aux pommes traditionnelle', price: 4.50, cost: 2.25, categoryIndex: 0, barcode: '1234567890127', sku: 'TAP-001', unit: 'pièce', minStockLevel: 15, maxStockLevel: 60 },
-    { name: 'Café Expresso', description: 'Expresso italien', price: 1.80, cost: 0.90, categoryIndex: 3, barcode: '1234567890128', sku: 'CAF-001', unit: 'tasse', minStockLevel: 100, maxStockLevel: 300 },
-    { name: 'Thé à la Menthe', description: 'Thé vert à la menthe fraîche', price: 2.00, cost: 1.00, categoryIndex: 3, barcode: '1234567890129', sku: 'THE-001', unit: 'tasse', minStockLevel: 80, maxStockLevel: 250 },
-    { name: 'Cookie Chocolat', description: 'Cookie aux pépites de chocolat', price: 1.00, cost: 0.50, categoryIndex: 2, barcode: '1234567890130', sku: 'COO-001', unit: 'pièce', minStockLevel: 60, maxStockLevel: 200 }
+    { name: 'Croissant Classique', description: 'Croissant au beurre traditionnel', price: 1.20, familleName: 'Viennoiserie', barcode: '1234567890123' },
+    { name: 'Pain au Chocolat', description: 'Pain au chocolat noir', price: 1.50, familleName: 'Viennoiserie', barcode: '1234567890124' },
+    { name: 'Éclair au Chocolat', description: 'Éclair garni de crème pâtissière et chocolat', price: 2.50, familleName: 'Pâtisserie', barcode: '1234567890125' },
+    { name: 'Mille-Feuille', description: 'Mille-feuille à la vanille', price: 3.00, familleName: 'Pâtisserie', barcode: '1234567890126' },
+    { name: 'Tarte aux Pommes', description: 'Tarte aux pommes traditionnelle', price: 4.50, familleName: 'Pâtisserie', barcode: '1234567890127' },
+    { name: 'Café Expresso', description: 'Expresso italien', price: 1.80, familleName: 'Boissons', barcode: '1234567890128' },
+    { name: 'Thé à la Menthe', description: 'Thé vert à la menthe fraîche', price: 2.00, familleName: 'Boissons', barcode: '1234567890129' },
+    { name: 'Cookie Chocolat', description: 'Cookie aux pépites de chocolat', price: 1.00, familleName: 'Boulangerie', barcode: '1234567890130' },
+    { name: 'Gâteau au Chocolat', description: 'Gâteau moelleux au chocolat noir', price: 5.50, familleName: 'Pâtisserie', barcode: '1234567890131' },
+    { name: 'Tarte Tatin', description: 'Tarte tatin aux pommes caramélisées', price: 6.00, familleName: 'Pâtisserie', barcode: '1234567890132' },
+    { name: 'Profiteroles', description: 'Profiteroles à la crème chantilly et chocolat', price: 4.80, familleName: 'Pâtisserie', barcode: '1234567890133' },
+    { name: 'Cheesecake', description: 'Cheesecake aux fruits rouges', price: 5.20, familleName: 'Pâtisserie', barcode: '1234567890134' },
+    { name: 'Tiramisu', description: 'Tiramisu classique italien', price: 6.50, familleName: 'Pâtisserie', barcode: '1234567890135' },
+    { name: 'Macarons Assortis', description: 'Macarons aux saveurs variées', price: 8.00, familleName: 'Pâtisserie', barcode: '1234567890136' },
+    { name: 'Opéra', description: 'Gâteau Opéra aux amandes et café', price: 7.50, familleName: 'Pâtisserie', barcode: '1234567890137' },
+    { name: 'Saint-Honoré', description: 'Saint-Honoré à la crème chiboust', price: 6.80, familleName: 'Pâtisserie', barcode: '1234567890138' },
+    { name: 'Paris-Brest', description: 'Paris-Brest aux noisettes', price: 5.90, familleName: 'Pâtisserie', barcode: '1234567890139' },
+    { name: 'Religieuse', description: 'Religieuse au chocolat et café', price: 4.20, familleName: 'Pâtisserie', barcode: '1234567890140' },
+    
+    // Tunisian Pastries
+    { name: 'Baklava', description: 'Baklava aux noix et miel', price: 3.50, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890141' },
+    { name: 'Makroudh', description: 'Makroudh aux dattes et semoule', price: 2.80, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890142' },
+    { name: 'Zlabia', description: 'Zlabia frite au miel', price: 1.50, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890143' },
+    { name: 'Ghrayba', description: 'Ghrayba aux amandes', price: 2.20, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890144' },
+    { name: 'Kaak Warka', description: 'Kaak warka aux amandes', price: 3.00, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890145' },
+    { name: 'Samsa', description: 'Samsa aux amandes et miel', price: 2.50, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890146' },
+    { name: 'Cornes de Gazelle', description: 'Cornes de gazelle aux amandes', price: 4.00, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890147' },
+    { name: 'Mhalbiya', description: 'Mhalbiya à la rose', price: 2.80, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890148' },
+    { name: 'Assida', description: 'Assida au beurre et miel', price: 3.20, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890149' },
+    { name: 'Bambalouni', description: 'Bambalouni frit au sucre', price: 1.80, familleName: 'Pâtisserie Tunisienne', barcode: '1234567890150' },
+    
+    // Juices and Smoothies
+    { name: 'Jus d\'Orange Frais', description: 'Jus d\'orange pressé', price: 3.50, familleName: 'Jus et Smoothies', barcode: '1234567890151' },
+    { name: 'Jus de Pomme', description: 'Jus de pomme naturel', price: 3.00, familleName: 'Jus et Smoothies', barcode: '1234567890152' },
+    { name: 'Jus de Grenade', description: 'Jus de grenade frais', price: 4.50, familleName: 'Jus et Smoothies', barcode: '1234567890153' },
+    { name: 'Jus de Citron', description: 'Jus de citron pressé', price: 2.50, familleName: 'Jus et Smoothies', barcode: '1234567890154' },
+    { name: 'Smoothie Banane', description: 'Smoothie banane et lait', price: 4.00, familleName: 'Jus et Smoothies', barcode: '1234567890155' },
+    { name: 'Smoothie Fraise', description: 'Smoothie fraise et yaourt', price: 4.20, familleName: 'Jus et Smoothies', barcode: '1234567890156' },
+    { name: 'Smoothie Mangue', description: 'Smoothie mangue et ananas', price: 4.80, familleName: 'Jus et Smoothies', barcode: '1234567890157' },
+    { name: 'Jus de Carotte', description: 'Jus de carotte frais', price: 3.20, familleName: 'Jus et Smoothies', barcode: '1234567890158' },
+    { name: 'Jus de Betterave', description: 'Jus de betterave et pomme', price: 3.80, familleName: 'Jus et Smoothies', barcode: '1234567890159' },
+    { name: 'Smoothie Vert', description: 'Smoothie épinards et kiwi', price: 5.00, familleName: 'Jus et Smoothies', barcode: '1234567890160' },
+    { name: 'Jus de Raisin', description: 'Jus de raisin naturel', price: 3.50, familleName: 'Jus et Smoothies', barcode: '1234567890161' },
+    { name: 'Smoothie Tropical', description: 'Smoothie fruits tropicaux', price: 5.50, familleName: 'Jus et Smoothies', barcode: '1234567890162' }
   ];
 
   const products = [];
   for (const prodData of productData) {
     let product = await prisma.product.findFirst({
-      where: { sku: prodData.sku }
+      where: { barcode: prodData.barcode }
     });
     
     if (!product) {
+      // Find the family ID
+      const family = families.find(f => f.name === prodData.familleName);
+      if (!family) {
+        console.log(`❌ Family not found: ${prodData.familleName}`);
+        continue;
+      }
+
       product = await prisma.product.create({
         data: {
           name: prodData.name,
           description: prodData.description,
-          price: prodData.price,
-          cost: prodData.cost,
-          categoryId: categories[prodData.categoryIndex].id,
+          familleId: family.id,
+          prix_vente_TTC: prodData.price,
           barcode: prodData.barcode,
-          sku: prodData.sku,
-          unit: prodData.unit,
-          minStockLevel: prodData.minStockLevel,
-          maxStockLevel: prodData.maxStockLevel
+          unite: 'pcs'
         }
       });
     }
@@ -172,17 +226,21 @@ async function main() {
 
   console.log('✅ Expense categories created');
 
-  // Create or update users
-  const hashedPassword = await bcrypt.hash('admin123', 12);
+  // Create or update demo users with different passwords
+  const adminPassword = await bcrypt.hash('Admin2024!', 12);
+  const managerPassword = await bcrypt.hash('Manager2024!', 12);
+  const cashierPassword = await bcrypt.hash('Cashier2024!', 12);
+  const stockPassword = await bcrypt.hash('Stock2024!', 12);
   
   const users = await Promise.all([
     prisma.user.upsert({
       where: { username: 'admin' },
-      update: {},
+      update: { passwordHash: adminPassword, pin: '00010001' },
       create: {
         username: 'admin',
         email: 'admin@patisserie.tn',
-        passwordHash: hashedPassword,
+        passwordHash: adminPassword,
+        pin: '00010001',
         firstName: 'Admin',
         lastName: 'Principal',
         role: 'ADMIN',
@@ -191,11 +249,17 @@ async function main() {
     }),
     prisma.user.upsert({
       where: { username: 'manager_sfax' },
-      update: {},
+      update: { 
+        username: 'manager',
+        email: 'manager@patisserie.tn',
+        passwordHash: managerPassword,
+        pin: '00020002'
+      },
       create: {
-        username: 'manager_sfax',
-        email: 'manager.sfax@patisserie.tn',
-        passwordHash: hashedPassword,
+        username: 'manager',
+        email: 'manager@patisserie.tn',
+        passwordHash: managerPassword,
+        pin: '00020002',
         firstName: 'Ahmed',
         lastName: 'Ben Ali',
         role: 'MANAGER',
@@ -204,11 +268,17 @@ async function main() {
     }),
     prisma.user.upsert({
       where: { username: 'cashier1' },
-      update: {},
+      update: { 
+        username: 'cashier',
+        email: 'cashier@patisserie.tn',
+        passwordHash: cashierPassword,
+        pin: '00030003'
+      },
       create: {
-        username: 'cashier1',
-        email: 'cashier1@patisserie.tn',
-        passwordHash: hashedPassword,
+        username: 'cashier',
+        email: 'cashier@patisserie.tn',
+        passwordHash: cashierPassword,
+        pin: '00030003',
         firstName: 'Fatma',
         lastName: 'Trabelsi',
         role: 'CASHIER',
@@ -217,11 +287,17 @@ async function main() {
     }),
     prisma.user.upsert({
       where: { username: 'stock_manager' },
-      update: {},
-      create: {
-        username: 'stock_manager',
+      update: { 
+        username: 'stock',
         email: 'stock@patisserie.tn',
-        passwordHash: hashedPassword,
+        passwordHash: stockPassword,
+        pin: '00040004'
+      },
+      create: {
+        username: 'stock',
+        email: 'stock@patisserie.tn',
+        passwordHash: stockPassword,
+        pin: '00040004',
         firstName: 'Mohamed',
         lastName: 'Hassan',
         role: 'STOCK_MANAGER',
@@ -232,29 +308,29 @@ async function main() {
 
   console.log('✅ Users created');
 
-  // Create or update customers
-  const customerData = [
-    { name: 'Ali Ben Salem', email: 'ali.bensalem@email.tn', phone: '+216 74 111 222', address: '15 Rue de la Paix, Sfax', loyaltyPoints: 150 },
-    { name: 'Amina Karray', email: 'amina.karray@email.tn', phone: '+216 74 333 444', address: '28 Avenue de l\'Indépendance, Sfax', loyaltyPoints: 75 },
-    { name: 'Hassan Trabelsi', email: 'hassan.trabelsi@email.tn', phone: '+216 74 555 666', address: '7 Rue du Commerce, Sfax', loyaltyPoints: 200 }
+  // Create or update clients
+  const clientData = [
+    { code: 'CLI001', firstName: 'Ali', lastName: 'Ben Salem', email: 'ali.bensalem@email.tn', phone: '+216 74 111 222', address: '15 Rue de la Paix, Sfax', loyaltyPoints: 150 },
+    { code: 'CLI002', firstName: 'Amina', lastName: 'Karray', email: 'amina.karray@email.tn', phone: '+216 74 333 444', address: '28 Avenue de l\'Indépendance, Sfax', loyaltyPoints: 75 },
+    { code: 'CLI003', firstName: 'Hassan', lastName: 'Trabelsi', email: 'hassan.trabelsi@email.tn', phone: '+216 74 555 666', address: '7 Rue du Commerce, Sfax', loyaltyPoints: 200 }
   ];
 
-  const customers = [];
-  for (const custData of customerData) {
-    let customer = await prisma.customer.findFirst({
-      where: { email: custData.email }
+  const clients = [];
+  for (const clientInfo of clientData) {
+    let client = await prisma.client.findFirst({
+      where: { email: clientInfo.email }
     });
     
-    if (!customer) {
-      customer = await prisma.customer.create({
-        data: custData
+    if (!client) {
+      client = await prisma.client.create({
+        data: clientInfo
       });
     }
     
-    customers.push(customer);
+    clients.push(client);
   }
 
-  console.log('✅ Customers created');
+  console.log('✅ Clients created');
 
   // Create or update inventory
   for (const depot of depots) {

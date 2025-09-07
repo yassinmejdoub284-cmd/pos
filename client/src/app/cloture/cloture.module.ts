@@ -3,12 +3,14 @@ import { CommonModule } from '@angular/common';
 
 import { ClotureRoutingModule } from './cloture-routing.module';
 import { ClotureComponent } from './cloture.component';
+import { HistoriqueComponent } from './historique/historique.component';
 
 @NgModule({
-  declarations: [ClotureComponent],
   imports: [
     CommonModule,
-    ClotureRoutingModule
+    ClotureRoutingModule,
+    ClotureComponent,
+    HistoriqueComponent
   ]
 })
 export class ClotureModule { }

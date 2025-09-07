@@ -1,0 +1,589 @@
+/* Professional POS Login Styles - Light Mode with Vibrant Colors */
+
+/* Main container flexbox improvements */
+.min-h-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile */
+  background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 50%, #f3e8ff 100%);
+}
+
+/* Card flexbox layout */
+.login-card {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  max-height: 90vh;
+  overflow: hidden;
+  background: white;
+  border-radius: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Header flexbox */
+.login-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 2rem 3rem;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 4rem;
+  height: 4rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+}
+
+.header-text h1 {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+/* Main content flexbox */
+.login-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 2rem 3rem;
+  min-height: 0; /* Allow flex item to shrink */
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  gap: 1.5rem;
+}
+
+/* PIN display flexbox */
+.pin-display {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+}
+
+.pin-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.pin-dot.filled {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border-color: #3b82f6;
+  color: white;
+  box-shadow: 0 8px 15px rgba(59, 130, 246, 0.4);
+  transform: scale(1.05);
+}
+
+.pin-dot.empty {
+  border-color: #d1d5db;
+  background: white;
+  color: #9ca3af;
+}
+
+/* Demo credentials flexbox */
+.demo-credentials {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  border: 2px solid #22c55e;
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 4px 6px rgba(34, 197, 94, 0.1);
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.demo-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid #dcfce7;
+  transition: all 0.2s ease;
+}
+
+.demo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Keyboard flexbox */
+.keyboard-section {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f9fafb 0%, #dbeafe 100%);
+  border-top: 1px solid #e5e7eb;
+}
+
+.keyboard-container {
+  display: flex;
+  gap: 1rem;
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.keypad {
+  display: flex;
+  flex: 1;
+}
+
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 6rem;
+  flex-shrink: 0;
+}
+
+/* Desktop keyboard layout */
+.desktop-keyboard {
+  display: flex;
+  flex-direction: column;
+  width: 24rem;
+  background: linear-gradient(135deg, #f9fafb 0%, #dbeafe 100%);
+  padding: 1.5rem;
+  border-left: 1px solid #e5e7eb;
+}
+
+/* Key button styles with vibrant colors */
+.num-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  user-select: none;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+}
+
+.num-key:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+}
+
+.num-key:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+}
+
+/* Special key colors */
+.num-key.clear {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+}
+
+.num-key.clear:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 8px 15px rgba(239, 68, 68, 0.4);
+}
+
+.num-key.backspace {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  box-shadow: 0 4px 6px rgba(249, 115, 22, 0.3);
+}
+
+.num-key.backspace:hover {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  box-shadow: 0 8px 15px rgba(249, 115, 22, 0.4);
+}
+
+/* Action button vibrant colors */
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  user-select: none;
+  border: none;
+  cursor: pointer;
+  min-height: 4.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.action-btn.enter {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.action-btn.enter:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.action-btn.backspace {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.action-btn.backspace:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.action-btn.clear {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.action-btn.clear:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(239, 68, 68, 0.4);
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+.action-btn:active {
+  transform: translateY(0);
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Login button vibrant styling */
+.login-button {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 1rem 1.5rem;
+  font-weight: 700;
+  font-size: 1.125rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 15px rgba(59, 130, 246, 0.3);
+}
+
+.login-button:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 20px rgba(59, 130, 246, 0.4);
+}
+
+.login-button:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 15px rgba(59, 130, 246, 0.3);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Input field professional styling */
+.input-field {
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.input-field:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Error message styling */
+.error-message {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 2px solid #fca5a5;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .desktop-keyboard {
+    display: none;
+  }
+  
+  .login-card {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-card {
+    max-width: 100%;
+    margin: 1rem;
+    max-height: 95vh;
+  }
+  
+  .keyboard-container {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .action-buttons {
+    width: 100%;
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+  
+  .action-btn {
+    min-height: 3rem;
+  }
+  
+  .num-key {
+    min-height: 2.5rem;
+    font-size: 1rem;
+  }
+  
+  .demo-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
+  
+  .header-text h1 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .login-content {
+    padding: 1rem;
+  }
+  
+  .keyboard-section {
+    padding: 1rem;
+  }
+  
+  .pin-dot {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1rem;
+  }
+  
+  .num-key {
+    min-height: 2.25rem;
+    font-size: 0.875rem;
+  }
+  
+  .action-btn {
+    min-height: 2.5rem;
+    padding: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pin-display {
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+  
+  .pin-dot {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.875rem;
+  }
+  
+  .keypad-grid {
+    gap: 0.5rem;
+  }
+  
+  .num-key {
+    min-height: 2rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Focus styles for accessibility */
+button:focus,
+input:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+  transition: all 0.15s ease;
+}
+
+/* Flex utilities */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-col-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.flex-shrink-0 {
+  flex-shrink: 0;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-nowrap {
+  flex-wrap: nowrap;
+}
+
+/* Vibrant color utilities */
+.text-gradient {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+}
+
+.bg-gradient-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.bg-gradient-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}

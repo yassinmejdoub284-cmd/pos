@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ProductsService } from '../../core/services/products.service';
-import { Product } from '../../core/models/product.model';
+import { Product, ProductFamily } from '../../core/models/product.model';
 
 @Component({
   selector: 'app-products',
@@ -18,17 +18,21 @@ export class ProductsComponent implements OnInit {
   itemsPerPage = 20;
   totalPages = 1;
   searchQuery = '';
-  selectedFamille = '';
+  selectedFamille = 0;
   showAddModal = false;
   showImportModal = false;
   showImageUploadModal = false;
+  showVracModal = false;
   editingProduct: Product | null = null;
   selectedProductForImage: Product | null = null;
+  selectedProductForVrac: Product | null = null;
+  families: ProductFamily[] = [];
 
   constructor(private productsService: ProductsService) {}
 
   ngOnInit(): void {
     this.loadProducts();
+    this.loadFamilies();
   }
 
   loadProducts(): void {
@@ -48,13 +52,24 @@ export class ProductsComponent implements OnInit {
     });
   }
 
+  loadFamilies(): void {
+    this.productsService.getFamilles().subscribe({
+      next: (families) => {
+        this.families = families;
+      },
+      error: (error) => {
+        console.error('Error loading families:', error);
+      }
+    });
+  }
+
   applyFilters(): void {
     this.filteredProducts = this.allProducts.filter(product => {
       const matchesSearch = !this.searchQuery || 
         product.barcode?.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
         product.name?.toLowerCase().includes(this.searchQuery.toLowerCase());
       
-      const matchesFamille = !this.selectedFamille || product.famille === this.selectedFamille;
+      const matchesFamille = !this.selectedFamille || product.familleId === this.selectedFamille;
       
       return matchesSearch && matchesFamille;
     });
@@ -101,7 +116,9 @@ export class ProductsComponent implements OnInit {
   closeModal(): void {
     this.showAddModal = false;
     this.showImportModal = false;
+    this.showVracModal = false;
     this.editingProduct = null;
+    this.selectedProductForVrac = null;
   }
 
   onProductSaved(): void {
@@ -175,25 +192,18 @@ export class ProductsComponent implements OnInit {
   onImageUploadConfirmed(file: File): void {
     if (!this.selectedProductForImage) return;
 
-    this.productsService.uploadImage(file).subscribe({
+    // Store the product ID before starting upload to avoid null reference issues
+    const productId = this.selectedProductForImage.id;
+
+    this.productsService.uploadProductPhoto(productId, file).subscribe({
       next: (response) => {
-        // Update the product with the new image URL
-        this.productsService.updateProduct(this.selectedProductForImage!.id, {
-          photo: response.imageUrl
-        }).subscribe({
-          next: () => {
-            // Update the product in the local array
-            const product = this.allProducts.find(p => p.id === this.selectedProductForImage!.id);
-            if (product) {
-              product.photo = response.imageUrl;
-              this.applyFilters(); // Refresh the display
-            }
-            this.closeImageUploadModal();
-          },
-          error: (error) => {
-            this.error = 'Erreur lors de la mise à jour du produit';
-          }
-        });
+        // Update the product in the local array
+        const product = this.allProducts.find(p => p.id === productId);
+        if (product) {
+          product.photo = response.imageUrl;
+          this.applyFilters(); // Refresh the display
+        }
+        this.closeImageUploadModal();
       },
       error: (error) => {
         this.error = 'Erreur lors de l\'upload de l\'image';
@@ -203,5 +213,63 @@ export class ProductsComponent implements OnInit {
 
   onWarningsUpdated(): void {
     // Refresh warnings if needed
+  }
+
+  openVracModal(product: Product): void {
+    this.selectedProductForVrac = product;
+    this.showVracModal = true;
+  }
+
+  closeVracModal(): void {
+    this.showVracModal = false;
+    this.selectedProductForVrac = null;
+  }
+
+  convertToVrac(vracData: { isStockable: boolean; price: number }): void {
+    if (!this.selectedProductForVrac) return;
+
+    // Find the vrac family
+    const vracFamily = this.families.find(f => f.name === 'Vrac');
+    if (!vracFamily) {
+      this.error = 'Famille Vrac non trouvée';
+      return;
+    }
+
+    const vracProduct = {
+      name: `${this.selectedProductForVrac.name} (Vrac)`,
+      description: `Version vrac de ${this.selectedProductForVrac.name}`,
+      familleId: vracFamily.id,
+      barcode: '', // Will be generated or left empty
+      unite: this.selectedProductForVrac.unite,
+      prix_vente_TTC: vracData.price,
+      tva: this.selectedProductForVrac.tva,
+      photo: this.selectedProductForVrac.photo,
+      duree_conservation: this.selectedProductForVrac.duree_conservation,
+      isVrac: true,
+      originalProductId: this.selectedProductForVrac.id,
+      isStockable: vracData.isStockable
+    };
+
+    this.productsService.createProduct(vracProduct).subscribe({
+      next: () => {
+        this.closeVracModal();
+        this.loadProducts();
+      },
+      error: (error) => {
+        this.error = 'Erreur lors de la création du produit vrac';
+      }
+    });
+  }
+
+  getVracConvertibleCount(): number {
+    return this.displayedProducts.filter(product => product.isVraguable === true).length;
+  }
+
+  getStockableCount(): number {
+    return this.displayedProducts.filter(product => product.isStockable === true).length;
+  }
+
+  getVracProductsCount(): number {
+    return this.displayedProducts.filter(product => product.isVrac === true).length;
   }
 } 

@@ -1,1 +1,45 @@
- 
+/* Product configuration styling */
+.configuration-section {
+  background: rgba(55, 65, 81, 0.2);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.checkbox-container input[type="checkbox"] {
+  accent-color: #ec4899;
+  transform: scale(1.1);
+}
+
+.checkbox-container input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status-indicator {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+
+/* Form validation styling */
+.form-field-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+.error-message {
+  color: #fca5a5;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}

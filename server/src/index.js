@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
@@ -13,6 +14,8 @@ const reportsRoutes = require('./routes/reports');
 const stockDocumentsRoutes = require('./routes/stock-documents');
 const clientRoutes = require('./routes/clients');
 const settingsRoutes = require('./routes/settings');
+const sessionsRoutes = require('./routes/sessions');
+const familiesRoutes = require('./routes/families');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -21,6 +24,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/sales', authenticateToken, salesRoutes);
 app.use('/api/products', authenticateToken, productsRoutes);
@@ -28,13 +34,18 @@ app.use('/api/users', authenticateToken, usersRoutes);
 app.use('/api/depots', authenticateToken, depotsRoutes);
 app.use('/api/stock', authenticateToken, stockRoutes);
 app.use('/api/expenses', authenticateToken, expensesRoutes);
-app.use('/api/reports', authenticateToken, reportsRoutes);
-app.use('/api/stock-documents', authenticateToken, stockDocumentsRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/stock-documents', stockDocumentsRoutes);
 app.use('/api/clients', authenticateToken, clientRoutes);
 app.use('/api/settings', authenticateToken, settingsRoutes);
+app.use('/api/sessions', authenticateToken, sessionsRoutes);
+app.use('/api/families', authenticateToken, familiesRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*'} });
+
+// Make io instance available to routes
+app.set('io', io);
 
 io.on('connection', (socket) => {
   socket.on('disconnect', () => {});

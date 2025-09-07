@@ -1,4 +1,133 @@
-<div class="bg-white shadow rounded-lg p-6">
-  <h2 class="text-2xl font-bold text-gray-900 mb-4">Rapports</h2>
-  <p class="text-gray-600">Module de rapports en cours de développement</p>
+<div class="min-h-screen bg-gradient-to-br from-amber-50 via-blue-50 to-purple-50 px-4 py-6">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+      <div class="flex items-center space-x-4">
+        <button (click)="navigateToHome()" class="p-2 rounded-2xl bg-white border border-gray-200 hover:border-blue-300 transition-colors duration-300" title="Accueil">
+          <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+          </svg>
+        </button>
+        <div>
+          <h1 class="text-3xl font-bold text-gray-800 mb-2">Rapports</h1>
+          <p class="text-gray-600">Choisissez le type de rapport à consulter</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Report Type Selection Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-8xl mx-auto">
+      <!-- 0. Extrait Journalière -->
+      <div class="group cursor-pointer" (click)="navigateToDailyExtract()">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-teal-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="relative z-10">
+            <div class="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2 group-hover:text-teal-500 transition-colors duration-300">Extrait Journalière</h3>
+            <p class="text-gray-600 group-hover:text-gray-700 transition-colors duration-300 text-sm">Consultez les extraits des 10 derniers jours avec détails par famille et produit</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1. Rapport Journalier / Mensuel -->
+      <div class="group cursor-pointer" (click)="navigateToReport('daily-monthly')">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-blue-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="relative z-10">
+            <div class="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2 group-hover:text-blue-500 transition-colors duration-300">Rapport Journalier / Mensuel</h3>
+            <p class="text-gray-600 group-hover:text-gray-700 transition-colors duration-300 text-sm">CA Vente, Prix Achat, Résultat par période</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Vente par rubrique / Achat par rubrique -->
+      <div class="group cursor-pointer" (click)="navigateToReport('sales-by-category')">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-green-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="relative z-10">
+            <div class="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2 group-hover:text-green-500 transition-colors duration-300">Vente par Rubrique</h3>
+            <p class="text-gray-600 group-hover:text-gray-700 transition-colors duration-300 text-sm">Analyse des ventes et achats par article ou famille</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Vente à crédit -->
+      <div class="group cursor-pointer" (click)="navigateToReport('credit-sales')">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-orange-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="relative z-10">
+            <div class="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2 group-hover:text-orange-500 transition-colors duration-300">Vente à Crédit</h3>
+            <p class="text-gray-600 group-hover:text-gray-700 transition-colors duration-300 text-sm">Suivi des ventes à crédit et montants dus</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Finance -->
+      <div class="group cursor-pointer" (click)="navigateToReport('finance')">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-purple-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="relative z-10">
+            <div class="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2 group-hover:text-purple-500 transition-colors duration-300">Finance</h3>
+            <p class="text-gray-600 group-hover:text-gray-700 transition-colors duration-300 text-sm">Relevés clients et fournisseurs</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. État dépense -->
+      <div class="group cursor-pointer" (click)="navigateToReport('expenses')">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-red-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="relative z-10">
+            <div class="w-16 h-16 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2 group-hover:text-accent-600 transition-colors duration-300">État Dépense</h3>
+            <p class="text-gray-600 group-hover:text-gray-700 transition-colors duration-300 text-sm">Suivi des dépenses et statuts de paiement</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Dashboard -->
+      <div class="group cursor-pointer" (click)="navigateToReport('dashboard')">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-teal-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="relative z-10">
+            <div class="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2 group-hover:text-teal-500 transition-colors duration-300">Dashboard</h3>
+            <p class="text-gray-600 group-hover:text-gray-700 transition-colors duration-300 text-sm">Tableau de bord avec indicateurs clés</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div> 
