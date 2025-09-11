@@ -124,7 +124,10 @@
             </div>
             <div class="ml-4">
               <p class="text-sm font-medium text-slate-500">Tickets</p>
-              <p class="text-2xl font-semibold text-gray-900">{{ currentSession()?.summary?.totalTickets || 0 }}</p>
+              <div class="flex items-center gap-3">
+                <p class="text-2xl font-semibold text-gray-900">{{ currentSession()?.summary?.totalTickets || 0 }}</p>
+                <button (click)="openTicketsModal()" class="px-3 py-1 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">Voir</button>
+              </div>
             </div>
           </div>
         </div>
@@ -156,7 +159,7 @@
                   <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                       <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1" />
                       </svg>
                     </div>
                     <div>
@@ -175,7 +178,7 @@
           <div class="text-center py-6">
             <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1" />
               </svg>
             </div>
             <p class="text-sm text-gray-500">Aucune alimentation enregistrée</p>
@@ -190,7 +193,7 @@
           class="px-6 py-3 border border-transparent rounded-lg shadow-md text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center space-x-2"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1" />
           </svg>
           <span>Alimenter</span>
         </button>
@@ -223,7 +226,7 @@
             
             <!-- Current Balance - Top Right -->
             <div class="absolute top-16 rotate-10 right-1">
-              <div class="bg-green-600/60 backdrop-blur-sm rounded-lg px-3 py-2 border border-green-700/30">
+              <div class="bg-green-600/60 rounded-lg px-3 py-2 border border-green-700/30">
                 <p class="text-white text-xs font-medium">SOLDE</p>
                 <p class="text-white text-sm font-bold">
                   {{ formatCurrency(currentSession()?.summary?.expectedCash || 0) }}
@@ -350,7 +353,7 @@
             
             <!-- Current Balance - Top Right -->
             <div class="absolute top-16 rotate-10 right-1">
-              <div class="bg-white/60 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/30">
+              <div class="bg-white/60 rounded-lg px-3 py-2 border border-white/30">
                 <p class="text-green-800 text-xs font-medium">SOLDE</p>
                 <p class="text-green-800 text-sm font-bold">
                   {{ formatCurrency(currentSession()?.summary?.expectedCash || 0) }}
@@ -454,6 +457,32 @@
               <span>🏦 PATISSERIE</span>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Tickets Modal -->
+  @if (showTicketsModal()) {
+    <div class="fixed inset-0 bg-black/30 z-50 flex items-end md:items-center justify-center">
+      <div class="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-xl">
+        <div class="p-4 border-b flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-slate-800">Tickets</h3>
+          <button (click)="showTicketsModal.set(false)" class="text-slate-500 hover:text-slate-800" aria-label="Fermer">
+            ✕
+          </button>
+        </div>
+        <div class="max-h-[60vh] overflow-y-auto divide-y">
+          @for (t of sessionTickets(); track t.id) {
+            <div class="flex items-center justify-between px-4 py-3">
+              <div class="text-slate-700">{{ t.id }}</div>
+              <div class="font-semibold">{{ formatCurrency(t.amount) }}</div>
+            </div>
+          }
+        </div>
+        <div class="p-4 border-t flex items-center justify-between bg-slate-50">
+          <div class="text-slate-600 font-medium">Total</div>
+          <div class="text-slate-900 font-bold">{{ formatCurrency(ticketsTotal()) }}</div>
         </div>
       </div>
     </div>

@@ -1,10 +1,49 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const fs = require('fs');
+const path = require('path');
 const { authenticateToken } = require('../middleware/auth');
 const { AuditLogger } = require('../lib/audit');
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Settings fallback (file) - mirror settings route behavior
+const SETTINGS_FILE = path.join(__dirname, '../../uploads/app-settings.json');
+function readFileSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw || '{}');
+      // Normalize number field possibly stored as string
+      if (parsed && typeof parsed.autoApproveExpenseBelow !== 'undefined') {
+        const n = Number(parsed.autoApproveExpenseBelow);
+        parsed.autoApproveExpenseBelow = isNaN(n) ? 0 : n;
+      }
+      return parsed;
+    }
+  } catch {}
+  return {};
+}
+
+async function getAutoApproveThreshold() {
+  // Try DB first
+  try {
+    if (prisma.appSettings && typeof prisma.appSettings.findFirst === 'function') {
+      const settings = await prisma.appSettings.findFirst();
+      if (settings && typeof settings.autoApproveExpenseBelow !== 'undefined') {
+        const n = Number(settings.autoApproveExpenseBelow);
+        console.log('[settings] source=database autoApproveExpenseBelow=', n);
+        return isNaN(n) ? 0 : n;
+      }
+    }
+  } catch {}
+  // Fallback to file settings
+  const fileSettings = readFileSettings();
+  const n = Number(fileSettings.autoApproveExpenseBelow);
+  console.log('[settings] source=file autoApproveExpenseBelow=', n);
+  return isNaN(n) ? 0 : n;
+}
 
 // Test endpoint to check database state
 router.get('/test/db', async (req, res) => {
@@ -209,21 +248,27 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new expense
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { amount, description, categoryId, depotId, notes, receiptUrl, paymentType, date, collectionDate } = req.body;
+    const { amount, categoryId, depotId, notes, receiptUrl, paymentType, date, collectionDate, supplierId } = req.body;
 
-    if (!amount || !description || !categoryId) {
+    if (!amount || !categoryId) {
       return res.status(400).json({ 
-        error: 'Montant, description et catégorie sont requis' 
+        error: 'Montant et catégorie sont requis' 
       });
     }
 
     // Use user's depot if not specified and user is not admin/manager
     const finalDepotId = depotId ? parseInt(depotId) : req.user.depotId;
 
+    // Fetch approval threshold from settings (DB then file fallback)
+    const autoApproveThreshold = await getAutoApproveThreshold();
+
+    const numericAmount = Number(amount);
+    const isAutoApproved = !isNaN(numericAmount) && numericAmount <= autoApproveThreshold;
+    console.log('[expenses.create] amount=', numericAmount, 'threshold=', autoApproveThreshold, 'isAutoApproved=', isAutoApproved);
+
     const expense = await prisma.expense.create({
       data: {
-        amount: parseFloat(amount),
-        description,
+        amount: isNaN(numericAmount) ? 0 : numericAmount,
         categoryId: parseInt(categoryId),
         depotId: finalDepotId,
         userId: req.user.id,
@@ -232,7 +277,13 @@ router.post('/', authenticateToken, async (req, res) => {
         collectionDate: collectionDate ? new Date(collectionDate) : new Date(),
         notes,
         receiptUrl,
-        isApproved: false
+        isApproved: isAutoApproved,
+        approvedBy: isAutoApproved ? req.user.id : null,
+        approvedAt: isAutoApproved ? new Date() : null,
+        // Temporary fallback for legacy schema requiring description
+        description: '',
+        // Optional supplier linkage
+        supplierId: supplierId ? parseInt(supplierId) : null
       },
       include: {
         category: true,
@@ -260,7 +311,7 @@ router.post('/', authenticateToken, async (req, res) => {
 // Update expense
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    const { amount, description, categoryId, notes, receiptUrl } = req.body;
+    const { amount, categoryId, notes, receiptUrl, supplierId, description } = req.body;
     const expenseId = parseInt(req.params.id);
 
     const existingExpense = await prisma.expense.findUnique({
@@ -295,10 +346,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
       where: { id: expenseId },
       data: {
         amount: amount ? parseFloat(amount) : undefined,
-        description,
         categoryId: categoryId ? parseInt(categoryId) : undefined,
         notes,
-        receiptUrl
+        receiptUrl,
+        // Optional supplier linkage update
+        supplierId: supplierId !== undefined ? (supplierId ? parseInt(supplierId) : null) : undefined,
+        description: description !== undefined ? description : undefined
       },
       include: {
         category: true,

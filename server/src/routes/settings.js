@@ -24,7 +24,9 @@ function ensureDefaults(data = {}) {
     denominations: Array.isArray(data.denominations) ? data.denominations : [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05],
     requireApprovalForVariance: typeof data.requireApprovalForVariance === 'boolean' ? data.requireApprovalForVariance : true,
     ticketWidth: data.ticketWidth !== undefined ? Number(data.ticketWidth) : 58,
-    droitDeTimbre: typeof data.droitDeTimbre === 'boolean' ? data.droitDeTimbre : false
+    droitDeTimbre: typeof data.droitDeTimbre === 'boolean' ? data.droitDeTimbre : false,
+    // Expenses
+    autoApproveExpenseBelow: data.autoApproveExpenseBelow !== undefined ? Number(data.autoApproveExpenseBelow) : 0
   };
 }
 
@@ -49,7 +51,13 @@ router.get('/', async (req, res) => {
   try {
     if (prisma.appSettings && typeof prisma.appSettings.findFirst === 'function') {
       const settings = await prisma.appSettings.findFirst();
-      return res.json(ensureDefaults(settings || {}));
+      // Merge DB with file to include fields not in Prisma schema (like autoApproveExpenseBelow)
+      const fileSettings = readFileSettings();
+      const merged = ensureDefaults({
+        ...(settings || {}),
+        autoApproveExpenseBelow: fileSettings.autoApproveExpenseBelow
+      });
+      return res.json(merged);
     }
     const settings = readFileSettings();
     return res.json(settings);
@@ -62,6 +70,7 @@ router.get('/', async (req, res) => {
 router.put('/', async (req, res) => {
   try {
     const body = req.body || {};
+    console.log('[settings.update] incoming body=', body);
 
     // Try to parse JSON-like strings
     let keyboardShortcuts = body.keyboardShortcuts;
@@ -74,14 +83,22 @@ router.put('/', async (req, res) => {
       keyboardShortcuts,
       devicesConfig
     });
+    console.log('[settings.update] normalized data=', data);
 
-    if (prisma.appSettings && typeof prisma.appSettings.upsert === 'function') {
-      const updated = await prisma.appSettings.upsert({
-        where: { id: 1 },
-        update: data,
-        create: { id: 1, ...data }
-      });
-      return res.json(ensureDefaults(updated));
+    if (prisma.appSettings) {
+      // Use findFirst + update/create to avoid specifying auto-increment id on create
+      const existing = await prisma.appSettings.findFirst();
+      let saved;
+      // Strip non-Prisma fields for DB write but keep full data for file
+      const { autoApproveExpenseBelow, ...dbData } = data;
+      if (existing) {
+        saved = await prisma.appSettings.update({ where: { id: existing.id }, data: dbData });
+      } else {
+        saved = await prisma.appSettings.create({ data: dbData });
+      }
+      // Persist full settings (including threshold) to file
+      try { writeFileSettings({ ...saved, autoApproveExpenseBelow }); } catch {}
+      return res.json(ensureDefaults({ ...saved, autoApproveExpenseBelow }));
     }
 
     writeFileSettings(data);

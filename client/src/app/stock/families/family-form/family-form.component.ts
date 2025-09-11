@@ -6,7 +6,6 @@ import { ProductFamily } from '../../../core/models/product-family.model';
 @Component({
   selector: 'app-family-form',
   templateUrl: './family-form.component.html',
-  styleUrls: ['./family-form.component.css'],
   standalone: false
 })
 export class FamilyFormComponent implements OnInit {

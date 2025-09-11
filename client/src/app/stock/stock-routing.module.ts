@@ -21,6 +21,10 @@ const routes: Routes = [
     loadChildren: () => import('./families/families.module').then(m => m.FamiliesModule) 
   },
   { 
+    path: 'wholesale', 
+    loadChildren: () => import('./wholesale/wholesale.module').then(m => m.WholesaleModule) 
+  },
+  { 
     path: 'depot-reception/:depotId', 
     loadChildren: () => import('./depot-reception/depot-reception.module').then(m => m.DepotReceptionModule) 
   },

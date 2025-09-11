@@ -32,6 +32,14 @@ export interface SaleItem {
   unitPrice: number;
   total: number;
   discount: number;
+  // Wholesale fields
+  isWholesale?: boolean;
+  bundleQuantity?: number;
+  bundleSize?: number;
+  bundlePrice?: number;
+  marginPercent?: number;
+  requiresApproval?: boolean;
+  isApproved?: boolean;
 }
 
 export interface PaymentMethod {

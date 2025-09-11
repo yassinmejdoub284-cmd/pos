@@ -8,7 +8,6 @@ import { ScanResult } from '../../core/models/stock-document.model';
 @Component({
   selector: 'app-depot-reception',
   templateUrl: './depot-reception.component.html',
-  styleUrls: ['./depot-reception.component.css'],
   standalone: false
 })
 export class DepotReceptionComponent implements OnInit {

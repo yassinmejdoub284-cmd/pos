@@ -10,7 +10,6 @@ import { Product } from '../../core/models/product.model';
 @Component({
   selector: 'app-shop-transfer',
   templateUrl: './shop-transfer.component.html',
-  styleUrls: ['./shop-transfer.component.css'],
   standalone: false
 })
 export class ShopTransferComponent implements OnInit {

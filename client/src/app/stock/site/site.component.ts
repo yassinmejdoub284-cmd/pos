@@ -6,7 +6,6 @@ import { Depot } from '../../core/models/depot.model';
 @Component({
   selector: 'app-site',
   templateUrl: './site.component.html',
-  styleUrls: ['./site.component.css'],
   standalone: false
 })
 export class SiteComponent implements OnInit {

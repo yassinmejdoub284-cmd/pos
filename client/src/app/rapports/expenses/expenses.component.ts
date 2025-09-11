@@ -7,9 +7,10 @@ import Chart from 'chart.js/auto';
 interface Expense {
   id: number;
   amount: number;
-  description: string;
   date: string;
   isApproved: boolean;
+  isPaid?: boolean;
+  paidAt?: string;
   category: {
     id: number;
     name: string;
@@ -24,6 +25,11 @@ interface Expense {
     lastName: string;
   };
   approver?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  };
+  payer?: {
     id: number;
     firstName: string;
     lastName: string;
@@ -264,6 +270,18 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
       : 'bg-orange-100 text-orange-800';
   }
 
+  payExpense(expense: Expense): void {
+    if (!expense || expense.isPaid) { return; }
+    this.http.patch(`${environment.apiUrl}/expenses/${expense.id}/pay`, {})
+      .subscribe({
+        next: () => this.loadExpenses(),
+        error: (error) => {
+          console.error('Error paying expense:', error);
+          this.error = error?.error?.error || 'Erreur lors du paiement de la dépense';
+        }
+      });
+  }
+
   exportToExcel(): void {
     const csvContent = this.generateCSV();
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -278,10 +296,9 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
   }
 
   generateCSV(): string {
-    const headers = ['Date', 'Description', 'Catégorie', 'Dépôt', 'Montant', 'Statut', 'Utilisateur'];
+    const headers = ['Date', 'Catégorie', 'Dépôt', 'Montant', 'Statut', 'Utilisateur'];
     const rows = this.expenses.map(expense => [
       new Date(expense.date).toLocaleDateString('fr-FR'),
-      expense.description,
       expense.category.name,
       expense.depot.name,
       expense.amount.toFixed(2),
@@ -344,7 +361,6 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
           <thead>
             <tr>
               <th>Date</th>
-              <th>Description</th>
               <th>Catégorie</th>
               <th>Montant</th>
               <th>Statut</th>
@@ -354,7 +370,6 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
             ${this.expenses.map(expense => `
               <tr>
                 <td>${new Date(expense.date).toLocaleDateString('fr-FR')}</td>
-                <td>${expense.description}</td>
                 <td>${expense.category.name}</td>
                 <td>${expense.amount.toFixed(2)}</td>
                 <td>${this.getStatusLabel(expense.isApproved)}</td>

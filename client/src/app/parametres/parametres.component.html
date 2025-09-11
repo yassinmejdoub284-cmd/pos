@@ -12,71 +12,120 @@
         <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Paramètres</h2>
       </div>
       <div class="flex items-center gap-2">
-        <button (click)="load()" class="px-3 py-2 bg-gray-700/70 hover:bg-gray-700 text-gray-800 rounded-lg">Réinitialiser</button>
-        <button (click)="save()" [disabled]="saving" class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-gray-800 rounded-lg disabled:opacity-50">Enregistrer</button>
+        <button (click)="save()" [disabled]="saving" class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg disabled:opacity-50">Enregistrer</button>
       </div>
     </div>
 
     <div *ngIf="loading" class="text-gray-400">Chargement...</div>
     <div *ngIf="error" class="text-red-400 mb-4">{{ error }}</div>
 
-    <div class="bg-white/90 rounded-xl border border-gray-200 p-4 md:p-5 overflow-hidden shadow-lg">
+    <div class="bg-white rounded-2xl border border-gray-200 p-4 md:p-6 overflow-hidden shadow-xl">
+      <!-- Tabs / Sections -->
+      <div class="flex flex-wrap gap-2 mb-4">
+        <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Général</span>
+        <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">Caisse</span>
+        <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Fidélité</span>
+        <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Dépenses</span>
+        <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 border border-gray-200">Avancé</span>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         <!-- Société & Logo -->
-        <div class="bg-white/60 rounded-lg border border-gray-200 p-4 flex flex-col">
+        <div class="bg-gradient-to-br from-white to-blue-50 rounded-xl border border-blue-200 p-4 flex flex-col shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Société & Logo</h3>
           <label class="block text-sm text-gray-600 mb-1">Nom de la société</label>
-          <input type="text" [(ngModel)]="settings.companyName" class="w-full bg-white/80 border border-gray-300 rounded px-3 py-2 text-gray-800 mb-3" placeholder="Nom"/>
-          <label class="block text-sm text-gray-600 mb-1">Logo (URL)</label>
-          <input type="text" [(ngModel)]="settings.logoUrl" class="w-full bg-white/80 border border-gray-300 rounded px-3 py-2 text-gray-800" placeholder="https://..."/>
+          <input title="Nom de la société" type="text" [(ngModel)]="settings.companyName" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nom"/>
+          <label class="block text-sm text-gray-600 mb-1">Logo</label>
+          <div class="flex items-center gap-3">
+            <input title="Logo URL" type="text" [(ngModel)]="settings.logoUrl" class="flex-1 bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="https://..."/>
+            <label class="inline-flex items-center px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl border border-blue-200 cursor-pointer">
+              <input type="file" accept="image/*" class="hidden" (change)="onLogoSelected($event)"/>
+              Importer
+            </label>
+          </div>
           <div class="mt-3 h-14 flex items-center">
             <img *ngIf="settings.logoUrl" [src]="settings.logoUrl" alt="Logo" class="h-10 object-contain"/>
           </div>
         </div>
 
         <!-- Fidélité -->
-        <div class="bg-white/60 rounded-lg border border-gray-200 p-4">
+        <div class="bg-gradient-to-br from-white to-emerald-50 rounded-xl border border-emerald-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Fidélité</h3>
           <div class="flex items-center gap-3 mb-3">
             <input id="loy" type="checkbox" [(ngModel)]="settings.loyaltyEnabled" class="h-4 w-4"/>
             <label for="loy" class="text-gray-600">Activer points fidélité</label>
           </div>
           <label class="block text-sm text-gray-600 mb-1">Taux (points / 1 dt)</label>
-          <input type="number" min="0" step="0.1" [(ngModel)]="settings.loyaltyRate" class="w-full bg-white/80 border border-gray-300 rounded px-3 py-2 text-gray-800"/>
+          <input title="Taux de fidélité" type="number" min="0" step="0.1" [(ngModel)]="settings.loyaltyRate" class="w-full bg-white border-2 border-emerald-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="ex: 1"/>
         </div>
 
         <!-- Remises & Dettes -->
-        <div class="bg-white/60 rounded-lg border border-gray-200 p-4">
+        <div class="bg-gradient-to-br from-white to-purple-50 rounded-xl border border-purple-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Remises & Dettes</h3>
           <label class="block text-sm text-gray-600 mb-1">Remise max (%)</label>
-          <input type="number" min="0" max="100" step="0.5" [(ngModel)]="settings.maxDiscountPercent" class="w-full bg-white/80 border border-gray-300 rounded px-3 py-2 text-gray-800 mb-3"/>
+          <input title="Remise maximale" type="number" min="0" max="100" step="0.5" [(ngModel)]="settings.maxDiscountPercent" class="w-full bg-white border-2 border-purple-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="ex: 50"/>
           <label class="block text-sm text-gray-600 mb-1">Dette max par client (dt)</label>
-          <input type="number" min="0" step="0.001" [(ngModel)]="settings.defaultClientMaxDebt" class="w-full bg-white/80 border border-gray-300 rounded px-3 py-2 text-gray-800"/>
+          <input title="Dette max par client" type="number" min="0" step="0.001" [(ngModel)]="settings.defaultClientMaxDebt" class="w-full bg-white border-2 border-purple-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="ex: 100"/>
         </div>
 
         <!-- Raccourcis -->
-        <div class="bg-white/60 rounded-lg border border-gray-200 p-4 xl:col-span-2">
+        <div class="bg-gradient-to-br from-white to-indigo-50 rounded-xl border border-indigo-200 p-4 xl:col-span-2 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Raccourcis clavier</h3>
-          <textarea [(ngModel)]="settings.keyboardShortcuts" rows="3" class="w-full bg-white/80 border border-gray-300 rounded px-3 py-2 text-gray-800" placeholder='{"validate":"Enter","discount":"D"}'></textarea>
+          <textarea title="Raccourcis clavier" [(ngModel)]="keyboardShortcutsInput" rows="4" class="font-mono text-sm w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder='{"validate":"Enter","discount":"D"}'></textarea>
         </div>
 
         <!-- Périphériques -->
-        <div class="bg-white/60 rounded-lg border border-gray-200 p-4 xl:col-span-1">
+        <div class="bg-gradient-to-br from-white to-indigo-50 rounded-xl border border-indigo-200 p-4 xl:col-span-1 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Périphériques</h3>
-          <textarea [(ngModel)]="settings.devicesConfig" rows="3" class="w-full bg-white/80 border border-gray-300 rounded px-3 py-2 text-gray-800" placeholder='{"printer":"EPSON","drawer":true}'></textarea>
+          <textarea title="Configuration périphériques" [(ngModel)]="devicesConfigInput" rows="4" class="font-mono text-sm w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder='{"printer":"EPSON","drawer":true}'></textarea>
         </div>
 
         <!-- Utilisateurs & Accès -->
-        <div class="bg-white/60 rounded-lg border border-gray-200 p-4">
+        <div class="bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-2">Utilisateurs & Accès</h3>
-          <p class="text-gray-600 text-sm">Gérer les rôles et permissions depuis le module Utilisateurs.</p>
+          <p class="text-gray-600 text-sm mb-3">Gérer les rôles et permissions.</p>
+          <a routerLink="/auth/users" class="inline-flex items-center px-3 py-2 rounded-xl bg-gray-800 text-white hover:bg-black/80 transition">Ouvrir gestion utilisateurs</a>
         </div>
 
         <!-- Logs & Audit -->
-        <div class="bg-white/60 rounded-lg border border-gray-200 p-4">
+        <div class="bg-gradient-to-br from-white to-amber-50 rounded-xl border border-amber-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Logs & Audit</h3>
           <label class="block text-sm text-gray-600 mb-1">Rétention (jours)</label>
-          <input type="number" min="7" step="1" [(ngModel)]="settings.auditRetentionDays" class="w-full bg-white/80 border border-gray-300 rounded px-3 py-2 text-gray-800"/>
+          <input title="Rétention (jours)" type="number" min="7" step="1" [(ngModel)]="settings.auditRetentionDays" class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="ex: 90"/>
+        </div>
+
+        <!-- Caisse -->
+        <div class="bg-gradient-to-br from-white to-purple-50 rounded-xl border border-purple-200 p-4 shadow-sm">
+          <h3 class="text-lg font-semibold text-gray-800 mb-3">Caisse</h3>
+          <label class="block text-sm text-gray-600 mb-1">Fonds initial (dt)</label>
+          <input title="Fonds initial" type="number" min="0" step="0.01" [(ngModel)]="settings.defaultFonds" class="w-full bg-white border-2 border-purple-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="ex: 50"/>
+          <label class="block text-sm text-gray-600 mb-1">Largeur Ticket (mm)</label>
+          <input title="Largeur ticket" type="number" min="58" step="1" [(ngModel)]="settings.ticketWidth" class="w-full bg-white border-2 border-purple-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="ex: 58"/>
+          <div class="flex items-center gap-3 mb-1">
+            <input id="timbre" type="checkbox" [(ngModel)]="settings.droitDeTimbre" class="h-4 w-4"/>
+            <label for="timbre" class="text-gray-600">Droit de timbre</label>
+          </div>
+        </div>
+
+        <!-- Clôture -->
+        <div class="bg-gradient-to-br from-white to-rose-50 rounded-xl border border-rose-200 p-4 shadow-sm">
+          <h3 class="text-lg font-semibold text-gray-800 mb-3">Clôture</h3>
+          <label class="block text-sm text-gray-600 mb-1">Seuil écart (%)</label>
+          <input title="Seuil écart (%)" type="number" min="0" step="0.1" [(ngModel)]="settings.varianceThreshold" class="w-full bg-white border-2 border-rose-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-rose-500 focus:border-rose-500" placeholder="ex: 5"/>
+          <div class="flex items-center gap-3 mb-3">
+            <input id="requireVar" type="checkbox" [(ngModel)]="settings.requireApprovalForVariance" class="h-4 w-4"/>
+            <label for="requireVar" class="text-gray-600">Approbation requise si écart</label>
+          </div>
+          <label class="block text-sm text-gray-600 mb-1">Dénominations (séparées par virgule)</label>
+          <input title="Dénominations" type="text" [ngModel]="denominationsInput" (ngModelChange)="onDenominationsInput($event)" class="w-full bg-white border-2 border-rose-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-rose-500 focus:border-rose-500" placeholder="50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05"/>
+        </div>
+
+        <!-- Dépenses -->
+        <div class="bg-gradient-to-br from-white to-amber-50 rounded-xl border border-amber-200 p-4 shadow-sm">
+          <h3 class="text-lg font-semibold text-gray-800 mb-3">Dépenses</h3>
+          <label class="block text-sm text-gray-600 mb-1">Auto-approbation en dessous de (dt)</label>
+          <input title="Seuil auto-approbation" type="number" min="0" step="0.01" [(ngModel)]="settings.autoApproveExpenseBelow" class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="ex: 50"/>
+          <p class="text-xs text-amber-700 mt-2">Toute dépense ≤ ce montant est automatiquement approuvée.</p>
         </div>
       </div>
     </div>

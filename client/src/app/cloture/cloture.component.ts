@@ -28,6 +28,11 @@ export class ClotureComponent implements OnInit {
   showCloseForm = signal(false);
   showFundForm = signal(false);
   
+  // Tickets modal state
+  showTicketsModal = signal(false);
+  sessionTickets = signal<{ id: number; amount: number }[]>([]);
+  ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => sum + t.amount, 0));
+  
   // Fund form
   fundForm = {
     amount: ''
@@ -91,6 +96,25 @@ export class ClotureComponent implements OnInit {
       },
       error: (error) => {
         this.error.set('Erreur lors de l\'ouverture automatique de la session');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  // Load and show current session tickets (id + amount)
+  openTicketsModal(): void {
+    const session = this.currentSession();
+    if (!session) return;
+    this.loading.set(true);
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (report: any) => {
+        const sales = (report?.session?.sales || []) as Array<{ id: number; finalTotal: number }>
+        this.sessionTickets.set(sales.map(s => ({ id: s.id, amount: parseFloat((s as any).finalTotal || 0) })));
+        this.loading.set(false);
+        this.showTicketsModal.set(true);
+      },
+      error: () => {
+        this.error.set('Erreur lors du chargement des tickets');
         this.loading.set(false);
       }
     });
@@ -170,7 +194,7 @@ export class ClotureComponent implements OnInit {
           retraitCentrale: withdrawalAmount > 0 ? withdrawalAmount : undefined,
           denominations: {}
         }).subscribe({
-          next: () => {
+          next: (resp) => {
             this.showCloseForm.set(false);
             this.loading.set(false);
             this.error.set('');
@@ -178,9 +202,13 @@ export class ClotureComponent implements OnInit {
             // Automatically open new session
             this.autoOpenSession();
             
-            // Redirect to register after successful closure
+            // If approval is required, redirect to approvals center, else back to caisse
             setTimeout(() => {
-              this.goToRegister();
+              if (resp?.requiresApproval) {
+                this.router.navigate(['/approvals']);
+              } else {
+                this.goToRegister();
+              }
             }, 1000);
           },
           error: (error) => {

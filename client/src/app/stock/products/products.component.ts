@@ -5,7 +5,6 @@ import { Product, ProductFamily } from '../../core/models/product.model';
 @Component({
   selector: 'app-products',
   templateUrl: './products.component.html',
-  styleUrls: ['./products.component.css'],
   standalone: false
 })
 export class ProductsComponent implements OnInit {
@@ -19,6 +18,7 @@ export class ProductsComponent implements OnInit {
   totalPages = 1;
   searchQuery = '';
   selectedFamille = 0;
+  selectedType = 'all';
   showAddModal = false;
   showImportModal = false;
   showImageUploadModal = false;
@@ -27,6 +27,16 @@ export class ProductsComponent implements OnInit {
   selectedProductForImage: Product | null = null;
   selectedProductForVrac: Product | null = null;
   families: ProductFamily[] = [];
+
+  // Palette classes for family badges (light vibrant colors)
+  private familyColorClasses: string[] = [
+    'bg-gradient-to-r from-pink-100 to-rose-200 text-rose-800 border border-rose-200',
+    'bg-gradient-to-r from-purple-100 to-violet-200 text-violet-800 border border-violet-200',
+    'bg-gradient-to-r from-indigo-100 to-blue-200 text-indigo-800 border border-indigo-200',
+    'bg-gradient-to-r from-emerald-100 to-green-200 text-emerald-800 border border-emerald-200',
+    'bg-gradient-to-r from-amber-100 to-orange-200 text-amber-800 border border-amber-200',
+    'bg-gradient-to-r from-cyan-100 to-sky-200 text-cyan-800 border border-cyan-200'
+  ];
 
   constructor(private productsService: ProductsService) {}
 
@@ -63,6 +73,18 @@ export class ProductsComponent implements OnInit {
     });
   }
 
+  getFamilyClass(familyId?: number): string {
+    if (!familyId || this.families.length === 0) {
+      return 'bg-slate-100 text-slate-700 border border-slate-200';
+    }
+    const index = this.families.findIndex(f => f.id === familyId);
+    if (index === -1) {
+      return 'bg-slate-100 text-slate-700 border border-slate-200';
+    }
+    const paletteIndex = index % this.familyColorClasses.length;
+    return this.familyColorClasses[paletteIndex];
+  }
+
   applyFilters(): void {
     this.filteredProducts = this.allProducts.filter(product => {
       const matchesSearch = !this.searchQuery || 
@@ -71,7 +93,12 @@ export class ProductsComponent implements OnInit {
       
       const matchesFamille = !this.selectedFamille || product.familleId === this.selectedFamille;
       
-      return matchesSearch && matchesFamille;
+      const matchesType = this.selectedType === 'all' || 
+        (this.selectedType === 'vrac' && product.isVraguable) ||
+        (this.selectedType === 'stock' && product.isStockable) ||
+        (this.selectedType === 'wholesale' && product.isWholesale);
+      
+      return matchesSearch && matchesFamille && matchesType;
     });
 
     this.totalPages = Math.ceil(this.filteredProducts.length / this.itemsPerPage);
@@ -92,6 +119,16 @@ export class ProductsComponent implements OnInit {
   onFilter(): void {
     this.currentPage = 1;
     this.applyFilters();
+  }
+
+  setFamilyFilter(familyId: number): void {
+    this.selectedFamille = familyId;
+    this.onFilter();
+  }
+
+  setTypeFilter(type: string): void {
+    this.selectedType = type;
+    this.onFilter();
   }
 
   onPageChange(page: number): void {

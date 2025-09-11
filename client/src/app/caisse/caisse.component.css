@@ -1,4 +1,132 @@
-/* Stock Warning Modal Background */
-.stock-warning-modal-bg {
-  background-color: rgba(255, 0, 0, 0.3) !important;
+/* Drag and Drop Styles - Converted to Tailwind classes */
+.dragging {
+  cursor: grabbing !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  touch-action: none !important;
+}
+
+.drag-origin {
+  opacity: 0.3 !important;
+  transform: scale(0.95) !important;
+  border: 2px dashed #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+.drag-ghost {
+  opacity: 0.9;
+  transform: rotate(2deg) scale(1.1);
+  z-index: 9999;
+  pointer-events: none;
+  transition: none;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+}
+
+.drag-ghost > div {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.drag-placeholder {
+  border: 2px dashed #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+  border-radius: 0.5rem;
+}
+
+.edge-hover-left {
+  border-left: 4px solid #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.edge-hover-right {
+  border-right: 4px solid #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+/* Touch handling improvements - Keep minimal CSS for drag functionality */
+.product-grid {
+  touch-action: manipulation;
+}
+
+.product-grid.dragging {
+  touch-action: none;
+}
+
+/* Fixed product dimensions for consistent drag calculations */
+.product-button {
+  width: 96.2px;
+  height: 127.6px;
+  min-width: 96.2px;
+  min-height: 127.6px;
+  max-width: 96.2px;
+  max-height: 127.6px;
+  flex-shrink: 0;
+}
+
+/* Flexible grid layout using flexbox */
+.product-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* Specific adjustment for 1024x768 screens */
+@media screen and (width: 1024px) and (height: 768px) {
+  .product-button {
+    width: 88px;
+    min-width: 88px;
+    max-width: 88px;
+  }
+}
+
+@media screen and (height: 768px) {
+  .product-button {
+    width: 97px;
+    min-width: 97px;
+    max-width: 97px;
+  }
+}
+
+
+@media screen and (min-width: 1500px) {
+  .product-button {
+    width: 100px;
+    min-width: 110px !important;
+    max-width: 100px;
+  }
+}
+
+@media screen and (min-height: 910px) {
+  .product-button {
+    width: 100px;
+    min-width: 180px !important;
+    max-width: 100px;
+  }
+}
+
+/* Prevent text selection during drag */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .dragging {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
 }

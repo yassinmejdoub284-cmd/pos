@@ -110,4 +110,8 @@ export class ProductsService {
     
     return this.http.get<any[]>(`${this.apiUrl}/vrac/statistics`, { params });
   }
+
+  updateProductOrder(updates: { id: number; displayIndex: number }[]): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/order`, { updates });
+  }
 } 

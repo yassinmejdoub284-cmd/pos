@@ -57,7 +57,10 @@ function checkBarcodeExists(barcode) {
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const products = await prisma.product.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { displayIndex: 'asc' },
+        { createdAt: 'desc' }
+      ],
       include: {
         famille: true,
         inventory: {
@@ -91,8 +94,14 @@ router.get('/familles', authenticateToken, async (req, res) => {
 
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    const productId = parseInt(req.params.id);
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
     const product = await prisma.product.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id: productId },
       include: {
         famille: true,
         inventory: {
@@ -116,6 +125,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, async (req, res) => {
   try {
+    console.log('Received product data:', req.body);
     const {
       name,
       description,
@@ -127,7 +137,13 @@ router.post('/', authenticateToken, async (req, res) => {
       duree_conservation,
       isVrac,
       originalProductId,
-      isStockable
+      isStockable,
+      // Wholesale fields
+      isWholesale,
+      bundleSize,
+      bundlePrice,
+      minMargin,
+      requiresApproval
     } = req.body;
     
     if (!name || !prix_vente_TTC || !familleId) {
@@ -136,6 +152,19 @@ router.post('/', authenticateToken, async (req, res) => {
     
     if (prix_vente_TTC < 0) {
       return res.status(400).json({ error: 'Le prix de vente doit être positif' });
+    }
+
+    // Validate wholesale fields
+    if (isWholesale) {
+      if (!bundleSize || bundleSize <= 0) {
+        return res.status(400).json({ error: 'La taille du fardeau doit être positive pour les produits de gros' });
+      }
+      if (!bundlePrice || bundlePrice <= 0) {
+        return res.status(400).json({ error: 'Le prix du fardeau doit être positif pour les produits de gros' });
+      }
+      if (minMargin && (minMargin < 0 || minMargin > 100)) {
+        return res.status(400).json({ error: 'La marge minimale doit être entre 0 et 100%' });
+      }
     }
 
     // Check if family exists
@@ -166,8 +195,16 @@ router.post('/', authenticateToken, async (req, res) => {
       duree_conservation: duree_conservation ? parseInt(duree_conservation) : null,
       isVrac: isVrac || false,
       originalProductId: originalProductId ? parseInt(originalProductId) : null,
-      isStockable: isStockable !== undefined ? isStockable : true
+      isStockable: isStockable !== undefined ? isStockable : true,
+      // Wholesale fields
+      isWholesale: isWholesale || false,
+      bundleSize: bundleSize ? parseInt(bundleSize) : null,
+      bundlePrice: bundlePrice ? parseFloat(bundlePrice) : null,
+      minMargin: minMargin ? parseFloat(minMargin) : null,
+      requiresApproval: requiresApproval || false
     };
+    
+    console.log('Product data to be saved:', productData);
     
     const product = await prisma.product.create({
       data: productData
@@ -204,9 +241,47 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
+// Update product order - MUST be before /:id route
+router.put('/order', authenticateToken, async (req, res) => {
+  try {
+    const { updates } = req.body;
+    
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({ error: 'Updates must be an array' });
+    }
+
+    // Update each product's displayIndex
+    const updatePromises = updates.map(async (update) => {
+      // Ensure id is a valid integer
+      const productId = parseInt(update.id);
+      if (isNaN(productId)) {
+        throw new Error(`Invalid product ID: ${update.id}`);
+      }
+      
+      return await prisma.product.update({
+        where: { id: productId },
+        data: { displayIndex: update.displayIndex }
+      });
+    });
+
+    await Promise.all(updatePromises);
+    
+    res.json({ success: true, message: 'Product order updated successfully' });
+  } catch (error) {
+    console.error('Error updating product order:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'ordre des produits' });
+  }
+});
+
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
+    console.log('Received product update data:', req.body);
     const productId = parseInt(req.params.id);
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
     const oldProduct = await prisma.product.findUnique({
       where: { id: productId }
     });
@@ -226,11 +301,30 @@ router.put('/:id', authenticateToken, async (req, res) => {
       duree_conservation,
       isVrac,
       originalProductId,
-      isStockable
+      isStockable,
+      // Wholesale fields
+      isWholesale,
+      bundleSize,
+      bundlePrice,
+      minMargin,
+      requiresApproval
     } = req.body;
     
     if (prix_vente_TTC !== undefined && prix_vente_TTC < 0) {
       return res.status(400).json({ error: 'Le prix de vente doit être positif' });
+    }
+
+    // Validate wholesale fields
+    if (isWholesale !== undefined && isWholesale) {
+      if (bundleSize !== undefined && (!bundleSize || bundleSize <= 0)) {
+        return res.status(400).json({ error: 'La taille du fardeau doit être positive pour les produits de gros' });
+      }
+      if (bundlePrice !== undefined && (!bundlePrice || bundlePrice <= 0)) {
+        return res.status(400).json({ error: 'Le prix du fardeau doit être positif pour les produits de gros' });
+      }
+      if (minMargin !== undefined && minMargin !== null && (minMargin < 0 || minMargin > 100)) {
+        return res.status(400).json({ error: 'La marge minimale doit être entre 0 et 100%' });
+      }
     }
     
     // Check if family exists if familleId is provided
@@ -256,6 +350,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (isVrac !== undefined) updateData.isVrac = isVrac;
     if (originalProductId !== undefined) updateData.originalProductId = originalProductId ? parseInt(originalProductId) : null;
     if (isStockable !== undefined) updateData.isStockable = isStockable;
+    // Wholesale fields
+    if (isWholesale !== undefined) updateData.isWholesale = isWholesale;
+    if (bundleSize !== undefined) updateData.bundleSize = bundleSize ? parseInt(bundleSize) : null;
+    if (bundlePrice !== undefined) updateData.bundlePrice = bundlePrice ? parseFloat(bundlePrice) : null;
+    if (minMargin !== undefined) updateData.minMargin = minMargin ? parseFloat(minMargin) : null;
+    if (requiresApproval !== undefined) updateData.requiresApproval = requiresApproval;
+    
+    console.log('Update data to be saved:', updateData);
     
     const product = await prisma.product.update({
       where: { id: productId },
@@ -277,6 +379,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product ID' });
+    }
     
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -331,6 +437,10 @@ router.post('/:id/photo', authenticateToken, upload.single('photo'), async (req,
   try {
     const productId = parseInt(req.params.id);
     
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
     if (!req.file) {
       return res.status(400).json({ error: 'Aucun fichier fourni' });
     }
@@ -367,6 +477,10 @@ router.post('/:id/photo', authenticateToken, upload.single('photo'), async (req,
 router.delete('/:id/photo', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product ID' });
+    }
     
     const product = await prisma.product.findUnique({
       where: { id: productId }

@@ -1,0 +1,390 @@
+<div class="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 relative">
+
+  <!-- Customer Selection Dialog -->
+  <app-customer-selection-dialog 
+    *ngIf="showCustomerDialog"
+    [isVisible]="showCustomerDialog"
+    (customerSelected)="onCustomerSelected($event)"
+    (dialogClosed)="onCustomerDialogClosed()">
+  </app-customer-selection-dialog>
+
+  <!-- Main Content -->
+  <div *ngIf="selectedCustomer && !showCustomerDialog" class="h-screen flex flex-col relative z-10">
+    <!-- Compact Header -->
+    <div class="bg-white border-b border-gray-200 shadow-sm">
+      <div class="px-4 py-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <button (click)="goBack()" 
+              title="Retour"
+              class="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors duration-200">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+              </svg>
+            </button>
+            <div>
+              <h1 class="text-lg font-bold text-gray-800">Client Gros</h1>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-sm font-medium text-gray-700">
+                  {{ selectedCustomer.firstName }} {{ selectedCustomer.lastName }}
+                </span>
+                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                  {{ selectedCustomer.code }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="bg-green-50 rounded-lg px-3 py-2 border border-green-200">
+            <p class="text-xs font-medium text-green-600">Sélectionnés</p>
+            <p class="text-lg font-bold text-green-700">{{ getSelectedProducts().length }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex overflow-hidden">
+      <!-- Products Grid (75%) -->
+      <div class="w-3/4 flex flex-col border-r border-gray-200/50">
+        <!-- Compact Products Header -->
+        <div class="bg-white p-3 border-b border-gray-200">
+          <div class="flex items-center gap-3">
+            <h2 class="text-sm font-bold text-gray-800">Produits</h2>
+            <div class="flex-1 flex items-center gap-2">
+              <input 
+                type="text" 
+                [(ngModel)]="searchQuery"
+                (input)="onProductSearch()"
+                placeholder="Rechercher..."
+                class="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:border-purple-400 focus:bg-white">
+              <select [(ngModel)]="selectedFamily" (change)="onFamilyChange()" 
+                title="Famille"
+                class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                <option value="">Toutes</option>
+                <option *ngFor="let family of families" [value]="family.id">{{ family.name }}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Products Grid -->
+        <div class="flex-1 p-3 overflow-y-auto bg-gray-50">
+          <!-- Modern Loading State -->
+          <div *ngIf="loading" class="text-center py-16">
+            <div class="relative">
+              <div class="w-20 h-20 mx-auto mb-6">
+                <div class="absolute inset-0 rounded-full border-4 border-purple-200"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-purple-500 border-t-transparent animate-spin"></div>
+              </div>
+              <div class="space-y-2">
+                <h3 class="text-xl font-semibold text-gray-700">Chargement des produits</h3>
+                <p class="text-gray-500">Veuillez patienter...</p>
+              </div>
+            </div>
+          </div>
+
+           <!-- Modern Products Grid -->
+           <div *ngIf="!loading" class="product-grid">
+             <div *ngFor="let product of getPaginatedProducts(); trackBy: trackByProductId" 
+                  (click)="toggleProductSelection(product)"
+                  [class]="getProductCardClass(product.id)">
+               
+               <!-- Product Image - Optimized -->
+               <div class="w-full h-12 mb-2 bg-gray-100 rounded-lg flex items-center justify-center relative border border-gray-200">
+                 <img title="Image du produit" *ngIf="product.photo" 
+                   [src]="product.photo" 
+                   [alt]="product.name" 
+                   class="w-full h-full object-cover rounded-lg"
+                   loading="lazy"
+                   decoding="async">
+                 <svg *ngIf="!product.photo" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                 </svg>
+
+                 <!-- Vrac Role Tag -->
+                 <div *ngIf="product.name.toLowerCase().includes('vrac')"
+                   class="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold px-1 py-0.5 rounded-full">
+                   VRAC
+                 </div>
+
+                 <!-- Seed Role Tag -->
+                 <div *ngIf="product.name.toLowerCase().includes('seed')"
+                   class="absolute -top-1 -right-1 bg-purple-500 text-white text-xs font-bold px-1 py-0.5 rounded-full">
+                   SEED
+                 </div>
+
+                 <!-- Selection Indicator -->
+                 <div *ngIf="isProductSelected(product.id)" 
+                      class="absolute -bottom-1 -right-1 bg-purple-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                   ✓
+                 </div>
+
+               </div>
+
+               <!-- Product Name -->
+               <div class="font-medium text-xs mb-1 text-gray-800 leading-tight break-words text-center">
+                 {{ truncate(product.name, 18) }}
+               </div>
+
+               <!-- Price Tag - Simplified -->
+               <div class="absolute top-1 -left-1 transform -rotate-12 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                 {{ product.prix_vente_TTC }}dt
+               </div>
+             </div>
+           </div>
+
+          <!-- Modern Empty State -->
+          <div *ngIf="!loading && filteredProducts.length === 0" class="text-center py-12">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-lg flex items-center justify-center">
+              <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Aucun produit trouvé</h3>
+            <p class="text-gray-500">Essayez de modifier votre recherche</p>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div *ngIf="!loading && filteredProducts.length > itemsPerPage" class="flex justify-center items-center gap-4 mt-6">
+            <button (click)="previousPage()" 
+              [disabled]="currentPage === 1"
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+              Précédent
+            </button>
+            <span class="text-sm text-gray-600">
+              Page {{ currentPage }} sur {{ getTotalPages() }}
+            </span>
+            <button (click)="nextPage()" 
+              [disabled]="currentPage === getTotalPages()"
+              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+              Suivant
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modern Options Panel (25%) -->
+      <div class="w-1/4 bg-gradient-to-b from-white/90 to-purple-50/90 backdrop-blur-sm flex flex-col border-l border-purple-200/50">
+        <!-- Compact Options Header -->
+        <div class="p-4 border-b border-gray-200/50">
+          <h2 class="text-sm font-bold text-gray-800 mb-1">Règles de Remise</h2>
+          <p class="text-xs text-gray-600">Sélectionnez produits + règle</p>
+        </div>
+
+        <!-- Compact Selected Products -->
+        <div class="p-4 border-b border-gray-200/50">
+          <h3 class="text-sm font-semibold text-gray-700 mb-2">Sélectionnés ({{ getSelectedProducts().length }})</h3>
+          <div class="max-h-24 overflow-y-auto">
+            <div *ngFor="let product of getSelectedProducts()" 
+                 class="flex items-center justify-between bg-green-50 rounded p-2 mb-1 border border-green-200">
+              <span class="text-xs text-green-800 font-medium truncate flex-1">{{ product.name }}</span>
+              <span class="text-xs text-green-600 font-bold ml-2">{{ product.prix_vente_TTC }}dt</span>
+            </div>
+            <div *ngIf="getSelectedProducts().length === 0" class="text-center py-2">
+              <p class="text-gray-500 text-xs">Aucun produit</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simple Rules List -->
+        <div class="p-4 border-b border-gray-200/50">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <h3 class="text-sm font-semibold text-gray-700">Règles</h3>
+              <button (click)="toggleArchivedRules()" 
+                [class]="'text-xs px-2 py-1 rounded transition-colors duration-200 ' + 
+                         (showArchivedRules ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')"
+                title="Afficher les règles archivées">
+                {{ showArchivedRules ? 'Actives' : 'Archivées' }}
+              </button>
+            </div>
+            <button (click)="openNewRuleDialog()" 
+              title="Ajouter une nouvelle règle"
+              class="w-6 h-6 bg-purple-500 hover:bg-purple-600 text-white rounded flex items-center justify-center">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+              </svg>
+            </button>
+          </div>
+          
+          <!-- Active Rules -->
+          <div *ngIf="!showArchivedRules" class="grid grid-cols-2 gap-2">
+            <button *ngFor="let rule of getActiveRules()" 
+                    (click)="applyRuleToSelectedProducts(rule)" 
+                    [disabled]="getSelectedProducts().length === 0"
+                    [class]="'p-2 text-xs rounded-lg border transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed relative ' + 
+                             (rule.ruleType === 'percentage' ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' : 
+                              rule.ruleType === 'fixed' ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' :
+                              rule.ruleType === 'discount' ? 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100' :
+                              'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100')">
+              <div class="font-semibold">{{ rule.description }}</div>
+              <div class="text-xs opacity-75">
+                {{ rule.ruleType === 'percentage' ? rule.value + '%' : 
+                   rule.ruleType === 'discount' ? '-' + rule.value + 'dt' : 
+                   rule.value + 'dt' }}
+              </div>
+              <!-- Action buttons for all rules -->
+              <div class="absolute -top-1 -right-1 flex gap-1">
+                <button (click)="archiveRule(rule.id); $event.stopPropagation()"
+                  title="Archiver cette règle"
+                  class="w-4 h-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full flex items-center justify-center">
+                  <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8l4 4-4 4m5-4h6"></path>
+                  </svg>
+                </button>
+                <!-- Delete button for all rules -->
+                <button (click)="removeCustomRule(rule.id); $event.stopPropagation()"
+                  title="Supprimer définitivement"
+                  class="w-4 h-4 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center">
+                  <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+            </button>
+          </div>
+
+          <!-- Archived Rules -->
+          <div *ngIf="showArchivedRules" class="grid grid-cols-2 gap-2">
+            <div *ngFor="let rule of getArchivedRules()" 
+                 class="p-2 text-xs rounded-lg border bg-gray-100 border-gray-300 text-gray-500 relative">
+              <div class="font-semibold line-through">{{ rule.description }}</div>
+              <div class="text-xs opacity-75">
+                {{ rule.ruleType === 'percentage' ? rule.value + '%' : 
+                   rule.ruleType === 'discount' ? '-' + rule.value + 'dt' : 
+                   rule.value + 'dt' }}
+              </div>
+              <div class="text-xs text-gray-400 mt-1">Archivé</div>
+              <!-- Unarchive button for all rules -->
+              <button (click)="unarchiveRule(rule.id)"
+                title="Restaurer cette règle"
+                class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center">
+                <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+              </button>
+            </div>
+            <div *ngIf="getArchivedRules().length === 0" class="col-span-2 text-center py-4">
+              <p class="text-gray-500 text-xs">Aucune règle archivée</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Applied Rules Preview -->
+        <div class="flex-1 p-4 overflow-y-auto">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Règles Appliquées ({{ getAppliedRulesCount() }})</h3>
+          <div class="space-y-2">
+            <div *ngFor="let appliedRule of appliedRules; let i = index" 
+                 class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-semibold text-gray-800">{{ appliedRule.rule.description }}</span>
+                <button (click)="removeAppliedRule(i)" 
+                  title="Supprimer"
+                  class="w-5 h-5 bg-red-100 hover:bg-red-200 text-red-600 rounded flex items-center justify-center">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="text-xs text-gray-600 mb-2">
+                Produits: {{ getProductNames(appliedRule.productIds) }}
+              </div>
+              <div class="space-y-1">
+                <div *ngFor="let productId of appliedRule.productIds" 
+                     class="flex items-center justify-between text-xs">
+                  <span class="text-gray-700">{{ getProductById(productId)?.name }}</span>
+                  <span class="font-semibold text-green-600">
+                    {{ getCalculatedPrice(getProductById(productId)!, appliedRule.rule) }}dt
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="appliedRules.length === 0" class="text-center py-4">
+              <p class="text-gray-500 text-xs">Aucune règle appliquée</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirm Button -->
+        <div class="p-4 border-t border-gray-200/50">
+          <div class="mb-3 text-center">
+            <div class="text-lg font-bold text-gray-800">Total: {{ getTotalAmount() | number:'1.3-3' }}dt</div>
+          </div>
+          <button (click)="confirmAndSave()" 
+            [disabled]="appliedRules.length === 0"
+            class="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            Confirmer & Sauvegarder
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- New Rule Dialog -->
+  <div *ngIf="showNewRuleDialog" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg border border-gray-200 max-w-md w-full shadow-xl">
+      <!-- Header -->
+      <div class="bg-purple-500 p-4 rounded-t-lg">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+          </div>
+          <h2 class="text-lg font-bold text-white">Nouvelle Règle</h2>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="p-4 space-y-4">
+        <div class="space-y-2">
+          <label class="block text-sm font-semibold text-gray-700">Type de règle</label>
+          <select [(ngModel)]="newRule.ruleType" 
+            title="Type de règle"
+            class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+            <option value="percentage">Remise en pourcentage</option>
+            <option value="fixed">Prix fixe</option>
+            <option value="discount">Remise en montant</option>
+          </select>
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-sm font-semibold text-gray-700">
+            {{ newRule.ruleType === 'percentage' ? 'Pourcentage de remise' : 
+               newRule.ruleType === 'fixed' ? 'Prix fixe (dt)' : 'Montant de la remise (dt)' }}
+          </label>
+          <input type="number" 
+            [(ngModel)]="newRule.value" 
+            [step]="newRule.ruleType === 'percentage' ? '1' : '0.001'"
+            [min]="0"
+            [max]="newRule.ruleType === 'percentage' ? 100 : null"
+            placeholder="Ex: 10"
+            class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:border-purple-400">
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-sm font-semibold text-gray-700">Description</label>
+          <input type="text" [(ngModel)]="newRule.description" 
+            placeholder="Ex: Remise client gros"
+            class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:border-purple-400">
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="bg-gray-50 p-4 border-t border-gray-200 rounded-b-lg">
+        <div class="flex gap-3">
+          <button (click)="showNewRuleDialog = false" 
+            class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors duration-200">
+            Annuler
+          </button>
+          <button (click)="addNewRule()" 
+            class="flex-1 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200">
+            Ajouter
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

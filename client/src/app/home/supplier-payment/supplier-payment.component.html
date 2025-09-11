@@ -1,0 +1,245 @@
+<div class="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded-2xl shadow-lg border border-amber-100/50 p-6 mb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+            Règlement Fournisseurs
+          </h1>
+          <p class="text-amber-600/70 mt-2">Gestion des paiements fournisseurs</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <a routerLink="/home/financiere"
+             title="Retour"
+             class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-md">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Retour</span>
+          </a>
+          <button 
+            (click)="openPaymentForm()"
+            class="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-emerald-600 hover:to-green-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+            <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Nouveau Paiement
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-2xl shadow-lg border border-amber-100/50 p-6 mb-6">
+      <h3 class="text-lg font-semibold text-amber-800 mb-4">Filtres</h3>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-amber-700 mb-2">Fournisseur</label>
+          <select title="Fournisseur"
+            [(ngModel)]="filters.supplierId" 
+            class="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            <option value="">Tous les fournisseurs</option>
+            <option *ngFor="let supplier of suppliers" [value]="supplier.id">
+              {{ supplier.name }}
+            </option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-amber-700 mb-2">Date de début</label>
+          <input title="Date de début"
+            type="date" 
+            [(ngModel)]="filters.startDate"
+            class="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-amber-700 mb-2">Date de fin</label>
+          <input title="Date de fin"
+            type="date" 
+            [(ngModel)]="filters.endDate"
+            class="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+        </div>
+        <div class="flex items-end space-x-2">
+          <button title="Filtrer"
+            (click)="applyFilters()"
+            class="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 transition-colors">
+            Filtrer
+          </button>
+          <button title="Effacer"
+            (click)="clearFilters()"
+            class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">
+            Effacer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payments List -->
+    <div class="bg-white rounded-2xl shadow-lg border border-amber-100/50 overflow-hidden">
+      <div class="p-6 border-b border-amber-100">
+        <h3 class="text-lg font-semibold text-amber-800">Liste des Paiements</h3>
+      </div>
+      
+      <div *ngIf="loading" class="p-8 text-center">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto"></div>
+        <p class="text-amber-600 mt-2">Chargement...</p>
+      </div>
+
+      <div *ngIf="!loading && payments.length === 0" class="p-8 text-center">
+        <svg class="w-16 h-16 text-amber-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        <p class="text-amber-600">Aucun paiement trouvé</p>
+      </div>
+
+      <div *ngIf="!loading && payments.length > 0" class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-amber-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Date</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Fournisseur</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Montant</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Méthode</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Référence</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Notes</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Utilisateur</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-amber-100">
+            <tr *ngFor="let payment of payments" class="hover:bg-amber-50/50">
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-amber-800">
+                {{ formatDate(payment.paymentDate) }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-amber-900">{{ payment.supplier.name }}</div>
+                <div *ngIf="payment.supplier.contactName" class="text-sm text-amber-600">{{ payment.supplier.contactName }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-emerald-600">
+                {{ formatAmount(payment.amount) }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-amber-800">
+                {{ getPaymentMethodLabel(payment.paymentMethod) }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-amber-800">
+                {{ payment.reference || '-' }}
+              </td>
+              <td class="px-6 py-4 text-sm text-amber-800">
+                {{ payment.notes || '-' }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-amber-800">
+                {{ payment.user.firstName }} {{ payment.user.lastName }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Form Modal -->
+  <div *ngIf="showPaymentForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-6 border-b border-amber-100">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xl font-semibold text-amber-800">
+            {{ selectedSupplier ? 'Paiement pour ' + selectedSupplier.name : 'Nouveau Paiement' }}
+          </h3>
+          <button title="Fermer" 
+            (click)="closePaymentForm()"
+            class="text-amber-500 hover:text-amber-700 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <form (ngSubmit)="submitPayment()" class="p-6 space-y-6">
+        <div *ngIf="!selectedSupplier">
+          <label class="block text-sm font-medium text-amber-700 mb-2">Fournisseur *</label>
+          <select title="Fournisseur"
+            [(ngModel)]="paymentForm.supplierId" 
+            name="supplierId"
+            required
+            class="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            <option value="">Sélectionner un fournisseur</option>
+            <option *ngFor="let supplier of suppliers" [value]="supplier.id">
+              {{ supplier.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-amber-700 mb-2">Montant *</label>
+            <input title="Montant"
+              type="number" 
+              [(ngModel)]="paymentForm.amount" 
+              name="amount"
+              step="0.001"
+              required
+              class="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-amber-700 mb-2">Date de paiement *</label>
+            <input title="Date de paiement"
+              type="date" 
+              [(ngModel)]="paymentForm.paymentDate" 
+              name="paymentDate"
+              required
+              class="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-amber-700 mb-2">Méthode de paiement</label>
+          <select title="Méthode de paiement"
+            [(ngModel)]="paymentForm.paymentMethod" 
+            name="paymentMethod"
+            class="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            <option value="CASH">Espèces</option>
+            <option value="CHECK">Chèque</option>
+            <option value="BANK_TRANSFER">Virement</option>
+            <option value="WIRE_TRANSFER">Virement bancaire</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-amber-700 mb-2">Référence</label>
+          <input title="Référence"
+            type="text" 
+            [(ngModel)]="paymentForm.reference" 
+            name="reference"
+            placeholder="Numéro de chèque, référence virement..."
+            class="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-amber-700 mb-2">Notes</label>
+          <textarea title="Notes"
+            [(ngModel)]="paymentForm.notes" 
+            name="notes"
+            rows="3"
+            placeholder="Notes additionnelles..."
+            class="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"></textarea>
+        </div>
+
+        <div class="flex justify-end space-x-4 pt-4">
+          <button title="Annuler" 
+            type="button"
+            (click)="closePaymentForm()"
+            class="px-6 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors">
+            Annuler
+          </button>
+          <button title="Enregistrer" 
+            type="submit"
+            [disabled]="loading"
+            class="px-6 py-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-lg hover:from-emerald-600 hover:to-green-700 transition-all duration-200 disabled:opacity-50">
+            <span *ngIf="loading">Enregistrement...</span>
+            <span *ngIf="!loading">Enregistrer</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

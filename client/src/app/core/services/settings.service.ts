@@ -21,6 +21,8 @@ export interface AppSettings {
   requireApprovalForVariance: boolean;
   ticketWidth: number;
   droitDeTimbre: boolean;
+  // Expenses
+  autoApproveExpenseBelow: number;
 }
 
 @Injectable({

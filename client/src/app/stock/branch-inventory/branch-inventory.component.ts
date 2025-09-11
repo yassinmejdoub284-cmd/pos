@@ -11,7 +11,6 @@ import { StockDocument } from '../../core/models/stock-document.model';
 @Component({
   selector: 'app-branch-inventory',
   templateUrl: './branch-inventory.component.html',
-  styleUrls: ['./branch-inventory.component.css'],
   standalone: false
 })
 export class BranchInventoryComponent implements OnInit {

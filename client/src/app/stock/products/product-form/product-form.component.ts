@@ -36,7 +36,13 @@ export class ProductFormComponent implements OnInit {
       tva: [19, [Validators.required, Validators.min(0), Validators.max(100)]],
       duree_conservation: [null],
       isVraguable: [false],
-      isStockable: [false]
+      isStockable: [false],
+      // Wholesale fields
+      isWholesale: [false],
+      bundleSize: [null],
+      bundlePrice: [null],
+      minMargin: [null],
+      requiresApproval: [false]
     });
   }
 
@@ -48,7 +54,13 @@ export class ProductFormComponent implements OnInit {
         ...this.product,
         familleId: this.product.familleId,
         isVraguable: this.product.isVraguable || false,
-        isStockable: this.product.isStockable || false
+        isStockable: this.product.isStockable || false,
+        // Wholesale fields
+        isWholesale: this.product.isWholesale || false,
+        bundleSize: this.product.bundleSize || null,
+        bundlePrice: this.product.bundlePrice || null,
+        minMargin: this.product.minMargin || null,
+        requiresApproval: this.product.requiresApproval || false
       });
       
       // Set initial disabled state based on vraguable status
@@ -63,6 +75,9 @@ export class ProductFormComponent implements OnInit {
       if (this.product.photo) {
         this.imagePreview = this.product.photo;
       }
+      
+      // Initialize wholesale state
+      this.onWholesaleChange();
     } else {
       // For new products, disable stockable by default
       this.productForm.get('isStockable')?.disable();
@@ -111,7 +126,9 @@ export class ProductFormComponent implements OnInit {
       this.loading = true;
       this.error = '';
 
-      const formData = this.productForm.value;
+      // Get all form values including disabled controls
+      const formData = this.productForm.getRawValue();
+      console.log('Form data being sent:', formData);
 
       const saveProduct = () => {
         if (this.product) {
@@ -182,5 +199,34 @@ export class ProductFormComponent implements OnInit {
 
   onStockableChange(): void {
     // Stock management logic can be added here if needed in the future
+  }
+
+  onWholesaleChange(): void {
+    const isWholesale = this.productForm.get('isWholesale')?.value;
+    const bundleSizeControl = this.productForm.get('bundleSize');
+    const bundlePriceControl = this.productForm.get('bundlePrice');
+    const minMarginControl = this.productForm.get('minMargin');
+    const requiresApprovalControl = this.productForm.get('requiresApproval');
+    
+    if (!isWholesale) {
+      // Clear wholesale fields when disabled
+      this.productForm.patchValue({
+        bundleSize: null,
+        bundlePrice: null,
+        minMargin: null,
+        requiresApproval: false
+      });
+      bundleSizeControl?.clearValidators();
+      bundlePriceControl?.clearValidators();
+    } else {
+      // Add validators for wholesale fields
+      bundleSizeControl?.setValidators([Validators.required, Validators.min(1)]);
+      bundlePriceControl?.setValidators([Validators.required, Validators.min(0)]);
+      minMarginControl?.setValidators([Validators.min(0), Validators.max(100)]);
+    }
+    
+    bundleSizeControl?.updateValueAndValidity();
+    bundlePriceControl?.updateValueAndValidity();
+    minMarginControl?.updateValueAndValidity();
   }
 } 

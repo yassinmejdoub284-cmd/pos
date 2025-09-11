@@ -1,7 +1,9 @@
 import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { ExpenseService, ExpenseCategory, Expense, ExpenseStats, PaymentType } from '../core/services/expense.service';
+import { SupplierService } from '../core/services/supplier.service';
 import { AuthService } from '../core/services/auth.service';
 import { Chart, ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { registerables } from 'chart.js';
@@ -18,6 +20,8 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   @ViewChild('lineChartCanvas') lineChartCanvas!: ElementRef<HTMLCanvasElement>;
   
   categories: ExpenseCategory[] = [];
+  suppliers: any[] = [];
+  supplierSearch = '';
   expenses: Expense[] = [];
   stats: ExpenseStats | null = null;
   loading = true;
@@ -30,11 +34,14 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   showAllExpensesModal = false;
   searchQuery = '';
   activeFilter = 'all';
+  // Wizard state
+  addExpenseStep: 'category' | 'payment' | 'supplier' | 'notes' = 'category';
+  payNow = true;
 
   newExpense = {
     amount: NaN,
-    description: '',
     categoryId: 0,
+    supplierId: undefined as number | undefined,
     paymentType: 'CASH' as PaymentType,
     date: new Date().toISOString().split('T')[0],
     collectionDate: new Date().toISOString().split('T')[0],
@@ -65,12 +72,31 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
   constructor(
     private expenseService: ExpenseService,
-    private authService: AuthService
+    private authService: AuthService,
+    private route: ActivatedRoute,
+    private supplierService: SupplierService
   ) {}
 
   ngOnInit() {
     this.loadCurrentUser();
     this.loadData();
+    
+    // Check for action query parameter
+    this.route.queryParams.subscribe(params => {
+      if (params['action']) {
+        switch (params['action']) {
+          case 'add':
+            this.openAddExpenseModal();
+            break;
+          case 'add-category':
+            this.openAddCategoryModal();
+            break;
+          case 'statistics':
+            this.openStatsModal();
+            break;
+        }
+      }
+    });
   }
 
   ngAfterViewInit() {
@@ -90,14 +116,19 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     Promise.all([
       this.expenseService.getCategories().toPromise(),
       this.expenseService.getExpenses().toPromise(),
-      this.expenseService.getStats().toPromise()
-    ]).then(([categories, expenses, stats]) => {
+      this.expenseService.getStats().toPromise(),
+      this.supplierService.getSuppliers().toPromise()
+    ]).then(([categories, expenses, stats, suppliers]) => {
       this.categories = categories || [];
       this.expenses = expenses || [];
       this.stats = stats || null;
+      console.log('Raw suppliers data:', suppliers);
+      this.suppliers = (suppliers || []).filter((s: any) => s.isActive !== false);
+      console.log('Filtered suppliers:', this.suppliers);
       this.pendingExpenses = this.expenses.filter(e => !e.isApproved);
       this.loading = false;
     }).catch(error => {
+      console.error('Error loading data:', error);
       this.error = 'Erreur lors du chargement des données';
       this.loading = false;
       console.error('Error loading data:', error);
@@ -111,6 +142,23 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
   selectPaymentType(paymentType: string) {
     this.newExpense.paymentType = paymentType as PaymentType;
+  }
+
+  get filteredSuppliers(): any[] {
+    const query = this.supplierSearch.trim().toLowerCase();
+    console.log('Filtering suppliers with query:', query);
+    console.log('Available suppliers:', this.suppliers);
+    if (!query) { 
+      console.log('No query, returning all suppliers:', this.suppliers);
+      return this.suppliers; 
+    }
+    const filtered = this.suppliers.filter(s =>
+      (s.name || '').toLowerCase().includes(query) ||
+      (s.phone || '').toString().includes(query) ||
+      (s.address || '').toLowerCase().includes(query)
+    );
+    console.log('Filtered suppliers result:', filtered);
+    return filtered;
   }
 
   getCategoryAmount(categoryId: number): number {
@@ -128,11 +176,39 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   openAddExpenseModal() {
     this.showAddExpenseModal = true;
     this.resetNewExpense();
+    this.addExpenseStep = 'category';
+    this.payNow = true;
   }
 
   closeAddExpenseModal() {
     this.showAddExpenseModal = false;
     this.resetNewExpense();
+  }
+
+  // Wizard navigation
+  goToNextStep() {
+    if (this.addExpenseStep === 'category') {
+      if (!this.newExpense.categoryId) { this.error = 'Veuillez choisir une catégorie'; return; }
+      this.error = '';
+      this.addExpenseStep = 'payment';
+      return;
+    }
+    if (this.addExpenseStep === 'payment') {
+      if (!this.newExpense.amount || this.newExpense.amount <= 0) { this.error = 'Veuillez saisir un montant valide'; return; }
+      this.error = '';
+      this.addExpenseStep = 'supplier';
+      return;
+    }
+    if (this.addExpenseStep === 'supplier') {
+      this.addExpenseStep = 'notes';
+      return;
+    }
+  }
+
+  goToPrevStep() {
+    if (this.addExpenseStep === 'notes') { this.addExpenseStep = 'supplier'; return; }
+    if (this.addExpenseStep === 'supplier') { this.addExpenseStep = 'payment'; return; }
+    if (this.addExpenseStep === 'payment') { this.addExpenseStep = 'category'; return; }
   }
 
   openAddCategoryModal() {
@@ -357,8 +433,8 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   resetNewExpense() {
     this.newExpense = {
       amount: NaN,
-      description: '',
       categoryId: 0,
+      supplierId: undefined,
       paymentType: 'CASH' as PaymentType,
       date: new Date().toISOString().split('T')[0],
       collectionDate: new Date().toISOString().split('T')[0],
@@ -377,7 +453,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   }
 
   async saveExpense() {
-    if (!this.newExpense.amount || !this.newExpense.description || !this.newExpense.categoryId) {
+    if (!this.newExpense.amount || !this.newExpense.categoryId) {
       this.error = 'Veuillez remplir tous les champs obligatoires';
       return;
     }
@@ -526,7 +602,6 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     if (this.searchQuery.trim()) {
       const query = this.searchQuery.toLowerCase().trim();
       filtered = filtered.filter(expense => 
-        expense.description.toLowerCase().includes(query) ||
         expense.category?.name.toLowerCase().includes(query) ||
         expense.user?.firstName.toLowerCase().includes(query) ||
         expense.user?.lastName.toLowerCase().includes(query) ||

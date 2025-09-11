@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { ClientsService } from '../core/services/clients.service';
 import { Client, ClientType, CreateClientRequest, UpdateClientRequest } from '../core/models/client.model';
 
@@ -61,10 +62,20 @@ export class ClientsComponent implements OnInit {
   alertMessage = '';
   alertType: 'success' | 'error' | 'info' = 'info';
 
-  constructor(private clientsService: ClientsService) {}
+  constructor(
+    private clientsService: ClientsService,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit(): void {
     this.loadClients();
+    
+    // Check if we should open the create popup based on query parameters
+    this.route.queryParams.subscribe(params => {
+      if (params['action'] === 'add') {
+        this.openCreatePopup();
+      }
+    });
   }
 
   loadClients(): void {

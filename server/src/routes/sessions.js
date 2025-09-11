@@ -240,9 +240,10 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
     const summary = await calculateSessionSummary(parseInt(id));
     const variance = parseFloat(countedCash) - parseFloat(summary.expectedCash);
     
-    // Check variance threshold
+    // Check variance threshold (but we will still require approval for all closures)
     const settings = await getClotureSettings();
-    const requiresApproval = Math.abs(variance) > settings.varianceThreshold;
+    const varianceExceedsThreshold = Math.abs(variance) > settings.varianceThreshold;
+    const requiresApproval = true;
 
     const result = await prisma.$transaction(async (tx) => {
       // Add retrait centrale if specified
@@ -271,18 +272,18 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
         }
       });
 
-      // Create change request if variance exceeds threshold
-      if (requiresApproval) {
-        await tx.changeRequest.create({
-          data: {
-            type: 'VARIANCE_APPROVAL',
-            entityId: parseInt(id),
-            entityType: 'SESSION_CAISSE',
-            reason: `Écart de ${variance.toFixed(3)} TND dépasse le seuil de ${settings.varianceThreshold} TND`,
-            requestedBy: req.user.id
-          }
-        });
-      }
+      // Always create change request for closure approval
+      await tx.changeRequest.create({
+        data: {
+          type: 'VARIANCE_APPROVAL',
+          entityId: parseInt(id),
+          entityType: 'SESSION_CAISSE',
+          reason: varianceExceedsThreshold
+            ? `Écart de ${variance.toFixed(3)} TND dépasse le seuil de ${settings.varianceThreshold} TND`
+            : `Clôture à approuver (écart: ${variance.toFixed(3)} TND, seuil: ${settings.varianceThreshold} TND)`,
+          requestedBy: req.user.id
+        }
+      });
 
       return updatedSession;
     });
@@ -408,11 +409,13 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { type = 'Z', format = 'html' } = req.query;
 
+    // Admin can view any session; others only their own
+    const whereClause = req.user.role === 'ADMIN'
+      ? { id: parseInt(id) }
+      : { id: parseInt(id), userId: req.user.id };
+
     const session = await prisma.sessionCaisse.findFirst({
-      where: {
-        id: parseInt(id),
-        userId: req.user.id
-      },
+      where: whereClause,
       include: {
         user: { select: { firstName: true, lastName: true } },
         depot: { select: { name: true, code: true } },
@@ -607,6 +610,12 @@ async function generateZReport(sessionId, closureData = {}) {
   });
 
   const summary = await calculateSessionSummary(sessionId);
+  // Derive closure amounts from cash movements if not provided
+  const computedWithdrawal = session.cashMovements
+    .filter(m => m.type === 'RETRAIT_CENTRALE')
+    .reduce((sum, m) => sum + parseFloat(m.amount), 0);
+  const finalCounted = session.countedCash != null ? parseFloat(session.countedCash) : undefined;
+  const finalRemaining = finalCounted != null ? (finalCounted - computedWithdrawal) : undefined;
   
   // Group sales by families (like daily extract)
   const familyMap = new Map();
@@ -661,9 +670,9 @@ async function generateZReport(sessionId, closureData = {}) {
     generatedAt: new Date(),
     reportType: 'Z',
     closureData: {
-      withdrawalAmount: closureData.withdrawalAmount || 0,
-      remainingBalance: closureData.remainingBalance || 0,
-      countedCash: closureData.countedCash || 0
+      withdrawalAmount: closureData.withdrawalAmount ?? computedWithdrawal ?? 0,
+      remainingBalance: closureData.remainingBalance ?? finalRemaining ?? 0,
+      countedCash: closureData.countedCash ?? finalCounted ?? 0
     }
   };
 }

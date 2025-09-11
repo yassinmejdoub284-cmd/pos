@@ -10,7 +10,6 @@ import { Product, ProductFamily } from '../../core/models/product.model';
 @Component({
   selector: 'app-prepare-lot',
   templateUrl: './prepare-lot.component.html',
-  styleUrls: ['./prepare-lot.component.css'],
   standalone: false
 })
 export class PrepareLotComponent implements OnInit {

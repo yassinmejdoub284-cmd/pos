@@ -4,12 +4,14 @@ import { FormsModule } from '@angular/forms';
 
 import { LoginComponent } from './login/login.component';
 import { UnauthorizedComponent } from '../unauthorized/unauthorized.component';
+import { UsersComponent } from './users/users.component';
 import { AuthRoutingModule } from './auth-routing.module';
 
 @NgModule({
   declarations: [
     LoginComponent,
-    UnauthorizedComponent
+    UnauthorizedComponent,
+    UsersComponent
   ],
   imports: [
     CommonModule,

@@ -1,4 +1,6 @@
-<div class="min-h-screen bg-gradient-to-br from-amber-50 via-blue-50 to-purple-50">
+<div class="min-h-screen bg-gradient-to-br "
+  [ngClass]="isWholesaleMode ? 'bg-red-300' : 'bg-purple-300'"
+  > <!--bg-purple-300 default - gros bg-red-300 -->
   <!-- Home Button - Top Right -->
   <div class="fixed top-6 right-6 z-40">
     <a routerLink="/home"
@@ -13,10 +15,10 @@
   </div>
 
   <!-- Main Content Area - 4 Section Layout -->
-  <div class="md:grid md:grid-cols-17 gap-6 h-screen p-3">
+  <div class="md:grid md:grid-cols-17 gap-2 h-screen p-2">
 
     <!-- 1️⃣ Left Section - Customer & Invoice Summary -->
-    <div class="flex-1 col-span-7">
+    <div class="flex-1 col-span-7 flex flex-col max-h-screen">
       <!-- Compact POS Header -->
       <div
         class="col-span-14 bg-gradient-to-r from-blue-50 via-white to-emerald-50 rounded-xl border border-blue-200/60 shadow-lg mb-2">
@@ -36,6 +38,10 @@
               class="bg-gradient-to-r from-amber-400 to-amber-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md">
               TEMP
             </div>
+            <div *ngIf="isWholesaleMode"
+              class="bg-gradient-to-r from-red-400 to-red-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md">
+              GROS
+            </div>
           </div>
 
           <!-- Center: Client -->
@@ -49,12 +55,12 @@
         </div>
       </div>
 
-      <div class="p-2 bg-white/90 rounded-xl border border-blue-200/60 shadow-lg backdrop-blur-sm">
+      <div class="p-2 bg-white/90 rounded-xl border border-blue-200/60 shadow-lg grow">
         <!-- Categories -->
         <div class="mb-4">
           <!-- Quick Filter Buttons -->
           <div class="flex flex-wrap gap-2">
-            <button *ngFor="let category of productCategories" (click)="selectCategory(category)"
+            <button title="Catégorie" *ngFor="let category of productCategories" (click)="selectCategory(category)"
               [class]="'px-4 py-3 rounded-full text-xs font-medium transition-all ' + 
                                (selectedCategory === category ? 
                                  (category === 'Vrac' ? 'bg-orange-400 text-white shadow-md' : 'bg-blue-400 text-white shadow-md') : 
@@ -69,7 +75,7 @@
           <!-- Products Grid Container -->
           <div class="relative">
             <!-- Left Arrow - Sticky -->
-            <button *ngIf="currentPage > 0" (click)="goToPreviousPage()"
+            <button title="Page précédente" *ngIf="currentPage > 0" (click)="goToPreviousPage()"
               class="absolute -left-4 top-1/2 -translate-y-1/2 -translate-x-2 z-10 bg-white hover:bg-blue-50 text-gray-700 p-2 sm:p-3 rounded-full transition-all shadow-lg hover:scale-105 border border-blue-200">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
@@ -77,7 +83,7 @@
             </button>
 
             <!-- Right Arrow - Sticky -->
-            <button *ngIf="currentPage < totalPages - 1" (click)="goToNextPage()"
+            <button title="Page suivante" *ngIf="currentPage < totalPages - 1" (click)="goToNextPage()"
               class="absolute -right-4 top-1/2 -translate-y-1/2 translate-x-2 z-10 bg-white hover:bg-blue-50 text-gray-700 p-2 sm:p-3 rounded-full transition-all shadow-lg hover:scale-105 border border-blue-200">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
@@ -85,9 +91,21 @@
             </button>
 
             <!-- Products Grid -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
-              <button *ngFor="let product of getCurrentPageProducts()" (click)="onProductClick($event, product)"
-                class="bg-white hover:bg-blue-50 border border-blue-200 rounded-lg p-2 text-center transition-all duration-300 transform hover:scale-95 cursor-pointer shadow-sm hover:shadow-md relative">
+            <div #productGrid class="flex flex-wrap gap-2 justify-start items-start w-full product-grid"
+                 [class.dragging]="isDragMode"
+                 (mousemove)="onProductMouseMove($event)"
+                 (touchmove)="onProductTouchMove($event)">
+              <button *ngFor="let product of getCurrentPageProducts()" 
+                      (mousedown)="onProductMouseDown($event, product)"
+                      (mouseup)="onProductMouseUp($event, product)"
+                      (mousemove)="onProductMouseMove($event)"
+                      (touchstart)="onProductTouchStart($event, product)"
+                      (touchend)="onProductTouchEnd($event, product)"
+                      (touchmove)="onProductTouchMove($event)"
+                      [class.dragging]="isDragMode"
+                      [class.drag-origin]="isDragMode && draggedProduct?.id === product.id"
+                      class="product-button bg-white hover:bg-blue-50 border border-blue-200 rounded-lg p-2 text-center transition-all duration-300 transform hover:scale-95 cursor-pointer shadow-sm hover:shadow-md relative select-none"
+                      [style.user-select]="isDragMode ? 'none' : 'auto'">
                 <!-- Product Image -->
                 <div
                   class="w-full h-16 mb-2 bg-gradient-to-br from-blue-100 to-emerald-100 rounded-lg flex items-center justify-center relative border border-blue-200">
@@ -121,7 +139,7 @@
 
                 <!-- Product Name -->
                 <div class="font-medium text-xs mb-2 text-gray-800 leading-tight break-words hyphens-auto">{{
-                  product.name }}</div>
+                  truncate(product.name, 20) }}</div>
 
                 <!-- Price Tag - Bottom Right Corner with 45° Rotation -->
                 <div
@@ -145,11 +163,52 @@
     </div>
     <!-- 2️⃣ Middle Section - Order Table & Calculator -->
     <div
-      class="col-span-7 bg-white/90 rounded-xl border border-blue-200/60 p-3.5 pt-3 pb-0 flex flex-col shadow-lg backdrop-blur-sm">
+      class="col-span-7 bg-white/90 rounded-xl border border-blue-200/60 p-3.5 py-3 flex flex-col shadow-lg">
       <!-- Order Table -->
-      <div>
+      <div class="h-full flex flex-col">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-lg font-bold text-gray-800">Commande</h3>
+          <div class="flex items-center space-x-4">
+            <!-- Wholesale Mode Header -->
+            <div *ngIf="isWholesaleMode" class="relative">
+              <div class="absolute inset-0 bg-gradient-to-r from-red-500 to-orange-600 rounded-2xl blur-sm opacity-75"></div>
+              <div class="relative bg-gradient-to-r from-red-500 to-orange-600 rounded-2xl px-6 py-3 shadow-lg">
+                <div class="flex items-center space-x-3">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                  </svg>
+                  <h3 class="text-lg font-bold text-white tracking-wide">
+                    VENTE EN GROS
+                  </h3>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Retail Mode Header -->
+            <div *ngIf="!isWholesaleMode" class="relative">
+              <div class="absolute inset-0 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl blur-sm opacity-75"></div>
+              <div class="relative bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl px-6 py-3 shadow-lg">
+                <div class="flex items-center space-x-3">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                  </svg>
+                  <h3 class="text-lg font-bold text-white tracking-wide">
+                    VENTE EN DÉTAIL
+                  </h3>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Status Indicator -->
+            <div class="flex items-center space-x-2">
+              <div class="w-3 h-3 rounded-full animate-pulse" 
+                   [class]="isWholesaleMode ? 'bg-red-400' : 'bg-emerald-400'"></div>
+              <span class="text-sm font-medium" 
+                    [class]="isWholesaleMode ? 'text-red-600' : 'text-emerald-600'">
+                {{isWholesaleMode ? 'Gros' : 'Détail'}}
+              </span>
+            </div>
+          </div>
+          
           <div class="flex items-center space-x-3">
             <div class="text-sm text-gray-600">
               <span class="font-medium">{{ receiptItems.length }}</span> article{{ receiptItems.length > 1 ? 's' : '' }}
@@ -162,26 +221,41 @@
         </div>
 
         <!-- Order Table -->
-        <div class="bg-white/50 rounded-lg overflow-hidden border border-blue-200">
-          <div class="overflow-y-auto h-[328px]">
+        <div class="bg-black/50 rounded-lg overflow-hidden border border-blue-200 max-h-[calc(100vh-435px)]">
+          <div class="overflow-y-auto h-full">
             <table class="w-full">
               <thead class="sticky top-0 bg-gradient-to-r from-blue-100 to-emerald-100">
                 <tr>
                   <th class="text-left px-3 py-3 text-sm font-medium text-gray-700 w-16">QTÉ</th>
                   <th class="text-left px-3 py-3 text-sm font-medium text-gray-700">DESIGNATION</th>
                   <th class="text-right px-3 py-3 text-sm font-medium text-gray-700 w-20">P.U</th>
-                  <th class="text-right px-3 py-3 text-sm font-medium text-gray-700 w-20">TOTAL</th>
+                  <th class="text-right px-3 py-3 text-sm font-medium text-gray-700 w-20 border-r-0">TOTAL</th>
                   <th class="text-center px-3 py-3 text-sm font-medium text-gray-700 w-16"></th>
                 </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let item of receiptItems; let i = index"
                   class="border-b border-gray-200 text-gray-800 cursor-pointer hover:bg-blue-50 transition-colors"
-                  [class]="selectedReceiptItemIndex === i ? 'bg-blue-100 border-blue-300' : ''"
+                  [class]="selectedReceiptItemIndex === i ? 'bg-blue-100 border-blue-300' : 'bg-purple-50'"
                   (click)="selectReceiptItem(item, i)">
-                  <td class="px-3 py-3 text-sm">{{ item.quantity | number:'1.1-1' }}</td>
-                  <td class="px-3 py-3 text-sm font-medium">{{ truncate(item.product.name, 30) }}</td>
-                  <td class="px-3 py-3 text-sm text-right">{{ item.unitPrice | number:'1.3-3' }}</td>
+                  <td class="px-3 py-3 text-sm">
+                    <div *ngIf="!item.isWholesale">{{ item.quantity }}</div>
+                    <div *ngIf="item.isWholesale" class="text-center">
+                      <div class="text-xs text-violet-600 font-bold">{{ item.bundleQuantity || 0 }} fardeau{{ (item.bundleQuantity || 0) > 1 ? 'x' : '' }}</div>
+                      <div class="text-xs text-gray-500">({{ item.quantity }} unités)</div>
+                    </div>
+                  </td>
+                  <td class="px-3 py-3 text-sm font-medium">
+                    <div>{{ truncate(item.product.name, 30) }}</div>
+                    <div *ngIf="item.isWholesale" class="text-xs text-violet-600 font-bold">GROS</div>
+                  </td>
+                  <td class="px-3 py-3 text-sm text-right">
+                    <div *ngIf="!item.isWholesale">{{ item.unitPrice | number:'1.3-3' }}</div>
+                    <div *ngIf="item.isWholesale">
+                      <div class="text-xs text-violet-600 font-bold">{{ (item.bundlePrice || 0) | number:'1.3-3' }}/fardeau</div>
+                      <div class="text-xs text-gray-500">{{ ((item.bundlePrice || 0) / (item.bundleSize || 1)) | number:'1.3-3' }}/unité</div>
+                    </div>
+                  </td>
                   <td class="px-3 py-3 text-sm text-right font-bold text-blue-600">{{ item.total | number:'1.3-3' }}
                   </td>
                   <td class="px-3 py-3 text-center">
@@ -202,7 +276,8 @@
         <!-- Input Mode and Display -->
         <div class="mb-2 flex gap-2">
           <!-- Current Input Display -->
-          <div class="bg-sky-100 grow rounded-lg py-1 px-4 border border-blue-200">
+          <div class="grow rounded-lg py-1 px-4 border"
+            [ngClass]="{'bg-green-100 border-green-200': inputMode === 'price', 'bg-purple-100 border-purple-200': inputMode === 'quantity'}">
             <div class="text-xs text-gray-500 mb-1">
               {{ inputMode === 'quantity' ? 'Quantité' : 'Prix' }}
               <span *ngIf="lastEnteredValue" class="text-green-600">({{ lastEnteredValue }})</span>
@@ -233,7 +308,7 @@
                 </button>
               </div>
               <div class="text-xs text-gray-500 truncate" *ngIf="!isCartEmpty(cart.id)">
-                {{ getCartItemCount(cart.id) }} • {{ getCartTotal(cart.id).toFixed(2) }}dt
+                {{ getCartItemCount(cart.id) }} • {{ getCartTotal(cart.id) }}dt
               </div>
             </button>
             
@@ -302,7 +377,7 @@
 
     <!-- 3️⃣ Right Sidebar - Action Buttons -->
     <div
-      class="col-span-3 bg-white/90 rounded-xl border border-blue-200/60 p-4 flex flex-col shadow-lg backdrop-blur-sm">
+      class="col-span-3 bg-white/90 rounded-xl border border-blue-200/60 p-4 flex flex-col shadow-lg">
 
       <!-- Action Buttons Section -->
       <div class="mb-6">
@@ -332,9 +407,9 @@
       <!-- Command Buttons Section -->
       <div class="flex-1">
         <h3 class="text-lg font-bold text-gray-800 mb-4">Commandes</h3>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-3 gap-3">
           <button (click)="commandButtons[0].action()"
-            class="text-white rounded-xl transition-all col-span-2 text-sm font-medium flex flex-col items-center justify-center py-8 relative hover:scale-105 transform shadow-lg"
+            class="text-white rounded-xl transition-all col-span-3 text-sm font-medium flex flex-col items-center justify-center py-8 relative hover:scale-105 transform shadow-lg"
             [style.background-color]="commandButtons[0].color">
             <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="commandButtons[0].icon">
@@ -361,7 +436,7 @@
   <div *ngIf="showAlert"
     class="fixed top-4 right-4 z-50 max-w-sm w-full transform transition-all duration-300 ease-in-out"
     [class]="'animate-in slide-in-from-right-2'">
-    <div class="bg-white/95 border border-blue-200/50 rounded-xl shadow-2xl overflow-hidden backdrop-blur-sm">
+    <div class="bg-white/95 border border-blue-200/50 rounded-xl shadow-2xl overflow-hidden">
       <!-- Alert Header -->
       <div class="flex items-center justify-between p-4 border-b border-blue-200/30">
         <div class="flex items-center space-x-3">
@@ -650,7 +725,7 @@
 
   <!-- Payment Confirmation Dialog -->
   <div *ngIf="showPaymentConfirmation"
-    class="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-4 backdrop-blur-sm">
+    class="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-4">
     <div
       class="bg-gradient-to-br from-white via-blue-50 to-purple-50 rounded-3xl border border-blue-200/60 max-w-md w-full overflow-hidden shadow-2xl transform transition-all duration-300 scale-100">
       <!-- Header with gradient background -->
@@ -667,7 +742,7 @@
         <!-- Success icon -->
         <div class="relative z-10 mb-4">
           <div
-            class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto backdrop-blur-sm border border-white/30">
+            class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto border border-white/30">
             <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -750,7 +825,7 @@
 
   <!-- Remise Payment Popup -->
   <div *ngIf="showRemisePaymentPopup"
-    class="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
+    class="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-2 sm:p-4">
     <div
       class="bg-gradient-to-br from-white via-yellow-50 to-amber-50 rounded-2xl border border-yellow-200/60 max-w-sm w-full max-h-[95vh] overflow-hidden shadow-2xl">
       <!-- Header -->
@@ -836,7 +911,7 @@
 
   <!-- Temporary Sales History Popup -->
   <div *ngIf="showTemporarySalesHistory"
-    class="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
+    class="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-2 sm:p-4">
     <div
       class="bg-gradient-to-br from-white via-orange-50 to-yellow-50 rounded-2xl border border-orange-200/60 max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
       <!-- Header -->
@@ -1640,11 +1715,11 @@
   </div>
 
   <!-- Client Search Popup -->
-  <div *ngIf="showClientSearchPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl border border-gray-200 max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+  <div *ngIf="showClientSearchPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="closeClientSearch()">
+    <div class="bg-white rounded-xl border border-gray-200 max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
       <div class="bg-white/60 p-4 border-b border-slate-300 flex justify-between items-center">
         <h2 class="text-xl font-bold text-slate-800">Rechercher un Client</h2>
-        <button (click)="showClientSearchPopup = false" title="Fermer la recherche de client"
+        <button (click)="closeClientSearch()" title="Fermer la recherche de client"
           class="text-slate-500 hover:text-slate-800 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -1919,5 +1994,16 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Drag Ghost -->
+  <div *ngIf="isDragMode && draggedProduct && dragGhostPosition" 
+       class="fixed pointer-events-none drag-ghost"
+       [style.left.px]="dragGhostPosition.x - 60"
+       [style.top.px]="dragGhostPosition.y - 40">
+    <div class="rounded-lg p-3 shadow-lg max-w-36">
+      <div class="text-sm font-bold truncate">{{ draggedProduct.name }}</div>
+      <div class="text-xs opacity-90">{{ draggedProduct.prix_vente_TTC }}dt</div>
     </div>
   </div>

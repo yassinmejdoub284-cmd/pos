@@ -5,7 +5,6 @@ import { ProductFamily } from '../../core/models/product-family.model';
 @Component({
   selector: 'app-families',
   templateUrl: './families.component.html',
-  styleUrls: ['./families.component.css'],
   standalone: false
 })
 export class FamiliesComponent implements OnInit {
@@ -86,13 +85,24 @@ export class FamiliesComponent implements OnInit {
   }
 
   deleteFamily(family: ProductFamily): void {
+    // Prevent deletion if the family still has products
+    if ((family as any)._count?.products && (family as any)._count.products > 0) {
+      this.error = 'Impossible de supprimer cette famille: elle contient encore des produits. Veuillez d\'abord déplacer ou supprimer ces produits.';
+      return;
+    }
+
     if (confirm(`Êtes-vous sûr de vouloir supprimer la famille "${family.name}" ?`)) {
       this.familiesService.deleteFamily(family.id).subscribe({
         next: () => {
           this.loadFamilies();
         },
         error: (error) => {
-          this.error = error.error?.error || 'Erreur lors de la suppression de la famille';
+          // Graceful error for server-side constraint
+          if (error?.status === 409) {
+            this.error = 'Suppression impossible: cette famille est liée à des produits.';
+          } else {
+            this.error = error?.error?.error || 'Erreur lors de la suppression de la famille';
+          }
         }
       });
     }

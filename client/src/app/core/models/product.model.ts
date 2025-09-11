@@ -20,6 +20,13 @@ export interface Product {
   initialStock?: number;
   minStock?: number;
   maxStock?: number;
+  displayIndex?: number;
+  // Wholesale/Bundle fields
+  isWholesale?: boolean;
+  bundleSize?: number;
+  bundlePrice?: number;
+  minMargin?: number;
+  requiresApproval?: boolean;
   createdAt: Date;
   updatedAt: Date;
   inventory?: Inventory[];
@@ -108,6 +115,25 @@ export interface VracPrice {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface SaleItem {
+  id: number;
+  saleId: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  discount: number;
+  // Wholesale/Bundle fields
+  isWholesale: boolean;
+  bundleQuantity?: number;
+  bundleSize?: number;
+  bundlePrice?: number;
+  marginPercent?: number;
+  requiresApproval: boolean;
+  isApproved: boolean;
 }
 
 export interface BulkImportResult {

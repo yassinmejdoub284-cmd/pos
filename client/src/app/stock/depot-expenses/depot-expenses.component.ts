@@ -8,7 +8,6 @@ import { Depot } from '../../core/models/depot.model';
 @Component({
   selector: 'app-depot-expenses',
   templateUrl: './depot-expenses.component.html',
-  styleUrls: ['./depot-expenses.component.css'],
   standalone: false
 })
 export class DepotExpensesComponent implements OnInit {
@@ -124,7 +123,7 @@ export class DepotExpensesComponent implements OnInit {
     this.selectedExpense = expense;
     this.newExpense = {
       amount: expense.amount,
-      description: expense.description,
+      description: expense.description || '',
       categoryId: expense.categoryId,
       paymentType: expense.paymentType,
       date: expense.date.split('T')[0],
@@ -172,7 +171,7 @@ export class DepotExpensesComponent implements OnInit {
   }
 
   async saveExpense(): Promise<void> {
-    if (!this.newExpense.amount || !this.newExpense.description || !this.newExpense.categoryId) {
+    if (!this.newExpense.amount || !this.newExpense.categoryId) {
       this.error = 'Veuillez remplir tous les champs obligatoires';
       return;
     }
@@ -201,7 +200,7 @@ export class DepotExpensesComponent implements OnInit {
   }
 
   async updateExpense(): Promise<void> {
-    if (!this.selectedExpense || !this.newExpense.amount || !this.newExpense.description || !this.newExpense.categoryId) {
+    if (!this.selectedExpense || !this.newExpense.amount || !this.newExpense.categoryId) {
       this.error = 'Veuillez remplir tous les champs obligatoires';
       return;
     }
@@ -209,8 +208,11 @@ export class DepotExpensesComponent implements OnInit {
     try {
       const expenseData = {
         amount: this.newExpense.amount,
-        description: this.newExpense.description,
-        categoryId: this.newExpense.categoryId
+        categoryId: this.newExpense.categoryId,
+        notes: undefined,
+        receiptUrl: undefined,
+        supplierId: undefined,
+        description: this.newExpense.description || undefined
       };
 
       await this.expenseService.updateExpense(this.selectedExpense.id, expenseData).toPromise();

@@ -1,0 +1,131 @@
+<div class="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Utilisateurs</h2>
+        <p class="text-slate-500">Gérez les comptes, rôles, et accès</p>
+      </div>
+      <a routerLink="/parametres" class="px-4 py-2 rounded-xl bg-gradient-to-r from-slate-700 to-slate-800 text-white shadow hover:from-slate-800 hover:to-black">Paramètres</a>
+    </div>
+
+    <div *ngIf="error" class="mb-3 p-3 bg-red-100 border border-red-200 rounded-xl text-red-700">{{ error }}</div>
+
+    <div class="bg-white/90 rounded-2xl border border-indigo-100 p-5 shadow-xl backdrop-blur">
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <div class="relative flex-1 min-w-[240px]">
+          <input type="text" [(ngModel)]="search" placeholder="Rechercher utilisateur, email, rôle..." aria-label="Rechercher"
+                 class="w-full pl-11 pr-3 py-2.5 rounded-xl border-2 border-indigo-200/60 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white/70" />
+          <svg class="absolute right-3 top-2.5 w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <button (click)="openAdd()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow hover:from-indigo-600 hover:to-purple-600">Ajouter</button>
+      </div>
+
+      <div *ngIf="loading" class="text-gray-500">Chargement...</div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div *ngFor="let u of filteredUsers" class="rounded-2xl border border-indigo-100 p-5 bg-gradient-to-br from-white via-indigo-50 to-purple-50 shadow hover:shadow-2xl transition-shadow">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 text-white flex items-center justify-center font-bold">
+                {{ (u.firstName || '?').slice(0,1) }}
+              </div>
+              <div>
+                <p class="font-semibold text-slate-800">{{ u.firstName }} {{ u.lastName }}</p>
+                <p class="text-xs text-slate-500">{{ '@' + (u.username || '') }}</p>
+              </div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded-full text-white" [ngClass]="getRoleClass(u.role)">{{ getRoleName(u.role) }}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs text-slate-600">
+            <div class="bg-white/60 rounded-lg px-2 py-1">Actif: <strong>{{ u.isActive ? 'Oui' : 'Non' }}</strong></div>
+            <div class="bg-white/60 rounded-lg px-2 py-1">Dernière connexion: {{ u.lastLogin ? (u.lastLogin | date:'short') : '-' }}</div>
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button (click)="openEdit(u)" class="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700">Modifier</button>
+            <button (click)="confirmDelete(u)" class="px-3 py-1.5 text-xs rounded-lg bg-red-600 text-white hover:bg-red-700">Supprimer</button>
+            <div class="ml-auto flex items-center gap-2">
+              <input type="text" maxlength="8" aria-label="Nouveau PIN" placeholder="PIN (8)" #pinInput class="px-2 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <button (click)="updatePin(u, pinInput.value)" class="px-3 py-1.5 text-xs rounded-lg bg-amber-500 text-white hover:bg-amber-600">Maj PIN</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div *ngIf="showAddModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white/95 rounded-2xl border border-indigo-100 w-full max-w-md p-5 shadow-xl">
+    <h3 class="text-lg font-semibold mb-3">Ajouter utilisateur</h3>
+    <div class="space-y-2">
+      <input type="text" [(ngModel)]="newUser.username" placeholder="Nom d'utilisateur" class="w-full border rounded-xl px-3 py-2 bg-white/70">
+      <input type="email" [(ngModel)]="newUser.email" placeholder="Email" class="w-full border rounded-xl px-3 py-2 bg-white/70">
+      <input type="password" [(ngModel)]="newUser.password" placeholder="Mot de passe" class="w-full border rounded-xl px-3 py-2 bg-white/70">
+      <div class="grid grid-cols-2 gap-2">
+        <input type="text" [(ngModel)]="newUser.firstName" placeholder="Prénom" class="w-full border rounded-xl px-3 py-2 bg-white/70">
+        <input type="text" [(ngModel)]="newUser.lastName" placeholder="Nom" class="w-full border rounded-xl px-3 py-2 bg-white/70">
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <select [(ngModel)]="newUser.role" class="w-full border rounded-xl px-3 py-2 bg-white/70" title="Rôle">
+          <option value="ADMIN">Administrateur</option>
+          <option value="MANAGER">Responsable Magasin</option>
+          <option value="CASHIER">Caissier</option>
+          <option value="STOCK_MANAGER">Gestionnaire Stock</option>
+        </select>
+        <input type="number" [(ngModel)]="newUser.depotId" placeholder="ID Dépôt (optionnel)" class="w-full border rounded-xl px-3 py-2 bg-white/70">
+      </div>
+      <input type="text" [(ngModel)]="newUser.pin" maxlength="8" placeholder="PIN (8 chiffres)" class="w-full border rounded-xl px-3 py-2 bg-white/70">
+    </div>
+    <div class="mt-4 flex justify-end gap-2">
+      <button (click)="closeAdd()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Annuler</button>
+      <button (click)="create()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow hover:from-indigo-600 hover:to-purple-600">Créer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div *ngIf="showEditModal && selectedUser" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white/95 rounded-2xl border border-indigo-100 w-full max-w-md p-5 shadow-xl">
+    <h3 class="text-lg font-semibold mb-3">Modifier utilisateur</h3>
+    <div class="space-y-2">
+      <div class="grid grid-cols-2 gap-2">
+        <input type="text" [(ngModel)]="selectedUser.firstName" placeholder="Prénom" class="w-full border rounded-xl px-3 py-2 bg-white/70">
+        <input type="text" [(ngModel)]="selectedUser.lastName" placeholder="Nom" class="w-full border rounded-xl px-3 py-2 bg-white/70">
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <select [(ngModel)]="selectedUser.role" class="w-full border rounded-xl px-3 py-2 bg-white/70" title="Rôle">
+          <option value="ADMIN">Administrateur</option>
+          <option value="MANAGER">Responsable Magasin</option>
+          <option value="CASHIER">Caissier</option>
+          <option value="STOCK_MANAGER">Gestionnaire Stock</option>
+        </select>
+        <input type="number" [(ngModel)]="selectedUser.depotId" placeholder="ID Dépôt (optionnel)" class="w-full border rounded-xl px-3 py-2 bg-white/70">
+      </div>
+      <label class="inline-flex items-center gap-2 text-sm">
+        <input type="checkbox" [(ngModel)]="selectedUser.isActive" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+        Actif
+      </label>
+    </div>
+    <div class="mt-4 flex justify-end gap-2">
+      <button (click)="closeEdit()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Annuler</button>
+      <button (click)="save()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow hover:from-indigo-600 hover:to-purple-600">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm -->
+<div *ngIf="showDeleteConfirm && selectedUser" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white/95 rounded-2xl border border-rose-100 w-full max-w-sm p-5 shadow-xl">
+    <h3 class="text-lg font-semibold mb-3">Supprimer l'utilisateur</h3>
+    <p class="text-sm text-slate-700">Êtes-vous sûr de vouloir supprimer {{ selectedUser.firstName }} {{ selectedUser.lastName }} ({{ '@' + selectedUser.username }}) ?</p>
+    <div class="mt-4 flex justify-end gap-2">
+      <button (click)="cancelDelete()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Annuler</button>
+      <button (click)="remove()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white shadow hover:from-rose-600 hover:to-red-700">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+

@@ -19,8 +19,9 @@ export interface ExpenseCategory {
 export interface Expense {
   id: number;
   amount: number;
-  description: string;
+  description?: string;
   categoryId: number;
+  supplierId?: number;
   depotId: number;
   userId: number;
   date: string;
@@ -36,6 +37,7 @@ export interface Expense {
   category?: ExpenseCategory;
   depot?: any;
   user?: any;
+  supplier?: any;
   approver?: any;
 }
 

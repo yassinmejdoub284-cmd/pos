@@ -99,4 +99,50 @@ router.put('/:id', requireRole(['ADMIN']), async (req, res) => {
   }
 });
 
+router.put('/:id/pin', requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { pin } = req.body;
+
+    if (!pin || String(pin).length !== 8) {
+      return res.status(400).json({ error: 'PIN invalide (8 chiffres requis)' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { pin: String(pin) },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        depotId: true,
+        isActive: true,
+        lastLogin: true,
+        createdAt: true,
+        pin: true
+      }
+    });
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('Error updating user pin:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/:id', requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.user.delete({ where: { id: parseInt(id) } });
+    res.json({ message: 'Utilisateur supprimé avec succès' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router; 

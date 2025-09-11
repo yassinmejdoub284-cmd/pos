@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
   try {
-    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid } = req.body;
+    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, isWholesale } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Sale must have at least one item' });
@@ -52,6 +52,30 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
       });
 
       for (const item of items) {
+        // Calculate margin for wholesale items
+        let marginPercent = null;
+        let requiresApproval = false;
+        let isApproved = false;
+
+        if (isWholesale && item.isWholesale) {
+          const product = await tx.product.findUnique({
+            where: { id: item.productId }
+          });
+
+          if (product && product.bundlePrice && product.minMargin) {
+            const expectedBundleTotal = item.bundleQuantity * product.bundlePrice;
+            const actualTotal = parseFloat(item.total);
+            const discountAmount = expectedBundleTotal - actualTotal;
+            marginPercent = (discountAmount / expectedBundleTotal) * 100;
+            
+            if (marginPercent > product.minMargin) {
+              requiresApproval = true;
+              // For now, auto-approve if user has manager/admin role
+              isApproved = req.user.role === 'ADMIN' || req.user.role === 'MANAGER';
+            }
+          }
+        }
+
         await tx.saleItem.create({
           data: {
             saleId: newSale.id,
@@ -60,7 +84,15 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
             quantity: item.quantity,
             unitPrice: parseFloat(item.unitPrice),
             total: parseFloat(item.total),
-            discount: parseFloat(item.discount || 0)
+            discount: parseFloat(item.discount || 0),
+            // Wholesale fields
+            isWholesale: isWholesale && item.isWholesale || false,
+            bundleQuantity: item.bundleQuantity || null,
+            bundleSize: item.bundleSize || null,
+            bundlePrice: item.bundlePrice || null,
+            marginPercent: marginPercent,
+            requiresApproval: requiresApproval,
+            isApproved: isApproved
           }
         });
 
@@ -534,9 +566,6 @@ router.get('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) =
   try {
     const { startDate, endDate, status, paymentMethod, page = 1, limit = 50 } = req.query;
 
-    console.log('Sales GET request - User:', req.user);
-    console.log('Sales GET request - Depot ID:', req.user.depotId);
-
     const whereClause = { depotId: req.user.depotId };
 
     if (startDate && endDate) {
@@ -546,8 +575,6 @@ router.get('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) =
     if (status) whereClause.status = status;
 
     if (paymentMethod) whereClause.paymentMethodId = parseInt(paymentMethod);
-
-    console.log('Sales query whereClause:', whereClause);
 
     const sales = await prisma.sale.findMany({
       where: whereClause,
@@ -561,11 +588,6 @@ router.get('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) =
       skip: (parseInt(page) - 1) * parseInt(limit),
       take: parseInt(limit)
     });
-
-    console.log('Found sales:', sales.length);
-    if (sales.length > 0) {
-      console.log('First sale:', { id: sales[0].id, date: sales[0].createdAt, total: sales[0].finalTotal });
-    }
 
     res.json(sales);
   } catch (error) {
@@ -624,6 +646,211 @@ router.get('/payment-methods/all', async (req, res) => {
   } catch (error) {
     console.error('Error fetching payment methods:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Wholesale sales endpoint
+router.post('/wholesale', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+  try {
+    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'Wholesale sale must have at least one item' });
+    }
+
+    // Validate that all items are wholesale items
+    for (const item of items) {
+      if (!item.isWholesale) {
+        return res.status(400).json({ error: 'All items must be wholesale items for wholesale sales' });
+      }
+    }
+
+    const sale = await prisma.$transaction(async (tx) => {
+      // Check stock availability before creating the sale
+      for (const item of items) {
+        const inventory = await tx.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: req.user.depotId,
+              productId: item.productId
+            }
+          }
+        });
+
+        if (!inventory || inventory.quantity < item.quantity) {
+          throw new Error(`Stock insuffisant pour le produit "${item.productName}". Disponible: ${inventory?.quantity || 0}, Demandé: ${item.quantity}`);
+        }
+      }
+
+      // Get the current active session for the user
+      const activeSession = await tx.sessionCaisse.findFirst({
+        where: {
+          userId: req.user.id,
+          status: 'OPEN'
+        }
+      });
+
+      const newSale = await tx.sale.create({
+        data: {
+          total: parseFloat(total),
+          discount: parseFloat(discount || 0),
+          finalTotal: parseFloat(finalTotal),
+          paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
+          userId: req.user.id,
+          clientId: clientId ? parseInt(clientId) : null,
+          depotId: req.user.depotId,
+          sessionId: activeSession ? activeSession.id : null,
+          status: 'COMPLETED'
+        }
+      });
+
+      for (const item of items) {
+        // Calculate margin for wholesale items
+        let marginPercent = null;
+        let requiresApproval = false;
+        let isApproved = false;
+
+        const product = await tx.product.findUnique({
+          where: { id: item.productId }
+        });
+
+        if (product && product.bundlePrice && product.minMargin) {
+          const expectedBundleTotal = item.bundleQuantity * product.bundlePrice;
+          const actualTotal = parseFloat(item.total);
+          const discountAmount = expectedBundleTotal - actualTotal;
+          marginPercent = (discountAmount / expectedBundleTotal) * 100;
+          
+          if (marginPercent > product.minMargin) {
+            requiresApproval = true;
+            // For now, auto-approve if user has manager/admin role
+            isApproved = req.user.role === 'ADMIN' || req.user.role === 'MANAGER';
+          }
+        }
+
+        await tx.saleItem.create({
+          data: {
+            saleId: newSale.id,
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            unitPrice: parseFloat(item.unitPrice),
+            total: parseFloat(item.total),
+            discount: parseFloat(item.discount || 0),
+            // Wholesale fields
+            isWholesale: true,
+            bundleQuantity: item.bundleQuantity || null,
+            bundleSize: item.bundleSize || null,
+            bundlePrice: item.bundlePrice || null,
+            marginPercent: marginPercent,
+            requiresApproval: requiresApproval,
+            isApproved: isApproved
+          }
+        });
+
+        await tx.inventory.updateMany({
+          where: {
+            depotId: req.user.depotId,
+            productId: item.productId
+          },
+          data: {
+            quantity: {
+              decrement: item.quantity
+            }
+          }
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            productId: item.productId,
+            depotId: req.user.depotId,
+            quantity: item.quantity,
+            type: 'OUT',
+            reason: 'Wholesale Sale',
+            userId: req.user.id
+          }
+        });
+      }
+
+      let loyaltyPointsEarned = 0;
+
+      if (clientId) {
+        let settings = null;
+        if (tx.appSettings && typeof tx.appSettings.findFirst === 'function') {
+          settings = await tx.appSettings.findFirst();
+        }
+        const client = await tx.client.findUnique({ where: { id: parseInt(clientId) } });
+
+        const paid = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : parseFloat(finalTotal);
+        const outstanding = Math.max(0, parseFloat(finalTotal) - paid);
+
+        if (outstanding > 0) {
+          if (!client || client.allowDebt === false) {
+            throw new Error('Debt not allowed for this client');
+          }
+          const maxDebt = client.maxDebt ?? settings?.defaultClientMaxDebt ?? 0;
+          const newDebt = parseFloat(client.currentDebt || 0) + outstanding;
+          if (newDebt > parseFloat(maxDebt)) {
+            throw new Error('Client max debt exceeded');
+          }
+
+          await tx.client.update({
+            where: { id: client.id },
+            data: { currentDebt: newDebt }
+          });
+
+          await tx.clientDebtTransaction.create({
+            data: {
+              clientId: client.id,
+              saleId: newSale.id,
+              amount: outstanding,
+              type: 'DEBT',
+              userId: req.user.id,
+              notes: 'Debt from wholesale sale'
+            }
+          });
+        }
+
+        if (settings?.loyaltyEnabled) {
+          const rate = parseFloat(settings.loyaltyRate || 0);
+          loyaltyPointsEarned = Math.floor(parseFloat(finalTotal) * rate);
+          if (loyaltyPointsEarned > 0) {
+            await tx.client.update({
+              where: { id: parseInt(clientId) },
+              data: {
+                loyaltyPoints: { increment: loyaltyPointsEarned },
+                totalSpent: { increment: parseFloat(finalTotal) }
+              }
+            });
+          } else {
+            await tx.client.update({
+              where: { id: parseInt(clientId) },
+              data: { totalSpent: { increment: parseFloat(finalTotal) } }
+            });
+          }
+        } else {
+          await tx.client.update({
+            where: { id: parseInt(clientId) },
+            data: { totalSpent: { increment: parseFloat(finalTotal) } }
+          });
+        }
+      }
+
+      return { newSale, loyaltyPointsEarned };
+    });
+
+    const saleWithDetails = await prisma.sale.findUnique({
+      where: { id: sale.newSale.id },
+      include: {
+        paymentMethod: { select: { name: true } },
+        client: { select: { firstName: true, lastName: true, code: true } },
+        items: true
+      }
+    });
+
+    res.status(201).json({ ...saleWithDetails, loyaltyPointsEarned: sale.loyaltyPointsEarned });
+  } catch (error) {
+    console.error('Error creating wholesale sale:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

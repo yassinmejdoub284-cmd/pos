@@ -13,6 +13,11 @@ export interface CreateSaleRequest {
     unitPrice: number;
     total: number;
     discount?: number;
+    // Wholesale fields
+    isWholesale?: boolean;
+    bundleQuantity?: number;
+    bundleSize?: number;
+    bundlePrice?: number;
   }[];
   total: number;
   discount: number;
@@ -20,6 +25,7 @@ export interface CreateSaleRequest {
   paymentMethodId: number;
   clientId?: number;
   amountPaid?: number;
+  isWholesale?: boolean;
 }
 
 export interface CreateTemporarySaleRequest {
@@ -72,7 +78,15 @@ export class SalesService {
   ) {}
 
   createSale(saleData: CreateSaleRequest): Observable<Sale> {
+    // Use wholesale endpoint if it's a wholesale sale
+    if (saleData.isWholesale) {
+      return this.http.post<Sale>(`${this.apiUrl}/wholesale`, saleData);
+    }
     return this.http.post<Sale>(this.apiUrl, saleData);
+  }
+
+  createWholesaleSale(saleData: CreateSaleRequest): Observable<Sale> {
+    return this.http.post<Sale>(`${this.apiUrl}/wholesale`, saleData);
   }
 
   getSales(): Observable<Sale[]> {

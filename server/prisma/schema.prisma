@@ -39,6 +39,7 @@ model User {
   requestedChanges ChangeRequest[] @relation("RequestedBy")
   approvedChanges ChangeRequest[] @relation("ApprovedBy")
   notifications Notification[]
+  supplierPayments SupplierPayment[]
 
   @@map("users")
 }
@@ -106,6 +107,13 @@ model Product {
   isVrac      Boolean  @default(false) @map("is_vrac")
   originalProductId Int?  @map("original_product_id")
   isStockable   Boolean  @default(true) @map("is_stockable")
+  displayIndex  Int?     @map("display_index")
+  // Wholesale/Bundle fields
+  isWholesale   Boolean  @default(false) @map("is_wholesale")
+  bundleSize    Int?     @map("bundle_size") // Number of units per bundle
+  bundlePrice   Decimal? @map("bundle_price") @db.Decimal(10, 2) // Price per bundle
+  minMargin     Decimal? @map("min_margin") @db.Decimal(5, 2) // Minimum margin percentage (10-12%)
+  requiresApproval Boolean @default(false) @map("requires_approval") // If margin below minMargin requires approval
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -299,6 +307,14 @@ model SaleItem {
   unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
   total       Decimal  @db.Decimal(10, 2)
   discount    Decimal  @default(0) @db.Decimal(10, 2)
+  // Wholesale/Bundle fields
+  isWholesale Boolean  @default(false) @map("is_wholesale")
+  bundleQuantity Decimal? @map("bundle_quantity") @db.Decimal(10, 3) // Number of bundles sold
+  bundleSize  Int?     @map("bundle_size") // Units per bundle
+  bundlePrice Decimal? @map("bundle_price") @db.Decimal(10, 2) // Price per bundle
+  marginPercent Decimal? @map("margin_percent") @db.Decimal(5, 2) // Actual margin percentage
+  requiresApproval Boolean @default(false) @map("requires_approval")
+  isApproved  Boolean  @default(false) @map("is_approved")
 
   sale        Sale     @relation(fields: [saleId], references: [id])
   product     Product  @relation("ProductSaleItems", fields: [productId], references: [id])
@@ -394,8 +410,27 @@ model Supplier {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   expenses    Expense[]
+  payments    SupplierPayment[]
 
   @@map("suppliers")
+}
+
+model SupplierPayment {
+  id            Int      @id @default(autoincrement())
+  supplierId    Int      @map("supplier_id")
+  amount        Decimal  @db.Decimal(12, 3)
+  paymentDate   DateTime @map("payment_date")
+  paymentMethod String   @default("CASH") @map("payment_method") @db.VarChar(20)
+  reference     String?  @db.VarChar(100)
+  notes         String?  @db.Text
+  userId        Int      @map("user_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@map("supplier_payments")
 }
 
 model Expense {
@@ -680,6 +715,18 @@ enum SessionStatus {
   OPEN
   CLOSED
   REOPENED
+}
+
+model WholesaleRule {
+  id          String   @id @default(cuid())
+  ruleType    String   @map("rule_type") @db.VarChar(20)
+  value       Decimal  @db.Decimal(10, 3)
+  description String   @db.VarChar(200)
+  isArchived  Boolean  @default(false) @map("is_archived")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("wholesale_rules")
 }
 
 enum CashMovementType {

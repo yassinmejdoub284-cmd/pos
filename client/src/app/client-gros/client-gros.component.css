@@ -1,0 +1,62 @@
+/* Client Gros Component Styles - Keep only essential classes */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Optimized product dimensions for better performance */
+.product-button {
+  width: 90px;
+  height: 110px;
+  min-width: 90px;
+  min-height: 110px;
+  max-width: 90px;
+  max-height: 110px;
+  flex-shrink: 0;
+}
+
+/* Optimized grid layout for better performance */
+.product-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* Specific adjustment for 1024x768 screens - matching Caisse exactly */
+@media screen and (width: 1024px) and (height: 768px) {
+  .product-button {
+    width: 88px;
+    min-width: 88px;
+    max-width: 88px;
+  }
+}
+
+@media screen and (height: 768px) {
+  .product-button {
+    width: 97px;
+    min-width: 97px;
+    max-width: 97px;
+  }
+}
+
+@media screen and (min-width: 1500px) {
+  .product-button {
+    width: 100px;
+    min-width: 110px !important;
+    max-width: 100px;
+  }
+}
+
+@media screen and (min-height: 910px) {
+  .product-button {
+    width: 100px;
+    min-width: 180px !important;
+    max-width: 100px;
+  }
+}

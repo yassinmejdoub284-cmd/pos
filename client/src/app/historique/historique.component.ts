@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { SalesService } from '../core/services/sales.service';
 import { Sale } from '../core/models/sale.model';
+import { PrintService } from '../core/services/print.service';
 
 @Component({
   selector: 'app-historique',
@@ -17,6 +18,7 @@ export class HistoriqueComponent implements OnInit {
   searchQuery = '';
   selectedStatus = '';
   selectedPaymentMethod = '';
+  selectedSaleType = '';
   startDate = '';
   endDate = '';
 
@@ -33,7 +35,12 @@ export class HistoriqueComponent implements OnInit {
   alertMessage = '';
   alertType: 'success' | 'error' | 'info' = 'info';
 
-  constructor(private salesService: SalesService) {}
+  // Receipt preview modal
+  showReceiptModal = false;
+  selectedSaleForReceipt: Sale | null = null;
+  receiptHtmlPreview = '';
+
+  constructor(private salesService: SalesService, private printService: PrintService) {}
 
   ngOnInit(): void {
     this.loadSales();
@@ -97,6 +104,17 @@ export class HistoriqueComponent implements OnInit {
         return false;
       }
 
+      // Sale type filter
+      if (this.selectedSaleType) {
+        const isWholesale = this.isWholesaleSale(sale);
+        if (this.selectedSaleType === 'wholesale' && !isWholesale) {
+          return false;
+        }
+        if (this.selectedSaleType === 'retail' && isWholesale) {
+          return false;
+        }
+      }
+
       // Date range filter
       if (this.startDate || this.endDate) {
         const saleDate = new Date(sale.createdAt);
@@ -119,11 +137,16 @@ export class HistoriqueComponent implements OnInit {
     this.searchQuery = '';
     this.selectedStatus = '';
     this.selectedPaymentMethod = '';
+    this.selectedSaleType = '';
     this.startDate = '';
     this.endDate = '';
     this.filteredSales = this.sales;
     this.totalItems = this.sales.length;
     this.currentPage = 1;
+  }
+
+  isWholesaleSale(sale: Sale): boolean {
+    return sale.items && sale.items.some(item => item.isWholesale);
   }
 
   get paginatedSales(): Sale[] {
@@ -254,5 +277,22 @@ export class HistoriqueComponent implements OnInit {
     
     console.log('Item count:', itemCount, 'Total quantity:', totalQuantity, 'First items:', firstItems);
     return `${itemCount} article${itemCount > 1 ? 's' : ''} (${totalQuantity} unités) - ${firstItems}${sale.items.length > 2 ? '...' : ''}`;
+  }
+
+  openReceiptPreview(sale: Sale): void {
+    this.selectedSaleForReceipt = sale;
+    this.receiptHtmlPreview = this.printService.buildSaleReceiptHtml(sale);
+    this.showReceiptModal = true;
+  }
+
+  closeReceiptPreview(): void {
+    this.showReceiptModal = false;
+    this.selectedSaleForReceipt = null;
+    this.receiptHtmlPreview = '';
+  }
+
+  printReceipt(sale: Sale): void {
+    this.printService.printSaleReceipt(sale);
+    this.showAlertMessage('Reçu envoyé à l\'imprimante', 'success');
   }
 } 

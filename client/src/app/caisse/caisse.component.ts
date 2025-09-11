@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { ProductsService } from '../core/services/products.service';
 import { SalesService, CreateSaleRequest } from '../core/services/sales.service';
@@ -9,9 +9,11 @@ import { SettingsService } from '../core/services/settings.service';
 import { SessionsService } from '../core/services/sessions.service';
 import { DailyExtractService } from '../core/services/daily-extract.service';
 import { PrintService } from '../core/services/print.service';
+import { DragDropService } from '../core/services/drag-drop.service';
 import { Product } from '../core/models/product.model';
 import { Sale } from '../core/models/sale.model';
 import { Client } from '../core/models/client.model';
+import { Subject, takeUntil } from 'rxjs';
 
 interface ReceiptItem {
   product: Product;
@@ -20,6 +22,14 @@ interface ReceiptItem {
   total: number;
   isGift: boolean;
   hasCustomTotal?: boolean;
+  // Wholesale fields
+  isWholesale?: boolean;
+  bundleQuantity?: number;
+  bundleSize?: number;
+  bundlePrice?: number;
+  marginPercent?: number;
+  requiresApproval?: boolean;
+  isApproved?: boolean;
 }
 
 interface ClientCart {
@@ -38,9 +48,10 @@ interface ClientCart {
 @Component({
   selector: 'app-caisse',
   templateUrl: './caisse.component.html',
+  styleUrls: ['./caisse.component.css'],
   standalone: false
 })
-export class CaisseComponent implements OnInit {
+export class CaisseComponent implements OnInit, OnDestroy {
   // Top bar data
   currentCustomer: string = 'PASSAGER';
   currentCashier: string = 'CAISSIER +';
@@ -100,6 +111,8 @@ export class CaisseComponent implements OnInit {
   // Input handling
   currentInput: string = '';
   isTemporarySale: boolean = false;
+  isWholesaleMode: boolean = false;
+  pendingWholesaleToggle: boolean = false; // Track if we're waiting for client selection to enable wholesale
   
   // Quantity/Price toggle mode
   inputMode: 'quantity' | 'price' = 'quantity';
@@ -142,6 +155,17 @@ export class CaisseComponent implements OnInit {
 
   // Settings
   maxDiscountPercent: number = 50; // Default value
+
+  // Drag and Drop
+  private destroy$ = new Subject<void>();
+  isDragMode = false;
+  dragGhostPosition: { x: number; y: number } | null = null;
+  draggedProduct: Product | null = null;
+  currentTouchProduct: Product | null = null;
+  currentTouchStartPosition: { x: number; y: number } | null = null;
+  dragDetectionStarted: boolean = false;
+
+  @ViewChild('productGrid') productGrid!: ElementRef;
 
   // Session management
   currentSession: any = null;
@@ -328,6 +352,13 @@ export class CaisseComponent implements OnInit {
       icon: 'M9 5h6m-3 0v14m-7-7h14M4 9l2 2m0-2l-2 2m12-2l2 2m0-2l-2 2', // ticket with cut lines
       color: '#eab308', // Yellow-500: discount
       action: () => this.openRemisePaymentPopup()
+    },
+    {
+      id: 'wholesale',
+      label: 'Gros',
+      icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+      color: '#8b5cf6', // Violet-500: wholesale
+      action: () => this.toggleWholesaleMode()
     }
   ];
 
@@ -341,7 +372,8 @@ export class CaisseComponent implements OnInit {
     private settingsService: SettingsService,
     private sessionsService: SessionsService,
     private dailyExtractService: DailyExtractService,
-    private printService: PrintService
+    private printService: PrintService,
+    private dragDropService: DragDropService
   ) {}
 
   ngOnInit(): void {
@@ -353,6 +385,8 @@ export class CaisseComponent implements OnInit {
     this.loadShopInventory();
     this.loadSettings();
     this.loadCurrentSession();
+    this.initializeDragDrop();
+    this.setupTouchEventListeners();
   }
 
   // Multi-client system methods
@@ -429,6 +463,7 @@ export class CaisseComponent implements OnInit {
       this.selectedReceiptItem = null;
       this.selectedReceiptItemIndex = -1;
       this.currentInput = '';
+      this.isWholesaleMode = false;
     }
     
     // Auto-remove the client if it's not Client 1
@@ -436,6 +471,8 @@ export class CaisseComponent implements OnInit {
       this.removeClientDirectly(cartId);
       this.showAlertMessage(`${cart.clientName} supprimé (panier vidé)`, 'info');
     } else {
+      // For Client 1, also clear the customer selection
+      this.clearClientSelection();
       this.showAlertMessage(`Panier de ${cart.clientName} vidé`, 'info');
     }
   }
@@ -443,6 +480,10 @@ export class CaisseComponent implements OnInit {
   getCartItemCount(cartId: number): number {
     const cart = this.getCartById(cartId);
     return cart ? cart.items.length : 0;
+  }
+
+  clearReceipt(): void {
+    this.clearCart(this.activeCartId);
   }
 
   getCartTotal(cartId: number): number {
@@ -599,7 +640,13 @@ export class CaisseComponent implements OnInit {
     // Load products and sales data in parallel
     this.productsService.getProducts().subscribe({
       next: (products) => {
-        this.allProducts = products;
+        // Sort products by displayIndex (null values go to end)
+        this.allProducts = products.sort((a, b) => {
+          if ((a.displayIndex === null || a.displayIndex === undefined) && (b.displayIndex === null || b.displayIndex === undefined)) return 0;
+          if (a.displayIndex === null || a.displayIndex === undefined) return 1;
+          if (b.displayIndex === null || b.displayIndex === undefined) return -1;
+          return a.displayIndex! - b.displayIndex!;
+        });
         this.loadProductSalesData();
       },
       error: (error) => {
@@ -718,8 +765,15 @@ export class CaisseComponent implements OnInit {
     }
   }
 
+  @HostListener('keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'ArrowLeft') {
+    if (event.key === 'Escape') {
+      if (this.isDragMode) {
+        this.dragDropService.cancelDrag();
+      } else if (this.showClientSearchPopup) {
+        this.closeClientSearch();
+      }
+    } else if (event.key === 'ArrowLeft') {
       event.preventDefault();
       this.goToPreviousPage();
     } else if (event.key === 'ArrowRight') {
@@ -730,11 +784,18 @@ export class CaisseComponent implements OnInit {
 
 
 
+
   addProductToReceipt(product: Product): void {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
-    const existingItem = activeCart.items.find(item => item.product.id === product.id);
+    // Check if product supports wholesale and we're in wholesale mode
+    if (this.isWholesaleMode && product.isWholesale && product.bundleSize && product.bundlePrice) {
+      this.addWholesaleProductToReceipt(product);
+      return;
+    }
+    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id && !item.isWholesale);
     
     if (existingItem) {
       existingItem.quantity += 1;
@@ -752,7 +813,46 @@ export class CaisseComponent implements OnInit {
         quantity: 1,
         unitPrice: Number(product.prix_vente_TTC),
         total: Number(product.prix_vente_TTC),
-        isGift: false
+        isGift: false,
+        isWholesale: false
+      };
+      activeCart.items.unshift(newItem);
+      
+      // Select the newly added item (now at index 0)
+      this.selectedReceiptItem = newItem;
+      this.selectedReceiptItemIndex = 0;
+    }
+    
+    this.calculateTotals();
+  }
+
+  addWholesaleProductToReceipt(product: Product): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id && item.isWholesale);
+    
+    if (existingItem) {
+      existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + 1;
+      existingItem.quantity = existingItem.bundleQuantity * (product.bundleSize || 1);
+      existingItem.total = Number(existingItem.bundleQuantity) * Number(product.bundlePrice);
+      
+      // Select the existing item
+      this.selectedReceiptItem = existingItem;
+      this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
+    } else {
+      const newItem = {
+        product,
+        quantity: product.bundleSize || 1,
+        unitPrice: Number(product.bundlePrice),
+        total: Number(product.bundlePrice),
+        isGift: false,
+        isWholesale: true,
+        bundleQuantity: 1,
+        bundleSize: product.bundleSize,
+        bundlePrice: product.bundlePrice,
+        requiresApproval: false,
+        isApproved: false
       };
       activeCart.items.unshift(newItem);
       
@@ -768,6 +868,30 @@ export class CaisseComponent implements OnInit {
     event.preventDefault();
     // TODO: Implement product dialog for quantity/discount
     console.log('Open product dialog for:', product.name);
+  }
+
+  toggleWholesaleMode(): void {
+    // If trying to enable wholesale mode, check if client is selected
+    if (!this.isWholesaleMode) {
+      if (!this.selectedClient) {
+        // No client selected, open client dialog first
+        this.pendingWholesaleToggle = true;
+        this.openClientSearch();
+        return;
+      }
+    }
+    
+    // Toggle wholesale mode
+    this.isWholesaleMode = !this.isWholesaleMode;
+    this.pendingWholesaleToggle = false;
+    // Clear current cart when switching modes
+    this.clearReceipt();
+  }
+
+  isWholesaleSale(): boolean {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return false;
+    return activeCart.items.some(item => item.isWholesale);
   }
 
   calculateTotals(): void {
@@ -817,6 +941,15 @@ export class CaisseComponent implements OnInit {
     }
   }
 
+  closeClientSearch(): void {
+    this.showClientSearchPopup = false;
+    // If we were waiting for client selection to enable wholesale mode, cancel it
+    if (this.pendingWholesaleToggle) {
+      this.pendingWholesaleToggle = false;
+      this.showAlertMessage('Sélection de client annulée - Mode Gros non activé', 'info');
+    }
+  }
+
   fetchAllClients(): void {
     this.searchingClients = true;
     // Load first 200 active clients for quick local filtering
@@ -863,11 +996,29 @@ export class CaisseComponent implements OnInit {
     activeCart.clientId = client.id;
     activeCart.clientName = `${client.firstName} ${client.lastName}`;
     
+    // If we were waiting for client selection to enable wholesale mode, do it now
+    if (this.pendingWholesaleToggle) {
+      this.isWholesaleMode = true;
+      this.pendingWholesaleToggle = false;
+      this.showAlertMessage(`Client sélectionné: ${client.firstName} ${client.lastName} - Mode Gros activé`, 'success');
+    } else {
+      this.showAlertMessage(`Client sélectionné: ${client.firstName} ${client.lastName}`, 'success');
+    }
+    
     this.showClientSearchPopup = false;
-    this.showAlertMessage(`Client sélectionné: ${client.firstName} ${client.lastName}`, 'success');
   }
 
   clearSelectedClient(): void {
+    this.clearClientSelection();
+    
+    // If in wholesale mode, disable it when client is cleared
+    if (this.isWholesaleMode) {
+      this.isWholesaleMode = false;
+      this.showAlertMessage('Client effacé - Mode Gros désactivé', 'info');
+    }
+  }
+
+  private clearClientSelection(): void {
     const activeCart = this.getActiveCart();
     if (activeCart) {
       activeCart.client = undefined;
@@ -1087,12 +1238,14 @@ export class CaisseComponent implements OnInit {
   // Process payment with receipt printing
   processPaymentWithReceipt(): void {
     this.showPaymentConfirmation = false;
+    this.isWholesaleMode = false;
     this.processPayment(true);
   }
 
   // Process payment without receipt printing
   processPaymentWithoutReceipt(): void {
     this.showPaymentConfirmation = false;
+    this.isWholesaleMode = false;
     this.processPayment(false);
   }
 
@@ -1115,14 +1268,20 @@ export class CaisseComponent implements OnInit {
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
         total: Number(item.total),
-        discount: 0
+        discount: 0,
+        // Wholesale fields
+        isWholesale: item.isWholesale || false,
+        bundleQuantity: item.bundleQuantity || undefined,
+        bundleSize: item.bundleSize || undefined,
+        bundlePrice: item.bundlePrice || undefined
       })),
       total: Number(activeCart.subtotal),
       discount: Number(activeCart.discount),
       finalTotal: Number(activeCart.netTotal),
       paymentMethodId: paymentMethodMap[this.paymentType!] || 1,
       clientId: activeCart.clientId || undefined,
-      amountPaid: this.amountPaid !== undefined ? Number(this.amountPaid) : Number(activeCart.netTotal)
+      amountPaid: this.amountPaid !== undefined ? Number(this.amountPaid) : Number(activeCart.netTotal),
+      isWholesale: this.isWholesaleSale()
     };
 
     this.salesService.createSale(saleData).subscribe({
@@ -1182,120 +1341,26 @@ export class CaisseComponent implements OnInit {
   }
 
   printReceiptWithClient(loyaltyEarned: number): void {
-    const data = this.generateReceiptData();
-    data.clientName = this.selectedClient ? `${this.selectedClient.firstName} ${this.selectedClient.lastName}` : null;
-    data.loyaltyEarned = loyaltyEarned;
-    this.generateThermalReceipt(data);
+    const sale = this.buildSaleForPrinting();
+    if (sale && this.selectedClient) {
+      sale.client = {
+        firstName: this.selectedClient.firstName,
+        lastName: this.selectedClient.lastName,
+        code: this.selectedClient.code || ''
+      };
+    }
+    this.printService.printSaleReceipt(sale);
     this.showAlertMessage('Reçu imprimé avec succès!', 'success');
   }
 
   printReceipt(): void {
-    // Generate and print thermal receipt
-    const receiptData = this.generateReceiptData();
-    this.generateThermalReceipt(receiptData);
+    // Use unified receipt printing (same as Historique)
+    const sale = this.buildSaleForPrinting();
+    this.printService.printSaleReceipt(sale);
     this.showAlertMessage('Reçu imprimé avec succès!', 'success');
   }
 
-  generateThermalReceipt(data: any): void {
-    const receiptContent = this.formatThermalReceipt(data);
-    console.log('Thermal Receipt:\n' + receiptContent);
-    
-    // In a real implementation, this would be sent to thermal printer
-    // For now, we'll create a printable window
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Reçu - ${data.storeName}</title>
-            <style>
-              body { 
-                font-family: 'Courier New', monospace; 
-                font-size: 12px; 
-                margin: 0; 
-                padding: 10px;
-                white-space: pre-wrap;
-                max-width: 300px;
-              }
-              @media print {
-                body { margin: 0; padding: 5px; }
-              }
-            </style>
-          </head>
-          <body>${receiptContent.replace(/\n/g, '<br>')}</body>
-        </html>
-      `);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 500);
-    }
-  }
-
-  formatThermalReceipt(data: any): string {
-    const line = '--------------------------------';
-    const doubleLine = '================================';
-    
-    let receipt = '';
-    
-    receipt += this.centerText(data.storeName, 32) + '\n';
-    receipt += this.centerText(data.address, 32) + '\n';
-    receipt += this.centerText(data.city, 32) + '\n';
-    receipt += this.centerText(data.phone, 32) + '\n';
-    receipt += doubleLine + '\n';
-    
-    receipt += `Date: ${data.date}    Heure: ${data.time}\n`;
-    if (data.clientName) {
-      receipt += `Client: ${data.clientName}\n`;
-    }
-    receipt += `Caissier: PASSAGER\n`;
-    receipt += line + '\n';
-    
-    receipt += this.formatLine('ARTICLE', 'QTE', 'P.U.', 'TOTAL', 32) + '\n';
-    receipt += line + '\n';
-    
-    data.items.forEach((item: any) => {
-      const name = this.truncate(item.product.name, 20);
-      receipt += `${name}\n`;
-      receipt += this.formatLine(
-        '', 
-        item.quantity.toString(),
-        Number(item.unitPrice).toFixed(3),
-        Number(item.total).toFixed(3),
-        32
-      ) + '\n';
-    });
-    
-    receipt += line + '\n';
-    
-    receipt += this.formatReceiptLine('Sous-total:', Number(data.subtotal).toFixed(3) + ' dt', 32) + '\n';
-    if (Number(data.discount) > 0) {
-      receipt += this.formatReceiptLine('Remise:', '-' + Number(data.discount).toFixed(3) + ' dt', 32) + '\n';
-    }
-    receipt += doubleLine + '\n';
-    receipt += this.formatReceiptLine('TOTAL A PAYER:', Number(data.netTotal).toFixed(3) + ' dt', 32) + '\n';
-    receipt += doubleLine + '\n';
-    
-    const paymentTypeText = data.paymentType === 'cash' ? 'ESPECES' : 
-                           data.paymentType === 'card' ? 'CARTE' : data.paymentType === 'check' ? 'CHEQUE' : 'VIREMENT';
-    receipt += this.formatReceiptLine('Paiement:', paymentTypeText, 32) + '\n';
-    if (data.paymentType === 'cash') {
-      receipt += this.formatReceiptLine('Reçu:', Number(data.amountPaid).toFixed(3) + ' dt', 32) + '\n';
-      receipt += this.formatReceiptLine('Rendu:', Number(data.change).toFixed(3) + ' dt', 32) + '\n';
-    }
-    if (data.clientName && data.loyaltyEarned) {
-      receipt += this.formatReceiptLine('Points fidélité:', `${data.loyaltyEarned}`, 32) + '\n';
-    }
-    receipt += line + '\n';
-    
-    receipt += this.centerText('Merci de votre visite!', 32) + '\n';
-    receipt += this.centerText('A bientôt!', 32) + '\n';
-    receipt += line + '\n';
-    receipt += this.centerText(`Articles: ${data.items.length}`, 32) + '\n';
-    
-    return receipt;
-  }
+  // Legacy thermal helpers below remain for other layouts, but are no longer used for sale printing
 
   centerText(text: string, width: number): string {
     const padding = Math.max(0, Math.floor((width - text.length) / 2));
@@ -1348,10 +1413,18 @@ export class CaisseComponent implements OnInit {
   resetSale(): void {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
-    
     activeCart.items = [];
     activeCart.discount = 0;
     this.calculateTotals();
+    this.selectedClient = null;
+    this.selectedClientId = null;
+    this.currentCustomer = 'PASSAGER';
+    this.invoiceMode = false;
+    this.isWholesaleMode = false;
+    this.currentInput = '';
+    this.pendingProduct = null;
+    this.lastEnteredValue = '';
+    this.inputMode = 'quantity';
   }
 
   openSettings(): void {
@@ -2037,7 +2110,7 @@ export class CaisseComponent implements OnInit {
   }
 
   openProducts(): void {
-    this.router.navigate(['/stock/products']);
+    this.router.navigate(['/stock/produits']);
   }
 
 
@@ -2769,8 +2842,7 @@ export class CaisseComponent implements OnInit {
     }
   }
 
-  onProductClick(event: MouseEvent, product: Product): void {
-    
+  handleProductClick(product: Product): void {
     const currentStock = this.getShopStock(product.id);
     const requestedQuantity = 1;
     
@@ -2863,7 +2935,7 @@ export class CaisseComponent implements OnInit {
     this.showProductModal = false;
     this.showDiscountPopup = false;
     this.showPaymentPopup = false;
-    this.showClientSearchPopup = false;
+    this.closeClientSearch();
     
     // Set stock warning modal properties
     this.stockWarningProduct = product;
@@ -2942,8 +3014,8 @@ export class CaisseComponent implements OnInit {
 
   // Print last receipt
   printLastReceipt(): void {
-    const data = this.generateLastReceiptData();
-    this.generateThermalReceipt(data);
+    const sale = this.buildSaleForPrinting(true);
+    this.printService.printSaleReceipt(sale);
     this.showAlertMessage('Reçu imprimé avec succès!', 'success');
   }
 
@@ -3049,6 +3121,67 @@ export class CaisseComponent implements OnInit {
         `${this.lastValidatedSale.selectedClient.firstName} ${this.lastValidatedSale.selectedClient.lastName}` : null,
       loyaltyEarned: this.lastValidatedSale.loyaltyEarned
     };
+  }
+
+  // Build a Sale-like object for unified printing
+  private buildSaleForPrinting(useLast: boolean = false): Sale {
+    const now = new Date();
+    const source = useLast && this.lastValidatedSale ? this.lastValidatedSale : null;
+    const itemsSource = source ? source.receiptItems : this.getActiveCart()?.items || [];
+
+    const items = (itemsSource || []).map((it: any) => ({
+      id: 0,
+      saleId: 0,
+      productId: it.product?.id ?? it.productId ?? 0,
+      productName: it.product?.name ?? it.productName ?? '',
+      quantity: Number(it.quantity || 0),
+      unitPrice: Number(it.unitPrice || 0),
+      total: Number(it.total || (Number(it.quantity || 0) * Number(it.unitPrice || 0))),
+      discount: Number(it.discount || 0)
+    }));
+
+    // Totals
+    const subtotal = items.reduce((sum: number, item: { total: number }) => sum + Number(item.total || 0), 0);
+    const discount = source ? Number(source.discount || 0) : Number(this.getActiveCart()?.discount || 0);
+    const finalTotal = source ? Number(source.netTotal || subtotal - discount) : Number(this.getActiveCart()?.netTotal || subtotal - discount);
+
+    // Payment
+    const paymentMethodName = source
+      ? (source.paymentType ? this.mapPaymentTypeToName(source.paymentType) : (source.paymentMethod?.name || ''))
+      : (this.paymentType ? this.mapPaymentTypeToName(this.paymentType) : '');
+
+    const client = source?.selectedClient || this.selectedClient || null;
+
+    const sale: Sale = {
+      id: source?.id || 0,
+      items,
+      total: subtotal,
+      tax: 0,
+      discount,
+      finalTotal,
+      paymentMethod: paymentMethodName ? { id: 0, name: paymentMethodName, type: 'CASH', isActive: true } : undefined,
+      status: 'COMPLETED',
+      cashierId: 0,
+      customerId: client?.id,
+      expectedDate: undefined,
+      notes: undefined,
+      createdAt: source?.createdAt || now,
+      updatedAt: now,
+      client: client ? { firstName: client.firstName, lastName: client.lastName, code: client.code || '' } : undefined,
+      user: undefined,
+      loyaltyPointsEarned: source?.loyaltyEarned
+    };
+
+    return sale;
+  }
+
+  private mapPaymentTypeToName(type: string): string {
+    const t = (type || '').toLowerCase();
+    if (t === 'cash' || t === 'especes') return 'ESPECES';
+    if (t === 'card' || t === 'carte') return 'CARTE';
+    if (t === 'check' || t === 'cheque') return 'CHEQUE';
+    if (t === 'virement' || t === 'transfer' || t === 'bank_transfer') return 'VIREMENT';
+    return type?.toUpperCase() || '';
   }
 
   // Select receipt item for modification
@@ -3177,4 +3310,342 @@ export class CaisseComponent implements OnInit {
     this.isShiftOpen = true;
     this.saveTicketState();
   }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.removeTouchEventListeners();
+  }
+
+  // Drag and Drop Methods
+  private initializeDragDrop(): void {
+    // Subscribe to drag state changes
+    this.dragDropService.dragState$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(state => {
+        this.isDragMode = state.isDragging;
+        this.dragGhostPosition = state.dragPosition;
+        this.draggedProduct = state.draggedProduct;
+      });
+
+    // Subscribe to page change requests
+    this.dragDropService.onPageChange
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(({ direction, currentPage }) => {
+        if (direction === 'prev' && this.currentPage > 0) {
+          this.currentPage--;
+        } else if (direction === 'next' && this.currentPage < this.totalPages - 1) {
+          this.currentPage++;
+        }
+      });
+
+
+    // Subscribe to order changes
+    this.dragDropService.onOrderChange
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(({ fromIndex, toIndex, products }) => {
+        this.allProducts = products;
+        this.filterProducts(); // Refresh the filtered products
+        this.persistProductOrder(products);
+      });
+  }
+
+  onProductMouseDown(event: MouseEvent, product: Product): void {
+    if (event.button !== 0) return; // Only left mouse button
+
+    const globalIndex = this.allProducts.findIndex(p => p.id === product.id);
+    if (globalIndex === -1) return;
+
+    console.log('Mouse down on product:', product.name);
+
+    // Record the product and position for potential drag detection
+    this.currentTouchProduct = product;
+    this.currentTouchStartPosition = { x: event.clientX, y: event.clientY };
+    this.dragDetectionStarted = false; // Reset drag detection flag
+
+    // Prevent default to avoid text selection
+    event.preventDefault();
+  }
+
+  onProductMouseMove(event: MouseEvent): void {
+    if (!this.isDragMode) {
+      // Check if we have a current touch product and start position
+      if (this.currentTouchProduct && this.currentTouchStartPosition && !this.dragDetectionStarted) {
+        // Check if there's been any movement from initial position
+        const deltaX = Math.abs(event.clientX - this.currentTouchStartPosition.x);
+        const deltaY = Math.abs(event.clientY - this.currentTouchStartPosition.y);
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        if (distance > 0) {
+          // Movement detected - start drag detection (only once)
+          console.log('Movement detected, starting drag detection for:', this.currentTouchProduct.name);
+          const globalIndex = this.allProducts.findIndex(p => p.id === this.currentTouchProduct!.id);
+          this.dragDropService.recordInitialPosition(this.currentTouchProduct, globalIndex, this.currentTouchStartPosition.x, this.currentTouchStartPosition.y);
+          this.dragDropService.startDragDetection();
+          this.dragDetectionStarted = true;
+        }
+      }
+      
+      // Check if we should start dragging (only if there's significant movement)
+      const dragState = this.dragDropService.getCurrentDragState();
+      if (dragState.draggedProduct && !dragState.isDragging) {
+        if (this.dragDropService.hasSignificantMovement(event.clientX, event.clientY)) {
+          // Cancel drag detection and start drag
+          this.dragDropService.cancelDragDetection();
+          const globalIndex = this.allProducts.findIndex(p => p.id === dragState.draggedProduct!.id);
+          if (globalIndex !== -1) {
+            this.dragDropService.startDrag(dragState.draggedProduct, globalIndex, this.currentPage);
+          }
+        }
+      }
+      return;
+    }
+
+    // Update drag position
+    const container = event.currentTarget as HTMLElement;
+    const containerRect = container.getBoundingClientRect();
+    
+    this.dragDropService.updateDragPosition(
+      event.clientX,
+      event.clientY,
+      containerRect,
+      this.allProducts,
+      this.currentPage,
+      this.productsPerPage
+    );
+  }
+
+
+  onProductMouseUp(event: MouseEvent, product: Product): void {
+    if (this.isDragMode) {
+      // Handle drag end
+      const dragState = this.dragDropService.getCurrentDragState();
+      if (dragState.targetGlobalIndex !== null) {
+        this.dragDropService.drop(
+          dragState.fromGlobalIndex,
+          dragState.targetGlobalIndex,
+          this.allProducts
+        );
+      } else {
+        this.dragDropService.cancelDrag();
+      }
+    } else {
+      // Not in drag mode - check if this was a single click
+      if (this.currentTouchProduct && this.currentTouchProduct.id === product.id) {
+        // This was a single click - handle product click logic
+        console.log('Single click detected, adding product to receipt:', product.name);
+        this.handleProductClick(product);
+      }
+      
+      // Cancel any drag detection and clear touch state
+      this.dragDropService.cancelDragDetection();
+      this.currentTouchProduct = null;
+      this.currentTouchStartPosition = null;
+      this.dragDetectionStarted = false;
+    }
+  }
+
+  onProductTouchStart(event: TouchEvent, product: Product): void {
+    if (event.touches.length !== 1) return;
+
+    const globalIndex = this.allProducts.findIndex(p => p.id === product.id);
+    if (globalIndex === -1) return;
+
+    console.log('Touch start on product:', product.name);
+
+    // Record the product and position for potential drag detection
+    const touch = event.touches[0];
+    this.currentTouchProduct = product;
+    this.currentTouchStartPosition = { x: touch.clientX, y: touch.clientY };
+    this.dragDetectionStarted = false; // Reset drag detection flag
+
+    // Prevent default to avoid scrolling
+    event.preventDefault();
+  }
+
+  onProductTouchMove(event: TouchEvent): void {
+    if (event.touches.length !== 1) return;
+
+    if (!this.isDragMode) {
+      // Check if we have a current touch product and start position
+      if (this.currentTouchProduct && this.currentTouchStartPosition && !this.dragDetectionStarted) {
+        const touch = event.touches[0];
+        
+        // Check if there's been any movement from initial position
+        const deltaX = Math.abs(touch.clientX - this.currentTouchStartPosition.x);
+        const deltaY = Math.abs(touch.clientY - this.currentTouchStartPosition.y);
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        if (distance > 0) {
+          // Movement detected - start drag detection (only once)
+          console.log('Movement detected, starting drag detection for:', this.currentTouchProduct.name);
+          const globalIndex = this.allProducts.findIndex(p => p.id === this.currentTouchProduct!.id);
+          this.dragDropService.recordInitialPosition(this.currentTouchProduct, globalIndex, this.currentTouchStartPosition.x, this.currentTouchStartPosition.y);
+          this.dragDropService.startDragDetection();
+          this.dragDetectionStarted = true;
+        }
+      }
+      
+      // Check if we should start dragging (only if there's significant movement)
+      const dragState = this.dragDropService.getCurrentDragState();
+      if (dragState.draggedProduct && !dragState.isDragging) {
+        const touch = event.touches[0];
+        if (this.dragDropService.hasSignificantMovement(touch.clientX, touch.clientY)) {
+          // Cancel drag detection and start drag
+          this.dragDropService.cancelDragDetection();
+          const globalIndex = this.allProducts.findIndex(p => p.id === dragState.draggedProduct!.id);
+          if (globalIndex !== -1) {
+            this.dragDropService.startDrag(dragState.draggedProduct, globalIndex, this.currentPage);
+          }
+        }
+      }
+      return;
+    }
+
+    // Update drag position using the main product grid container
+    const container = this.productGrid?.nativeElement;
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const touch = event.touches[0];
+    
+    this.dragDropService.updateDragPosition(
+      touch.clientX,
+      touch.clientY,
+      containerRect,
+      this.allProducts,
+      this.currentPage,
+      this.productsPerPage
+    );
+  }
+
+  onProductTouchEnd(event: TouchEvent, product: Product): void {
+    if (this.isDragMode) {
+      // Handle drag end
+      const dragState = this.dragDropService.getCurrentDragState();
+      if (dragState.targetGlobalIndex !== null) {
+        this.dragDropService.drop(
+          dragState.fromGlobalIndex,
+          dragState.targetGlobalIndex,
+          this.allProducts
+        );
+      } else {
+        this.dragDropService.cancelDrag();
+      }
+    } else {
+      // Not in drag mode - check if this was a single tap
+      if (this.currentTouchProduct && this.currentTouchProduct.id === product.id) {
+        // This was a single tap - handle product click logic
+        console.log('Single tap detected, adding product to receipt:', product.name);
+        this.handleProductClick(product);
+      }
+      
+      // Cancel any drag detection and clear touch state
+      this.dragDropService.cancelDragDetection();
+      this.currentTouchProduct = null;
+      this.currentTouchStartPosition = null;
+      this.dragDetectionStarted = false;
+    }
+  }
+
+
+
+  @HostListener('document:mouseleave', ['$event'])
+  onDocumentMouseLeave(event: MouseEvent): void {
+    if (this.isDragMode) {
+      this.dragDropService.cancelDrag();
+    }
+  }
+
+
+
+  private persistProductOrder(products: Product[]): void {
+    const updates = products
+      .filter(product => product.displayIndex !== null && product.displayIndex !== undefined)
+      .map(product => ({
+        id: product.id,
+        displayIndex: product.displayIndex!
+      }));
+
+    if (updates.length === 0) return;
+
+    // Call API to persist order
+    this.productsService.updateProductOrder(updates).subscribe({
+      next: () => {
+        console.log('Product order persisted successfully');
+      },
+      error: (error) => {
+        console.error('Error persisting product order:', error);
+        // Optionally show error message to user
+      }
+    });
+  }
+
+  // Touch Event Listeners (with passive: false)
+  private touchEventListeners: { element: EventTarget; event: string; listener: (event: Event) => void }[] = [];
+
+  private setupTouchEventListeners(): void {
+    // Add touch event listeners with passive: false to allow preventDefault
+    const touchMoveListener = (event: Event) => this.onGlobalTouchMove(event as TouchEvent);
+    const touchEndListener = (event: Event) => this.onGlobalTouchEnd(event as TouchEvent);
+
+    document.addEventListener('touchmove', touchMoveListener, { passive: false });
+    document.addEventListener('touchend', touchEndListener, { passive: false });
+
+    // Store references for cleanup
+    this.touchEventListeners = [
+      { element: document, event: 'touchmove', listener: touchMoveListener },
+      { element: document, event: 'touchend', listener: touchEndListener }
+    ];
+  }
+
+  private removeTouchEventListeners(): void {
+    this.touchEventListeners.forEach(({ element, event, listener }) => {
+      element.removeEventListener(event, listener);
+    });
+    this.touchEventListeners = [];
+  }
+
+  private onGlobalTouchMove(event: TouchEvent): void {
+    if (!this.isDragMode) return;
+    
+    // Only handle single touch
+    if (event.touches.length !== 1) return;
+    
+    // Update drag position using the main product grid container
+    const container = this.productGrid?.nativeElement;
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const touch = event.touches[0];
+    
+    this.dragDropService.updateDragPosition(
+      touch.clientX,
+      touch.clientY,
+      containerRect,
+      this.allProducts,
+      this.currentPage,
+      this.productsPerPage
+    );
+    
+    // Prevent default to avoid scrolling
+    event.preventDefault();
+  }
+
+  private onGlobalTouchEnd(event: TouchEvent): void {
+    if (!this.isDragMode) return;
+    
+    // Handle drag end
+    const dragState = this.dragDropService.getCurrentDragState();
+    if (dragState.targetGlobalIndex !== null) {
+      this.dragDropService.drop(
+        dragState.fromGlobalIndex,
+        dragState.targetGlobalIndex,
+        this.allProducts
+      );
+    } else {
+      this.dragDropService.cancelDrag();
+    }
+  }
+
 } 

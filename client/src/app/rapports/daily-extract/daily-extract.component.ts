@@ -185,64 +185,100 @@ export class DailyExtractComponent implements OnInit {
         </div>
     `;
 
-    // Families and Products - Simple format as requested
+    // Families and Products - Real HTML table format
     this.selectedExtract.families.forEach(family => {
       content += `
         <div class="family-section">
           <div class="family-name">${family.name}</div>
+          <table class="family-table">
+            <thead>
+              <tr>
+                <th class="col-article">Article</th>
+                <th class="col-qty">Qty</th>
+                <th class="col-price">Unit Price</th>
+                <th class="col-total">Total</th>
+              </tr>
+            </thead>
+            <tbody>
       `;
       
       family.products.forEach(product => {
+        const unitPrice = product.quantity > 0 ? product.revenue / product.quantity : 0;
         content += `
-          <div class="product-line">
-            <div class="product-name">${product.name}</div>
-            <div class="product-details">${product.quantity} x ${this.formatCurrency(product.revenue / product.quantity)} = ${this.formatCurrency(product.revenue)}</div>
-          </div>
+              <tr>
+                <td class="col-article">${product.name}</td>
+                <td class="col-qty">${product.quantity}</td>
+                <td class="col-price">${this.formatCurrency(unitPrice)}</td>
+                <td class="col-total">${this.formatCurrency(product.revenue)}</td>
+              </tr>
         `;
       });
       
       content += `
-          <div class="family-separator">========</div>
-          <div class="family-total">Total ${family.name}: ${this.formatCurrency(family.totalRevenue)}</div>
+              <tr class="family-total-row">
+                <td class="col-article"><strong>Total ${family.name}</strong></td>
+                <td class="col-qty"></td>
+                <td class="col-price"></td>
+                <td class="col-total"><strong>${this.formatCurrency(family.totalRevenue)}</strong></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       `;
     });
 
-    // Summary - Simple format as requested
+    // Summary - Table format
     content += `
         <div class="summary-section">
-          <div class="summary-line">Totale Remise</div>
-          <div class="summary-line">${this.formatCurrency(this.selectedExtract.totalDiscount)}</div>
-          
-          <div class="summary-line">Totale Recette</div>
-          <div class="summary-line">${this.formatCurrency(this.selectedExtract.totalRevenue)}</div>
-          
-          <div class="summary-line">Totale Caisse (Solde Débit)</div>
-          <div class="summary-line">${this.formatCurrency(this.selectedExtract.soldeDebit)}</div>
-          
-          <div class="expenses-section">
-            <div class="expenses-title">Dépense</div>
+          <table class="summary-table">
+            <tbody>
+              <tr>
+                <td class="summary-label">Totale Remise</td>
+                <td class="summary-value">${this.formatCurrency(this.selectedExtract.totalDiscount)}</td>
+              </tr>
+              <tr>
+                <td class="summary-label">Totale Recette</td>
+                <td class="summary-value">${this.formatCurrency(this.selectedExtract.totalRevenue)}</td>
+              </tr>
+              <tr>
+                <td class="summary-label">Totale Caisse (Solde Débit)</td>
+                <td class="summary-value">${this.formatCurrency(this.selectedExtract.soldeDebit)}</td>
+              </tr>
     `;
 
-    this.selectedExtract.expenses.forEach(expense => {
+    // Expenses section
+    if (this.selectedExtract.expenses.length > 0) {
       content += `
-        <div class="expense-line">--- ${expense.description}</div>
+              <tr>
+                <td class="summary-label">Dépense</td>
+                <td class="summary-value"></td>
+              </tr>
       `;
-    });
+      this.selectedExtract.expenses.forEach(expense => {
+        content += `
+              <tr>
+                <td class="expense-label">--- ${expense.description}</td>
+                <td class="expense-value">${this.formatCurrency(expense.amount)}</td>
+              </tr>
+        `;
+      });
+    }
 
     content += `
-          </div>
-          
-          <div class="final-summary">
-            <div class="summary-line">Totale Caisse</div>
-            <div class="summary-line">${this.formatCurrency(this.selectedExtract.totalCaisse)}</div>
-            
-            <div class="summary-line">Retrait</div>
-            <div class="summary-line">${this.formatCurrency(this.selectedExtract.withdrawal)}</div>
-            
-            <div class="summary-line">Totale Reste Caisse</div>
-            <div class="summary-line">${this.formatCurrency(this.selectedExtract.remainingCash)}</div>
-          </div>
+              <tr>
+                <td class="summary-label">Totale Caisse</td>
+                <td class="summary-value">${this.formatCurrency(this.selectedExtract.totalCaisse)}</td>
+              </tr>
+              <tr>
+                <td class="summary-label">Retrait</td>
+                <td class="summary-value">${this.formatCurrency(this.selectedExtract.withdrawal)}</td>
+              </tr>
+              <tr>
+                <td class="summary-label">Totale Reste Caisse</td>
+                <td class="summary-value">${this.formatCurrency(this.selectedExtract.remainingCash)}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     `;
@@ -253,45 +289,57 @@ export class DailyExtractComponent implements OnInit {
   private getPrintStyles(format: 'A4' | '80mm'): string {
     if (format === 'A4') {
       return `
-        @page { size: A4; margin: 20mm; }
+        @page { size: A4; margin: 10mm; }
         .a4-container { font-family: Arial, sans-serif; max-width: 210mm; margin: 0 auto; line-height: 1.4; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { font-size: 24px; font-weight: bold; margin: 0; }
-        .header h2 { font-size: 18px; margin: 5px 0; }
-        .family-section { margin-bottom: 20px; }
-        .family-name { font-size: 16px; font-weight: bold; margin: 15px 0 10px 0; }
-        .product-line { margin: 8px 0; }
-        .product-name { font-size: 14px; margin-bottom: 2px; }
-        .product-details { font-size: 12px; color: #666; margin-left: 10px; }
-        .family-separator { text-align: center; margin: 10px 0; font-weight: bold; }
-        .family-total { font-size: 14px; font-weight: bold; margin: 10px 0; }
-        .summary-section { margin-top: 30px; }
-        .summary-line { margin: 8px 0; font-size: 14px; }
-        .expenses-section { margin: 20px 0; }
-        .expenses-title { font-size: 14px; font-weight: bold; margin: 10px 0; }
-        .expense-line { margin: 3px 0; font-size: 12px; margin-left: 10px; }
-        .final-summary { margin-top: 20px; }
+        .header { text-align: center; margin-bottom: 15px; }
+        .header h1 { font-size: 20px; font-weight: bold; margin: 0; }
+        .header h2 { font-size: 16px; margin: 3px 0; }
+        .family-section { margin-bottom: 15px; }
+        .family-name { font-size: 14px; font-weight: bold; margin: 10px 0 8px 0; }
+        .family-table { width: 100%; border-collapse: collapse; margin: 5px 0; border: 1px solid #333; }
+        .family-table th, .family-table td { padding: 3px 2px; text-align: left; border: 1px solid #333; }
+        .family-table th { background-color: #f5f5f5; font-weight: bold; font-size: 10px; }
+        .family-table td { font-size: 9px; }
+        .col-article { width: 40%; }
+        .col-qty { width: 15%; text-align: center; }
+        .col-price { width: 20%; text-align: right; }
+        .col-total { width: 25%; text-align: right; }
+        .family-total-row { font-weight: bold; background-color: #f9f9f9; }
+        .family-total-row td { border-top: 1px solid #333; }
+        .summary-section { margin-top: 20px; }
+        .summary-table { width: 100%; border-collapse: collapse; border: 1px solid #333; }
+        .summary-table td { padding: 3px 5px; border: 1px solid #333; font-size: 10px; }
+        .summary-label { font-weight: bold; width: 60%; }
+        .summary-value { text-align: right; width: 40%; font-weight: bold; }
+        .expense-label { font-size: 9px; padding-left: 10px; }
+        .expense-value { text-align: right; font-size: 9px; }
       `;
     } else {
       return `
         @page { size: 80mm auto; margin: 0; }
         .receipt-container { font-family: 'Courier New', monospace; width: 80mm; margin: 0 auto; font-size: 12px; line-height: 1.2; }
-        .header { text-align: center; margin-bottom: 10px; }
-        .header h1 { font-size: 14px; font-weight: bold; margin: 0; }
-        .header h2 { font-size: 12px; margin: 2px 0; }
-        .family-section { margin-bottom: 10px; }
-        .family-name { font-size: 12px; font-weight: bold; margin: 8px 0 5px 0; }
-        .product-line { margin: 4px 0; }
-        .product-name { font-size: 11px; margin-bottom: 1px; }
-        .product-details { font-size: 10px; margin-left: 5px; }
-        .family-separator { text-align: center; margin: 5px 0; font-weight: bold; }
-        .family-total { font-size: 11px; font-weight: bold; margin: 5px 0; }
-        .summary-section { margin-top: 15px; }
-        .summary-line { margin: 4px 0; font-size: 11px; }
-        .expenses-section { margin: 10px 0; }
-        .expenses-title { font-size: 11px; font-weight: bold; margin: 5px 0; }
-        .expense-line { margin: 2px 0; font-size: 10px; margin-left: 5px; }
-        .final-summary { margin-top: 10px; }
+        .header { text-align: center; margin-bottom: 8px; }
+        .header h1 { font-size: 12px; font-weight: bold; margin: 0; }
+        .header h2 { font-size: 10px; margin: 2px 0; }
+        .family-section { margin-bottom: 8px; }
+        .family-name { font-size: 10px; font-weight: bold; margin: 6px 0 4px 0; }
+        .family-table { width: 100%; border-collapse: collapse; margin: 3px 0; font-size: 8px; border: 1px solid #000; }
+        .family-table th, .family-table td { padding: 1px 1px; text-align: left; border: 1px solid #000; }
+        .family-table th { background-color: #f0f0f0; font-weight: bold; font-size: 8px; }
+        .family-table td { font-size: 7px; }
+        .col-article { width: 40%; }
+        .col-qty { width: 15%; text-align: center; }
+        .col-price { width: 20%; text-align: right; }
+        .col-total { width: 25%; text-align: right; }
+        .family-total-row { font-weight: bold; background-color: #f0f0f0; }
+        .family-total-row td { border-top: 1px solid #000; }
+        .summary-section { margin-top: 10px; }
+        .summary-table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+        .summary-table td { padding: 1px 2px; border: 1px solid #000; font-size: 8px; }
+        .summary-label { font-weight: bold; width: 60%; }
+        .summary-value { text-align: right; width: 40%; font-weight: bold; }
+        .expense-label { font-size: 7px; padding-left: 5px; }
+        .expense-value { text-align: right; font-size: 7px; }
       `;
     }
   }

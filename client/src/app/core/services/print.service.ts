@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ZReportData } from '../models/session.model';
+import { Sale } from '../models/sale.model';
 
 @Injectable({
   providedIn: 'root'
@@ -23,6 +24,137 @@ export class PrintService {
   printXReport(xReportData: ZReportData): void {
     const escposData = this.generateESCReport(xReportData, 'X');
     this.sendToPrinter(escposData);
+  }
+
+  // Print a single sale receipt (web-compatible HTML print)
+  printSaleReceipt(sale: Sale, options?: { openPreviewOnly?: boolean }): void {
+    const html = this.buildSaleReceiptHtml(sale);
+    try {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        throw new Error('Impossible d\'ouvrir la fenêtre d\'impression');
+      }
+
+      printWindow.document.write(html);
+      printWindow.document.close();
+
+      if (!options?.openPreviewOnly) {
+        printWindow.onload = () => {
+          printWindow.print();
+          printWindow.close();
+        };
+      }
+    } catch (error) {
+      console.error('Erreur impression reçu:', error);
+      alert('Erreur d\'impression: ' + error);
+    }
+  }
+
+  // Build a simple, thermal-style HTML receipt for a sale
+  buildSaleReceiptHtml(sale: Sale): string {
+    const createdAt = new Date(sale.createdAt);
+    const date = createdAt.toLocaleDateString('fr-FR');
+    const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    const itemsRows = (sale.items || [])
+      .map(item => {
+        const unit = Number(item.unitPrice || 0).toFixed(3);
+        const qty = Number(item.quantity || 0).toString();
+        const total = Number(item.total || 0).toFixed(3);
+        const name = (item.productName || '').toString();
+        
+        if (item.isWholesale) {
+          const bundleQty = item.bundleQuantity || 0;
+          const bundlePrice = item.bundlePrice || 0;
+          const bundleSize = item.bundleSize || 1;
+          return `
+            <tr>
+              <td class="name">${this.escapeHtml(name)}<br><small style="color: #8b5cf6; font-weight: bold;">GROS</small></td>
+              <td class="qty">${bundleQty} fardeau${bundleQty > 1 ? 'x' : ''}<br><small>(${qty} unités)</small></td>
+              <td class="price">${bundlePrice.toFixed(3)}/fardeau<br><small>(${(bundlePrice / bundleSize).toFixed(3)}/unité)</small></td>
+              <td class="total">${total}</td>
+            </tr>
+          `;
+        } else {
+          return `
+            <tr>
+              <td class="name">${this.escapeHtml(name)}</td>
+              <td class="qty">${qty}</td>
+              <td class="price">${unit}</td>
+              <td class="total">${total}</td>
+            </tr>
+          `;
+        }
+      })
+      .join('');
+
+    const discount = Number(sale.discount || 0);
+    const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
+    const net = Number(sale.finalTotal || subtotal - discount);
+    const payment = sale.paymentMethod?.name || '—';
+    const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Reçu Vente #${sale.id}</title>
+          <style>
+            @page { margin: 0 !important; }
+            body { font-family: 'Courier New', monospace; margin: 0; padding: 8px; }
+            .ticket { width: 300px; margin: 0 auto; }
+            .center { text-align: center; }
+            .line { border-top: 1px dashed #000; margin: 8px 0; }
+            .double-line { border-top: 2px solid #000; margin: 8px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            td { font-size: 12px; padding: 2px 0; }
+            td.name { width: 48%; }
+            td.qty { width: 12%; text-align: right; }
+            td.price { width: 20%; text-align: right; }
+            td.total { width: 20%; text-align: right; }
+            .muted { color: #444; }
+            .bold { font-weight: 700; }
+          </style>
+        </head>
+        <body>
+          <div class="ticket">
+            <div class="center bold">PATISSERIE MODERNE</div>
+            <div class="center muted">123 Rue de la Paix</div>
+            <div class="center muted">Tunis, Tunisie</div>
+            <div class="center muted">Tel: +216 71 123 456</div>
+            <div class="double-line"></div>
+            <div>Date: ${date} &nbsp;&nbsp; Heure: ${time}</div>
+            ${clientName ? `<div>Client: ${this.escapeHtml(clientName)}</div>` : ''}
+            <div>Ticket: #${sale.id}</div>
+            ${this.isWholesaleSale(sale) ? '<div style="color: #8b5cf6; font-weight: bold; text-align: center;">VENTE GROS</div>' : ''}
+            <div class="line"></div>
+            <table>
+              <thead>
+                <tr>
+                  <td class="bold">ARTICLE</td>
+                  <td class="bold" style="text-align:right">QTE</td>
+                  <td class="bold" style="text-align:right">P.U.</td>
+                  <td class="bold" style="text-align:right">TOTAL</td>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsRows}
+              </tbody>
+            </table>
+            <div class="line"></div>
+            <table>
+              <tr><td class="bold">Sous-total</td><td style="text-align:right" class="bold">${subtotal.toFixed(3)} dt</td></tr>
+              ${discount > 0 ? `<tr><td>Remise</td><td style="text-align:right">-${discount.toFixed(3)} dt</td></tr>` : ''}
+              <tr><td class="bold">TOTAL A PAYER</td><td style="text-align:right" class="bold">${net.toFixed(3)} dt</td></tr>
+              <tr><td>Paiement</td><td style="text-align:right">${this.escapeHtml(payment)}</td></tr>
+            </table>
+            <div class="line"></div>
+            <div class="center">Merci de votre visite!</div>
+          </div>
+        </body>
+      </html>
+    `;
   }
 
   // Generate ESC/POS commands for reports
@@ -191,61 +323,57 @@ export class PrintService {
     escpos += '📅 Date: ' + this.formatDate(dailyExtract.date) + '\n';
     escpos += '🕐 Heure clôture: ' + this.formatDateTime(dailyExtract.closureTimestamp) + '\n\n';
 
-    // Families and Products with style
+    // Families and Products with compact table format
     if (dailyExtract.families && dailyExtract.families.length > 0) {
       dailyExtract.families.forEach((family: any) => {
-        escpos += '┌─ 🍰 ' + family.name.toUpperCase() + ' 🍰\n';
-        escpos += '├─────────────────────────────────\n';
+        escpos += '🍰 ' + family.name.toUpperCase() + ' 🍰\n';
+        escpos += '========================\n';
+        
+        // Table header
+        escpos += 'Article      Qty P.U. Total\n';
+        escpos += '========================\n';
 
         if (family.products && family.products.length > 0) {
           family.products.forEach((product: any) => {
             const unitPrice = product.quantity > 0 ? product.revenue / product.quantity : 0;
-            escpos += '│ 🥐 ' + product.name + '\n';
-            escpos += '│    ' + product.quantity + ' x ' + this.formatCurrency(unitPrice) + ' = ' + this.formatCurrency(product.revenue) + ' TND\n';
+            const productName = product.name.length > 12 ? product.name.substring(0, 12) : product.name.padEnd(12);
+            const qty = product.quantity.toString().padStart(2);
+            const price = this.formatCurrency(unitPrice).padStart(4);
+            const total = this.formatCurrency(product.revenue).padStart(6);
+            
+            escpos += productName + ' ' + qty + ' ' + price + ' ' + total + '\n';
           });
         }
 
-        escpos += '└─ 💰 Total ' + family.name + ': ' + this.formatCurrency(family.totalRevenue) + ' TND\n\n';
+        // Family total row
+        escpos += '========================\n';
+        const totalLabel = 'Total ' + family.name;
+        const totalValue = this.formatCurrency(family.totalRevenue);
+        escpos += totalLabel.padEnd(12) + '   ' + totalValue.padStart(6) + '\n';
+        escpos += '========================\n\n';
       });
     }
 
-    // Summary with style
-    escpos += '╔══════════════════════════════════╗\n';
+    // Summary with compact table format
     escpos += '📈 RÉCAPITULATIF 📈\n';
-    escpos += '╚══════════════════════════════════╝\n';
-    escpos += '🎯 Totale Remise: ' + this.formatCurrency(dailyExtract.totalDiscount) + ' TND\n';
-    escpos += '💵 Totale Recette: ' + this.formatCurrency(dailyExtract.totalRevenue) + ' TND\n';
-    escpos += '🏦 Totale Caisse: ' + this.formatCurrency(dailyExtract.soldeDebit) + ' TND\n\n';
+    escpos += '========================\n';
+    escpos += 'Totale Remise     ' + this.formatCurrency(dailyExtract.totalDiscount) + '\n';
+    escpos += 'Totale Recette    ' + this.formatCurrency(dailyExtract.totalRevenue) + '\n';
+    escpos += 'Totale Caisse     ' + this.formatCurrency(dailyExtract.soldeDebit) + '\n';
 
-    // Expenses with style
+    // Expenses with compact format
     if (dailyExtract.expenses && dailyExtract.expenses.length > 0) {
-      escpos += '┌─ 💸 DÉPENSES 💸\n';
-      escpos += '├─────────────────────────────────\n';
+      escpos += 'Dépense\n';
       dailyExtract.expenses.forEach((expense: any) => {
-        escpos += '│ 📋 ' + expense.category + ': ' + this.formatCurrency(expense.amount) + ' TND\n';
+        escpos += '--- ' + expense.description + ' ' + this.formatCurrency(expense.amount) + '\n';
       });
-      escpos += '└─ 💰 Total Dépenses: ' + this.formatCurrency(dailyExtract.totalExpenses) + ' TND\n\n';
     }
 
-    // Alimentations with style
-    if (dailyExtract.alimentations && dailyExtract.alimentations.length > 0) {
-      escpos += '┌─ 💰 ALIMENTATIONS 💰\n';
-      escpos += '├─────────────────────────────────\n';
-      dailyExtract.alimentations.forEach((alimentation: any) => {
-        escpos += '│ 💵 ' + alimentation.reason + ': ' + this.formatCurrency(alimentation.amount) + ' TND\n';
-        escpos += '│    🕐 ' + this.formatDateTime(alimentation.createdAt) + '\n';
-      });
-      escpos += '└─────────────────────────────────\n\n';
-    }
-
-    // Withdrawal information with style
-    if (dailyExtract.withdrawal && dailyExtract.withdrawal > 0) {
-      escpos += '╔══════════════════════════════════╗\n';
-      escpos += '🏦 CLÔTURE CAISSE 🏦\n';
-      escpos += '╚══════════════════════════════════╝\n';
-      escpos += '💸 Retrait vers Caisse Centrale: ' + this.formatCurrency(dailyExtract.withdrawal) + ' TND\n';
-      escpos += '💰 Solde restant en caisse: ' + this.formatCurrency(dailyExtract.remainingCash) + ' TND\n\n';
-    }
+    // Final summary
+    escpos += 'Totale Caisse     ' + this.formatCurrency(dailyExtract.totalCaisse) + '\n';
+    escpos += 'Retrait           ' + this.formatCurrency(dailyExtract.withdrawal) + '\n';
+    escpos += 'Totale Reste      ' + this.formatCurrency(dailyExtract.remainingCash) + '\n';
+    escpos += '========================\n\n';
 
     // Stylish footer
     escpos += '╔══════════════════════════════════╗\n';
@@ -395,6 +523,20 @@ export class PrintService {
       'AJUSTEMENT': 'Ajustement'
     };
     return labels[type] || type;
+  }
+
+  // Check if sale is wholesale
+  private isWholesaleSale(sale: Sale): boolean {
+    return sale.items && sale.items.some(item => item.isWholesale);
+  }
+
+  private escapeHtml(input: string): string {
+    return input
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // Test printer connection

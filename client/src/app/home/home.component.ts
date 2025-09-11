@@ -25,7 +25,7 @@ interface QuickAction {
 @Component({
   selector: 'app-home',
   templateUrl: './home.component.html',
-  standalone: false
+  standalone: false,
 })
 export class HomeComponent implements OnInit {
   currentUser: any = null;
@@ -39,6 +39,8 @@ export class HomeComponent implements OnInit {
   loading = true;
   currentTime = new Date();
   greeting = '';
+  showExpenseActionDialog = false;
+  showClientActionDialog = false;
 
   quickActions: QuickAction[] = [
     {
@@ -103,8 +105,8 @@ export class HomeComponent implements OnInit {
     },
     {
       id: 'approvals',
-      title: 'Approvals',
-      description: 'Validations',
+      title: 'Validations',
+      description: 'Centre d\'approbation',
       route: '/approvals',
       icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
       color: 'from-purple-500 to-violet-600',
@@ -129,6 +131,26 @@ export class HomeComponent implements OnInit {
       icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
       color: 'from-teal-500 to-cyan-600',
       gradient: 'from-teal-50 to-cyan-100',
+      roles: ['ADMIN', 'MANAGER', 'CASHIER']
+    },
+    {
+      id: 'suppliers',
+      title: 'Fournisseurs',
+      description: 'Gestion fournisseurs',
+      route: '/suppliers',
+      icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+      color: 'from-indigo-500 to-purple-600',
+      gradient: 'from-indigo-50 to-purple-100',
+      roles: ['ADMIN', 'MANAGER']
+    },
+    {
+      id: 'financiere',
+      title: 'Finance',
+      description: 'Règlements et relevés',
+      route: '/home/financiere',
+      icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      color: 'from-emerald-500 to-green-600',
+      gradient: 'from-emerald-50 to-green-100',
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
     }
   ];
@@ -214,7 +236,56 @@ export class HomeComponent implements OnInit {
   }
 
   navigateTo(route: string): void {
-    this.router.navigate([route]);
+    if (route === '/charges') {
+      this.showExpenseActionDialog = true;
+    } else if (route === '/clients') {
+      this.showClientActionDialog = true;
+    } else {
+      this.router.navigate([route]);
+    }
+  }
+
+  onExpenseActionSelected(actionId: string): void {
+    this.showExpenseActionDialog = false;
+    
+    switch (actionId) {
+      case 'consult':
+        this.router.navigate(['/charges']);
+        break;
+      case 'add':
+        this.router.navigate(['/charges'], { queryParams: { action: 'add' } });
+        break;
+      case 'add-category':
+        this.router.navigate(['/charges'], { queryParams: { action: 'add-category' } });
+        break;
+      case 'statistics':
+        this.router.navigate(['/charges'], { queryParams: { action: 'statistics' } });
+        break;
+    }
+  }
+
+  onExpenseDialogClosed(): void {
+    this.showExpenseActionDialog = false;
+  }
+
+  onClientActionSelected(actionId: string): void {
+    this.showClientActionDialog = false;
+    
+    switch (actionId) {
+      case 'consult':
+        this.router.navigate(['/clients']);
+        break;
+      case 'add':
+        this.router.navigate(['/clients'], { queryParams: { action: 'add' } });
+        break;
+      case 'wholesale':
+        this.router.navigate(['/client-gros']);
+        break;
+    }
+  }
+
+  onClientDialogClosed(): void {
+    this.showClientActionDialog = false;
   }
 
   getRoleDisplayName(): string {

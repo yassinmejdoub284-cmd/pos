@@ -129,24 +129,37 @@
       <div *ngFor="let family of selectedExtract.families" class="bg-white rounded-2xl border border-indigo-100/50 p-6">
         <h3 class="text-xl font-semibold text-slate-800 mb-4">{{ family.name }}</h3>
         
-        <div class="space-y-3 mb-4">
-          <div *ngFor="let product of family.products" class="flex justify-between items-center py-2 border-b border-indigo-100/30">
-            <div>
-              <div class="text-slate-800 font-medium">{{ product.name }}</div>
-              <div class="text-sm text-slate-500">Quantité: {{ product.quantity }}</div>
-            </div>
-            <div class="text-right">
-              <div class="text-slate-800 font-semibold">{{ formatCurrency(product.revenue) }}</div>
-              <div *ngIf="product.discount > 0" class="text-sm text-orange-400">
-                Remise: {{ formatCurrency(product.discount) }}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="flex justify-between items-center pt-3 border-t border-indigo-100/50">
-          <span class="text-lg font-semibold text-slate-800">Total {{ family.name }}</span>
-          <span class="text-lg font-bold text-teal-400">{{ formatCurrency(family.totalRevenue) }}</span>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse border border-slate-300 mb-3 text-sm">
+            <thead>
+              <tr class="bg-slate-50">
+                <th class="border border-slate-300 px-2 py-1 text-left font-semibold text-slate-800 text-xs">Article</th>
+                <th class="border border-slate-300 px-2 py-1 text-center font-semibold text-slate-800 text-xs">Qty</th>
+                <th class="border border-slate-300 px-2 py-1 text-right font-semibold text-slate-800 text-xs">P.U.</th>
+                <th class="border border-slate-300 px-2 py-1 text-right font-semibold text-slate-800 text-xs">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let product of family.products" class="hover:bg-slate-50">
+                <td class="border border-slate-300 px-2 py-1 text-slate-800 text-xs">{{ product.name }}</td>
+                <td class="border border-slate-300 px-2 py-1 text-center text-slate-800 text-xs">{{ product.quantity }}</td>
+                <td class="border border-slate-300 px-2 py-1 text-right text-slate-800 text-xs">
+                  {{ formatCurrency(product.quantity > 0 ? product.revenue / product.quantity : 0) }}
+                </td>
+                <td class="border border-slate-300 px-2 py-1 text-right text-slate-800 font-semibold text-xs">
+                  {{ formatCurrency(product.revenue) }}
+                </td>
+              </tr>
+              <tr class="bg-slate-100 font-bold">
+                <td class="border border-slate-300 px-2 py-1 text-slate-800 text-xs">Total {{ family.name }}</td>
+                <td class="border border-slate-300 px-2 py-1"></td>
+                <td class="border border-slate-300 px-2 py-1"></td>
+                <td class="border border-slate-300 px-2 py-1 text-right text-teal-600 text-xs">
+                  {{ formatCurrency(family.totalRevenue) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
