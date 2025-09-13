@@ -32,8 +32,12 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   showApprovalModal = false;
   showStatsModal = false;
   showAllExpensesModal = false;
+  showCategoryActionMenu = false;
+  selectedCategoryForAction: ExpenseCategory | null = null;
   searchQuery = '';
   activeFilter = 'all';
+  selectedSupplierFilter: number | null = null;
+  selectedCategoryFilter: number | null = null;
   // Wizard state
   addExpenseStep: 'category' | 'payment' | 'supplier' | 'notes' = 'category';
   payNow = true;
@@ -45,7 +49,9 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     paymentType: 'CASH' as PaymentType,
     date: new Date().toISOString().split('T')[0],
     collectionDate: new Date().toISOString().split('T')[0],
-    notes: ''
+    notes: '',
+    isPaid: false,
+    isAdvance: false
   };
 
   newCategory = {
@@ -54,6 +60,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     color: '#3B82F6',
     icon: '💰'
   };
+  editingCategory: ExpenseCategory | null = null;
 
   selectedCategory: ExpenseCategory | null = null;
   pendingExpenses: Expense[] = [];
@@ -438,7 +445,9 @@ export class ChargesComponent implements OnInit, AfterViewInit {
       paymentType: 'CASH' as PaymentType,
       date: new Date().toISOString().split('T')[0],
       collectionDate: new Date().toISOString().split('T')[0],
-      notes: ''
+      notes: '',
+      isPaid: false,
+      isAdvance: false
     };
     this.selectedCategory = null;
   }
@@ -598,6 +607,16 @@ export class ChargesComponent implements OnInit, AfterViewInit {
       }
     }
     
+    // Apply supplier filter
+    if (this.selectedSupplierFilter !== null) {
+      filtered = filtered.filter(expense => expense.supplierId === this.selectedSupplierFilter);
+    }
+    
+    // Apply category filter
+    if (this.selectedCategoryFilter !== null) {
+      filtered = filtered.filter(expense => expense.categoryId === this.selectedCategoryFilter);
+    }
+    
     // Apply search query
     if (this.searchQuery.trim()) {
       const query = this.searchQuery.toLowerCase().trim();
@@ -617,7 +636,117 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     this.activeFilter = filter;
   }
 
+  setSupplierFilter(supplierId: number | null) {
+    this.selectedSupplierFilter = supplierId;
+  }
+
+  onSupplierFilterChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    const value = target.value;
+    this.selectedSupplierFilter = value ? +value : null;
+  }
+
+  clearCategoryFilter() {
+    this.selectedCategoryFilter = null;
+    this.selectedCategory = null;
+  }
+
+  // Category action methods
+  showCategoryActions(category: ExpenseCategory, event: Event) {
+    event.stopPropagation();
+    this.selectedCategoryForAction = category;
+    this.showCategoryActionMenu = true;
+  }
+
+  hideCategoryActions() {
+    this.showCategoryActionMenu = false;
+    this.selectedCategoryForAction = null;
+  }
+
+  consultCategory() {
+    if (this.selectedCategoryForAction) {
+      // Select the category and filter expenses by this category
+      this.selectedCategory = this.selectedCategoryForAction;
+      this.selectedSupplierFilter = null;
+      this.selectedCategoryFilter = this.selectedCategoryForAction.id;
+      this.activeFilter = 'all';
+      this.searchQuery = ''; // Clear search query to show all expenses for this category
+      this.hideCategoryActions();
+    }
+  }
+
+  editCategory() {
+    if (this.selectedCategoryForAction) {
+      // Open edit category modal
+      this.newCategory = {
+        name: this.selectedCategoryForAction.name,
+        description: this.selectedCategoryForAction.description,
+        color: this.selectedCategoryForAction.color,
+        icon: this.selectedCategoryForAction.icon
+      };
+      this.editingCategory = this.selectedCategoryForAction;
+      this.showAddCategoryModal = true;
+      this.hideCategoryActions();
+    }
+  }
+
+  deleteCategory() {
+    if (this.selectedCategoryForAction) {
+      if (confirm(`Êtes-vous sûr de vouloir supprimer la catégorie "${this.selectedCategoryForAction.name}" ?`)) {
+        this.expenseService.deleteCategory(this.selectedCategoryForAction.id).subscribe({
+          next: () => {
+            this.loadData();
+            this.clearCategoryFilter(); // Clear category filter if deleted category was selected
+            this.hideCategoryActions();
+          },
+          error: (error: any) => {
+            console.error('Error deleting category:', error);
+            this.error = 'Erreur lors de la suppression de la catégorie';
+          }
+        });
+      }
+    }
+  }
+
+  archiveCategory() {
+    if (this.selectedCategoryForAction) {
+      if (confirm(`Êtes-vous sûr de vouloir archiver la catégorie "${this.selectedCategoryForAction.name}" ?`)) {
+        this.expenseService.updateCategory(this.selectedCategoryForAction.id, { isActive: false }).subscribe({
+          next: () => {
+            this.loadData();
+            this.clearCategoryFilter(); // Clear category filter if archived category was selected
+            this.hideCategoryActions();
+          },
+          error: (error: any) => {
+            console.error('Error archiving category:', error);
+            this.error = 'Erreur lors de l\'archivage de la catégorie';
+          }
+        });
+      }
+    }
+  }
+
   clearSearch() {
     this.searchQuery = '';
+    // Don't clear category filter here as it's independent of search
+  }
+
+  // Helper methods for new payment status
+  getPaymentStatusIcon(expense: any): string {
+    if (expense.isAdvance) return '💰';
+    if (expense.isPaid) return '✅';
+    return '❌';
+  }
+
+  getPaymentStatusLabel(expense: any): string {
+    if (expense.isAdvance) return 'Acompte';
+    if (expense.isPaid) return 'Payé';
+    return 'Non Payé';
+  }
+
+  getPaymentStatusColor(expense: any): string {
+    if (expense.isAdvance) return 'text-blue-600';
+    if (expense.isPaid) return 'text-green-600';
+    return 'text-red-600';
   }
 } 

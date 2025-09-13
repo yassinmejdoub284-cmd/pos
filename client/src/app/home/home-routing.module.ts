@@ -1,28 +1,18 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { HomeComponent } from './home.component';
-import { SupplierPaymentComponent } from './supplier-payment/supplier-payment.component';
-import { SupplierStatementComponent } from './supplier-statement/supplier-statement.component';
-import { ClientStatementComponent } from './client-statement/client-statement.component';
-import { CashStatementComponent } from './cash-statement/cash-statement.component';
 import { FinanciereComponent } from './financiere/financiere.component';
 
 const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'financiere', component: FinanciereComponent },
-  { path: 'supplier-payment', component: SupplierPaymentComponent },
-  { path: 'supplier-statement', component: SupplierStatementComponent },
-  { path: 'client-statement', component: ClientStatementComponent },
-  { path: 'cash-statement', component: CashStatementComponent }
+  { path: 'client-statement', loadComponent: () => import('./client-statement/client-statement.component').then(m => m.ClientStatementComponent) },
+  { path: 'cash-statement', loadComponent: () => import('./cash-statement/cash-statement.component').then(m => m.CashStatementComponent) }
 ];
 
 @NgModule({
   imports: [
-    RouterModule.forChild(routes),
-    SupplierPaymentComponent,
-    SupplierStatementComponent,
-    ClientStatementComponent,
-    CashStatementComponent
+    RouterModule.forChild(routes)
   ],
   exports: [RouterModule]
 })

@@ -27,6 +27,10 @@ export const routes: Routes = [
     loadChildren: () => import('./stock/stock.module').then(m => m.StockModule) 
   },
   { 
+    path: 'inventory', 
+    loadChildren: () => import('./inventory/inventory.module').then(m => m.InventoryModule) 
+  },
+  { 
     path: 'parametres', 
     loadChildren: () => import('./parametres/parametres.module').then(m => m.ParametresModule) 
   },
@@ -53,5 +57,21 @@ export const routes: Routes = [
   { 
     path: 'client-gros', 
     loadChildren: () => import('./client-gros/client-gros.module').then(m => m.ClientGrosModule) 
+  },
+  { 
+    path: 'client-statement', 
+    loadChildren: () => import('./client-statement/client-statement.module').then(m => m.ClientStatementModule) 
+  },
+  { 
+    path: 'client-payments', 
+    loadChildren: () => import('./client-payments/client-payments.module').then(m => m.ClientPaymentsModule) 
+  },
+  { 
+    path: 'supplier-statement', 
+    loadChildren: () => import('./supplier-statement/supplier-statement.module').then(m => m.SupplierStatementModule) 
+  },
+  { 
+    path: 'supplier-payments', 
+    loadChildren: () => import('./supplier-payments/supplier-payments.module').then(m => m.SupplierPaymentsModule) 
   }
 ];

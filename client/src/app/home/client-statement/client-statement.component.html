@@ -10,7 +10,7 @@
           <p class="text-amber-600/70 mt-2">Consultation des relevés clients</p>
         </div>
         <div class="flex space-x-3">
-          <a routerLink="/home/financiere"
+          <a routerLink="/home"
              title="Retour"
              class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-md">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -105,7 +105,7 @@
               <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Ventes Période</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Paiements</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Créances</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Solde Période</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Crédit Restant Autorisé</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Solde Actuel</th>
               <th class="px-6 py-3 text-center text-xs font-medium text-amber-700 uppercase tracking-wider">Actions</th>
             </tr>
@@ -204,7 +204,6 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Date</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Type</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Référence</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Description</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Débit</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Crédit</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Solde</th>
@@ -213,7 +212,7 @@
           <tbody class="bg-white divide-y divide-amber-100">
             <tr *ngFor="let item of statement.statement" class="hover:bg-amber-50/50">
               <td class="px-6 py-4 whitespace-nowrap text-sm text-amber-800">
-                {{ formatDate(item.date) }}
+                {{ formatDate(item.date) | date:'dd/MM/yyyy hh:mm:ss' }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
@@ -230,9 +229,6 @@
                 <span *ngIf="!item.clickable">
                   {{ item.reference }}
                 </span>
-              </td>
-              <td class="px-6 py-4 text-sm text-amber-800">
-                {{ item.description }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
                 <span *ngIf="item.debit > 0" class="text-red-600 font-semibold">
@@ -257,3 +253,10 @@
     </div>
   </div>
 </div>
+
+<!-- Ticket Dialog -->
+<app-ticket-dialog 
+  [saleId]="selectedTicketId" 
+  [isVisible]="showTicketDialog" 
+  (close)="closeTicketDialog()">
+</app-ticket-dialog>

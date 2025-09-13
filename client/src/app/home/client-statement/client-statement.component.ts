@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TicketDialogComponent } from '../../shared/ticket-dialog/ticket-dialog.component';
 
 interface Client {
   id: number;
@@ -54,7 +55,7 @@ interface ClientSummary {
   selector: 'app-client-statement',
   templateUrl: './client-statement.component.html',
   standalone: true,
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, FormsModule, RouterModule, TicketDialogComponent]
 })
 export class ClientStatementComponent implements OnInit {
   clients: Client[] = [];
@@ -63,6 +64,10 @@ export class ClientStatementComponent implements OnInit {
   statement: ClientStatement | null = null;
   loading = false;
   showSummary = true;
+  
+  // Ticket Dialog
+  showTicketDialog = false;
+  selectedTicketId: number | null = null;
   
   // Filters
   filters = {
@@ -160,7 +165,7 @@ export class ClientStatementComponent implements OnInit {
   }
 
   formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('fr-FR');
+    return new Date(dateString).toUTCString();
   }
 
   formatAmount(amount: number): string {
@@ -172,17 +177,17 @@ export class ClientStatementComponent implements OnInit {
 
   getTransactionTypeLabel(type: string): string {
     const types: { [key: string]: string } = {
-      'sale': 'Vente',
-      'debt': 'Créance',
-      'payment': 'Paiement'
+      'credit': 'Crédit',
+      'debt': 'Crédit',
+      'payment': 'Débit'
     };
     return types[type] || type;
   }
 
   getTransactionTypeColor(type: string): string {
     const colors: { [key: string]: string } = {
-      'sale': 'text-blue-600 bg-blue-50',
-      'debt': 'text-red-600 bg-red-50',
+      'credit': 'text-orange-600 bg-orange-50',
+      'debt': 'text-orange-600 bg-orange-50',
       'payment': 'text-green-600 bg-green-50'
     };
     return colors[type] || 'text-gray-600 bg-gray-50';
@@ -190,11 +195,18 @@ export class ClientStatementComponent implements OnInit {
 
   onReferenceClick(item: StatementItem): void {
     if (item.clickable) {
-      if (item.type === 'sale' || item.saleId) {
-        // Navigate to sale details
-        this.router.navigate(['/historique'], { queryParams: { saleId: item.id } });
+      // Check if it's a ticket reference (TICKET-XXX format)
+      if (item.reference.startsWith('TICKET-') || item.type === 'credit' || item.type === 'cash') {
+        // Open ticket dialog with sale details
+        this.selectedTicketId = item.id;
+        this.showTicketDialog = true;
       }
     }
+  }
+
+  closeTicketDialog(): void {
+    this.showTicketDialog = false;
+    this.selectedTicketId = null;
   }
 
   exportStatement(): void {
@@ -245,8 +257,8 @@ export class ClientStatementComponent implements OnInit {
   }
 
   getBalanceColor(balance: number): string {
-    if (balance > 0) return 'text-red-600';
-    if (balance < 0) return 'text-green-600';
+    if (balance > 0) return 'text-green-600'; // Client has paid in advance
+    if (balance < 0) return 'text-red-600';   // Client still owes money
     return 'text-gray-600';
   }
 }

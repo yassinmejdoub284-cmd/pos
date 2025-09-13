@@ -143,7 +143,7 @@ router.post('/:id/movements', authenticateToken, requireRole(['ADMIN', 'MANAGER'
       where: {
         id: parseInt(id),
         userId: req.user.id,
-        status: 'OPEN'
+        status: { in: ['OPEN', 'REOPENED'] }
       }
     });
 
@@ -219,7 +219,7 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
 router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { countedCash, fonds, retraitCentrale, denominations } = req.body;
+    const { countedCash, fonds, retraitCentrale, denominations, isAdminCorrection } = req.body;
 
     if (!countedCash || countedCash < 0) {
       return res.status(400).json({ error: 'Espèces comptées requises et doivent être positives' });
@@ -229,7 +229,7 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
       where: {
         id: parseInt(id),
         userId: req.user.id,
-        status: 'OPEN'
+        status: { in: ['OPEN', 'REOPENED'] }
       }
     });
 
@@ -238,12 +238,40 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
     }
 
     const summary = await calculateSessionSummary(parseInt(id));
-    const variance = parseFloat(countedCash) - parseFloat(summary.expectedCash);
+    const originalVariance = parseFloat(countedCash) - parseFloat(summary.expectedCash);
+    
+    // For admin corrections, we want to show the actual variance from the original expected amount
+    // For regular closures, we use the calculated variance
+    const finalVariance = isAdminCorrection ? originalVariance : originalVariance;
+    
+    // Debug logging
+    console.log('Session Close Debug:', {
+      sessionId: parseInt(id),
+      countedCash: parseFloat(countedCash),
+      originalExpectedCash: parseFloat(summary.expectedCash),
+      finalExpectedCash: isAdminCorrection ? parseFloat(countedCash) : parseFloat(summary.expectedCash),
+      calculatedVariance: originalVariance,
+      finalVariance: finalVariance,
+      isAdminCorrection,
+      fondsForNextSession: isAdminCorrection ? parseFloat(countedCash) : fonds,
+      sessionData: {
+        openingFund: session.openingFund,
+        currentExpectedCash: session.expectedCash,
+        currentCountedCash: session.countedCash,
+        currentOriginalCountedCash: session.originalCountedCash
+      },
+      summaryData: {
+        cashSales: summary.cashSales,
+        entree: summary.entree,
+        sortie: summary.sortie,
+        totalSales: summary.totalSales
+      }
+    });
     
     // Check variance threshold (but we will still require approval for all closures)
     const settings = await getClotureSettings();
-    const varianceExceedsThreshold = Math.abs(variance) > settings.varianceThreshold;
-    const requiresApproval = true;
+    const varianceExceedsThreshold = Math.abs(finalVariance) > settings.varianceThreshold;
+    const requiresApproval = !isAdminCorrection; // Admin corrections don't require approval
 
     const result = await prisma.$transaction(async (tx) => {
       // Add retrait centrale if specified
@@ -263,27 +291,49 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
       const updatedSession = await tx.sessionCaisse.update({
         where: { id: parseInt(id) },
         data: {
-          status: 'CLOSED',
+          status: isAdminCorrection ? 'ADMIN_CORRECTED' : 'CLOSED',
           closedAt: new Date(),
           countedCash: parseFloat(countedCash),
-          variance: variance,
+          originalCountedCash: isAdminCorrection ? (session.originalCountedCash || session.countedCash) : session.originalCountedCash, // Store original counted cash before admin correction
+          expectedCash: isAdminCorrection ? parseFloat(countedCash) : summary.expectedCash, // For admin corrections, set expected cash to counted cash
+          variance: finalVariance, // Show the actual variance from original expected amount
           zSeq: session.zSeq + 1,
-          note: fonds ? `Fonds pour prochaine session: ${fonds}` : session.note
+          note: isAdminCorrection ? `Fonds pour prochaine session: ${countedCash} (Correction admin)` : (fonds ? `Fonds pour prochaine session: ${fonds}` : session.note)
         }
       });
 
-      // Always create change request for closure approval
-      await tx.changeRequest.create({
-        data: {
-          type: 'VARIANCE_APPROVAL',
-          entityId: parseInt(id),
-          entityType: 'SESSION_CAISSE',
-          reason: varianceExceedsThreshold
-            ? `Écart de ${variance.toFixed(3)} TND dépasse le seuil de ${settings.varianceThreshold} TND`
-            : `Clôture à approuver (écart: ${variance.toFixed(3)} TND, seuil: ${settings.varianceThreshold} TND)`,
-          requestedBy: req.user.id
-        }
-      });
+      // Handle change requests based on correction type
+      if (isAdminCorrection) {
+        // For admin corrections, update the existing rejected change request to show it was corrected
+        await tx.changeRequest.updateMany({
+          where: {
+            entityId: parseInt(id),
+            entityType: 'SESSION_CAISSE',
+            type: 'VARIANCE_APPROVAL',
+            status: 'REJECTED'
+          },
+          data: {
+            status: 'APPROVED',
+            approvedBy: req.user.id,
+            approvedAt: new Date(),
+            reason: `Clôture corrigée par admin - ${session.reason || 'Correction effectuée'}`,
+            rejectionNotes: 'Correction effectuée par administrateur'
+          }
+        });
+      } else {
+        // For regular closures, create new change request
+        await tx.changeRequest.create({
+          data: {
+            type: 'VARIANCE_APPROVAL',
+            entityId: parseInt(id),
+            entityType: 'SESSION_CAISSE',
+            reason: varianceExceedsThreshold
+              ? `Écart de ${finalVariance.toFixed(3)} TND dépasse le seuil de ${settings.varianceThreshold} TND`
+              : `Clôture à approuver (écart: ${finalVariance.toFixed(3)} TND, seuil: ${settings.varianceThreshold} TND)`,
+            requestedBy: req.user.id
+          }
+        });
+      }
 
       return updatedSession;
     });
@@ -291,7 +341,7 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
     await logAudit(req.user.id, 'session_caisse', parseInt(id), 'UPDATE', session, {
       status: 'CLOSED',
       countedCash: parseFloat(countedCash),
-      variance: variance
+      variance: finalVariance
     });
 
     // Calculate remaining balance after withdrawal
@@ -305,17 +355,72 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
       countedCash: parseFloat(countedCash)
     });
 
+    // For admin corrections, update the existing open session with the corrected balance
+    let updatedOpenSession = null;
+    if (isAdminCorrection) {
+      try {
+        // Find the existing open session for this user and POS
+        const existingOpenSession = await prisma.sessionCaisse.findFirst({
+          where: {
+            userId: session.userId,
+            posId: session.posId,
+            status: 'OPEN'
+          }
+        });
+
+        if (existingOpenSession) {
+          // Update the existing open session with corrected balance
+          updatedOpenSession = await prisma.sessionCaisse.update({
+            where: { id: existingOpenSession.id },
+            data: {
+              openingFund: parseFloat(countedCash), // Use corrected amount as opening fund
+              expectedCash: parseFloat(countedCash),
+              note: 'Session mise à jour après correction admin'
+            },
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+              depot: { select: { name: true, code: true } }
+            }
+          });
+
+          await logAudit(req.user.id, 'session_caisse', updatedOpenSession.id, 'UPDATE', existingOpenSession, {
+            posId: updatedOpenSession.posId,
+            openingFund: updatedOpenSession.openingFund,
+            note: updatedOpenSession.note,
+            reason: 'Updated after admin correction'
+          });
+
+          // Emit socket notification for updated session
+          if (req.app.get('io')) {
+            req.app.get('io').emit('session_updated', {
+              sessionId: updatedOpenSession.id,
+              userId: updatedOpenSession.userId,
+              posId: updatedOpenSession.posId,
+              openingFund: updatedOpenSession.openingFund,
+              updatedAt: updatedOpenSession.updatedAt,
+              reason: 'Updated after admin correction'
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error updating open session after admin correction:', error);
+        // Don't fail the main operation if updating fails
+      }
+    }
+
     // Emit socket notification
     if (req.app.get('io')) {
       req.app.get('io').emit('session_closed', {
         sessionId: parseInt(id),
         userId: session.userId,
         posId: session.posId,
-        variance: variance,
+        variance: finalVariance,
         requiresApproval: requiresApproval,
         closedAt: result.closedAt,
         withdrawalAmount,
         remainingBalance,
+        isAdminCorrection,
+        updatedOpenSessionId: updatedOpenSession?.id,
         totals: {
           expectedCash: summary.expectedCash,
           countedCash: parseFloat(countedCash),
@@ -329,9 +434,10 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
       session: result,
       zReport: zReportData,
       requiresApproval,
-      variance,
+      variance: finalVariance,
       withdrawalAmount,
-      remainingBalance
+      remainingBalance,
+      updatedOpenSession
     });
   } catch (error) {
     console.error('Error closing session:', error);
@@ -483,6 +589,23 @@ router.post('/:id/reopen', authenticateToken, requireRole(['ADMIN']), async (req
         }
       });
 
+      // Recalculate expected cash before reopening
+      const summary = await calculateSessionSummary(parseInt(id));
+      
+      console.log('Session Reopen Debug:', {
+        sessionId: parseInt(id),
+        oldExpectedCash: session.expectedCash,
+        newExpectedCash: summary.expectedCash,
+        currentCountedCash: session.countedCash,
+        currentOriginalCountedCash: session.originalCountedCash,
+        summaryData: {
+          cashSales: summary.cashSales,
+          entree: summary.entree,
+          sortie: summary.sortie,
+          totalSales: summary.totalSales
+        }
+      });
+      
       // Reopen session
       const reopenedSession = await tx.sessionCaisse.update({
         where: { id: parseInt(id) },
@@ -490,7 +613,9 @@ router.post('/:id/reopen', authenticateToken, requireRole(['ADMIN']), async (req
           status: 'REOPENED',
           closedAt: null,
           countedCash: null,
-          variance: null
+          originalCountedCash: session.countedCash || session.originalCountedCash, // Preserve original counted cash before reopening
+          variance: null,
+          expectedCash: summary.expectedCash
         }
       });
 

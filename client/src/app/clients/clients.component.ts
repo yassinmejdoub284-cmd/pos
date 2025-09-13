@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { Router } from '@angular/router';
 import { ClientsService } from '../core/services/clients.service';
 import { Client, ClientType, CreateClientRequest, UpdateClientRequest } from '../core/models/client.model';
 
@@ -22,11 +23,11 @@ export class ClientsComponent implements OnInit {
   selectedType: string = '';
   selectedStatus: string = 'true';
 
-  // Tunisian cities (24)
+  // Tunisian governorates (24)
   tunisianCities: string[] = [
-    'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan', 'Bizerte', 'Béja', 'Jendouba', 'Le Kef',
-    'Siliana', 'Sousse', 'Monastir', 'Mahdia', 'Kairouan', 'Kasserine', 'Sidi Bouzid', 'Sfax', 'Gabès', 'Médenine',
-    'Tataouine', 'Gafsa', 'Tozeur', 'Kébili'
+    'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan', 'Bizerte', 'Beja', 'Jendouba', 'Kef',
+    'Siliana', 'Sousse', 'Monastir', 'Mahdia', 'Kairouan', 'Kasserine', 'Sidi Bouzid', 'Sfax', 'Gabes', 'Medenine',
+    'Tataouine', 'Gafsa', 'Tozeur', 'Kebili'
   ];
 
   // Client types for filter
@@ -50,9 +51,11 @@ export class ClientsComponent implements OnInit {
     lastName: '',
     phone: '',
     city: 'Tunis',
+    address: '',
     clientType: 'INDIVIDUAL',
-    ageGroup: 'ADULT',
-    notes: ''
+    notes: '',
+    allowDebt: true,
+    maxDebt: null
   };
 
   editForm: UpdateClientRequest = {};
@@ -64,7 +67,8 @@ export class ClientsComponent implements OnInit {
 
   constructor(
     private clientsService: ClientsService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -118,6 +122,21 @@ export class ClientsComponent implements OnInit {
     this.loadClients();
   }
 
+  setType(type: string): void {
+    this.selectedType = type;
+    this.applyFilters();
+  }
+
+  setStatus(status: string): void {
+    this.selectedStatus = status;
+    this.applyFilters();
+  }
+
+  openWholesaleForClient(client: Client): void {
+    if (!client || client.clientType !== 'WHOLESALE') return;
+    this.router.navigate(['/client-gros'], { queryParams: { clientId: client.id } });
+  }
+
   changePage(page: number): void {
     this.currentPage = page;
     this.loadClients();
@@ -129,9 +148,11 @@ export class ClientsComponent implements OnInit {
       lastName: '',
       phone: '',
       city: 'Tunis',
+      address: '',
       clientType: 'INDIVIDUAL',
-      ageGroup: 'ADULT',
-      notes: ''
+      notes: '',
+      allowDebt: true,
+      maxDebt: null
     };
     this.showCreatePopup = true;
   }
@@ -143,13 +164,15 @@ export class ClientsComponent implements OnInit {
       lastName: client.lastName,
       phone: client.phone,
       city: client.city || 'Tunis',
+      address: client.address || '',
       clientType: client.clientType,
       loyaltyPoints: client.loyaltyPoints,
       totalSpent: client.totalSpent,
       favoriteProducts: client.favoriteProducts,
       notes: client.notes,
       isActive: client.isActive,
-      ageGroup: client.ageGroup || 'ADULT'
+      allowDebt: client.allowDebt ?? true,
+      maxDebt: client.maxDebt ?? NaN
     };
     this.showEditPopup = true;
   }

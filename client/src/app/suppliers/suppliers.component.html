@@ -1,291 +1,662 @@
-<div class="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-4">
-  <!-- Home Button - Top Right -->
-  <div class="fixed top-6 right-6 z-40">
-    <a routerLink="/home"
-      class="w-12 h-12 bg-blue-400 text-white rounded-full shadow-2xl hover:bg-blue-500 transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
-      title="Accueil">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-        </path>
-      </svg>
-    </a>
+<div class="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
+  <!-- Animated background elements -->
+  <div class="absolute inset-0 overflow-hidden">
+    <div
+      class="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl animate-pulse">
+    </div>
+    <div
+      class="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-blue-400/20 to-indigo-400/20 rounded-full blur-3xl animate-pulse delay-1000">
+    </div>
   </div>
 
-  <div class="max-w-7xl mx-auto">
-    <!-- Header -->
-    <div class="bg-white/90 backdrop-blur-md border-b border-amber-200/60 rounded-2xl shadow-sm mb-6">
-      <div class="p-6">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-blue-100">
-              <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+  <div class="relative z-10 max-w-7xl mx-auto p-6">
+    <!-- Modern Header -->
+    <div class="mb-8">
+      <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6 mb-6">
+        <div class="space-y-2">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
               </svg>
             </div>
             <div>
-              <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <h1
+                class="text-4xl font-bold bg-gradient-to-r from-gray-800 via-purple-800 to-pink-800 bg-clip-text text-transparent">
                 Gestion des Fournisseurs
               </h1>
-              <p class="text-sm text-blue-600/70 font-medium">Gérer vos fournisseurs et contacts</p>
+              <p class="text-gray-600 text-lg">Gérez votre base de données fournisseurs avec style</p>
             </div>
           </div>
-          <button (click)="openAddModal()" 
-            class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            <span>Nouveau Fournisseur</span>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3">
+          <button (click)="openCreatePopup()"
+            class="group bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 hover:from-purple-600 hover:via-pink-600 hover:to-rose-600 text-white px-6 py-3 rounded-2xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-xl hover:shadow-2xl transform hover:-translate-y-1">
+            <div
+              class="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                </path>
+              </svg>
+            </div>
+            <span class="font-semibold">Nouveau Fournisseur</span>
           </button>
+
+          <a routerLink="/home"
+            class="group bg-white/80 backdrop-blur-sm border border-gray-200/50 hover:bg-white hover:border-purple-300 text-gray-700 hover:text-purple-700 px-6 py-3 rounded-2xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+            <div
+              class="w-8 h-8 bg-gray-100 group-hover:bg-purple-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-all duration-300">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                </path>
+              </svg>
+            </div>
+            <span class="font-semibold">Retour</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-600 text-sm font-medium">Total Fournisseurs</p>
+              <p class="text-3xl font-bold text-gray-800">{{ totalSuppliers }}</p>
+            </div>
+            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+                </path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-600 text-sm font-medium">Fournisseurs Actifs</p>
+              <p class="text-3xl font-bold text-green-600">{{ activeSuppliersCount }}</p>
+            </div>
+            <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z">
+                </path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-600 text-sm font-medium">Fournisseurs Inactifs</p>
+              <p class="text-3xl font-bold text-red-600">{{ inactiveSuppliersCount }}</p>
+            </div>
+            <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728">
+                </path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-600 text-sm font-medium">Total Dette</p>
+              <p class="text-3xl font-bold text-orange-600">{{ getTotalDebt() | number:'1.3-3' }} dt</p>
+            </div>
+            <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                </path>
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Error Alert -->
-    <div *ngIf="error" class="mb-4 p-4 bg-red-100 border border-red-300 text-red-700 rounded-xl flex items-center justify-between">
-      <span>{{ error }}</span>
-      <button title="Fermer" (click)="clearError()" class="text-red-500 hover:text-red-700">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-      </button>
-    </div>
-
-    <!-- Search and Stats -->
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-      <!-- Search -->
-      <div class="lg:col-span-3">
-        <div class="bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-sm border border-amber-100/50">
+    <!-- Filters Section -->
+    <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg mb-8">
+      <div class="flex flex-col lg:flex-row gap-4">
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Rechercher</label>
           <div class="relative">
-            <input title="Rechercher"
-              type="text" 
-              [(ngModel)]="searchQuery"
-              placeholder="Rechercher par nom, téléphone, adresse..."
-              class="w-full pl-12 pr-4 py-3 bg-white/70 border border-amber-200/50 rounded-xl text-amber-800 placeholder-amber-500 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all">
-            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <svg class="h-5 w-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            <input type="text" [(ngModel)]="searchQuery" placeholder="Nom, contact, email, téléphone..."
+              class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-300">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
               </svg>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Stats -->
-      <div class="bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-sm border border-amber-100/50">
-        <div class="text-center">
-          <p class="text-2xl font-bold text-blue-600">{{ suppliers.length }}</p>
-          <p class="text-sm text-blue-600/70 font-medium">Fournisseurs</p>
+        <div class="lg:w-48">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+          <select [(ngModel)]="selectedStatus" title="Filtrer par statut"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-300">
+            <option value="">Tous</option>
+            <option value="true">Actifs</option>
+            <option value="false">Inactifs</option>
+          </select>
         </div>
       </div>
     </div>
 
-    <!-- Loading -->
-    <div *ngIf="loading" class="flex items-center justify-center py-12">
-      <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-        <p class="text-amber-600">Chargement des fournisseurs...</p>
+    <!-- Suppliers Table -->
+    <div class="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/50 shadow-lg overflow-hidden">
+      <div class="p-6 border-b border-gray-200/50">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-gray-800">Liste des Fournisseurs</h3>
+          <span class="text-sm text-gray-600">{{ filteredSuppliers.length }} fournisseur(s) trouvé(s)</span>
+        </div>
       </div>
-    </div>
 
-    <!-- Suppliers Grid -->
-    <div *ngIf="!loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      <div *ngFor="let supplier of getFilteredSuppliers()" 
-           class="bg-white/90 backdrop-blur-md rounded-2xl p-6 shadow-sm border border-amber-100/50 hover:shadow-lg hover:scale-105 transition-all duration-300">
-        
-        <!-- Header -->
-        <div class="flex items-start justify-between mb-4">
-          <div class="flex-1">
-            <h3 class="text-lg font-bold text-amber-800 mb-1">{{ supplier.name }}</h3>
-            <div class="flex items-center space-x-2">
-              <span [class]="'px-2 py-1 rounded-full text-xs font-medium ' + (supplier.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')">
-                {{ supplier.isActive ? 'Actif' : 'Inactif' }}
-              </span>
-            </div>
+      <div *ngIf="loading" class="p-12 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-4">
+          <div class="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <p class="text-gray-600 font-medium">Chargement des fournisseurs...</p>
+      </div>
+
+      <div *ngIf="error" class="p-12 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+          <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+            </path>
+          </svg>
+        </div>
+        <p class="text-red-600 font-medium mb-4">{{ error }}</p>
+        <button (click)="loadSuppliers()"
+          class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl transition-colors duration-300">
+          Réessayer
+        </button>
+      </div>
+
+      <div *ngIf="!loading && !error && filteredSuppliers.length === 0" class="p-12 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+          <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+            </path>
+          </svg>
+        </div>
+        <p class="text-gray-600 font-medium">Aucun fournisseur trouvé</p>
+      </div>
+
+      <div *ngIf="!loading && !error && filteredSuppliers.length > 0" class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50/80">
+            <tr>
+              <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fournisseur</th>
+              <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+              <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+              <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Téléphone</th>
+              <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dette</th>
+              <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total dépensé</th>
+              <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+              <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Créé le</th>
+              <th class="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white/50 divide-y divide-gray-200/50">
+            <tr *ngFor="let supplier of paginatedSuppliers" class="hover:bg-white/80 transition-colors duration-200">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
+                    <span class="text-white font-semibold text-sm">{{ supplier.name.charAt(0).toUpperCase() }}</span>
+                  </div>
+                  <div>
+                    <div class="text-sm font-medium text-gray-900">{{ supplier.name }}</div>
+                    <div *ngIf="supplier.taxNumber" class="text-sm text-gray-500">N° TVA: {{ supplier.taxNumber }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ supplier.contactName || '-' }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ supplier.email || '-' }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ supplier.phone || '-' }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <span [class]="(supplier.currentDebt || 0) > 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'">
+                  {{ (supplier.currentDebt || 0) | number:'1.3-3' }} dt
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">
+                {{ (supplier.totalExpenses || 0) | number:'1.3-3' }} dt
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  [class]="getStatusColor(supplier.isActive)">
+                  {{ getStatusText(supplier.isActive) }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ formatDate(supplier.createdAt) }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-center">
+                <div class="flex items-center justify-center space-x-2">
+                  <button (click)="openDetailsPopup(supplier)"
+                    class="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+                    title="Voir détails">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+                      </path>
+                    </svg>
+                  </button>
+                  <button (click)="openEditPopup(supplier)"
+                    class="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50 transition-colors duration-200"
+                    title="Modifier">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                      </path>
+                    </svg>
+                  </button>
+                  <button (click)="toggleSupplierStatus(supplier)"
+                    [class]="supplier.isActive ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50' : 'text-green-600 hover:text-green-800 hover:bg-green-50'"
+                    class="p-2 rounded-lg transition-colors duration-200"
+                    title="Changer le statut"
+                    [attr.aria-label]="supplier.isActive ? 'Désactiver' : 'Activer'">
+                    <svg *ngIf="supplier.isActive" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728">
+                      </path>
+                    </svg>
+                    <svg *ngIf="!supplier.isActive" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z">
+                      </path>
+                    </svg>
+                  </button>
+                  <button (click)="openDeletePopup(supplier)"
+                    class="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors duration-200"
+                    title="Supprimer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                      </path>
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div *ngIf="!loading && !error && filteredSuppliers.length > 0 && totalPages > 1"
+        class="bg-gray-50/80 px-6 py-4 border-t border-gray-200/50">
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-gray-700">
+            Affichage de {{ (currentPage - 1) * itemsPerPage + 1 }} à
+            {{ Math.min(currentPage * itemsPerPage, filteredSuppliers.length) }} sur {{ filteredSuppliers.length }}
+            fournisseurs
           </div>
-          <div class="flex space-x-1">
-            <button title="Modifier" (click)="openEditModal(supplier)" 
-              class="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-              </svg>
+          <div class="flex items-center space-x-2">
+            <button (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1"
+              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
+              Précédent
             </button>
-            <button title="Supprimer" (click)="deleteSupplier(supplier)" 
-              class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-              </svg>
+            <span *ngFor="let page of [].constructor(totalPages); let i = index"
+              (click)="goToPage(i + 1)"
+              class="px-3 py-2 text-sm font-medium cursor-pointer transition-colors duration-200"
+              [class]="currentPage === i + 1 ? 'text-white bg-purple-600 rounded-lg' : 'text-gray-700 hover:bg-gray-100 rounded-lg'">
+              {{ i + 1 }}
+            </span>
+            <button (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages"
+              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
+              Suivant
             </button>
           </div>
         </div>
-
-        <!-- Contact Info -->
-        <div class="space-y-2 mb-4">
-          <div *ngIf="supplier.phone" class="flex items-center space-x-2 text-sm text-amber-700">
-            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
-            </svg>
-            <a [href]="'tel:' + supplier.phone" 
-               class="text-blue-600 hover:text-blue-800 hover:underline transition-colors duration-200 font-medium"
-               title="Appeler {{ supplier.phone }}">
-              {{ supplier.phone }}
-            </a>
-          </div>
-          
-          <div *ngIf="supplier.address" class="flex items-start space-x-2 text-sm text-amber-700">
-            <svg class="w-4 h-4 text-amber-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-            </svg>
-            <span>{{ supplier.address }}</span>
-          </div>
-        </div>
-
-        <!-- Notes -->
-        <div *ngIf="supplier.notes" class="mb-4">
-          <p class="text-sm text-amber-600 italic bg-amber-50/50 p-2 rounded-lg">{{ supplier.notes }}</p>
-        </div>
-
-        <!-- Footer -->
-        <div class="flex items-center justify-between pt-4 border-t border-amber-100">
-          <span class="text-xs text-amber-500">Créé le {{ formatDate(supplier.createdAt) }}</span>
-          <button title="Activer/Désactiver" (click)="toggleSupplierStatus(supplier)" 
-            [class]="'px-3 py-1 rounded-lg text-xs font-medium transition-all ' + (supplier.isActive ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200')">
-            {{ supplier.isActive ? 'Désactiver' : 'Activer' }}
-          </button>
-        </div>
       </div>
-    </div>
-
-    <!-- Empty State -->
-    <div *ngIf="!loading && getFilteredSuppliers().length === 0" class="text-center py-12">
-      <div class="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-12 h-12 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-        </svg>
-      </div>
-      <h3 class="text-lg font-semibold text-amber-800 mb-2">Aucun fournisseur trouvé</h3>
-      <p class="text-amber-600 mb-4">{{ searchQuery ? 'Aucun fournisseur ne correspond à votre recherche.' : 'Commencez par ajouter votre premier fournisseur.' }}</p>
-      <button title="Ajouter un fournisseur" *ngIf="!searchQuery" (click)="openAddModal()" 
-        class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
-        Ajouter un fournisseur
-      </button>
     </div>
   </div>
 </div>
 
-<!-- Add Supplier Modal -->
-<div *ngIf="showAddModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[95vh] flex flex-col">
-    <div class="flex justify-between items-center p-6 border-b border-amber-100">
-      <h3 class="text-xl font-bold text-amber-800">Nouveau Fournisseur</h3>
-      <button title="Fermer" (click)="closeAddModal()" class="text-amber-500 hover:text-amber-700">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-      </button>
-    </div>
-
-    <div class="flex-1 overflow-y-auto p-6 space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-amber-700 mb-2">Nom du fournisseur *</label>
-        <input type="text" [(ngModel)]="newSupplier.name"
-          class="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-amber-800 placeholder-amber-400 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-          placeholder="Nom du fournisseur">
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium text-amber-700 mb-2">Téléphone</label>
-        <input type="tel" [(ngModel)]="newSupplier.phone"
-          class="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-amber-800 placeholder-amber-400 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-          placeholder="Numéro de téléphone">
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium text-amber-700 mb-2">Adresse</label>
-        <textarea [(ngModel)]="newSupplier.address" rows="3"
-          class="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-amber-800 placeholder-amber-400 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all resize-none"
-          placeholder="Adresse complète"></textarea>
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium text-amber-700 mb-2">Notes</label>
-        <textarea [(ngModel)]="newSupplier.notes" rows="2"
-          class="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-amber-800 placeholder-amber-400 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all resize-none"
-          placeholder="Notes supplémentaires"></textarea>
+<!-- Create Supplier Popup -->
+<div *ngIf="showCreatePopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="p-6 border-b border-gray-200">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xl font-semibold text-gray-800">Nouveau Fournisseur</h3>
+        <button (click)="closePopups()" title="Fermer" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
       </div>
     </div>
-
-    <div class="flex space-x-3 p-6 border-t border-amber-100 bg-amber-50/30">
-      <button title="Annuler" (click)="closeAddModal()"
-        class="flex-1 bg-amber-100 text-amber-800 font-semibold py-3 px-4 rounded-xl hover:bg-amber-200 transition-all">
+    
+    <div class="p-6 space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+          <input type="text" [(ngModel)]="createForm.name" title="Nom du fournisseur"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Nom du contact</label>
+          <input type="text" [(ngModel)]="createForm.contactName" title="Nom du contact"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+          <input type="email" [(ngModel)]="createForm.email" title="Adresse email"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
+          <input type="tel" [(ngModel)]="createForm.phone" title="Numéro de téléphone"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Ville</label>
+          <select [(ngModel)]="createForm.city" title="Sélectionner une ville"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+            <option value="">Sélectionner une ville</option>
+            <option *ngFor="let city of tunisianCities" [value]="city">{{ city }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Code postal</label>
+          <input type="text" [(ngModel)]="createForm.postalCode" title="Code postal"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">N° TVA</label>
+          <input type="text" [(ngModel)]="createForm.taxNumber" title="Numéro de TVA"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Conditions de paiement</label>
+          <input type="text" [(ngModel)]="createForm.paymentTerms" title="Conditions de paiement"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
+        <textarea [(ngModel)]="createForm.address" rows="3" title="Adresse complète"
+          class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+        <textarea [(ngModel)]="createForm.notes" rows="3" title="Notes supplémentaires"
+          class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"></textarea>
+      </div>
+    </div>
+    
+    <div class="p-6 border-t border-gray-200 flex justify-end space-x-3">
+      <button (click)="closePopups()" title="Annuler la création"
+        class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-colors duration-300">
         Annuler
       </button>
-      <button title="Enregistrer" (click)="saveSupplier()"
-        class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all">
-        Enregistrer
+      <button (click)="createSupplier()" title="Créer le fournisseur"
+        class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl transition-all duration-300">
+        Créer
       </button>
     </div>
   </div>
 </div>
 
-<!-- Edit Supplier Modal -->
-<div *ngIf="showEditModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[95vh] flex flex-col">
-    <div class="flex justify-between items-center p-6 border-b border-amber-100">
-      <h3 class="text-xl font-bold text-amber-800">Modifier le Fournisseur</h3>
-      <button title="Fermer" (click)="closeEditModal()" class="text-amber-500 hover:text-amber-700">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-      </button>
+<!-- Edit Supplier Popup -->
+<div *ngIf="showEditPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="p-6 border-b border-gray-200">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xl font-semibold text-gray-800">Modifier le Fournisseur</h3>
+        <button (click)="closePopups()" title="Fermer" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
     </div>
-
-    <div class="flex-1 overflow-y-auto p-6 space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-amber-700 mb-2">Nom du fournisseur *</label>
-        <input title="Nom du fournisseur" type="text" [(ngModel)]="editSupplier.name"
-          class="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-amber-800 placeholder-amber-400 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-          placeholder="Nom du fournisseur">
+    
+    <div class="p-6 space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+          <input type="text" [(ngModel)]="editForm.name" title="Nom du fournisseur"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Nom du contact</label>
+          <input type="text" [(ngModel)]="editForm.contactName" title="Nom du contact"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+          <input type="email" [(ngModel)]="editForm.email" title="Adresse email"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
+          <input type="tel" [(ngModel)]="editForm.phone" title="Numéro de téléphone"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Ville</label>
+          <select [(ngModel)]="editForm.city" title="Sélectionner une ville"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+            <option value="">Sélectionner une ville</option>
+            <option *ngFor="let city of tunisianCities" [value]="city">{{ city }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Code postal</label>
+          <input type="text" [(ngModel)]="editForm.postalCode" title="Code postal"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">N° TVA</label>
+          <input type="text" [(ngModel)]="editForm.taxNumber" title="Numéro de TVA"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Conditions de paiement</label>
+          <input type="text" [(ngModel)]="editForm.paymentTerms" title="Conditions de paiement"
+            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300">
+        </div>
       </div>
-
       <div>
-        <label class="block text-sm font-medium text-amber-700 mb-2">Téléphone</label>
-        <input title="Téléphone" type="tel" [(ngModel)]="editSupplier.phone"
-          class="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-amber-800 placeholder-amber-400 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-          placeholder="Numéro de téléphone">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
+        <textarea [(ngModel)]="editForm.address" rows="3" title="Adresse complète"
+          class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"></textarea>
       </div>
-
       <div>
-        <label class="block text-sm font-medium text-amber-700 mb-2">Adresse</label>
-        <textarea [(ngModel)]="editSupplier.address" rows="3"
-          class="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-amber-800 placeholder-amber-400 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all resize-none"
-          placeholder="Adresse complète"></textarea>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+        <textarea [(ngModel)]="editForm.notes" rows="3" title="Notes supplémentaires"
+          class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"></textarea>
       </div>
-
       <div>
-        <label class="block text-sm font-medium text-amber-700 mb-2">Notes</label>
-        <textarea [(ngModel)]="editSupplier.notes" rows="2"
-          class="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-amber-800 placeholder-amber-400 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all resize-none"
-          placeholder="Notes supplémentaires"></textarea>
-      </div>
-
-      <div>
-        <label class="flex items-center space-x-2">
-          <input type="checkbox" [(ngModel)]="editSupplier.isActive" class="rounded border-amber-300 text-blue-600 focus:ring-blue-500">
-          <span class="text-sm font-medium text-amber-700">Fournisseur actif</span>
+        <label class="flex items-center">
+          <input type="checkbox" [(ngModel)]="editForm.isActive" 
+            class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+          <span class="ml-2 text-sm text-gray-700">Fournisseur actif</span>
         </label>
       </div>
     </div>
-
-    <div class="flex space-x-3 p-6 border-t border-amber-100 bg-amber-50/30">
-      <button (click)="closeEditModal()"
-        class="flex-1 bg-amber-100 text-amber-800 font-semibold py-3 px-4 rounded-xl hover:bg-amber-200 transition-all">
+    
+    <div class="p-6 border-t border-gray-200 flex justify-end space-x-3">
+      <button (click)="closePopups()" title="Annuler la modification"
+        class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-colors duration-300">
         Annuler
       </button>
-      <button (click)="updateSupplier()"
-        class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all">
+      <button (click)="updateSupplier()" title="Mettre à jour le fournisseur"
+        class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl transition-all duration-300">
         Mettre à jour
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Popup -->
+<div *ngIf="showDeletePopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="p-6">
+      <div class="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
+        <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z">
+          </path>
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-gray-800 text-center mb-2">Confirmer la suppression</h3>
+      <p class="text-gray-600 text-center mb-6">
+        Êtes-vous sûr de vouloir supprimer le fournisseur <strong>{{ selectedSupplier?.name }}</strong> ? 
+        Cette action est irréversible.
+      </p>
+      <div class="flex justify-center space-x-3">
+        <button (click)="closePopups()" title="Annuler la suppression"
+          class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-colors duration-300">
+          Annuler
+        </button>
+        <button (click)="deleteSupplier()" title="Confirmer la suppression"
+          class="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors duration-300">
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details Popup -->
+<div *ngIf="showDetailsPopup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="p-6 border-b border-gray-200">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xl font-semibold text-gray-800">Détails du Fournisseur</h3>
+        <button (click)="closePopups()" title="Fermer" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <div class="p-6 space-y-6" *ngIf="selectedSupplier">
+      <div class="flex items-center space-x-4">
+        <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center">
+          <span class="text-white font-bold text-xl">{{ selectedSupplier.name.charAt(0).toUpperCase() }}</span>
+        </div>
+        <div>
+          <h4 class="text-2xl font-bold text-gray-800">{{ selectedSupplier.name }}</h4>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+            [class]="getStatusColor(selectedSupplier.isActive)">
+            {{ getStatusText(selectedSupplier.isActive) }}
+          </span>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div *ngIf="selectedSupplier.contactName">
+          <label class="block text-sm font-medium text-gray-500 mb-1">Contact</label>
+          <p class="text-gray-900">{{ selectedSupplier.contactName }}</p>
+        </div>
+        <div *ngIf="selectedSupplier.email">
+          <label class="block text-sm font-medium text-gray-500 mb-1">Email</label>
+          <p class="text-gray-900">{{ selectedSupplier.email }}</p>
+        </div>
+        <div *ngIf="selectedSupplier.phone">
+          <label class="block text-sm font-medium text-gray-500 mb-1">Téléphone</label>
+          <p class="text-gray-900">{{ selectedSupplier.phone }}</p>
+        </div>
+        <div *ngIf="selectedSupplier.city">
+          <label class="block text-sm font-medium text-gray-500 mb-1">Ville</label>
+          <p class="text-gray-900">{{ selectedSupplier.city }}</p>
+        </div>
+        <div *ngIf="selectedSupplier.postalCode">
+          <label class="block text-sm font-medium text-gray-500 mb-1">Code postal</label>
+          <p class="text-gray-900">{{ selectedSupplier.postalCode }}</p>
+        </div>
+        <div *ngIf="selectedSupplier.taxNumber">
+          <label class="block text-sm font-medium text-gray-500 mb-1">N° TVA</label>
+          <p class="text-gray-900">{{ selectedSupplier.taxNumber }}</p>
+        </div>
+        <div *ngIf="selectedSupplier.paymentTerms">
+          <label class="block text-sm font-medium text-gray-500 mb-1">Conditions de paiement</label>
+          <p class="text-gray-900">{{ selectedSupplier.paymentTerms }}</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-500 mb-1">Créé le</label>
+          <p class="text-gray-900">{{ formatDate(selectedSupplier.createdAt) }}</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-500 mb-1">Dette actuelle</label>
+          <p [class]="(selectedSupplier.currentDebt || 0) > 0 ? 'text-red-600 font-bold text-lg' : 'text-green-600 font-bold text-lg'">
+            {{ (selectedSupplier.currentDebt || 0) | number:'1.3-3' }} dt
+          </p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-500 mb-1">Total dépensé</label>
+          <p class="text-blue-600 font-bold text-lg">{{ (selectedSupplier.totalExpenses || 0) | number:'1.3-3' }} dt</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-500 mb-1">Total payé</label>
+          <p class="text-green-600 font-bold text-lg">{{ (selectedSupplier.totalPayments || 0) | number:'1.3-3' }} dt</p>
+        </div>
+      </div>
+      
+      <div *ngIf="selectedSupplier.address">
+        <label class="block text-sm font-medium text-gray-500 mb-1">Adresse</label>
+        <p class="text-gray-900">{{ selectedSupplier.address }}</p>
+      </div>
+      
+      <div *ngIf="selectedSupplier.notes">
+        <label class="block text-sm font-medium text-gray-500 mb-1">Notes</label>
+        <p class="text-gray-900">{{ selectedSupplier.notes }}</p>
+      </div>
+
+      <!-- Recent Expenses -->
+      <div *ngIf="selectedSupplier.recentExpenses && selectedSupplier.recentExpenses.length > 0" class="mt-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4">Dernières dépenses</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-gray-500 border-b border-gray-200">
+                <th class="text-left p-2">Date</th>
+                <th class="text-left p-2">Catégorie</th>
+                <th class="text-left p-2">Montant</th>
+                <th class="text-left p-2">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let expense of selectedSupplier.recentExpenses" class="border-b border-gray-100">
+                <td class="p-2 text-gray-800">{{ formatDate(expense.date) }}</td>
+                <td class="p-2 text-gray-800">{{ expense.category.name }}</td>
+                <td class="p-2 text-red-600 font-semibold">{{ expense.amount | number:'1.3-3' }} dt</td>
+                <td class="p-2">
+                  <span [class]="'px-2 py-0.5 rounded-full text-xs ' + 
+                    (expense.isPaid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')">
+                    {{ expense.isPaid ? 'Payé' : 'En attente' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <div class="p-6 border-t border-gray-200 flex justify-end">
+      <button (click)="closePopups()" title="Fermer les détails"
+        class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-colors duration-300">
+        Fermer
       </button>
     </div>
   </div>

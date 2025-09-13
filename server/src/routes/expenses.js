@@ -2,7 +2,7 @@ const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const fs = require('fs');
 const path = require('path');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireRole } = require('../middleware/auth');
 const { AuditLogger } = require('../lib/audit');
 
 const router = express.Router();
@@ -120,6 +120,65 @@ router.post('/categories', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error creating expense category:', error);
     res.status(500).json({ error: 'Erreur lors de la création de la catégorie' });
+  }
+});
+
+// Update expense category
+router.put('/categories/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, color, icon, isActive } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Le nom de la catégorie est requis' });
+    }
+
+    const category = await prisma.expenseCategory.update({
+      where: { id: parseInt(id) },
+      data: {
+        name,
+        description,
+        color,
+        icon,
+        isActive: isActive !== undefined ? isActive : true
+      }
+    });
+
+    await AuditLogger.logUpdate('expense_categories', category.id, category, req.user.id, req);
+
+    res.json(category);
+  } catch (error) {
+    console.error('Error updating expense category:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de la catégorie' });
+  }
+});
+
+// Delete expense category
+router.delete('/categories/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if category has expenses
+    const expenseCount = await prisma.expense.count({
+      where: { categoryId: parseInt(id) }
+    });
+
+    if (expenseCount > 0) {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer une catégorie qui contient des dépenses' 
+      });
+    }
+
+    await prisma.expenseCategory.delete({
+      where: { id: parseInt(id) }
+    });
+
+    await AuditLogger.logDelete('expense_categories', parseInt(id), req.user.id, req);
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting expense category:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de la catégorie' });
   }
 });
 
@@ -248,7 +307,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new expense
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { amount, categoryId, depotId, notes, receiptUrl, paymentType, date, collectionDate, supplierId } = req.body;
+    const { amount, categoryId, depotId, notes, receiptUrl, paymentType, date, collectionDate, supplierId, isPaid, isAdvance } = req.body;
 
     if (!amount || !categoryId) {
       return res.status(400).json({ 
@@ -266,37 +325,59 @@ router.post('/', authenticateToken, async (req, res) => {
     const isAutoApproved = !isNaN(numericAmount) && numericAmount <= autoApproveThreshold;
     console.log('[expenses.create] amount=', numericAmount, 'threshold=', autoApproveThreshold, 'isAutoApproved=', isAutoApproved);
 
-    const expense = await prisma.expense.create({
-      data: {
-        amount: isNaN(numericAmount) ? 0 : numericAmount,
-        categoryId: parseInt(categoryId),
-        depotId: finalDepotId,
-        userId: req.user.id,
-        date: date ? new Date(date) : new Date(),
-        paymentType: paymentType || 'CASH',
-        collectionDate: collectionDate ? new Date(collectionDate) : new Date(),
-        notes,
-        receiptUrl,
-        isApproved: isAutoApproved,
-        approvedBy: isAutoApproved ? req.user.id : null,
-        approvedAt: isAutoApproved ? new Date() : null,
-        // Temporary fallback for legacy schema requiring description
-        description: '',
-        // Optional supplier linkage
-        supplierId: supplierId ? parseInt(supplierId) : null
-      },
-      include: {
-        category: true,
-        depot: true,
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            username: true
+    const expense = await prisma.$transaction(async (tx) => {
+      // Create the expense
+      const newExpense = await tx.expense.create({
+        data: {
+          amount: isNaN(numericAmount) ? 0 : numericAmount,
+          categoryId: parseInt(categoryId),
+          depotId: finalDepotId,
+          userId: req.user.id,
+          date: date ? new Date(date) : new Date(),
+          paymentType: paymentType || 'CASH',
+          collectionDate: collectionDate ? new Date(collectionDate) : new Date(),
+          notes,
+          receiptUrl,
+          isApproved: isAutoApproved,
+          approvedBy: isAutoApproved ? req.user.id : null,
+          approvedAt: isAutoApproved ? new Date() : null,
+          // Temporary fallback for legacy schema requiring description
+          description: '',
+          // Optional supplier linkage
+          supplierId: supplierId ? parseInt(supplierId) : null,
+          // New payment status fields
+          isPaid: isPaid || false,
+          isAdvance: isAdvance || false
+        },
+        include: {
+          category: true,
+          depot: true,
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              username: true
+            }
           }
         }
+      });
+
+      // If expense is marked as advance and linked to a supplier, automatically create a supplier payment
+      if (isAdvance && supplierId && parseInt(supplierId)) {
+        const supplierPayment = await tx.supplierPayment.create({
+          data: {
+            supplierId: parseInt(supplierId),
+            amount: isNaN(numericAmount) ? 0 : numericAmount,
+            notes: `Acompte automatique - Dépense: ${newExpense.category?.name || 'N/A'}${notes ? ` - ${notes}` : ''}`,
+            userId: req.user.id,
+            paymentDate: new Date()
+          }
+        });
+        console.log('[expenses.create] Auto-created supplier payment for advance:', supplierPayment.id, 'for supplier:', supplierId, 'amount:', numericAmount);
       }
+
+      return newExpense;
     });
 
     await AuditLogger.logCreate('expenses', expense.id, expense, req.user.id, req);

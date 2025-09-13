@@ -213,7 +213,14 @@
                   {{ formatCurrency(session.expectedCash) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {{ session.countedCash ? formatCurrency(session.countedCash) : '-' }}
+                  @if (session.status === 'ADMIN_CORRECTED' && session.originalCountedCash) {
+                    <div class="space-y-1">
+                      <div class="text-orange-600">{{ formatCurrency(session.originalCountedCash) }}</div>
+                      <div class="text-green-600 text-xs">→ {{ formatCurrency(session.countedCash!) }}</div>
+                    </div>
+                  } @else {
+                    {{ session.countedCash ? formatCurrency(session.countedCash) : '-' }}
+                  }
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm"
                     [class]="getVarianceClass(session.variance)">
@@ -381,12 +388,28 @@
                     </dd>
                   </div>
                   @if (selectedSession()?.countedCash) {
-                    <div class="flex justify-between">
-                      <dt class="text-sm text-slate-500">Espèces comptées:</dt>
-                      <dd class="text-sm font-medium text-gray-900">
-                        {{ formatCurrency(selectedSession()?.countedCash!) }}
-                      </dd>
-                    </div>
+                    <!-- Show original counted cash for admin-corrected sessions -->
+                    @if (selectedSession()?.status === 'ADMIN_CORRECTED' && selectedSession()?.originalCountedCash) {
+                      <div class="flex justify-between">
+                        <dt class="text-sm text-slate-500">Compté par caissier:</dt>
+                        <dd class="text-sm font-medium text-orange-600">
+                          {{ formatCurrency(selectedSession()?.originalCountedCash!) }}
+                        </dd>
+                      </div>
+                      <div class="flex justify-between">
+                        <dt class="text-sm text-slate-500">Compté corrigé:</dt>
+                        <dd class="text-sm font-medium text-green-600">
+                          {{ formatCurrency(selectedSession()?.countedCash!) }}
+                        </dd>
+                      </div>
+                    } @else {
+                      <div class="flex justify-between">
+                        <dt class="text-sm text-slate-500">Espèces comptées:</dt>
+                        <dd class="text-sm font-medium text-gray-900">
+                          {{ formatCurrency(selectedSession()?.countedCash!) }}
+                        </dd>
+                      </div>
+                    }
                     <div class="flex justify-between">
                       <dt class="text-sm text-slate-500">Écart:</dt>
                       <dd class="text-sm font-medium"

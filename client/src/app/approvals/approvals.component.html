@@ -61,6 +61,10 @@
           Clôtures
           <span class="ml-2 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 text-xs">{{ varianceRequests.length }}</span>
         </button>
+        <button (click)="selectedTab='HISTORY'" [class]="'px-4 py-2 rounded-2xl text-sm font-medium ' + (selectedTab==='HISTORY' ? 'bg-slate-600 text-white' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100')">
+          Historique
+          <span class="ml-2 px-2 py-0.5 rounded-full bg-slate-500/20 text-slate-600 text-xs">{{ historyRequests.length }}</span>
+        </button>
       </div>
 
       <!-- Lists -->
@@ -274,6 +278,74 @@
         </div>
       </div>
 
+      <!-- History list -->
+      <div *ngIf="!loading && !error && selectedTab==='HISTORY'">
+        <div *ngIf="historyRequests.length===0" class="text-slate-500 text-sm">Aucun historique disponible</div>
+        <div *ngFor="let req of historyRequests" class="bg-white rounded-2xl p-4 border border-slate-200 mb-2">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="flex items-center gap-2">
+                <div class="text-slate-800 font-bold">Clôture • Session #{{ req.session?.id || req.entityId }}</div>
+                <span [class]="'px-2 py-0.5 rounded-full text-xs ' + (req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
+                  {{ getStatusLabel(req.status) }}
+                </span>
+                <ng-container *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
+                  <span class="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700 border border-slate-200">{{ z.summary?.totalTickets }} tickets</span>
+                </ng-container>
+              </div>
+              <div class="text-xs text-slate-500">{{ req.createdAt | date:'short' }}</div>
+              <div class="text-sm text-slate-500 mt-1" *ngIf="req.session">
+                {{ req.session.user?.firstName }} {{ req.session.user?.lastName }} • {{ req.session.depot?.name || '—' }}
+              </div>
+              <div class="text-sm text-slate-600 mt-1" *ngIf="req.reason">{{ req.reason }}</div>
+              <div class="text-sm text-red-600 mt-1" *ngIf="req.status === 'REJECTED' && req.rejectionReasonCode">
+                <span class="font-medium">Motif du rejet:</span> {{ getRejectionReasonLabel(req.rejectionReasonCode) }}
+              </div>
+              <div class="text-sm text-red-600 mt-1" *ngIf="req.status === 'REJECTED' && req.rejectionNotes">
+                <span class="font-medium">Note:</span> {{ req.rejectionNotes }}
+              </div>
+              <div class="text-xs text-slate-500 mt-1" *ngIf="req.approvedAt">
+                Traité le {{ req.approvedAt | date:'short' }}
+              </div>
+              <div class="text-xs text-blue-600 mt-1" *ngIf="req.session && req.session.status === 'ADMIN_CORRECTED'">
+                <span class="font-medium">{{ getSessionStatusLabel(req.session.status) }}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-slate-500 text-xs">{{ getStatusLabel(req.status) }}</div>
+            </div>
+          </div>
+
+          <!-- concise extract -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3" *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
+            <div class="bg-slate-50 rounded-xl p-3">
+              <div class="text-xs text-slate-500">Ventes TTC</div>
+              <div class="text-slate-900 font-semibold">{{ z.summary?.totalSales?.toFixed(3) }} TND</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-3">
+              <div class="text-xs text-slate-500">Attendu</div>
+              <div class="text-slate-900 font-semibold">{{ z.summary?.expectedCash?.toFixed(3) }} TND</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData">
+              <div class="text-xs text-slate-500">Compté</div>
+              <div class="text-slate-900 font-semibold">{{ (z.closureData.countedCash || 0) | number:'1.3-3' }} TND</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) === 0">
+              <div class="text-xs text-slate-500">Écart</div>
+              <div class="text-slate-900 font-semibold">{{ ((z.closureData.countedCash || 0) - (z.summary?.expectedCash || 0)) | number:'1.3-3' }} TND</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) !== 0">
+              <div class="text-xs text-slate-500">Retrait</div>
+              <div class="text-slate-900 font-semibold">{{ (z.closureData.withdrawalAmount || 0) | number:'1.3-3' }} TND</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && ((z.closureData.remainingBalance || 0) !== (z.summary?.expectedCash || 0))">
+              <div class="text-xs text-slate-500">Reste</div>
+              <div class="text-slate-900 font-semibold">{{ (z.closureData.remainingBalance || 0) | number:'1.3-3' }} TND</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -298,3 +370,82 @@
     </div>
   </div>
 </div> 
+
+<!-- Reject Modal -->
+<div *ngIf="showRejectModal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-md border border-slate-200 shadow-2xl">
+    <div class="p-5 border-b border-slate-200">
+      <div class="text-lg font-semibold text-slate-800">Motif du rejet</div>
+      <div class="text-xs text-slate-500">Sélectionnez une raison</div>
+    </div>
+    <div class="p-5 space-y-2">
+      <button (click)="rejectReason='ECART_COMPTAGE'" [class]="'w-full text-left px-4 py-3 rounded-xl border ' + (rejectReason==='ECART_COMPTAGE' ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:bg-slate-50')">Écart au comptage physique</button>
+      <button (click)="rejectReason='SUSPICION_ANOMALIE'" [class]="'w-full text-left px-4 py-3 rounded-xl border ' + (rejectReason==='SUSPICION_ANOMALIE' ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:bg-slate-50')">Suspicion d'anomalie</button>
+      
+      <div *ngIf="rejectReason && rejectReason !== 'AUTRE'" class="pt-2">
+        <div class="flex justify-end gap-2">
+          <button (click)="showRejectModal=false" class="px-3 py-2 text-xs bg-slate-100 rounded-lg">Annuler</button>
+          <button (click)="confirmRejectWithSelectedReason()" class="px-3 py-2 text-xs bg-red-600 text-white rounded-lg">Rejeter</button>
+        </div>
+      </div>
+      
+      <div class="pt-2">
+        <div class="text-xs text-slate-500 mb-1">Autre (obligatoire)</div>
+        <textarea [(ngModel)]="rejectNotes" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" placeholder="Saisir le motif..."></textarea>
+        <div class="mt-2 flex justify-end gap-2">
+          <button (click)="showRejectModal=false" class="px-3 py-2 text-xs bg-slate-100 rounded-lg">Annuler</button>
+          <button (click)="confirmRejectWithNotes()" class="px-3 py-2 text-xs bg-red-600 text-white rounded-lg">Rejeter</button>
+        </div>
+      </div>
+      
+      <div class="pt-4 border-t border-slate-200">
+        <div class="text-xs text-slate-500 mb-2">Correction avec montant</div>
+        <div class="mb-3">
+          <label class="block text-xs text-slate-600 mb-1" for="corrected-amount">Montant corrigé (TND)</label>
+          <input id="corrected-amount" type="number" step="0.001" [(ngModel)]="correctedAmount" 
+                 class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" 
+                 placeholder="Ex: 85.000" />
+        </div>
+        <div class="mt-2 flex justify-end gap-2">
+          <button (click)="showRejectModal=false" class="px-3 py-2 text-xs bg-slate-100 rounded-lg">Annuler</button>
+          <button (click)="confirmRejectAndCorrect()" class="px-3 py-2 text-xs bg-orange-600 text-white rounded-lg">Rejeter et Corriger</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Correction Drawer -->
+<div *ngIf="showCorrection" class="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col">
+  <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+    <div>
+      <div class="text-lg font-semibold text-slate-800">Correction de clôture</div>
+      <div class="text-xs text-slate-500">Session #{{ correctionSessionId }}</div>
+    </div>
+    <button (click)="showCorrection=false" class="px-3 py-1.5 bg-slate-100 rounded-lg text-slate-700 hover:bg-slate-200 text-xs">Fermer</button>
+  </div>
+  <div class="p-4 space-y-3 overflow-auto">
+    <div class="text-xs text-slate-500" *ngIf="correctionSummary">
+      Attendu: <span class="font-semibold text-slate-700">{{ correctionSummary.expectedCash | number:'1.3-3' }} TND</span>
+    </div>
+    <div>
+      <label class="block text-xs text-slate-600 mb-1" for="corr-counted">Compté</label>
+      <input id="corr-counted" type="number" [(ngModel)]="correctionCountedCash" class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" title="Montant compté" placeholder="Montant compté" />
+    </div>
+    <div>
+      <label class="block text-xs text-slate-600 mb-1" for="corr-fonds">Fonds</label>
+      <input id="corr-fonds" type="number" [(ngModel)]="correctionFonds" class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" title="Fonds" placeholder="Fonds" />
+    </div>
+    <div>
+      <label class="block text-xs text-slate-600 mb-1" for="corr-retrait">Retrait centrale (facultatif)</label>
+      <input id="corr-retrait" type="number" [(ngModel)]="correctionRetrait" class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" title="Retrait centrale" placeholder="Retrait centrale" />
+    </div>
+    <div>
+      <label class="block text-xs text-slate-600 mb-1">Note</label>
+      <textarea [(ngModel)]="correctionNote" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" placeholder="Résumé des corrections effectuées..."></textarea>
+    </div>
+  </div>
+  <div class="p-4 border-t border-slate-200">
+    <button (click)="finalizeCorrection()" class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm">Valider la clôture</button>
+  </div>
+</div>

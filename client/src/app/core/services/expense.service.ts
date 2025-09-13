@@ -30,6 +30,8 @@ export interface Expense {
   receiptUrl?: string;
   notes?: string;
   isApproved: boolean;
+  isPaid: boolean;
+  isAdvance: boolean;
   approvedBy?: number;
   approvedAt?: string;
   createdAt: string;
@@ -82,6 +84,14 @@ export class ExpenseService extends BaseApiService {
 
   createCategory(category: Partial<ExpenseCategory>): Observable<ExpenseCategory> {
     return this.http.post<ExpenseCategory>(`${this.expensesUrl}/categories`, category, this.getRequestOptions());
+  }
+
+  updateCategory(id: number, category: Partial<ExpenseCategory>): Observable<ExpenseCategory> {
+    return this.http.put<ExpenseCategory>(`${this.expensesUrl}/categories/${id}`, category, this.getRequestOptions());
+  }
+
+  deleteCategory(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.expensesUrl}/categories/${id}`, this.getRequestOptions());
   }
 
   getExpenses(filters?: any): Observable<Expense[]> {

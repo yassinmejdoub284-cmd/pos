@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { ProductsService } from '../core/services/products.service';
 import { SalesService, CreateSaleRequest } from '../core/services/sales.service';
 import { ClientsService } from '../core/services/clients.service';
@@ -10,10 +11,12 @@ import { SessionsService } from '../core/services/sessions.service';
 import { DailyExtractService } from '../core/services/daily-extract.service';
 import { PrintService } from '../core/services/print.service';
 import { DragDropService } from '../core/services/drag-drop.service';
+import { WholesaleRulesService, WholesaleRule } from '../core/services/wholesale-rules.service';
 import { Product } from '../core/models/product.model';
 import { Sale } from '../core/models/sale.model';
 import { Client } from '../core/models/client.model';
 import { Subject, takeUntil } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 interface ReceiptItem {
   product: Product;
@@ -132,6 +135,26 @@ export class CaisseComponent implements OnInit, OnDestroy {
   showPaymentPopup = false;
   showPaymentConfirmation = false;
   invoiceMode = false;
+  
+  // Payment type (Comptant/Crédit)
+  salePaymentType: 'COMPTANT' | 'CREDIT' = 'COMPTANT';
+
+  // Toggle payment type
+  togglePaymentType(): void {
+    this.salePaymentType = this.salePaymentType === 'COMPTANT' ? 'CREDIT' : 'COMPTANT';
+    
+    if (this.salePaymentType === 'CREDIT') {
+      // For credit sales, we need a client
+      if (!this.selectedClient) {
+        this.showAlertMessage('Un client est requis pour les ventes à crédit', 'warning');
+        this.salePaymentType = 'COMPTANT'; // Revert back
+        return;
+      }
+      this.showAlertMessage('Mode Crédit activé - Le client devra payer plus tard', 'info');
+    } else {
+      this.showAlertMessage('Mode Comptant activé - Paiement immédiat', 'info');
+    }
+  }
 
   // Remise payment popup
   showRemisePaymentPopup = false;
@@ -283,14 +306,14 @@ export class CaisseComponent implements OnInit, OnDestroy {
       id: 'invoice',
       label: 'Facture',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586l6.414 6.414V19a2 2 0 01-2 2z',
-      color: '#2563eb', // Blue-600: professional
+      color: '#666683', // Blue-600: professional
       action: () => this.generateInvoice()
     },
     {
       id: 'client',
       label: 'Client',
       icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
-      color: '#9333ea', // Purple-600: identity/people
+      color: '#8483ff', // Purple-600: identity/people
       action: () => this.openClientSearch()
     },
     {
@@ -322,12 +345,19 @@ export class CaisseComponent implements OnInit, OnDestroy {
       action: () => this.applyDiscount()
     },
     {
-      id: 'validate',
-      label: 'Régler',
-      icon: 'M4 6h16M4 10h16M4 14h10', // credit card
-      color: '#10b981', // Green-500: confirm/positive
-      action: () => this.validateSale()
+      id: 'wholesale',
+      label: 'Gros',
+      icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+      color: '#ff80b0', // Violet-500: wholesale
+      action: () => this.toggleWholesaleMode()
     }
+    // {
+    //   id: 'validate',
+    //   label: 'Régler',
+    //   icon: 'M4 6h16M4 10h16M4 14h10', // credit card
+    //   color: '#10b981', // Green-500: confirm/positive
+    //   action: () => this.validateSale()
+    // }
   ];
 
   commandButtons = [
@@ -350,20 +380,23 @@ export class CaisseComponent implements OnInit, OnDestroy {
       id: 'remise',
       label: 'Régler Rem.',
       icon: 'M9 5h6m-3 0v14m-7-7h14M4 9l2 2m0-2l-2 2m12-2l2 2m0-2l-2 2', // ticket with cut lines
-      color: '#eab308', // Yellow-500: discount
+      color: '#fdc54e', // Yellow-500: discount
       action: () => this.openRemisePaymentPopup()
-    },
-    {
-      id: 'wholesale',
-      label: 'Gros',
-      icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
-      color: '#8b5cf6', // Violet-500: wholesale
-      action: () => this.toggleWholesaleMode()
     }
   ];
 
+  // Credit button that appears when client is selected
+  creditButton = {
+    id: 'credit',
+    label: 'Créditer',
+    icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1', // credit card icon
+    color: '#f59e0b', // Amber-500: credit
+    action: () => this.validateCredit()
+  };
+
   constructor(
     private router: Router,
+    private http: HttpClient,
     private productsService: ProductsService,
     private salesService: SalesService,
     private clientsService: ClientsService,
@@ -373,7 +406,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private sessionsService: SessionsService,
     private dailyExtractService: DailyExtractService,
     private printService: PrintService,
-    private dragDropService: DragDropService
+    private dragDropService: DragDropService,
+    private wholesaleRulesService: WholesaleRulesService
   ) {}
 
   ngOnInit(): void {
@@ -387,6 +421,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadCurrentSession();
     this.initializeDragDrop();
     this.setupTouchEventListeners();
+    this.loadWholesaleRules();
   }
 
   // Multi-client system methods
@@ -507,7 +542,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getCartButtonClass(cartId: number): string {
     const status = this.getCartStatus(cartId);
-    const baseClass = 'relative px-2 py-1 rounded border transition-all duration-200 hover:scale-105 min-w-0 flex-shrink-0';
+    const baseClass = 'relative px-2 py-1 rounded border transition-all duration-200 hover:scale-95 min-w-0 flex-shrink-0';
     
     switch (status) {
       case 'active':
@@ -624,6 +659,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     // If it's Client 1, just clear the cart but keep the client
     if (cartId === 1) {
+      cart.client = undefined;
+      cart.clientId = undefined;
+      cart.clientName = `Client ${cartId}`;
       cart.items = [];
       cart.subtotal = 0;
       cart.discount = 0;
@@ -686,23 +724,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       salesMap.set(sales.productId, sales);
     });
 
-    // Sort products by sales data (most sold first)
-    this.allProducts.sort((a, b) => {
-      const salesA = salesMap.get(a.id);
-      const salesB = salesMap.get(b.id);
-      
-      // If both have sales data, sort by total sold (descending)
-      if (salesA && salesB) {
-        return salesB.totalSold - salesA.totalSold;
-      }
-      
-      // If only one has sales data, prioritize it
-      if (salesA && !salesB) return -1;
-      if (!salesA && salesB) return 1;
-      
-      // If neither has sales data, maintain original order
-      return 0;
-    });
+    // Keep original products order as fetched; no reordering by sales/date
   }
 
   selectCategory(category: string): void {
@@ -726,6 +748,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
         p.name.toLowerCase().includes(query) || 
         (p.barcode && p.barcode.toLowerCase().includes(query))
       );
+    }
+    
+    // If wholesale mode is enabled, show only wholesale-capable products (fradeau/bundle)
+    if (this.isWholesaleMode) {
+      filtered = filtered.filter(p => p.isWholesale && Number(p.bundleSize) > 0 && Number(p.bundlePrice) > 0);
     }
     
     // Store all filtered results
@@ -770,6 +797,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     if (event.key === 'Escape') {
       if (this.isDragMode) {
         this.dragDropService.cancelDrag();
+      } else if (this.showPaymentConfirmationDialog) {
+        this.cancelClientPaymentConfirmation();
       } else if (this.showClientSearchPopup) {
         this.closeClientSearch();
       }
@@ -811,31 +840,35 @@ export class CaisseComponent implements OnInit, OnDestroy {
       const newItem = {
         product,
         quantity: 1,
-        unitPrice: Number(product.prix_vente_TTC),
-        total: Number(product.prix_vente_TTC),
+        unitPrice: this.getEffectiveUnitPrice(product),
+        total: this.getEffectiveUnitPrice(product),
         isGift: false,
         isWholesale: false
       };
-      activeCart.items.unshift(newItem);
-      
-      // Select the newly added item (now at index 0)
-      this.selectedReceiptItem = newItem;
-      this.selectedReceiptItemIndex = 0;
+      if ((this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && product.bundleSize) {
+        (newItem as any).displayName = `${product.name} (fradeau x${product.bundleSize})`;
+      }
+      activeCart.items.push(newItem as any);
+      this.selectedReceiptItem = newItem as any;
+      this.selectedReceiptItemIndex = activeCart.items.length - 1;
     }
-    
     this.calculateTotals();
   }
 
-  addWholesaleProductToReceipt(product: Product): void {
+  addWholesaleProductToReceipt(product: Product, bundleCount: number = 1): void {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
     const existingItem = activeCart.items.find(item => item.product.id === product.id && item.isWholesale);
     
     if (existingItem) {
-      existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + 1;
+      existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + Number(bundleCount || 0);
       existingItem.quantity = existingItem.bundleQuantity * (product.bundleSize || 1);
       existingItem.total = Number(existingItem.bundleQuantity) * Number(product.bundlePrice);
+      // Ensure designation shows fradeau info
+      const label = `${product.name} (fradeau x${product.bundleSize || 1})`;
+      (existingItem as any).displayName = label;
+      (existingItem as any).productName = label;
       
       // Select the existing item
       this.selectedReceiptItem = existingItem;
@@ -843,22 +876,25 @@ export class CaisseComponent implements OnInit, OnDestroy {
     } else {
       const newItem = {
         product,
-        quantity: product.bundleSize || 1,
+        quantity: (product.bundleSize || 1) * Number(bundleCount || 1),
         unitPrice: Number(product.bundlePrice),
-        total: Number(product.bundlePrice),
+        total: Number(product.bundlePrice) * Number(bundleCount || 1),
         isGift: false,
         isWholesale: true,
-        bundleQuantity: 1,
+        bundleQuantity: Number(bundleCount || 1),
         bundleSize: product.bundleSize,
         bundlePrice: product.bundlePrice,
         requiresApproval: false,
         isApproved: false
       };
-      activeCart.items.unshift(newItem);
+      const label = `${product.name} (fradeau x${product.bundleSize || 1})`;
+      (newItem as any).displayName = label;
+      (newItem as any).productName = label;
+      activeCart.items.push(newItem);
       
-      // Select the newly added item (now at index 0)
+      // Select the newly added item at the end
       this.selectedReceiptItem = newItem;
-      this.selectedReceiptItemIndex = 0;
+      this.selectedReceiptItemIndex = activeCart.items.length - 1;
     }
     
     this.calculateTotals();
@@ -928,6 +964,23 @@ export class CaisseComponent implements OnInit, OnDestroy {
   selectedClient: Client | null = null;
   selectedClientId: number | null = null;
   searchingClients = false;
+
+  // Payment confirmation dialog
+  showPaymentConfirmationDialog = false;
+  pendingPaymentClient: Client | null = null;
+  pendingPaymentAmount: number = 0;
+  pendingPaymentNotes: string = '';
+
+  // Quick add client functionality
+  showQuickAddClientPopup = false;
+  quickAddForm = {
+    firstName: '',
+    lastName: '',
+    phone: '',
+    city: 'Tunis',
+    clientType: 'INDIVIDUAL' as 'INDIVIDUAL' | 'BUSINESS' | 'WHOLESALE',
+    allowDebt: true
+  };
 
   openClientSearch(): void {
     this.showClientSearchPopup = true;
@@ -1002,10 +1055,14 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.pendingWholesaleToggle = false;
       this.showAlertMessage(`Client sélectionné: ${client.firstName} ${client.lastName} - Mode Gros activé`, 'success');
     } else {
-      this.showAlertMessage(`Client sélectionné: ${client.firstName} ${client.lastName}`, 'success');
+      // Set wholesale mode according to client type (without clearing cart)
+      this.isWholesaleMode = client.clientType === 'WHOLESALE';
+      this.showAlertMessage(`Client sélectionné: ${client.firstName} ${client.lastName}` + (this.isWholesaleMode ? ' - Mode Gros activé' : ''), 'success');
     }
     
     this.showClientSearchPopup = false;
+    // Refresh product list according to mode
+    this.filterProducts();
   }
 
   clearSelectedClient(): void {
@@ -1031,6 +1088,62 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.currentCustomer = 'PASSAGER';
   }
 
+  // Quick add client methods
+  openQuickAddClient(): void {
+    this.quickAddForm = {
+      firstName: '',
+      lastName: '',
+      phone: '',
+      city: 'Tunis',
+      clientType: 'INDIVIDUAL',
+      allowDebt: true
+    };
+    this.showQuickAddClientPopup = true;
+  }
+
+  closeQuickAddClient(): void {
+    this.showQuickAddClientPopup = false;
+  }
+
+  createQuickClient(): void {
+    if (!this.quickAddForm.firstName || !this.quickAddForm.lastName) {
+      this.showAlertMessage('Le prénom et le nom sont obligatoires', 'error');
+      return;
+    }
+
+    const createRequest = {
+      firstName: this.quickAddForm.firstName,
+      lastName: this.quickAddForm.lastName,
+      phone: this.quickAddForm.phone || '',
+      city: this.quickAddForm.city,
+      address: '',
+      clientType: this.quickAddForm.clientType,
+      notes: '',
+      allowDebt: this.quickAddForm.allowDebt,
+      maxDebt: null
+    };
+
+    this.clientsService.createClient(createRequest).subscribe({
+      next: (newClient) => {
+        this.showAlertMessage(`Client ${newClient.firstName} ${newClient.lastName} créé avec succès`, 'success');
+        this.closeQuickAddClient();
+        
+        // Refresh the client cache and search results
+        this.allClientsCache = [];
+        this.fetchAllClients();
+        
+        // Auto-select the newly created client
+        setTimeout(() => {
+          this.selectClient(newClient);
+        }, 500);
+      },
+      error: (error) => {
+        this.showAlertMessage('Erreur lors de la création du client', 'error');
+        console.error('Error creating client:', error);
+      }
+    });
+  }
+
   showHistory(): void {
     this.router.navigate(['/historique']);
   }
@@ -1053,10 +1166,26 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.showAlertMessage('Aucun article dans le panier', 'error');
       return;
     }
+    
+    // For credit sales, we need a client
+    if (this.salePaymentType === 'CREDIT' && !this.selectedClient) {
+      this.showAlertMessage('Un client est requis pour les ventes à crédit', 'error');
+      return;
+    }
+    
     this.showPaymentPopup = true;
     this.paymentType = undefined;
     this.amountPaid = undefined;
     this.calculatedChange = 0;
+  }
+
+  private getClientRemainingCredit(): number {
+    const client = this.selectedClient;
+    if (!client) return 0;
+    const maxDebt = Number(client.maxDebt ?? 0);
+    const currentDebt = Number(client.currentDebt ?? 0);
+    const remaining = maxDebt - currentDebt;
+    return remaining > 0 ? this.roundToTenthAsThreeDecimals(remaining) : 0;
   }
 
   selectPaymentType(type: 'cash' | 'card' | 'check' | 'virement'): void {
@@ -1135,6 +1264,23 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
+    if (this.salePaymentType === 'CREDIT') {
+      if (!this.selectedClient) {
+        this.showAlertMessage('Un client est requis pour les ventes à crédit', 'error');
+        return;
+      }
+      if (this.selectedClient.allowDebt === false) {
+        this.showAlertMessage('Ce client n\'est pas autorisé à faire du crédit', 'error');
+        return;
+      }
+      const remainingCredit = this.getClientRemainingCredit();
+      const outstanding = this.roundToTenthAsThreeDecimals(Number(activeCart.netTotal) - Number(this.amountPaid || 0));
+      if (outstanding > remainingCredit) {
+        this.showAlertMessage(`Crédit dépassé. Reste autorisé: ${remainingCredit.toFixed(3)} dt`, 'error');
+        return;
+      }
+    }
+
     const requiresFullPayment = !activeCart.clientId;
     if (requiresFullPayment && (!this.amountPaid || Number(this.amountPaid) < Number(activeCart.netTotal))) {
       this.showAlertMessage('Montant insuffisant', 'error');
@@ -1261,6 +1407,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
+    // For credit sales, preserve any entered advance payment and method
+    // so they are recorded as advancePayment instead of clearing them.
+    
     const saleData: CreateSaleRequest = {
       items: activeCart.items.map(item => ({
         productId: item.product.id,
@@ -1273,15 +1422,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
         isWholesale: item.isWholesale || false,
         bundleQuantity: item.bundleQuantity || undefined,
         bundleSize: item.bundleSize || undefined,
-        bundlePrice: item.bundlePrice || undefined
+        bundlePrice: item.bundlePrice || undefined,
+        // Advance payment fields for credit
+        advancePayment: this.salePaymentType === 'CREDIT' ? (Number(this.amountPaid || 0)) : undefined,
+        advancePaymentMethod: this.salePaymentType === 'CREDIT' ? this.paymentType as any : undefined
       })),
       total: Number(activeCart.subtotal),
       discount: Number(activeCart.discount),
       finalTotal: Number(activeCart.netTotal),
-      paymentMethodId: paymentMethodMap[this.paymentType!] || 1,
+      paymentMethodId: this.salePaymentType === 'CREDIT'
+        ? (this.amountPaid ? paymentMethodMap[this.paymentType!] : undefined as any)
+        : (paymentMethodMap[this.paymentType!] || 1),
       clientId: activeCart.clientId || undefined,
       amountPaid: this.amountPaid !== undefined ? Number(this.amountPaid) : Number(activeCart.netTotal),
-      isWholesale: this.isWholesaleSale()
+      isWholesale: this.isWholesaleSale(),
+      paymentType: this.salePaymentType
     };
 
     this.salesService.createSale(saleData).subscribe({
@@ -1317,6 +1472,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
         // Refresh session data to update sales totals
         this.sessionsService.getActiveSession().subscribe();
         
+        // Refresh clients list to update debt information
+        this.fetchAllClients();
         // Auto-remove client after successful payment (except Client 1)
         this.autoRemoveClientAfterPayment(activeCart.id);
         
@@ -2295,6 +2452,19 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   enterValue(): void {
     console.log('enterValue called - current inputMode:', this.inputMode);
+    
+    // Check if we have a selected client and no pending product/receipt item
+    // This means the user wants to make a client payment
+    if (this.selectedClient && !this.selectedReceiptItem && !this.pendingProduct && this.currentInput.trim()) {
+      const paymentAmount = parseFloat(this.currentInput);
+      
+      if (!isNaN(paymentAmount) && paymentAmount > 0) {
+        this.processAutomaticClientPayment(paymentAmount);
+        this.currentInput = '';
+        return;
+      }
+    }
+    
     if (this.selectedReceiptItem && this.selectedReceiptItemIndex !== -1) {
       // Handle selected receipt item modification
       let value = parseFloat(this.currentInput);
@@ -2367,6 +2537,112 @@ export class CaisseComponent implements OnInit, OnDestroy {
     if (this.currentInput.length > 0) {
       this.currentInput = this.currentInput.slice(0, -1);
     }
+  }
+
+  // Process automatic client payment when client is selected and amount is entered
+  processAutomaticClientPayment(amount: number): void {
+    if (!this.selectedClient) {
+      this.showAlertMessage('Aucun client sélectionné', 'error');
+      return;
+    }
+
+    if (amount <= 0) {
+      this.showAlertMessage('Le montant doit être supérieur à 0', 'error');
+      return;
+    }
+
+    // Set up the payment confirmation dialog
+    this.pendingPaymentClient = this.selectedClient;
+    this.pendingPaymentAmount = amount;
+    this.pendingPaymentNotes = `Encaissement automatique depuis la caisse - ${new Date().toLocaleString('fr-FR')}`;
+    this.showPaymentConfirmationDialog = true;
+  }
+
+  // Submit client payment to the API
+  submitClientPayment(amount: number, notes?: string): void {
+    if (!this.selectedClient) return;
+
+    const paymentData = {
+      clientId: this.selectedClient.id,
+      amount: amount,
+      notes: notes || `Encaissement automatique depuis la caisse - ${new Date().toLocaleString('fr-FR')}`
+    };
+
+    this.http.post(`${environment.apiUrl}/client-payments`, paymentData).subscribe({
+      next: (response) => {
+        this.showAlertMessage(
+          `Encaissement de ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'TND' }).format(amount)} enregistré avec succès pour ${this.selectedClient?.firstName} ${this.selectedClient?.lastName}`,
+          'success'
+        );
+        
+        // Refresh client data to update current debt
+        this.refreshSelectedClientData();
+      },
+      error: (error) => {
+        console.error('Error creating client payment:', error);
+        this.showAlertMessage('Erreur lors de l\'enregistrement de l\'encaissement', 'error');
+      }
+    });
+  }
+
+  // Refresh selected client data to get updated debt information
+  refreshSelectedClientData(): void {
+    if (!this.selectedClient) return;
+
+    this.clientsService.getClient(this.selectedClient.id).subscribe({
+      next: (updatedClient) => {
+        this.selectedClient = updatedClient;
+        // Update the client in the active cart as well
+        const activeCart = this.getActiveCart();
+        if (activeCart && activeCart.clientId === updatedClient.id) {
+          activeCart.client = updatedClient;
+        }
+      },
+      error: (error) => {
+        console.error('Error refreshing client data:', error);
+      }
+    });
+  }
+
+  // Payment confirmation dialog methods
+  cancelClientPaymentConfirmation(): void {
+    this.showPaymentConfirmationDialog = false;
+    this.pendingPaymentClient = null;
+    this.pendingPaymentAmount = 0;
+    this.pendingPaymentNotes = '';
+  }
+
+  confirmPaymentConfirmation(): void {
+    if (!this.pendingPaymentClient) return;
+
+    this.showPaymentConfirmationDialog = false;
+    this.submitClientPayment(this.pendingPaymentAmount, this.pendingPaymentNotes);
+    
+    // Clear pending data
+    this.pendingPaymentClient = null;
+    this.pendingPaymentAmount = 0;
+    this.pendingPaymentNotes = '';
+  }
+
+  // Helper methods for the dialog
+  getRemainingDebt(): number {
+    if (!this.pendingPaymentClient) return 0;
+    const currentDebt = this.pendingPaymentClient.currentDebt || 0;
+    return Math.max(0, currentDebt - this.pendingPaymentAmount);
+  }
+
+  getRemainingDebtClass(): string {
+    const remaining = this.getRemainingDebt();
+    if (remaining === 0) return 'text-green-600';
+    if (remaining < (this.pendingPaymentClient?.currentDebt || 0) * 0.5) return 'text-yellow-600';
+    return 'text-red-600';
+  }
+
+  formatAmount(amount: number): string {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'TND'
+    }).format(amount);
   }
 
   // Remove specific line from receipt
@@ -2573,33 +2849,37 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
-    const existingItem = activeCart.items.find(item => item.product.id === product.id);
-    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id && !item.isWholesale);
     if (existingItem) {
-      existingItem.quantity += quantity;
-      existingItem.total = Number(existingItem.quantity) * Number(existingItem.unitPrice);
-      existingItem.quantity = Number(existingItem.quantity);
-      existingItem.unitPrice = Number(existingItem.unitPrice);
-      
+      existingItem.quantity = Number(existingItem.quantity) + Number(quantity);
+      const unit = this.getEffectiveUnitPrice(product);
+      existingItem.unitPrice = unit;
+      existingItem.total = Number(existingItem.quantity) * unit;
+      // Append fradeau info to designation if in wholesale context
+      if ((this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && product.bundleSize) {
+        (existingItem as any).displayName = `${product.name} (fradeau x${product.bundleSize})`;
+      }
       // Select the existing item
       this.selectedReceiptItem = existingItem;
       this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
     } else {
+      const unitPrice = this.getEffectiveUnitPrice(product);
       const newItem = {
         product,
-        quantity: quantity,
-        unitPrice: Number(product.prix_vente_TTC),
-        total: quantity * Number(product.prix_vente_TTC),
+        quantity: Number(quantity),
+        unitPrice: Number(unitPrice),
+        total: Number(quantity) * Number(unitPrice),
         isGift: false,
-        hasCustomTotal: false
+        isWholesale: false
       };
-      activeCart.items.unshift(newItem);
-      
-      // Select the newly added item (now at index 0)
-      this.selectedReceiptItem = newItem;
-      this.selectedReceiptItemIndex = 0;
+      // designation override
+      if ((this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && product.bundleSize) {
+        (newItem as any).displayName = `${product.name} (fradeau x${product.bundleSize})`;
+      }
+      activeCart.items.push(newItem as any);
+      this.selectedReceiptItem = newItem as any;
+      this.selectedReceiptItemIndex = activeCart.items.length - 1;
     }
-    
     this.calculateTotals();
   }
 
@@ -2665,7 +2945,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const roundedTotalAmount = this.roundToFiftyMillimes(customTotalAmount);
     
     // Calculate quantity: montant / unit_price and round to 3 decimal places
-    const originalPrice = Number(product.prix_vente_TTC);
+    const originalPrice = this.getEffectiveUnitPrice(product);
     const calculatedQuantity = originalPrice > 0 ? 
       Math.round((roundedTotalAmount / originalPrice) * 1000) / 1000 : 1;
     
@@ -2709,8 +2989,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
-    const existingItem = activeCart.items.find(item => item.product.id === product.id);
-    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id && !item.isWholesale);
     if (existingItem) {
       // Update existing item with new total price and calculate quantity
       existingItem.total = customTotalPrice;
@@ -2722,7 +3001,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
     } else {
       // Add new item with custom total price and calculate quantity
-      const unitPrice = Number(product.prix_vente_TTC);
+      const unitPrice = this.getEffectiveUnitPrice(product);
       const calculatedQuantity = customTotalPrice / unitPrice;
       
       const newItem = {
@@ -2766,6 +3045,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.paymentType = 'cash';
     this.amountPaid = activeCart.netTotal;
     this.confirmPayment();
+  }
+
+  validateCredit(): void {
+    this.openCreditModal();
   }
 
   getProductModalCalculatedAmount(): number {
@@ -2860,7 +3143,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       
       // If the flag is not set, try to detect custom price by checking if the total doesn't match expected calculation
       if (!hasCustomPrice) {
-        const defaultPrice = Number(product.prix_vente_TTC);
+        const defaultPrice = this.getEffectiveUnitPrice(product);
         const expectedTotal = Math.round(existingItem.quantity * defaultPrice * 100) / 100;
         const totalMatches = Math.abs(existingItem.total - expectedTotal) <= 0.01;
         
@@ -3646,6 +3929,129 @@ export class CaisseComponent implements OnInit, OnDestroy {
     } else {
       this.dragDropService.cancelDrag();
     }
+  }
+
+  // Wholesale rules
+  activeWholesaleRules: WholesaleRule[] = [];
+
+  loadWholesaleRules(): void {
+    this.wholesaleRulesService.getWholesaleRules().subscribe({
+      next: (rules: WholesaleRule[]) => {
+        this.activeWholesaleRules = (rules || []).filter(r => !r.isArchived);
+      },
+      error: () => {
+        this.activeWholesaleRules = [];
+      }
+    });
+  }
+
+  findRuleForProduct(productId: number): WholesaleRule | null {
+    if (!this.activeWholesaleRules || this.activeWholesaleRules.length === 0) return null;
+    const match = this.activeWholesaleRules.find(r => Array.isArray((r as any).productIds) && (r as any).productIds.includes(productId));
+    return match || null;
+  }
+
+  getWholesaleUnitPrice(product: any): number {
+    const baseUnit = Number(product.prix_vente_TTC) || 0;
+    const bundlePrice = Number(product.bundlePrice) || 0;
+    const bundleSize = Number(product.bundleSize) || 0;
+
+    // If product is wholesale-capable, we sell by bundle: unit price represents one bundle price
+    const baseForWholesale = (product.isWholesale && bundlePrice > 0 && bundleSize > 0)
+      ? bundlePrice
+      : baseUnit;
+
+    const rule = this.findRuleForProduct(product.id);
+    if (rule) {
+      const val = Number(rule.value) || 0;
+      if (rule.ruleType === 'percentage') return baseForWholesale * (1 - val / 100);
+      if (rule.ruleType === 'fixed') return val;
+      if (rule.ruleType === 'discount') return Math.max(0, baseForWholesale - val);
+    }
+
+    return baseForWholesale;
+  }
+
+  getEffectiveUnitPrice(product: any): number {
+    const isWholesaleContext = this.isWholesaleMode || (this.selectedClient?.clientType === 'WHOLESALE');
+    return isWholesaleContext ? this.getWholesaleUnitPrice(product) : (Number(product.prix_vente_TTC) || 0);
+  }
+
+  getItemDisplayName(item: any): string {
+    return (item && item.displayName) ? String(item.displayName) : (item?.product?.name || '');
+  }
+
+  // Credit modal UI state
+  showCreditModal = false;
+  creditInput = '';
+
+  openCreditModal(): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
+      this.showAlertMessage('Aucun article dans le panier', 'error');
+      return;
+    }
+    if (!this.selectedClient) {
+      this.showAlertMessage('Un client doit être sélectionné pour le crédit', 'error');
+      return;
+    }
+    this.creditInput = '';
+    this.showCreditModal = true;
+  }
+
+  pressKeypad(key: string): void {
+    if (key === 'C') {
+      this.creditInput = '';
+      return;
+    }
+    if (key === '←') {
+      this.creditInput = this.creditInput.slice(0, -1);
+      return;
+    }
+    if (key === '.' && this.creditInput.includes('.')) return;
+    this.creditInput += key;
+  }
+
+  confirmCreditUI(): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    const total = Number(activeCart.netTotal) || 0;
+    const paidAmount = parseFloat(this.creditInput || '0');
+    if (isNaN(paidAmount) || paidAmount < 0) {
+      this.showAlertMessage('Montant invalide', 'error');
+      return;
+    }
+    if (paidAmount > total) {
+      this.showAlertMessage('Le montant payé ne peut pas dépasser le total', 'error');
+      return;
+    }
+    this.paymentType = 'cash';
+    this.amountPaid = paidAmount;
+    this.salePaymentType = 'CREDIT';
+    this.showCreditModal = false;
+    this.confirmPayment();
+  }
+
+  openPaymentPopup(): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
+      this.showAlertMessage('Aucun article dans le panier', 'error');
+      return;
+    }
+    if (this.salePaymentType === 'CREDIT' && !this.selectedClient) {
+      this.showAlertMessage('Un client est requis pour les ventes à crédit', 'error');
+      return;
+    }
+    this.showPaymentPopup = true;
+    this.paymentType = undefined;
+    // Prefill amountPaid with entered advance if credit
+    if (this.salePaymentType === 'CREDIT' && this.creditInput) {
+      const paid = parseFloat(this.creditInput);
+      this.amountPaid = isNaN(paid) ? undefined : paid;
+    } else {
+      this.amountPaid = undefined;
+    }
+    this.calculatedChange = 0;
   }
 
 } 

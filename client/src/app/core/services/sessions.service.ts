@@ -14,8 +14,9 @@ export interface SessionCaisse {
   openingFund: number;
   expectedCash: number;
   countedCash?: number;
+  originalCountedCash?: number;
   variance?: number;
-  status: 'OPEN' | 'CLOSED' | 'REOPENED';
+  status: 'OPEN' | 'CLOSED' | 'REOPENED' | 'ADMIN_CORRECTED';
   xSeq: number;
   zSeq: number;
   note?: string;
@@ -72,6 +73,7 @@ export interface CloseSessionRequest {
   fonds: number;
   retraitCentrale?: number;
   denominations: { [key: string]: number };
+  isAdminCorrection?: boolean;
 }
 
 export interface SessionFilters {
@@ -152,6 +154,7 @@ export class SessionsService {
     variance: number;
     withdrawalAmount?: number;
     remainingBalance?: number;
+    updatedOpenSession?: SessionCaisse;
   }> {
     return this.http.post<any>(`${this.API_URL}/${sessionId}/close`, request).pipe(
       tap(() => {
@@ -220,7 +223,8 @@ export class SessionsService {
     const labels: { [key: string]: string } = {
       'OPEN': 'Ouverte',
       'CLOSED': 'Fermée',
-      'REOPENED': 'Réouverte'
+      'REOPENED': 'Réouverte',
+      'ADMIN_CORRECTED': 'Corrigée par Admin'
     };
     return labels[status] || status;
   }

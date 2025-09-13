@@ -217,7 +217,6 @@
                               rule.ruleType === 'fixed' ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' :
                               rule.ruleType === 'discount' ? 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100' :
                               'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100')">
-              <div class="font-semibold">{{ rule.description }}</div>
               <div class="text-xs opacity-75">
                 {{ rule.ruleType === 'percentage' ? rule.value + '%' : 
                    rule.ruleType === 'discount' ? '-' + rule.value + 'dt' : 
@@ -248,7 +247,6 @@
           <div *ngIf="showArchivedRules" class="grid grid-cols-2 gap-2">
             <div *ngFor="let rule of getArchivedRules()" 
                  class="p-2 text-xs rounded-lg border bg-gray-100 border-gray-300 text-gray-500 relative">
-              <div class="font-semibold line-through">{{ rule.description }}</div>
               <div class="text-xs opacity-75">
                 {{ rule.ruleType === 'percentage' ? rule.value + '%' : 
                    rule.ruleType === 'discount' ? '-' + rule.value + 'dt' : 
@@ -277,7 +275,9 @@
             <div *ngFor="let appliedRule of appliedRules; let i = index" 
                  class="bg-gray-50 rounded-lg p-3 border border-gray-200">
               <div class="flex items-center justify-between mb-2">
-                <span class="text-sm font-semibold text-gray-800">{{ appliedRule.rule.description }}</span>
+                <span class="text-sm font-semibold text-gray-800">
+                  {{ appliedRule.rule.ruleType === 'percentage' ? (appliedRule.rule.value + '%') : (appliedRule.rule.ruleType === 'discount' ? ('-' + appliedRule.rule.value + 'dt') : (appliedRule.rule.value + 'dt')) }}
+                </span>
                 <button (click)="removeAppliedRule(i)" 
                   title="Supprimer"
                   class="w-5 h-5 bg-red-100 hover:bg-red-200 text-red-600 rounded flex items-center justify-center">
@@ -363,12 +363,7 @@
             class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:border-purple-400">
         </div>
 
-        <div class="space-y-2">
-          <label class="block text-sm font-semibold text-gray-700">Description</label>
-          <input type="text" [(ngModel)]="newRule.description" 
-            placeholder="Ex: Remise client gros"
-            class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:border-purple-400">
-        </div>
+        
       </div>
 
       <!-- Footer -->

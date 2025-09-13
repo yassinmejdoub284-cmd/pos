@@ -4,9 +4,10 @@ import { FormsModule } from '@angular/forms';
 
 import { ApprovalsRoutingModule } from './approvals-routing.module';
 import { ApprovalsComponent } from './approvals.component';
+import { ApprovalsHistoryComponent } from './approvals-history.component';
 
 @NgModule({
-  declarations: [ApprovalsComponent],
+  declarations: [ApprovalsComponent, ApprovalsHistoryComponent],
   imports: [
     CommonModule,
     FormsModule,

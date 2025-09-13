@@ -36,12 +36,20 @@ export class ClientActionDialogComponent {
       gradient: 'from-emerald-50 to-green-100'
     },
     {
-      id: 'wholesale',
-      title: 'Achat en Gros',
-      description: 'Configuration des ventes en gros',
-      icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
-      color: 'from-purple-500 to-violet-600',
-      gradient: 'from-purple-50 to-violet-100'
+      id: 'statement',
+      title: 'Relevé Client',
+      description: 'Consulter les relevés clients',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      color: 'from-amber-500 to-orange-600',
+      gradient: 'from-amber-50 to-orange-100'
+    },
+    {
+      id: 'payment',
+      title: 'Règlement Client',
+      description: 'Gérer les règlements clients',
+      icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      color: 'from-green-500 to-emerald-600',
+      gradient: 'from-green-50 to-emerald-100'
     }
   ];
 

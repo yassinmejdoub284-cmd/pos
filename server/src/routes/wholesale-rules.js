@@ -43,7 +43,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (re
     const { ruleType, value, description } = req.body;
 
     // Validate required fields
-    if (!ruleType || value === undefined || !description) {
+    if (!ruleType || value === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -54,7 +54,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (re
     }
 
     // Validate value
-    if (value < 0) {
+    if (typeof value !== 'number' || Number.isNaN(value) || value < 0) {
       return res.status(400).json({ error: 'Value must be positive' });
     }
 
@@ -66,7 +66,8 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (re
       data: {
         ruleType,
         value,
-        description,
+        // DB requires non-null; use empty string when omitted
+        description: description ?? '',
         isArchived: false
       }
     });

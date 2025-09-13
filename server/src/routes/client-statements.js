@@ -57,32 +57,59 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
 
     // Combine and sort all transactions
     const allTransactions = [
-      ...sales.map(sale => ({
-        type: 'sale',
-        date: sale.createdAt,
-        reference: `TICKET-${sale.id}`,
-        debit: parseFloat(sale.finalTotal),
-        credit: 0,
-        description: `Vente - ${sale.paymentMethod?.name || 'Non spécifié'}`,
-        id: sale.id,
-        clickable: true
-      })),
-      ...debtTransactions.map(transaction => ({
+      // Include ALL sales (both CREDIT and COMPTANT)
+      ...sales.map(sale => {
+        const totalAmount = parseFloat(sale.finalTotal);
+        
+        if (sale.paymentType === 'CREDIT') {
+          // Credit sales: show advance payment as debit, total as credit
+          const advanceAmount = parseFloat(sale.advancePayment || 0);
+          const remainingAmount = totalAmount - advanceAmount;
+          
+          return {
+            type: 'credit',
+            date: sale.createdAt,
+            reference: `TICKET-${sale.id}`,
+            debit: advanceAmount, // Show advance payment as debit
+            credit: totalAmount, // Show total as credit
+            id: sale.id,
+            clickable: true,
+            saleId: sale.id,
+            remaining: remainingAmount
+          };
+        } else {
+          // Cash sales: show full payment as both debit and credit (débit = crédit)
+          return {
+            type: 'cash',
+            date: sale.createdAt,
+            reference: `TICKET-${sale.id}`,
+            debit: totalAmount, // Full payment as debit
+            credit: totalAmount, // Full amount as credit
+            id: sale.id,
+            clickable: true,
+            saleId: sale.id,
+            remaining: 0
+          };
+        }
+      }),
+      // Only include standalone debt transactions (not related to sales)
+      ...debtTransactions.filter(transaction => !transaction.saleId).map(transaction => ({
         type: transaction.type.toLowerCase(),
         date: transaction.createdAt,
-        reference: transaction.type === 'DEBT' ? `DEBT-${transaction.id}` : `PAY-${transaction.id}`,
-        debit: transaction.type === 'DEBT' ? parseFloat(transaction.amount) : 0,
-        credit: transaction.type === 'PAYMENT' ? parseFloat(transaction.amount) : 0,
-        description: transaction.notes || (transaction.type === 'DEBT' ? 'Créance' : 'Paiement'),
+        reference: transaction.type === 'DEBT' ? `CREDIT-${transaction.id}` : `REGLEMENT-${transaction.id}`,
+        debit: transaction.type === 'PAYMENT' ? parseFloat(transaction.amount) : 0,
+        credit: transaction.type === 'DEBT' ? parseFloat(transaction.amount) : 0,
         id: transaction.id,
-        clickable: transaction.saleId ? true : false,
+        clickable: transaction.type === 'PAYMENT', // Make payments clickable
         saleId: transaction.saleId
       }))
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Calculate running balance
+    // Calculate running balance (Solde = Somme(Débits) - Somme(Crédits))
+    // Débit = argent reçu du client (paiement) - reduces debt
+    // Crédit = montant facturé au client à crédit (dette) - increases debt
     allTransactions.forEach(transaction => {
-      balance = balance + transaction.credit - transaction.debit;
+      balance = balance + transaction.debit - transaction.credit;
       statement.push({
         ...transaction,
         balance: balance
@@ -124,6 +151,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         firstName: true,
         lastName: true,
         currentDebt: true,
+        maxDebt: true,
         totalSpent: true,
         _count: {
           select: { sales: true }
@@ -150,6 +178,8 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           select: {
             id: true,
             finalTotal: true,
+            advancePayment: true,
+            paymentType: true,
             createdAt: true
           }
         });
@@ -157,6 +187,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         const debtTransactions = await prisma.clientDebtTransaction.findMany({
           where: { 
             clientId: client.id,
+            saleId: null, // Only standalone transactions
             ...(startDate && endDate ? {
               createdAt: {
                 gte: new Date(startDate),
@@ -171,20 +202,52 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           }
         });
 
-        const totalSales = sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
-        const totalPayments = debtTransactions
-          .filter(t => t.type === 'PAYMENT')
-          .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-        const totalDebts = debtTransactions
-          .filter(t => t.type === 'DEBT')
-          .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+        // Calculate totals using the same logic as individual client statement
+        let totalDebit = 0;
+        let totalCredit = 0;
+        let operationCount = 0;
+
+        // Process sales
+        sales.forEach(sale => {
+          const totalAmount = parseFloat(sale.finalTotal);
+          operationCount++;
+          
+          if (sale.paymentType === 'CREDIT') {
+            const advanceAmount = parseFloat(sale.advancePayment || 0);
+            totalDebit += advanceAmount;
+            totalCredit += totalAmount;
+          } else {
+            // Cash sales: débit = crédit
+            totalDebit += totalAmount;
+            totalCredit += totalAmount;
+          }
+        });
+
+        // Process standalone debt transactions
+        debtTransactions.forEach(transaction => {
+          operationCount++;
+          if (transaction.type === 'PAYMENT') {
+            totalDebit += parseFloat(transaction.amount);
+          } else if (transaction.type === 'DEBT') {
+            totalCredit += parseFloat(transaction.amount);
+          }
+        });
+
+        const currentBalance = totalDebit - totalCredit;
+
+        // Calculate remaining allowed debts
+        const maxDebt = parseFloat(client.maxDebt || 0);
+        const currentDebtAmount = parseFloat(client.currentDebt || 0);
+        const remainingAllowedDebts = Math.max(0, maxDebt - currentDebtAmount);
 
         return {
           ...client,
-          periodSales: totalSales,
-          periodPayments: totalPayments,
-          periodDebts: totalDebts,
-          periodBalance: totalDebts - totalPayments
+          periodSales: totalCredit, // Ventes Période = Total Crédit (366,900)
+          periodPayments: totalDebit, // Paiements = Total Débit (271,900)
+          periodDebts: totalCredit - totalDebit, // Créances = Remaining debt (95,000)
+          periodBalance: remainingAllowedDebts, // Remaining Allowed Debts = maxDebt - currentDebt
+          currentDebt: -Math.abs(parseFloat(client.currentDebt || 0)), // Solde Actuel = -95,000 (negative)
+          operationCount: operationCount
         };
       })
     );

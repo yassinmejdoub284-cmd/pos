@@ -1,8 +1,8 @@
 {
-  "companyName": "Henteti Groupe",
+  "companyName": "",
   "logoUrl": "",
   "loyaltyEnabled": false,
-  "loyaltyRate": 1.2,
+  "loyaltyRate": 1,
   "maxDiscountPercent": 50,
   "defaultClientMaxDebt": 0,
   "keyboardShortcuts": {},
@@ -25,5 +25,5 @@
   "requireApprovalForVariance": true,
   "ticketWidth": 58,
   "droitDeTimbre": false,
-  "autoApproveExpenseBelow": 50
+  "autoApproveExpenseBelow": 0
 }

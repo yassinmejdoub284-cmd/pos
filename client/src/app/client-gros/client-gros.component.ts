@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { ProductsService } from '../core/services/products.service';
 import { ClientsService } from '../core/services/clients.service';
 import { FamiliesService } from '../core/services/families.service';
@@ -7,6 +8,7 @@ import { WholesaleRulesService, WholesaleRule } from '../core/services/wholesale
 import { Product } from '../core/models/product.model';
 import { Client } from '../core/models/client.model';
 import { ProductFamily } from '../core/models/product-family.model';
+import { CreateWholesaleRuleRequest } from '../core/services/wholesale-rules.service';
 
 
 export interface SelectedProduct {
@@ -50,8 +52,7 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
   showNewRuleDialog = false;
   newRule: Partial<WholesaleRule> = {
     ruleType: 'percentage',
-    value: 0,
-    description: ''
+    value: 0
   };
 
   // Archive management
@@ -59,6 +60,7 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
 
 
   constructor(
+    private route: ActivatedRoute,
     private productsService: ProductsService,
     private clientsService: ClientsService,
     private familiesService: FamiliesService,
@@ -67,6 +69,25 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // If clientId provided, auto-select client and skip dialog
+    this.route.queryParams.subscribe(params => {
+      const id = params['clientId'];
+      if (id) {
+        const clientId = Number(id);
+        if (!Number.isNaN(clientId)) {
+          this.clientsService.getClient(clientId).subscribe({
+            next: (client: Client) => {
+              this.selectedCustomer = client;
+              this.showCustomerDialog = false;
+            },
+            error: (_err: unknown) => {
+              // If fetch fails, keep dialog open so user can pick manually
+              this.showCustomerDialog = true;
+            }
+          });
+        }
+      }
+    });
     this.loadProducts();
     this.loadFamilies();
     this.loadWholesaleRules();
@@ -79,14 +100,14 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
   loadProducts(): void {
     this.loading = true;
     this.productsService.getProducts().subscribe({
-      next: (products) => {
+      next: (products: Product[]) => {
         this.products = products;
         this.filteredProducts = products;
         // Clear previous selections when loading new products
         this.selectedProductIds.clear();
         this.loading = false;
       },
-      error: (error) => {
+      error: (error: unknown) => {
         console.error('Error loading products:', error);
         this.loading = false;
       }
@@ -95,10 +116,10 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
 
   loadFamilies(): void {
     this.familiesService.getFamilies().subscribe({
-      next: (families) => {
+      next: (families: ProductFamily[]) => {
         this.families = families;
       },
-      error: (error) => {
+      error: (error: unknown) => {
         console.error('Error loading families:', error);
         // Fallback to empty array if backend fails
         this.families = [];
@@ -108,10 +129,10 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
 
   loadWholesaleRules(): void {
     this.wholesaleRulesService.getWholesaleRules().subscribe({
-      next: (rules) => {
+      next: (rules: WholesaleRule[]) => {
         this.predefinedRules = rules;
       },
-      error: (error) => {
+      error: (error: unknown) => {
         console.error('Error loading wholesale rules:', error);
         // Fallback to empty array if backend fails
         this.predefinedRules = [];
@@ -182,13 +203,17 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     this.appliedRules.forEach(appliedRule => {
       const products = this.products.filter(p => appliedRule.productIds.includes(p.id));
       products.forEach(product => {
-        let finalPrice = product.prix_vente_TTC;
+        const basePrice = Number(product.prix_vente_TTC) || 0;
+        const ruleVal = Number(appliedRule.rule.value) || 0;
+        let finalPrice = basePrice;
         if (appliedRule.rule.ruleType === 'percentage') {
-          finalPrice = product.prix_vente_TTC * (1 - appliedRule.rule.value / 100);
+          finalPrice = basePrice * (1 - ruleVal / 100);
         } else if (appliedRule.rule.ruleType === 'fixed') {
-          finalPrice = appliedRule.rule.value;
+          finalPrice = ruleVal;
+        } else if (appliedRule.rule.ruleType === 'discount') {
+          finalPrice = Math.max(0, basePrice - ruleVal);
         }
-        total += finalPrice;
+        total += Number(finalPrice) || 0;
       });
     });
     return total;
@@ -202,42 +227,43 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
   }
 
   getCalculatedPrice(product: Product, rule: WholesaleRule): number {
+    const basePrice = Number(product.prix_vente_TTC) || 0;
+    const ruleVal = Number(rule.value) || 0;
     if (rule.ruleType === 'percentage') {
-      return product.prix_vente_TTC * (1 - rule.value / 100);
+      return basePrice * (1 - ruleVal / 100);
     } else if (rule.ruleType === 'fixed') {
-      return rule.value;
+      return ruleVal;
     } else if (rule.ruleType === 'discount') {
-      return Math.max(0, product.prix_vente_TTC - rule.value);
+      return Math.max(0, basePrice - ruleVal);
     }
-    return product.prix_vente_TTC;
+    return basePrice;
   }
 
   openNewRuleDialog(): void {
     this.newRule = {
       ruleType: 'percentage',
-      value: 0,
-      description: ''
+      value: 0
     };
     this.showNewRuleDialog = true;
   }
 
   addNewRule(): void {
-    if (!this.newRule.description || this.newRule.value === undefined || this.newRule.value <= 0) {
+    if (this.newRule.value === undefined || this.newRule.value <= 0) {
       alert('Veuillez remplir tous les champs correctement');
       return;
     }
 
-    const ruleData = {
+    const payload: CreateWholesaleRuleRequest = {
       ruleType: this.newRule.ruleType!,
       value: this.newRule.value!,
-      description: this.newRule.description!
+      description: undefined
     };
 
-    this.wholesaleRulesService.createWholesaleRule(ruleData).subscribe({
+    this.wholesaleRulesService.createWholesaleRule(payload).subscribe({
       next: (newRule) => {
         this.predefinedRules.push(newRule);
         this.showNewRuleDialog = false;
-        this.newRule = { ruleType: 'percentage', value: 0, description: '' };
+        this.newRule = { ruleType: 'percentage', value: 0 };
       },
       error: (error) => {
         console.error('Error creating wholesale rule:', error);
@@ -325,26 +351,28 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     
     // Create sale items with wholesale pricing
     const items = selectedProducts.map(product => {
-      let finalPrice = product.prix_vente_TTC;
+      let finalPrice = Number(product.prix_vente_TTC) || 0;
       
       // Apply rule pricing
       if (rule.ruleType === 'percentage') {
-        finalPrice = product.prix_vente_TTC * (1 - rule.value / 100);
+        finalPrice = finalPrice * (1 - (Number(rule.value) || 0) / 100);
       } else if (rule.ruleType === 'fixed') {
-        finalPrice = rule.value;
+        finalPrice = Number(rule.value) || 0;
+      } else if (rule.ruleType === 'discount') {
+        finalPrice = Math.max(0, finalPrice - (Number(rule.value) || 0));
       }
 
       return {
         productId: product.id,
         productName: product.name,
         quantity: 1, // Default quantity for wholesale
-        unitPrice: finalPrice,
-        total: finalPrice,
+        unitPrice: Number(finalPrice) || 0,
+        total: Number(finalPrice) || 0,
         isWholesale: true
       };
     });
 
-    const total = items.reduce((sum, item) => sum + item.total, 0);
+    const total = items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
 
     const wholesaleSaleData = {
       items,
@@ -354,16 +382,17 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       clientId: this.selectedCustomer.id,
       amountPaid: total, // Assume full payment for wholesale
       paymentMethodId: 1, // Default payment method
-      isWholesale: true
+      isWholesale: true,
+      paymentType: 'COMPTANT' as 'COMPTANT'
     };
 
     this.salesService.createWholesaleSale(wholesaleSaleData).subscribe({
-      next: (response) => {
+      next: (response: unknown) => {
         console.log('Wholesale sale created successfully:', response);
         alert(`Vente en gros créée avec succès! Total: ${total.toFixed(3)} dt`);
         // Success feedback - no need to clear selections since they're already cleared
       },
-      error: (error) => {
+      error: (error: unknown) => {
         console.error('Error creating wholesale sale:', error);
         alert('Erreur lors de la création de la vente en gros');
         // Error handling - no need to remove applied rules since we don't track them anymore

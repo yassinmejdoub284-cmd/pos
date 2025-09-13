@@ -28,7 +28,12 @@ router.get('/change-requests', authenticateToken, requireRole(['ADMIN', 'MANAGER
       if (cr.entityType === 'SESSION_CAISSE') {
         const session = await prisma.sessionCaisse.findUnique({
           where: { id: cr.entityId },
-          include: {
+          select: {
+            id: true,
+            openedAt: true,
+            closedAt: true,
+            variance: true,
+            status: true,
             user: { select: { firstName: true, lastName: true } },
             depot: { select: { name: true, code: true } }
           }
@@ -77,19 +82,30 @@ router.put('/change-requests/:id/approve', authenticateToken, requireRole(['ADMI
 router.put('/change-requests/:id/reject', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
   try {
     const { id } = req.params;
+    const { reasonCode, notes } = req.body;
 
     const existing = await prisma.changeRequest.findUnique({ where: { id: parseInt(id) } });
     if (!existing || existing.status !== 'PENDING') {
       return res.status(404).json({ error: 'Demande introuvable ou déjà traitée' });
     }
 
+    const updateData = {
+      status: 'REJECTED',
+      approvedBy: req.user.id,
+      approvedAt: new Date()
+    };
+
+    // Add rejection details if provided
+    if (reasonCode) {
+      updateData.rejectionReasonCode = reasonCode;
+    }
+    if (notes) {
+      updateData.rejectionNotes = notes;
+    }
+
     const updated = await prisma.changeRequest.update({
       where: { id: parseInt(id) },
-      data: {
-        status: 'REJECTED',
-        approvedBy: req.user.id,
-        approvedAt: new Date()
-      }
+      data: updateData
     });
 
     return res.json(updated);

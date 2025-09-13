@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
   try {
-    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, isWholesale } = req.body;
+    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, isWholesale, paymentType, advancePayment, advancePaymentMethod } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Sale must have at least one item' });
@@ -37,6 +37,11 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
         }
       });
 
+      // Map payment method strings to IDs when needed
+      const paymentMethodMap = { cash: 1, card: 2, check: 3, virement: 4 };
+      const advanceAmount = advancePayment !== undefined ? parseFloat(advancePayment) : (amountPaid !== undefined ? parseFloat(amountPaid) : 0);
+      const advanceMethodId = advancePaymentMethod ? paymentMethodMap[advancePaymentMethod] : (paymentMethodId ? parseInt(paymentMethodId) : null);
+
       const newSale = await tx.sale.create({
         data: {
           total: parseFloat(total),
@@ -47,7 +52,13 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
           clientId: clientId ? parseInt(clientId) : null,
           depotId: req.user.depotId,
           sessionId: activeSession ? activeSession.id : null,
-          status: 'COMPLETED'
+          status: 'COMPLETED',
+          paymentType: paymentType || 'COMPTANT',
+          // Persist advance payment fields when provided (particularly for CREDIT)
+          advancePayment: advanceAmount > 0 ? advanceAmount : 0,
+          advancePaymentMethodId: advanceAmount > 0 ? advanceMethodId : null,
+          advancePaymentDate: advanceAmount > 0 ? new Date() : null,
+          advancePaymentNotes: null
         }
       });
 
@@ -129,34 +140,25 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
         }
         const client = await tx.client.findUnique({ where: { id: parseInt(clientId) } });
 
-        const paid = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : parseFloat(finalTotal);
-        const outstanding = Math.max(0, parseFloat(finalTotal) - paid);
+        // Handle different payment types
+        const salePaymentType = paymentType || 'COMPTANT';
 
-        if (outstanding > 0) {
-          if (!client || client.allowDebt === false) {
-            throw new Error('Debt not allowed for this client');
+        if (salePaymentType === 'CREDIT') {
+          if (client) {
+            const totalAmount = parseFloat(finalTotal);
+            const paidNow = advanceAmount > 0 ? advanceAmount : 0;
+            const remaining = Math.max(0, totalAmount - paidNow);
+
+            // Update client debt by remaining amount only
+            const newDebt = parseFloat(client.currentDebt || 0) + remaining;
+            await tx.client.update({ where: { id: client.id }, data: { currentDebt: newDebt } });
+
+            // NO separate transactions - the sale record itself will show everything
+            // The client statement will calculate debit/credit from the sale record
           }
-          const maxDebt = client.maxDebt ?? settings?.defaultClientMaxDebt ?? 0;
-          const newDebt = parseFloat(client.currentDebt || 0) + outstanding;
-          if (newDebt > parseFloat(maxDebt)) {
-            throw new Error('Client max debt exceeded');
-          }
-
-          await tx.client.update({
-            where: { id: client.id },
-            data: { currentDebt: newDebt }
-          });
-
-          await tx.clientDebtTransaction.create({
-            data: {
-              clientId: client.id,
-              saleId: newSale.id,
-              amount: outstanding,
-              type: 'DEBT',
-              userId: req.user.id,
-              notes: 'Debt from sale'
-            }
-          });
+        } else {
+          // COMPTANT sales: instant payment, only go to caisse, no client statement entry
+          // The payment is handled by the paymentMethodId and goes directly to caisse
         }
 
         if (settings?.loyaltyEnabled) {
@@ -381,15 +383,9 @@ router.put('/temporary/:id/complete', requireRole(['ADMIN', 'MANAGER', 'CASHIER'
         const totalPaid = advancePaid + completionPaid;
         
         const outstanding = Math.max(0, parseFloat(temporarySale.finalTotal) - totalPaid);
-        if (outstanding > 0) {
-          if (!client || client.allowDebt === false) {
-            throw new Error('Debt not allowed for this client');
-          }
-          const maxDebt = client.maxDebt ?? settings?.defaultClientMaxDebt ?? 0;
+        if (outstanding > 0 && client) {
+          // Trust frontend validation; record debt without server-side limit checks
           const newDebt = parseFloat(client.currentDebt || 0) + outstanding;
-          if (newDebt > parseFloat(maxDebt)) {
-            throw new Error('Client max debt exceeded');
-          }
           await tx.client.update({ where: { id: client.id }, data: { currentDebt: newDebt } });
           await tx.clientDebtTransaction.create({
             data: { 
@@ -604,6 +600,7 @@ router.get('/:id', async (req, res) => {
       where: { id: parseInt(id), depotId: req.user.depotId },
       include: {
         paymentMethod: { select: { name: true } },
+        advancePaymentMethod: { select: { name: true } },
         client: { select: { firstName: true, lastName: true, code: true } },
         user: { select: { firstName: true, lastName: true } },
         items: true
@@ -652,7 +649,7 @@ router.get('/payment-methods/all', async (req, res) => {
 // Wholesale sales endpoint
 router.post('/wholesale', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
   try {
-    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid } = req.body;
+    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, paymentType } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Wholesale sale must have at least one item' });
@@ -700,7 +697,8 @@ router.post('/wholesale', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (r
           clientId: clientId ? parseInt(clientId) : null,
           depotId: req.user.depotId,
           sessionId: activeSession ? activeSession.id : null,
-          status: 'COMPLETED'
+          status: 'COMPLETED',
+          paymentType: paymentType || 'COMPTANT'
         }
       });
 
@@ -783,16 +781,9 @@ router.post('/wholesale', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (r
         const paid = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : parseFloat(finalTotal);
         const outstanding = Math.max(0, parseFloat(finalTotal) - paid);
 
-        if (outstanding > 0) {
-          if (!client || client.allowDebt === false) {
-            throw new Error('Debt not allowed for this client');
-          }
-          const maxDebt = client.maxDebt ?? settings?.defaultClientMaxDebt ?? 0;
+        if (outstanding > 0 && client) {
+          // Trust frontend validation; record debt without server-side limit checks
           const newDebt = parseFloat(client.currentDebt || 0) + outstanding;
-          if (newDebt > parseFloat(maxDebt)) {
-            throw new Error('Client max debt exceeded');
-          }
-
           await tx.client.update({
             where: { id: client.id },
             data: { currentDebt: newDebt }

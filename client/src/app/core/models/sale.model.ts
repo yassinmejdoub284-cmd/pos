@@ -16,6 +16,8 @@ export interface Sale {
   client?: { firstName: string; lastName: string; code: string };
   user?: { firstName: string; lastName: string };
   loyaltyPointsEarned?: number;
+  // Payment type: COMPTANT (instant) or CREDIT (client owes money)
+  paymentType?: 'COMPTANT' | 'CREDIT';
   // Advance payment fields for temporary sales
   advancePayment?: number;
   advancePaymentMethod?: PaymentMethod;

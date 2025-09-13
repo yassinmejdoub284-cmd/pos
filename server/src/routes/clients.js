@@ -6,17 +6,25 @@ const prisma = new PrismaClient();
 // Get all clients with optional search and filters
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 50, active, q } = req.query;
+    const { page = 1, limit = 50, active, q, search, type } = req.query;
 
     const where = {};
-    if (active !== undefined) where.isActive = active === 'true';
-    if (q && q.length >= 2) {
+    if (active !== undefined && active !== '') where.isActive = active === 'true';
+
+    // Support both q and search as the search term
+    const term = (q ?? search)?.toString().trim();
+    if (term && term.length >= 2) {
       where.OR = [
-        { firstName: { contains: q } },
-        { lastName: { contains: q } },
-        { phone: { contains: q } },
-        { code: { contains: q } }
+        { firstName: { contains: term, mode: 'insensitive' } },
+        { lastName: { contains: term, mode: 'insensitive' } },
+        { phone: { contains: term, mode: 'insensitive' } },
+        { code: { contains: term, mode: 'insensitive' } }
       ];
+    }
+
+    // Optional type filter
+    if (type && ['INDIVIDUAL', 'BUSINESS', 'WHOLESALE'].includes(type)) {
+      where.clientType = type;
     }
 
     const clients = await prisma.client.findMany({
@@ -111,7 +119,7 @@ router.get('/:id', async (req, res) => {
 // Create new client
 router.post('/', async (req, res) => {
   try {
-    const { firstName, lastName, phone, city, clientType, notes, ageGroup, maxDebt, allowDebt } = req.body;
+    const { firstName, lastName, phone, city, address, clientType, notes, maxDebt, allowDebt } = req.body;
 
     const code = await generateClientCode();
 
@@ -130,9 +138,9 @@ router.post('/', async (req, res) => {
         lastName,
         phone,
         city,
+        address,
         clientType: clientType || 'INDIVIDUAL',
         notes,
-        ageGroup,
         maxDebt: maxDebt !== undefined ? parseFloat(maxDebt) : defaultMax,
         allowDebt: allowDebt !== undefined ? !!allowDebt : true
       }
@@ -152,7 +160,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, phone, city, clientType, loyaltyPoints, totalSpent, favoriteProducts, notes, isActive, ageGroup, currentDebt, maxDebt, allowDebt } = req.body;
+    const { firstName, lastName, phone, city, address, clientType, loyaltyPoints, totalSpent, favoriteProducts, notes, isActive, currentDebt, maxDebt, allowDebt } = req.body;
 
     const client = await prisma.client.update({
       where: { id: parseInt(id) },
@@ -161,13 +169,13 @@ router.put('/:id', async (req, res) => {
         lastName,
         phone,
         city,
+        address,
         clientType,
         loyaltyPoints: loyaltyPoints !== undefined ? parseInt(loyaltyPoints) : undefined,
         totalSpent: totalSpent !== undefined ? parseFloat(totalSpent) : undefined,
         favoriteProducts,
         notes,
         isActive: isActive !== undefined ? isActive : undefined,
-        ageGroup,
         currentDebt: currentDebt !== undefined ? parseFloat(currentDebt) : undefined,
         maxDebt: maxDebt !== undefined ? parseFloat(maxDebt) : undefined,
         allowDebt: allowDebt !== undefined ? !!allowDebt : undefined

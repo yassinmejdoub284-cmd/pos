@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { SalesService } from '../core/services/sales.service';
 import { Sale } from '../core/models/sale.model';
 import { ExpenseService, Expense } from '../core/services/expense.service';
-import { ApprovalsService, ChangeRequest } from '../core/services/approvals.service';
-import { SessionsService } from '../core/services/sessions.service';
+import { ApprovalsService, ChangeRequest, ClotureRejectReasonCode } from '../core/services/approvals.service';
+import { SessionsService, SessionSummary, OpenSessionRequest } from '../core/services/sessions.service';
 
 @Component({
   selector: 'app-approvals',
@@ -19,26 +20,51 @@ export class ApprovalsComponent implements OnInit {
   allExpenses: Expense[] = [];
   pendingExpenses: Expense[] = [];
   varianceRequests: ChangeRequest[] = [];
+  historyRequests: ChangeRequest[] = [];
   clotureSummaries: { [sessionId: number]: any } = {};
-  selectedTab: 'ALL' | 'PENDING_ADMIN' | 'CADEAU' | 'EXPENSES' | 'CLOTURE' = 'ALL';
+  selectedTab: 'ALL' | 'PENDING_ADMIN' | 'CADEAU' | 'EXPENSES' | 'CLOTURE' | 'HISTORY' = 'ALL';
   searchQuery = '';
   startDate = '';
   endDate = '';
   showAlert = false;
   alertMessage = '';
   alertType: 'success' | 'error' | 'info' = 'info';
+  // Reject modal state
+  showRejectModal = false;
+  rejectTarget?: ChangeRequest;
+  rejectReason: ClotureRejectReasonCode | '' = '';
+  rejectNotes = '';
+  correctedAmount: number = 0;
+  // Correction mode state
+  showCorrection = false;
+  correctionSessionId?: number;
+  correctionSummary?: SessionSummary;
+  correctionCountedCash: number = 0;
+  correctionFonds: number = 0;
+  correctionRetrait?: number;
+  correctionNote: string = '';
 
   constructor(
     private salesService: SalesService,
     private expenseService: ExpenseService,
     private approvalsService: ApprovalsService,
-    private sessionsService: SessionsService
+    private sessionsService: SessionsService,
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
+    this.route.queryParamMap.subscribe(params => {
+      const tab = params.get('tab') as any;
+      if (tab === 'PENDING_ADMIN' || tab === 'CADEAU' || tab === 'EXPENSES' || tab === 'CLOTURE' || tab === 'ALL' || tab === 'HISTORY') {
+        this.selectedTab = tab;
+      }
+    });
+
     this.loadGifts();
     this.loadExpenses();
     this.loadVarianceRequests();
+    this.loadHistoryRequests();
   }
 
   loadGifts(): void {
@@ -93,6 +119,39 @@ export class ApprovalsComponent implements OnInit {
     });
   }
 
+  loadHistoryRequests(): void {
+    // Load both approved and rejected requests for history
+    this.approvalsService.getVarianceChangeRequests('APPROVED').subscribe({
+      next: (approvedRequests) => {
+        this.approvalsService.getVarianceChangeRequests('REJECTED').subscribe({
+          next: (rejectedRequests) => {
+            this.historyRequests = [...approvedRequests, ...rejectedRequests].sort((a, b) => 
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            );
+            // Load Z-report data for history requests too
+            this.historyRequests.forEach((req) => {
+              const sessionId = req.session?.id || req.entityId;
+              if (sessionId && !this.clotureSummaries[sessionId]) {
+                this.sessionsService.getSessionReport(sessionId, 'Z', 'html').subscribe({
+                  next: (report) => {
+                    this.clotureSummaries[sessionId] = report;
+                  },
+                  error: () => {}
+                });
+              }
+            });
+          },
+          error: () => {
+            this.error = "Erreur lors du chargement de l'historique";
+          }
+        });
+      },
+      error: () => {
+        this.error = "Erreur lors du chargement de l'historique";
+      }
+    });
+  }
+
   applyFilters(): void {
     let gifts = this.allGifts;
     let expenses = this.allExpenses;
@@ -136,6 +195,7 @@ export class ApprovalsComponent implements OnInit {
       next: () => {
         this.showAlertMessage('Clôture approuvée', 'success');
         this.loadVarianceRequests();
+        this.loadHistoryRequests();
       },
       error: () => {
         this.showAlertMessage("Erreur lors de l'approbation de la clôture", 'error');
@@ -144,13 +204,180 @@ export class ApprovalsComponent implements OnInit {
   }
 
   rejectCloture(req: ChangeRequest): void {
-    this.approvalsService.rejectChangeRequest(req.id).subscribe({
+    this.rejectTarget = req;
+    this.rejectReason = '';
+    this.rejectNotes = '';
+    this.correctedAmount = 0;
+    this.showRejectModal = true;
+  }
+
+  confirmRejectWithSelectedReason(): void {
+    if (!this.rejectTarget || !this.rejectReason) {
+      this.showAlertMessage('Veuillez sélectionner une raison', 'error');
+      return;
+    }
+    this.approvalsService.rejectChangeRequest(this.rejectTarget.id, { reasonCode: this.rejectReason }).subscribe({
       next: () => {
-        this.showAlertMessage('Clôture rejetée', 'success');
+        this.showRejectModal = false;
         this.loadVarianceRequests();
+        this.loadHistoryRequests();
+        this.startCorrection(this.rejectTarget!);
       },
       error: () => {
         this.showAlertMessage('Erreur lors du rejet de la clôture', 'error');
+      }
+    });
+  }
+
+  confirmRejectWithNotes(): void {
+    if (!this.rejectTarget) return;
+    if (!this.rejectNotes.trim()) {
+      this.showAlertMessage('Veuillez saisir une note', 'error');
+      return;
+    }
+    this.approvalsService.rejectChangeRequest(this.rejectTarget.id, { reasonCode: 'AUTRE', notes: this.rejectNotes.trim() }).subscribe({
+      next: () => {
+        this.showRejectModal = false;
+        this.loadVarianceRequests();
+        this.loadHistoryRequests();
+        this.startCorrection(this.rejectTarget!);
+      },
+      error: () => {
+        this.showAlertMessage('Erreur lors du rejet de la clôture', 'error');
+      }
+    });
+  }
+
+  confirmRejectAndCorrect(): void {
+    if (!this.rejectTarget || !this.correctedAmount) {
+      this.showAlertMessage('Veuillez saisir le montant corrigé', 'error');
+      return;
+    }
+
+    // First reject the change request
+    this.approvalsService.rejectChangeRequest(this.rejectTarget.id, { 
+      reasonCode: 'ECART_COMPTAGE', 
+      notes: this.rejectNotes.trim() || `Correction: montant corrigé à ${this.correctedAmount} TND` 
+    }).subscribe({
+      next: () => {
+        this.showRejectModal = false;
+        this.loadVarianceRequests();
+        this.loadHistoryRequests();
+        
+        // Then directly correct the session with the provided amount
+        this.correctSessionDirectly(this.rejectTarget!, this.correctedAmount);
+      },
+      error: () => {
+        this.showAlertMessage('Erreur lors du rejet de la clôture', 'error');
+      }
+    });
+  }
+
+  private correctSessionDirectly(req: ChangeRequest, correctedAmount: number): void {
+    const sessionId = req.session?.id || req.entityId;
+    if (!sessionId) {
+      this.showAlertMessage("Session introuvable pour la clôture", 'error');
+      return;
+    }
+
+    // Reopen session for correction
+    const reasonLabel = req.reason || 'Correction après rejet';
+    this.sessionsService.reopenSession(sessionId, reasonLabel).subscribe({
+      next: () => {
+        // Close session with corrected amount
+        this.sessionsService.closeSession(sessionId, {
+          countedCash: correctedAmount,
+          fonds: correctedAmount, // Use corrected amount as opening fund for next session
+          retraitCentrale: undefined,
+          denominations: {},
+          isAdminCorrection: true
+        }).subscribe({
+          next: (response) => {
+            this.showAlertMessage('Clôture rejetée et corrigée avec succès', 'success');
+            this.loadVarianceRequests();
+            this.loadHistoryRequests();
+            
+            // Backend automatically updates existing open session with corrected balance
+            if (response.updatedOpenSession) {
+              console.log('Open session updated with corrected balance:', correctedAmount);
+            }
+          },
+          error: () => {
+            this.showAlertMessage('Erreur lors de la correction de la clôture', 'error');
+          }
+        });
+      },
+      error: () => {
+        this.showAlertMessage('Impossible de réouvrir la session pour correction', 'error');
+      }
+    });
+  }
+
+
+  private startCorrection(req: ChangeRequest): void {
+    const sessionId = req.session?.id || req.entityId;
+    if (!sessionId) {
+      this.showAlertMessage("Session introuvable pour la clôture", 'error');
+      return;
+    }
+    // Reopen session for correction
+    const reasonLabel = req.reason || 'Correction après rejet';
+    this.sessionsService.reopenSession(sessionId, reasonLabel).subscribe({
+      next: () => {
+        this.correctionSessionId = sessionId;
+        this.showCorrection = true;
+        // Load summary to assist admin
+        this.sessionsService.getSessionSummary(sessionId).subscribe({
+          next: (summary) => {
+            console.log('Correction Summary Debug:', {
+              sessionId,
+              expectedCash: summary.expectedCash,
+              cashSales: summary.cashSales,
+              entree: summary.entree,
+              sortie: summary.sortie,
+              totalSales: summary.totalSales
+            });
+            this.correctionSummary = summary;
+            this.correctionCountedCash = summary.expectedCash; // start from expected
+            this.correctionFonds = 0;
+            this.correctionRetrait = undefined;
+          },
+          error: () => {}
+        });
+      },
+      error: () => {
+        this.showAlertMessage('Impossible de réouvrir la session pour correction', 'error');
+      }
+    });
+  }
+
+  finalizeCorrection(): void {
+    if (!this.correctionSessionId) return;
+    const denominations: { [key: string]: number } = {}; // keep empty unless needed
+    
+    console.log('Finalize Correction Debug:', {
+      sessionId: this.correctionSessionId,
+      correctionCountedCash: this.correctionCountedCash,
+      correctionFonds: this.correctionFonds,
+      correctionRetrait: this.correctionRetrait,
+      correctionSummary: this.correctionSummary
+    });
+    
+    this.sessionsService.closeSession(this.correctionSessionId, {
+      countedCash: Number(this.correctionCountedCash || 0),
+      fonds: Number(this.correctionFonds || 0),
+      retraitCentrale: this.correctionRetrait ? Number(this.correctionRetrait) : undefined,
+      denominations,
+      isAdminCorrection: true
+    }).subscribe({
+      next: () => {
+        this.showAlertMessage('Clôture corrigée et validée', 'success');
+        this.showCorrection = false;
+        this.loadVarianceRequests();
+        this.loadHistoryRequests();
+      },
+      error: () => {
+        this.showAlertMessage('Erreur lors de la validation de la correction', 'error');
       }
     });
   }
@@ -215,5 +442,39 @@ export class ApprovalsComponent implements OnInit {
     this.alertType = type;
     this.showAlert = true;
     setTimeout(() => { this.showAlert = false; }, 3000);
+  }
+
+  getRejectionReasonLabel(reasonCode: string): string {
+    switch (reasonCode) {
+      case 'ECART_COMPTAGE': return 'Écart au comptage physique';
+      case 'SUSPICION_ANOMALIE': return 'Suspicion d\'anomalie';
+      case 'AUTRE': return 'Autre';
+      default: return reasonCode;
+    }
+  }
+
+  getStatusLabel(status: string): string {
+    switch (status) {
+      case 'PENDING': return 'En attente';
+      case 'APPROVED': return 'Approuvée';
+      case 'REJECTED': return 'Rejetée';
+      default: return status;
+    }
+  }
+
+  getSessionStatusLabel(status: string): string {
+    switch (status) {
+      case 'OPEN': return 'Ouverte';
+      case 'CLOSED': return 'Fermée';
+      case 'REOPENED': return 'Réouverte';
+      case 'ADMIN_CORRECTED': return 'Corrigée par Admin';
+      default: return status;
+    }
+  }
+
+  isAdminCorrected(req: ChangeRequest): boolean {
+    return req.status === 'APPROVED' && 
+           !!req.rejectionNotes && 
+           req.rejectionNotes.includes('Correction effectuée par administrateur');
   }
 } 

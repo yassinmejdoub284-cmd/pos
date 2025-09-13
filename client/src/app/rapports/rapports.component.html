@@ -19,7 +19,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-8xl mx-auto">
       <!-- 0. Extrait Journalière -->
       <div class="group cursor-pointer" (click)="navigateToDailyExtract()">
-        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-teal-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-teal-400 transition-all duration-300 transform hover:scale-95 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
           <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           <div class="relative z-10">
             <div class="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
@@ -35,7 +35,7 @@
 
       <!-- 1. Rapport Journalier / Mensuel -->
       <div class="group cursor-pointer" (click)="navigateToReport('daily-monthly')">
-        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-blue-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-blue-400 transition-all duration-300 transform hover:scale-95 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
           <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           <div class="relative z-10">
             <div class="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
@@ -51,7 +51,7 @@
 
       <!-- 2. Vente par rubrique / Achat par rubrique -->
       <div class="group cursor-pointer" (click)="navigateToReport('sales-by-category')">
-        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-green-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-green-400 transition-all duration-300 transform hover:scale-95 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
           <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           <div class="relative z-10">
             <div class="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
@@ -67,7 +67,7 @@
 
       <!-- 3. Vente à crédit -->
       <div class="group cursor-pointer" (click)="navigateToReport('credit-sales')">
-        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-orange-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-orange-400 transition-all duration-300 transform hover:scale-95 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
           <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           <div class="relative z-10">
             <div class="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
@@ -83,7 +83,7 @@
 
       <!-- 4. Finance -->
       <div class="group cursor-pointer" (click)="navigateToReport('finance')">
-        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-purple-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-purple-400 transition-all duration-300 transform hover:scale-95 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
           <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           <div class="relative z-10">
             <div class="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
@@ -99,7 +99,7 @@
 
       <!-- 5. État dépense -->
       <div class="group cursor-pointer" (click)="navigateToReport('expenses')">
-        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-red-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-red-400 transition-all duration-300 transform hover:scale-95 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
           <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           <div class="relative z-10">
             <div class="w-16 h-16 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
@@ -115,7 +115,7 @@
 
       <!-- 6. Dashboard -->
       <div class="group cursor-pointer" (click)="navigateToReport('dashboard')">
-        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-teal-400 transition-all duration-300 transform hover:scale-105 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-teal-400 transition-all duration-300 transform hover:scale-95 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
           <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           <div class="relative z-10">
             <div class="w-16 h-16 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">

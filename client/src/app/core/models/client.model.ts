@@ -5,13 +5,13 @@ export interface Client {
   lastName: string;
   phone?: string;
   city?: string;
+  address?: string;
   clientType: ClientType;
   loyaltyPoints: number;
   totalSpent: number;
   favoriteProducts?: string;
   notes?: string;
   isActive: boolean;
-  ageGroup?: AgeGroup;
   createdAt: Date;
   updatedAt: Date;
   currentDebt?: number;
@@ -31,9 +31,11 @@ export interface CreateClientRequest {
   lastName: string;
   phone?: string;
   city?: string;
+  address?: string;
   clientType?: ClientType;
   notes?: string;
-  ageGroup?: AgeGroup;
+  allowDebt?: boolean;
+  maxDebt?: number | null;
 }
 
 export interface UpdateClientRequest {
@@ -41,13 +43,13 @@ export interface UpdateClientRequest {
   lastName?: string;
   phone?: string;
   city?: string;
+  address?: string;
   clientType?: ClientType;
   loyaltyPoints?: number;
   totalSpent?: number;
   favoriteProducts?: string;
   notes?: string;
   isActive?: boolean;
-  ageGroup?: AgeGroup;
   currentDebt?: number;
   maxDebt?: number;
   allowDebt?: boolean;

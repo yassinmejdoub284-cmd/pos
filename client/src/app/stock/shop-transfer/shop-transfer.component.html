@@ -224,7 +224,7 @@
             type="button"
             (click)="confirmTransfer(selectedTransfer); closeTransferDetails()"
             [disabled]="loading"
-            class="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-slate-800 font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-lg"
+            class="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-slate-800 font-semibold rounded-2xl transition-all duration-300 transform hover:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-lg"
           >
             <span *ngIf="loading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
             {{ loading ? 'Confirmation...' : '✅ Confirmer le Transfert' }}

@@ -13,6 +13,8 @@ export interface ChangeRequest {
   requestedBy: number;
   approvedBy?: number;
   approvedAt?: string;
+  rejectionReasonCode?: string; // ECART_COMPTAGE, SUSPICION_ANOMALIE, AUTRE
+  rejectionNotes?: string;
   createdAt: string;
   updatedAt: string;
   session?: {
@@ -20,10 +22,13 @@ export interface ChangeRequest {
     openedAt: string;
     closedAt?: string;
     variance?: number;
+    status?: string;
     user?: { firstName: string; lastName: string };
     depot?: { name: string; code: string };
   };
 }
+
+export type ClotureRejectReasonCode = 'ECART_COMPTAGE' | 'SUSPICION_ANOMALIE' | 'AUTRE';
 
 @Injectable({ providedIn: 'root' })
 export class ApprovalsService {
@@ -40,8 +45,8 @@ export class ApprovalsService {
     return this.http.put<ChangeRequest>(`${this.API_URL}/change-requests/${id}/approve`, {});
   }
 
-  rejectChangeRequest(id: number): Observable<ChangeRequest> {
-    return this.http.put<ChangeRequest>(`${this.API_URL}/change-requests/${id}/reject`, {});
+  rejectChangeRequest(id: number, payload?: { reasonCode?: ClotureRejectReasonCode; notes?: string }): Observable<ChangeRequest> {
+    return this.http.put<ChangeRequest>(`${this.API_URL}/change-requests/${id}/reject`, payload || {});
   }
 }
 

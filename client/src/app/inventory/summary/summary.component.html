@@ -1,0 +1,759 @@
+<div class="summary-container">
+  <!-- Header -->
+  <div class="summary-header">
+    <div class="header-content">
+      <div class="header-info">
+        <h1 class="page-title">
+          <i class="fas fa-chart-bar"></i>
+          Rapport d'Inventaire
+        </h1>
+        <div class="session-info" *ngIf="session">
+          <div class="info-item">
+            <i class="fas fa-hashtag"></i>
+            <span>{{ session.numero }}</span>
+          </div>
+          <div class="info-item">
+            <i class="fas fa-warehouse"></i>
+            <span>{{ session.depot?.name }}</span>
+          </div>
+          <div class="info-item">
+            <i class="fas fa-calendar"></i>
+            <span>{{ formatDate(session.startedAt) }}</span>
+          </div>
+          <div class="info-item status" [ngClass]="'status-' + session.status.toLowerCase()">
+            <i class="fas fa-circle"></i>
+            <span>{{ getStatusText(session.status) }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-back" (click)="goBack()">
+          <i class="fas fa-arrow-left"></i>
+          Retour
+        </button>
+        <button class="btn-print" (click)="printReport()">
+          <i class="fas fa-print"></i>
+          Imprimer
+        </button>
+        <button class="btn-export" (click)="exportToPDF()">
+          <i class="fas fa-file-pdf"></i>
+          PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Metrics -->
+  <div class="metrics-grid" *ngIf="summary">
+    <div class="metric-card total">
+      <div class="metric-icon">
+        <i class="fas fa-boxes"></i>
+      </div>
+      <div class="metric-content">
+        <div class="metric-number">{{ summary.statistics.totalItems || 0 }}</div>
+        <div class="metric-label">Total Articles</div>
+        <div class="metric-description">Articles dans l'inventaire</div>
+      </div>
+    </div>
+    <div class="metric-card counted">
+      <div class="metric-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="metric-content">
+        <div class="metric-number">{{ summary.statistics.countedItems || 0 }}</div>
+        <div class="metric-label">Articles Comptés</div>
+        <div class="metric-description">{{ getCountedPercentage() }}% du total</div>
+      </div>
+    </div>
+    <div class="metric-card ecart">
+      <div class="metric-icon">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <div class="metric-content">
+        <div class="metric-number">{{ summary.statistics.itemsWithEcart || 0 }}</div>
+        <div class="metric-label">Avec Écart</div>
+        <div class="metric-description">{{ getEcartPercentage() }}% des comptés</div>
+      </div>
+    </div>
+    <div class="metric-card value">
+      <div class="metric-icon">
+        <i class="fas fa-euro-sign"></i>
+      </div>
+      <div class="metric-content">
+        <div class="metric-number" [ngClass]="getValueClass()">
+          {{ formatCurrency(summary.statistics.totalEcartValue || 0) }}
+        </div>
+        <div class="metric-label">Valeur Écart</div>
+        <div class="metric-description">Impact financier</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-message">
+    <i class="fas fa-exclamation-triangle"></i>
+    {{ error }}
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="loading-spinner"></div>
+    <p>Chargement du rapport...</p>
+  </div>
+
+  <!-- Écarts Details -->
+  <div class="ecarts-details" *ngIf="!loading && summary">
+    <div class="details-header">
+      <h3>
+        <i class="fas fa-list-alt"></i>
+        Détail des Écarts
+      </h3>
+      <div class="details-count">{{ summary.ecarts.length }} écart(s) détecté(s)</div>
+    </div>
+
+    <div class="ecarts-table-container" *ngIf="summary.ecarts.length > 0">
+      <div class="table-wrapper">
+        <table class="ecarts-table">
+          <thead>
+            <tr>
+              <th>Produit</th>
+              <th>Théorique</th>
+              <th>Compté</th>
+              <th>Écart</th>
+              <th>Valeur Écart</th>
+              <th>Raison</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let ecart of summary.ecarts" [ngClass]="getEcartRowClass(ecart)">
+              <td class="product-cell">
+                <div class="product-name">{{ ecart.productName }}</div>
+              </td>
+              <td class="quantity-cell">
+                <span class="quantity-badge theoretical">{{ ecart.theoreticalQuantity }}</span>
+              </td>
+              <td class="quantity-cell">
+                <span class="quantity-badge counted">{{ ecart.countedQuantity }}</span>
+              </td>
+              <td class="ecart-cell">
+                <span class="ecart-badge" [ngClass]="getEcartBadgeClass(ecart)">
+                  {{ (ecart.ecartQuantity || 0) > 0 ? '+' : '' }}{{ ecart.ecartQuantity }}
+                </span>
+              </td>
+              <td class="value-cell">
+                <span class="value-amount" [ngClass]="getEcartValueClass(ecart)">
+                  {{ (ecart.ecartValue || 0) > 0 ? '+' : '' }}{{ formatCurrency(ecart.ecartValue || 0) }}
+                </span>
+              </td>
+              <td class="reason-cell">
+                <span class="reason-badge" [ngClass]="getReasonBadgeClass(ecart.reason || '')">
+                  {{ getReasonText(ecart.reason || '') }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- No Écarts -->
+    <div class="no-ecarts" *ngIf="summary.ecarts.length === 0">
+      <div class="no-ecarts-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <h3>Excellent ! Aucun écart détecté</h3>
+      <p>Tous les comptages correspondent parfaitement aux quantités théoriques.</p>
+    </div>
+  </div>
+
+  <!-- Report Footer -->
+  <div class="report-footer" *ngIf="!loading && session">
+    <div class="footer-content">
+      <div class="footer-info">
+        <div class="info-section">
+          <h4>Informations de Session</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Démarré par:</span>
+              <span class="info-value">{{ session.starter?.firstName }} {{ session.starter?.lastName }}</span>
+            </div>
+            <div class="info-item" *ngIf="session.closer">
+              <span class="info-label">Fermé par:</span>
+              <span class="info-value">{{ session.closer.firstName }} {{ session.closer.lastName }}</span>
+            </div>
+            <div class="info-item" *ngIf="session.poster">
+              <span class="info-label">Posté par:</span>
+              <span class="info-value">{{ session.poster.firstName }} {{ session.poster.lastName }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Date de début:</span>
+              <span class="info-value">{{ formatDate(session.startedAt) }}</span>
+            </div>
+            <div class="info-item" *ngIf="session.closedAt">
+              <span class="info-label">Date de fermeture:</span>
+              <span class="info-value">{{ formatDate(session.closedAt) }}</span>
+            </div>
+            <div class="info-item" *ngIf="session.postedAt">
+              <span class="info-label">Date de posting:</span>
+              <span class="info-value">{{ formatDate(session.postedAt) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-meta">
+        <div class="meta-item">
+          <span class="meta-label">Rapport généré le:</span>
+          <span class="meta-value">{{ getCurrentDate() }}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Statut:</span>
+          <span class="meta-badge" [ngClass]="'status-' + session.status.toLowerCase()">
+            {{ getStatusText(session.status) }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Styles -->
+<style>
+.summary-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+}
+
+.summary-header {
+  margin-bottom: 2rem;
+}
+
+.header-content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-title i {
+  color: #667eea;
+}
+
+.session-info {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+.info-item i {
+  color: #a0aec0;
+  width: 16px;
+}
+
+.info-item.status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-item.status.status-draft { background: #fef5e7; color: #d69e2e; }
+.info-item.status.status-in_progress { background: #ebf8ff; color: #3182ce; }
+.info-item.status.status-closed { background: #f0fff4; color: #38a169; }
+.info-item.status.status-posted { background: #faf5ff; color: #805ad5; }
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn-back, .btn-print, .btn-export {
+  border: none;
+  border-radius: 12px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-back {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.btn-back:hover {
+  background: #cbd5e0;
+  transform: translateY(-2px);
+}
+
+.btn-print {
+  background: #fef5e7;
+  color: #d69e2e;
+}
+
+.btn-print:hover {
+  background: #f6e05e;
+  color: #744210;
+  transform: translateY(-2px);
+}
+
+.btn-export {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-export:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.metric-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-5px);
+}
+
+.metric-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: white;
+}
+
+.metric-card.total .metric-icon { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.metric-card.counted .metric-icon { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.metric-card.ecart .metric-icon { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.metric-card.value .metric-icon { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+
+.metric-content {
+  flex: 1;
+}
+
+.metric-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #2d3748;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.metric-number.positive {
+  color: #38a169;
+}
+
+.metric-number.negative {
+  color: #e53e3e;
+}
+
+.metric-label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.25rem;
+}
+
+.metric-description {
+  font-size: 0.9rem;
+  color: #718096;
+}
+
+.error-message {
+  background: rgba(254, 226, 226, 0.95);
+  color: #c53030;
+  border: 1px solid #feb2b2;
+  border-radius: 15px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.loading-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: white;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.ecarts-details {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.details-header h3 {
+  margin: 0;
+  color: #2d3748;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.details-header i {
+  color: #667eea;
+}
+
+.details-count {
+  background: #e2e8f0;
+  color: #4a5568;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.ecarts-table-container {
+  overflow-x: auto;
+}
+
+.table-wrapper {
+  min-width: 100%;
+}
+
+.ecarts-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.ecarts-table thead {
+  background: #f7fafc;
+}
+
+.ecarts-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #4a5568;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.ecarts-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.ecarts-table tbody tr:hover {
+  background: #f7fafc;
+}
+
+.ecarts-table tbody tr.positive {
+  background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+}
+
+.ecarts-table tbody tr.negative {
+  background: linear-gradient(135deg, #fef5e7 0%, #ffffff 100%);
+}
+
+.product-cell {
+  min-width: 200px;
+}
+
+.product-name {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.quantity-cell {
+  text-align: center;
+  min-width: 80px;
+}
+
+.quantity-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.quantity-badge.theoretical {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.quantity-badge.counted {
+  background: #ebf8ff;
+  color: #3182ce;
+}
+
+.ecart-cell {
+  text-align: center;
+  min-width: 80px;
+}
+
+.ecart-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.ecart-badge.positive {
+  background: #c6f6d5;
+  color: #2f855a;
+}
+
+.ecart-badge.negative {
+  background: #fed7d7;
+  color: #c53030;
+}
+
+.value-cell {
+  text-align: right;
+  min-width: 100px;
+}
+
+.value-amount {
+  font-weight: 600;
+}
+
+.value-amount.positive {
+  color: #38a169;
+}
+
+.value-amount.negative {
+  color: #e53e3e;
+}
+
+.reason-cell {
+  min-width: 150px;
+}
+
+.reason-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reason-badge.bg-warning {
+  background: #fef5e7;
+  color: #d69e2e;
+}
+
+.reason-badge.bg-danger {
+  background: #fed7d7;
+  color: #c53030;
+}
+
+.no-ecarts {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #718096;
+}
+
+.no-ecarts-icon {
+  font-size: 4rem;
+  color: #43e97b;
+  margin-bottom: 1rem;
+}
+
+.no-ecarts h3 {
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+}
+
+.report-footer {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.footer-info {
+  flex: 1;
+}
+
+.info-section h4 {
+  margin: 0 0 1rem 0;
+  color: #2d3748;
+  font-weight: 600;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.info-label {
+  font-size: 0.9rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+.info-value {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.footer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.meta-label {
+  font-size: 0.9rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+.meta-value {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.meta-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.meta-badge.status-draft { background: #fef5e7; color: #d69e2e; }
+.meta-badge.status-in_progress { background: #ebf8ff; color: #3182ce; }
+.meta-badge.status-closed { background: #f0fff4; color: #38a169; }
+.meta-badge.status-posted { background: #faf5ff; color: #805ad5; }
+
+@media (max-width: 768px) {
+  .summary-container {
+    padding: 1rem;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .session-info {
+    justify-content: center;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .footer-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .footer-meta {
+    align-items: flex-start;
+  }
+  
+  .meta-item {
+    align-items: flex-start;
+  }
+}
+</style>

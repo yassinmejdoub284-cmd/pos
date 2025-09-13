@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { SalesService } from '../core/services/sales.service';
+import { ExpenseService } from '../core/services/expense.service';
+import { ApprovalsService } from '../core/services/approvals.service';
 import { SessionsService } from '../core/services/sessions.service';
 
 interface DashboardStats {
@@ -41,6 +43,12 @@ export class HomeComponent implements OnInit {
   greeting = '';
   showExpenseActionDialog = false;
   showClientActionDialog = false;
+  showApprovalsActionDialog = false;
+  showSupplierActionDialog = false;
+  // Pending breakdown
+  private pendingGiftCount = 0;
+  private pendingExpenseCount = 0;
+  private pendingClotureCount = 0;
 
   quickActions: QuickAction[] = [
     {
@@ -81,6 +89,16 @@ export class HomeComponent implements OnInit {
       icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
       color: 'from-orange-500 to-amber-600',
       gradient: 'from-orange-50 to-amber-100',
+      roles: ['ADMIN', 'MANAGER', 'STOCK_MANAGER']
+    },
+    {
+      id: 'inventory',
+      title: 'Inventaire Physique',
+      description: 'Comptage et écarts',
+      route: '/inventory',
+      icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
+      color: 'from-cyan-500 to-blue-600',
+      gradient: 'from-cyan-50 to-blue-100',
       roles: ['ADMIN', 'MANAGER', 'STOCK_MANAGER']
     },
     {
@@ -142,16 +160,6 @@ export class HomeComponent implements OnInit {
       color: 'from-indigo-500 to-purple-600',
       gradient: 'from-indigo-50 to-purple-100',
       roles: ['ADMIN', 'MANAGER']
-    },
-    {
-      id: 'financiere',
-      title: 'Finance',
-      description: 'Règlements et relevés',
-      route: '/home/financiere',
-      icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-      color: 'from-emerald-500 to-green-600',
-      gradient: 'from-emerald-50 to-green-100',
-      roles: ['ADMIN', 'MANAGER', 'CASHIER']
     }
   ];
 
@@ -159,6 +167,8 @@ export class HomeComponent implements OnInit {
     private authService: AuthService,
     private salesService: SalesService,
     private sessionsService: SessionsService,
+    private expenseService: ExpenseService,
+    private approvalsService: ApprovalsService,
     private router: Router
   ) {}
 
@@ -203,16 +213,37 @@ export class HomeComponent implements OnInit {
         this.dashboardStats.todaySales = todaySales.reduce((sum, sale) => sum + Number(sale.finalTotal), 0);
         this.dashboardStats.todayTransactions = todaySales.length;
         
-        // Count pending approvals
-        this.dashboardStats.pendingApprovals = sales.filter(sale => 
-          sale.status === 'PENDING_ADMIN' || sale.status === 'CADEAU'
-        ).length;
+        // Count pending gift approvals (gifts awaiting admin)
+        this.pendingGiftCount = sales.filter(sale => sale.status === 'PENDING_ADMIN').length;
+        this.updatePendingApprovals();
         
         this.loading = false;
       },
       error: (error) => {
         console.error('Error loading sales:', error);
         this.loading = false;
+      }
+    });
+
+    // Count pending expenses (not approved)
+    this.expenseService.getExpenses().subscribe({
+      next: (expenses) => {
+        this.pendingExpenseCount = (expenses || []).filter((e: any) => !e.isApproved).length;
+        this.updatePendingApprovals();
+      },
+      error: (error) => {
+        console.error('Error loading expenses:', error);
+      }
+    });
+
+    // Count pending clôture change requests
+    this.approvalsService.getVarianceChangeRequests('PENDING').subscribe({
+      next: (requests) => {
+        this.pendingClotureCount = (requests || []).length;
+        this.updatePendingApprovals();
+      },
+      error: (error) => {
+        console.error('Error loading variance requests:', error);
       }
     });
 
@@ -225,6 +256,10 @@ export class HomeComponent implements OnInit {
         console.error('Error loading session:', error);
       }
     });
+  }
+
+  private updatePendingApprovals(): void {
+    this.dashboardStats.pendingApprovals = this.pendingGiftCount + this.pendingExpenseCount + this.pendingClotureCount;
   }
 
   getFilteredActions(): QuickAction[] {
@@ -240,6 +275,10 @@ export class HomeComponent implements OnInit {
       this.showExpenseActionDialog = true;
     } else if (route === '/clients') {
       this.showClientActionDialog = true;
+    } else if (route === '/approvals') {
+      this.showApprovalsActionDialog = true;
+    } else if (route === '/suppliers') {
+      this.showSupplierActionDialog = true;
     } else {
       this.router.navigate([route]);
     }
@@ -281,12 +320,55 @@ export class HomeComponent implements OnInit {
       case 'wholesale':
         this.router.navigate(['/client-gros']);
         break;
+      case 'statement':
+        this.router.navigate(['/client-statement']);
+        break;
+      case 'payment':
+        this.router.navigate(['/client-payments']);
+        break;
     }
   }
 
   onClientDialogClosed(): void {
     this.showClientActionDialog = false;
   }
+
+  onApprovalsActionSelected(actionId: string): void {
+    this.showApprovalsActionDialog = false;
+    if (actionId === 'pending') {
+      this.router.navigate(['/approvals'], { queryParams: { tab: 'EXPENSES' } });
+    } else {
+      this.router.navigate(['/approvals/history']);
+    }
+  }
+
+  onApprovalsDialogClosed(): void {
+    this.showApprovalsActionDialog = false;
+  }
+
+  onSupplierActionSelected(actionId: string): void {
+    this.showSupplierActionDialog = false;
+    
+    switch (actionId) {
+      case 'consult':
+        this.router.navigate(['/suppliers']);
+        break;
+      case 'add':
+        this.router.navigate(['/suppliers'], { queryParams: { action: 'add' } });
+        break;
+      case 'statement':
+        this.router.navigate(['/supplier-statement']);
+        break;
+      case 'payment':
+        this.router.navigate(['/supplier-payments']);
+        break;
+    }
+  }
+
+  onSupplierDialogClosed(): void {
+    this.showSupplierActionDialog = false;
+  }
+
 
   getRoleDisplayName(): string {
     if (!this.currentUser) return '';

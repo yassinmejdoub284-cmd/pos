@@ -1,49 +1,30 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { Router, RouterModule } from '@angular/router';
+import { environment } from '../../environments/environment';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
-interface Supplier {
-  id: number;
-  name: string;
-  contactName?: string;
-  phone?: string;
-  email?: string;
-  isActive: boolean;
-}
-
-interface StatementItem {
-  type: string;
-  date: string;
-  reference: string;
-  debit: number;
-  credit: number;
-  balance: number;
-  description: string;
-  id: number;
-  clickable?: boolean;
-}
-
-interface SupplierStatement {
-  supplierId: number;
-  statement: StatementItem[];
-  totalDebit: number;
-  totalCredit: number;
-  currentBalance: number;
-}
+import { SupplierService } from '../core/services/supplier.service';
+import { 
+  Supplier, 
+  SupplierStatement, 
+  SupplierSummary, 
+  SupplierStatementItem 
+} from '../core/models/supplier.model';
 
 @Component({
   selector: 'app-supplier-statement',
   templateUrl: './supplier-statement.component.html',
   standalone: true,
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, FormsModule, RouterModule]
 })
 export class SupplierStatementComponent implements OnInit {
   suppliers: Supplier[] = [];
+  supplierSummaries: SupplierSummary[] = [];
   selectedSupplier: Supplier | null = null;
   statement: SupplierStatement | null = null;
   loading = false;
+  showSummary = true;
   
   // Filters
   filters = {
@@ -52,19 +33,26 @@ export class SupplierStatementComponent implements OnInit {
     endDate: ''
   };
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient, 
+    private router: Router,
+    private supplierService: SupplierService
+  ) {}
 
   ngOnInit(): void {
-    this.loadSuppliers();
+    this.loadSupplierSummaries();
   }
 
-  loadSuppliers(): void {
-    this.http.get<Supplier[]>(`${environment.apiUrl}/suppliers`).subscribe({
-      next: (suppliers) => {
-        this.suppliers = suppliers.filter(s => s.isActive);
+  loadSupplierSummaries(): void {
+    this.loading = true;
+    this.supplierService.getSupplierSummaries(this.filters.startDate, this.filters.endDate).subscribe({
+      next: (summaries) => {
+        this.supplierSummaries = summaries;
+        this.loading = false;
       },
       error: (error) => {
-        console.error('Error loading suppliers:', error);
+        console.error('Error loading supplier summaries:', error);
+        this.loading = false;
       }
     });
   }
@@ -76,22 +64,15 @@ export class SupplierStatementComponent implements OnInit {
     }
 
     this.loading = true;
-    let url = `${environment.apiUrl}/supplier-payments/supplier/${this.filters.supplierId}/statement?`;
-    const params = new URLSearchParams();
-    
-    if (this.filters.startDate) {
-      params.append('startDate', this.filters.startDate);
-    }
-    if (this.filters.endDate) {
-      params.append('endDate', this.filters.endDate);
-    }
-    
-    url += params.toString();
-
-    this.http.get<SupplierStatement>(url).subscribe({
+    this.supplierService.getSupplierStatement(
+      this.filters.supplierId, 
+      this.filters.startDate, 
+      this.filters.endDate
+    ).subscribe({
       next: (statement) => {
         this.statement = statement;
-        this.selectedSupplier = this.suppliers.find(s => s.id === this.filters.supplierId) || null;
+        this.selectedSupplier = statement.supplier;
+        this.showSummary = false;
         this.loading = false;
       },
       error: (error) => {
@@ -115,10 +96,17 @@ export class SupplierStatementComponent implements OnInit {
     };
     this.statement = null;
     this.selectedSupplier = null;
+    this.showSummary = true;
+  }
+
+  backToSummary(): void {
+    this.showSummary = true;
+    this.statement = null;
+    this.selectedSupplier = null;
   }
 
   formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('fr-FR');
+    return new Date(dateString).toUTCString();
   }
 
   formatAmount(amount: number): string {
@@ -131,7 +119,7 @@ export class SupplierStatementComponent implements OnInit {
   getTransactionTypeLabel(type: string): string {
     const types: { [key: string]: string } = {
       'expense': 'Dépense',
-      'payment': 'Paiement'
+      'payment': 'Règlement'
     };
     return types[type] || type;
   }
@@ -144,11 +132,10 @@ export class SupplierStatementComponent implements OnInit {
     return colors[type] || 'text-gray-600 bg-gray-50';
   }
 
-  onReferenceClick(item: StatementItem): void {
-    if (item.clickable && item.type === 'expense') {
-      // Navigate to expense details or open modal
-      console.log('Navigate to expense:', item.id);
-      // You can implement navigation to expense details here
+  onReferenceClick(item: SupplierStatementItem): void {
+    if (item.clickable) {
+      // For now, just show an alert. Later we can add expense detail dialog
+      alert(`Détails de ${item.reference}`);
     }
   }
 
@@ -193,5 +180,11 @@ export class SupplierStatementComponent implements OnInit {
     ].join('\n');
 
     return csvContent;
+  }
+
+  getBalanceColor(balance: number): string {
+    if (balance > 0) return 'text-red-600'; // We owe money to supplier
+    if (balance < 0) return 'text-green-600'; // We have credit with supplier
+    return 'text-gray-600';
   }
 }

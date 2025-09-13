@@ -9,7 +9,7 @@ export interface WholesaleRule {
   productIds: number[];
   ruleType: 'percentage' | 'fixed' | 'discount' | 'manual';
   value: number;
-  description: string;
+  description?: string;
   isArchived?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -18,7 +18,7 @@ export interface WholesaleRule {
 export interface CreateWholesaleRuleRequest {
   ruleType: 'percentage' | 'fixed' | 'discount' | 'manual';
   value: number;
-  description: string;
+  description?: string;
 }
 
 export interface UpdateWholesaleRuleRequest {

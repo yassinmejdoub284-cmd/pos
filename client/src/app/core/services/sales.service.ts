@@ -26,6 +26,11 @@ export interface CreateSaleRequest {
   clientId?: number;
   amountPaid?: number;
   isWholesale?: boolean;
+  paymentType?: 'COMPTANT' | 'CREDIT';
+  // Advance payment fields for credit
+  advancePayment?: number;
+  advancePaymentMethod?: 'cash' | 'card' | 'check' | 'virement';
+  advancePaymentNotes?: string;
 }
 
 export interface CreateTemporarySaleRequest {

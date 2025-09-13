@@ -1,0 +1,128 @@
+<!-- Ticket Dialog Modal -->
+<div *ngIf="isVisible" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" (click)="onBackdropClick($event)">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-amber-100/60" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50">
+      <h3 class="text-lg font-semibold text-amber-800">Détails du Ticket</h3>
+      <button (click)="closeDialog()" class="text-amber-500 hover:text-amber-700 p-1 rounded-lg hover:bg-amber-100" aria-label="Fermer">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+      <!-- Loading State -->
+      <div *ngIf="loading" class="text-center py-8">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto"></div>
+        <p class="text-amber-600 mt-2">Chargement des détails...</p>
+      </div>
+
+      <!-- Error State -->
+      <div *ngIf="error && !loading" class="text-center py-8">
+        <div class="text-red-500 mb-2">⚠️</div>
+        <p class="text-red-600">{{ error }}</p>
+        <button (click)="loadSaleDetails()" class="mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600">
+          Réessayer
+        </button>
+      </div>
+
+      <!-- Sale Details -->
+      <div *ngIf="sale && !loading" class="space-y-6">
+        <!-- Ticket Header -->
+        <div class="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xl font-bold text-amber-800">Ticket #{{ sale.id }}</h4>
+            <span class="px-3 py-1 rounded-full text-sm font-medium" 
+                  [class]="sale.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : 
+                           sale.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 
+                           'bg-red-100 text-red-800'">
+              {{ getStatusText(sale.status) }}
+            </span>
+          </div>
+          <div class="text-sm text-amber-600">
+            {{ formatDate(sale.createdAt) }}
+          </div>
+        </div>
+
+        <!-- Payment Info -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-green-50 p-4 rounded-xl border border-green-200">
+            <h5 class="font-semibold text-green-800 mb-2">Type de Paiement</h5>
+            <p class="text-green-700">{{ getPaymentTypeText(sale.paymentType!) }}</p>
+            <p *ngIf="sale.paymentMethod" class="text-sm text-green-600 mt-1">
+              Méthode: {{ sale.paymentMethod.name }}
+            </p>
+          </div>
+
+          <div *ngIf="sale.paymentType === 'CREDIT' && sale.advancePayment" class="bg-orange-50 p-4 rounded-xl border border-orange-200">
+            <h5 class="font-semibold text-orange-800 mb-2">Acompte</h5>
+            <p class="text-orange-700">{{ formatAmount(sale.advancePayment) }}</p>
+            <p *ngIf="sale.advancePaymentMethod" class="text-sm text-orange-600 mt-1">
+              Méthode: {{ sale.advancePaymentMethod.name }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Items -->
+        <div class="bg-white border border-amber-200 rounded-xl overflow-hidden">
+          <div class="bg-amber-50 px-4 py-3 border-b border-amber-200">
+            <h5 class="font-semibold text-amber-800">Articles</h5>
+          </div>
+          <div class="divide-y divide-amber-100">
+            <div *ngFor="let item of sale.items" class="px-4 py-3 flex items-center justify-between">
+              <div class="flex-1">
+                <p class="font-medium text-amber-800">{{ item.productName }}</p>
+                <p class="text-sm text-amber-600">{{ item.quantity }} × {{ formatAmount(item.unitPrice) }}</p>
+              </div>
+              <div class="text-right">
+                <p class="font-semibold text-amber-800">{{ formatAmount(item.total) }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div class="space-y-2">
+            <div class="flex justify-between">
+              <span class="text-slate-600">Sous-total:</span>
+              <span class="font-medium">{{ formatAmount(sale.total) }}</span>
+            </div>
+            <div *ngIf="sale.discount > 0" class="flex justify-between text-red-600">
+              <span>Remise:</span>
+              <span>-{{ formatAmount(sale.discount) }}</span>
+            </div>
+            <div class="flex justify-between text-lg font-bold text-slate-800 border-t border-slate-300 pt-2">
+              <span>Total:</span>
+              <span>{{ formatAmount(sale.finalTotal) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div *ngIf="sale.notes" class="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+          <h5 class="font-semibold text-yellow-800 mb-2">Notes</h5>
+          <p class="text-yellow-700">{{ sale.notes }}</p>
+        </div>
+
+        <!-- Expected Date for Temporary Sales -->
+        <div *ngIf="sale.status === 'TEMPORARY' && sale.expectedDate" class="bg-purple-50 p-4 rounded-xl border border-purple-200">
+          <h5 class="font-semibold text-purple-800 mb-2">Date Prévue</h5>
+          <p class="text-purple-700">{{ formatDate(sale.expectedDate) }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 border-t border-amber-100 bg-amber-50/50">
+      <div class="flex justify-end">
+        <button (click)="closeDialog()" 
+                class="px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

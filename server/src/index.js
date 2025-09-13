@@ -21,7 +21,9 @@ const suppliersRoutes = require('./routes/suppliers');
 const wholesaleRulesRoutes = require('./routes/wholesale-rules');
 const supplierPaymentsRoutes = require('./routes/supplier-payments');
 const clientStatementsRoutes = require('./routes/client-statements');
+const clientPaymentsRoutes = require('./routes/client-payments');
 const cashStatementsRoutes = require('./routes/cash-statements');
+const inventoryRoutes = require('./routes/inventory');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -51,7 +53,9 @@ app.use('/api/suppliers', authenticateToken, suppliersRoutes);
 app.use('/api/wholesale-rules', authenticateToken, wholesaleRulesRoutes);
 app.use('/api/supplier-payments', authenticateToken, supplierPaymentsRoutes);
 app.use('/api/client-statements', authenticateToken, clientStatementsRoutes);
+app.use('/api/client-payments', authenticateToken, clientPaymentsRoutes);
 app.use('/api/cash-statements', authenticateToken, cashStatementsRoutes);
+app.use('/api/inventory', authenticateToken, inventoryRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*'} });

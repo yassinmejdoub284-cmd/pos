@@ -1,0 +1,871 @@
+<div class="count-container">
+  <!-- Header -->
+  <div class="count-header">
+    <div class="header-content">
+      <div class="header-info">
+        <h1 class="page-title">
+          <i class="fas fa-clipboard-check"></i>
+          Comptage Physique
+        </h1>
+        <div class="session-info" *ngIf="session">
+          <div class="info-item">
+            <i class="fas fa-hashtag"></i>
+            <span>{{ session.numero }}</span>
+          </div>
+          <div class="info-item">
+            <i class="fas fa-warehouse"></i>
+            <span>{{ session.depot?.name }}</span>
+          </div>
+          <div class="info-item">
+            <i class="fas fa-calendar"></i>
+            <span>{{ formatDate(session.startedAt) }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-back" (click)="goBack()">
+          <i class="fas fa-arrow-left"></i>
+          Retour
+        </button>
+        <button class="btn-save" (click)="saveProgress()" [disabled]="loading">
+          <i class="fas fa-save"></i>
+          Sauvegarder
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-section" *ngIf="session">
+    <div class="progress-info">
+      <span class="progress-text">
+        {{ getCountedItems() }} / {{ session.items?.length || 0 }} articles comptés
+      </span>
+      <span class="progress-percentage">
+        {{ getProgressPercentage() }}%
+      </span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" [style.width.%]="getProgressPercentage()"></div>
+    </div>
+  </div>
+
+  <!-- Search and Filters -->
+  <div class="search-section">
+    <div class="search-card">
+      <div class="search-input-group">
+        <i class="fas fa-search search-icon"></i>
+        <input 
+          type="text" 
+          class="search-input" 
+          placeholder="Rechercher un produit..."
+          [(ngModel)]="searchTerm"
+          (input)="onSearchChange()">
+        <button class="btn-clear-search" (click)="clearSearch()" *ngIf="searchTerm" title="Effacer la recherche">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="filter-buttons">
+        <button 
+          class="filter-btn" 
+          [class.active]="filterStatus === 'all'"
+          (click)="setFilter('all')">
+          Tous
+        </button>
+        <button 
+          class="filter-btn" 
+          [class.active]="filterStatus === 'counted'"
+          (click)="setFilter('counted')">
+          Comptés
+        </button>
+        <button 
+          class="filter-btn" 
+          [class.active]="filterStatus === 'pending'"
+          (click)="setFilter('pending')">
+          En attente
+        </button>
+        <button 
+          class="filter-btn" 
+          [class.active]="filterStatus === 'ecart'"
+          (click)="setFilter('ecart')">
+          Avec écart
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-message">
+    <i class="fas fa-exclamation-triangle"></i>
+    {{ error }}
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="loading-spinner"></div>
+    <p>Chargement des articles...</p>
+  </div>
+
+  <!-- Products Grid -->
+  <div class="products-section" *ngIf="!loading && session">
+    <div class="products-grid" *ngIf="filteredItems.length > 0">
+      <div class="product-card" *ngFor="let item of filteredItems" [ngClass]="getItemCardClass(item)">
+        <div class="product-header">
+          <div class="product-name">{{ item.product?.name }}</div>
+          <div class="product-barcode" *ngIf="item.product?.barcode">
+            <i class="fas fa-barcode"></i>
+            {{ item.product?.barcode }}
+          </div>
+        </div>
+
+        <div class="product-details">
+          <div class="detail-row">
+            <span class="detail-label">Famille:</span>
+            <span class="detail-value">{{ item.product?.famille?.name || '-' }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Unité:</span>
+            <span class="detail-value">{{ item.product?.unite || '-' }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Prix:</span>
+            <span class="detail-value">{{ formatCurrency(item.product?.prix_vente_TTC || 0) }}</span>
+          </div>
+        </div>
+
+        <div class="quantity-section">
+          <div class="theoretical-quantity">
+            <label>Quantité théorique:</label>
+            <div class="quantity-display theoretical">
+              {{ item.theoreticalQuantity }}
+            </div>
+          </div>
+
+          <div class="counted-quantity">
+            <label>Quantité comptée:</label>
+            <div class="quantity-input-group">
+              <button class="quantity-btn minus" (click)="decrementQuantity(item)" title="Diminuer la quantité">
+                <i class="fas fa-minus"></i>
+              </button>
+              <input 
+                type="number" 
+                class="quantity-input" 
+                [value]="item.countedQuantity || ''"
+                (input)="onQuantityChange(item, $event)"
+                (blur)="onQuantityBlur(item)"
+                placeholder="0">
+              <button class="quantity-btn plus" (click)="incrementQuantity(item)" title="Augmenter la quantité">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="ecart-display" *ngIf="item.countedQuantity !== null && item.countedQuantity !== 0">
+            <label>Écart:</label>
+            <div class="ecart-value" [ngClass]="getEcartClass(item)">
+              {{ getEcartText(item) }}
+            </div>
+          </div>
+        </div>
+
+        <div class="product-actions">
+          <button 
+            class="action-btn clear" 
+            (click)="clearQuantity(item)"
+            *ngIf="item.countedQuantity !== null">
+            <i class="fas fa-eraser"></i>
+            Effacer
+          </button>
+          <button 
+            class="action-btn confirm" 
+            (click)="confirmQuantity(item)"
+            [disabled]="item.countedQuantity === null">
+            <i class="fas fa-check"></i>
+            Confirmer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="filteredItems.length === 0">
+      <div class="empty-icon">
+        <i class="fas fa-search"></i>
+      </div>
+      <h3>Aucun produit trouvé</h3>
+      <p>Essayez de modifier vos critères de recherche</p>
+      <button class="btn-clear-filters" (click)="clearAllFilters()">
+        <i class="fas fa-times"></i>
+        Effacer les filtres
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom Actions -->
+  <div class="bottom-actions" *ngIf="!loading && session">
+    <div class="actions-info">
+      <div class="info-item">
+        <span class="info-label">Articles comptés:</span>
+        <span class="info-value">{{ getCountedItems() }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Articles restants:</span>
+        <span class="info-value">{{ getRemainingItems() }}</span>
+      </div>
+    </div>
+    <div class="actions-buttons">
+      <button class="btn-secondary" (click)="saveProgress()" [disabled]="loading">
+        <i class="fas fa-save"></i>
+        Sauvegarder
+      </button>
+      <button 
+        class="btn-primary" 
+        (click)="finishCounting()" 
+        [disabled]="getCountedItems() === 0 || loading">
+        <i class="fas fa-check-circle"></i>
+        Terminer le comptage
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Styles -->
+<style>
+.count-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+}
+
+.count-header {
+  margin-bottom: 2rem;
+}
+
+.header-content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-title i {
+  color: #667eea;
+}
+
+.session-info {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+.info-item i {
+  color: #a0aec0;
+  width: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn-back, .btn-save {
+  border: none;
+  border-radius: 12px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-back {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.btn-back:hover {
+  background: #cbd5e0;
+  transform: translateY(-2px);
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-save:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.progress-section {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.progress-text {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.progress-percentage {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 1.1rem;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.search-section {
+  margin-bottom: 2rem;
+}
+
+.search-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.search-input-group {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a0aec0;
+}
+
+.search-input {
+  width: 100%;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 1rem 0.75rem 3rem;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-clear-search {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #a0aec0;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.btn-clear-search:hover {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  border: 2px solid #e2e8f0;
+  background: white;
+  color: #4a5568;
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.filter-btn.active {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+.error-message {
+  background: rgba(254, 226, 226, 0.95);
+  color: #c53030;
+  border: 1px solid #feb2b2;
+  border-radius: 15px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.loading-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: white;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.products-section {
+  margin-bottom: 2rem;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.product-card {
+  background: white;
+  border-radius: 15px;
+  padding: 1.5rem;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border-left: 4px solid #e2e8f0;
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+}
+
+.product-card.counted {
+  border-left-color: #43e97b;
+  background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+}
+
+.product-card.ecart {
+  border-left-color: #f093fb;
+  background: linear-gradient(135deg, #fef5e7 0%, #ffffff 100%);
+}
+
+.product-header {
+  margin-bottom: 1rem;
+}
+
+.product-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.product-barcode {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+.product-barcode i {
+  color: #a0aec0;
+}
+
+.product-details {
+  margin-bottom: 1.5rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.detail-label {
+  color: #718096;
+  font-weight: 500;
+}
+
+.detail-value {
+  color: #2d3748;
+  font-weight: 600;
+}
+
+.quantity-section {
+  margin-bottom: 1.5rem;
+}
+
+.theoretical-quantity, .counted-quantity, .ecart-display {
+  margin-bottom: 1rem;
+}
+
+.theoretical-quantity label, .counted-quantity label, .ecart-display label {
+  display: block;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.quantity-display {
+  padding: 0.75rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.quantity-display.theoretical {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.quantity-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quantity-btn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #4a5568;
+}
+
+.quantity-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.quantity-btn.minus:hover {
+  background: #fed7d7;
+  border-color: #f56565;
+  color: #c53030;
+}
+
+.quantity-btn.plus:hover {
+  background: #c6f6d5;
+  border-color: #48bb78;
+  color: #2f855a;
+}
+
+.quantity-input {
+  flex: 1;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.quantity-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.ecart-value {
+  padding: 0.75rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.ecart-value.positive {
+  background: #c6f6d5;
+  color: #2f855a;
+}
+
+.ecart-value.negative {
+  background: #fed7d7;
+  color: #c53030;
+}
+
+.product-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.action-btn.clear {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.action-btn.clear:hover {
+  background: #cbd5e0;
+  transform: translateY(-1px);
+}
+
+.action-btn.confirm {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: white;
+  box-shadow: 0 5px 15px rgba(67, 233, 123, 0.3);
+}
+
+.action-btn.confirm:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(67, 233, 123, 0.4);
+}
+
+.action-btn.confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #718096;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.empty-icon {
+  font-size: 4rem;
+  color: #cbd5e0;
+  margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  margin-bottom: 2rem;
+}
+
+.btn-clear-filters {
+  background: #e2e8f0;
+  color: #4a5568;
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 auto;
+}
+
+.btn-clear-filters:hover {
+  background: #cbd5e0;
+  transform: translateY(-2px);
+}
+
+.bottom-actions {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.actions-info {
+  display: flex;
+  gap: 2rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.info-label {
+  font-size: 0.9rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.actions-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn-secondary, .btn-primary {
+  border: none;
+  border-radius: 12px;
+  padding: 1rem 2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #cbd5e0;
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary:disabled, .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 768px) {
+  .count-container {
+    padding: 1rem;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .session-info {
+    justify-content: center;
+  }
+  
+  .products-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .bottom-actions {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .actions-info {
+    justify-content: center;
+  }
+}
+</style>

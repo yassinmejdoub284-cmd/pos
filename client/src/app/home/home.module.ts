@@ -5,13 +5,10 @@ import { RouterModule } from '@angular/router';
 
 import { HomeRoutingModule } from './home-routing.module';
 import { HomeComponent } from './home.component';
-import { ExpenseActionDialogComponent } from '../shared/expense-action-dialog/expense-action-dialog.component';
 import { SharedModule } from '../shared/shared.module';
-import { SupplierPaymentComponent } from './supplier-payment/supplier-payment.component';
-import { SupplierStatementComponent } from './supplier-statement/supplier-statement.component';
-import { ClientStatementComponent } from './client-statement/client-statement.component';
-import { CashStatementComponent } from './cash-statement/cash-statement.component';
 import { FinanciereComponent } from './financiere/financiere.component';
+import { ExpenseActionDialogComponent } from '../shared/expense-action-dialog/expense-action-dialog.component';
+import { ApprovalsActionDialogComponent } from '../shared/approvals-action-dialog/approvals-action-dialog.component';
 
 @NgModule({
   declarations: [
@@ -23,12 +20,9 @@ import { FinanciereComponent } from './financiere/financiere.component';
     FormsModule,
     RouterModule,
     HomeRoutingModule,
-    ExpenseActionDialogComponent,
     SharedModule,
-    SupplierPaymentComponent,
-    SupplierStatementComponent,
-    ClientStatementComponent,
-    CashStatementComponent
+    ExpenseActionDialogComponent,
+    ApprovalsActionDialogComponent
   ]
 })
 export class HomeModule { } 

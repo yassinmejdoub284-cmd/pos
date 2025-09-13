@@ -40,6 +40,10 @@ model User {
   approvedChanges ChangeRequest[] @relation("ApprovedBy")
   notifications Notification[]
   supplierPayments SupplierPayment[]
+  inventorySessionsStarted InventorySession[] @relation("InventoryStarter")
+  inventorySessionsClosed InventorySession[] @relation("InventoryCloser")
+  inventorySessionsPosted InventorySession[] @relation("InventoryPoster")
+  inventoryItemsCounted InventoryItem[] @relation("InventoryCounter")
 
   @@map("users")
 }
@@ -72,6 +76,7 @@ model Depot {
   receivedDocuments StockDocument[] @relation("Destinataire")
   productConservation ProductConservation[]
   sessions     SessionCaisse[]
+  inventorySessions InventorySession[]
 
   @@map("depots")
 }
@@ -127,6 +132,7 @@ model Product {
   documentItems StockDocumentItem[]
   conservation ProductConservation[]
   vracPrices VracPrice[]
+  inventoryItems InventoryItem[]
 
   @@map("products")
 }
@@ -280,6 +286,8 @@ model Sale {
   sessionId       Int?        @map("session_id")
   paymentMethodId Int?        @map("payment_method_id")
   clientId        Int?        @map("client_id")
+  // Payment type: COMPTANT (instant) or CREDIT (client owes money)
+  paymentType     SalePaymentType @default(COMPTANT) @map("payment_type")
   // Advance payment fields for temporary sales
   advancePayment  Decimal?    @default(0) @map("advance_payment") @db.Decimal(10, 3)
   advancePaymentMethodId Int? @map("advance_payment_method_id")
@@ -449,6 +457,7 @@ model Expense {
   notes        String?  @db.Text
   isApproved   Boolean  @default(false) @map("is_approved")
   isPaid       Boolean  @default(false) @map("is_paid")
+  isAdvance    Boolean  @default(false) @map("is_advance")
   paidAt       DateTime? @map("paid_at")
   paidBy       Int?     @map("paid_by")
   approvedBy   Int?     @map("approved_by")
@@ -548,6 +557,55 @@ model StockDocumentLink {
   @@map("stock_document_links")
 }
 
+model InventorySession {
+  id              Int                    @id @default(autoincrement())
+  numero          String                 @unique @db.VarChar(50)
+  depotId         Int                    @map("depot_id")
+  status          InventorySessionStatus @default(DRAFT)
+  startedBy       Int                    @map("started_by")
+  closedBy        Int?                   @map("closed_by")
+  postedBy        Int?                   @map("posted_by")
+  startedAt       DateTime               @default(now()) @map("started_at")
+  closedAt        DateTime?              @map("closed_at")
+  postedAt        DateTime?              @map("posted_at")
+  notes           String?                @db.Text
+  totalEcartValue Decimal?               @map("total_ecart_value") @db.Decimal(12, 3)
+  totalEcartQty   Decimal?               @map("total_ecart_qty") @db.Decimal(10, 3)
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  depot           Depot                  @relation(fields: [depotId], references: [id])
+  starter         User                   @relation("InventoryStarter", fields: [startedBy], references: [id])
+  closer          User?                  @relation("InventoryCloser", fields: [closedBy], references: [id])
+  poster          User?                  @relation("InventoryPoster", fields: [postedBy], references: [id])
+  items           InventoryItem[]
+
+  @@map("inventory_sessions")
+}
+
+model InventoryItem {
+  id                    Int                    @id @default(autoincrement())
+  sessionId             Int                    @map("session_id")
+  productId             Int                    @map("product_id")
+  theoreticalQuantity   Decimal                @map("theoretical_quantity") @db.Decimal(10, 3)
+  countedQuantity       Decimal?               @map("counted_quantity") @db.Decimal(10, 3)
+  ecartQuantity         Decimal?               @map("ecart_quantity") @db.Decimal(10, 3)
+  ecartValue            Decimal?               @map("ecart_value") @db.Decimal(12, 3)
+  reason                InventoryReason?       @default(PHYSICAL_COUNT_DIFFERENCE)
+  notes                 String?                @db.Text
+  countedAt             DateTime?              @map("counted_at")
+  countedBy             Int?                   @map("counted_by")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+
+  session               InventorySession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  product               Product                @relation(fields: [productId], references: [id])
+  counter               User?                  @relation("InventoryCounter", fields: [countedBy], references: [id])
+
+  @@unique([sessionId, productId])
+  @@map("inventory_items")
+}
+
 enum UserRole {
   ADMIN
   MANAGER
@@ -578,6 +636,11 @@ enum SaleStatus {
   PENDING_ADMIN
   CADEAU
   CMD_TERMINEE
+}
+
+enum SalePaymentType {
+  COMPTANT
+  CREDIT
 }
 
 enum StockMovementType {
@@ -631,6 +694,7 @@ model SessionCaisse {
   openingFund   Decimal  @map("opening_fund") @db.Decimal(12, 3)
   expectedCash  Decimal  @map("expected_cash") @db.Decimal(12, 3)
   countedCash   Decimal? @map("counted_cash") @db.Decimal(12, 3)
+  originalCountedCash Decimal? @map("original_counted_cash") @db.Decimal(12, 3)
   variance      Decimal? @db.Decimal(12, 3)
   status        SessionStatus @default(OPEN)
   xSeq          Int      @default(0) @map("x_seq")
@@ -673,6 +737,8 @@ model ChangeRequest {
   requestedBy Int      @map("requested_by")
   approvedBy  Int?     @map("approved_by")
   approvedAt  DateTime? @map("approved_at")
+  rejectionReasonCode String? @map("rejection_reason_code") @db.VarChar(50) // ECART_COMPTAGE, SUSPICION_ANOMALIE, AUTRE
+  rejectionNotes String? @map("rejection_notes") @db.Text
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -715,6 +781,7 @@ enum SessionStatus {
   OPEN
   CLOSED
   REOPENED
+  ADMIN_CORRECTED
 }
 
 model WholesaleRule {
@@ -748,4 +815,16 @@ enum OutboxStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+enum InventorySessionStatus {
+  DRAFT
+  IN_PROGRESS
+  CLOSED
+  POSTED
+}
+
+enum InventoryReason {
+  PHYSICAL_COUNT_DIFFERENCE
+  SUSPICION_OF_ANOMALY
 } 
