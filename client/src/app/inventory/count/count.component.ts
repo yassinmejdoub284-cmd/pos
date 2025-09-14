@@ -1,23 +1,50 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { InventoryService, InventorySession, InventoryItem } from '../../core/services/inventory.service';
 import { ProductsService } from '../../core/services/products.service';
 import { Product } from '../../core/models/product.model';
+import { Subject, takeUntil } from 'rxjs';
+
+interface CountItem {
+  product: Product;
+  theoreticalQuantity: number;
+  countedQuantity: number | null;
+  isConfirmed: boolean;
+  inventoryItemId?: number;
+}
 
 @Component({
   selector: 'app-count',
   templateUrl: './count.component.html',
+  styleUrls: ['./count.component.css'],
   standalone: false
 })
-export class CountComponent implements OnInit {
+export class CountComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+  
+  depotId: number | null = null;
   session: InventorySession | null = null;
   items: InventoryItem[] = [];
   filteredItems: InventoryItem[] = [];
   searchTerm = '';
-  selectedItem: InventoryItem | null = null;
-  countedQuantity: number | null = null;
-  reason: 'PHYSICAL_COUNT_DIFFERENCE' | 'SUSPICION_OF_ANOMALY' = 'PHYSICAL_COUNT_DIFFERENCE';
-  notes = '';
+  
+  // Caisse-like interface
+  allProducts: Product[] = [];
+  filteredProducts: Product[] = [];
+  productCategories: string[] = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrac', 'Pâtisserie Tunisienne', 'Jus et Smoothies'];
+  selectedCategory: string = 'Tous';
+  
+  // Count items (like receipt items in caisse)
+  countItems: CountItem[] = [];
+  selectedCountItem: CountItem | null = null;
+  selectedCountItemIndex: number = -1;
+  
+  // Input handling (like caisse)
+  currentInput: string = '';
+  inputMode: 'quantity' = 'quantity';
+  pendingProduct: Product | null = null;
+  lastEnteredValue: string = '';
+  
   
   loading = false;
   saving = false;
@@ -29,6 +56,9 @@ export class CountComponent implements OnInit {
   countedItems = 0;
   remainingItems = 0;
 
+  // Math reference for template
+  Math = Math;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -37,9 +67,31 @@ export class CountComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    const depotId = this.route.snapshot.paramMap.get('depotId');
     const sessionId = this.route.snapshot.paramMap.get('id');
-    if (sessionId) {
+    if (depotId && sessionId) {
+      this.depotId = parseInt(depotId, 10);
       this.loadSession(parseInt(sessionId, 10));
+    }
+    this.loadProducts();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    // Handle keyboard input for numpad
+    if (event.key >= '0' && event.key <= '9') {
+      this.addToInput(event.key);
+    } else if (event.key === '.') {
+      this.addDecimal();
+    } else if (event.key === 'Enter') {
+      this.enterValue();
+    } else if (event.key === 'Backspace') {
+      this.clearDisplay();
     }
   }
 
@@ -52,6 +104,7 @@ export class CountComponent implements OnInit {
         this.session = session;
         this.items = session.items || [];
         this.filteredItems = [...this.items];
+        this.initializeCountItems();
         this.updateStatistics();
         this.loading = false;
       },
@@ -62,80 +115,334 @@ export class CountComponent implements OnInit {
     });
   }
 
+  loadProducts(): void {
+    this.productsService.getProducts().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (products) => {
+        this.allProducts = products;
+        this.filteredProducts = [...products];
+      },
+      error: (err) => {
+        console.error('Error loading products:', err);
+      }
+    });
+  }
+
+  initializeCountItems(): void {
+    // Only add items that have already been counted (have countedQuantity)
+    this.countItems = this.items
+      .filter(item => item.countedQuantity !== null)
+      .map(item => ({
+        product: item.product!,
+        theoreticalQuantity: item.theoreticalQuantity,
+        countedQuantity: item.countedQuantity,
+        isConfirmed: item.countedQuantity !== null,
+        inventoryItemId: item.id
+      } as CountItem));
+  }
+
   updateStatistics(): void {
     this.totalItems = this.items.length;
-    this.countedItems = this.items.filter(item => item.countedQuantity !== null).length;
+    this.countedItems = this.countItems.length; // All items in countItems are counted
     this.remainingItems = this.totalItems - this.countedItems;
   }
 
-  onSearch(): void {
-    if (!this.searchTerm.trim()) {
-      this.filteredItems = [...this.items];
+  // Caisse-like methods
+  selectCategory(category: string): void {
+    this.selectedCategory = category;
+    this.filterProducts();
+  }
+
+  filterProducts(): void {
+    if (this.selectedCategory === 'Tous') {
+      this.filteredProducts = [...this.allProducts];
+    } else {
+      this.filteredProducts = this.allProducts.filter(product => 
+        product.famille?.name === this.selectedCategory
+      );
+    }
+  }
+
+
+  // Product selection (like caisse)
+  handleProductClick(product: Product): void {
+    console.log('Product clicked:', product.name);
+    
+    // Check if product already exists in count items
+    const existingItem = this.countItems.find(item => item.product.id === product.id);
+    
+    if (existingItem) {
+      // Product exists - select it for quantity modification
+      this.selectCountItem(existingItem);
+      this.pendingProduct = product;
+      this.currentInput = existingItem.countedQuantity?.toString() || '';
+    } else {
+      // New product - add to count items
+      this.addProductToCount(product);
+      this.pendingProduct = product;
+      this.currentInput = '';
+    }
+  }
+
+  addProductToCount(product: Product): void {
+    const theoreticalQuantity = this.items.find(item => item.product?.id === product.id)?.theoreticalQuantity || 0;
+    
+    const countItem: CountItem = {
+      product: product,
+      theoreticalQuantity: theoreticalQuantity,
+      countedQuantity: null,
+      isConfirmed: false,
+      inventoryItemId: this.items.find(item => item.product?.id === product.id)?.id
+    };
+    
+    this.countItems.push(countItem);
+    this.updateStatistics();
+  }
+
+  selectCountItem(item: CountItem): void {
+    const index = this.countItems.indexOf(item);
+    this.selectedCountItem = item;
+    this.selectedCountItemIndex = index;
+    this.pendingProduct = item.product;
+    this.currentInput = item.countedQuantity?.toString() || '';
+  }
+
+  // Input handling (like caisse)
+  addToInput(value: string): void {
+    this.currentInput += value;
+  }
+
+  clearInput(): void {
+    this.currentInput = '';
+  }
+
+  addDecimal(): void {
+    if (!this.currentInput.includes('.')) {
+      this.currentInput += '.';
+    }
+  }
+
+  clearDisplay(): void {
+    if (this.currentInput.length > 0) {
+      this.currentInput = this.currentInput.slice(0, -1);
+    }
+  }
+
+  enterValue(): void {
+    console.log('Enter value called');
+    
+    if (this.pendingProduct) {
+      const value = parseFloat(this.currentInput);
+      
+      if (isNaN(value) || value < 0) {
+        this.error = 'Valeur invalide (minimum 0)';
+        return;
+      }
+      
+      // Update or add the count item
+      const existingItem = this.countItems.find(item => item.product.id === this.pendingProduct!.id);
+      
+      if (existingItem) {
+        existingItem.countedQuantity = value;
+        existingItem.isConfirmed = true;
+        this.saveCountToBackend(existingItem);
+      } else {
+        this.addProductToCount(this.pendingProduct);
+        const newItem = this.countItems[this.countItems.length - 1];
+        newItem.countedQuantity = value;
+        newItem.isConfirmed = true;
+        this.saveCountToBackend(newItem);
+      }
+      
+      this.pendingProduct = null;
+      this.currentInput = '';
+      this.updateStatistics();
+    }
+  }
+
+  saveCountToBackend(item: CountItem): void {
+    if (!this.session || !item.inventoryItemId) {
+      console.error('Cannot save count: missing session or inventoryItemId');
       return;
     }
 
-    const term = this.searchTerm.toLowerCase();
-    this.filteredItems = this.items.filter(item => 
-      item.product?.name.toLowerCase().includes(term) ||
-      item.product?.barcode?.toLowerCase().includes(term) ||
-      item.product?.famille?.name.toLowerCase().includes(term)
-    );
+    this.inventoryService.updateItemCount(
+      this.session.id,
+      item.inventoryItemId,
+      item.countedQuantity,
+      'PHYSICAL_COUNT_DIFFERENCE'
+    ).subscribe({
+      next: (updatedItem) => {
+        console.log('Count saved successfully:', updatedItem);
+      },
+      error: (err) => {
+        console.error('Error saving count:', err);
+        this.error = 'Erreur lors de la sauvegarde du comptage';
+      }
+    });
   }
 
-  selectItem(item: InventoryItem): void {
-    this.selectedItem = item;
-    this.countedQuantity = item.countedQuantity || item.theoreticalQuantity;
-    this.reason = item.reason || 'PHYSICAL_COUNT_DIFFERENCE';
-    this.notes = item.notes || '';
+  removeCountItem(index: number): void {
+    this.countItems.splice(index, 1);
+    if (this.selectedCountItemIndex === index) {
+      this.selectedCountItem = null;
+      this.selectedCountItemIndex = -1;
+      this.pendingProduct = null;
+      this.currentInput = '';
+    } else if (this.selectedCountItemIndex > index) {
+      this.selectedCountItemIndex--;
+    }
+    this.updateStatistics();
   }
 
-  clearSelection(): void {
-    this.selectedItem = null;
-    this.countedQuantity = null;
-    this.reason = 'PHYSICAL_COUNT_DIFFERENCE';
-    this.notes = '';
+  // Validation and save methods
+  validateAllCounts(): void {
+    if (!this.session) {
+      this.error = 'Session d\'inventaire non trouvée';
+      return;
+    }
+
+    // Post the session directly to apply stock changes
+    this.postInventorySession();
   }
 
-  saveCount(): void {
-    if (!this.selectedItem || this.countedQuantity === null) {
-      this.error = 'Veuillez saisir une quantité';
+  saveAllCounts(): void {
+    this.saving = true;
+    this.error = '';
+
+    const updatePromises = this.countItems.map(item => {
+      if (item.inventoryItemId && item.countedQuantity !== null) {
+        return this.inventoryService.updateItemCount(
+          this.session!.id,
+          item.inventoryItemId,
+          item.countedQuantity,
+          'PHYSICAL_COUNT_DIFFERENCE',
+          ''
+        ).toPromise();
+      }
+      return Promise.resolve();
+    });
+
+    Promise.all(updatePromises).then(() => {
+      this.saving = false;
+      this.success = 'Tous les comptages ont été enregistrés avec succès';
+      setTimeout(() => this.success = '', 3000);
+      this.router.navigate(['/inventory', this.depotId, this.session!.id, 'review']);
+    }).catch(err => {
+      this.saving = false;
+      this.error = 'Erreur lors de l\'enregistrement des comptages';
+    });
+  }
+
+  postInventorySession(): void {
+    if (!this.session) {
+      this.error = 'Session d\'inventaire non trouvée';
       return;
     }
 
     this.saving = true;
     this.error = '';
 
-    this.inventoryService.updateItemCount(
-      this.selectedItem.sessionId,
-      this.selectedItem.id,
-      this.countedQuantity,
-      this.reason,
-      this.notes
-    ).subscribe({
-      next: (updatedItem) => {
-        // Update the item in our local array
-        const index = this.items.findIndex(item => item.id === updatedItem.id);
-        if (index !== -1) {
-          this.items[index] = updatedItem;
-        }
-        
-        // Update filtered items
-        const filteredIndex = this.filteredItems.findIndex(item => item.id === updatedItem.id);
-        if (filteredIndex !== -1) {
-          this.filteredItems[filteredIndex] = updatedItem;
-        }
-
-        this.updateStatistics();
-        this.clearSelection();
-        this.saving = false;
-        this.success = 'Comptage enregistré avec succès';
-        setTimeout(() => this.success = '', 3000);
+    // Check if session is already closed, if not close it first
+    if (this.session.status === 'DRAFT' || this.session.status === 'IN_PROGRESS') {
+      // First close the session, then post it
+      this.inventoryService.updateSessionStatus(this.session.id, 'CLOSED').subscribe({
+        next: (closedSession) => {
+          // Now post the closed session
+          this.inventoryService.postSession(this.session!.id).subscribe({
+            next: (result) => {
+              this.saving = false;
+              this.success = 'Inventaire terminé et stock mis à jour avec succès!';
+              
+              // Update session status
+              this.session!.status = 'POSTED';
+            
+            // Show success message and redirect after delay
+            setTimeout(() => {
+              this.success = '';
+              this.router.navigate(['/inventory', this.depotId]);
+            }, 3000);
+          },
+          error: (err) => {
+            this.saving = false;
+            this.error = err.error?.error || 'Erreur lors de la finalisation de l\'inventaire';
+            console.error('Error posting inventory session:', err);
+          }
+        });
       },
       error: (err) => {
-        this.error = err.error?.error || 'Erreur lors de l\'enregistrement';
         this.saving = false;
+        this.error = err.error?.error || 'Erreur lors de la fermeture de l\'inventaire';
+        console.error('Error closing inventory session:', err);
       }
     });
+    } else {
+      // Session is already closed, just post it
+      this.inventoryService.postSession(this.session.id).subscribe({
+        next: (result) => {
+          this.saving = false;
+          this.success = 'Inventaire terminé et stock mis à jour avec succès!';
+          
+          // Update session status
+          this.session!.status = 'POSTED';
+          
+          // Show success message and redirect after delay
+          setTimeout(() => {
+            this.success = '';
+            this.router.navigate(['/inventory', this.depotId]);
+          }, 3000);
+        },
+        error: (err) => {
+          this.saving = false;
+          this.error = err.error?.error || 'Erreur lors de la finalisation de l\'inventaire';
+          console.error('Error posting inventory session:', err);
+        }
+      });
+    }
+  }
+
+  // Utility methods
+  truncate(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  }
+
+  formatCurrency(value: number): string {
+    return value.toFixed(3) + ' dt';
+  }
+
+  formatDate(date: string | Date): string {
+    return new Date(date).toLocaleDateString('fr-FR');
+  }
+
+  getTheoreticalQuantity(productId: number): number {
+    const item = this.items.find(item => item.product?.id === productId);
+    return item?.theoreticalQuantity || 0;
+  }
+
+  // Client-gros compatibility methods
+  trackByProductId(index: number, product: Product): number {
+    return product.id;
+  }
+
+  getProductCardClass(productId: number): string {
+    const baseClass = 'product-button bg-white border border-gray-200 rounded-lg p-2 text-center transition-colors duration-150 cursor-pointer shadow-sm hover:shadow-md relative select-none';
+    const isSelected = this.countItems.some(item => item.product.id === productId);
+    
+    if (isSelected) {
+      return baseClass + ' border-blue-500 bg-blue-50';
+    } else {
+      return baseClass;
+    }
+  }
+
+  // Legacy methods for compatibility
+  goBack(): void {
+    this.router.navigate(['/inventory', this.depotId]);
+  }
+
+  saveProgress(): void {
+    // Auto-save functionality can be implemented here
+    console.log('Saving progress...');
   }
 
   closeSession(): void {
@@ -150,7 +457,7 @@ export class CountComponent implements OnInit {
       next: (updatedSession) => {
         this.session = updatedSession;
         this.loading = false;
-        this.router.navigate(['/inventory', this.session.id, 'review']);
+        this.router.navigate(['/inventory', this.depotId, this.session.id, 'review']);
       },
       error: (err) => {
         this.error = err.error?.error || 'Erreur lors de la fermeture';
@@ -175,45 +482,26 @@ export class CountComponent implements OnInit {
     });
   }
 
-  goBack(): void {
-    this.router.navigate(['/inventory']);
+  getEcartClass(item: CountItem): string {
+    if (item.countedQuantity === null) return '';
+    const ecart = item.countedQuantity - item.theoreticalQuantity;
+    return ecart > 0 ? 'text-green-600' : ecart < 0 ? 'text-red-600' : '';
   }
 
-  getEcartClass(item: InventoryItem): string {
-    if (item.ecartQuantity === null || item.ecartQuantity === 0) {
-      return '';
-    }
-    return (item.ecartQuantity || 0) > 0 ? 'text-success' : 'text-danger';
-  }
-
-  getEcartText(item: InventoryItem): string {
-    if (item.ecartQuantity === null || item.ecartQuantity === 0) {
-      return '';
-    }
-    const sign = (item.ecartQuantity || 0) > 0 ? '+' : '';
-    return `${sign}${item.ecartQuantity}`;
-  }
-
-  getReasonText(reason: string): string {
-    switch (reason) {
-      case 'PHYSICAL_COUNT_DIFFERENCE': return 'Différence de comptage physique';
-      case 'SUSPICION_OF_ANOMALY': return 'Suspicion d\'anomalie';
-      default: return reason;
-    }
-  }
-
-  formatDate(date: Date | string): string {
-    return new Date(date).toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  getEcartText(item: CountItem): string {
+    if (item.countedQuantity === null) return '';
+    const ecart = item.countedQuantity - item.theoreticalQuantity;
+    const sign = ecart > 0 ? '+' : '';
+    return `${sign}${ecart}`;
   }
 
   // New methods for the redesigned UI
   filterStatus = 'all';
+
+  onSearch(): void {
+    // Search functionality can be implemented here if needed
+    console.log('Search:', this.searchTerm);
+  }
 
   onSearchChange(): void {
     this.onSearch();
@@ -361,70 +649,4 @@ export class CountComponent implements OnInit {
     });
   }
 
-  saveProgress(): void {
-    this.saving = true;
-    // Save all pending changes
-    const pendingItems = this.items.filter(item => 
-      item.countedQuantity !== null && 
-      item.countedQuantity !== item.theoreticalQuantity
-    );
-
-    if (pendingItems.length === 0) {
-      this.saving = false;
-      return;
-    }
-
-    // Save each item
-    let completed = 0;
-    pendingItems.forEach(item => {
-      this.inventoryService.updateItemCount(
-        item.sessionId,
-        item.id,
-        item.countedQuantity!,
-        item.reason || 'PHYSICAL_COUNT_DIFFERENCE',
-        item.notes || ''
-      ).subscribe({
-        next: () => {
-          completed++;
-          if (completed === pendingItems.length) {
-            this.saving = false;
-            this.success = 'Progrès sauvegardé avec succès';
-            setTimeout(() => this.success = '', 3000);
-          }
-        },
-        error: (err) => {
-          this.error = err.error?.error || 'Erreur lors de la sauvegarde';
-          this.saving = false;
-        }
-      });
-    });
-  }
-
-  finishCounting(): void {
-    if (!this.session) return;
-
-    if (!confirm('Êtes-vous sûr de vouloir terminer le comptage ?')) {
-      return;
-    }
-
-    this.loading = true;
-    this.inventoryService.updateSessionStatus(this.session.id, 'CLOSED').subscribe({
-      next: (updatedSession) => {
-        this.session = updatedSession;
-        this.loading = false;
-        this.router.navigate(['/inventory', this.session.id, 'review']);
-      },
-      error: (err) => {
-        this.error = err.error?.error || 'Erreur lors de la fermeture';
-        this.loading = false;
-      }
-    });
-  }
-
-  formatCurrency(value: number): string {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(value);
-  }
 }

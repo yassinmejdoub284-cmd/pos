@@ -31,7 +31,6 @@ interface ReceiptItem {
   bundleSize?: number;
   bundlePrice?: number;
   marginPercent?: number;
-  requiresApproval?: boolean;
   isApproved?: boolean;
 }
 
@@ -884,7 +883,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
         bundleQuantity: Number(bundleCount || 1),
         bundleSize: product.bundleSize,
         bundlePrice: product.bundlePrice,
-        requiresApproval: false,
         isApproved: false
       };
       const label = `${product.name} (fradeau x${product.bundleSize || 1})`;
@@ -1008,7 +1006,23 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Load first 200 active clients for quick local filtering
     this.clientsService.getClients(1, 200, undefined, '', true).subscribe({
       next: (response: any) => {
-        this.allClientsCache = response.clients || [];
+        // Filter clients to only show those assigned to shops or with "any" access
+        // This ensures caisse only shows customers who can make purchases at shops
+        const allClients = response.clients || [];
+        this.allClientsCache = allClients.filter((client: any) => {
+          // Include clients with "any" access (depotId = -1) - can shop anywhere
+          if (client.depotId === -1) {
+            return true;
+          }
+          // Include clients assigned to shops (depot.type = 'SHOP') - can shop at their assigned shop
+          if (client.depot && client.depot.type === 'SHOP') {
+            return true;
+          }
+          // Exclude all other clients:
+          // - Invoicing-only clients (depotId = null)
+          // - Warehouse clients (depot.type = 'WAREHOUSE', 'MAIN', 'BRANCH')
+          return false;
+        });
         this.searchingClients = false;
         this.filterClients();
       },

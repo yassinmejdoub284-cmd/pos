@@ -77,6 +77,7 @@ model Depot {
   productConservation ProductConservation[]
   sessions     SessionCaisse[]
   inventorySessions InventorySession[]
+  clients      Client[]
 
   @@map("depots")
 }
@@ -100,6 +101,7 @@ model ProductFamily {
 model Product {
   id            Int      @id @default(autoincrement())
   name          String   @db.VarChar(200)
+  designation_legale String? @map("designation_legale") @db.VarChar(200)
   description   String?  @db.Text
   familleId     Int      @map("famille_id")
   barcode       String?  @unique @db.VarChar(50)
@@ -198,6 +200,7 @@ model Client {
   postalCode      String?  @map("postal_code") @db.VarChar(10)
   birthday        DateTime? @db.Date
   clientType      ClientType @default(INDIVIDUAL) @map("client_type")
+  depotId         Int?     @map("depot_id")
   loyaltyPoints   Int      @default(0) @map("loyalty_points")
   totalSpent      Decimal  @default(0) @map("total_spent") @db.Decimal(12, 3)
   favoriteProducts String? @map("favorite_products") @db.Text
@@ -213,6 +216,7 @@ model Client {
 
   sales           Sale[]
   debtTransactions ClientDebtTransaction[]
+  depot           Depot? @relation(fields: [depotId], references: [id])
 
   @@map("clients")
 }

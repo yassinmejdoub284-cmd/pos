@@ -28,6 +28,7 @@ export class ProductFormComponent implements OnInit {
   ) {
     this.productForm = this.fb.group({
       name: ['', Validators.required],
+      designation_legale: [''],
       description: [''],
       familleId: [null, Validators.required],
       barcode: [''],
@@ -40,9 +41,7 @@ export class ProductFormComponent implements OnInit {
       // Wholesale fields
       isWholesale: [false],
       bundleSize: [null],
-      bundlePrice: [null],
-      minMargin: [null],
-      requiresApproval: [false]
+      bundlePrice: [null]
     });
   }
 
@@ -53,14 +52,13 @@ export class ProductFormComponent implements OnInit {
       this.productForm.patchValue({
         ...this.product,
         familleId: this.product.familleId,
+        designation_legale: this.product.designation_legale || '',
         isVraguable: this.product.isVraguable || false,
         isStockable: this.product.isStockable || false,
         // Wholesale fields
         isWholesale: this.product.isWholesale || false,
         bundleSize: this.product.bundleSize || null,
-        bundlePrice: this.product.bundlePrice || null,
-        minMargin: this.product.minMargin || null,
-        requiresApproval: this.product.requiresApproval || false
+        bundlePrice: this.product.bundlePrice || null
       });
       
       // Set initial disabled state based on vraguable status
@@ -205,16 +203,12 @@ export class ProductFormComponent implements OnInit {
     const isWholesale = this.productForm.get('isWholesale')?.value;
     const bundleSizeControl = this.productForm.get('bundleSize');
     const bundlePriceControl = this.productForm.get('bundlePrice');
-    const minMarginControl = this.productForm.get('minMargin');
-    const requiresApprovalControl = this.productForm.get('requiresApproval');
     
     if (!isWholesale) {
       // Clear wholesale fields when disabled
       this.productForm.patchValue({
         bundleSize: null,
-        bundlePrice: null,
-        minMargin: null,
-        requiresApproval: false
+        bundlePrice: null
       });
       bundleSizeControl?.clearValidators();
       bundlePriceControl?.clearValidators();
@@ -222,11 +216,9 @@ export class ProductFormComponent implements OnInit {
       // Add validators for wholesale fields
       bundleSizeControl?.setValidators([Validators.required, Validators.min(1)]);
       bundlePriceControl?.setValidators([Validators.required, Validators.min(0)]);
-      minMarginControl?.setValidators([Validators.min(0), Validators.max(100)]);
     }
     
     bundleSizeControl?.updateValueAndValidity();
     bundlePriceControl?.updateValueAndValidity();
-    minMarginControl?.updateValueAndValidity();
   }
 } 

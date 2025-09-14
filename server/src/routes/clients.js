@@ -1,7 +1,6 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const { prisma } = require('../lib/prisma');
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Get all clients with optional search and filters
 router.get('/', async (req, res) => {
@@ -29,6 +28,16 @@ router.get('/', async (req, res) => {
 
     const clients = await prisma.client.findMany({
       where,
+      include: {
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        }
+      },
       orderBy: { totalSpent: 'desc' },
       skip: (parseInt(page) - 1) * parseInt(limit),
       take: parseInt(limit)
@@ -68,7 +77,16 @@ router.get('/search/pos', async (req, res) => {
         phone: true,
         loyaltyPoints: true,
         totalSpent: true,
-        clientType: true
+        clientType: true,
+        depotId: true,
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        }
       },
       take: 10,
       orderBy: { totalSpent: 'desc' }
@@ -88,6 +106,13 @@ router.get('/:id', async (req, res) => {
     const client = await prisma.client.findUnique({
       where: { id: parseInt(id) },
       include: {
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        },
         sales: {
           include: {
             items: {
@@ -119,7 +144,7 @@ router.get('/:id', async (req, res) => {
 // Create new client
 router.post('/', async (req, res) => {
   try {
-    const { firstName, lastName, phone, city, address, clientType, notes, maxDebt, allowDebt } = req.body;
+    const { firstName, lastName, phone, city, address, clientType, depotId, notes, maxDebt, allowDebt } = req.body;
 
     const code = await generateClientCode();
 
@@ -140,6 +165,7 @@ router.post('/', async (req, res) => {
         city,
         address,
         clientType: clientType || 'INDIVIDUAL',
+        depotId: depotId ? (parseInt(depotId) === -1 ? -1 : parseInt(depotId)) : null,
         notes,
         maxDebt: maxDebt !== undefined ? parseFloat(maxDebt) : defaultMax,
         allowDebt: allowDebt !== undefined ? !!allowDebt : true
@@ -160,7 +186,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, phone, city, address, clientType, loyaltyPoints, totalSpent, favoriteProducts, notes, isActive, currentDebt, maxDebt, allowDebt } = req.body;
+    const { firstName, lastName, phone, city, address, clientType, depotId, loyaltyPoints, totalSpent, favoriteProducts, notes, isActive, currentDebt, maxDebt, allowDebt } = req.body;
 
     const client = await prisma.client.update({
       where: { id: parseInt(id) },
@@ -171,6 +197,7 @@ router.put('/:id', async (req, res) => {
         city,
         address,
         clientType,
+        depotId: depotId ? (parseInt(depotId) === -1 ? -1 : parseInt(depotId)) : null,
         loyaltyPoints: loyaltyPoints !== undefined ? parseInt(loyaltyPoints) : undefined,
         totalSpent: totalSpent !== undefined ? parseFloat(totalSpent) : undefined,
         favoriteProducts,

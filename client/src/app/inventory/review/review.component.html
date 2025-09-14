@@ -1,102 +1,132 @@
 <div class="review-container">
-  <!-- Header -->
-  <div class="review-header">
-    <div class="header-content">
-      <div class="header-info">
-        <h1 class="page-title">
-          <i class="fas fa-clipboard-check"></i>
-          Révision des Écarts
+  <!-- Compact Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1 class="title">
+        <i class="fas fa-clipboard-check text-blue-500"></i>
+        Rapport d'Inventaire
         </h1>
         <div class="session-info" *ngIf="session">
-          <div class="info-item">
-            <i class="fas fa-hashtag"></i>
-            <span>{{ session.numero }}</span>
-          </div>
-          <div class="info-item">
-            <i class="fas fa-warehouse"></i>
-            <span>{{ session.depot?.name }}</span>
-          </div>
-          <div class="info-item">
-            <i class="fas fa-calendar"></i>
-            <span>{{ formatDate(session.startedAt) }}</span>
-          </div>
-        </div>
+        <span class="session-number">#{{ session.numero }}</span>
+        <span class="depot-name">{{ session.depot?.name }}</span>
+        <span class="date">{{ formatDate(session.startedAt) }}</span>
+      </div>
       </div>
       <div class="header-actions">
+      <button class="btn-print" (click)="printReport()" [disabled]="loading">
+        <i class="fas fa-print"></i>
+        Imprimer
+      </button>
         <button class="btn-back" (click)="goBack()">
           <i class="fas fa-arrow-left"></i>
           Retour
         </button>
-        <button class="btn-post" (click)="postInventory()" [disabled]="loading || !canPost()">
-          <i class="fas fa-check-circle"></i>
-          Poster l'inventaire
-        </button>
-      </div>
     </div>
   </div>
 
-  <!-- Summary Cards -->
-  <div class="summary-cards" *ngIf="summary">
-    <div class="summary-card total">
-      <div class="card-icon">
+  <!-- Quick Stats -->
+  <div class="stats-grid" *ngIf="summary">
+    <div class="stat-card">
+      <div class="stat-icon bg-blue-100 text-blue-600">
         <i class="fas fa-boxes"></i>
       </div>
-      <div class="card-content">
-        <div class="card-number">{{ summary.statistics.totalItems || 0 }}</div>
-        <div class="card-label">Total Articles</div>
+      <div class="stat-content">
+        <div class="stat-number">{{ summary.statistics.totalItems || 0 }}</div>
+        <div class="stat-label">Articles</div>
       </div>
     </div>
-    <div class="summary-card counted">
-      <div class="card-icon">
+    <div class="stat-card">
+      <div class="stat-icon bg-green-100 text-green-600">
         <i class="fas fa-check-circle"></i>
       </div>
-      <div class="card-content">
-        <div class="card-number">{{ summary.statistics.countedItems || 0 }}</div>
-        <div class="card-label">Comptés</div>
+      <div class="stat-content">
+        <div class="stat-number">{{ summary.statistics.countedItems || 0 }}</div>
+        <div class="stat-label">Comptés</div>
       </div>
     </div>
-    <div class="summary-card ecart">
-      <div class="card-icon">
+    <div class="stat-card">
+      <div class="stat-icon bg-orange-100 text-orange-600">
         <i class="fas fa-exclamation-triangle"></i>
       </div>
-      <div class="card-content">
-        <div class="card-number">{{ summary.statistics.itemsWithEcart || 0 }}</div>
-        <div class="card-label">Avec Écart</div>
+      <div class="stat-content">
+        <div class="stat-number">{{ summary.statistics.itemsWithEcart || 0 }}</div>
+        <div class="stat-label">Écarts</div>
       </div>
     </div>
-    <div class="summary-card value">
-      <div class="card-icon">
-        <i class="fas fa-euro-sign"></i>
+    <div class="stat-card">
+      <div class="stat-icon bg-purple-100 text-purple-600">
+        <i class="fas fa-coins"></i>
       </div>
-      <div class="card-content">
-        <div class="card-number">{{ formatCurrency(summary.statistics.totalEcartValue || 0) }}</div>
-        <div class="card-label">Valeur Écart</div>
+      <div class="stat-content">
+        <div class="stat-number">{{ formatCurrency(summary.statistics.totalEcartValue || 0) }}</div>
+        <div class="stat-label">Valeur Écart</div>
       </div>
     </div>
   </div>
 
-  <!-- Écarts Summary -->
-  <div class="ecarts-summary" *ngIf="summary && summary.ecarts.length > 0">
-    <div class="summary-header">
-      <h3>
-        <i class="fas fa-chart-bar"></i>
-        Résumé des Écarts
-      </h3>
-      <div class="summary-stats">
-        <div class="stat-item">
-          <span class="stat-label">Quantité totale écart:</span>
-          <span class="stat-value" [ngClass]="(summary.statistics.totalEcartQty || 0) > 0 ? 'positive' : 'negative'">
-            {{ (summary.statistics.totalEcartQty || 0) > 0 ? '+' : '' }}{{ summary.statistics.totalEcartQty || 0 }}
+  <!-- Écarts Section -->
+  <div class="ecarts-section" *ngIf="summary && summary.ecarts.length > 0">
+    <div class="section-header">
+      <h2>
+        <i class="fas fa-chart-line text-orange-500"></i>
+        Détail des Écarts
+      </h2>
+      <div class="ecart-summary">
+        <span class="ecart-count">{{ summary.ecarts.length }} écart(s)</span>
+        <span class="ecart-total" [ngClass]="(summary.statistics.totalEcartQty || 0) > 0 ? 'text-green-600' : 'text-red-600'">
+          {{ (summary.statistics.totalEcartQty || 0) > 0 ? '+' : '' }}{{ summary.statistics.totalEcartQty || 0 }} unités
+        </span>
+      </div>
+    </div>
+
+    <div class="ecarts-table">
+      <div class="table-header">
+        <div class="col-product">Produit</div>
+        <div class="col-theoretical">Théorique</div>
+        <div class="col-counted">Compté</div>
+        <div class="col-ecart">Écart</div>
+        <div class="col-value">Valeur</div>
+        <div class="col-actions">Actions</div>
+      </div>
+      
+      <div class="table-body">
+        <div class="table-row" *ngFor="let ecart of summary.ecarts; trackBy: trackByProductId">
+          <div class="col-product">
+            <div class="product-name">{{ ecart.productName }}</div>
+          </div>
+          <div class="col-theoretical">
+            <span class="quantity-badge theoretical">{{ ecart.theoreticalQuantity }}</span>
+          </div>
+          <div class="col-counted">
+            <span class="quantity-badge counted">{{ ecart.countedQuantity }}</span>
+          </div>
+          <div class="col-ecart">
+            <span class="ecart-badge" [ngClass]="getEcartClass(ecart)">
+              {{ (ecart.ecartQuantity || 0) > 0 ? '+' : '' }}{{ ecart.ecartQuantity }}
           </span>
         </div>
-        <div class="stat-item">
-          <span class="stat-label">Valeur totale écart:</span>
-          <span class="stat-value" [ngClass]="(summary.statistics.totalEcartValue || 0) > 0 ? 'positive' : 'negative'">
-            {{ (summary.statistics.totalEcartValue || 0) > 0 ? '+' : '' }}{{ formatCurrency(summary.statistics.totalEcartValue || 0) }}
+          <div class="col-value">
+            <span class="value-badge" [ngClass]="getEcartClass(ecart)">
+              {{ (ecart.ecartValue || 0) > 0 ? '+' : '' }}{{ formatCurrency(ecart.ecartValue || 0) }}
           </span>
+          </div>
+          <div class="col-actions">
+            <button class="btn-edit" (click)="editEcart(ecart)" title="Modifier">
+              <i class="fas fa-edit"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- No Écarts -->
+  <div class="no-ecarts" *ngIf="summary && summary.ecarts.length === 0">
+    <div class="no-ecarts-icon">
+      <i class="fas fa-check-circle text-green-500"></i>
+    </div>
+    <h3>Aucun écart détecté</h3>
+    <p>Tous les comptages correspondent aux quantités théoriques.</p>
   </div>
 
   <!-- Error Message -->
@@ -108,723 +138,85 @@
   <!-- Loading -->
   <div *ngIf="loading" class="loading-state">
     <div class="loading-spinner"></div>
-    <p>Chargement des écarts...</p>
-  </div>
-
-  <!-- Écarts List -->
-  <div class="ecarts-section" *ngIf="!loading && summary">
-    <div class="ecarts-header">
-      <h3>Détail des Écarts</h3>
-      <div class="ecarts-count">{{ summary.ecarts.length }} écart(s) détecté(s)</div>
-    </div>
-
-    <div class="ecarts-grid" *ngIf="summary.ecarts.length > 0">
-      <div class="ecart-card" *ngFor="let ecart of summary.ecarts" [ngClass]="getEcartCardClass(ecart)">
-        <div class="ecart-header">
-          <div class="product-info">
-            <h4 class="product-name">{{ ecart.productName }}</h4>
-            <div class="product-details">
-      <!-- Barcode removed as it's not available in ecart object -->
-            </div>
-          </div>
-          <div class="ecart-badge" [ngClass]="getEcartBadgeClass(ecart)">
-            {{ getEcartBadgeText(ecart) }}
-          </div>
-        </div>
-
-        <div class="ecart-metrics">
-          <div class="metric-group">
-            <div class="metric">
-              <div class="metric-label">Théorique</div>
-              <div class="metric-value theoretical">{{ ecart.theoreticalQuantity }}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Compté</div>
-              <div class="metric-value counted">{{ ecart.countedQuantity }}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Écart</div>
-              <div class="metric-value" [ngClass]="getEcartValueClass(ecart)">
-                {{ (ecart.ecartQuantity || 0) > 0 ? '+' : '' }}{{ ecart.ecartQuantity }}
-              </div>
-            </div>
-          </div>
-          <div class="value-metric">
-            <div class="metric-label">Valeur écart</div>
-            <div class="metric-value" [ngClass]="getEcartValueClass(ecart)">
-              {{ (ecart.ecartValue || 0) > 0 ? '+' : '' }}{{ formatCurrency(ecart.ecartValue || 0) }}
-            </div>
-          </div>
-        </div>
-
-        <div class="ecart-actions">
-          <div class="reason-section">
-            <label class="reason-label">Raison de l'écart:</label>
-            <select 
-              class="reason-select" 
-              [(ngModel)]="ecart.reason"
-              (change)="updateEcartReason(ecart)"
-              title="Sélectionner la raison de l'écart">
-              <option value="PHYSICAL_COUNT_DIFFERENCE">Différence de comptage physique</option>
-              <option value="SUSPICION_OF_ANOMALY">Suspicion d'anomalie</option>
-            </select>
-          </div>
-          <div class="notes-section">
-            <label class="notes-label">Notes (optionnel):</label>
-            <textarea 
-              class="notes-input" 
-              [(ngModel)]="ecart.notes"
-              (blur)="updateEcartNotes(ecart)"
-              placeholder="Ajouter des notes sur cet écart..."></textarea>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- No Écarts -->
-    <div class="no-ecarts" *ngIf="summary.ecarts.length === 0">
-      <div class="no-ecarts-icon">
-        <i class="fas fa-check-circle"></i>
-      </div>
-      <h3>Parfait ! Aucun écart détecté</h3>
-      <p>Tous les comptages correspondent aux quantités théoriques.</p>
-    </div>
-  </div>
-
-  <!-- Bottom Actions -->
-  <div class="bottom-actions" *ngIf="!loading && summary">
-    <div class="actions-info">
-      <div class="info-item">
-        <span class="info-label">Articles avec écart:</span>
-        <span class="info-value">{{ summary.statistics.itemsWithEcart || 0 }}</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Valeur totale écart:</span>
-        <span class="info-value" [ngClass]="(summary.statistics.totalEcartValue || 0) > 0 ? 'positive' : 'negative'">
-          {{ (summary.statistics.totalEcartValue || 0) > 0 ? '+' : '' }}{{ formatCurrency(summary.statistics.totalEcartValue || 0) }}
-        </span>
-      </div>
-    </div>
-    <div class="actions-buttons">
-      <button class="btn-secondary" (click)="goBack()">
-        <i class="fas fa-arrow-left"></i>
-        Retour au comptage
-      </button>
-      <button 
-        class="btn-primary" 
-        (click)="postInventory()" 
-        [disabled]="!canPost() || loading">
-        <i class="fas fa-check-circle"></i>
-        Poster l'inventaire
-      </button>
-    </div>
+    <p>Chargement du rapport...</p>
   </div>
 </div>
 
-<!-- Custom Styles -->
+<!-- Print Styles -->
 <style>
+@media print {
 .review-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
-}
-
-.review-header {
-  margin-bottom: 2rem;
-}
-
-.header-content {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2d3748;
-  margin: 0 0 1rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.page-title i {
-  color: #667eea;
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .header-actions,
+  .btn-edit,
+  .col-actions {
+    display: none !important;
+  }
+  
+  .header {
+    border-bottom: 2px solid #000 !important;
+    margin-bottom: 20px !important;
+    padding-bottom: 10px !important;
+  }
+  
+  .title {
+    color: #000 !important;
+    font-size: 24px !important;
 }
 
 .session-info {
-  display: flex;
-  gap: 2rem;
-  flex-wrap: wrap;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #718096;
-  font-size: 0.9rem;
-}
-
-.info-item i {
-  color: #a0aec0;
-  width: 16px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-.btn-back, .btn-post {
-  border: none;
-  border-radius: 12px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-back {
-  background: #e2e8f0;
-  color: #4a5568;
-}
-
-.btn-back:hover {
-  background: #cbd5e0;
-  transform: translateY(-2px);
-}
-
-.btn-post {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  color: white;
-  box-shadow: 0 10px 20px rgba(67, 233, 123, 0.3);
-}
-
-.btn-post:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 15px 30px rgba(67, 233, 123, 0.4);
-}
-
-.btn-post:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.summary-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
-}
-
-.summary-card:hover {
-  transform: translateY(-5px);
-}
-
-.card-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  color: white;
-}
-
-.summary-card.total .card-icon { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.summary-card.counted .card-icon { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-.summary-card.ecart .card-icon { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-.summary-card.value .card-icon { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-
-.card-content {
-  flex: 1;
-}
-
-.card-number {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2d3748;
-  line-height: 1;
-}
-
-.card-label {
-  color: #718096;
-  font-size: 0.9rem;
-  margin-top: 0.25rem;
-}
-
-.ecarts-summary {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
-
-.summary-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.summary-header h3 {
-  margin: 0;
-  color: #2d3748;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.summary-header i {
-  color: #667eea;
-}
-
-.summary-stats {
-  display: flex;
-  gap: 2rem;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  color: #718096;
-  font-weight: 500;
-}
-
-.stat-value {
-  font-size: 1.2rem;
-  font-weight: 700;
-}
-
-.stat-value.positive {
-  color: #38a169;
-}
-
-.stat-value.negative {
-  color: #e53e3e;
-}
-
-.error-message {
-  background: rgba(254, 226, 226, 0.95);
-  color: #c53030;
-  border: 1px solid #feb2b2;
-  border-radius: 15px;
-  padding: 1rem 1.5rem;
-  margin-bottom: 2rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  backdrop-filter: blur(10px);
-}
-
-.loading-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: white;
-}
-
-.loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.ecarts-section {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
-
-.ecarts-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.ecarts-header h3 {
-  margin: 0;
-  color: #2d3748;
-  font-weight: 600;
-}
-
-.ecarts-count {
-  background: #e2e8f0;
-  color: #4a5568;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.ecarts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 1.5rem;
-}
-
-.ecart-card {
-  background: white;
-  border-radius: 15px;
-  padding: 1.5rem;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-  border-left: 4px solid #e2e8f0;
-}
-
-.ecart-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
-}
-
-.ecart-card.positive {
-  border-left-color: #43e97b;
-  background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
-}
-
-.ecart-card.negative {
-  border-left-color: #f093fb;
-  background: linear-gradient(135deg, #fef5e7 0%, #ffffff 100%);
-}
-
-.ecart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-}
-
-.product-info {
-  flex: 1;
-}
-
-.product-name {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #2d3748;
-  margin: 0 0 0.5rem 0;
-}
-
-.product-details {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.product-barcode {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #718096;
-  font-size: 0.9rem;
-}
-
-.product-barcode i {
-  color: #a0aec0;
-}
-
-.ecart-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.ecart-badge.positive {
-  background: #c6f6d5;
-  color: #2f855a;
-}
-
-.ecart-badge.negative {
-  background: #fed7d7;
-  color: #c53030;
-}
-
-.ecart-metrics {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: #f7fafc;
-  border-radius: 10px;
-}
-
-.metric-group {
-  display: flex;
-  gap: 1rem;
-}
-
-.metric {
-  text-align: center;
-}
-
-.metric-label {
-  font-size: 0.8rem;
-  color: #718096;
-  margin-bottom: 0.25rem;
-  font-weight: 500;
-}
-
-.metric-value {
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.metric-value.theoretical {
-  color: #4a5568;
-}
-
-.metric-value.counted {
-  color: #3182ce;
-}
-
-.metric-value.positive {
-  color: #38a169;
-}
-
-.metric-value.negative {
-  color: #e53e3e;
-}
-
-.value-metric {
-  text-align: center;
-}
-
-.ecart-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.reason-section, .notes-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.reason-label, .notes-label {
-  font-weight: 600;
-  color: #4a5568;
-  font-size: 0.9rem;
-}
-
-.reason-select {
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 0.5rem;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-  background: white;
-}
-
-.reason-select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.notes-input {
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 0.75rem;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-  background: white;
-  resize: vertical;
-  min-height: 60px;
-}
-
-.notes-input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.no-ecarts {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #718096;
-}
-
-.no-ecarts-icon {
-  font-size: 4rem;
-  color: #43e97b;
-  margin-bottom: 1rem;
-}
-
-.no-ecarts h3 {
-  color: #4a5568;
-  margin-bottom: 0.5rem;
-}
-
-.bottom-actions {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
-
-.actions-info {
-  display: flex;
-  gap: 2rem;
-}
-
-.info-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.info-label {
-  font-size: 0.9rem;
-  color: #718096;
-  font-weight: 500;
-}
-
-.info-value {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #2d3748;
-}
-
-.info-value.positive {
-  color: #38a169;
-}
-
-.info-value.negative {
-  color: #e53e3e;
-}
-
-.actions-buttons {
-  display: flex;
-  gap: 1rem;
-}
-
-.btn-secondary, .btn-primary {
-  border: none;
-  border-radius: 12px;
-  padding: 1rem 2rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-secondary {
-  background: #e2e8f0;
-  color: #4a5568;
-}
-
-.btn-secondary:hover {
-  background: #cbd5e0;
-  transform: translateY(-2px);
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  color: white;
-  box-shadow: 0 10px 20px rgba(67, 233, 123, 0.3);
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 15px 30px rgba(67, 233, 123, 0.4);
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-@media (max-width: 768px) {
-  .review-container {
-    padding: 1rem;
+    color: #666 !important;
   }
   
-  .header-content {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
+  .stats-grid {
+    margin-bottom: 30px !important;
   }
   
-  .session-info {
-    justify-content: center;
+  .stat-card {
+    border: 1px solid #ddd !important;
+    background: #f9f9f9 !important;
   }
   
-  .summary-cards {
-    grid-template-columns: 1fr;
+  .ecarts-table {
+    border: 1px solid #000 !important;
   }
   
-  .ecarts-grid {
-    grid-template-columns: 1fr;
+  .table-header {
+    background: #f0f0f0 !important;
+    border-bottom: 2px solid #000 !important;
   }
   
-  .bottom-actions {
-    flex-direction: column;
-    gap: 1rem;
+  .table-row {
+    border-bottom: 1px solid #ddd !important;
   }
   
-  .actions-info {
-    justify-content: center;
+  .table-row:nth-child(even) {
+    background: #f9f9f9 !important;
   }
   
-  .summary-stats {
-    flex-direction: column;
-    gap: 1rem;
+  .ecart-badge.positive {
+    background: #d4edda !important;
+    color: #155724 !important;
+    border: 1px solid #c3e6cb !important;
+  }
+  
+  .ecart-badge.negative {
+    background: #f8d7da !important;
+    color: #721c24 !important;
+    border: 1px solid #f5c6cb !important;
+  }
+  
+  .value-badge.positive {
+    color: #155724 !important;
+  }
+  
+  .value-badge.negative {
+    color: #721c24 !important;
   }
 }
 </style>

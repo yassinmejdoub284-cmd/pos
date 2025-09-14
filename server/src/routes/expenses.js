@@ -1,12 +1,11 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const { prisma } = require('../lib/prisma');
 const fs = require('fs');
 const path = require('path');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { AuditLogger } = require('../lib/audit');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Settings fallback (file) - mirror settings route behavior
 const SETTINGS_FILE = path.join(__dirname, '../../uploads/app-settings.json');

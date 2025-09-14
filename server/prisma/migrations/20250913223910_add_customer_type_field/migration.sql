@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `clients` ADD COLUMN `customer_type` ENUM('DEPOT', 'INVOICING_ONLY') NOT NULL DEFAULT 'DEPOT';

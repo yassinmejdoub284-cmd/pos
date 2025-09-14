@@ -56,7 +56,7 @@ export class HomeComponent implements OnInit {
       title: 'Caisse',
       description: 'Point de vente',
       route: '/caisse',
-      icon: 'M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01',
+      icon: 'M472 96c13.232 0 24-10.768 24-24V24c0-13.232-10.768-24-24-24H312c-13.232 0-24 10.768-24 24v48c0 13.232 10.768 24 24 24h48v240h-16V152c0-22.056-17.944-40-40-40H192V0H48v112h-8c-22.056 0-40 17.944-40 40v184v8v152h496V336h-72V96H472zM64 16h16v16h16V16h16v16h16V16h16v16h16V16h16v144H64V16zM16 152c0-13.232 10.768-24 24-24h8v32H32v16h176v-16h-16v-32h112c13.232 0 24 10.768 24 24v184H16V152zM480 352v128H16V352H480zM376 336V96h32v240H376zM312 80c-4.416 0-8-3.584-8-8V24c0-4.416 3.584-8 8-8h160c4.416 0 8 3.584 8 8v48c0 4.416-3.584 8-8 8H312z',
       color: 'from-emerald-500 to-green-600',
       gradient: 'from-emerald-50 to-green-100',
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
@@ -89,16 +89,6 @@ export class HomeComponent implements OnInit {
       icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
       color: 'from-orange-500 to-amber-600',
       gradient: 'from-orange-50 to-amber-100',
-      roles: ['ADMIN', 'MANAGER', 'STOCK_MANAGER']
-    },
-    {
-      id: 'inventory',
-      title: 'Inventaire Physique',
-      description: 'Comptage et écarts',
-      route: '/inventory',
-      icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
-      color: 'from-cyan-500 to-blue-600',
-      gradient: 'from-cyan-50 to-blue-100',
       roles: ['ADMIN', 'MANAGER', 'STOCK_MANAGER']
     },
     {

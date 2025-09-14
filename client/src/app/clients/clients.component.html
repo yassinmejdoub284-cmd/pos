@@ -324,6 +324,23 @@
           </select>
         </div>
 
+        <div class="space-y-2">
+          <label class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+              </path>
+            </svg>
+             Point de vente assigné
+          </label>
+          <select [(ngModel)]="createForm.depotId" title="Sélectionner le point de vente"
+            class="w-full bg-gradient-to-r from-gray-50 to-purple-50 border-2 border-gray-200 rounded-2xl px-4 py-3 text-gray-800 focus:outline-none focus:border-purple-400 focus:bg-white transition-all duration-300 shadow-sm hover:shadow-md appearance-none cursor-pointer">
+            <option [value]="-1">Tout (Tous les points de vente)</option>
+            <option [value]="null">Facturation uniquement</option>
+            <option *ngFor="let depot of availableDepots" [value]="depot.id">{{ depot.name }}</option>
+          </select>
+        </div>
+
         <!-- Autoriser le crédit -->
         <div class="space-y-2">
           <label class="block text-sm font-semibold text-gray-700">Autoriser le crédit</label>
@@ -439,6 +456,16 @@
             <option value="INDIVIDUAL">Particulier</option>
             <option value="BUSINESS">Entreprise</option>
             <option value="WHOLESALE">Gros</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-slate-300 mb-1">Point de vente assigné</label>
+          <select title="Point de vente assigné" [(ngModel)]="editForm.depotId"
+            class="w-full bg-white/60 border border-primary-600/50 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-pink-400 transition-colors">
+            <option [value]="-1">Tout (Tous les points de vente)</option>
+            <option [value]="null">Facturation uniquement</option>
+            <option *ngFor="let depot of availableDepots" [value]="depot.id">{{ depot.name }}</option>
           </select>
         </div>
 
@@ -596,6 +623,15 @@
                 <span
                   [class]="'px-2 py-1 rounded-full text-xs font-medium ' + getClientTypeColor(selectedClient.clientType)">
                   {{ getClientTypeLabel(selectedClient.clientType) }}
+                </span>
+              </div>
+            </div>
+            <div>
+               <span class="text-slate-400 text-sm">Point de vente assigné:</span>
+              <div>
+                <span
+                  [class]="'px-2 py-1 rounded-full text-xs font-medium ' + getDepotColor(selectedClient.depotId)">
+                  {{ getDepotName(selectedClient.depotId) }}
                 </span>
               </div>
             </div>

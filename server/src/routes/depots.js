@@ -8,7 +8,10 @@ router.get('/', async (req, res) => {
   try {
     const { types } = req.query;
     
-    let whereClause = { isActive: true };
+    let whereClause = { 
+      isActive: true,
+      id: { not: -1 } // Exclude the special "Tout" depot from regular depot lists
+    };
     
     if (types) {
       const typeArray = types.split(',');

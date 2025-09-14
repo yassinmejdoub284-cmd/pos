@@ -40,10 +40,6 @@ const routes: Routes = [
                 path: 'branch-inventory/:depotId',
                 loadChildren: () => import('./branch-inventory/branch-inventory.module').then(m => m.BranchInventoryModule)
               },
-              {
-                path: 'depot-expenses/:id',
-                loadChildren: () => import('./depot-expenses/depot-expenses.module').then(m => m.DepotExpensesModule)
-              }
 ];
 
 @NgModule({

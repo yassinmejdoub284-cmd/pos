@@ -3,6 +3,8 @@ import { ActivatedRoute } from '@angular/router';
 import { Router } from '@angular/router';
 import { ClientsService } from '../core/services/clients.service';
 import { Client, ClientType, CreateClientRequest, UpdateClientRequest } from '../core/models/client.model';
+import { Depot } from '../core/models/depot.model';
+import { DepotsService } from '../core/services/depots.service';
 
 @Component({
   selector: 'app-clients',
@@ -38,6 +40,9 @@ export class ClientsComponent implements OnInit {
     { value: 'WHOLESALE', label: 'Gros' }
   ];
 
+  // Available depots
+  availableDepots: Depot[] = [];
+
   // Popup states
   showCreatePopup = false;
   showEditPopup = false;
@@ -53,6 +58,7 @@ export class ClientsComponent implements OnInit {
     city: 'Tunis',
     address: '',
     clientType: 'INDIVIDUAL',
+    depotId: -1, // Default to "Tout" (any depot)
     notes: '',
     allowDebt: true,
     maxDebt: null
@@ -67,12 +73,14 @@ export class ClientsComponent implements OnInit {
 
   constructor(
     private clientsService: ClientsService,
+    private depotsService: DepotsService,
     private route: ActivatedRoute,
     private router: Router
   ) {}
 
   ngOnInit(): void {
     this.loadClients();
+    this.loadDepots();
     
     // Check if we should open the create popup based on query parameters
     this.route.queryParams.subscribe(params => {
@@ -105,6 +113,17 @@ export class ClientsComponent implements OnInit {
         this.error = 'Erreur lors du chargement des clients';
         this.loading = false;
         console.error('Error loading clients:', error);
+      }
+    });
+  }
+
+  loadDepots(): void {
+    this.depotsService.list().subscribe({
+      next: (depots) => {
+        this.availableDepots = depots;
+      },
+      error: (error) => {
+        console.error('Error loading depots:', error);
       }
     });
   }
@@ -150,6 +169,7 @@ export class ClientsComponent implements OnInit {
       city: 'Tunis',
       address: '',
       clientType: 'INDIVIDUAL',
+      depotId: -1, // Default to "Tout" (any depot)
       notes: '',
       allowDebt: true,
       maxDebt: null
@@ -166,6 +186,7 @@ export class ClientsComponent implements OnInit {
       city: client.city || 'Tunis',
       address: client.address || '',
       clientType: client.clientType,
+      depotId: client.depotId,
       loyaltyPoints: client.loyaltyPoints,
       totalSpent: client.totalSpent,
       favoriteProducts: client.favoriteProducts,
@@ -265,6 +286,19 @@ export class ClientsComponent implements OnInit {
       case 'WHOLESALE': return 'bg-purple-500/20 text-purple-400';
       default: return 'bg-gray-500/20 text-gray-400';
     }
+  }
+
+  getDepotName(depotId?: number | null): string {
+    if (depotId === null || depotId === undefined) return 'Facturation uniquement';
+    if (depotId === -1) return 'Tout (Tous les points de vente)';
+    const depot = this.availableDepots.find(d => d.id === depotId);
+    return depot ? depot.name : 'Point de vente inconnu';
+  }
+
+  getDepotColor(depotId?: number | null): string {
+    if (depotId === null || depotId === undefined) return 'bg-orange-500/20 text-orange-400';
+    if (depotId === -1) return 'bg-green-500/20 text-green-400';
+    return 'bg-blue-500/20 text-blue-400';
   }
 
   showAlertMessage(message: string, type: 'success' | 'error' | 'info'): void {

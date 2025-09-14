@@ -7,6 +7,13 @@ export interface Client {
   city?: string;
   address?: string;
   clientType: ClientType;
+  depotId?: number | null; // null = invoicing only, -1 = any depot, >0 = specific depot
+  depot?: {
+    id: number;
+    name: string;
+    code: string;
+    type: string;
+  };
   loyaltyPoints: number;
   totalSpent: number;
   favoriteProducts?: string;
@@ -33,6 +40,7 @@ export interface CreateClientRequest {
   city?: string;
   address?: string;
   clientType?: ClientType;
+  depotId?: number | null; // null = invoicing only, -1 = any depot, >0 = specific depot
   notes?: string;
   allowDebt?: boolean;
   maxDebt?: number | null;
@@ -45,6 +53,7 @@ export interface UpdateClientRequest {
   city?: string;
   address?: string;
   clientType?: ClientType;
+  depotId?: number | null; // null = invoicing only, -1 = any depot, >0 = specific depot
   loyaltyPoints?: number;
   totalSpent?: number;
   favoriteProducts?: string;

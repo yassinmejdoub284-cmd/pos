@@ -1,871 +1,324 @@
-<div class="count-container">
-  <!-- Header -->
-  <div class="count-header">
-    <div class="header-content">
-      <div class="header-info">
-        <h1 class="page-title">
-          <i class="fas fa-clipboard-check"></i>
-          Comptage Physique
-        </h1>
-        <div class="session-info" *ngIf="session">
-          <div class="info-item">
-            <i class="fas fa-hashtag"></i>
-            <span>{{ session.numero }}</span>
-          </div>
-          <div class="info-item">
-            <i class="fas fa-warehouse"></i>
-            <span>{{ session.depot?.name }}</span>
-          </div>
-          <div class="info-item">
-            <i class="fas fa-calendar"></i>
-            <span>{{ formatDate(session.startedAt) }}</span>
-          </div>
-        </div>
-      </div>
-      <div class="header-actions">
-        <button class="btn-back" (click)="goBack()">
-          <i class="fas fa-arrow-left"></i>
-          Retour
-        </button>
-        <button class="btn-save" (click)="saveProgress()" [disabled]="loading">
-          <i class="fas fa-save"></i>
-          Sauvegarder
-        </button>
-      </div>
-    </div>
-  </div>
+<div class="min-h-screen bg-gradient-to-br bg-white">
 
-  <!-- Progress Bar -->
-  <div class="progress-section" *ngIf="session">
-    <div class="progress-info">
-      <span class="progress-text">
-        {{ getCountedItems() }} / {{ session.items?.length || 0 }} articles comptés
-      </span>
-      <span class="progress-percentage">
-        {{ getProgressPercentage() }}%
-      </span>
-    </div>
-    <div class="progress-bar">
-      <div class="progress-fill" [style.width.%]="getProgressPercentage()"></div>
-    </div>
-  </div>
+  <!-- Main Content Area - 2 Section Layout -->
+  <div class="md:grid md:grid-cols-12 gap-2 h-screen p-1">
 
-  <!-- Search and Filters -->
-  <div class="search-section">
-    <div class="search-card">
-      <div class="search-input-group">
-        <i class="fas fa-search search-icon"></i>
-        <input 
-          type="text" 
-          class="search-input" 
-          placeholder="Rechercher un produit..."
-          [(ngModel)]="searchTerm"
-          (input)="onSearchChange()">
-        <button class="btn-clear-search" (click)="clearSearch()" *ngIf="searchTerm" title="Effacer la recherche">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <div class="filter-buttons">
-        <button 
-          class="filter-btn" 
-          [class.active]="filterStatus === 'all'"
-          (click)="setFilter('all')">
-          Tous
-        </button>
-        <button 
-          class="filter-btn" 
-          [class.active]="filterStatus === 'counted'"
-          (click)="setFilter('counted')">
-          Comptés
-        </button>
-        <button 
-          class="filter-btn" 
-          [class.active]="filterStatus === 'pending'"
-          (click)="setFilter('pending')">
-          En attente
-        </button>
-        <button 
-          class="filter-btn" 
-          [class.active]="filterStatus === 'ecart'"
-          (click)="setFilter('ecart')">
-          Avec écart
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Error Message -->
-  <div *ngIf="error" class="error-message">
-    <i class="fas fa-exclamation-triangle"></i>
-    {{ error }}
-  </div>
-
-  <!-- Loading -->
-  <div *ngIf="loading" class="loading-state">
-    <div class="loading-spinner"></div>
-    <p>Chargement des articles...</p>
-  </div>
-
-  <!-- Products Grid -->
-  <div class="products-section" *ngIf="!loading && session">
-    <div class="products-grid" *ngIf="filteredItems.length > 0">
-      <div class="product-card" *ngFor="let item of filteredItems" [ngClass]="getItemCardClass(item)">
-        <div class="product-header">
-          <div class="product-name">{{ item.product?.name }}</div>
-          <div class="product-barcode" *ngIf="item.product?.barcode">
-            <i class="fas fa-barcode"></i>
-            {{ item.product?.barcode }}
-          </div>
-        </div>
-
-        <div class="product-details">
-          <div class="detail-row">
-            <span class="detail-label">Famille:</span>
-            <span class="detail-value">{{ item.product?.famille?.name || '-' }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Unité:</span>
-            <span class="detail-value">{{ item.product?.unite || '-' }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Prix:</span>
-            <span class="detail-value">{{ formatCurrency(item.product?.prix_vente_TTC || 0) }}</span>
-          </div>
-        </div>
-
-        <div class="quantity-section">
-          <div class="theoretical-quantity">
-            <label>Quantité théorique:</label>
-            <div class="quantity-display theoretical">
-              {{ item.theoreticalQuantity }}
+    <!-- 1️⃣ Left Section - Products Grid -->
+    <div class="flex-1 col-span-8 flex flex-col max-h-screen">
+      <!-- Inventory Header -->
+      <div
+        class="col-span-14 bg-gradient-to-r from-blue-50 via-white to-emerald-50 rounded-lg border border-blue-200/60 shadow-lg mb-1">
+        <div class="flex items-center justify-between px-3 py-2">
+          <!-- Left: Session Info -->
+          <div class="flex items-center space-x-2">
+            <div
+              class="bg-gradient-to-r from-blue-400 to-blue-500 text-white px-3 py-1 rounded-lg font-mono text-sm font-bold shadow-md">
+              #{{ session?.numero || 'N/A' }}
+            </div>
+            <div
+              class="bg-gradient-to-r from-emerald-400 to-emerald-500 text-white px-3 py-1 rounded-lg font-mono text-sm font-bold shadow-md">
+              {{ session?.depot?.name || 'Dépôt' }}
             </div>
           </div>
 
-          <div class="counted-quantity">
-            <label>Quantité comptée:</label>
-            <div class="quantity-input-group">
-              <button class="quantity-btn minus" (click)="decrementQuantity(item)" title="Diminuer la quantité">
-                <i class="fas fa-minus"></i>
-              </button>
-              <input 
-                type="number" 
-                class="quantity-input" 
-                [value]="item.countedQuantity || ''"
-                (input)="onQuantityChange(item, $event)"
-                (blur)="onQuantityBlur(item)"
-                placeholder="0">
-              <button class="quantity-btn plus" (click)="incrementQuantity(item)" title="Augmenter la quantité">
-                <i class="fas fa-plus"></i>
-              </button>
+
+          <!-- Right: Progress -->
+          <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-r from-blue-100 to-emerald-100 rounded-lg px-3 py-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-xs font-medium text-gray-700">Progression:</span>
+                <span class="text-sm font-bold text-blue-600">{{ countedItems }}/{{ totalItems }}</span>
+                <div class="w-16 bg-gray-200 rounded-full h-1.5">
+                  <div
+                    class="bg-gradient-to-r from-blue-500 to-emerald-500 h-1.5 rounded-full transition-all duration-300"
+                    [style.width.%]="totalItems > 0 ? (countedItems / totalItems) * 100 : 0"></div>
+                </div>
+                <span class="text-xs font-medium text-gray-600">
+                  {{ totalItems > 0 ? Math.round((countedItems / totalItems) * 100) : 0 }}%
+                </span>
+          </div>
+          </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 flex flex-col border-r border-gray-200/50">
+        <!-- Compact Products Header -->
+        <div class="bg-white p-2 border-b border-gray-200 mb-2">
+          <div class="flex items-center gap-2">
+            <h2 class="text-sm font-bold text-gray-800">Produits</h2>
+            <div class="flex-1 flex items-center gap-2">
+              <input type="text" [(ngModel)]="searchTerm" (input)="onSearchChange()" placeholder="Rechercher..."
+                class="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:border-purple-400 focus:bg-white">
+              <select [(ngModel)]="selectedCategory" (change)="selectCategory(selectedCategory)" title="Famille"
+                class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                <option value="Tous">Toutes</option>
+                <option *ngFor="let category of productCategories.slice(1)" [value]="category">{{ category }}</option>
+              </select>
+      </div>
+    </div>
+  </div>
+
+         <!-- Products Grid -->
+         <div class="flex-1 p-2 overflow-y-auto bg-gray-50 rounded-lg border-r-0" style="max-height: calc(100vh - 135px);">
+          <!-- Modern Loading State -->
+          <div *ngIf="loading" class="text-center py-16">
+            <div class="relative">
+              <div class="w-20 h-20 mx-auto mb-6">
+                <div class="absolute inset-0 rounded-full border-4 border-purple-200"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-purple-500 border-t-transparent animate-spin">
+    </div>
+  </div>
+              <div class="space-y-2">
+                <h3 class="text-xl font-semibold text-gray-700">Chargement des produits</h3>
+                <p class="text-gray-500">Veuillez patienter...</p>
+      </div>
+    </div>
+  </div>
+
+          <!-- Modern Products Grid -->
+          <div *ngIf="!loading" class="product-grid">
+            <div *ngFor="let product of filteredProducts; trackBy: trackByProductId"
+              (click)="handleProductClick(product)" [class]="getProductCardClass(product.id)">
+
+              <!-- Product Image - Optimized -->
+              <div
+                class="w-full h-12 mb-2 bg-gray-100 rounded-lg flex items-center justify-center relative border border-gray-200">
+                <img title="Image du produit" *ngIf="product.photo" [src]="product.photo" [alt]="product.name"
+                  class="w-full h-full object-cover rounded-lg" loading="lazy" decoding="async">
+                <svg *ngIf="!product.photo" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor"
+                  viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                  </path>
+                </svg>
+
+                <!-- Vrac Role Tag -->
+                <div *ngIf="product.name.toLowerCase().includes('vrac')"
+                  class="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold px-1 py-0.5 rounded-full">
+                  VRAC
+  </div>
+
+                <!-- Seed Role Tag -->
+                <div *ngIf="product.name.toLowerCase().includes('seed')"
+                  class="absolute -top-1 -right-1 bg-purple-500 text-white text-xs font-bold px-1 py-0.5 rounded-full">
+                  SEED
+  </div>
+
+                <!-- Theoretical Quantity Tag -->
+                <div
+                  class="absolute -bottom-1 -right-1 bg-gradient-to-r from-blue-400 to-blue-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-md border border-blue-300 z-20">
+                  {{ getTheoreticalQuantity(product.id) }}
+          </div>
+        </div>
+
+              <!-- Product Name -->
+              <div class="font-medium text-xs mb-1 text-gray-800 leading-tight break-words text-center">
+                {{ truncate(product.name, 18) }}
+          </div>
+
+          </div>
+        </div>
+
+          <!-- Modern Empty State -->
+          <div *ngIf="!loading && filteredProducts.length === 0" class="text-center py-12">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-lg flex items-center justify-center">
+              <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-700 mb-2">Aucun produit trouvé</h3>
+            <p class="text-gray-500">Essayez de modifier votre recherche</p>
+          </div>
+
             </div>
           </div>
 
-          <div class="ecart-display" *ngIf="item.countedQuantity !== null && item.countedQuantity !== 0">
-            <label>Écart:</label>
-            <div class="ecart-value" [ngClass]="getEcartClass(item)">
-              {{ getEcartText(item) }}
+    </div>
+     <!-- 2️⃣ Right Section - Count Items, Calculator & Actions -->
+     <div class="col-span-4 bg-white/90 rounded-lg border border-blue-200/60 p-2 flex flex-col shadow-lg max-h-screen">
+      <!-- Count Items Table -->
+      <div class="h-full flex flex-col">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <!-- Count Mode Header -->
+            <div class="relative">
+              <div class="relative rounded-lg px-3 py-2 shadow-lg bg-[#6b747c]">
+                <div class="flex items-center space-x-2">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                    </path>
+                  </svg>
+                  <h3 class="text-lg font-bold text-white tracking-wide">
+                    COMPTAGE
+                  </h3>
+                </div>
+            </div>
+          </div>
+
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <div class="text-sm text-gray-600">
+              <span class="font-medium">{{ countItems.length }}</span> article{{ countItems.length > 1 ? 's' : '' }}
+            </div>
+            <div
+              class="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-2 rounded-lg font-bold text-lg shadow-md">
+              {{ countedItems }}/{{ totalItems }}
             </div>
           </div>
         </div>
 
-        <div class="product-actions">
-          <button 
-            class="action-btn clear" 
-            (click)="clearQuantity(item)"
-            *ngIf="item.countedQuantity !== null">
-            <i class="fas fa-eraser"></i>
-            Effacer
+         <!-- Count Items Table -->
+         <div class="bg-black/50 rounded-lg overflow-hidden border border-blue-200 flex-1 overflow-y-auto" style="max-height: calc(100vh - 400px);">
+          <div class="overflow-y-auto h-full bg-white">
+            <table class="w-full">
+              <thead class="sticky top-0 bg-gradient-to-r from-blue-100 to-emerald-100">
+                <tr>
+                  <th class="text-left px-2 py-2 text-xs font-medium text-gray-700 w-12">THÉO</th>
+                  <th class="text-left px-2 py-2 text-xs font-medium text-gray-700">PRODUIT</th>
+                  <th class="text-right px-2 py-2 text-xs font-medium text-gray-700 w-16">COMPTÉ</th>
+                  <th class="text-right px-2 py-2 text-xs font-medium text-gray-700 w-16 border-r-0">ÉCART</th>
+                  <th class="text-center px-2 py-2 text-xs font-medium text-gray-700 w-12"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of countItems; let i = index"
+                  class="border-b border-gray-200 text-gray-800 cursor-pointer hover:bg-blue-50 transition-colors"
+                  [class]="selectedCountItemIndex === i ? 'bg-blue-100 border-blue-300' : 'bg-purple-50'"
+                  (click)="selectCountItem(item)">
+                  <td class="px-2 py-2 text-xs">{{ item.theoreticalQuantity }}</td>
+                  <td class="px-2 py-2 text-xs font-medium">
+                    <div>{{ truncate(item.product.name, 20) }}</div>
+                  </td>
+                  <td class="px-2 py-2 text-xs text-right">
+                    <span *ngIf="item.countedQuantity !== null" class="font-bold text-blue-600">
+                      {{ item.countedQuantity }}
+                    </span>
+                    <span *ngIf="item.countedQuantity === null" class="text-gray-400">-</span>
+                  </td>
+                  <td class="px-2 py-2 text-xs text-right">
+                    <span *ngIf="item.countedQuantity !== null" [class]="getEcartClass(item)">
+                      {{ getEcartText(item) }}
+                    </span>
+                    <span *ngIf="item.countedQuantity === null" class="text-gray-400">-</span>
+                  </td>
+                  <td class="px-2 py-2 text-center">
+                    <button (click)="removeCountItem(i)"
+                      class="w-6 h-6 bg-gradient-to-br from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-lg hover:shadow-xl transform hover:scale-110 active:scale-95">
+                      ×
           </button>
-          <button 
-            class="action-btn confirm" 
-            (click)="confirmQuantity(item)"
-            [disabled]="item.countedQuantity === null">
-            <i class="fas fa-check"></i>
-            Confirmer
-          </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
         </div>
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div class="empty-state" *ngIf="filteredItems.length === 0">
-      <div class="empty-icon">
-        <i class="fas fa-search"></i>
+      <!-- Calculator Section -->
+      <div class="mt-2 flex flex-col">
+        <!-- Input Display -->
+        <div class="mb-2 flex gap-2">
+          <div class="grow rounded-lg py-1 px-4 border bg-blue-100 border-blue-200">
+            <div class="text-xs text-gray-500 mb-1">
+              Quantité
+              <span *ngIf="lastEnteredValue" class="text-green-600">({{ lastEnteredValue }})</span>
+              <span *ngIf="pendingProduct" class="text-blue-600"> - {{ pendingProduct.name }}</span>
+            </div>
+            <div class="text-gray-800 text-2xl font-mono">{{ currentInput || '0' }}</div>
+          </div>
+          <button (click)="clearInput()" title="Effacer"
+            class="bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all text-sm font-medium border border-red-400 flex items-center justify-center px-3">
+            C
+          </button>
       </div>
-      <h3>Aucun produit trouvé</h3>
-      <p>Essayez de modifier vos critères de recherche</p>
-      <button class="btn-clear-filters" (click)="clearAllFilters()">
-        <i class="fas fa-times"></i>
-        Effacer les filtres
+
+        <!-- Numeric Keypad -->
+        <div class="grid grid-cols-3 gap-1.5">
+          <!-- Row 1: 7 8 9 -->
+          <button *ngFor="let num of [7,8,9]" (click)="addToInput(num.toString())"
+            class="bg-white/60 text-gray-800 py-2 rounded-lg hover:bg-blue-100 transition-all text-lg font-medium border border-blue-200">
+            {{ num }}
+          </button>
+
+          <!-- Row 2: 4 5 6 -->
+          <button *ngFor="let num of [4,5,6]" (click)="addToInput(num.toString())"
+            class="bg-white/60 text-gray-800 py-2 rounded-lg hover:bg-blue-100 transition-all text-lg font-medium border border-blue-200">
+            {{ num }}
+          </button>
+
+          <!-- Row 3: 1 2 3 -->
+          <button *ngFor="let num of [1,2,3]" (click)="addToInput(num.toString())"
+            class="bg-white/60 text-gray-800 py-2 rounded-lg hover:bg-blue-100 transition-all text-lg font-medium border border-blue-200">
+            {{ num }}
+          </button>
+
+          <button (click)="addDecimal()"
+            class="bg-white/60 text-gray-800 py-2 rounded-lg hover:bg-blue-100 transition-all text-lg font-medium border border-blue-200">
+            .
+          </button>
+
+          <!-- Row 4: 0 . -> -->
+          <button (click)="addToInput('0')"
+            class="bg-white/60 text-gray-800 py-2 rounded-lg hover:bg-blue-100 transition-all text-lg font-medium border border-blue-200">
+            0
+          </button>
+
+          <button (click)="enterValue()" title="Valider la valeur"
+            class="bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all text-sm font-medium border border-emerald-400 flex items-center justify-center">
+            OK
       </button>
     </div>
   </div>
 
-  <!-- Bottom Actions -->
-  <div class="bottom-actions" *ngIf="!loading && session">
-    <div class="actions-info">
-      <div class="info-item">
-        <span class="info-label">Articles comptés:</span>
-        <span class="info-value">{{ getCountedItems() }}</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Articles restants:</span>
-        <span class="info-value">{{ getRemainingItems() }}</span>
-      </div>
-    </div>
-    <div class="actions-buttons">
-      <button class="btn-secondary" (click)="saveProgress()" [disabled]="loading">
-        <i class="fas fa-save"></i>
-        Sauvegarder
+      <!-- Actions Section -->
+      <div class="mt-2 border-t border-gray-200 pt-2">
+        <!-- Action Buttons -->
+        <div class="space-y-1">
+          <button (click)="validateAllCounts()" [disabled]="countItems.length === 0 || saving"
+            class="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-lg transition-all text-xs font-medium flex items-center justify-center py-1.5 relative hover:scale-95 transform shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Valider tous les comptages</span>
       </button>
-      <button 
-        class="btn-primary" 
-        (click)="finishCounting()" 
-        [disabled]="getCountedItems() === 0 || loading">
-        <i class="fas fa-check-circle"></i>
-        Terminer le comptage
-      </button>
+
     </div>
   </div>
 </div>
 
-<!-- Custom Styles -->
-<style>
-.count-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
-}
-
-.count-header {
-  margin-bottom: 2rem;
-}
-
-.header-content {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2d3748;
-  margin: 0 0 1rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.page-title i {
-  color: #667eea;
-}
-
-.session-info {
-  display: flex;
-  gap: 2rem;
-  flex-wrap: wrap;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #718096;
-  font-size: 0.9rem;
-}
-
-.info-item i {
-  color: #a0aec0;
-  width: 16px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-.btn-back, .btn-save {
-  border: none;
-  border-radius: 12px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-back {
-  background: #e2e8f0;
-  color: #4a5568;
-}
-
-.btn-back:hover {
-  background: #cbd5e0;
-  transform: translateY(-2px);
-}
-
-.btn-save {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-}
-
-.btn-save:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
-}
-
-.btn-save:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.progress-section {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.progress-text {
-  font-weight: 600;
-  color: #2d3748;
-}
-
-.progress-percentage {
-  font-weight: 700;
-  color: #667eea;
-  font-size: 1.1rem;
-}
-
-.progress-bar {
-  height: 8px;
-  background: #e2e8f0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.search-section {
-  margin-bottom: 2rem;
-}
-
-.search-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 1.5rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
-
-.search-input-group {
-  position: relative;
-  margin-bottom: 1rem;
-}
-
-.search-icon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #a0aec0;
-}
-
-.search-input {
-  width: 100%;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 0.75rem 1rem 0.75rem 3rem;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: white;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.btn-clear-search {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: #a0aec0;
-  cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-}
-
-.btn-clear-search:hover {
-  background: #e2e8f0;
-  color: #4a5568;
-}
-
-.filter-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  border: 2px solid #e2e8f0;
-  background: white;
-  color: #4a5568;
-  border-radius: 20px;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.filter-btn:hover {
-  border-color: #667eea;
-  color: #667eea;
-}
-
-.filter-btn.active {
-  background: #667eea;
-  border-color: #667eea;
-  color: white;
-}
-
-.error-message {
-  background: rgba(254, 226, 226, 0.95);
-  color: #c53030;
-  border: 1px solid #feb2b2;
-  border-radius: 15px;
-  padding: 1rem 1.5rem;
-  margin-bottom: 2rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  backdrop-filter: blur(10px);
-}
-
-.loading-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: white;
-}
-
-.loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.products-section {
-  margin-bottom: 2rem;
-}
-
-.products-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 1.5rem;
-}
-
-.product-card {
-  background: white;
-  border-radius: 15px;
-  padding: 1.5rem;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-  border-left: 4px solid #e2e8f0;
-}
-
-.product-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
-}
-
-.product-card.counted {
-  border-left-color: #43e97b;
-  background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
-}
-
-.product-card.ecart {
-  border-left-color: #f093fb;
-  background: linear-gradient(135deg, #fef5e7 0%, #ffffff 100%);
-}
-
-.product-header {
-  margin-bottom: 1rem;
-}
-
-.product-name {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #2d3748;
-  margin-bottom: 0.5rem;
-}
-
-.product-barcode {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #718096;
-  font-size: 0.9rem;
-}
-
-.product-barcode i {
-  color: #a0aec0;
-}
-
-.product-details {
-  margin-bottom: 1.5rem;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.detail-label {
-  color: #718096;
-  font-weight: 500;
-}
-
-.detail-value {
-  color: #2d3748;
-  font-weight: 600;
-}
-
-.quantity-section {
-  margin-bottom: 1.5rem;
-}
-
-.theoretical-quantity, .counted-quantity, .ecart-display {
-  margin-bottom: 1rem;
-}
-
-.theoretical-quantity label, .counted-quantity label, .ecart-display label {
-  display: block;
-  font-weight: 600;
-  color: #4a5568;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.quantity-display {
-  padding: 0.75rem;
-  border-radius: 8px;
-  text-align: center;
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.quantity-display.theoretical {
-  background: #e2e8f0;
-  color: #4a5568;
-}
-
-.quantity-input-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.quantity-btn {
-  width: 40px;
-  height: 40px;
-  border: 2px solid #e2e8f0;
-  background: white;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: #4a5568;
-}
-
-.quantity-btn:hover {
-  border-color: #667eea;
-  color: #667eea;
-}
-
-.quantity-btn.minus:hover {
-  background: #fed7d7;
-  border-color: #f56565;
-  color: #c53030;
-}
-
-.quantity-btn.plus:hover {
-  background: #c6f6d5;
-  border-color: #48bb78;
-  color: #2f855a;
-}
-
-.quantity-input {
-  flex: 1;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 0.75rem;
-  text-align: center;
-  font-size: 1.1rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.quantity-input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.ecart-value {
-  padding: 0.75rem;
-  border-radius: 8px;
-  text-align: center;
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.ecart-value.positive {
-  background: #c6f6d5;
-  color: #2f855a;
-}
-
-.ecart-value.negative {
-  background: #fed7d7;
-  color: #c53030;
-}
-
-.product-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.action-btn {
-  flex: 1;
-  border: none;
-  border-radius: 8px;
-  padding: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.action-btn.clear {
-  background: #e2e8f0;
-  color: #4a5568;
-}
-
-.action-btn.clear:hover {
-  background: #cbd5e0;
-  transform: translateY(-1px);
-}
-
-.action-btn.confirm {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  color: white;
-  box-shadow: 0 5px 15px rgba(67, 233, 123, 0.3);
-}
-
-.action-btn.confirm:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(67, 233, 123, 0.4);
-}
-
-.action-btn.confirm:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #718096;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
-
-.empty-icon {
-  font-size: 4rem;
-  color: #cbd5e0;
-  margin-bottom: 1rem;
-}
-
-.empty-state h3 {
-  color: #4a5568;
-  margin-bottom: 0.5rem;
-}
-
-.empty-state p {
-  margin-bottom: 2rem;
-}
-
-.btn-clear-filters {
-  background: #e2e8f0;
-  color: #4a5568;
-  border: none;
-  border-radius: 10px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 auto;
-}
-
-.btn-clear-filters:hover {
-  background: #cbd5e0;
-  transform: translateY(-2px);
-}
-
-.bottom-actions {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
-
-.actions-info {
-  display: flex;
-  gap: 2rem;
-}
-
-.info-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.info-label {
-  font-size: 0.9rem;
-  color: #718096;
-  font-weight: 500;
-}
-
-.info-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #2d3748;
-}
-
-.actions-buttons {
-  display: flex;
-  gap: 1rem;
-}
-
-.btn-secondary, .btn-primary {
-  border: none;
-  border-radius: 12px;
-  padding: 1rem 2rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-secondary {
-  background: #e2e8f0;
-  color: #4a5568;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #cbd5e0;
-  transform: translateY(-2px);
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
-}
-
-.btn-secondary:disabled, .btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-@media (max-width: 768px) {
-  .count-container {
-    padding: 1rem;
-  }
-  
-  .header-content {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .session-info {
-    justify-content: center;
-  }
-  
-  .products-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .bottom-actions {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .actions-info {
-    justify-content: center;
-  }
-}
-</style>
+    <!-- Error/Success Messages -->
+    <div *ngIf="error"
+      class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg">
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        {{ error }}
+      </div>
+    </div>
+
+    <div *ngIf="success"
+      class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        {{ success }}
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div *ngIf="loading || saving" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 flex items-center">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-4"></div>
+        <span class="text-gray-700">{{ loading ? 'Chargement...' : 'Sauvegarde...' }}</span>
+      </div>
+    </div>
+  </div>

@@ -40,7 +40,6 @@ export interface SaleItem {
   bundleSize?: number;
   bundlePrice?: number;
   marginPercent?: number;
-  requiresApproval?: boolean;
   isApproved?: boolean;
 }
 

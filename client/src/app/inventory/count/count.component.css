@@ -1,0 +1,54 @@
+/* Inventory Count Component Styles - Matching client-gros exactly */
+
+/* Optimized product dimensions for better performance */
+.product-button {
+  width: 84px;
+  height: 110px;
+  min-width: 84px;
+  min-height: 110px;
+  max-width: 90px;
+  max-height: 110px;
+  flex-shrink: 0;
+}
+
+/* Optimized grid layout for better performance */
+.product-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* Specific adjustment for 1024x768 screens - matching client-gros exactly */
+@media screen and (width: 1024px) and (height: 768px) {
+  .product-button {
+    width: 79.5px;
+    min-width: 79.5px !important;
+    max-width: 88px;
+  }
+}
+
+@media screen and (height: 768px) {
+  .product-button {
+    min-width: 95.5px;
+    max-width: 97px;
+  }
+}
+
+@media screen and (min-width: 1500px) {
+  .product-button {
+    width: 100px;
+    min-width: 100px !important;
+    max-width: 100px;
+  }
+}
+
+@media screen and (min-height: 910px) {
+  .product-button {
+    width: 94px;
+    min-width: 94px !important;
+    max-width: 100px;
+  }
+}

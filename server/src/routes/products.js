@@ -1,5 +1,5 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const { prisma } = require('../lib/prisma');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -7,7 +7,6 @@ const { authenticateToken } = require('../middleware/auth');
 const { logAudit } = require('../lib/audit');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -128,6 +127,7 @@ router.post('/', authenticateToken, async (req, res) => {
     console.log('Received product data:', req.body);
     const {
       name,
+      designation_legale,
       description,
       familleId,
       barcode,
@@ -186,6 +186,7 @@ router.post('/', authenticateToken, async (req, res) => {
     
     const productData = {
       name,
+      designation_legale: designation_legale || null,
       description,
       familleId: parseInt(familleId),
       barcode: barcode || null,
@@ -292,6 +293,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     
     const {
       name,
+      designation_legale,
       description,
       familleId,
       barcode,
@@ -340,6 +342,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     
     const updateData = {};
     if (name !== undefined) updateData.name = name;
+    if (designation_legale !== undefined) updateData.designation_legale = designation_legale || null;
     if (description !== undefined) updateData.description = description;
     if (familleId !== undefined) updateData.familleId = parseInt(familleId);
     if (barcode !== undefined) updateData.barcode = barcode;
@@ -552,6 +555,7 @@ router.post('/bulk-import', authenticateToken, async (req, res) => {
           const product = await prisma.product.create({
             data: {
               name: productData.name,
+              designation_legale: productData.designation_legale || null,
               description: productData.description,
               famille: productData.famille || 'Général',
               barcode: productData.barcode || null,

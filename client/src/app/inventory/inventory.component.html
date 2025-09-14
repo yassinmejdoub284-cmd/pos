@@ -1,619 +1,241 @@
-<div class="inventory-container">
-  <!-- Hero Section -->
-  <div class="hero-section">
-    <div class="hero-content">
-      <div class="hero-text">
-        <h1 class="hero-title">
-          <i class="fas fa-clipboard-check hero-icon"></i>
-          Inventaire Physique
-        </h1>
-        <p class="hero-subtitle">Gérez vos inventaires avec simplicité et précision</p>
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4">
+  <!-- Modern Header -->
+  <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+    <div class="flex justify-between items-center">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+          <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Inventaire</h1>
+          <p class="text-slate-600 font-medium">{{ depot?.name }}</p>
+        </div>
       </div>
-      <button class="btn-new-inventory" (click)="createNewSession()" [disabled]="loading || !selectedDepot">
-        <i class="fas fa-plus"></i>
-        <span>Nouvel Inventaire</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Quick Stats -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon draft">
-        <i class="fas fa-edit"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-number">{{ getSessionsByStatus('DRAFT').length }}</div>
-        <div class="stat-label">Brouillons</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon progress">
-        <i class="fas fa-play"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-number">{{ getSessionsByStatus('IN_PROGRESS').length }}</div>
-        <div class="stat-label">En cours</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon closed">
-        <i class="fas fa-check-circle"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-number">{{ getSessionsByStatus('CLOSED').length }}</div>
-        <div class="stat-label">Fermés</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon posted">
-        <i class="fas fa-archive"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-number">{{ getSessionsByStatus('POSTED').length }}</div>
-        <div class="stat-label">Postés</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Filters -->
-  <div class="filters-section">
-    <div class="filters-card">
-      <div class="filters-header">
-        <h3>Filtres</h3>
-        <button class="btn-clear-filters" (click)="clearFilters()">
-          <i class="fas fa-times"></i>
-          Effacer
+      <div class="flex gap-3">
+        <button 
+          class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          (click)="startInventory()" 
+          [disabled]="loading || !depot">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
+          </svg>
+          Démarrer Inventaire
+        </button>
+        <button 
+          class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold hover:from-slate-200 hover:to-slate-300 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+          (click)="goHome()">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
+          </svg>
+          Accueil
         </button>
       </div>
-      <div class="filters-grid">
-        <div class="filter-group">
-          <label>Dépôt</label>
-          <select 
-            class="filter-select" 
-            [(ngModel)]="selectedDepot" 
-            (change)="onDepotChange()"
-            [compareWith]="compareDepots"
-            title="Sélectionner un dépôt">
-            <option [ngValue]="null">Tous les dépôts</option>
-            <option *ngFor="let depot of depots" [ngValue]="depot">
-              {{ depot.name }} ({{ depot.code }})
-            </option>
-          </select>
+    </div>
+  </div>
+
+  <!-- Modern Stats Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl transition-all duration-300">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-slate-600 mb-1">Produits Total</p>
+          <p class="text-2xl font-bold text-slate-800">{{ totalProducts }}</p>
         </div>
-        <div class="filter-group">
-          <label>Statut</label>
-          <select 
-            class="filter-select" 
-            [(ngModel)]="statusFilter" 
-            (change)="onStatusFilterChange()"
-            title="Filtrer par statut">
-            <option value="">Tous les statuts</option>
-            <option value="DRAFT">Brouillon</option>
-            <option value="IN_PROGRESS">En cours</option>
-            <option value="CLOSED">Fermé</option>
-            <option value="POSTED">Posté</option>
-          </select>
+        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+          <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+          </svg>
         </div>
       </div>
+    </div>
+    
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl transition-all duration-300">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-slate-600 mb-1">En cours</p>
+          <p class="text-2xl font-bold text-blue-600">{{ getSessionsByStatus('IN_PROGRESS').length }}</p>
+        </div>
+        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+          <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl transition-all duration-300">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-slate-600 mb-1">Terminés</p>
+          <p class="text-2xl font-bold text-green-600">{{ getSessionsByStatus('POSTED').length }}</p>
+        </div>
+        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+          <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl transition-all duration-300">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-slate-600 mb-1">Cette semaine</p>
+          <p class="text-2xl font-bold text-orange-600">{{ getRecentInventories().length }}</p>
+        </div>
+        <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+          <svg class="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modern Filters -->
+  <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+    <div class="flex items-center gap-4">
+      <div class="flex-1">
+        <label class="block text-sm font-semibold text-slate-700 mb-2">Filtrer par statut</label>
+        <select 
+          class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+          [(ngModel)]="statusFilter" 
+          (change)="onStatusFilterChange()">
+          <option value="">Tous les statuts</option>
+          <option value="DRAFT">Brouillon</option>
+          <option value="IN_PROGRESS">En cours</option>
+          <option value="CLOSED">Fermé</option>
+          <option value="POSTED">Posté</option>
+        </select>
+      </div>
+      <button 
+        class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-4 py-3 rounded-xl font-semibold hover:from-slate-200 hover:to-slate-300 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+        (click)="clearFilters()">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+        </svg>
+        Effacer
+      </button>
     </div>
   </div>
 
   <!-- Error Message -->
-  <div *ngIf="error" class="error-message">
-    <i class="fas fa-exclamation-triangle"></i>
+  <div *ngIf="error" class="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-3">
+    <i class="fas fa-exclamation-triangle mr-1"></i>
     {{ error }}
   </div>
 
   <!-- Loading -->
-  <div *ngIf="loading" class="loading-state">
-    <div class="loading-spinner"></div>
-    <p>Chargement des sessions...</p>
+  <div *ngIf="loading" class="text-center py-8 text-slate-600">
+    <div class="w-8 h-8 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-2"></div>
+    <p class="text-sm">Chargement...</p>
   </div>
 
-  <!-- Sessions Grid -->
-  <div class="sessions-section" *ngIf="!loading">
-    <div class="sessions-header">
-      <h3>Sessions d'inventaire</h3>
-      <div class="sessions-count">{{ sessions.length }} session(s)</div>
+  <!-- Modern Sessions List -->
+  <div *ngIf="!loading" class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/50 overflow-hidden">
+    <div class="p-6 border-b border-slate-200/50">
+      <div class="flex justify-between items-center">
+        <h3 class="text-xl font-bold text-slate-800">Sessions d'Inventaire</h3>
+        <span class="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">{{ sessions.length }}</span>
+      </div>
     </div>
     
-    <div class="sessions-grid" *ngIf="sessions.length > 0">
-      <div class="session-card" *ngFor="let session of sessions" [ngClass]="'status-' + session.status.toLowerCase()">
-        <div class="session-header">
-          <div class="session-number">{{ session.numero }}</div>
-          <div class="session-status" [ngClass]="'status-' + session.status.toLowerCase()">
+    <div class="overflow-y-auto" style="max-height: calc(100vh - 400px);">
+      <div *ngIf="sessions.length > 0" class="divide-y divide-slate-200/50">
+        <div 
+          *ngFor="let session of sessions" 
+          class="p-6 hover:bg-slate-50/50 cursor-pointer transition-all duration-200 hover:shadow-sm"
+          (click)="viewSession(session)">
+          
+          <div class="flex justify-between items-start mb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="font-bold text-slate-800 text-lg">{{ session.numero }}</div>
+                <div class="text-sm text-slate-600">{{ session.depot?.name }}</div>
+              </div>
+            </div>
+            <span 
+              class="px-3 py-1 rounded-full text-sm font-semibold"
+              [ngClass]="{
+                'bg-yellow-100 text-yellow-800': session.status === 'DRAFT',
+                'bg-blue-100 text-blue-800': session.status === 'IN_PROGRESS',
+                'bg-green-100 text-green-800': session.status === 'CLOSED',
+                'bg-purple-100 text-purple-800': session.status === 'POSTED'
+              }">
             {{ getStatusText(session.status) }}
-          </div>
+            </span>
         </div>
         
-        <div class="session-info">
-          <div class="info-row">
-            <i class="fas fa-warehouse"></i>
-            <span>{{ session.depot?.name }} ({{ session.depot?.code }})</span>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
+              </svg>
+              <span class="font-medium">{{ formatDate(session.startedAt) }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+              </svg>
+              <span class="font-medium">{{ session.starter?.firstName }} {{ session.starter?.lastName }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+              </svg>
+              <span class="font-medium">{{ session._count?.items || 0 }} articles</span>
+            </div>
           </div>
-          <div class="info-row">
-            <i class="fas fa-calendar"></i>
-            <span>{{ formatDate(session.startedAt) }}</span>
-          </div>
-          <div class="info-row">
-            <i class="fas fa-user"></i>
-            <span>{{ session.starter?.firstName }} {{ session.starter?.lastName }}</span>
-          </div>
-          <div class="info-row" *ngIf="session.closedAt">
-            <i class="fas fa-lock"></i>
-            <span>Fermé le {{ formatDate(session.closedAt) }}</span>
-          </div>
-        </div>
 
-        <div class="session-metrics">
-          <div class="metric">
-            <div class="metric-label">Articles</div>
-            <div class="metric-value">{{ session._count?.items || 0 }}</div>
+          <div class="flex justify-end items-center mt-4 gap-2">
+            <button 
+              class="bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-semibold hover:from-blue-100 hover:to-blue-200 transition-all duration-200 flex items-center gap-2"
+              (click)="viewSession(session); $event.stopPropagation()">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
+                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
+              </svg>
+              Voir
+            </button>
+            <button 
+              *ngIf="canDelete(session)"
+              class="bg-gradient-to-r from-red-50 to-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:from-red-100 hover:to-red-200 transition-all duration-200 flex items-center gap-2"
+              (click)="deleteSession(session); $event.stopPropagation()">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"></path>
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+              </svg>
+              Supprimer
+            </button>
           </div>
-        </div>
-
-        <div class="session-actions">
-          <button class="action-btn primary" (click)="viewSession(session)">
-            <i class="fas fa-eye"></i>
-            Voir
-          </button>
-          <button 
-            *ngIf="canDelete(session)"
-            class="action-btn danger" 
-            (click)="deleteSession(session)">
-            <i class="fas fa-trash"></i>
-            Supprimer
-          </button>
         </div>
       </div>
-    </div>
 
     <!-- Empty State -->
-    <div class="empty-state" *ngIf="sessions.length === 0">
-      <div class="empty-icon">
-        <i class="fas fa-clipboard-list"></i>
+      <div *ngIf="sessions.length === 0" class="text-center py-8 text-slate-600">
+        <div class="text-4xl text-slate-300 mb-2">
+        <svg class="w-12 h-12 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+        </svg>
       </div>
-      <h3>Aucune session trouvée</h3>
-      <p>Commencez par créer votre premier inventaire</p>
-      <button class="btn-new-inventory" (click)="createNewSession()" [disabled]="loading || !selectedDepot">
-        <i class="fas fa-plus"></i>
-        Créer un inventaire
-      </button>
+        <p class="text-sm mb-3">Aucune session</p>
+        <button 
+          class="bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-600 flex items-center gap-2"
+          (click)="startInventory()" 
+          [disabled]="loading || !depot">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path>
+          </svg>
+          Créer
+        </button>
     </div>
   </div>
 </div>
-
-<!-- Custom Styles -->
-<style>
-.inventory-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
-}
-
-.hero-section {
-  margin-bottom: 3rem;
-}
-
-.hero-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-}
-
-.hero-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #2d3748;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.hero-icon {
-  color: #667eea;
-  font-size: 2rem;
-}
-
-.hero-subtitle {
-  color: #718096;
-  font-size: 1.1rem;
-  margin: 0.5rem 0 0 0;
-}
-
-.btn-new-inventory {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 15px;
-  padding: 1rem 2rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-}
-
-.btn-new-inventory:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
-}
-
-.btn-new-inventory:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 3rem;
-}
-
-.stat-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-5px);
-}
-
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  color: white;
-}
-
-.stat-icon.draft { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-.stat-icon.progress { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.stat-icon.closed { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-.stat-icon.posted { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-number {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2d3748;
-  line-height: 1;
-}
-
-.stat-label {
-  color: #718096;
-  font-size: 0.9rem;
-  margin-top: 0.25rem;
-}
-
-.filters-section {
-  margin-bottom: 3rem;
-}
-
-.filters-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
-
-.filters-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.filters-header h3 {
-  margin: 0;
-  color: #2d3748;
-  font-weight: 600;
-}
-
-.btn-clear-filters {
-  background: #e2e8f0;
-  color: #718096;
-  border: none;
-  border-radius: 10px;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-clear-filters:hover {
-  background: #cbd5e0;
-  color: #4a5568;
-}
-
-.filters-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.filter-group label {
-  font-weight: 600;
-  color: #4a5568;
-  font-size: 0.9rem;
-}
-
-.filter-select {
-  border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 0.75rem;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
-  background: white;
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.error-message {
-  background: rgba(254, 226, 226, 0.95);
-  color: #c53030;
-  border: 1px solid #feb2b2;
-  border-radius: 15px;
-  padding: 1rem 1.5rem;
-  margin-bottom: 2rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  backdrop-filter: blur(10px);
-}
-
-.loading-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: white;
-}
-
-.loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.sessions-section {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
-
-.sessions-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.sessions-header h3 {
-  margin: 0;
-  color: #2d3748;
-  font-weight: 600;
-}
-
-.sessions-count {
-  background: #e2e8f0;
-  color: #4a5568;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.sessions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-}
-
-.session-card {
-  background: white;
-  border-radius: 15px;
-  padding: 1.5rem;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-  border-left: 4px solid #e2e8f0;
-}
-
-.session-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
-}
-
-.session-card.status-draft { border-left-color: #f093fb; }
-.session-card.status-in_progress { border-left-color: #4facfe; }
-.session-card.status-closed { border-left-color: #43e97b; }
-.session-card.status-posted { border-left-color: #fa709a; }
-
-.session-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.session-number {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #2d3748;
-}
-
-.session-status {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.session-status.status-draft { background: #fef5e7; color: #d69e2e; }
-.session-status.status-in_progress { background: #ebf8ff; color: #3182ce; }
-.session-status.status-closed { background: #f0fff4; color: #38a169; }
-.session-status.status-posted { background: #faf5ff; color: #805ad5; }
-
-.session-info {
-  margin-bottom: 1rem;
-}
-
-.info-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  color: #718096;
-  font-size: 0.9rem;
-}
-
-.info-row i {
-  width: 16px;
-  color: #a0aec0;
-}
-
-.session-metrics {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  padding: 1rem;
-  background: #f7fafc;
-  border-radius: 10px;
-}
-
-.metric {
-  text-align: center;
-  flex: 1;
-}
-
-.metric-label {
-  font-size: 0.8rem;
-  color: #718096;
-  margin-bottom: 0.25rem;
-}
-
-.metric-value {
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: #2d3748;
-}
-
-.session-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.action-btn {
-  border: none;
-  border-radius: 8px;
-  padding: 0.5rem 1rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.action-btn.primary { background: #ebf8ff; color: #3182ce; }
-.action-btn.danger { background: #fed7d7; color: #c53030; }
-
-.action-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
-}
-
-.empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #718096;
-}
-
-.empty-icon {
-  font-size: 4rem;
-  color: #cbd5e0;
-  margin-bottom: 1rem;
-}
-
-.empty-state h3 {
-  color: #4a5568;
-  margin-bottom: 0.5rem;
-}
-
-.empty-state p {
-  margin-bottom: 2rem;
-}
-
-@media (max-width: 768px) {
-  .inventory-container {
-    padding: 1rem;
-  }
-  
-  .hero-content {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .hero-title {
-    font-size: 2rem;
-  }
-  
-  .sessions-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .filters-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
+</div>

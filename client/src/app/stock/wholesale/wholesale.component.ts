@@ -80,6 +80,6 @@ export class WholesaleComponent implements OnInit {
   }
 
   getApprovalRequiredCount(): number {
-    return this.wholesaleProducts.filter(product => product.requiresApproval).length;
+    return 0; // Approval system removed
   }
 }

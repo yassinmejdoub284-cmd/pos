@@ -1,6 +1,7 @@
 export interface Product {
   id: number;
   name: string;
+  designation_legale?: string;
   description?: string;
   familleId: number;
   famille?: ProductFamily;
@@ -25,8 +26,6 @@ export interface Product {
   isWholesale?: boolean;
   bundleSize?: number;
   bundlePrice?: number;
-  minMargin?: number;
-  requiresApproval?: boolean;
   createdAt: Date;
   updatedAt: Date;
   inventory?: Inventory[];
@@ -132,7 +131,6 @@ export interface SaleItem {
   bundleSize?: number;
   bundlePrice?: number;
   marginPercent?: number;
-  requiresApproval: boolean;
   isApproved: boolean;
 }
 

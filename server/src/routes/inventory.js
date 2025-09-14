@@ -15,6 +15,27 @@ function generateInventoryNumber() {
   return `INV-${year}${month}${day}-${time}`;
 }
 
+// Get inventory count for a depot
+router.get('/count/:depotId', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+  try {
+    const depotId = parseInt(req.params.depotId);
+    
+    const count = await prisma.inventory.count({
+      where: {
+        depotId: depotId,
+        quantity: {
+          gt: 0
+        }
+      }
+    });
+
+    res.json(count);
+  } catch (error) {
+    console.error('Error getting inventory count:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get all inventory sessions
 router.get('/sessions', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
   try {
@@ -343,7 +364,7 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
 
     // Calculate écart
     const ecartQuantity = countedQuantity !== null ? countedQuantity - item.theoreticalQuantity : null;
-    const ecartValue = ecartQuantity !== null ? ecartQuantity * item.product.prix_vente_TTC : null;
+    const ecartValue = ecartQuantity !== null ? ecartQuantity * parseFloat(item.product.prix_vente_TTC) : null;
 
     const updateData = {
       countedQuantity,
@@ -418,8 +439,8 @@ router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGE
 
     // Calculate totals
     const itemsWithEcart = session.items.filter(item => item.ecartQuantity !== null && item.ecartQuantity !== 0);
-    const totalEcartValue = itemsWithEcart.reduce((sum, item) => sum + (item.ecartValue || 0), 0);
-    const totalEcartQty = itemsWithEcart.reduce((sum, item) => sum + (item.ecartQuantity || 0), 0);
+    const totalEcartValue = itemsWithEcart.reduce((sum, item) => sum + parseFloat(item.ecartValue || 0), 0);
+    const totalEcartQty = itemsWithEcart.reduce((sum, item) => sum + parseFloat(item.ecartQuantity || 0), 0);
 
     const result = await prisma.$transaction(async (tx) => {
       // Update session with totals and mark as posted
@@ -448,7 +469,7 @@ router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGE
           });
 
           if (inventory) {
-            const newQuantity = inventory.quantity + item.ecartQuantity;
+            const newQuantity = parseFloat(inventory.quantity) + parseFloat(item.ecartQuantity);
             await tx.inventory.update({
               where: { id: inventory.id },
               data: { quantity: newQuantity }
@@ -459,7 +480,7 @@ router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGE
               data: {
                 depotId: session.depotId,
                 productId: item.productId,
-                quantity: item.ecartQuantity
+                quantity: parseFloat(item.ecartQuantity)
               }
             });
           }
@@ -469,8 +490,8 @@ router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGE
             data: {
               productId: item.productId,
               depotId: session.depotId,
-              quantity: item.ecartQuantity,
-              type: item.ecartQuantity > 0 ? 'IN' : 'OUT',
+              quantity: parseFloat(item.ecartQuantity),
+              type: parseFloat(item.ecartQuantity) > 0 ? 'IN' : 'OUT',
               reason: 'INVENTORY_ADJUSTMENT',
               reference: session.numero,
               userId: req.user.id
@@ -540,8 +561,8 @@ router.get('/sessions/:id/summary', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANA
         countedItems,
         remainingItems: totalItems - countedItems,
         itemsWithEcart: itemsWithEcart.length,
-        totalEcartValue: itemsWithEcart.reduce((sum, item) => sum + (item.ecartValue || 0), 0),
-        totalEcartQty: itemsWithEcart.reduce((sum, item) => sum + (item.ecartQuantity || 0), 0)
+        totalEcartValue: itemsWithEcart.reduce((sum, item) => sum + parseFloat(item.ecartValue || 0), 0),
+        totalEcartQty: itemsWithEcart.reduce((sum, item) => sum + parseFloat(item.ecartQuantity || 0), 0)
       },
       ecarts: itemsWithEcart.map(item => ({
         productId: item.productId,
