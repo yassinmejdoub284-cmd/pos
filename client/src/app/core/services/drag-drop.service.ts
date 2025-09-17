@@ -44,7 +44,6 @@ export class DragDropService {
 
   // Start drag operation
   startDrag(product: Product, fromGlobalIndex: number, currentPage: number): void {
-    console.log('Starting drag for:', product.name);
     
     this.dragState.next({
       isDragging: true,
@@ -82,7 +81,6 @@ export class DragDropService {
 
   // Record initial touch/mouse position
   recordInitialPosition(product: Product, currentIndex: number, x: number, y: number): void {
-    console.log('Recording initial position for:', product.name);
     
     // Record initial position for movement threshold
     this.initialPosition = { x, y };
@@ -100,11 +98,8 @@ export class DragDropService {
   startDragDetection(): void {
     if (!this.initialPosition) return;
     
-    console.log('Starting drag detection - movement detected');
-    
     // Start movement timer - only check for movement after a delay
     this.movementTimer = setTimeout(() => {
-      console.log('Movement checking enabled');
       this.movementCheckEnabled = true;
     }, this.MOVEMENT_DELAY);
   }
@@ -172,7 +167,6 @@ export class DragDropService {
 
   // Cancel drag operation
   cancelDrag(): void {
-    console.log('Cancelling drag');
     
     this.dragState.next({
       isDragging: false,
@@ -214,7 +208,6 @@ export class DragDropService {
     const deltaY = Math.abs(y - this.initialPosition.y);
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
     
-    console.log(`Movement check: distance=${distance.toFixed(1)}px, threshold=${this.MOVEMENT_THRESHOLD}px`);
     
     return distance >= this.MOVEMENT_THRESHOLD;
   }

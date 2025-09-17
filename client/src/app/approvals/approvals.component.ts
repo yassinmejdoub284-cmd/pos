@@ -5,6 +5,9 @@ import { Sale } from '../core/models/sale.model';
 import { ExpenseService, Expense } from '../core/services/expense.service';
 import { ApprovalsService, ChangeRequest, ClotureRejectReasonCode } from '../core/services/approvals.service';
 import { SessionsService, SessionSummary, OpenSessionRequest } from '../core/services/sessions.service';
+import { HttpClient } from '@angular/common/http';
+import { ReturnsService, ReturnRequest } from '../core/services/returns.service';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-approvals',
@@ -22,7 +25,7 @@ export class ApprovalsComponent implements OnInit {
   varianceRequests: ChangeRequest[] = [];
   historyRequests: ChangeRequest[] = [];
   clotureSummaries: { [sessionId: number]: any } = {};
-  selectedTab: 'ALL' | 'PENDING_ADMIN' | 'CADEAU' | 'EXPENSES' | 'CLOTURE' | 'HISTORY' = 'ALL';
+  selectedTab: 'ALL' | 'PENDING_ADMIN' | 'CADEAU' | 'EXPENSES' | 'CLOTURE' | 'INVOICES' | 'HISTORY' | 'RETURNS' | 'REButs' = 'ALL';
   searchQuery = '';
   startDate = '';
   endDate = '';
@@ -44,19 +47,36 @@ export class ApprovalsComponent implements OnInit {
   correctionRetrait?: number;
   correctionNote: string = '';
 
+  // Invoice request properties
+  pendingInvoiceRequests: any[] = [];
+  showInvoiceApprovalModal = false;
+  selectedInvoiceRequest: any = null;
+  submittingInvoiceApproval = false;
+  invoiceApprovalData = {
+    invoiceNumber: ''
+  };
+
+  // Returns
+  pendingReturns: ReturnRequest[] = [];
+  dispositions: { [itemId: number]: { nonRebutQty?: number; rebutQty?: number } } = {};
+  loadingReturns = false;
+  pendingRebuts: any[] = [];
+
   constructor(
     private salesService: SalesService,
     private expenseService: ExpenseService,
     private approvalsService: ApprovalsService,
     private sessionsService: SessionsService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private http: HttpClient,
+    private returnsService: ReturnsService
   ) {}
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe(params => {
       const tab = params.get('tab') as any;
-      if (tab === 'PENDING_ADMIN' || tab === 'CADEAU' || tab === 'EXPENSES' || tab === 'CLOTURE' || tab === 'ALL' || tab === 'HISTORY') {
+      if (tab === 'PENDING_ADMIN' || tab === 'CADEAU' || tab === 'EXPENSES' || tab === 'CLOTURE' || tab === 'INVOICES' || tab === 'ALL' || tab === 'HISTORY' || tab === 'RETURNS') {
         this.selectedTab = tab;
       }
     });
@@ -65,6 +85,9 @@ export class ApprovalsComponent implements OnInit {
     this.loadExpenses();
     this.loadVarianceRequests();
     this.loadHistoryRequests();
+    this.loadInvoiceRequests();
+    this.loadPendingReturns();
+    this.loadPendingRebuts();
   }
 
   loadGifts(): void {
@@ -108,7 +131,10 @@ export class ApprovalsComponent implements OnInit {
               next: (report) => {
                 this.clotureSummaries[sessionId] = report;
               },
-              error: () => {}
+              error: (error) => {
+                console.warn(`Failed to load session report for session ${sessionId}:`, error);
+                // Don't show error to user as this is just for display enhancement
+              }
             });
           }
         });
@@ -136,7 +162,10 @@ export class ApprovalsComponent implements OnInit {
                   next: (report) => {
                     this.clotureSummaries[sessionId] = report;
                   },
-                  error: () => {}
+                  error: (error) => {
+                    console.warn(`Failed to load session report for session ${sessionId}:`, error);
+                    // Don't show error to user as this is just for display enhancement
+                  }
                 });
               }
             });
@@ -299,7 +328,6 @@ export class ApprovalsComponent implements OnInit {
             
             // Backend automatically updates existing open session with corrected balance
             if (response.updatedOpenSession) {
-              console.log('Open session updated with corrected balance:', correctedAmount);
             }
           },
           error: () => {
@@ -329,14 +357,6 @@ export class ApprovalsComponent implements OnInit {
         // Load summary to assist admin
         this.sessionsService.getSessionSummary(sessionId).subscribe({
           next: (summary) => {
-            console.log('Correction Summary Debug:', {
-              sessionId,
-              expectedCash: summary.expectedCash,
-              cashSales: summary.cashSales,
-              entree: summary.entree,
-              sortie: summary.sortie,
-              totalSales: summary.totalSales
-            });
             this.correctionSummary = summary;
             this.correctionCountedCash = summary.expectedCash; // start from expected
             this.correctionFonds = 0;
@@ -355,13 +375,6 @@ export class ApprovalsComponent implements OnInit {
     if (!this.correctionSessionId) return;
     const denominations: { [key: string]: number } = {}; // keep empty unless needed
     
-    console.log('Finalize Correction Debug:', {
-      sessionId: this.correctionSessionId,
-      correctionCountedCash: this.correctionCountedCash,
-      correctionFonds: this.correctionFonds,
-      correctionRetrait: this.correctionRetrait,
-      correctionSummary: this.correctionSummary
-    });
     
     this.sessionsService.closeSession(this.correctionSessionId, {
       countedCash: Number(this.correctionCountedCash || 0),
@@ -476,5 +489,157 @@ export class ApprovalsComponent implements OnInit {
     return req.status === 'APPROVED' && 
            !!req.rejectionNotes && 
            req.rejectionNotes.includes('Correction effectuée par administrateur');
+  }
+
+  // Invoice request methods
+  loadInvoiceRequests(): void {
+    this.http.get(`${environment.apiUrl}/invoices/requests/pending`).subscribe({
+      next: (requests: any) => {
+        this.pendingInvoiceRequests = requests;
+      },
+      error: (error) => {
+        console.error('Error loading invoice requests:', error);
+        if (error.status === 403) {
+          this.showAlertMessage('Accès refusé - Seuls les administrateurs et managers peuvent voir les demandes de factures', 'error');
+        } else {
+          this.showAlertMessage('Erreur lors du chargement des demandes de factures', 'error');
+        }
+      }
+    });
+  }
+
+  approveInvoiceRequest(request: any): void {
+    this.selectedInvoiceRequest = request;
+    this.invoiceApprovalData = {
+      invoiceNumber: ''
+    };
+    this.getNextInvoiceNumber();
+    this.showInvoiceApprovalModal = true;
+  }
+
+  rejectInvoiceRequest(request: any): void {
+    if (confirm('Êtes-vous sûr de vouloir rejeter cette demande de facture ?')) {
+      const rejectionReason = prompt('Raison du rejet (optionnel):') || '';
+      
+      this.http.post(`${environment.apiUrl}/invoices/requests/${request.id}/reject`, {
+        rejectionReason
+      }).subscribe({
+        next: (response: any) => {
+          this.showAlertMessage('Demande de facture rejetée', 'success');
+          this.loadInvoiceRequests();
+        },
+        error: (error) => {
+          console.error('Error rejecting invoice request:', error);
+          this.showAlertMessage('Erreur lors du rejet de la demande', 'error');
+        }
+      });
+    }
+  }
+
+  closeInvoiceApprovalModal(): void {
+    this.showInvoiceApprovalModal = false;
+    this.selectedInvoiceRequest = null;
+    this.invoiceApprovalData = {
+      invoiceNumber: ''
+    };
+  }
+
+  getNextInvoiceNumber(): void {
+    this.http.get(`${environment.apiUrl}/invoices/next-number`).subscribe({
+      next: (response: any) => {
+        this.invoiceApprovalData.invoiceNumber = response.nextInvoiceNumber;
+      },
+      error: (error) => {
+        console.error('Error getting next invoice number:', error);
+        this.invoiceApprovalData.invoiceNumber = 'FAC-001';
+      }
+    });
+  }
+
+  submitInvoiceApproval(): void {
+    if (!this.selectedInvoiceRequest) return;
+
+    this.submittingInvoiceApproval = true;
+
+    this.http.post(`${environment.apiUrl}/invoices/requests/${this.selectedInvoiceRequest.id}/approve`, {
+      invoiceNumber: this.invoiceApprovalData.invoiceNumber
+    }).subscribe({
+      next: (response: any) => {
+        this.submittingInvoiceApproval = false;
+        this.closeInvoiceApprovalModal();
+        this.showAlertMessage('Facture créée avec succès!', 'success');
+        this.loadInvoiceRequests();
+      },
+      error: (error) => {
+        this.submittingInvoiceApproval = false;
+        console.error('Error approving invoice request:', error);
+        if (error.error?.error) {
+          this.showAlertMessage(`Erreur: ${error.error.error}`, 'error');
+        } else {
+          this.showAlertMessage('Erreur lors de la création de la facture', 'error');
+        }
+      }
+    });
+  }
+
+  // Returns
+  loadPendingReturns(): void {
+    this.loadingReturns = true;
+    this.returnsService.listReturnRequests('PENDING').subscribe({
+      next: (reqs) => {
+        this.pendingReturns = reqs;
+        this.loadingReturns = false;
+      },
+      error: () => {
+        this.loadingReturns = false;
+        this.showAlertMessage('Erreur lors du chargement des bons de retour', 'error');
+      }
+    });
+  }
+
+  setDisposition(itemId: number, field: 'nonRebutQty' | 'rebutQty', value: number): void {
+    const d = this.dispositions[itemId] || {};
+    d[field] = Number(value || 0);
+    this.dispositions[itemId] = d;
+  }
+
+  approveReturnRequest(request: ReturnRequest): void {
+    const items = Object.entries(this.dispositions)
+      .map(([itemId, v]) => ({ itemId: Number(itemId), nonRebutQty: v.nonRebutQty || 0, rebutQty: v.rebutQty || 0 }))
+      .filter(x => request.items.some(it => it.id === x.itemId));
+    if (items.length === 0) {
+      this.showAlertMessage('Aucune disposition saisie', 'error');
+      return;
+    }
+    this.returnsService.approveReturnRequest(request.id, items).subscribe({
+      next: () => {
+        this.showAlertMessage('Bon de retour approuvé', 'success');
+        this.dispositions = {};
+        this.loadPendingReturns();
+        this.loadPendingRebuts();
+      },
+      error: (e) => {
+        console.error(e);
+        this.showAlertMessage("Erreur lors de l'approbation du bon de retour", 'error');
+      }
+    });
+  }
+
+  loadPendingRebuts(): void {
+    this.returnsService.listRebuts('PENDING_AUTHORITY').subscribe({
+      next: (rows) => this.pendingRebuts = rows,
+      error: () => {}
+    });
+  }
+
+  archiveRebut(recordId: number): void {
+    if (!confirm("Confirmer l'archivage après validation de l'autorité ?")) return;
+    this.returnsService.archiveRebut(recordId).subscribe({
+      next: () => {
+        this.showAlertMessage('Rebut archivé', 'success');
+        this.loadPendingRebuts();
+      },
+      error: () => this.showAlertMessage("Erreur lors de l'archivage", 'error')
+    });
   }
 } 

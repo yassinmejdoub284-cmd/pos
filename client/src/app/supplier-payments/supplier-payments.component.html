@@ -138,7 +138,13 @@
 <div *ngIf="showPaymentForm" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-md border border-amber-100/60">
     <div class="p-6 border-b border-amber-100">
-      <h3 class="text-lg font-semibold text-amber-800">Nouveau Règlement</h3>
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-amber-800">Nouveau Règlement</h3>
+        <div *ngIf="currentSession" class="text-sm text-amber-700">
+          <span class="font-medium">Espèces en caisse:</span>
+          <span class="ml-1">{{ formatAmount(currentSession.summary?.expectedCash ?? currentSession.expectedCash) }}</span>
+        </div>
+      </div>
     </div>
     
     <div class="p-6 space-y-4">
@@ -156,9 +162,20 @@
       
       <div>
         <label class="block text-sm font-medium text-amber-700 mb-2">Montant</label>
-        <input type="number" [(ngModel)]="paymentForm.amount" step="0.001" min="0"
+        <input type="number" [(ngModel)]="paymentForm.amount" (ngModelChange)="updateRemainingCash()" step="0.001" min="0"
                title="Montant du règlement"
                class="w-full px-3 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-amber-700 mb-2">Méthode de paiement</label>
+        <select [(ngModel)]="paymentForm.paymentMethod" (change)="updateRemainingCash()" title="Méthode de paiement"
+                class="w-full px-3 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+          <option value="CASH">Espèces</option>
+          <option value="CARD">Carte</option>
+          <option value="CHECK">Chèque</option>
+          <option value="BANK_TRANSFER">Virement</option>
+        </select>
       </div>
       
       <div>
@@ -169,12 +186,19 @@
       </div>
     </div>
     
+    <div class="px-6 pb-2 text-sm text-amber-700" *ngIf="paymentForm.paymentMethod === 'CASH' && remainingCash !== null">
+      <span class="font-medium">Reste en caisse après paiement:</span>
+      <span class="ml-1" [ngClass]="{'text-red-600': remainingCash < 0, 'text-green-700': remainingCash >= 0}">
+        {{ formatAmount(remainingCash || 0) }}
+      </span>
+    </div>
+
     <div class="p-6 border-t border-amber-100 flex justify-end space-x-3">
       <button (click)="hidePaymentForm()" 
               class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
         Annuler
       </button>
-      <button (click)="submitPayment()" 
+      <button (click)="submitPayment()" [disabled]="paymentForm.paymentMethod === 'CASH' && remainingCash !== null && remainingCash < 0"
               class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
         Enregistrer
       </button>

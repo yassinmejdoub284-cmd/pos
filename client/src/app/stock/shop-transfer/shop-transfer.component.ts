@@ -73,13 +73,10 @@ export class ShopTransferComponent implements OnInit {
     
     this.error = '';
     
-    console.log('Loading pending transfers for shop depot:', this.currentDepot.id);
     
     this.stockDocumentsService.getDocuments(1, 50, 'BON_TRANSFERT', 'PREPARED', this.currentDepot.id).subscribe({
       next: (response) => {
-        console.log('Received transfer response:', response);
         this.pendingTransfers = response.data || [];
-        console.log('Pending transfers:', this.pendingTransfers);
       },
       error: (err) => {
         this.error = err.error?.error || 'Erreur lors du chargement des transferts';

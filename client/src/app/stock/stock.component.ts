@@ -77,6 +77,10 @@ export class StockComponent implements OnInit {
     this.openWorkspace(depot);
   }
 
+  openEntryManagement(depot: Depot): void {
+    this.closeDepotChoiceModal();
+    this.router.navigate(['/stock/entry', depot.id]);
+  }
 
   openInventoryManagement(depot: Depot): void {
     this.closeDepotChoiceModal();

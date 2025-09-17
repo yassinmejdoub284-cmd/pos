@@ -132,7 +132,7 @@
           <p class="text-sm text-slate-500">{{ getDepotTypeLabel(selectedDepot) }} • {{ selectedDepot.city }}</p>
         </div>
       </div>
-      <button (click)="closeDepotChoiceModal()" class="text-slate-400 hover:text-slate-800">
+      <button (click)="closeDepotChoiceModal()" class="text-slate-400 hover:text-slate-800" title="Fermer">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
@@ -158,6 +158,19 @@
         </div>
       </button>
 
+      <!-- Entry (Bon d'entrée) Option -->
+      <button (click)="openEntryManagement(selectedDepot!)" 
+        class="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl p-4 hover:from-emerald-600 hover:to-green-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
+        <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+        </div>
+        <div class="text-left">
+          <h4 class="font-semibold text-lg">Bon d'entrée</h4>
+          <p class="text-sm opacity-90">Ajouter des produits depuis un fournisseur</p>
+        </div>
+      </button>
 
       <!-- Inventory Management Option -->
       <button (click)="openInventoryManagement(selectedDepot!)" 

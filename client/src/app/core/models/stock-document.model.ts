@@ -11,6 +11,7 @@ export interface StockDocument {
   
   emetteur?: Depot;
   destinataire?: Depot;
+  supplier?: Supplier;
   items?: StockDocumentItem[];
   statusHistory?: DocumentStatusHistory[];
   sourceLinks?: StockDocumentLink[];
@@ -23,6 +24,7 @@ export interface StockDocumentItem {
   productId: number;
   famille: string;
   quantity: number;
+  purchasePrice?: number;
   batch?: string;
   notes?: string;
   barcode?: string;
@@ -68,10 +70,12 @@ export interface Product {
   id: number;
   reference: string;
   name: string;
+  designation_legale?: string;
   famille: string;
   barcode?: string;
   unite: string;
   prix_vente_TTC: number;
+  prix_achat?: number;
   actif: boolean;
 }
 
@@ -81,6 +85,21 @@ export interface User {
   firstName: string;
   lastName: string;
   role: string;
+}
+
+export interface Supplier {
+  id: number;
+  name: string;
+  contactName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  taxNumber?: string;
+  paymentTerms?: string;
+  notes?: string;
+  isActive: boolean;
 }
 
 export interface ScanResult {

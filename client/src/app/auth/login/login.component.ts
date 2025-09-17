@@ -50,7 +50,6 @@ export class LoginComponent implements OnInit {
 
     this.authService.login(this.credentials).subscribe({
       next: (response) => {
-        console.log('Login successful:', response);
         this.loading = false;
         // Redirect based on user role
         this.redirectBasedOnRole(response.user.role);

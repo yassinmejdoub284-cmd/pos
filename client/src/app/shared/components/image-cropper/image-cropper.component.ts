@@ -99,7 +99,6 @@ export class ImageCropperComponent implements AfterViewInit, OnDestroy, OnChange
     }
 
     this.image.onload = () => {
-      console.log('Image loaded:', this.image.width, 'x', this.image.height);
       this.setupCanvas();
       this.draw();
     };
@@ -125,7 +124,6 @@ export class ImageCropperComponent implements AfterViewInit, OnDestroy, OnChange
     
     let { naturalWidth: width, naturalHeight: height } = this.image;
     
-    console.log('Original image size:', width, 'x', height);
     
     if (width > maxWidth || height > maxHeight) {
       const ratio = Math.min(maxWidth / width, maxHeight / height);
@@ -134,7 +132,6 @@ export class ImageCropperComponent implements AfterViewInit, OnDestroy, OnChange
       this.scale = ratio;
     }
     
-    console.log('Canvas size:', width, 'x', height, 'scale:', this.scale);
     
     this.canvas.width = width;
     this.canvas.height = height;

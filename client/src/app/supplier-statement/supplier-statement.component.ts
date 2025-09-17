@@ -119,7 +119,9 @@ export class SupplierStatementComponent implements OnInit {
   getTransactionTypeLabel(type: string): string {
     const types: { [key: string]: string } = {
       'expense': 'Dépense',
-      'payment': 'Règlement'
+      'payment': 'Règlement',
+      'bon_entree': 'Bon d\'entrée',
+      'credit': 'Crédit'
     };
     return types[type] || type;
   }
@@ -127,15 +129,24 @@ export class SupplierStatementComponent implements OnInit {
   getTransactionTypeColor(type: string): string {
     const colors: { [key: string]: string } = {
       'expense': 'text-red-600 bg-red-50',
-      'payment': 'text-green-600 bg-green-50'
+      'payment': 'text-green-600 bg-green-50',
+      'bon_entree': 'text-blue-600 bg-blue-50',
+      'credit': 'text-orange-600 bg-orange-50'
     };
     return colors[type] || 'text-gray-600 bg-gray-50';
   }
 
   onReferenceClick(item: SupplierStatementItem): void {
     if (item.clickable) {
-      // For now, just show an alert. Later we can add expense detail dialog
-      alert(`Détails de ${item.reference}`);
+      // If it's a bon d'entrée, navigate to the stock documents page
+      if (item.bonId) {
+        this.router.navigate(['/stock/documents'], { 
+          queryParams: { highlight: item.bonId } 
+        });
+      } else {
+        // For other references, show an alert for now
+        alert(`Détails de ${item.reference}`);
+      }
     }
   }
 
@@ -158,6 +169,182 @@ export class SupplierStatementComponent implements OnInit {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  }
+
+  printStatementA4(): void {
+    if (!this.filters.supplierId) {
+      alert('Veuillez sélectionner un fournisseur');
+      return;
+    }
+
+    const useCurrent = this.statement && this.selectedSupplier && this.selectedSupplier.id === this.filters.supplierId;
+    if (useCurrent) {
+      this.openPrintWindow();
+      return;
+    }
+
+    this.loading = true;
+    this.supplierService.getSupplierStatement(
+      this.filters.supplierId,
+      this.filters.startDate,
+      this.filters.endDate
+    ).subscribe({
+      next: (statement) => {
+        this.statement = statement;
+        this.selectedSupplier = statement.supplier;
+        this.loading = false;
+        this.openPrintWindow();
+      },
+      error: (error) => {
+        console.error('Error loading statement for print:', error);
+        this.loading = false;
+        alert('Erreur lors du chargement du relevé pour impression');
+      }
+    });
+  }
+
+  private openPrintWindow(): void {
+    if (!this.statement || !this.selectedSupplier) {
+      alert('Aucun relevé à imprimer');
+      return;
+    }
+
+    const html = this.buildA4Html();
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Impossible d\'ouvrir la fenêtre d\'impression. Vérifiez le bloqueur de pop-ups.');
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  }
+
+  private buildA4Html(): string {
+    const supplier = this.selectedSupplier!;
+    const statement = this.statement!;
+    const periodStart = this.filters.startDate ? this.formatDate(this.filters.startDate) : 'Début';
+    const periodEnd = this.filters.endDate ? this.formatDate(this.filters.endDate) : 'Aujourd\'hui';
+
+    const rows = statement.statement.map(item => `
+      <tr>
+        <td>${this.escapeHtml(new Date(item.date).toLocaleDateString('fr-FR'))}</td>
+        <td><span class=\"badge ${this.badgeClass(item.type)}\">${this.escapeHtml(this.getTransactionTypeLabel(item.type))}</span></td>
+        <td>${this.escapeHtml(item.reference)}</td>
+        <td class=\"num debit\">${item.debit > 0 ? this.formatNumber3(item.debit) : ''}</td>
+        <td class=\"num credit\">${item.credit > 0 ? this.formatNumber3(item.credit) : ''}</td>
+        <td class=\"num ${item.balance >= 0 ? 'balance-pos' : 'balance-neg'}\">${this.formatNumber3(item.balance)}</td>
+      </tr>
+    `).join('');
+
+    return `<!doctype html>
+<html lang=\"fr\">
+<head>
+  <meta charset=\"utf-8\" />
+  <title>Relevé Fournisseur - ${this.escapeHtml(supplier.name)}</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    html, body { height: 100%; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #0f172a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sheet { padding-top: 5mm; }
+    h1 { font-size: 22px; margin: 0 0 2mm 0; letter-spacing: .2px; }
+    .muted { color: #64748b; font-size: 12px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6mm; }
+    .company { font-weight: 700; color: #b45309; letter-spacing: .3px; }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 3mm 0 6mm; }
+    .card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 4mm; background: #ffffff; }
+    .card h4 { margin: 0; font-size: 12px; color: #334155; font-weight: 600; }
+    .card .val { margin-top: 2mm; font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
+    .val.debit { color: #16a34a; }
+    .val.credit { color: #b91c1c; }
+    .val.balance-pos { color: #16a34a; }
+    .val.balance-neg { color: #b91c1c; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { display: table-header-group; }
+    thead th { background: #fff7ed; color: #9a3412; font-size: 12px; text-align: left; padding: 3mm; border: 1px solid #e2e8f0; }
+    tbody td { font-size: 12px; padding: 3mm; border: 1px solid #e2e8f0; }
+    tbody tr:nth-child(odd) { background: #fafafa; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.debit { color: #16a34a; font-weight: 600; }
+    td.credit { color: #b91c1c; font-weight: 600; }
+    td.balance-pos { color: #16a34a; font-weight: 700; }
+    td.balance-neg { color: #b91c1c; font-weight: 700; }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 9999px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
+    .badge-expense { color: #b91c1c; background: #fee2e2; border-color: #fca5a5; }
+    .badge-payment { color: #065f46; background: #d1fae5; border-color: #34d399; }
+    .badge-bon_entree { color: #1d4ed8; background: #dbeafe; border-color: #93c5fd; }
+    .badge-credit { color: #9a3412; background: #ffedd5; border-color: #fdba74; }
+    tr { page-break-inside: avoid; }
+    .footer { position: fixed; bottom: 8mm; left: 12mm; right: 12mm; font-size: 11px; color: #64748b; display: flex; justify-content: space-between; }
+    @media print { .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <div class=\"sheet\">
+    <div class=\"header\">
+      <div>
+        <div class=\"company\">POS Pâtisserie</div>
+        <h1>Relevé Fournisseur</h1>
+        <div class=\"muted\">${this.escapeHtml(supplier.name)}</div>
+      </div>
+      <div class=\"muted\">Période: ${this.escapeHtml(periodStart)} - ${this.escapeHtml(periodEnd)}</div>
+    </div>
+
+    <div class=\"summary\">
+      <div class=\"card\"><h4>Total Débit</h4><div class=\"val debit\">${this.formatNumber3(statement.totalDebit)}</div></div>
+      <div class=\"card\"><h4>Total Crédit</h4><div class=\"val credit\">${this.formatNumber3(statement.totalCredit)}</div></div>
+      <div class=\"card\"><h4>Solde Actuel</h4><div class=\"val ${statement.currentBalance >= 0 ? 'balance-pos' : 'balance-neg'}\">${this.formatNumber3(statement.currentBalance)}</div></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Référence</th>
+          <th class=\"num\">Débit</th>
+          <th class=\"num\">Crédit</th>
+          <th class=\"num\">Solde</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  </div>
+
+  <div class=\"footer\">
+    <div>Généré le ${this.escapeHtml(new Date().toLocaleString('fr-FR'))}</div>
+    <div class=\"muted\">Relevé fournisseur • POS Pâtisserie</div>
+  </div>
+</body>
+</html>`;
+  }
+
+  private escapeHtml(input: string): string {
+    return String(input)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  private badgeClass(type: string): string {
+    if (type === 'expense') return 'badge-expense';
+    if (type === 'payment') return 'badge-payment';
+    if (type === 'bon_entree') return 'badge-bon_entree';
+    if (type === 'credit') return 'badge-credit';
+    return 'badge';
+  }
+
+  private formatNumber3(value: number): string {
+    return Number(value).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
   }
 
   private generateCSV(): string {

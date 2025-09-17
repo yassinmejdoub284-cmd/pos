@@ -160,6 +160,7 @@ async function main() {
           description: prodData.description,
           familleId: family.id,
           prix_vente_TTC: prodData.price,
+          prix_achat: prodData.price * 0.6, // Set purchase price to 60% of sale price
           barcode: prodData.barcode,
           unite: 'pcs'
         }

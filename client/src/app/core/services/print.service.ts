@@ -401,7 +401,6 @@ export class PrintService {
     try {
       // This would use Tauri's printer API
       // For now, we'll simulate it
-      console.log('Printing with Tauri:', escposData);
 
       // In a real implementation, you would:
       // 1. Use Tauri's invoke to call a Rust function
@@ -545,7 +544,6 @@ export class PrintService {
       try {
         // In a real implementation, this would test the printer connection
         // For now, we'll simulate success
-        console.log('Testing printer connection...');
         setTimeout(() => resolve(true), 1000);
       } catch (error) {
         console.error('Printer test failed:', error);

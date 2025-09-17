@@ -189,4 +189,11 @@
     (dialogClosed)="onSupplierDialogClosed()">
   </app-supplier-action-dialog>
 
+  <!-- Billing Center Action Dialog -->
+  <app-billing-center-action-dialog 
+    *ngIf="showBillingCenterActionDialog"
+    (actionSelected)="onBillingCenterActionSelected($event)"
+    (dialogClosed)="onBillingCenterDialogClosed()">
+  </app-billing-center-action-dialog>
+
 </div>

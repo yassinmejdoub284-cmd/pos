@@ -57,13 +57,18 @@ SELECT
     updated_at
 FROM `customers`;
 
--- Get the first user ID for default assignment
-SET @default_user_id = (SELECT id FROM users LIMIT 1);
-
 -- Add new columns to sales table
 ALTER TABLE `sales` 
     ADD COLUMN `client_id` INTEGER NULL,
-    ADD COLUMN `user_id` INTEGER NOT NULL DEFAULT @default_user_id;
+    ADD COLUMN `user_id` INTEGER NULL;
+
+-- Set default user_id for existing sales
+UPDATE `sales` 
+SET `user_id` = (SELECT id FROM users LIMIT 1)
+WHERE `user_id` IS NULL;
+
+-- Make user_id NOT NULL after populating it
+ALTER TABLE `sales` MODIFY COLUMN `user_id` INTEGER NOT NULL;
 
 -- Migrate customer_id to client_id
 UPDATE `sales` s

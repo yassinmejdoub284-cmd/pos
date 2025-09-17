@@ -142,6 +142,14 @@ export class InventoryService {
     });
   }
 
+  // Create new inventory item for a product
+  createInventoryItem(sessionId: number, productId: number, theoreticalQuantity: number): Observable<InventoryItem> {
+    return this.http.post<InventoryItem>(`${this.apiUrl}/sessions/${sessionId}/items`, {
+      productId,
+      theoreticalQuantity
+    });
+  }
+
   // Update inventory item count
   updateItemCount(sessionId: number, itemId: number, countedQuantity: number | null, reason?: string, notes?: string): Observable<InventoryItem> {
     return this.http.patch<InventoryItem>(`${this.apiUrl}/sessions/${sessionId}/items/${itemId}`, {

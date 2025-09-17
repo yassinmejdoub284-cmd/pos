@@ -34,6 +34,7 @@ export class ProductFormComponent implements OnInit {
       barcode: [''],
       unite: ['pcs', Validators.required],
       prix_vente_TTC: [0, [Validators.required, Validators.min(0)]],
+      prix_achat: [null, [Validators.min(0)]],
       tva: [19, [Validators.required, Validators.min(0), Validators.max(100)]],
       duree_conservation: [null],
       isVraguable: [false],

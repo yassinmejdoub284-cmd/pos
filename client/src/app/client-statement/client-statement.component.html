@@ -68,12 +68,18 @@
             (click)="loadStatement()"
             [disabled]="!filters.clientId"
             class="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            Voir Relevé
+            Voir
           </button>
           <button title="Effacer"
             (click)="clearFilters()"
             class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">
             Effacer
+          </button>
+          <button title="Imprimer A4"
+            (click)="printStatementA4()"
+            [disabled]="!filters.clientId"
+            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            Imprimer
           </button>
         </div>
       </div>

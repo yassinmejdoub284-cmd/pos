@@ -11,6 +11,12 @@ function ensureDefaults(data = {}) {
   return {
     companyName: data.companyName || '',
     logoUrl: data.logoUrl || '',
+    // Company details
+    companyAddress: data.companyAddress || '',
+    companyPhone: data.companyPhone || '',
+    companyEmail: data.companyEmail || '',
+    companyRC: data.companyRC || '',
+    companyMF: data.companyMF || '',
     loyaltyEnabled: typeof data.loyaltyEnabled === 'boolean' ? data.loyaltyEnabled : false,
     loyaltyRate: data.loyaltyRate !== undefined ? Number(data.loyaltyRate) : 1,
     maxDiscountPercent: data.maxDiscountPercent !== undefined ? Number(data.maxDiscountPercent) : 50,

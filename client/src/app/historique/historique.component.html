@@ -3,39 +3,47 @@
   <div class="mb-6">
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-3xl font-bold text-slate-800">Historique des Ventes</h1>
-      <a routerLink="/caisse" 
-         class="bg-gradient-to-r from-indigo-600 to-pink-500 hover:from-indigo-500 hover:to-pink-400 text-white px-4 py-2 rounded-2xl transition-colors flex items-center space-x-2 shadow">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-        </svg>
-        <span>Retour Caisse</span>
-      </a>
+      <div class="flex items-center gap-2">
+        <button (click)="toggleView()" class="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50" title="Basculer vue" aria-label="Basculer vue">{{ showGridView ? 'Vue tableau' : 'Vue grille' }}</button>
+        <a routerLink="/caisse" 
+           class="bg-gradient-to-r from-indigo-600 to-pink-500 hover:from-indigo-500 hover:to-pink-400 text-white px-4 py-2 rounded-2xl transition-colors flex items-center space-x-2 shadow">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          <span>Retour Caisse</span>
+        </a>
+      </div>
     </div>
   </div>
 
   <!-- Filters Section -->
-  <div class="bg-white rounded-2xl border border-indigo-100/50 p-6 mb-6 shadow-sm">
-    <h2 class="text-xl font-bold text-slate-800 mb-4">Filtres</h2>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-      <!-- Search -->
-      <div>
-        <label class="block text-sm text-slate-600 mb-1">Recherche</label>
+  <div class="bg-white rounded-2xl border border-indigo-100/50 p-3 mb-4 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
         <input 
           type="text" 
           [(ngModel)]="searchQuery"
           (input)="applyFilters()"
-          placeholder="ID, produit, paiement..."
-          class="w-full bg-slate-100/50 border border-slate-200/50 rounded-2xl px-3 py-2 text-slate-800 placeholder-gray-400 focus:outline-none focus:border-indigo-600 transition-colors shadow-inner">
+          placeholder="Recherche: ID, produit, paiement..."
+          class="w-72 bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 placeholder-gray-400 focus:outline-none focus:border-indigo-600 transition-colors shadow-inner">
+        <button (click)="clearFilters()" class="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">Effacer</button>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-slate-600">
+        <span>{{ totalItems }} vente{{ totalItems !== 1 ? 's' : '' }}</span>
+        <button (click)="toggleFilters()" class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
+          Filtres avancés
+        </button>
+      </div>
       </div>
 
+    <div *ngIf="showFilters" class="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
       <!-- Status Filter -->
       <div>
-        <label class="block text-sm text-slate-600 mb-1">Statut</label>
+        <label class="block text-[11px] text-slate-600 mb-1">Statut</label>
         <select [(ngModel)]="selectedStatus" (change)="applyFilters()" 
-          class="w-full bg-slate-100/50 border border-slate-200/50 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
+          class="w-full bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
           aria-label="Filtrer par statut" title="Filtrer par statut">
-          <option value="">Tous les statuts</option>
+          <option value="">Tous</option>
           <option value="COMPLETED">Terminé</option>
           <option value="PENDING">En attente</option>
           <option value="CANCELLED">Annulé</option>
@@ -46,11 +54,11 @@
 
       <!-- Sale Type Filter -->
       <div>
-        <label class="block text-sm text-slate-600 mb-1">Type de vente</label>
+        <label class="block text-[11px] text-slate-600 mb-1">Type de vente</label>
         <select [(ngModel)]="selectedSaleType" (change)="applyFilters()" 
-          class="w-full bg-slate-100/50 border border-slate-200/50 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
+          class="w-full bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
           aria-label="Filtrer par type de vente" title="Filtrer par type de vente">
-          <option value="">Tous les types</option>
+          <option value="">Tous</option>
           <option value="retail">Détail</option>
           <option value="wholesale">Gros</option>
         </select>
@@ -58,43 +66,32 @@
 
       <!-- Payment Method Filter -->
       <div>
-        <label class="block text-sm text-slate-600 mb-1">Méthode de paiement</label>
+        <label class="block text-[11px] text-slate-600 mb-1">Paiement</label>
         <select [(ngModel)]="selectedPaymentMethod" (change)="applyFilters()" 
-          class="w-full bg-slate-100/50 border border-slate-200/50 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
+          class="w-full bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
           aria-label="Filtrer par méthode de paiement" title="Filtrer par méthode de paiement">
-          <option value="">Toutes les méthodes</option>
+          <option value="">Toutes</option>
           <option *ngFor="let method of paymentMethods" [value]="method.id">{{ method.name }}</option>
         </select>
       </div>
 
       <!-- Date Range -->
       <div>
-        <label class="block text-sm text-slate-600 mb-1">Période</label>
+        <label class="block text-[11px] text-slate-600 mb-1">Période</label>
         <div class="grid grid-cols-2 gap-2">
           <input 
             type="date" 
             [(ngModel)]="startDate"
             (change)="applyFilters()"
-            class="bg-slate-100/50 border border-slate-200/50 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
+            class="bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
             aria-label="Date début" title="Date début" placeholder="Date début">
           <input 
             type="date" 
             [(ngModel)]="endDate"
             (change)="applyFilters()"
-            class="bg-slate-100/50 border border-slate-200/50 rounded-2xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
+            class="bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
             aria-label="Date fin" title="Date fin" placeholder="Date fin">
         </div>
-      </div>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="flex justify-between items-center">
-      <button (click)="clearFilters()" 
-        class="bg-gradient-to-r from-slate-200 to-slate-100 hover:from-indigo-500 hover:to-pink-400 text-slate-800 px-4 py-2 rounded-2xl transition-colors shadow">
-        Effacer les filtres
-      </button>
-      <div class="text-slate-600 text-sm">
-        {{ totalItems }} vente{{ totalItems !== 1 ? 's' : '' }} trouvée{{ totalItems !== 1 ? 's' : '' }}
       </div>
     </div>
   </div>
@@ -110,71 +107,122 @@
     <p class="text-red-600">{{ error }}</p>
   </div>
 
-  <!-- Sales Table -->
-  <div *ngIf="!loading && !error" class="bg-white rounded-2xl border border-indigo-100/50 overflow-hidden shadow-sm">
-    <div class="overflow-x-auto">
-      <table class="w-full">
-        <thead>
-          <tr class="bg-gradient-to-r from-slate-100/50 to-indigo-50 text-slate-700 border-b border-slate-200/30">
-            <th class="text-left p-4">ID</th>
-            <th class="text-left p-4">Date</th>
-            <th class="text-left p-4">Client</th>
-            <th class="text-left p-4">Articles</th>
-            <th class="text-left p-4">Total</th>
-            <th class="text-left p-4">Remise</th>
-            <th class="text-left p-4">Net</th>
-            <th class="text-left p-4">Paiement</th>
-            <th class="text-left p-4">Statut</th>
-            <th class="text-left p-4">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let sale of paginatedSales" class="border-b border-slate-200/20 hover:bg-indigo-50 transition-colors">
-            <td class="p-4 text-slate-800 font-medium">#{{ sale.id }}</td>
-            <td class="p-4 text-slate-600">{{ formatDate(sale.createdAt) }}</td>
-            <td class="p-4">
-              <div *ngIf="sale.client; else noClient" class="flex items-center space-x-2">
-                <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300">Client</span>
-                <span class="text-slate-800 text-sm">{{ sale.client.firstName }} {{ sale.client.lastName }}</span>
+  <!-- Date-grouped multigrid -->
+  <div *ngIf="!loading && !error" class="space-y-8">
+    <div *ngFor="let group of groupedSalesByDate" class="bg-white rounded-2xl border border-indigo-100/50 shadow-sm">
+      <!-- Date header -->
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200/40 bg-gradient-to-r from-slate-50 to-indigo-50">
+        <div class="flex items-center gap-3">
+          <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <h3 class="text-lg font-semibold text-slate-800">{{ group.dateLabel }}</h3>
+          <span class="text-xs text-slate-500">{{ group.sales.length }} ticket{{ group.sales.length > 1 ? 's' : '' }}</span>
+        </div>
+      </div>
+
+      <!-- Grid of tickets -->
+      <div *ngIf="!showGridView" class="p-0 overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 border-b border-slate-200 text-slate-600">
+            <tr>
+              <th class="text-left px-3 py-2">Ticket</th>
+              <th class="text-left px-3 py-2">Date</th>
+              <th class="text-left px-3 py-2">Client</th>
+              <th class="text-left px-3 py-2">Articles</th>
+              <th class="text-right px-3 py-2">Total</th>
+              <th class="text-right px-3 py-2">Remise</th>
+              <th class="text-right px-3 py-2">Net</th>
+              <th class="text-left px-3 py-2">Paiement</th>
+              <th class="text-left px-3 py-2">Statut</th>
+              <th class="text-right px-3 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let sale of group.sales; trackBy: trackBySaleId" class="border-b border-slate-100 hover:bg-slate-50">
+              <td class="px-3 py-2 font-semibold text-slate-800">#{{ sale.id }}</td>
+              <td class="px-3 py-2 text-slate-600">{{ formatDate(sale.createdAt) }}</td>
+              <td class="px-3 py-2">
+                <span *ngIf="sale.client; else guestRow" class="text-slate-800">{{ sale.client.firstName }} {{ sale.client.lastName }}</span>
+                <ng-template #guestRow><span class="text-slate-500">PASSAGER</span></ng-template>
+              </td>
+              <td class="px-3 py-2 text-slate-800">
+                {{ getSaleSummary(sale) }}
+                <span *ngIf="isWholesaleSale(sale)" class="ml-1 text-[10px] font-bold text-violet-600">GROS</span>
+              </td>
+              <td class="px-3 py-2 text-right text-slate-800">{{ sale.total | number:'1.2-2' }} dt</td>
+              <td class="px-3 py-2 text-right" [class]="sale.discount > 0 ? 'text-emerald-600' : 'text-slate-400'">-{{ sale.discount | number:'1.2-2' }} dt</td>
+              <td class="px-3 py-2 text-right font-semibold" [class]="sale.status === 'CADEAU' ? 'text-rose-600' : 'text-indigo-700'">{{ sale.status === 'CADEAU' ? '-' : '' }}{{ sale.finalTotal | number:'1.2-2' }} dt</td>
+              <td class="px-3 py-2 text-slate-600">{{ sale.paymentMethod?.name || 'Temporaire' }}</td>
+              <td class="px-3 py-2">
+                <span [class]="'px-2 py-0.5 rounded-full text-[11px] font-medium ' + getStatusColor(sale.status)">{{ getStatusText(sale.status) }}</span>
+              </td>
+              <td class="px-3 py-2 text-right">
+                <div class="inline-flex flex-wrap gap-1.5">
+                  <button (click)="openReceiptPreview(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-pink-500/90 hover:bg-pink-500 text-white">Aperçu</button>
+                  <button (click)="printReceipt(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-indigo-600 hover:bg-indigo-500 text-white">Imprimer</button>
+                  <button *ngIf="sale.status === 'COMPLETED' && !hasInvoiceRequest(sale.id)" (click)="requestInvoice(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-emerald-600 hover:bg-emerald-500 text-white">Facture</button>
+                  <button *ngIf="sale.status === 'COMPLETED'" (click)="openReturnRequestModal(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-amber-600 hover:bg-amber-500 text-white">Retour/Échange</button>
+                  <button (click)="showSaleDetails(sale)" class="px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 text-slate-700 hover:bg-slate-50">Détails</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div *ngIf="showGridView" class="p-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+        <div *ngFor="let sale of group.sales; trackBy: trackBySaleId" class="w-full mx-auto rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow transition-shadow">
+          <div class="px-3 py-2 border-b border-slate-200/70 bg-slate-50 rounded-t-xl flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="text-base font-bold text-slate-800">#{{ sale.id }}</span>
+              <span class="text-[10px] text-slate-500">{{ formatDate(sale.createdAt) }}</span>
+            </div>
+            <span [class]="'text-[9px] px-2 py-0.5 rounded-full ' + getStatusColor(sale.status)">{{ getStatusText(sale.status) }}</span>
+          </div>
+          <div class="px-3 py-2 text-xs text-slate-700">
+            <div class="flex items-center justify-between mb-1">
+              <span>{{ sale.client ? (sale.client.firstName + ' ' + sale.client.lastName) : 'PASSAGER' }}</span>
+              <span class="text-slate-500">{{ sale.paymentMethod?.name || 'Temporaire' }}</span>
+            </div>
+            <!-- Items list -->
+            <div class="rounded-lg border border-slate-100 bg-white mt-1">
+              <div class="px-2 py-1 border-b border-dashed border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
+                <span>Articles</span>
+                <span class="text-slate-700 font-medium">{{ sale.items.length }}</span>
               </div>
-              <ng-template #noClient>
-                <span class="text-slate-500 text-sm">PASSAGER</span>
-              </ng-template>
-            </td>
-            <td class="p-4">
-              <div class="text-sm text-slate-800">{{ getSaleSummary(sale) }}</div>
-              <div *ngIf="isWholesaleSale(sale)" class="text-xs text-violet-600 font-bold mt-1">GROS</div>
-            </td>
-            <td class="p-4 text-slate-800">{{ sale.total | number:'1.3-3' }} dt</td>
-            <td class="p-4" [class]="sale.discount > 0 ? 'text-green-400' : 'text-slate-500'">{{ sale.discount | number:'1.3-3' }} dt</td>
-            <td class="p-4 font-bold" [class]="sale.status === 'CADEAU' ? 'text-red-600' : 'text-indigo-600'">
-              {{ sale.status === 'CADEAU' ? '-' : '' }}{{ sale.finalTotal | number:'1.3-3' }} dt
-            </td>
-            <td class="p-3 text-slate-600">{{ sale.paymentMethod?.name || 'Temporaire' }}</td>
-            <td class="p-4">
-              <span [class]="'px-2 py-1 rounded-full text-xs font-medium ' + getStatusColor(sale.status)">
-                {{ getStatusText(sale.status) }}
-              </span>
-            </td>
-            <td class="p-4">
-              <div class="flex items-center gap-3">
-                <button (click)="openReceiptPreview(sale)" class="px-3 py-1 rounded-xl text-xs bg-pink-500/90 hover:bg-pink-500 text-white transition-colors" aria-label="Aperçu reçu" title="Aperçu reçu">
-                  Aperçu reçu
-                </button>
-                <button (click)="printReceipt(sale)" class="px-3 py-1 rounded-xl text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition-colors" aria-label="Imprimer reçu" title="Imprimer reçu">
-                  Imprimer
-                </button>
-                <button (click)="showSaleDetails(sale)" class="text-indigo-600 hover:text-pink-400 transition-colors text-sm" aria-label="Voir détails" title="Voir détails">
-                  Détails
-                </button>
+              <div class="max-h-20 overflow-y-auto divide-y divide-dashed divide-slate-200">
+                <div *ngFor="let item of (sale.items || []).slice(0, 4)" class="px-2 py-1 text-[10px] flex items-center justify-between tabular-nums">
+                  <span class="text-slate-700 truncate flex-1">{{ item.productName }}</span>
+                  <span class="text-slate-500 ml-2 w-10 text-center">x{{ item.quantity }}</span>
+                  <span class="text-slate-800 font-medium ml-2 w-16 text-right">{{ (item.quantity * item.unitPrice) | number:'1.2-2' }}</span>
+                </div>
+                <div *ngIf="sale.items.length > 4" class="px-2 py-1 text-[10px] text-slate-500">+ {{ sale.items.length - 4 }} autres…</div>
               </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+            <!-- Totals row -->
+            <div class="mt-2 flex items-center justify-between">
+              <span class="text-slate-600">Total</span>
+              <span class="font-semibold text-slate-800">{{ sale.finalTotal | number:'1.2-2' }} dt</span>
+            </div>
+            <div *ngIf="isWholesaleSale(sale)" class="mt-0.5 text-[10px] font-semibold text-violet-600">GROS</div>
+          </div>
+          <div class="px-3 pb-2">
+            <div class="flex flex-wrap gap-2">
+              <button (click)="openReceiptPreview(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-pink-500/90 hover:bg-pink-500 text-white">Aperçu</button>
+              <button (click)="printReceipt(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-indigo-600 hover:bg-indigo-500 text-white">Imprimer</button>
+              <button *ngIf="sale.status === 'COMPLETED' && !hasInvoiceRequest(sale.id)" (click)="requestInvoice(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-emerald-600 hover:bg-emerald-500 text-white">Facture</button>
+              <button *ngIf="sale.status === 'COMPLETED'" (click)="openReturnRequestModal(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-amber-600 hover:bg-amber-500 text-white">Retour/Échange</button>
+              <button (click)="showSaleDetails(sale)" class="px-3.5 py-3 rounded-lg text-sm border border-slate-200 text-slate-700 hover:bg-slate-50">Détails</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty for group -->
+      <div *ngIf="group.sales.length === 0" class="px-4 pb-6 text-center text-slate-400 text-sm">Aucun ticket</div>
     </div>
 
-    <!-- Empty State -->
+    <!-- Empty State (when nothing at all after filters) -->
     <div *ngIf="paginatedSales.length === 0" class="text-center py-12">
       <svg class="w-16 h-16 mx-auto mb-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -197,7 +245,7 @@
         *ngFor="let page of [].constructor(totalPages); let i = index"
         (click)="changePage(i + 1)"
         [class]="'px-3 py-2 rounded-2xl transition-colors ' + 
-                 (currentPage === i + 1 ? 'bg-indigo-600 text-slate-800' : 'bg-slate-100/50 text-slate-800 hover:bg-slate-100/50')">
+                 (currentPage === i + 1 ? 'bg-indigo-600 text-white' : 'bg-slate-100/50 text-slate-800 hover:bg-slate-100/50')">
         {{ i + 1 }}
       </button>
     </div>
@@ -267,4 +315,318 @@
     </div>
   </div>
   
+</div>
+
+ <!-- Return/Exchange Request Modal -->
+ <div *ngIf="showReturnRequestModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+   <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+     <div class="p-6">
+       <div class="flex items-center justify-between mb-6">
+         <h3 class="text-2xl font-bold text-slate-800">Créer un bon de retour/échange</h3>
+         <button (click)="closeReturnRequestModal()" class="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200" aria-label="Fermer" title="Fermer">
+           <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+           </svg>
+         </button>
+       </div>
+
+       <form (ngSubmit)="submitReturnRequest()" #returnForm="ngForm">
+         <div class="space-y-6">
+           <!-- Products to Return/Exchange -->
+           <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-medium text-slate-700">Articles à retourner/échanger</label>
+              <div class="flex items-center gap-2">
+                <button type="button" (click)="addFirstUnselected()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">+ Ajouter un article</button>
+                <button type="button" (click)="returnAll()" class="px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-500">Tout retourner</button>
+                <div class="text-xs text-slate-500" *ngIf="selectedSaleForReturn?.items?.length">
+                  Restants: {{ remainingReturnableCount }} produits / {{ remainingReturnableQty }} qtés
+                </div>
+              </div>
+            </div>
+
+            <!-- Inline Add Picker -->
+            <div *ngIf="showAddItemPicker && remainingReturnableItems.length > 0" class="mt-2 rounded-lg border border-slate-200 bg-white p-2">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto">
+                <button type="button" *ngFor="let it of remainingReturnableItems" (click)="addSpecificItem(it.productId || it.id)" class="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50">
+                  <span class="text-sm text-slate-800 truncate">{{ it.productName }}</span>
+                  <span class="text-xs text-slate-500">Qté: {{ it.quantity }}</span>
+                </button>
+              </div>
+              <div class="text-right mt-2">
+                <button type="button" (click)="closeAddItemPicker()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">Fermer</button>
+              </div>
+            </div>
+
+            <!-- Modern item picker -->
+            <div *ngIf="showReturnPicker" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div *ngFor="let it of selectedReturnViewItems" class="rounded-xl border border-slate-200 p-3 bg-white">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="font-medium text-slate-800">{{ it.productName }}</div>
+                    <div class="text-xs text-slate-500">Vendu: {{ it.soldQty }} • PU: {{ it.unitPrice | number:'1.2-2' }} TND</div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button type="button" (click)="decrementReturnQty(it.productId)" class="w-9 h-9 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">-</button>
+                    <input type="number" class="w-20 text-center border border-slate-200 rounded-lg py-2" [value]="getReturnQty(it.productId)" (input)="setReturnQty(it.productId, $any($event.target).value)" min="0" step="1" aria-label="Quantité à retourner" title="Quantité à retourner" />
+                    <button type="button" (click)="incrementReturnQty(it.productId)" class="w-9 h-9 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">+</button>
+                  </div>
+                </div>
+                <div class="mt-2 text-right text-sm text-slate-600">
+                  <span>Retour: </span>
+                  <span class="font-semibold text-slate-800">{{ (getReturnQty(it.productId) * it.unitPrice) | number:'1.2-2' }} TND</span>
+                </div>
+              </div>
+              <div *ngIf="selectedReturnViewItems.length === 0" class="text-xs text-slate-500">Aucun article sélectionné. Utilisez "+ Ajouter un article" ou "Tout retourner".</div>
+            </div>
+
+            <!-- Legacy rows removed: keep for editing convenience in case no sale selected -->
+            <div *ngIf="!(selectedSaleForReturn?.items?.length)" class="space-y-2">
+               <div *ngFor="let item of returnItems; let i = index" class="grid grid-cols-12 gap-2 items-center">
+                 <div class="col-span-6">
+                  <select 
+                    [ngModel]="item.productId" name="returnProduct-{{i}}"
+                    (ngModelChange)="onSelectReturnItem(i, $event)"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-700"
+                    aria-label="Produit" title="Produit">
+                    <option [ngValue]="0">Sélectionner un article de la vente</option>
+                  </select>
+                 </div>
+                <div class="col-span-3">
+                  <input type="number" min="0.01" step="1" [ngModel]="item.quantity" (ngModelChange)="onChangeReturnQty(i, $event)" name="qty-{{i}}" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Qté" />
+                 </div>
+                 <div class="col-span-2 text-right">
+                  <span class="text-sm text-slate-600">{{ (item.quantity * item.unitPrice) }} TND</span>
+                </div>
+                <div class="col-span-1 text-right">
+                  <button type="button" (click)="removeReturnItem(i)" class="px-3 py-2 bg-slate-100 rounded-lg hover:bg-slate-200" aria-label="Supprimer l'article" title="Supprimer l'article">✕</button>
+                 </div>
+               </div>
+              <button type="button" (click)="addReturnItemRow()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200" aria-label="Ajouter un article" title="Ajouter un article">+ Ajouter un article</button>
+              <div *ngIf="returnItems.length === 0" class="text-xs text-slate-500">Aucun article sélectionné.</div>
+             </div>
+           </div>
+
+           <!-- Return/Exchange Type Selection -->
+           <div>
+             <label class="block text-sm font-medium text-slate-700 mb-2">Type de traitement</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button"
+                (click)="setReturnType('RETURN')"
+                [class]="'flex items-center gap-2 p-3.5 rounded-lg border transition min-h-12 ' + (returnType === 'RETURN' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:bg-slate-50')"
+                title="Retour simple" aria-label="Retour simple">
+                <span class="text-amber-600 text-lg">💵</span>
+                <span class="text-sm text-slate-800 text-left">Retour simple</span>
+              </button>
+              <button type="button"
+                (click)="setReturnType('EXCHANGE_PRODUCTS')"
+                [class]="'flex items-center gap-2 p-3.5 rounded-lg border transition min-h-12 ' + (returnType === 'EXCHANGE_PRODUCTS' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50')"
+                title="Échange produits" aria-label="Échange produits">
+                <span class="text-indigo-600 text-lg">🔁🛍️</span>
+                <span class="text-sm text-slate-800 text-left">Échange produits</span>
+              </button>
+              <button type="button"
+                (click)="setReturnType('EXCHANGE_NOTHING')"
+                [class]="'flex items-center gap-2 p-3.5 rounded-lg border transition min-h-12 ' + (returnType === 'EXCHANGE_NOTHING' ? 'border-slate-500 bg-slate-50' : 'border-slate-200 hover:bg-slate-50')"
+                title="Échange gratuit" aria-label="Échange gratuit">
+                <span class="text-slate-600 text-lg">🎁</span>
+                <span class="text-sm text-slate-800 text-left">Retour sans remboursement</span>
+              </button>
+             </div>
+           </div>
+
+           <!-- Cash Refund Section -->
+           <div *ngIf="(returnType === 'RETURN' || returnType === 'EXCHANGE_CASH') && selectedSaleForReturn">
+             <label class="block text-sm font-medium text-slate-700 mb-2">Remboursement en espèces</label>
+             <div class="bg-slate-50 rounded-lg p-4">
+               <div class="grid grid-cols-2 gap-4 text-sm mb-3">
+                 <div>
+                   <span class="text-slate-600">Montant original de la vente:</span>
+                  <span class="font-semibold text-slate-800 ml-2">{{ selectedSaleForReturn.finalTotal }} TND</span>
+                 </div>
+                 <div>
+                   <span class="text-slate-600">Méthode de paiement:</span>
+                   <span class="font-semibold text-slate-800 ml-2">{{ selectedSaleForReturn.paymentMethod?.name || 'Non spécifié' }}</span>
+                 </div>
+               </div>
+               <div>
+                 <label class="block text-sm text-slate-600 mb-1">Montant à rembourser (TND)</label>
+                 <input 
+                   type="number" 
+                   min="0" 
+                  step="0.01" 
+                   [(ngModel)]="returnCashAmount" 
+                  (ngModelChange)="onChangeRefund($event)"
+                   name="returnCashAmount"
+                   class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500" 
+                   placeholder="0.000"
+                   aria-label="Montant à rembourser en espèces"
+                   title="Montant à rembourser en espèces"
+                 />
+                 <div class="text-xs text-slate-500 mt-1">
+                  Auto-calculé selon les articles sélectionnés (modifiable)
+                 </div>
+               </div>
+             </div>
+           </div>
+
+           <!-- Product Exchange Section -->
+           <div *ngIf="returnType === 'EXCHANGE_PRODUCTS'">
+             <label class="block text-sm font-medium text-slate-700 mb-2">Produits d'échange</label>
+             <div class="space-y-3">
+               <div *ngFor="let product of exchangeProducts; let i = index" class="grid grid-cols-12 gap-2 items-center">
+                 <div class="col-span-5">
+                   <select 
+                     (change)="onExchangeProductSelect(i, $any($event.target).value)"
+                     class="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                     aria-label="Sélectionner un produit"
+                     title="Sélectionner un produit">
+                     <option value="">Sélectionner un produit</option>
+                    <option *ngFor="let p of allProducts" [value]="p.id">{{ p.name }} - {{ p.prix_vente_TTC }} TND</option>
+                   </select>
+                 </div>
+                 <div class="col-span-3">
+                    <input type="number" min="0" step="0.01" [ngModel]="product.quantity" (ngModelChange)="onExchangeQtyChange(i, $event)" name="exchangeProductQty-{{i}}" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Qté" />
+                 </div>
+                 <div class="col-span-2 text-right">
+                  <span class="text-sm text-slate-600">{{ (product.quantity * product.unitPrice) }} TND</span>
+                 </div>
+                 <div class="col-span-2 text-right">
+                   <button type="button" (click)="removeExchangeProduct(i)" class="px-3 py-2 bg-slate-100 rounded-lg hover:bg-slate-200" aria-label="Supprimer le produit d'échange" title="Supprimer le produit d'échange">Supprimer</button>
+                 </div>
+               </div>
+               <button type="button" (click)="addExchangeProduct()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500" aria-label="Ajouter un produit d'échange" title="Ajouter un produit d'échange">+ Ajouter un produit</button>
+               <div *ngIf="exchangeProducts.length > 0" class="mt-3 p-3 bg-purple-50 rounded-lg">
+                <div class="text-sm text-slate-600">Total des produits d'échange: <span class="font-semibold text-purple-700">{{ exchangeItemsTotal }} TND</span></div>
+               </div>
+             </div>
+           </div>
+
+          <!-- Settlement Summary -->
+          <div class="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200/60">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div class="flex items-center justify-between" *ngIf="returnedItemsTotal > 0">
+                <span class="text-slate-600">Valeur des articles retournés</span>
+                <span class="font-semibold text-slate-800">{{ returnedItemsTotal }} TND</span>
+              </div>
+              <div class="flex items-center justify-between" *ngIf="returnType === 'EXCHANGE_PRODUCTS' && exchangeItemsTotal > 0">
+                <span class="text-slate-600">Valeur des produits d'échange</span>
+                <span class="font-semibold text-slate-800">{{ exchangeItemsTotal }} TND</span>
+              </div>
+              <div class="flex items-center justify-between" *ngIf="(returnType === 'RETURN' || returnType === 'EXCHANGE_CASH') && ((+returnCashAmount || 0) > 0)">
+                <span class="text-slate-600">Remboursement en espèces</span>
+                <span class="font-semibold text-slate-800">{{ (+returnCashAmount || 0) }} TND</span>
+              </div>
+              <div class="flex items-center justify-between col-span-2" *ngIf="returnedItemsTotal > 0 || exchangeItemsTotal > 0 || ((+returnCashAmount || 0) > 0)">
+                <span class="text-slate-700 font-medium">Différence</span>
+                <span [class]="'font-semibold ' + getDifferenceClass()">{{ settlementDifference }} TND</span>
+              </div>
+            </div>
+            <div class="text-xs text-slate-500 mt-2">
+              <ng-container *ngIf="returnType === 'EXCHANGE_PRODUCTS' && suggestedCashBackForExchangeProducts > 0">
+                À rendre au client: <span class="font-medium">{{ suggestedCashBackForExchangeProducts }} TND</span>
+              </ng-container>
+              <ng-container *ngIf="cashRefundDue > 0">
+                • Le montant à rembourser au client est <span class="font-medium">{{ cashRefundDue }} TND</span> et sera automatiquement soustrait de la caisse.
+              </ng-container>
+              <ng-container *ngIf="!returnType">
+                Sélectionnez un type de traitement pour continuer.
+              </ng-container>
+            </div>
+          </div>
+
+           <!-- Notes -->
+           <div>
+             <label class="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+             <textarea [(ngModel)]="returnNotes" name="notes" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Notes (optionnel)" aria-label="Notes du bon de retour/échange" title="Notes du bon de retour/échange"></textarea>
+           </div>
+         </div>
+
+         <div class="flex justify-end gap-3 mt-6">
+           <button type="button" (click)="closeReturnRequestModal()" class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50" title="Annuler la demande" aria-label="Annuler la demande">Annuler</button>
+          <button type="submit" [disabled]="submittingReturnRequest || !isReturnFormValid()" class="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-500 disabled:opacity-50" title="Soumettre la demande" aria-label="Soumettre la demande">Soumettre</button>
+         </div>
+       </form>
+     </div>
+   </div>
+ </div>
+
+
+ <!-- Invoice Request Modal -->
+ <div *ngIf="showInvoiceRequestModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl max-w-2xl w-full">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-2xl font-bold text-slate-800">Demander une facture</h3>
+        <button 
+          (click)="closeInvoiceRequestModal()"
+          class="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 transition-colors duration-300"
+          title="Fermer"
+          aria-label="Fermer"
+        >
+          <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Sale Info -->
+      <div *ngIf="selectedSaleForInvoice" class="bg-slate-50 rounded-lg p-4 mb-6">
+        <h4 class="text-lg font-semibold text-slate-800 mb-3">Détails de la vente</h4>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span class="text-slate-600">Numéro de vente:</span>
+            <span class="font-semibold text-slate-800 ml-2">#{{ selectedSaleForInvoice.id }}</span>
+          </div>
+          <div>
+            <span class="text-slate-600">Date:</span>
+            <span class="font-semibold text-slate-800 ml-2">{{ formatDate(selectedSaleForInvoice.createdAt) }}</span>
+          </div>
+          <div>
+            <span class="text-slate-600">Client:</span>
+            <span class="font-semibold text-slate-800 ml-2">
+              {{ selectedSaleForInvoice.client ? selectedSaleForInvoice.client.firstName + ' ' + selectedSaleForInvoice.client.lastName : 'PASSAGER' }}
+            </span>
+          </div>
+          <div>
+            <span class="text-slate-600">Total:</span>
+           <span class="font-semibold text-slate-800 ml-2">{{ selectedSaleForInvoice.finalTotal }} dt</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Request Form -->
+      <form (ngSubmit)="submitInvoiceRequest()" #invoiceRequestForm="ngForm">
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-slate-700 mb-2">Notes de la demande (optionnel)</label>
+          <textarea 
+            [(ngModel)]="invoiceRequestData.notes" 
+            name="notes"
+            rows="3"
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Ajoutez des notes pour l'administrateur..."
+          ></textarea>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-end space-x-3">
+          <button 
+            type="button"
+            (click)="closeInvoiceRequestModal()"
+            class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors duration-300"
+          >
+            Annuler
+          </button>
+          <button 
+            type="submit"
+            [disabled]="submittingInvoiceRequest"
+            class="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
+          >
+            <span *ngIf="!submittingInvoiceRequest">Envoyer la demande</span>
+            <span *ngIf="submittingInvoiceRequest">Envoi...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>

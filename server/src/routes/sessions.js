@@ -515,8 +515,8 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { type = 'Z', format = 'html' } = req.query;
 
-    // Admin can view any session; others only their own
-    const whereClause = req.user.role === 'ADMIN'
+    // Admin and Manager can view any session; others only their own
+    const whereClause = ['ADMIN', 'MANAGER'].includes(req.user.role)
       ? { id: parseInt(id) }
       : { id: parseInt(id), userId: req.user.id };
 

@@ -99,6 +99,13 @@
           <h2 class="text-2xl font-bold text-slate-800">{{ formatDate(selectedExtract.date) }}</h2>
           <div class="flex items-center space-x-3">
             <button 
+              (click)="generateInvoice()"
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl transition-colors duration-300"
+              title="Générer une facture"
+            >
+              📋 Générer une facture
+            </button>
+            <button 
               (click)="printExtract('A4')"
               class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-800 rounded-2xl transition-colors duration-300"
               title="Imprimer A4"
@@ -215,6 +222,174 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Generation Modal -->
+  <div *ngIf="showInvoiceModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-2xl font-bold text-slate-800">Générer une facture</h3>
+          <button 
+            (click)="closeInvoiceModal()"
+            class="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 transition-colors duration-300"
+          >
+            <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Invoice Form -->
+        <form (ngSubmit)="createInvoice()" #invoiceForm="ngForm">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- Invoice Number -->
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Numéro de facture</label>
+              <div class="flex space-x-2">
+                <input 
+                  type="text" 
+                  [(ngModel)]="invoiceData.invoiceNumber" 
+                  name="invoiceNumber"
+                  required
+                  class="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="FAC-001"
+                >
+                <button 
+                  type="button"
+                  (click)="getNextInvoiceNumber()"
+                  class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors duration-300"
+                >
+                  Utiliser le dernier
+                </button>
+              </div>
+            </div>
+
+            <!-- Customer Info -->
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Client</label>
+              <input 
+                type="text" 
+                [(ngModel)]="invoiceData.customerName" 
+                name="customerName"
+                required
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Nom du client"
+              >
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Adresse client</label>
+              <textarea 
+                [(ngModel)]="invoiceData.customerAddress" 
+                name="customerAddress"
+                rows="2"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Adresse du client"
+              ></textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Matricule fiscal client</label>
+              <input 
+                type="text" 
+                [(ngModel)]="invoiceData.customerMatricule" 
+                name="customerMatricule"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Matricule fiscal (optionnel)"
+              >
+            </div>
+          </div>
+
+          <!-- Invoice Lines -->
+          <div class="mb-6">
+            <h4 class="text-lg font-semibold text-slate-800 mb-4">Articles de la facture</h4>
+            <div class="bg-slate-50 rounded-lg p-4">
+              <div class="grid grid-cols-8 gap-2 text-sm font-medium text-slate-600 mb-3">
+                <div>Famille</div>
+                <div>Article</div>
+                <div>Qté</div>
+                <div>PV HTVA</div>
+                <div>TVA %</div>
+                <div>Montant TVA</div>
+                <div>PV TTC</div>
+                <div>Sous-total TTC</div>
+              </div>
+              
+              <div *ngFor="let line of invoiceLines; let i = index" class="grid grid-cols-8 gap-2 items-center py-2 border-b border-slate-200 last:border-b-0">
+                <div class="text-sm text-slate-700">{{ line.familleName }}</div>
+                <div class="text-sm text-slate-700">{{ line.productName }}</div>
+                <div>
+                  <input 
+                    type="number" 
+                    [(ngModel)]="line.quantity" 
+                    [name]="'quantity_' + i"
+                    min="0"
+                    step="0.001"
+                    (ngModelChange)="updateInvoiceTotals()"
+                    class="w-full px-2 py-1 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                </div>
+                <div class="text-sm text-slate-700">{{ formatCurrency(line.prixVenteHTVA) }}</div>
+                <div class="text-sm text-slate-700">{{ line.tvaPercent }}%</div>
+                <div class="text-sm text-slate-700">{{ formatCurrency(line.montantTVA) }}</div>
+                <div class="text-sm text-slate-700">{{ formatCurrency(line.prixVenteTTC) }}</div>
+                <div class="text-sm font-semibold text-slate-800">{{ formatCurrency(line.sousTotalTTC) }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Invoice Totals -->
+          <div class="bg-slate-50 rounded-lg p-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="text-center">
+                <div class="text-sm text-slate-500 mb-1">Total HTVA</div>
+                <div class="text-lg font-bold text-slate-800">{{ formatCurrency(invoiceTotals.subtotalHTVA) }}</div>
+              </div>
+              <div class="text-center">
+                <div class="text-sm text-slate-500 mb-1">Total TVA</div>
+                <div class="text-lg font-bold text-slate-800">{{ formatCurrency(invoiceTotals.totalTVA) }}</div>
+              </div>
+              <div class="text-center">
+                <div class="text-sm text-slate-500 mb-1">Total TTC</div>
+                <div class="text-lg font-bold text-indigo-600">{{ formatCurrency(invoiceTotals.totalTTC) }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="mb-6">
+            <label class="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+            <textarea 
+              [(ngModel)]="invoiceData.notes" 
+              name="notes"
+              rows="3"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Notes additionnelles (optionnel)"
+            ></textarea>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex justify-end space-x-3">
+            <button 
+              type="button"
+              (click)="closeInvoiceModal()"
+              class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors duration-300"
+            >
+              Annuler
+            </button>
+            <button 
+              type="submit"
+              [disabled]="!invoiceForm.valid || creatingInvoice"
+              class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
+            >
+              <span *ngIf="!creatingInvoice">Créer la facture</span>
+              <span *ngIf="creatingInvoice">Création...</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

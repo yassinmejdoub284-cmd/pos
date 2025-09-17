@@ -55,7 +55,7 @@
                   <p class="text-sm text-slate-500">ID: {{ item.productId }}</p>
                 </div>
                 <div class="text-right">
-                  <div class="text-2xl font-bold text-green-400">{{ item.quantity }}</div>
+                  <div class="text-2xl font-bold" [class]="item.quantity < 0 ? 'text-red-500' : 'text-green-400'">{{ item.quantity }}</div>
                   <div class="text-xs text-slate-500">disponible</div>
                 </div>
               </div>
@@ -210,7 +210,7 @@
                   <p class="text-sm text-slate-500">ID Produit: {{ item.productId }}</p>
                 </div>
                 <div class="text-right">
-                  <div class="text-xl font-bold text-green-400">{{ item.quantity }}</div>
+                  <div class="text-xl font-bold" [class]="item.quantity < 0 ? 'text-red-500' : 'text-green-400'">{{ item.quantity }}</div>
                   <div class="text-xs text-slate-500">quantité</div>
                 </div>
               </div>

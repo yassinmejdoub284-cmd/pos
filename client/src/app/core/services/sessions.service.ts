@@ -2,6 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
 
 export interface SessionCaisse {
   id: number;
@@ -106,8 +107,18 @@ export class SessionsService {
   public currentSession = signal<SessionCaisse | null>(null);
   public isSessionOpen = signal(false);
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private authService: AuthService) {
     this.loadCurrentSession();
+  }
+
+  private getRequestOptions() {
+    const token = this.authService.getToken();
+    return {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      }
+    };
   }
 
   // Get active session for current user
@@ -115,7 +126,10 @@ export class SessionsService {
     const params: any = {};
     if (posId) params.posId = posId.toString();
     
-    return this.http.get<SessionCaisse | null>(`${this.API_URL}/active`, { params }).pipe(
+    return this.http.get<SessionCaisse | null>(`${this.API_URL}/active`, { 
+      params,
+      ...this.getRequestOptions()
+    }).pipe(
       tap(session => {
         this.currentSessionSubject.next(session);
         this.currentSession.set(session);
@@ -126,7 +140,7 @@ export class SessionsService {
 
   // Open new session
   openSession(request: OpenSessionRequest): Observable<SessionCaisse> {
-    return this.http.post<SessionCaisse>(`${this.API_URL}/open`, request).pipe(
+    return this.http.post<SessionCaisse>(`${this.API_URL}/open`, request, this.getRequestOptions()).pipe(
       tap(session => {
         this.currentSessionSubject.next(session);
         this.currentSession.set(session);
@@ -137,12 +151,12 @@ export class SessionsService {
 
   // Add cash movement
   addCashMovement(sessionId: number, movement: CashMovementRequest): Observable<CashMovement> {
-    return this.http.post<CashMovement>(`${this.API_URL}/${sessionId}/movements`, movement);
+    return this.http.post<CashMovement>(`${this.API_URL}/${sessionId}/movements`, movement, this.getRequestOptions());
   }
 
   // Get session summary
   getSessionSummary(sessionId: number): Observable<SessionSummary> {
-    return this.http.get<SessionSummary>(`${this.API_URL}/${sessionId}/summary`);
+    return this.http.get<SessionSummary>(`${this.API_URL}/${sessionId}/summary`, this.getRequestOptions());
   }
 
 
@@ -156,7 +170,7 @@ export class SessionsService {
     remainingBalance?: number;
     updatedOpenSession?: SessionCaisse;
   }> {
-    return this.http.post<any>(`${this.API_URL}/${sessionId}/close`, request).pipe(
+    return this.http.post<any>(`${this.API_URL}/${sessionId}/close`, request, this.getRequestOptions()).pipe(
       tap(() => {
         this.currentSessionSubject.next(null);
         this.currentSession.set(null);
@@ -174,13 +188,19 @@ export class SessionsService {
       }
     });
     
-    return this.http.get<SessionCaisse[]>(`${this.API_URL}`, { params });
+    return this.http.get<SessionCaisse[]>(`${this.API_URL}`, { 
+      params,
+      ...this.getRequestOptions()
+    });
   }
 
   // Get session report (X or Z)
   getSessionReport(sessionId: number, type: 'X' | 'Z' = 'Z', format: 'html' | 'escpos' | 'pdf' = 'html'): Observable<any> {
     const params = { type, format };
-    return this.http.get(`${this.API_URL}/${sessionId}/report`, { params });
+    return this.http.get(`${this.API_URL}/${sessionId}/report`, { 
+      params,
+      ...this.getRequestOptions()
+    });
   }
 
   // Admin: Reopen session
@@ -188,7 +208,7 @@ export class SessionsService {
     session: SessionCaisse;
     changeRequest: any;
   }> {
-    return this.http.post<any>(`${this.API_URL}/${sessionId}/reopen`, { reason });
+    return this.http.post<any>(`${this.API_URL}/${sessionId}/reopen`, { reason }, this.getRequestOptions());
   }
 
   // Print report

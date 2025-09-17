@@ -42,6 +42,16 @@
               class="bg-gradient-to-r from-red-400 to-red-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md">
               GROS
             </div>
+            <div
+              class="bg-gradient-to-r from-purple-400 to-purple-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md"
+              title="Shop Depot ID: {{ currentShopDepotId }}">
+              {{ currentShopName }}
+            </div>
+            <button (click)="refreshShopInventory()" 
+              class="bg-orange-400 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-orange-500"
+              title="Refresh Shop Inventory">
+              🔄
+            </button>
           </div>
 
           <!-- Center: Client -->
@@ -132,8 +142,9 @@
 
                   <!-- Stock Tag - On Image with Offset -->
                   <div
-                    class="absolute -bottom-1 -right-1 bg-gradient-to-r from-blue-400 to-blue-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-md border border-blue-300 z-20">
-                    {{ getShopStock(product.id) }}
+                    class="absolute -bottom-1 -right-1 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-md border z-20"
+                    [class]="getRemainingStock(product.id) < 0 ? 'bg-gradient-to-r from-red-400 to-red-500 border-red-300' : 'bg-gradient-to-r from-blue-400 to-blue-500 border-blue-300'">
+                    {{ getRemainingStock(product.id) }}
                   </div>
                 </div>
 
@@ -144,7 +155,7 @@
                 <!-- Price Tag - Bottom Right Corner with 45° Rotation -->
                 <div
                   class="absolute top-1 -left-2 transform -rotate-20 bg-gradient-to-r text-white text-[0.7rem] font-bold px-3 py-0.5 rounded-full shadow-md border z-10"
-                  [ngClass]="{'bg-emerald-400 border-emerald-300': !product.isWholesale, 'bg-purple-600 border-purple-300': product.isWholesale}"
+                  [ngClass]="!isWholesaleMode ? 'bg-emerald-400 border-emerald-300': 'bg-red-400 border-red-300'"
                 >
                 {{ ((isWholesaleMode || (selectedClient?.clientType === 'WHOLESALE')) ? getWholesaleUnitPrice(product) : product.prix_vente_TTC) | number:'1.3-3' }}dt
                 <span *ngIf="(isWholesaleMode || (selectedClient?.clientType === 'WHOLESALE')) && product.isWholesale && product.bundleSize" class="opacity-90"> x{{ product.bundleSize }}</span>
@@ -242,10 +253,23 @@
                   [class]="selectedReceiptItemIndex === i ? 'bg-blue-100 border-blue-300' : 'bg-purple-50'"
                   (click)="selectReceiptItem(item, i)">
                   <td class="px-3 py-3 text-sm">
-                    <div *ngIf="!item.isWholesale">{{ item.quantity }}</div>
+                    <div *ngIf="!item.isWholesale" class="flex items-center space-x-2">
+                      <span>{{ item.quantity }}</span>
+                      <span *ngIf="getRemainingStock(item.product.id) < 0" 
+                            class="text-xs bg-red-100 text-red-600 px-1 py-0.5 rounded" 
+                            [title]="'Stock après vente: ' + getRemainingStock(item.product.id)">
+                        ⚠️ {{ getRemainingStock(item.product.id) }}
+                      </span>
+                    </div>
                     <div *ngIf="item.isWholesale" class="text-center">
-                      <div class="text-xs text-violet-600 font-bold">{{ item.bundleQuantity || 0 }} fardeau{{ (item.bundleQuantity || 0) > 1 ? 'x' : '' }}</div>
-                      <div class="text-xs text-gray-500">({{ item.quantity }} unités)</div>
+                      <div class="text-violet-600 font-bold">{{ item.bundleQuantity || 0 }}<span class="text-[0.6rem] text-gray-500">x{{ item.quantity }}</span></div>
+                      <div class="text-xs text-gray-500 flex items-center justify-center space-x-1">
+                        <span *ngIf="getRemainingStock(item.product.id) < 0" 
+                              class="text-red-600" 
+                              [title]="'Stock après vente: ' + getRemainingStock(item.product.id)">
+                          ⚠️ {{ getRemainingStock(item.product.id) }}
+                        </span>
+                      </div>
                     </div>
                   </td>
                   <td class="px-3 py-3 text-sm font-medium">
@@ -255,8 +279,8 @@
                   <td class="px-3 py-3 text-sm text-right">
                     <div *ngIf="!item.isWholesale">{{ item.unitPrice | number:'1.3-3' }}</div>
                     <div *ngIf="item.isWholesale">
-                      <div class="text-xs text-violet-600 font-bold">{{ (item.bundlePrice || 0) | number:'1.3-3' }}/fardeau</div>
-                      <div class="text-xs text-gray-500">{{ ((item.bundlePrice || 0) / (item.bundleSize || 1)) | number:'1.3-3' }}/unité</div>
+                      <div class="text-xs text-violet-600 font-bold">{{ (item.bundlePrice || 0) | number:'1.3-3' }}</div>
+                      <div class="text-xs text-gray-500">{{ ((item.bundlePrice || 0) / (item.bundleSize || 1)) | number }}/unité</div>
                     </div>
                   </td>
                   <td class="px-3 py-3 text-sm text-right font-bold text-blue-600">{{ item.total | number:'1.3-3' }}
@@ -397,7 +421,8 @@
         <div class="grid grid-cols-2 gap-3">
           <button *ngFor="let button of actionButtons" (click)="button.action()"
             class="text-white rounded-xl transition-all text-sm font-medium flex flex-col items-center justify-center py-4 relative hover:scale-95 transform shadow-lg"
-            [style.background-color]="button.color">
+            [style.background-color]="button.color"
+            [title]="button.id === 'invoice' ? 'Demander une facture pour le panier actuel' : ''">
             <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="button.icon"></path>
             </svg>
@@ -1026,6 +1051,7 @@
                       {{ sale.status === 'TEMPORARY' ? 'En attente' : sale.status === 'CMD_TERMINEE' ? 'CMD Terminée' :
                       'Finalisée' }}
                     </span>
+                    <span class="text-xs text-gray-400 ml-2">({{ sale.status }})</span>
                   </div>
                 </div>
 
@@ -1037,6 +1063,35 @@
                 <div *ngIf="sale.notes" class="mt-2 text-sm text-gray-600">
                   <span class="text-gray-600">Notes:</span>
                   <span class="text-gray-800 ml-1">{{ sale.notes }}</span>
+                </div>
+
+                <!-- Debug Info -->
+                <div class="mt-2 text-xs text-gray-400">
+                  Debug: Status={{ sale.status }}, HasRequest={{ hasInvoiceRequest(sale.id) }}, ShouldShow={{ sale.status === 'COMPLETED' && !hasInvoiceRequest(sale.id) }}
+                </div>
+
+                <!-- Invoice Request Button for Completed Sales -->
+                <div *ngIf="sale.status === 'COMPLETED' && !hasInvoiceRequest(sale.id)" class="mt-3 pt-3 border-t border-orange-200">
+                  <button
+                    (click)="requestInvoiceFromSale(sale); $event.stopPropagation()"
+                    class="w-full px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                    title="Demander une facture pour cette vente"
+                    type="button">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    📋 Demander facture (Ticket)
+                  </button>
+                </div>
+
+                <!-- Invoice Request Status for Completed Sales -->
+                <div *ngIf="sale.status === 'COMPLETED' && hasInvoiceRequest(sale.id)" class="mt-3 pt-3 border-t border-orange-200">
+                  <div class="flex items-center justify-center gap-2 text-sm">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="text-blue-600 font-medium">Demande de facture envoyée</span>
+                  </div>
                 </div>
               </div>
 
@@ -2103,21 +2158,21 @@
 
   </div>
 
-  <!-- Stock Warning Modal - Outside main container -->
+  <!-- Stock Warning Modal -->
   <div *ngIf="showStockWarningModal === true && stockWarningProduct !== null"
-    class="fixed inset-0 bg-red-500/20 flex items-center justify-center z-50 p-4 stock-warning-modal-bg">
-    <div class="bg-white rounded-xl border border-red-500 max-w-md w-full shadow-2xl">
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl border-2 border-orange-400 max-w-lg w-full shadow-2xl">
       <!-- Modal Header -->
-      <div class="flex items-center justify-between p-6 border-b border-red-500">
+      <div class="flex items-center justify-between p-6 border-b border-orange-200">
         <div class="flex items-center space-x-3">
-          <div class="text-3xl">⚠️</div>
+          <div class="text-4xl">⚠️</div>
           <div>
-            <h3 class="text-xl font-bold text-red-400">Stock Insuffisant</h3>
-            <p class="text-slate-600 text-sm">Attention: Stock négatif détecté</p>
+            <h3 class="text-xl font-bold text-orange-600">Stock Insuffisant</h3>
+            <p class="text-gray-600 text-sm">Attention: Quantité demandée supérieure au stock disponible</p>
           </div>
         </div>
-        <button type="button" (click)="closeStockWarning()" title="Fermer l'alerte"
-          class="text-slate-500 hover:text-slate-800 transition-colors">
+        <button type="button" (click)="closeStockWarning()" title="Fermer"
+          class="text-gray-400 hover:text-gray-600 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -2126,49 +2181,52 @@
 
       <!-- Modal Content -->
       <div class="p-6">
-        <div class="bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-6">
-          <h4 class="text-lg font-semibold text-red-600 mb-3">🚨 Alerte Stock</h4>
-          <div class="space-y-2">
-            <div class="flex justify-between">
-              <span class="text-slate-500">Produit:</span>
-              <span class="text-slate-800 font-medium">{{ stockWarningProduct.name }}</span>
+        <!-- Product Info -->
+        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+          <h4 class="text-lg font-semibold text-orange-800 mb-3 flex items-center">
+            📦 {{ stockWarningProduct.name }}
+          </h4>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="text-center">
+              <div class="text-gray-500">Stock Actuel</div>
+              <div class="text-2xl font-bold text-blue-600">{{ stockWarningCurrentStock }}</div>
             </div>
-            <div class="flex justify-between">
-              <span class="text-slate-500">Stock actuel:</span>
-              <span class="text-red-400 font-bold">{{ stockWarningCurrentStock }}</span>
+            <div class="text-center">
+              <div class="text-gray-500">Quantité Demandée</div>
+              <div class="text-2xl font-bold text-orange-600">{{ stockWarningQuantity }}</div>
             </div>
-            <div class="flex justify-between">
-              <span class="text-slate-500">Quantité demandée:</span>
-              <span class="text-yellow-400 font-bold">{{ stockWarningQuantity }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-slate-500">Stock après vente:</span>
-              <span class="text-red-600 font-bold">{{ stockWarningCurrentStock - stockWarningQuantity }}</span>
+          </div>
+          <div class="mt-3 text-center">
+            <div class="text-gray-500 text-sm">Stock après vente</div>
+            <div class="text-2xl font-bold" 
+                 [class]="(stockWarningCurrentStock - stockWarningQuantity) < 0 ? 'text-red-600' : 'text-green-600'">
+              {{ stockWarningCurrentStock - stockWarningQuantity }}
             </div>
           </div>
         </div>
 
-        <div class="bg-yellow-900/20 border border-yellow-500/50 rounded-lg p-4 mb-6">
-          <h4 class="text-lg font-semibold text-yellow-300 mb-2">💡 Recommandation</h4>
-          <p class="text-yellow-200 text-sm">
-            Le stock sera négatif après cette vente. Il est recommandé de:
-          </p>
-          <ul class="text-yellow-200 text-sm mt-2 space-y-1">
-            <li>• Vérifier l'inventaire du magasin</li>
-            <li>• Demander un transfert depuis le dépôt principal</li>
-            <li>• Mettre à jour les quantités en stock</li>
-          </ul>
+        <!-- Warning Message -->
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div class="flex items-start space-x-3">
+            <div class="text-2xl">💡</div>
+            <div>
+              <h4 class="font-semibold text-yellow-800 mb-2">Recommandation</h4>
+              <p class="text-yellow-700 text-sm">
+                Le stock sera négatif après cette vente. Vous pouvez continuer si nécessaire.
+              </p>
+            </div>
+          </div>
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex space-x-4">
+        <div class="flex space-x-3">
           <button type="button" (click)="closeStockWarning()"
-            class="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-500 text-slate-800 rounded-lg transition-colors">
-            ❌ Annuler
+            class="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors">
+            Annuler
           </button>
           <button type="button" (click)="proceedWithNegativeStock()"
-            class="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-slate-800 font-semibold rounded-lg transition-all duration-300 transform hover:scale-95">
-            ⚠️ Continuer Malgré Tout
+            class="flex-1 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors">
+            Continuer
           </button>
         </div>
       </div>
@@ -2311,6 +2369,384 @@
           <span>Confirmer le Règlement</span>
         </div>
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice Request Modal -->
+<div *ngIf="showInvoiceRequestModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 p-6 text-white">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-xl font-bold">Demander une facture</h3>
+          <p class="text-emerald-100 text-sm mt-1">
+            {{ selectedSaleForInvoice?.id === 0 ? 'Panier actuel' : 'Ticket #' + selectedSaleForInvoice?.id }} - Les articles seront traités tels quels, la vente reste normale
+          </p>
+        </div>
+        <button (click)="closeInvoiceRequestModal()" 
+                class="text-white hover:text-emerald-200 transition-colors"
+                title="Fermer">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+      <!-- Ticket Summary -->
+      <div class="bg-gray-50 rounded-lg p-4 mb-4">
+        <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
+          <svg class="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Détails du ticket (référence)
+        </h4>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span class="text-gray-600">Date:</span>
+            <span class="font-medium ml-1">{{ selectedSaleForInvoice?.createdAt | date:'short' }}</span>
+          </div>
+          <div>
+            <span class="text-gray-600">Client:</span>
+            <span class="font-medium ml-1">{{ selectedSaleForInvoice?.client?.firstName }} {{ selectedSaleForInvoice?.client?.lastName || 'PASSAGER' }}</span>
+          </div>
+          <div>
+            <span class="text-gray-600">Articles:</span>
+            <span class="font-medium ml-1">{{ selectedSaleForInvoice?.items?.length || 0 }}</span>
+          </div>
+          <div>
+            <span class="text-gray-600">Total TTC:</span>
+            <span class="font-medium ml-1">{{ selectedSaleForInvoice?.total | number:'1.3-3' }} dt</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Locked Items Table -->
+      <div class="mb-4">
+        <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
+          <svg class="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+          </svg>
+          Articles du ticket (référence)
+        </h4>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-3 py-2 text-left text-gray-600 font-medium">Famille</th>
+                  <th class="px-3 py-2 text-left text-gray-600 font-medium">Article</th>
+                  <th class="px-3 py-2 text-right text-gray-600 font-medium">Qté</th>
+                  <th class="px-3 py-2 text-right text-gray-600 font-medium">Prix TTC</th>
+                  <th class="px-3 py-2 text-right text-gray-600 font-medium">Sous-total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of selectedSaleForInvoice?.items" class="border-t border-gray-100">
+                  <td class="px-3 py-2 text-gray-700">{{ item.product?.famille?.name || 'N/A' }}</td>
+                  <td class="px-3 py-2 text-gray-700">{{ item.product?.designation_legale || item.product?.name || item.productName }}</td>
+                  <td class="px-3 py-2 text-right text-gray-700">{{ item.quantity }} {{ item.product?.unite || '' }}</td>
+                  <td class="px-3 py-2 text-right text-gray-700">{{ item.unitPrice | number:'1.3-3' }} dt</td>
+                  <td class="px-3 py-2 text-right font-medium text-gray-800">{{ item.total | number:'1.3-3' }} dt</td>
+                </tr>
+              </tbody>
+              <tfoot class="bg-gray-50 border-t-2 border-gray-200">
+                <tr>
+                  <td colspan="4" class="px-3 py-2 text-right font-semibold text-gray-800">Total TTC:</td>
+                  <td class="px-3 py-2 text-right font-bold text-gray-900">{{ selectedSaleForInvoice?.total | number:'1.3-3' }} dt</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Request Notes -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Notes pour la demande (optionnel)
+        </label>
+        <textarea 
+          [(ngModel)]="invoiceRequestData.notes"
+          rows="3"
+          placeholder="Ajouter des notes pour cette demande de facture..."
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+        </textarea>
+      </div>
+
+      <!-- Important Notice -->
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+        <div class="flex items-start space-x-3">
+          <svg class="w-6 h-6 text-amber-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+          <div class="text-sm text-amber-800">
+            <p class="font-semibold mb-1">Demande de facture - Lignes verrouillées</p>
+            <ul class="list-disc list-inside space-y-1 text-amber-700">
+              <li>Les articles de ce ticket sont <strong>verrouillés</strong> et ne peuvent pas être modifiés</li>
+              <li>L'administrateur examinera votre demande et créera la facture</li>
+              <li>Le POS et les stocks <strong>ne seront pas modifiés</strong></li>
+              <li>Une fois approuvée, la facture sera disponible dans la liste des factures</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="p-6 border-t border-gray-200 flex justify-end space-x-3 bg-gray-50">
+      <button 
+        (click)="closeInvoiceRequestModal()" 
+        class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium">
+        Annuler
+      </button>
+      <button 
+        (click)="submitInvoiceRequest()" 
+        [disabled]="submittingInvoiceRequest"
+        class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+        <span *ngIf="!submittingInvoiceRequest" class="flex items-center space-x-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+          </svg>
+          <span>Envoyer la demande (verrouillée)</span>
+        </span>
+        <span *ngIf="submittingInvoiceRequest" class="flex items-center space-x-2">
+          <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>Envoi en cours...</span>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice Menu Modal -->
+<div *ngIf="showInvoiceMenuModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-cyan-500 to-blue-600 p-6 text-white">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-xl font-bold">Demander une facture</h3>
+          <p class="text-cyan-100 text-sm mt-1">Choisissez une option</p>
+        </div>
+        <button (click)="closeInvoiceMenu()" 
+                class="text-white hover:text-cyan-200 transition-colors"
+                title="Fermer">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6">
+      <!-- Notification Badge -->
+      <div *ngIf="unprintedInvoicesCount > 0" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div class="flex items-center">
+          <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div>
+            <p class="text-green-800 font-medium">Factures approuvées disponibles!</p>
+            <p class="text-green-600 text-sm">{{ unprintedInvoicesCount }} facture(s) approuvée(s) et non imprimée(s)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Menu Options -->
+      <div class="space-y-3">
+        <!-- Request New Invoice -->
+        <button 
+          (click)="requestNewInvoice()" 
+          [disabled]="getActiveCart()?.items?.length === 0"
+          class="w-full p-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl transition-all duration-200 flex items-center justify-between group">
+          <div class="flex items-center">
+            <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            <div class="text-left">
+              <p class="font-semibold">Nouvelle demande</p>
+              <p class="text-sm opacity-90">Demander une facture pour le panier actuel</p>
+            </div>
+          </div>
+          <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </button>
+
+        <!-- View Approved Invoices -->
+        <button 
+          (click)="viewApprovedInvoices()" 
+          class="w-full p-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl transition-all duration-200 flex items-center justify-between group">
+          <div class="flex items-center">
+            <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <div class="text-left">
+              <p class="font-semibold">Factures approuvées</p>
+              <p class="text-sm opacity-90">Voir et imprimer les factures approuvées</p>
+            </div>
+          </div>
+          <div class="flex items-center">
+            <span *ngIf="unprintedInvoicesCount > 0" class="bg-red-500 text-white text-xs px-2 py-1 rounded-full mr-2">{{ unprintedInvoicesCount }}</span>
+            <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </div>
+        </button>
+      </div>
+
+      <!-- Cart Status Info -->
+      <div *ngIf="getActiveCart()?.items?.length === 0" class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <div class="flex items-center">
+          <svg class="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+          <p class="text-amber-800 text-sm">Le panier est vide. Ajoutez des articles pour demander une facture.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Approved Invoices Modal -->
+<div *ngIf="showApprovedInvoicesModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-white">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-xl font-bold">Factures Approuvées</h3>
+          <p class="text-green-100 text-sm mt-1">{{ approvedInvoices.length }} facture(s) approuvée(s)</p>
+        </div>
+        <button (click)="closeApprovedInvoicesModal()" 
+                class="text-white hover:text-green-200 transition-colors"
+                title="Fermer">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+      <!-- Summary -->
+      <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div class="flex items-center">
+            <svg class="w-8 h-8 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <div>
+              <p class="text-green-800 font-semibold">Total Factures</p>
+              <p class="text-green-600 text-2xl font-bold">{{ approvedInvoices.length }}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-center">
+            <svg class="w-8 h-8 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+              <p class="text-blue-800 font-semibold">Non Imprimées</p>
+              <p class="text-blue-600 text-2xl font-bold">{{ unprintedInvoicesCount }}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <div class="flex items-center">
+            <svg class="w-8 h-8 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+              <p class="text-purple-800 font-semibold">Imprimées</p>
+              <p class="text-purple-600 text-2xl font-bold">{{ approvedInvoices.length - unprintedInvoicesCount }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Invoices List -->
+      <div *ngIf="approvedInvoices.length > 0" class="space-y-4">
+        <div *ngFor="let invoice of approvedInvoices" 
+             class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="flex items-center space-x-4">
+                <div class="flex-shrink-0">
+                  <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                  </div>
+                </div>
+                
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center space-x-2">
+                    <h4 class="text-lg font-semibold text-gray-900">Facture #{{ invoice.invoiceNumber }}</h4>
+                    <span *ngIf="!invoice.printedAt" class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-medium">
+                      Non imprimée
+                    </span>
+                    <span *ngIf="invoice.printedAt" class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
+                      Imprimée
+                    </span>
+                  </div>
+                  
+                  <div class="mt-1 text-sm text-gray-600">
+                    <p><strong>Client:</strong> {{ invoice.client?.firstName || '' }} {{ invoice.client?.lastName || 'Client anonyme' }}</p>
+                    <p><strong>Date:</strong> {{ invoice.createdAt | date:'dd/MM/yyyy HH:mm' }}</p>
+                    <p><strong>Total:</strong> {{ invoice.total | number:'1.3-3' }} dt</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+              <button (click)="printApprovedInvoice(invoice)" 
+                      class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+                <span>Imprimer</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="approvedInvoices.length === 0" class="text-center py-12">
+        <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Aucune facture approuvée</h3>
+        <p class="text-gray-600">Il n'y a actuellement aucune facture approuvée disponible.</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+      <div class="flex items-center justify-between">
+        <p class="text-sm text-gray-600">
+          Dernière mise à jour: {{ currentDate | date:'dd/MM/yyyy HH:mm' }}
+        </p>
+        <button (click)="closeApprovedInvoicesModal()" 
+                class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium">
+          Fermer
+        </button>
+      </div>
     </div>
   </div>
 </div>

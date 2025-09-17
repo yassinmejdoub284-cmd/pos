@@ -1,6 +1,11 @@
 {
-  "companyName": "",
+  "companyName": "HENTETI GROUP",
   "logoUrl": "",
+  "companyAddress": "123 Avenue Habib Bourguiba, Tunis 1000",
+  "companyPhone": "+216 71 123 456",
+  "companyEmail": "contact@henteti-group.tn",
+  "companyRC": "RC123456",
+  "companyMF": "1260304/S/A/M/000",
   "loyaltyEnabled": false,
   "loyaltyRate": 1,
   "maxDiscountPercent": 50,

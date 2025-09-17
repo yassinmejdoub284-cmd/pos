@@ -7,6 +7,12 @@ export interface AppSettings {
   id?: number;
   companyName?: string;
   logoUrl?: string;
+  // Company details
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  companyRC?: string;
+  companyMF?: string;
   loyaltyEnabled: boolean;
   loyaltyRate: number;
   maxDiscountPercent: number;

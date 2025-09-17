@@ -78,14 +78,14 @@
 
           <!-- Modern Products Grid -->
           <div *ngIf="!loading" class="product-grid">
-            <div *ngFor="let product of filteredProducts; trackBy: trackByProductId"
+            <div *ngFor="let product of filteredProducts; trackBy: trackByProductId; let i = index"
               (click)="handleProductClick(product)" [class]="getProductCardClass(product.id)">
 
               <!-- Product Image - Optimized -->
               <div
                 class="w-full h-12 mb-2 bg-gray-100 rounded-lg flex items-center justify-center relative border border-gray-200">
                 <img title="Image du produit" *ngIf="product.photo" [src]="product.photo" [alt]="product.name"
-                  class="w-full h-full object-cover rounded-lg" loading="lazy" decoding="async">
+                  class="w-full h-full object-cover rounded-lg" [loading]="i < 6 ? 'eager' : 'lazy'" decoding="async">
                 <svg *ngIf="!product.photo" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor"
                   viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -198,6 +198,7 @@
                       {{ item.countedQuantity }}
                     </span>
                     <span *ngIf="item.countedQuantity === null" class="text-gray-400">-</span>
+                    <span *ngIf="saving" class="ml-1 text-xs text-orange-500">💾</span>
                   </td>
                   <td class="px-2 py-2 text-xs text-right">
                     <span *ngIf="item.countedQuantity !== null" [class]="getEcartClass(item)">
@@ -315,7 +316,7 @@
     </div>
 
     <!-- Loading Overlay -->
-    <div *ngIf="loading || saving" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div *ngIf="loading || saving" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 flex items-center">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-4"></div>
         <span class="text-gray-700">{{ loading ? 'Chargement...' : 'Sauvegarde...' }}</span>

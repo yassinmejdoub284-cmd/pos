@@ -45,10 +45,22 @@ router.get('/', authenticateToken, async (req, res) => {
 // Create supplier payment
 router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
   try {
-    const { supplierId, amount, notes } = req.body;
+    const { supplierId, amount, notes, paymentMethod } = req.body;
     
     if (!supplierId || !amount) {
       return res.status(400).json({ error: 'Fournisseur et montant sont requis' });
+    }
+
+    // If paying in CASH, ensure open session to register cash sortie
+    let activeSession = null;
+    const method = (paymentMethod || 'CASH').toUpperCase();
+    if (method === 'CASH') {
+      activeSession = await prisma.sessionCaisse.findFirst({
+        where: { userId: req.user.id, status: 'OPEN' }
+      });
+      if (!activeSession) {
+        return res.status(400).json({ error: 'Aucune session de caisse ouverte pour le règlement en espèces' });
+      }
     }
 
     const payment = await prisma.$transaction(async (tx) => {
@@ -58,6 +70,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER'])
           supplierId: Number(supplierId),
           amount: Number(amount),
           notes: notes?.trim() || 'Règlement fournisseur',
+          paymentMethod: method,
           userId: req.user.id,
           paymentDate: new Date()
         }
@@ -94,6 +107,20 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER'])
           
           remainingPayment -= paymentForThisExpense;
         }
+      }
+
+      // If cash payment, create cash movement sortie
+      if (method === 'CASH') {
+        await tx.cashMovement.create({
+          data: {
+            sessionId: activeSession.id,
+            type: 'SORTIE',
+            amount: Number(amount),
+            reason: `Règlement fournisseur #${supplierPayment.id} (FOURN:${supplierId})`,
+            ticketId: null,
+            createdById: req.user.id
+          }
+        });
       }
 
       return supplierPayment;

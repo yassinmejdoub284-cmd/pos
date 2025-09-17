@@ -31,20 +31,48 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         <!-- Société & Logo -->
-        <div class="bg-gradient-to-br from-white to-blue-50 rounded-xl border border-blue-200 p-4 flex flex-col shadow-sm">
-          <h3 class="text-lg font-semibold text-gray-800 mb-3">Société & Logo</h3>
-          <label class="block text-sm text-gray-600 mb-1">Nom de la société</label>
-          <input title="Nom de la société" type="text" [(ngModel)]="settings.companyName" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nom"/>
-          <label class="block text-sm text-gray-600 mb-1">Logo</label>
-          <div class="flex items-center gap-3">
-            <input title="Logo URL" type="text" [(ngModel)]="settings.logoUrl" class="flex-1 bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="https://..."/>
-            <label class="inline-flex items-center px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl border border-blue-200 cursor-pointer">
-              <input type="file" accept="image/*" class="hidden" (change)="onLogoSelected($event)"/>
-              Importer
-            </label>
+        <div class="bg-gradient-to-br from-white to-blue-50 rounded-xl border border-blue-200 p-4 flex flex-col shadow-sm xl:col-span-2">
+          <h3 class="text-lg font-semibold text-gray-800 mb-3">Informations de l'Entreprise</h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Nom de la société</label>
+              <input title="Nom de la société" type="text" [(ngModel)]="settings.companyName" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="PATISSERIE TUNISIENNE"/>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Adresse</label>
+              <input title="Adresse" type="text" [(ngModel)]="settings.companyAddress" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="123 Avenue Habib Bourguiba, Tunis 1000"/>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Téléphone</label>
+              <input title="Téléphone" type="text" [(ngModel)]="settings.companyPhone" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="+216 71 123 456"/>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Email</label>
+              <input title="Email" type="email" [(ngModel)]="settings.companyEmail" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="contact@patisserie-tunisienne.tn"/>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">R.C (Registre de Commerce)</label>
+              <input title="R.C" type="text" [(ngModel)]="settings.companyRC" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="RC123456"/>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">M.F (Matricule Fiscal)</label>
+              <input title="M.F" type="text" [(ngModel)]="settings.companyMF" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="MF789012"/>
+            </div>
           </div>
-          <div class="mt-3 h-14 flex items-center">
-            <img *ngIf="settings.logoUrl" [src]="settings.logoUrl" alt="Logo" class="h-10 object-contain"/>
+          
+          <div class="border-t border-blue-200 pt-4">
+            <label class="block text-sm text-gray-600 mb-1">Logo</label>
+            <div class="flex items-center gap-3">
+              <input title="Logo URL" type="text" [(ngModel)]="settings.logoUrl" class="flex-1 bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="https://..."/>
+              <label class="inline-flex items-center px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl border border-blue-200 cursor-pointer">
+                <input type="file" accept="image/*" class="hidden" (change)="onLogoSelected($event)"/>
+                Importer
+              </label>
+            </div>
+            <div class="mt-3 h-14 flex items-center">
+              <img *ngIf="settings.logoUrl" [src]="settings.logoUrl" alt="Logo" class="h-10 object-contain"/>
+            </div>
           </div>
         </div>
 

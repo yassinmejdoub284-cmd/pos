@@ -388,7 +388,6 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
 
     this.salesService.createWholesaleSale(wholesaleSaleData).subscribe({
       next: (response: unknown) => {
-        console.log('Wholesale sale created successfully:', response);
         alert(`Vente en gros créée avec succès! Total: ${total.toFixed(3)} dt`);
         // Success feedback - no need to clear selections since they're already cleared
       },

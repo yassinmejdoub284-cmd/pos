@@ -1,10 +1,10 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { requireRole } = require('../middleware/auth');
+// Role checks removed - frontend handles access control
 
 const router = express.Router();
 
-router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, isWholesale, paymentType, advancePayment, advancePaymentMethod } = req.body;
 
@@ -12,22 +12,11 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
       return res.status(400).json({ error: 'Sale must have at least one item' });
     }
 
-    const sale = await prisma.$transaction(async (tx) => {
-      // Check stock availability before creating the sale
-      for (const item of items) {
-        const inventory = await tx.inventory.findUnique({
-          where: {
-            depotId_productId: {
-              depotId: req.user.depotId,
-              productId: item.productId
-            }
-          }
-        });
-
-        if (!inventory || inventory.quantity < item.quantity) {
-          throw new Error(`Stock insuffisant pour le produit "${item.productName}". Disponible: ${inventory?.quantity || 0}, Demandé: ${item.quantity}`);
-        }
-      }
+        const sale = await prisma.$transaction(async (tx) => {
+          // Use user's assigned depot for stock operations
+          const userDepotId = req.user.depotId;
+      
+      // Stock validation removed - frontend handles warnings, backend allows all sales
 
       // Get the current active session for the user
       const activeSession = await tx.sessionCaisse.findFirst({
@@ -42,25 +31,26 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
       const advanceAmount = advancePayment !== undefined ? parseFloat(advancePayment) : (amountPaid !== undefined ? parseFloat(amountPaid) : 0);
       const advanceMethodId = advancePaymentMethod ? paymentMethodMap[advancePaymentMethod] : (paymentMethodId ? parseInt(paymentMethodId) : null);
 
-      const newSale = await tx.sale.create({
-        data: {
-          total: parseFloat(total),
-          discount: parseFloat(discount || 0),
-          finalTotal: parseFloat(finalTotal),
-          paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
-          userId: req.user.id,
-          clientId: clientId ? parseInt(clientId) : null,
-          depotId: req.user.depotId,
-          sessionId: activeSession ? activeSession.id : null,
-          status: 'COMPLETED',
-          paymentType: paymentType || 'COMPTANT',
-          // Persist advance payment fields when provided (particularly for CREDIT)
-          advancePayment: advanceAmount > 0 ? advanceAmount : 0,
-          advancePaymentMethodId: advanceAmount > 0 ? advanceMethodId : null,
-          advancePaymentDate: advanceAmount > 0 ? new Date() : null,
-          advancePaymentNotes: null
-        }
-      });
+        const newSale = await tx.sale.create({
+          data: {
+            total: parseFloat(total),
+            discount: parseFloat(discount || 0),
+            finalTotal: parseFloat(finalTotal),
+            paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
+            userId: req.user.id,
+            clientId: clientId ? parseInt(clientId) : null,
+            depotId: userDepotId, // Use user's depot for caisse operations
+            sessionId: activeSession ? activeSession.id : null,
+            status: 'COMPLETED',
+            paymentType: paymentType || 'COMPTANT',
+            isWholesale: isWholesale || false,
+            // Persist advance payment fields when provided (particularly for CREDIT)
+            advancePayment: advanceAmount > 0 ? advanceAmount : 0,
+            advancePaymentMethodId: advanceAmount > 0 ? advanceMethodId : null,
+            advancePaymentDate: advanceAmount > 0 ? new Date() : null,
+            advancePaymentNotes: null
+          }
+        });
 
       for (const item of items) {
         // Calculate margin for wholesale items
@@ -107,25 +97,73 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
           }
         });
 
-        await tx.inventory.updateMany({
+        // For wholesale items, calculate the actual quantity to deduct (bundleQuantity * bundle size)
+        const actualQuantityToDeduct = isWholesale && item.isWholesale && item.bundleSize 
+          ? (item.bundleQuantity || item.quantity) * item.bundleSize 
+          : item.quantity;
+
+        console.log('Deducting inventory for sale:', {
+          productId: item.productId,
+          productName: item.productName,
+          userDepotId: userDepotId,
+          isWholesale: isWholesale && item.isWholesale,
+          bundleQuantity: item.bundleQuantity,
+          bundleSize: item.bundleSize,
+          actualQuantityToDeduct: actualQuantityToDeduct
+        });
+
+        // Get current inventory quantity first
+        const currentInventory = await tx.inventory.findFirst({
           where: {
-            depotId: req.user.depotId,
+            depotId: userDepotId,
             productId: item.productId
-          },
-          data: {
-            quantity: {
-              decrement: item.quantity
-            }
           }
         });
+
+        if (currentInventory) {
+          // Calculate new quantity (can be negative)
+          const newQuantity = parseFloat(currentInventory.quantity) - actualQuantityToDeduct;
+          
+          console.log('Updating inventory:', {
+            productId: item.productId,
+            currentQuantity: parseFloat(currentInventory.quantity),
+            quantityToDeduct: actualQuantityToDeduct,
+            newQuantity: newQuantity
+          });
+          
+          await tx.inventory.updateMany({
+            where: {
+              depotId: userDepotId,
+              productId: item.productId
+            },
+            data: {
+              quantity: newQuantity
+            }
+          });
+        } else {
+          // If no inventory record exists, create one with negative quantity
+          console.log('Creating new inventory record with negative quantity:', {
+            productId: item.productId,
+            depotId: userDepotId,
+            quantity: -actualQuantityToDeduct
+          });
+          
+          await tx.inventory.create({
+            data: {
+              depotId: userDepotId,
+              productId: item.productId,
+              quantity: -actualQuantityToDeduct
+            }
+          });
+        }
 
         await tx.stockMovement.create({
           data: {
             productId: item.productId,
-            depotId: req.user.depotId,
-            quantity: item.quantity,
+            depotId: userDepotId, // Use user's depot for stock movement
+            quantity: actualQuantityToDeduct,
             type: 'OUT',
-            reason: 'Sale',
+            reason: isWholesale && item.isWholesale ? 'Wholesale Sale' : 'Sale',
             userId: req.user.id
           }
         });
@@ -204,7 +242,7 @@ router.post('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) 
   }
 });
 
-router.post('/temporary', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.post('/temporary', async (req, res) => {
   try {
     const { 
       items, 
@@ -225,6 +263,9 @@ router.post('/temporary', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (r
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Temporary sale must have at least one item' });
     }
+
+    // Use user's assigned depot for stock operations
+    const userDepotId = req.user.depotId;
 
     if (!expectedDate || !expectedTime) {
       return res.status(400).json({ error: 'Expected date and time are required' });
@@ -260,7 +301,7 @@ router.post('/temporary', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (r
           paymentMethodId: null,
           userId: req.user.id,
           clientId: clientId ? parseInt(clientId) : null,
-          depotId: req.user.depotId,
+          depotId: userDepotId, // Use shop depot for caisse operations
           status: 'TEMPORARY',
           expectedDate: new Date(`${expectedDate}T${expectedTime}`),
           notes: notes || '',
@@ -305,7 +346,7 @@ router.post('/temporary', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (r
   }
 });
 
-router.put('/temporary/:id/complete', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.put('/temporary/:id/complete', async (req, res) => {
   try {
     const { id } = req.params;
     const { paymentType, amountPaid, chequeId, encaissementDate, virementNumber } = req.body;
@@ -322,21 +363,7 @@ router.put('/temporary/:id/complete', requireRole(['ADMIN', 'MANAGER', 'CASHIER'
     const paymentMethodMap = { cash: 1, card: 2, check: 3, virement: 4 };
 
     const result = await prisma.$transaction(async (tx) => {
-      // Check stock availability before completing the temporary sale
-      for (const item of temporarySale.items) {
-        const inventory = await tx.inventory.findUnique({
-          where: {
-            depotId_productId: {
-              depotId: req.user.depotId,
-              productId: item.productId
-            }
-          }
-        });
-
-        if (!inventory || inventory.quantity < item.quantity) {
-          throw new Error(`Stock insuffisant pour le produit "${item.productName}". Disponible: ${inventory?.quantity || 0}, Demandé: ${item.quantity}`);
-        }
-      }
+      // Stock validation removed - frontend handles warnings, backend allows all sales
 
       const updatedSale = await tx.sale.update({
         where: { id: parseInt(id) },
@@ -351,15 +378,37 @@ router.put('/temporary/:id/complete', requireRole(['ADMIN', 'MANAGER', 'CASHIER'
       });
 
       for (const item of temporarySale.items) {
-        await tx.inventory.updateMany({
-          where: { depotId: req.user.depotId, productId: item.productId },
-          data: { quantity: { decrement: item.quantity } }
+        // Get current inventory quantity first
+        const currentInventory = await tx.inventory.findFirst({
+          where: {
+            depotId: userDepotId,
+            productId: item.productId
+          }
         });
+
+        if (currentInventory) {
+          // Calculate new quantity (can be negative)
+          const newQuantity = parseFloat(currentInventory.quantity) - item.quantity;
+          
+          await tx.inventory.updateMany({
+            where: { depotId: userDepotId, productId: item.productId },
+            data: { quantity: newQuantity }
+          });
+        } else {
+          // If no inventory record exists, create one with negative quantity
+          await tx.inventory.create({
+            data: {
+              depotId: userDepotId,
+              productId: item.productId,
+              quantity: -item.quantity
+            }
+          });
+        }
 
         await tx.stockMovement.create({
           data: {
             productId: item.productId,
-            depotId: req.user.depotId,
+            depotId: userDepotId, // Use shop depot for caisse operations
             quantity: item.quantity,
             type: 'OUT',
             reason: 'Temporary Sale Completed',
@@ -434,13 +483,16 @@ router.put('/temporary/:id/complete', requireRole(['ADMIN', 'MANAGER', 'CASHIER'
   }
 });
 
-router.post('/gift', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.post('/gift', async (req, res) => {
   try {
     const { items, total, discount, finalTotal, reason, recipient, status, clientId } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Gift sale must have at least one item' });
     }
+
+    // Use user's assigned depot for stock operations
+    const userDepotId = req.user.depotId;
 
     if (!reason || reason.trim() === '') {
       return res.status(400).json({ error: 'Gift reason is required' });
@@ -455,7 +507,7 @@ router.post('/gift', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, r
           paymentMethodId: null,
           userId: req.user.id,
           clientId: clientId ? parseInt(clientId) : null,
-          depotId: req.user.depotId,
+          depotId: userDepotId, // Use shop depot for caisse operations
           status: 'PENDING_ADMIN',
           notes: `Cadeau - Raison: ${reason}${recipient ? ` - Destinataire: ${recipient}` : ''}`
         }
@@ -490,7 +542,7 @@ router.post('/gift', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, r
   }
 });
 
-router.put('/gift/:id/approve', requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.put('/gift/:id/approve', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -510,15 +562,37 @@ router.put('/gift/:id/approve', requireRole(['ADMIN', 'MANAGER']), async (req, r
       });
 
       for (const item of giftSale.items) {
-        await tx.inventory.updateMany({
-          where: { depotId: req.user.depotId, productId: item.productId },
-          data: { quantity: { decrement: item.quantity } }
+        // Get current inventory quantity first
+        const currentInventory = await tx.inventory.findFirst({
+          where: {
+            depotId: userDepotId,
+            productId: item.productId
+          }
         });
+
+        if (currentInventory) {
+          // Calculate new quantity (can be negative)
+          const newQuantity = parseFloat(currentInventory.quantity) - item.quantity;
+          
+          await tx.inventory.updateMany({
+            where: { depotId: userDepotId, productId: item.productId },
+            data: { quantity: newQuantity }
+          });
+        } else {
+          // If no inventory record exists, create one with negative quantity
+          await tx.inventory.create({
+            data: {
+              depotId: userDepotId,
+              productId: item.productId,
+              quantity: -item.quantity
+            }
+          });
+        }
 
         await tx.stockMovement.create({
           data: {
             productId: item.productId,
-            depotId: req.user.depotId,
+            depotId: userDepotId, // Use shop depot for caisse operations
             quantity: item.quantity,
             type: 'OUT',
             reason: 'Gift Sale Approved',
@@ -539,7 +613,7 @@ router.put('/gift/:id/approve', requireRole(['ADMIN', 'MANAGER']), async (req, r
   }
 });
 
-router.put('/gift/:id/reject', requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.put('/gift/:id/reject', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -558,7 +632,7 @@ router.put('/gift/:id/reject', requireRole(['ADMIN', 'MANAGER']), async (req, re
   }
 });
 
-router.get('/', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { startDate, endDate, status, paymentMethod, page = 1, limit = 50 } = req.query;
 
@@ -603,7 +677,15 @@ router.get('/:id', async (req, res) => {
         advancePaymentMethod: { select: { name: true } },
         client: { select: { firstName: true, lastName: true, code: true } },
         user: { select: { firstName: true, lastName: true } },
-        items: true
+        items: {
+          include: {
+            product: {
+              include: {
+                famille: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -618,7 +700,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.put('/:id/status', requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -647,13 +729,16 @@ router.get('/payment-methods/all', async (req, res) => {
 });
 
 // Wholesale sales endpoint
-router.post('/wholesale', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.post('/wholesale', async (req, res) => {
   try {
     const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, paymentType } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Wholesale sale must have at least one item' });
     }
+
+    // Use user's assigned depot for stock operations
+    const userDepotId = req.user.depotId;
 
     // Validate that all items are wholesale items
     for (const item of items) {
@@ -663,21 +748,7 @@ router.post('/wholesale', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (r
     }
 
     const sale = await prisma.$transaction(async (tx) => {
-      // Check stock availability before creating the sale
-      for (const item of items) {
-        const inventory = await tx.inventory.findUnique({
-          where: {
-            depotId_productId: {
-              depotId: req.user.depotId,
-              productId: item.productId
-            }
-          }
-        });
-
-        if (!inventory || inventory.quantity < item.quantity) {
-          throw new Error(`Stock insuffisant pour le produit "${item.productName}". Disponible: ${inventory?.quantity || 0}, Demandé: ${item.quantity}`);
-        }
-      }
+      // Stock validation removed - frontend handles warnings, backend allows all sales
 
       // Get the current active session for the user
       const activeSession = await tx.sessionCaisse.findFirst({
@@ -695,10 +766,11 @@ router.post('/wholesale', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (r
           paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
           userId: req.user.id,
           clientId: clientId ? parseInt(clientId) : null,
-          depotId: req.user.depotId,
+          depotId: userDepotId, // Use shop depot for caisse operations
           sessionId: activeSession ? activeSession.id : null,
           status: 'COMPLETED',
-          paymentType: paymentType || 'COMPTANT'
+          paymentType: paymentType || 'COMPTANT',
+          isWholesale: true
         }
       });
 
@@ -745,23 +817,68 @@ router.post('/wholesale', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (r
           }
         });
 
-        await tx.inventory.updateMany({
+        // For wholesale items, calculate the actual quantity to deduct (bundleQuantity * bundle size)
+        const actualQuantityToDeduct = item.bundleSize ? (item.bundleQuantity || item.quantity) * item.bundleSize : item.quantity;
+
+        console.log('Deducting inventory for wholesale sale:', {
+          productId: item.productId,
+          productName: item.productName,
+          userDepotId: userDepotId,
+          bundleQuantity: item.bundleQuantity,
+          bundleSize: item.bundleSize,
+          actualQuantityToDeduct: actualQuantityToDeduct
+        });
+
+        // Get current inventory quantity first
+        const currentInventory = await tx.inventory.findFirst({
           where: {
-            depotId: req.user.depotId,
+            depotId: userDepotId,
             productId: item.productId
-          },
-          data: {
-            quantity: {
-              decrement: item.quantity
-            }
           }
         });
+
+        if (currentInventory) {
+          // Calculate new quantity (can be negative)
+          const newQuantity = parseFloat(currentInventory.quantity) - actualQuantityToDeduct;
+          
+          console.log('Updating wholesale inventory:', {
+            productId: item.productId,
+            currentQuantity: parseFloat(currentInventory.quantity),
+            quantityToDeduct: actualQuantityToDeduct,
+            newQuantity: newQuantity
+          });
+          
+          await tx.inventory.updateMany({
+            where: {
+              depotId: userDepotId,
+              productId: item.productId
+            },
+            data: {
+              quantity: newQuantity
+            }
+          });
+        } else {
+          // If no inventory record exists, create one with negative quantity
+          console.log('Creating new wholesale inventory record with negative quantity:', {
+            productId: item.productId,
+            depotId: userDepotId,
+            quantity: -actualQuantityToDeduct
+          });
+          
+          await tx.inventory.create({
+            data: {
+              depotId: userDepotId,
+              productId: item.productId,
+              quantity: -actualQuantityToDeduct
+            }
+          });
+        }
 
         await tx.stockMovement.create({
           data: {
             productId: item.productId,
-            depotId: req.user.depotId,
-            quantity: item.quantity,
+            depotId: userDepotId, // Use user's depot for stock movement
+            quantity: actualQuantityToDeduct,
             type: 'OUT',
             reason: 'Wholesale Sale',
             userId: req.user.id

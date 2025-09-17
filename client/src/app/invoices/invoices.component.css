@@ -1,0 +1,182 @@
+/* Invoice Preview Modal Styles */
+.invoice-preview {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  color: #333;
+  line-height: 1.4;
+}
+
+.invoice-preview .container {
+  max-width: 100%;
+  margin: 0;
+  border: none;
+  padding: 0;
+}
+
+.invoice-preview .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #333;
+  padding-bottom: 15px;
+}
+
+.invoice-preview .company-info {
+  flex: 1;
+}
+
+.invoice-preview .invoice-info {
+  text-align: right;
+  flex: 1;
+}
+
+.invoice-preview .title {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.invoice-preview .subtitle {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 15px;
+}
+
+.invoice-preview .info-row {
+  margin: 3px 0;
+  font-size: 11px;
+}
+
+.invoice-preview .label {
+  font-weight: bold;
+  display: inline-block;
+  width: 100px;
+}
+
+.invoice-preview .customer-section {
+  margin: 15px 0;
+  padding: 12px;
+  background-color: #f9f9f9;
+  border-left: 4px solid #007bff;
+}
+
+.invoice-preview .customer-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #007bff;
+  font-size: 13px;
+}
+
+.invoice-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+  font-size: 11px;
+}
+
+.invoice-preview th, 
+.invoice-preview td {
+  border: 1px solid #ddd;
+  padding: 6px;
+  text-align: left;
+}
+
+.invoice-preview th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+  text-align: center;
+  font-size: 10px;
+}
+
+.invoice-preview .text-right {
+  text-align: right;
+}
+
+.invoice-preview .footer {
+  margin-top: 30px;
+  text-align: center;
+  font-size: 9px;
+  color: #666;
+  border-top: 1px solid #ddd;
+  padding-top: 15px;
+}
+
+/* Responsive adjustments for modal */
+@media (max-width: 768px) {
+  .invoice-preview .header {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .invoice-preview .invoice-info {
+    text-align: left;
+  }
+  
+  .invoice-preview table {
+    font-size: 10px;
+  }
+  
+  .invoice-preview th, 
+  .invoice-preview td {
+    padding: 4px;
+  }
+}
+
+/* Product Grid Styles */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  padding: 8px;
+}
+
+.product-button {
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.product-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.product-button:active {
+  transform: translateY(0);
+}
+
+/* Responsive product grid */
+@media (max-width: 768px) {
+  .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 6px;
+  }
+  
+  .product-button {
+    min-height: 70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 4px;
+  }
+  
+  .product-button {
+    min-height: 60px;
+  }
+}
+
+/* Product selection specific styles */
+.products-grid-container {
+  max-height: calc(100vh - 135px);
+}
+
+.invoice-items-container {
+  max-height: calc(100vh - 400px);
+}

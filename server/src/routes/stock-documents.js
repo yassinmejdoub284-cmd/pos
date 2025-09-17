@@ -25,9 +25,7 @@ router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 20, type, status, depotId, dateFrom, dateTo } = req.query;
     const skip = (page - 1) * limit;
-    
-    console.log('Stock documents request:', { page, limit, type, status, depotId, dateFrom, dateTo });
-    
+        
     const where = {};
     
     if (type) {
@@ -75,8 +73,6 @@ router.get('/', async (req, res) => {
       }),
       prisma.stockDocument.count({ where })
     ]);
-    
-    console.log('Found documents:', documents.length, 'Total:', total);
     
     res.json({
       data: documents, // Changed from 'documents' to 'data' to match frontend expectation
@@ -137,8 +133,40 @@ router.get('/:id', authenticateToken, async (req, res) => {
     if (!document) {
       return res.status(404).json({ error: 'Document non trouvé' });
     }
+
+    // Extract supplier information from notes if present
+    let supplierInfo = null;
+    if (document.notes && document.notes.includes('Supplier:')) {
+      const supplierMatch = document.notes.match(/Supplier:(\d+)/);
+      if (supplierMatch) {
+        const supplierId = parseInt(supplierMatch[1]);
+        try {
+          const supplier = await prisma.supplier.findUnique({
+            where: { id: supplierId }
+          });
+          if (supplier) {
+            supplierInfo = {
+              id: supplier.id,
+              name: supplier.name,
+              contactName: supplier.contactName,
+              email: supplier.email,
+              phone: supplier.phone,
+              taxNumber: supplier.taxNumber
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching supplier:', error);
+        }
+      }
+    }
+
+    // Add supplier info to the document
+    const documentWithSupplier = {
+      ...document,
+      supplier: supplierInfo
+    };
     
-    res.json(document);
+    res.json(documentWithSupplier);
   } catch (error) {
     console.error('Error fetching stock document:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération du document' });
@@ -250,6 +278,137 @@ router.post('/expedition', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error creating expedition document:', error);
     res.status(500).json({ error: 'Erreur lors de la création du document' });
+  }
+});
+
+// Create supplier entry (Bon d'entrée)
+router.post('/entry', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, supplierId, items, notes, payCash } = req.body;
+
+    if (!depotId || !items || items.length === 0) {
+      return res.status(400).json({ error: 'Données manquantes' });
+    }
+
+    const numero = generateDocumentNumber('BON_ENTREE_DEPOT');
+
+    // If paying cash, we must have an open caisse session
+    let activeSession = null;
+    if (payCash) {
+      activeSession = await prisma.sessionCaisse.findFirst({
+        where: { userId: req.user.id, status: 'OPEN' }
+      });
+      if (!activeSession) {
+        return res.status(400).json({ error: 'Aucune session de caisse ouverte pour effectuer le paiement en espèces' });
+      }
+    }
+
+    const document = await prisma.$transaction(async (tx) => {
+      // Create the document as received directly (supplier -> depot)
+      const doc = await tx.stockDocument.create({
+        data: {
+          numero,
+          type: 'BON_ENTREE_DEPOT',
+          status: 'RECEIVED',
+          // Schema requires depots; we set both to the receiving depot
+          emetteurId: parseInt(depotId),
+          destinataireId: parseInt(depotId),
+          notes: supplierId ? `Supplier:${supplierId}${notes ? ' | ' + notes : ''}` : (notes || null),
+          items: {
+            create: items.map((item) => ({
+              productId: item.productId,
+              famille: item.famille,
+              quantity: parseFloat(item.quantity),
+              purchasePrice: item.purchasePrice ? parseFloat(item.purchasePrice) : null,
+              batch: item.batch || null,
+              notes: item.notes || null,
+              barcode: null
+            }))
+          },
+          statusHistory: {
+            create: {
+              status: 'RECEIVED',
+              userId: req.user.id,
+              notes: 'Bon d\'entrée fournisseur'
+            }
+          }
+        },
+        include: {
+          emetteur: true,
+          destinataire: true,
+          items: { include: { product: true } }
+        }
+      });
+
+      // Increase inventory for each item and create IN stock movement
+      for (const item of items) {
+        const productId = parseInt(item.productId);
+        const quantity = parseFloat(item.quantity);
+        const depotIdInt = parseInt(depotId);
+
+        const inventory = await tx.inventory.findUnique({
+          where: { depotId_productId: { depotId: depotIdInt, productId } }
+        });
+
+        if (inventory) {
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: { quantity: (parseFloat(inventory.quantity) + quantity) }
+          });
+        } else {
+          await tx.inventory.create({
+            data: { depotId: depotIdInt, productId, quantity }
+          });
+        }
+
+        await tx.stockMovement.create({
+          data: {
+            productId,
+            depotId: depotIdInt,
+            quantity,
+            type: 'IN',
+            fromDepotId: null,
+            toDepotId: depotIdInt,
+            reason: 'ENTRY_SUPPLIER',
+            reference: numero,
+            userId: req.user.id
+          }
+        });
+      }
+
+      // If paid cash, record a cash movement sortie for total purchase amount
+      if (payCash) {
+        // Compute total purchase amount from items
+        const totalPurchase = items.reduce((sum, it) => {
+          const qty = parseFloat(it.quantity || 0);
+          const price = it.purchasePrice !== undefined && it.purchasePrice !== null ? parseFloat(it.purchasePrice) : 0;
+          return sum + qty * price;
+        }, 0);
+
+        // Only create movement if amount > 0
+        if (totalPurchase > 0) {
+          await tx.cashMovement.create({
+            data: {
+              sessionId: activeSession.id,
+              type: 'SORTIE',
+              amount: totalPurchase,
+              reason: `Achat fournisseur ${numero}${supplierId ? ` (FOURN:${supplierId})` : ''}`,
+              ticketId: null,
+              createdById: req.user.id
+            }
+          });
+        }
+      }
+
+      return doc;
+    });
+
+    await logAudit(req.user.id, 'stock_documents', document.id, 'CREATE', null, document);
+
+    res.status(201).json(document);
+  } catch (error) {
+    console.error('Error creating supplier entry:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du bon d\'entrée' });
   }
 });
 

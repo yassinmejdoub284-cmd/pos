@@ -131,7 +131,6 @@ export class ClotureComponent implements OnInit {
     // Simple closure - just log withdrawal and print daily extract
     const withdrawalAmount = parseFloat(this.closeSessionForm.retraitCentrale) || 0;
     
-    console.log('Closing session:', session.id, 'with withdrawal:', withdrawalAmount);
     this.loading.set(true);
     
     // Get session-specific extract and company settings, then print
@@ -174,19 +173,10 @@ export class ClotureComponent implements OnInit {
         
         // Ensure we have valid countedCash value
         const countedCash = sessionReport.summary?.expectedCash || 0;
-        console.log('Session report data:', sessionReport);
-        console.log('Enhanced extract for printing:', enhancedExtract);
-        console.log('Counted cash value:', countedCash);
         
         // Close the session (simple closure)
         // Calculate remaining balance for next session's opening fund
         const remainingBalance = countedCash - withdrawalAmount;
-        console.log('Sending close request for session:', session.id, 'with data:', {
-          countedCash: countedCash,
-          fonds: remainingBalance,
-          retraitCentrale: withdrawalAmount > 0 ? withdrawalAmount : undefined,
-          denominations: {}
-        });
         
         this.sessionsService.closeSession(session.id, {
           countedCash: countedCash,

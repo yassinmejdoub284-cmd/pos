@@ -107,6 +107,11 @@ export class CountComponent implements OnInit, OnDestroy {
         this.initializeCountItems();
         this.updateStatistics();
         this.loading = false;
+        
+        // Check session status and provide user feedback
+        if (!['DRAFT', 'IN_PROGRESS'].includes(session.status)) {
+          this.error = `Attention: Cette session est en statut "${session.status}". Les quantités ne peuvent être modifiées que dans les sessions DRAFT ou IN_PROGRESS.`;
+        }
       },
       error: (err) => {
         this.error = err.error?.error || 'Erreur lors du chargement de la session';
@@ -165,7 +170,6 @@ export class CountComponent implements OnInit, OnDestroy {
 
   // Product selection (like caisse)
   handleProductClick(product: Product): void {
-    console.log('Product clicked:', product.name);
     
     // Check if product already exists in count items
     const existingItem = this.countItems.find(item => item.product.id === product.id);
@@ -184,14 +188,15 @@ export class CountComponent implements OnInit, OnDestroy {
   }
 
   addProductToCount(product: Product): void {
-    const theoreticalQuantity = this.items.find(item => item.product?.id === product.id)?.theoreticalQuantity || 0;
+    const existingItem = this.items.find(item => item.product?.id === product.id);
+    const theoreticalQuantity = existingItem?.theoreticalQuantity || 0;
     
     const countItem: CountItem = {
       product: product,
       theoreticalQuantity: theoreticalQuantity,
       countedQuantity: null,
       isConfirmed: false,
-      inventoryItemId: this.items.find(item => item.product?.id === product.id)?.id
+      inventoryItemId: existingItem?.id
     };
     
     this.countItems.push(countItem);
@@ -228,7 +233,6 @@ export class CountComponent implements OnInit, OnDestroy {
   }
 
   enterValue(): void {
-    console.log('Enter value called');
     
     if (this.pendingProduct) {
       const value = parseFloat(this.currentInput);
@@ -260,8 +264,22 @@ export class CountComponent implements OnInit, OnDestroy {
   }
 
   saveCountToBackend(item: CountItem): void {
-    if (!this.session || !item.inventoryItemId) {
-      console.error('Cannot save count: missing session or inventoryItemId');
+    if (!this.session) {
+      console.error('Cannot save count: missing session');
+      this.error = 'Session d\'inventaire non trouvée';
+      return;
+    }
+
+    // Check if session is in correct status for updates
+    if (!['DRAFT', 'IN_PROGRESS'].includes(this.session.status)) {
+      console.error('Cannot save count: session status is', this.session.status);
+      this.error = 'Impossible de modifier les quantités dans cette session (statut: ' + this.session.status + ')';
+      return;
+    }
+
+    // If no inventoryItemId, create a new inventory item first
+    if (!item.inventoryItemId) {
+      this.createInventoryItemForProduct(item);
       return;
     }
 
@@ -272,11 +290,57 @@ export class CountComponent implements OnInit, OnDestroy {
       'PHYSICAL_COUNT_DIFFERENCE'
     ).subscribe({
       next: (updatedItem) => {
-        console.log('Count saved successfully:', updatedItem);
+        // Update the item in our local array
+        const index = this.items.findIndex(i => i.id === updatedItem.id);
+        if (index !== -1) {
+          this.items[index] = updatedItem;
+        }
+        this.updateStatistics();
+        this.success = 'Quantité comptée sauvegardée avec succès';
+        setTimeout(() => this.success = '', 2000);
       },
       error: (err) => {
         console.error('Error saving count:', err);
-        this.error = 'Erreur lors de la sauvegarde du comptage';
+        this.error = err.error?.error || 'Erreur lors de la sauvegarde du comptage';
+        console.error('Full error details:', {
+          status: err.status,
+          statusText: err.statusText,
+          error: err.error,
+          url: err.url
+        });
+      }
+    });
+  }
+
+  createInventoryItemForProduct(item: CountItem): void {
+    if (!this.session) return;
+
+
+    // Create a new inventory item for this product
+    this.inventoryService.createInventoryItem(
+      this.session.id,
+      item.product.id,
+      item.theoreticalQuantity
+    ).subscribe({
+      next: (newInventoryItem) => {
+        // Update the count item with the new inventory item ID
+        item.inventoryItemId = newInventoryItem.id;
+        
+        // Add the new item to our items array
+        this.items.push(newInventoryItem);
+        
+        // Now save the count
+        this.saveCountToBackend(item);
+      },
+      error: (err) => {
+        console.error('Error creating inventory item:', err);
+        this.error = err.error?.error || 'Erreur lors de la création de l\'article d\'inventaire';
+        console.error('Full error details:', {
+          status: err.status,
+          statusText: err.statusText,
+          error: err.error,
+          url: err.url
+        });
       }
     });
   }
@@ -442,7 +506,6 @@ export class CountComponent implements OnInit, OnDestroy {
 
   saveProgress(): void {
     // Auto-save functionality can be implemented here
-    console.log('Saving progress...');
   }
 
   closeSession(): void {
@@ -500,7 +563,6 @@ export class CountComponent implements OnInit, OnDestroy {
 
   onSearch(): void {
     // Search functionality can be implemented here if needed
-    console.log('Search:', this.searchTerm);
   }
 
   onSearchChange(): void {

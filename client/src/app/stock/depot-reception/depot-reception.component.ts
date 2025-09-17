@@ -53,13 +53,10 @@ export class DepotReceptionComponent implements OnInit {
     this.loading = true;
     this.error = '';
     
-    console.log('Loading pending shipments for depot:', this.currentDepot.id);
     
     this.stockDocumentsService.getDocuments(1, 50, undefined, 'PREPARED', this.currentDepot.id).subscribe({
       next: (response) => {
-        console.log('Received response:', response);
         this.pendingShipments = response.data || [];
-        console.log('Pending shipments:', this.pendingShipments);
         this.loading = false;
       },
       error: (err) => {

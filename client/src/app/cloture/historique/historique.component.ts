@@ -74,11 +74,9 @@ export class HistoriqueComponent implements OnInit {
     this.loading.set(true);
     this.error.set('');
     
-    console.log('Loading sessions with filters:', this.filters);
     
     this.sessionsService.getSessions(this.filters).subscribe({
       next: (sessions) => {
-        console.log('Sessions loaded:', sessions);
         this.sessions.set(sessions);
         this.loading.set(false);
       },
@@ -168,7 +166,6 @@ export class HistoriqueComponent implements OnInit {
     this.sessionsService.printReport(session.id, type).subscribe({
       next: (data) => {
         // TODO: Implement actual printing
-        console.log(`${type} Report for session ${session.id}:`, data);
       },
       error: (error) => {
         this.error.set(`Erreur lors de l'impression du rapport ${type}`);
@@ -203,7 +200,6 @@ export class HistoriqueComponent implements OnInit {
     this.sessionsService.getSessionReport(session.id, 'Z', 'pdf').subscribe({
       next: (data) => {
         // TODO: Implement PDF download
-        console.log('PDF export for session', session.id, data);
       },
       error: (error) => {
         this.error.set('Erreur lors de l\'export PDF');

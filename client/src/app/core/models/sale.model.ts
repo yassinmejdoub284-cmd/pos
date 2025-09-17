@@ -23,6 +23,8 @@ export interface Sale {
   advancePaymentMethod?: PaymentMethod;
   advancePaymentDate?: Date;
   advancePaymentNotes?: string;
+  // Wholesale flag
+  isWholesale?: boolean;
 }
 
 export interface SaleItem {

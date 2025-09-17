@@ -68,12 +68,18 @@
             (click)="loadStatement()"
             [disabled]="!filters.supplierId"
             class="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            Voir Relevé
+            Voir
           </button>
           <button title="Effacer"
             (click)="clearFilters()"
             class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors">
             Effacer
+          </button>
+          <button title="Imprimer A4"
+            (click)="printStatementA4()"
+            [disabled]="!filters.supplierId"
+            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            Imprimer
           </button>
         </div>
       </div>
@@ -157,17 +163,17 @@
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="bg-red-50 p-4 rounded-lg border border-red-200">
-          <div class="text-sm font-medium text-red-600">Total Débit</div>
-          <div class="text-2xl font-bold text-red-800">{{ formatAmount(statement.totalDebit) }}</div>
-        </div>
         <div class="bg-green-50 p-4 rounded-lg border border-green-200">
-          <div class="text-sm font-medium text-green-600">Total Crédit</div>
-          <div class="text-2xl font-bold text-green-800">{{ formatAmount(statement.totalCredit) }}</div>
+          <div class="text-sm font-medium text-green-600">Total Débit</div>
+          <div class="text-2xl font-bold text-green-800">{{ formatAmount(statement.totalDebit) }}</div>
+        </div>
+        <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+          <div class="text-sm font-medium text-red-600">Total Crédit</div>
+          <div class="text-2xl font-bold text-red-800">{{ formatAmount(statement.totalCredit) }}</div>
         </div>
         <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
           <div class="text-sm font-medium text-blue-600">Solde Actuel</div>
-          <div class="text-2xl font-bold" [class]="statement.currentBalance >= 0 ? 'text-red-800' : 'text-green-800'">
+          <div class="text-2xl font-bold" [class]="statement.currentBalance >= 0 ? 'text-green-800' : 'text-red-800'">
             {{ formatAmount(statement.currentBalance) }}
           </div>
         </div>
@@ -230,19 +236,19 @@
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                <span *ngIf="item.debit > 0" class="text-red-600 font-semibold">
+                <span *ngIf="item.debit > 0" class="text-green-600 font-semibold">
                   {{ formatAmount(item.debit) }}
                 </span>
                 <span *ngIf="item.debit === 0" class="text-gray-400">-</span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                <span *ngIf="item.credit > 0" class="text-green-600 font-semibold">
+                <span *ngIf="item.credit > 0" class="text-red-600 font-semibold">
                   {{ formatAmount(item.credit) }}
                 </span>
                 <span *ngIf="item.credit === 0" class="text-gray-400">-</span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold" 
-                  [class]="item.balance >= 0 ? 'text-red-600' : 'text-green-600'">
+                  [class]="item.balance >= 0 ? 'text-green-600' : 'text-red-600'">
                 {{ formatAmount(item.balance) }}
               </td>
             </tr>

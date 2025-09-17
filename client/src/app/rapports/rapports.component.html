@@ -2,6 +2,17 @@
   <div class="max-w-6xl mx-auto">
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
+      <div class="fixed top-6 right-6 z-40">
+        <a routerLink="/home"
+          class="w-12 h-12 bg-blue-400 text-white rounded-full shadow-2xl hover:bg-blue-500 transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+          title="Accueil">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+            </path>
+          </svg>
+        </a>
+      </div>
       <div class="flex items-center space-x-4">
         <button (click)="navigateToHome()" class="p-2 rounded-2xl bg-white border border-gray-200 hover:border-blue-300 transition-colors duration-300" title="Accueil">
           <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,6 +136,22 @@
             </div>
             <h3 class="text-xl font-semibold text-gray-800 mb-2 group-hover:text-teal-500 transition-colors duration-300">Dashboard</h3>
             <p class="text-gray-600 group-hover:text-gray-700 transition-colors duration-300 text-sm">Tableau de bord avec indicateurs clés</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Réconciliation Inventaire & Ventes -->
+      <div class="group cursor-pointer" (click)="navigateToReport('inventory-sales-reconciliation')">
+        <div class="bg-white/90 rounded-xl border border-gray-200 hover:border-indigo-400 transition-all duration-300 transform hover:scale-95 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="relative z-10">
+            <div class="w-16 h-16 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2 group-hover:text-indigo-500 transition-colors duration-300">Réconciliation Inventaire & Ventes</h3>
+            <p class="text-gray-600 group-hover:text-gray-700 transition-colors duration-300 text-sm">Récapitulatif achats/ventes avec valorisation CUMP/FIFO</p>
           </div>
         </div>
       </div>

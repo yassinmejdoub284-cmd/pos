@@ -9,6 +9,7 @@ import { SharedModule } from '../shared/shared.module';
 import { FinanciereComponent } from './financiere/financiere.component';
 import { ExpenseActionDialogComponent } from '../shared/expense-action-dialog/expense-action-dialog.component';
 import { ApprovalsActionDialogComponent } from '../shared/approvals-action-dialog/approvals-action-dialog.component';
+import { BillingCenterActionDialogComponent } from '../shared/billing-center-action-dialog/billing-center-action-dialog.component';
 
 @NgModule({
   declarations: [
@@ -22,7 +23,8 @@ import { ApprovalsActionDialogComponent } from '../shared/approvals-action-dialo
     HomeRoutingModule,
     SharedModule,
     ExpenseActionDialogComponent,
-    ApprovalsActionDialogComponent
+    ApprovalsActionDialogComponent,
+    BillingCenterActionDialogComponent
   ]
 })
 export class HomeModule { } 

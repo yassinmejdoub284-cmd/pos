@@ -14,6 +14,12 @@ export class ParametresComponent implements OnInit {
   keyboardShortcutsInput = '';
   devicesConfigInput = '';
   settings: AppSettings = {
+    companyName: '',
+    companyAddress: '',
+    companyPhone: '',
+    companyEmail: '',
+    companyRC: '',
+    companyMF: '',
     loyaltyEnabled: false,
     loyaltyRate: 1,
     maxDiscountPercent: 50,

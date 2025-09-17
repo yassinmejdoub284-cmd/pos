@@ -129,9 +129,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
       this.categories = categories || [];
       this.expenses = expenses || [];
       this.stats = stats || null;
-      console.log('Raw suppliers data:', suppliers);
       this.suppliers = (suppliers || []).filter((s: any) => s.isActive !== false);
-      console.log('Filtered suppliers:', this.suppliers);
       this.pendingExpenses = this.expenses.filter(e => !e.isApproved);
       this.loading = false;
     }).catch(error => {
@@ -153,10 +151,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
   get filteredSuppliers(): any[] {
     const query = this.supplierSearch.trim().toLowerCase();
-    console.log('Filtering suppliers with query:', query);
-    console.log('Available suppliers:', this.suppliers);
     if (!query) { 
-      console.log('No query, returning all suppliers:', this.suppliers);
       return this.suppliers; 
     }
     const filtered = this.suppliers.filter(s =>
@@ -164,7 +159,6 @@ export class ChargesComponent implements OnInit, AfterViewInit {
       (s.phone || '').toString().includes(query) ||
       (s.address || '').toLowerCase().includes(query)
     );
-    console.log('Filtered suppliers result:', filtered);
     return filtered;
   }
 
@@ -532,17 +526,6 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     return new Date(date).toLocaleDateString('fr-FR');
   }
 
-  testUserRole(role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER'): void {
-    this.authService.setupMockUserForRole(role);
-    this.loadCurrentUser();
-    this.loadData();
-  }
-
-  onRoleChange(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    const role = select.value as 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER';
-    this.testUserRole(role);
-  }
 
   getCurrentUserRole(): string {
     return this.currentUser?.role || 'Unknown';

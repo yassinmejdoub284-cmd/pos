@@ -12,6 +12,8 @@ import { DailyExtractService } from '../core/services/daily-extract.service';
 import { PrintService } from '../core/services/print.service';
 import { DragDropService } from '../core/services/drag-drop.service';
 import { WholesaleRulesService, WholesaleRule } from '../core/services/wholesale-rules.service';
+import { AuthService } from '../core/services/auth.service';
+import { DepotsService } from '../core/services/depots.service';
 import { Product } from '../core/models/product.model';
 import { Sale } from '../core/models/sale.model';
 import { Client } from '../core/models/client.model';
@@ -108,7 +110,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Shop inventory
   shopInventory: any[] = [];
-  currentShopDepotId: number = 1; // Shop depot ID (SHOP-CV)
+  currentShopDepotId: number = 0; // Will be set from user account
+  currentShopName: string = ''; // Will be fetched from user's depot
 
   // Input handling
   currentInput: string = '';
@@ -303,10 +306,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     },
     {
       id: 'invoice',
-      label: 'Facture',
+      label: 'Demander facture',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586l6.414 6.414V19a2 2 0 01-2 2z',
       color: '#666683', // Blue-600: professional
-      action: () => this.generateInvoice()
+      action: () => this.showInvoiceMenu()
     },
     {
       id: 'client',
@@ -406,17 +409,27 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private dailyExtractService: DailyExtractService,
     private printService: PrintService,
     private dragDropService: DragDropService,
-    private wholesaleRulesService: WholesaleRulesService
+    private wholesaleRulesService: WholesaleRulesService,
+    private authService: AuthService,
+    private depotsService: DepotsService
   ) {}
 
   ngOnInit(): void {
+    // Ensure user is logged in (do not override role)
+    
+    // Set depot ID from user account
+    this.currentShopDepotId = this.authService.currentUser()?.depotId || 0;
+    
     this.loadTicketState(); // Initialize ticket number system
     this.initializeMultiClientSystem();
     this.loadProducts();
     this.loadPendingTemporarySalesCount();
     this.loadPendingGiftSalesCount();
+    this.loadInvoiceRequests(); // Load existing invoice requests
     this.loadShopInventory();
+    this.loadShopName();
     this.loadSettings();
+    
     this.loadCurrentSession();
     this.initializeDragDrop();
     this.setupTouchEventListeners();
@@ -836,20 +849,24 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.selectedReceiptItem = existingItem;
       this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
     } else {
+      const isWholesaleContext = this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE';
       const newItem = {
         product,
-        quantity: 1,
+        quantity: isWholesaleContext && product.isWholesale && product.bundleSize ? product.bundleSize : 1,
         unitPrice: this.getEffectiveUnitPrice(product),
         total: this.getEffectiveUnitPrice(product),
         isGift: false,
-        isWholesale: false
+        isWholesale: isWholesaleContext && product.isWholesale,
+        bundleQuantity: isWholesaleContext && product.isWholesale ? 1 : undefined,
+        bundleSize: isWholesaleContext && product.isWholesale ? product.bundleSize : undefined,
+        bundlePrice: isWholesaleContext && product.isWholesale ? product.bundlePrice : undefined
       };
       if ((this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && product.bundleSize) {
         (newItem as any).displayName = `${product.name} (fradeau x${product.bundleSize})`;
       }
-      activeCart.items.push(newItem as any);
+      activeCart.items.unshift(newItem as any);
       this.selectedReceiptItem = newItem as any;
-      this.selectedReceiptItemIndex = activeCart.items.length - 1;
+      this.selectedReceiptItemIndex = 0;
     }
     this.calculateTotals();
   }
@@ -888,11 +905,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
       const label = `${product.name} (fradeau x${product.bundleSize || 1})`;
       (newItem as any).displayName = label;
       (newItem as any).productName = label;
-      activeCart.items.push(newItem);
+      activeCart.items.unshift(newItem);
       
-      // Select the newly added item at the end
+      // Select the newly added item at the top
       this.selectedReceiptItem = newItem;
-      this.selectedReceiptItemIndex = activeCart.items.length - 1;
+      this.selectedReceiptItemIndex = 0;
     }
     
     this.calculateTotals();
@@ -901,7 +918,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
   openProductDialog(product: Product, event: MouseEvent): void {
     event.preventDefault();
     // TODO: Implement product dialog for quantity/discount
-    console.log('Open product dialog for:', product.name);
   }
 
   toggleWholesaleMode(): void {
@@ -920,11 +936,20 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.pendingWholesaleToggle = false;
     // Clear current cart when switching modes
     this.clearReceipt();
+    // Refresh product listing to reflect mode change (show all when off)
+    this.filterProducts();
   }
 
   isWholesaleSale(): boolean {
     const activeCart = this.getActiveCart();
     if (!activeCart) return false;
+    
+    // Check if we're in wholesale mode or have a wholesale client
+    if (this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') {
+      return true;
+    }
+    
+    // Fallback: check if any items are marked as wholesale
     return activeCart.items.some(item => item.isWholesale);
   }
 
@@ -979,6 +1004,28 @@ export class CaisseComponent implements OnInit, OnDestroy {
     clientType: 'INDIVIDUAL' as 'INDIVIDUAL' | 'BUSINESS' | 'WHOLESALE',
     allowDebt: true
   };
+
+  // Invoice request functionality
+  showInvoiceRequestModal = false;
+  selectedSaleForInvoice: any = null;
+  submittingInvoiceRequest = false;
+  invoiceRequestData = {
+    notes: ''
+  };
+  invoiceRequests: any[] = [];
+  
+  // Pending invoice request state (for cart-based requests to be created after sale)
+  private isInvoiceRequestPending: boolean = false;
+  private pendingInvoiceRequestNotes: string = '';
+  
+  // Invoice menu functionality
+  showInvoiceMenuModal = false;
+  approvedInvoices: any[] = [];
+  unprintedInvoicesCount = 0;
+  
+  // Approved invoices modal
+  showApprovedInvoicesModal = false;
+  currentDate = new Date();
 
   openClientSearch(): void {
     this.showClientSearchPopup = true;
@@ -1399,6 +1446,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   processPaymentWithReceipt(): void {
     this.showPaymentConfirmation = false;
     this.isWholesaleMode = false;
+    this.filterProducts();
     this.processPayment(true);
   }
 
@@ -1406,6 +1454,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   processPaymentWithoutReceipt(): void {
     this.showPaymentConfirmation = false;
     this.isWholesaleMode = false;
+    this.filterProducts();
     this.processPayment(false);
   }
 
@@ -1504,9 +1553,37 @@ export class CaisseComponent implements OnInit, OnDestroy {
         this.invoiceMode = false;
         
         this.showAlertMessage('Vente validée avec succès!', 'success');
+
+        // If an invoice request from cart was pending, create it now from the saved sale
+        this.maybeCreateInvoiceForSale(savedSale?.id);
       },
       error: (error) => {
         this.showAlertMessage(error?.error?.error || 'Erreur lors de la sauvegarde de la vente. Veuillez réessayer.', 'error');
+      }
+    });
+  }
+
+  private maybeCreateInvoiceForSale(saleId?: number): void {
+    if (!this.isInvoiceRequestPending || !saleId) {
+      return;
+    }
+
+    const requestData = {
+      saleId: saleId,
+      requestNotes: this.pendingInvoiceRequestNotes
+    };
+
+    this.http.post(`${environment.apiUrl}/invoices/request-from-ticket`, requestData).subscribe({
+      next: () => {
+        this.showAlertMessage('Demande de facture envoyée avec succès!', 'success');
+      },
+      error: (error) => {
+        console.error('Error requesting invoice after sale:', error);
+        this.showAlertMessage('Erreur lors de l\'envoi de la demande de facture', 'error');
+      },
+      complete: () => {
+        this.isInvoiceRequestPending = false;
+        this.pendingInvoiceRequestNotes = '';
       }
     });
   }
@@ -1599,7 +1676,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   openSettings(): void {
-    console.log('Open settings');
+    // TODO: Implement settings functionality
   }
 
   toggleTemporarySale(): void {
@@ -1733,7 +1810,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Save temporary sale to backend
     this.salesService.createTemporarySale(tempSaleData).subscribe({
       next: (savedSale) => {
-        console.log('Temporary sale saved successfully:', savedSale);
         this.showAlertMessage('Vente temporaire enregistrée avec succès!', 'success');
         
         // Auto-remove client after successful temporary sale (except Client 1)
@@ -1991,12 +2067,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const remainingAmount = this.selectedTemporarySale.finalTotal - advancePaid;
     
     // Validate payment details
-    console.log('Validation check - paymentType:', this.paymentType, 'amountPaid:', this.amountPaid, 'calculatedChange:', this.calculatedChange);
     if (!this.paymentType || 
         (this.paymentType === 'cash' && (!this.amountPaid || this.calculatedChange < 0)) ||
         (this.paymentType === 'check' && (!this.chequeId.trim() || !this.encaissementDate)) ||
         (this.paymentType === 'virement' && !this.virementNumber.trim())) {
-      console.log('Validation failed - showing error message');
       this.showAlertMessage('Veuillez remplir tous les champs requis', 'error');
       return;
     }
@@ -2013,7 +2087,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Call backend to complete the temporary sale
     this.salesService.updateTemporarySaleToCompleted(this.selectedTemporarySale.id, paymentData).subscribe({
       next: (completedSale) => {
-        console.log('Temporary sale completed successfully:', completedSale);
         this.showAlertMessage('Vente temporaire finalisée avec succès!', 'success');
         
         // Increment ticket number after successful temporary sale completion
@@ -2084,7 +2157,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Save gift sale to backend
     this.salesService.createGiftSale(giftSaleData).subscribe({
       next: (savedSale) => {
-        console.log('Gift sale saved successfully:', savedSale);
         this.showAlertMessage('Demande de cadeau envoyée pour approbation!', 'success');
         
         // Auto-remove client after successful gift sale (except Client 1)
@@ -2133,7 +2205,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     this.salesService.approveGiftSale(sale.id).subscribe({
       next: (approvedSale) => {
-        console.log('Gift sale approved successfully:', approvedSale);
         this.showAlertMessage('Cadeau approuvé avec succès!', 'success');
         this.loadExistingGiftSales(); // Refresh the list
         this.loadPendingGiftSalesCount(); // Refresh the count
@@ -2153,7 +2224,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     this.salesService.rejectGiftSale(sale.id).subscribe({
       next: (rejectedSale) => {
-        console.log('Gift sale rejected successfully:', rejectedSale);
         this.showAlertMessage('Cadeau rejeté avec succès!', 'success');
         this.loadExistingGiftSales(); // Refresh the list
         this.loadPendingGiftSalesCount(); // Refresh the count
@@ -2183,9 +2253,31 @@ export class CaisseComponent implements OnInit, OnDestroy {
       next: (session) => {
         this.currentSession = session;
         this.isShiftOpen = !!session;
+        if (!session) {
+          this.autoOpenSession();
+        }
       },
       error: (error) => {
         console.error('Error loading current session:', error);
+        this.autoOpenSession();
+      }
+    });
+  }
+
+  autoOpenSession(): void {
+    const defaultSession = {
+      openingFund: 0,
+      posId: 1,
+      note: 'Session automatique'
+    };
+    this.sessionsService.openSession(defaultSession).subscribe({
+      next: (session) => {
+        this.currentSession = session;
+        this.isShiftOpen = true;
+      },
+      error: (error) => {
+        console.error('Erreur lors de l\'ouverture automatique de la session:', error);
+        this.showAlertMessage('Impossible d\'ouvrir la session de caisse', 'error');
       }
     });
   }
@@ -2448,13 +2540,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Simple multiply functionality - toggle between quantity and price mode
   handleMultiply(): void {
-    console.log('Multiply button clicked - current mode:', this.inputMode);
     if (this.inputMode === 'quantity') {
       this.inputMode = 'price';
-      console.log('Switched to price mode');
     } else {
       this.inputMode = 'quantity';
-      console.log('Switched to quantity mode');
     }
     this.currentInput = '';
   }
@@ -2465,11 +2554,37 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   enterValue(): void {
-    console.log('enterValue called - current inputMode:', this.inputMode);
     
-    // Check if we have a selected client and no pending product/receipt item
+    // Priority 1: If a receipt item is selected, modify its quantity
+    if (this.selectedReceiptItem && this.selectedReceiptItemIndex !== -1) {
+      const quantity = parseFloat(this.currentInput);
+      
+      if (!isNaN(quantity) && quantity > 0) {
+        // Update the quantity of the selected item
+        if (this.selectedReceiptItem.isWholesale && this.selectedReceiptItem.bundleSize) {
+          // For wholesale items, update bundle quantity
+          this.selectedReceiptItem.bundleQuantity = quantity;
+          this.selectedReceiptItem.quantity = quantity * this.selectedReceiptItem.bundleSize;
+          this.selectedReceiptItem.total = quantity * (this.selectedReceiptItem.bundlePrice || 0);
+        } else {
+          // For regular items, update quantity directly
+          this.selectedReceiptItem.quantity = quantity;
+          this.selectedReceiptItem.total = quantity * this.selectedReceiptItem.unitPrice;
+        }
+        
+        this.calculateTotals();
+        this.currentInput = '';
+        return;
+      }
+    }
+    
+    // Priority 2: Check if we have a selected client and no pending product/receipt item
     // This means the user wants to make a client payment
-    if (this.selectedClient && !this.selectedReceiptItem && !this.pendingProduct && this.currentInput.trim()) {
+    // BUT only if cart has 1 or fewer items, otherwise treat as quantity for last product
+    const activeCart = this.getActiveCart();
+    const hasMultipleItems = activeCart && activeCart.items.length > 1;
+    
+    if (this.selectedClient && !this.selectedReceiptItem && !this.pendingProduct && this.currentInput.trim() && !hasMultipleItems) {
       const paymentAmount = parseFloat(this.currentInput);
       
       if (!isNaN(paymentAmount) && paymentAmount > 0) {
@@ -2479,8 +2594,36 @@ export class CaisseComponent implements OnInit, OnDestroy {
       }
     }
     
-    if (this.selectedReceiptItem && this.selectedReceiptItemIndex !== -1) {
-      // Handle selected receipt item modification
+    // Priority 3: If cart has multiple items and no product is selected, modify the last product's quantity
+    if (hasMultipleItems && !this.selectedReceiptItem && !this.pendingProduct && this.currentInput.trim()) {
+      const lastItem = activeCart.items[activeCart.items.length - 1];
+      const quantity = parseFloat(this.currentInput);
+      
+      if (!isNaN(quantity) && quantity > 0) {
+        // Select the last item and modify its quantity
+        this.selectedReceiptItem = lastItem;
+        this.selectedReceiptItemIndex = activeCart.items.length - 1;
+        
+        // Update the quantity
+        if (lastItem.isWholesale && lastItem.bundleSize) {
+          // For wholesale items, update bundle quantity
+          lastItem.bundleQuantity = quantity;
+          lastItem.quantity = quantity * lastItem.bundleSize;
+          lastItem.total = quantity * (lastItem.bundlePrice || 0);
+        } else {
+          // For regular items, update quantity directly
+          lastItem.quantity = quantity;
+          lastItem.total = quantity * lastItem.unitPrice;
+        }
+        
+        this.calculateTotals();
+        this.currentInput = '';
+        return;
+      }
+    }
+    
+    // Handle price mode for selected receipt item (if not handled above)
+    if (this.selectedReceiptItem && this.selectedReceiptItemIndex !== -1 && this.inputMode === 'price') {
       let value = parseFloat(this.currentInput);
       
       if (isNaN(value) || value < 0.001) {
@@ -2488,21 +2631,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
         return;
       }
       
-      if (this.inputMode === 'price') {
-        // Update total price and calculate quantity based on unit price
-        this.selectedReceiptItem.total = value;
-        this.selectedReceiptItem.quantity = value / Number(this.selectedReceiptItem.unitPrice);
-        this.selectedReceiptItem.hasCustomTotal = true; // Mark as custom price
-        console.log('Set hasCustomTotal = true for item:', this.selectedReceiptItem.product.name, 'total:', value);
-        this.calculateTotals();
-        // this.showAlertMessage(`Prix total mis à jour: ${value}€ (Qté: ${this.selectedReceiptItem.quantity.toFixed(2)})`, 'success');
-      } else {
-        // Update quantity
-        this.selectedReceiptItem.quantity = value;
-        this.selectedReceiptItem.total = Number(this.selectedReceiptItem.quantity) * Number(this.selectedReceiptItem.unitPrice);
-        this.calculateTotals();
-        // this.showAlertMessage(`Quantité mise à jour: ${value}`, 'success');
-      }
+      // Update total price and calculate quantity based on unit price
+      this.selectedReceiptItem.total = value;
+      this.selectedReceiptItem.quantity = value / Number(this.selectedReceiptItem.unitPrice);
+      this.selectedReceiptItem.hasCustomTotal = true; // Mark as custom price
+      this.calculateTotals();
       
       // Clear selection
       this.selectedReceiptItem = null;
@@ -2537,10 +2670,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Only reset to quantity mode if we were in quantity mode
     // If we're in price mode, stay in price mode until manually toggled
     if (this.inputMode === 'quantity') {
-      console.log('Resetting inputMode to quantity (was already quantity)');
       this.inputMode = 'quantity';
-    } else {
-      console.log('Keeping inputMode as:', this.inputMode);
     }
 
     this.inputMode = 'quantity';
@@ -2738,7 +2868,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     if (this.paymentType === 'cash') {
       // Enable button if change is 0 or more (meaning customer paid enough)
-      console.log('Button disabled check - calculatedChange:', this.calculatedChange, 'amountPaid:', this.amountPaid);
       return !this.selectedTemporarySale?.client && (!this.amountPaid || this.calculatedChange < 0);
     }
     
@@ -2859,18 +2988,26 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
 
   addProductToReceiptWithQuantity(product: Product, quantity: number): void {
-    console.log('addProductToReceiptWithQuantity called:', product.name, 'quantity:', quantity);
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
-    const existingItem = activeCart.items.find(item => item.product.id === product.id && !item.isWholesale);
+    const isWholesaleContext = this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE';
+    const existingItem = activeCart.items.find(item => item.product.id === product.id && item.isWholesale === (isWholesaleContext && product.isWholesale));
     if (existingItem) {
-      existingItem.quantity = Number(existingItem.quantity) + Number(quantity);
-      const unit = this.getEffectiveUnitPrice(product);
-      existingItem.unitPrice = unit;
-      existingItem.total = Number(existingItem.quantity) * unit;
+      if (isWholesaleContext && product.isWholesale && product.bundleSize) {
+        // For wholesale items, update bundle quantity
+        existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + Number(quantity);
+        existingItem.quantity = existingItem.bundleQuantity * product.bundleSize;
+        existingItem.total = existingItem.bundleQuantity * (product.bundlePrice || 0);
+      } else {
+        // For regular items, update quantity directly
+        existingItem.quantity = Number(existingItem.quantity) + Number(quantity);
+        const unit = this.getEffectiveUnitPrice(product);
+        existingItem.unitPrice = unit;
+        existingItem.total = Number(existingItem.quantity) * unit;
+      }
       // Append fradeau info to designation if in wholesale context
-      if ((this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && product.bundleSize) {
+      if (isWholesaleContext && product.bundleSize) {
         (existingItem as any).displayName = `${product.name} (fradeau x${product.bundleSize})`;
       }
       // Select the existing item
@@ -2878,21 +3015,25 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
     } else {
       const unitPrice = this.getEffectiveUnitPrice(product);
+      const isWholesaleContext = this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE';
       const newItem = {
         product,
-        quantity: Number(quantity),
+        quantity: isWholesaleContext && product.isWholesale && product.bundleSize ? Number(quantity) * product.bundleSize : Number(quantity),
         unitPrice: Number(unitPrice),
         total: Number(quantity) * Number(unitPrice),
         isGift: false,
-        isWholesale: false
+        isWholesale: isWholesaleContext && product.isWholesale,
+        bundleQuantity: isWholesaleContext && product.isWholesale ? Number(quantity) : undefined,
+        bundleSize: isWholesaleContext && product.isWholesale ? product.bundleSize : undefined,
+        bundlePrice: isWholesaleContext && product.isWholesale ? product.bundlePrice : undefined
       };
       // designation override
       if ((this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && product.bundleSize) {
         (newItem as any).displayName = `${product.name} (fradeau x${product.bundleSize})`;
       }
-      activeCart.items.push(newItem as any);
+      activeCart.items.unshift(newItem as any);
       this.selectedReceiptItem = newItem as any;
-      this.selectedReceiptItemIndex = activeCart.items.length - 1;
+      this.selectedReceiptItemIndex = 0;
     }
     this.calculateTotals();
   }
@@ -2999,7 +3140,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   addProductToReceiptWithTotalPrice(product: Product, customTotalPrice: number): void {
-    console.log('addProductToReceiptWithTotalPrice called:', product.name, 'total:', customTotalPrice);
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
@@ -3081,24 +3221,40 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Shop inventory methods
   loadShopInventory(): void {
-    console.log('Loading shop inventory for depot ID:', this.currentShopDepotId);
+    if (!this.currentShopDepotId || this.currentShopDepotId === 0) {
+      console.warn('No depot ID available for user, cannot load shop inventory');
+      this.shopInventory = [];
+      return;
+    }
+
     this.stockDocumentsService.getInventory(this.currentShopDepotId).subscribe({
       next: (inventory) => {
         this.shopInventory = inventory;
-        console.log('Shop inventory loaded successfully:', inventory.length, 'items');
-        console.log('First few items:', inventory.slice(0, 3));
       },
       error: (error) => {
         console.error('Error loading shop inventory:', error);
-        this.showAlertMessage('Erreur lors du chargement de l\'inventaire du magasin', 'error');
+        this.showAlertMessage(`Erreur lors du chargement de l'inventaire du magasin`, 'error');
       }
     });
   }
 
   getShopStock(productId: number): number {
     const inventoryItem = this.shopInventory.find(item => item.productId === productId);
-    const stock = inventoryItem ? inventoryItem.quantity : 0;
-    return stock;
+    return inventoryItem ? parseFloat(inventoryItem.quantity) : 0;
+  }
+
+  getRemainingStock(productId: number): number {
+    const currentStock = this.getShopStock(productId);
+    const activeCart = this.getActiveCart();
+    
+    if (!activeCart) return currentStock;
+    
+    // Calculate total quantity of this product in the current cart
+    const cartQuantity = activeCart.items
+      .filter(item => item.product.id === productId)
+      .reduce((total, item) => total + item.quantity, 0);
+    
+    return currentStock - cartQuantity;
   }
 
   getStockStatus(productId: number): 'sufficient' | 'low' | 'out' {
@@ -3140,10 +3296,24 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   handleProductClick(product: Product): void {
-    const currentStock = this.getShopStock(product.id);
-    const requestedQuantity = 1;
+    // Check if shop inventory is loaded
+    if (this.shopInventory.length === 0) {
+      console.warn('Shop inventory not loaded yet, skipping stock check');
+      // Still allow the click but without stock validation
+      // For wholesale items, add 1 bundle, for regular items add 1 unit
+      const quantityToAdd = (this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && product.isWholesale
+        ? 1  // 1 bundle for wholesale
+        : 1; // 1 unit for regular
+      this.addProductToReceiptWithQuantity(product, quantityToAdd);
+      return;
+    }
     
-    console.log('Product clicked:', product.name, 'Current stock:', currentStock, 'Shop inventory loaded:', this.shopInventory.length);
+    const currentStock = this.getShopStock(product.id);
+    
+    // For wholesale items, calculate the actual quantity needed (1 bundle * bundle size)
+    const requestedQuantity = (this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && product.isWholesale && product.bundleSize
+      ? 1 * product.bundleSize  // 1 bundle * bundle size
+      : 1;  // Regular items: 1 unit
     
     // Check if product already exists in receipt with custom price
     const activeCart = this.getActiveCart();
@@ -3157,31 +3327,28 @@ export class CaisseComponent implements OnInit, OnDestroy {
       
       // If the flag is not set, try to detect custom price by checking if the total doesn't match expected calculation
       if (!hasCustomPrice) {
-        const defaultPrice = this.getEffectiveUnitPrice(product);
-        const expectedTotal = Math.round(existingItem.quantity * defaultPrice * 100) / 100;
+        let expectedTotal;
+        
+        if (existingItem.isWholesale && existingItem.bundlePrice && existingItem.bundleQuantity) {
+          // For wholesale items, calculate expected total using bundle price
+          expectedTotal = Math.round(existingItem.bundleQuantity * existingItem.bundlePrice * 100) / 100;
+        } else {
+          // For regular items, calculate expected total using unit price
+          const defaultPrice = this.getEffectiveUnitPrice(product);
+          expectedTotal = Math.round(existingItem.quantity * defaultPrice * 100) / 100;
+        }
+        
         const totalMatches = Math.abs(existingItem.total - expectedTotal) <= 0.01;
         
         // If the total doesn't match the expected calculation, it's likely a custom price
         hasCustomPrice = !totalMatches;
         
-        console.log('Custom price detection - default price:', defaultPrice, 'quantity:', existingItem.quantity, 'expected total:', expectedTotal, 'actual total:', existingItem.total, 'total matches:', totalMatches, 'hasCustomPrice:', hasCustomPrice);
-        
         // Fix the flag if we detect a custom price
         if (hasCustomPrice) {
           existingItem.hasCustomTotal = true;
-          console.log('Fixed hasCustomTotal flag to true for item:', product.name);
         }
       }
       
-      console.log('Debug - hasCustomTotal value:', existingItem.hasCustomTotal, 'Type:', typeof existingItem.hasCustomTotal, 'hasCustomPrice:', hasCustomPrice);
-      
-      console.log('Existing item found:', {
-        productName: product.name,
-        existingQuantity: existingItem.quantity,
-        existingTotal: existingItem.total,
-        hasCustomTotal: existingItem.hasCustomTotal,
-        hasCustomPrice: hasCustomPrice
-      });
       
       if (hasCustomPrice) {
         // Product exists with custom price - move to top, select it, and inform user
@@ -3197,36 +3364,55 @@ export class CaisseComponent implements OnInit, OnDestroy {
           `${product.name} sélectionné (Prix personnalisé: ${existingItem.total.toFixed(3)}dt)`, 
           'info'
         );
-        console.log('Custom price detected - returning early');
+        return;
+      } else {
+        // Product exists without custom price - increment quantity instead of adding new item
+        const isWholesaleContext = this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE';
+        
+        if (isWholesaleContext && product.isWholesale && product.bundleSize) {
+          // For wholesale items, increment bundle quantity
+          existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + 1;
+          existingItem.quantity = existingItem.bundleQuantity * product.bundleSize;
+          existingItem.total = existingItem.bundleQuantity * (product.bundlePrice || 0);
+        } else {
+          // For regular items, increment quantity directly
+          existingItem.quantity = Number(existingItem.quantity) + 1;
+          const unitPrice = this.getEffectiveUnitPrice(product);
+          existingItem.unitPrice = unitPrice;
+          existingItem.total = Number(existingItem.quantity) * unitPrice;
+        }
+        
+        // Move to top and recalculate totals
+        this.moveItemToTop(existingItem);
+        this.calculateTotals();
+        
+        this.showAlertMessage(
+          `${product.name} quantité augmentée`, 
+          'success'
+        );
         return;
       }
     }
     
     // Check if adding this product would result in negative stock
     if (currentStock < requestedQuantity && !product.name.toLowerCase().includes('vrac')) {
-      console.log('Showing stock warning for product:', product.name);
       this.showStockWarning(product, requestedQuantity, currentStock);
-      return;
+      return; // Don't add the product yet - wait for user confirmation
     }
-    
-    console.log('Current inputMode:', this.inputMode);
     
     if (this.inputMode === 'quantity') {
       // In quantity mode: automatically add +1, but allow custom quantity input
-      console.log('Adding product in quantity mode');
       this.addProductToReceiptWithQuantity(product, 1);
       this.pendingProduct = product;
       this.currentInput = ''; // Don't show "1" in input
     } else if (this.inputMode === 'price') {
       // In price mode: set pending product for price input (PU)
-      console.log('Setting product for price mode');
       this.pendingProduct = product;
       this.currentInput = '';
     }
   }
 
   showStockWarning(product: Product, quantity: number, currentStock: number): void {
-    console.log('showStockWarning called:', product.name, quantity, currentStock);
     
     // First close any existing modals that might interfere
     this.showProductModal = false;
@@ -3240,15 +3426,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.stockWarningCurrentStock = currentStock;
     this.showStockWarningModal = true;
     
-    console.log('showStockWarningModal set to:', this.showStockWarningModal);
-    console.log('stockWarningProduct set to:', this.stockWarningProduct?.name);
-    
-    // Force Angular change detection
-    setTimeout(() => {
-      console.log('After timeout - Modal state check...');
-      console.log('showStockWarningModal:', this.showStockWarningModal);
-      console.log('stockWarningProduct:', this.stockWarningProduct?.name);
-    }, 50);
   }
 
   closeStockWarning(): void {
@@ -3260,13 +3437,16 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   proceedWithNegativeStock(): void {
     if (this.stockWarningProduct) {
-      this.selectedProduct = this.stockWarningProduct;
-      this.showProductModal = true;
-      this.productModalMode = 'quantity';
-      this.productModalQuantity = this.stockWarningQuantity;
-      this.productModalAmount = 0;
-      this.productModalCalculatedQuantity = 0;
-      this.productModalCalculatedAmount = 0;
+      // For wholesale items, add 1 bundle (not the total units)
+      // For regular items, add 1 unit
+      const quantityToAdd = (this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && this.stockWarningProduct.isWholesale
+        ? 1  // 1 bundle for wholesale
+        : 1; // 1 unit for regular
+      
+      this.addProductToReceiptWithQuantity(this.stockWarningProduct, quantityToAdd);
+      
+      // Show a brief success message
+      this.showAlertMessage(`Produit ajouté avec stock négatif: ${this.stockWarningProduct.name}`, 'warning');
     }
     this.closeStockWarning();
   }
@@ -3278,8 +3458,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // Check if adding this quantity would result in negative stock
       if (currentStock < this.productModalQuantity) {
         this.showStockWarning(this.selectedProduct, this.productModalQuantity, currentStock);
-        this.closeProductModal();
-        return;
+        // Don't return - allow the user to proceed after seeing the warning
       }
       
       this.addProductToReceiptWithQuantity(this.selectedProduct, this.productModalQuantity);
@@ -3293,6 +3472,30 @@ export class CaisseComponent implements OnInit, OnDestroy {
     if (testProduct) {
       this.showStockWarning(testProduct, 1, 0);
     }
+  }
+
+  // Refresh shop inventory
+  refreshShopInventory(): void {
+    this.loadShopInventory();
+    this.loadShopName();
+  }
+
+  // Load shop name from backend
+  loadShopName(): void {
+    if (!this.currentShopDepotId || this.currentShopDepotId === 0) {
+      this.currentShopName = 'Dépôt non assigné';
+      return;
+    }
+
+    this.depotsService.get(this.currentShopDepotId).subscribe({
+      next: (depot) => {
+        this.currentShopName = depot.name;
+      },
+      error: (error) => {
+        console.error('Error loading shop name:', error);
+        this.currentShopName = 'Dépôt inconnu';
+      }
+    });
   }
 
   // Print last validated sale
@@ -3653,7 +3856,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const globalIndex = this.allProducts.findIndex(p => p.id === product.id);
     if (globalIndex === -1) return;
 
-    console.log('Mouse down on product:', product.name);
 
     // Record the product and position for potential drag detection
     this.currentTouchProduct = product;
@@ -3675,7 +3877,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
         
         if (distance > 0) {
           // Movement detected - start drag detection (only once)
-          console.log('Movement detected, starting drag detection for:', this.currentTouchProduct.name);
           const globalIndex = this.allProducts.findIndex(p => p.id === this.currentTouchProduct!.id);
           this.dragDropService.recordInitialPosition(this.currentTouchProduct, globalIndex, this.currentTouchStartPosition.x, this.currentTouchStartPosition.y);
           this.dragDropService.startDragDetection();
@@ -3730,7 +3931,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // Not in drag mode - check if this was a single click
       if (this.currentTouchProduct && this.currentTouchProduct.id === product.id) {
         // This was a single click - handle product click logic
-        console.log('Single click detected, adding product to receipt:', product.name);
         this.handleProductClick(product);
       }
       
@@ -3748,7 +3948,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const globalIndex = this.allProducts.findIndex(p => p.id === product.id);
     if (globalIndex === -1) return;
 
-    console.log('Touch start on product:', product.name);
 
     // Record the product and position for potential drag detection
     const touch = event.touches[0];
@@ -3775,7 +3974,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
         
         if (distance > 0) {
           // Movement detected - start drag detection (only once)
-          console.log('Movement detected, starting drag detection for:', this.currentTouchProduct.name);
           const globalIndex = this.allProducts.findIndex(p => p.id === this.currentTouchProduct!.id);
           this.dragDropService.recordInitialPosition(this.currentTouchProduct, globalIndex, this.currentTouchStartPosition.x, this.currentTouchStartPosition.y);
           this.dragDropService.startDragDetection();
@@ -3833,7 +4031,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // Not in drag mode - check if this was a single tap
       if (this.currentTouchProduct && this.currentTouchProduct.id === product.id) {
         // This was a single tap - handle product click logic
-        console.log('Single tap detected, adding product to receipt:', product.name);
         this.handleProductClick(product);
       }
       
@@ -3869,7 +4066,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Call API to persist order
     this.productsService.updateProductOrder(updates).subscribe({
       next: () => {
-        console.log('Product order persisted successfully');
       },
       error: (error) => {
         console.error('Error persisting product order:', error);
@@ -4066,6 +4262,545 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.amountPaid = undefined;
     }
     this.calculatedChange = 0;
+  }
+
+  // Invoice request methods
+  loadInvoiceRequests(): void {
+    this.http.get(`${environment.apiUrl}/invoices/requests`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    }).subscribe({
+      next: (response: any) => {
+        this.invoiceRequests = response.requests || [];
+      },
+      error: (error) => {
+        console.error('Error loading invoice requests:', error);
+        this.invoiceRequests = [];
+      }
+    });
+  }
+
+  hasInvoiceRequest(saleId: number): boolean {
+    return this.invoiceRequests.some(request => request.saleId === saleId);
+  }
+
+  showInvoiceRequestFromCart(): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
+      this.showAlertMessage('Aucun article dans le panier', 'error');
+      return;
+    }
+
+    // Create a mock sale object from the current cart for the invoice request
+    const mockSale = {
+      id: 0, // Temporary ID for cart-based requests
+      status: 'CART',
+      total: activeCart.netTotal,
+      items: activeCart.items.map(item => ({
+        ...item,
+        product: item.product,
+        productName: item.product?.name || '',
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.total
+      })),
+      createdAt: new Date(),
+      client: activeCart.client,
+      user: { firstName: 'Utilisateur', lastName: 'Actuel' }
+    };
+
+    this.selectedSaleForInvoice = mockSale;
+    this.invoiceRequestData.notes = '';
+    this.showInvoiceRequestModal = true;
+  }
+
+  requestInvoiceFromSale(sale: any): void {
+    
+    // Load full sale details with items and product information
+    this.salesService.getSale(sale.id).subscribe({
+      next: (fullSale: any) => {
+        this.selectedSaleForInvoice = fullSale;
+        this.invoiceRequestData.notes = '';
+        this.showInvoiceRequestModal = true;
+      },
+      error: (error) => {
+        console.error('Error loading sale details:', error);
+        this.showAlertMessage('Erreur lors du chargement des détails de la vente', 'error');
+      }
+    });
+  }
+
+  closeInvoiceRequestModal(): void {
+    this.showInvoiceRequestModal = false;
+    this.selectedSaleForInvoice = null;
+    this.invoiceRequestData.notes = '';
+  }
+
+  submitInvoiceRequest(): void {
+    if (!this.selectedSaleForInvoice) return;
+
+    this.submittingInvoiceRequest = true;
+
+    // Check if this is a cart-based request (sale ID = 0)
+    if (this.selectedSaleForInvoice.id === 0) {
+      // New logic: defer invoice creation until after the normal sale is processed
+      this.isInvoiceRequestPending = true;
+      this.pendingInvoiceRequestNotes = this.invoiceRequestData.notes || '';
+
+      // Close modal and inform the user to validate the sale normally
+      this.closeInvoiceRequestModal();
+      this.showAlertMessage('Demande de facture enregistrée. Validez la vente, la facture sera demandée automatiquement.', 'info');
+      this.submittingInvoiceRequest = false;
+    } else {
+      // For existing sales, create the invoice request directly
+      this.createInvoiceRequestFromSale();
+    }
+  }
+
+  private createSaleFromCart(): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
+      this.showAlertMessage('Aucun article dans le panier', 'error');
+      this.submittingInvoiceRequest = false;
+      return;
+    }
+
+    // Create sale data from cart
+    const saleData = {
+      items: activeCart.items.map(item => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.total
+      })),
+      total: activeCart.netTotal,
+      discount: activeCart.discount,
+      finalTotal: activeCart.netTotal,
+      clientId: activeCart.client?.id || undefined,
+      notes: this.invoiceRequestData.notes,
+      paymentMethodId: 1, // Default to cash payment
+      status: 'COMPLETED' // Mark as completed since we're requesting an invoice
+    };
+
+    this.salesService.createSale(saleData).subscribe({
+      next: (newSale) => {
+        // Now create the invoice request for the new sale
+        const requestData = {
+          saleId: newSale.id,
+          requestNotes: this.invoiceRequestData.notes
+        };
+
+        this.http.post(`${environment.apiUrl}/invoices/request-from-ticket`, requestData).subscribe({
+          next: (response: any) => {
+            this.showAlertMessage('Demande de facture envoyée avec succès!', 'success');
+            this.closeInvoiceRequestModal();
+            this.loadInvoiceRequests();
+            // Clear the cart since the sale is now completed
+            this.clearCart(this.activeCartId);
+          },
+          error: (error) => {
+            console.error('Error requesting invoice:', error);
+            this.showAlertMessage('Erreur lors de l\'envoi de la demande de facture', 'error');
+          },
+          complete: () => {
+            this.submittingInvoiceRequest = false;
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Error creating sale:', error);
+        this.showAlertMessage('Erreur lors de la création de la vente', 'error');
+        this.submittingInvoiceRequest = false;
+      }
+    });
+  }
+
+  private createInvoiceRequestFromSale(): void {
+    const requestData = {
+      saleId: this.selectedSaleForInvoice.id,
+      requestNotes: this.invoiceRequestData.notes
+    };
+
+    this.http.post(`${environment.apiUrl}/invoices/request-from-ticket`, requestData).subscribe({
+      next: (response: any) => {
+        this.showAlertMessage('Demande de facture envoyée avec succès!', 'success');
+        this.closeInvoiceRequestModal();
+        this.loadInvoiceRequests(); // Refresh the list
+      },
+      error: (error) => {
+        console.error('Error submitting invoice request:', error);
+        this.showAlertMessage('Erreur lors de l\'envoi de la demande', 'error');
+        this.submittingInvoiceRequest = false;
+      }
+    });
+  }
+
+  // Invoice menu functionality
+  showInvoiceMenu(): void {
+    this.loadApprovedInvoices();
+    this.showInvoiceMenuModal = true;
+  }
+
+  closeInvoiceMenu(): void {
+    this.showInvoiceMenuModal = false;
+  }
+
+  loadApprovedInvoices(): void {
+    this.http.get(`${environment.apiUrl}/invoices?status=ISSUED&limit=50`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    }).subscribe({
+      next: (response: any) => {
+        this.approvedInvoices = response.invoices || [];
+        this.unprintedInvoicesCount = this.approvedInvoices.filter(invoice => !invoice.printedAt).length;
+      },
+      error: (error) => {
+        console.error('Error loading approved invoices:', error);
+        this.approvedInvoices = [];
+        this.unprintedInvoicesCount = 0;
+      }
+    });
+  }
+
+  requestNewInvoice(): void {
+    this.closeInvoiceMenu();
+    this.showInvoiceRequestFromCart();
+  }
+
+  viewApprovedInvoices(): void {
+    this.closeInvoiceMenu();
+    this.showApprovedInvoicesModal = true;
+  }
+
+  closeApprovedInvoicesModal(): void {
+    this.showApprovedInvoicesModal = false;
+  }
+
+  printApprovedInvoice(invoice: any): void {
+    // Debug: Log invoice data
+    
+    // Validate invoice data before printing
+    if (!invoice) {
+      this.showAlertMessage('Erreur: Aucune facture sélectionnée', 'error');
+      return;
+    }
+
+    if (!invoice.lines || !Array.isArray(invoice.lines) || invoice.lines.length === 0) {
+      this.showAlertMessage('Erreur: Aucune ligne de facture trouvée', 'error');
+      return;
+    }
+
+    // Open print dialog for the approved invoice
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      try {
+        const htmlContent = this.generateInvoiceHTML(invoice);
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+        
+        // Mark as printed
+        this.markInvoiceAsPrinted(invoice.id);
+      } catch (error) {
+        console.error('Error generating invoice HTML:', error);
+        this.showAlertMessage('Erreur lors de la génération de la facture', 'error');
+        printWindow.close();
+      }
+    } else {
+      this.showAlertMessage('Erreur: Impossible d\'ouvrir la fenêtre d\'impression', 'error');
+    }
+  }
+
+  private markInvoiceAsPrinted(invoiceId: number): void {
+    this.http.patch(`${environment.apiUrl}/invoices/${invoiceId}/mark-printed`, {}, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    }).subscribe({
+      next: () => {
+        this.loadApprovedInvoices(); // Refresh the count
+        this.showAlertMessage('Facture marquée comme imprimée', 'success');
+      },
+      error: (error) => {
+        console.error('Error marking invoice as printed:', error);
+      }
+    });
+  }
+
+  private generateInvoiceHTML(invoice: any): string {
+    const now = new Date();
+    const invoiceDate = invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString('fr-FR') : 'N/A';
+    const invoiceTime = invoice.createdAt ? new Date(invoice.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+    
+    // Calculate totals
+    let totalHTVA = 0;
+    let totalTVA = 0;
+    let totalTTC = 0;
+
+    // VAT breakdown by rate
+    const vatBreakdown: { [key: number]: { baseHT: number; montantTVA: number } } = {};
+
+    // Ensure lines exist and is an array
+    const lines = invoice.lines || [];
+    const linesHTML = lines.map((line: any) => {
+      // Validate line data - use the correct field names from the backend
+      const prixVenteTTC = Number(line.prixVenteTTC) || 0;
+      const prixVenteHTVA = Number(line.prixVenteHTVA) || 0;
+      const montantTVA = Number(line.montantTVA) || 0;
+      const quantity = Number(line.quantity) || 0;
+      const tvaPercent = Number(line.tvaPercent) || 0;
+      const sousTotalTTC = Number(line.sousTotalTTC) || 0;
+      
+      const baseHT = quantity * prixVenteHTVA;
+      const montantTVAForLine = quantity * montantTVA;
+      
+      totalHTVA += baseHT;
+      totalTVA += montantTVAForLine;
+      totalTTC += sousTotalTTC;
+
+      // Add to VAT breakdown
+      if (!vatBreakdown[tvaPercent]) {
+        vatBreakdown[tvaPercent] = { baseHT: 0, montantTVA: 0 };
+      }
+      vatBreakdown[tvaPercent].baseHT += baseHT;
+      vatBreakdown[tvaPercent].montantTVA += montantTVAForLine;
+
+      return `
+        <tr>
+          <td>${line.product?.famille?.name || line.familleName || 'N/A'}</td>
+          <td>${line.product?.designation_legale || line.legalDesignation || line.product?.name || line.productName || 'Produit inconnu'}</td>
+          <td class="text-right">${quantity}</td>
+          <td class="text-right">${prixVenteHTVA.toFixed(3)} dt</td>
+          <td class="text-right">${tvaPercent}%</td>
+          <td class="text-right">${montantTVAForLine.toFixed(3)} dt</td>
+          <td class="text-right">${prixVenteTTC.toFixed(3)} dt</td>
+          <td class="text-right">${sousTotalTTC.toFixed(3)} dt</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Facture ${invoice.invoiceNumber}</title>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            color: #333;
+            font-size: 12px;
+          }
+          .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            border: 1px solid #ddd;
+            padding: 20px;
+          }
+          .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start; 
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+          }
+          .company-info {
+            flex: 1;
+          }
+          .invoice-info {
+            text-align: right;
+            flex: 1;
+          }
+          .title { 
+            font-size: 24px; 
+            font-weight: bold; 
+            margin-bottom: 10px;
+          }
+          .subtitle {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 20px;
+          }
+          .info-row {
+            margin: 5px 0;
+          }
+          .label {
+            font-weight: bold;
+            display: inline-block;
+            width: 120px;
+          }
+          .customer-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #007bff;
+          }
+          .customer-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #007bff;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            text-align: center;
+          }
+          .text-right {
+            text-align: right;
+          }
+          .totals {
+            margin-top: 20px;
+            text-align: right;
+          }
+          .total-row {
+            margin: 5px 0;
+            font-size: 14px;
+          }
+          .total-final {
+            font-weight: bold;
+            font-size: 16px;
+            border-top: 2px solid #333;
+            padding-top: 10px;
+            margin-top: 10px;
+          }
+          .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+          }
+          @media print {
+            body { margin: 0; padding: 0; }
+            .container { border: none; padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="company-info">
+              <div class="title">PÂTISSERIE DELICE</div>
+              <div class="info-row"><span class="label">Adresse:</span> 123 Rue de la Patisserie, Tunis, Tunisie</div>
+              <div class="info-row"><span class="label">Téléphone:</span> +216 71 123 456</div>
+              <div class="info-row"><span class="label">Email:</span> contact@patisseriedelice.tn</div>
+              <div class="info-row"><span class="label">Matricule Fiscal:</span> 12345678/A/M/000</div>
+            </div>
+            <div class="invoice-info">
+              <div class="subtitle">FACTURE</div>
+              <div class="info-row"><span class="label">N° Facture:</span> ${invoice.invoiceNumber}</div>
+              <div class="info-row"><span class="label">Date:</span> ${invoiceDate}</div>
+              <div class="info-row"><span class="label">Heure:</span> ${invoiceTime}</div>
+              <div class="info-row"><span class="label">Mode de paiement:</span> ${invoice.paymentMethod || 'Non spécifié'}</div>
+            </div>
+          </div>
+
+          <div class="customer-section">
+            <div class="customer-title">INFORMATIONS CLIENT</div>
+            <div class="info-row"><span class="label">Nom:</span> ${invoice.client?.firstName || ''} ${invoice.client?.lastName || 'Client anonyme'}</div>
+            <div class="info-row"><span class="label">Adresse:</span> ${invoice.client?.address || 'Non spécifiée'}</div>
+            <div class="info-row"><span class="label">Téléphone:</span> ${invoice.client?.phone || 'Non spécifié'}</div>
+            ${invoice.client?.matriculeFiscal ? `<div class="info-row"><span class="label">Matricule Fiscal:</span> ${invoice.client.matriculeFiscal}</div>` : ''}
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Famille</th>
+                <th>Article</th>
+                <th>Qté</th>
+                <th>PV HTVA</th>
+                <th>TVA %</th>
+                <th>Montant TVA</th>
+                <th>PV TTC</th>
+                <th>Sous-total TTC</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${linesHTML || '<tr><td colspan="8" class="text-center">Aucune ligne de facture trouvée</td></tr>'}
+            </tbody>
+          </table>
+
+          <!-- Footer with two columns: VAT breakdown on left, totals on right -->
+          <div style="display: flex; gap: 30px; margin-top: 30px;">
+            <!-- Left column: VAT Breakdown -->
+            <div style="flex: 1;">
+              <h4 style="font-size: 14px; font-weight: bold; margin: 0 0 10px 0; text-align: left;">RÉCAPITULATIF TVA</h4>
+              <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="background-color: #f5f5f5;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: center; font-weight: bold;">Base HT</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: center; font-weight: bold;">% TVA</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: center; font-weight: bold;">Montant TVA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${Object.keys(vatBreakdown).map(rate => {
+                    const rateNum = Number(rate);
+                    const breakdown = vatBreakdown[rateNum];
+                    return `
+                      <tr>
+                        <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${breakdown.baseHT.toFixed(2)} dt</td>
+                        <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${rateNum}%</td>
+                        <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${breakdown.montantTVA.toFixed(2)} dt</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Right column: Totals -->
+            <div style="flex: 1; text-align: right;">
+              <h4 style="font-size: 14px; font-weight: bold; margin: 0 0 10px 0; text-align: right;">TOTAUX</h4>
+              <div style="background-color: #f9f9f9; padding: 15px; border: 1px solid #ddd;">
+                <div style="margin: 8px 0; font-size: 14px;">
+                  <span style="font-weight: bold;">Total HTVA:</span> 
+                  <span style="float: right; font-weight: bold;">${totalHTVA.toFixed(3)} dt</span>
+                </div>
+                <div style="margin: 8px 0; font-size: 14px;">
+                  <span style="font-weight: bold;">Total TVA:</span> 
+                  <span style="float: right; font-weight: bold;">${totalTVA.toFixed(3)} dt</span>
+                </div>
+                <div style="margin: 8px 0; font-size: 14px;">
+                  <span style="font-weight: bold;">Remise:</span> 
+                  <span style="float: right; font-weight: bold;">0,000 dt</span>
+                </div>
+                <div style="margin: 8px 0; font-size: 16px; border-top: 2px solid #333; padding-top: 8px;">
+                  <span style="font-weight: bold;">Total TTC:</span> 
+                  <span style="float: right; font-weight: bold;">${totalTTC.toFixed(3)} dt</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>Merci pour votre achat!</p>
+            <p>Cette facture a été générée le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR')}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
 
 } 

@@ -24,12 +24,20 @@ const clientStatementsRoutes = require('./routes/client-statements');
 const clientPaymentsRoutes = require('./routes/client-payments');
 const cashStatementsRoutes = require('./routes/cash-statements');
 const inventoryRoutes = require('./routes/inventory');
+const invoicesRoutes = require('./routes/invoices');
+const returnsRoutes = require('./routes/returns');
 
 const { authenticateToken } = require('./middleware/auth');
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: true, // Allow all origins for development
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  exposedHeaders: ['Content-Disposition', 'Content-Length', 'Content-Type']
+}));
 app.use(express.json());
 
 // Serve static files from uploads directory
@@ -56,6 +64,8 @@ app.use('/api/client-statements', authenticateToken, clientStatementsRoutes);
 app.use('/api/client-payments', authenticateToken, clientPaymentsRoutes);
 app.use('/api/cash-statements', authenticateToken, cashStatementsRoutes);
 app.use('/api/inventory', authenticateToken, inventoryRoutes);
+app.use('/api/invoices', authenticateToken, invoicesRoutes);
+app.use('/api/returns', authenticateToken, returnsRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*'} });
@@ -67,7 +77,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {});
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3255;
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });

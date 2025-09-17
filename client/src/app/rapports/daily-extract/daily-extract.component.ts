@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { DailyExtractService, DailyExtract, FamilySummary, ProductSummary, DailyExtractDetail, ExpenseSummary } from '../../core/services/daily-extract.service';
 import { AuthService } from '../../core/services/auth.service';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-daily-extract',
@@ -17,10 +19,28 @@ export class DailyExtractComponent implements OnInit {
   currentLoadedDays = 0;
   maxDaysToLoad = 30; // Maximum days to prevent infinite loading
 
+  // Invoice generation properties
+  showInvoiceModal = false;
+  creatingInvoice = false;
+  invoiceData = {
+    invoiceNumber: '',
+    customerName: '',
+    customerAddress: '',
+    customerMatricule: '',
+    notes: ''
+  };
+  invoiceLines: any[] = [];
+  invoiceTotals = {
+    subtotalHTVA: 0,
+    totalTVA: 0,
+    totalTTC: 0
+  };
+
   constructor(
     private router: Router,
     private dailyExtractService: DailyExtractService,
-    private authService: AuthService
+    private authService: AuthService,
+    private http: HttpClient
   ) {}
 
   ngOnInit() {
@@ -37,7 +57,6 @@ export class DailyExtractComponent implements OnInit {
     
     this.dailyExtractService.getLastNDaysExtracts(daysToLoad).subscribe({
       next: (extracts) => {
-        console.log('Received extracts:', extracts);
         this.dailyExtracts = extracts;
         this.loading = false;
       },
@@ -91,7 +110,6 @@ export class DailyExtractComponent implements OnInit {
     // Load additional days
     this.dailyExtractService.getLastNDaysExtracts(newTotalDays).subscribe({
       next: (extracts) => {
-        console.log('Received additional extracts:', extracts);
         this.dailyExtracts = extracts;
         this.currentLoadedDays = newTotalDays;
         this.loadingArchives = false;
@@ -342,5 +360,138 @@ export class DailyExtractComponent implements OnInit {
         .expense-value { text-align: right; font-size: 7px; }
       `;
     }
+  }
+
+  // Invoice generation methods
+  generateInvoice(): void {
+    if (!this.selectedExtract) return;
+
+    // Initialize invoice data
+    this.invoiceData = {
+      invoiceNumber: '',
+      customerName: '',
+      customerAddress: '',
+      customerMatricule: '',
+      notes: ''
+    };
+
+    // Prepare invoice lines from extract data
+    this.invoiceLines = [];
+    this.selectedExtract.families.forEach(family => {
+      family.products.forEach(product => {
+        if (product.quantity > 0) {
+          const unitPrice = product.revenue / product.quantity;
+          const tvaPercent = 19; // Default TVA rate, should be fetched from product
+          const prixHTVA = unitPrice / (1 + tvaPercent / 100);
+          const montantTVA = unitPrice - prixHTVA;
+
+          this.invoiceLines.push({
+            productId: product.id,
+            familleName: family.name,
+            productName: product.name,
+            legalDesignation: product.designation_legale || product.name,
+            unite: 'pcs',
+            quantity: product.quantity,
+            prixVenteTTC: unitPrice,
+            prixVenteHTVA: Math.round(prixHTVA * 100) / 100,
+            tvaPercent: tvaPercent,
+            montantTVA: Math.round(montantTVA * 100) / 100,
+            sousTotalTTC: product.revenue
+          });
+        }
+      });
+    });
+
+    this.updateInvoiceTotals();
+    this.getNextInvoiceNumber();
+    this.showInvoiceModal = true;
+  }
+
+  closeInvoiceModal(): void {
+    this.showInvoiceModal = false;
+    this.invoiceLines = [];
+    this.invoiceData = {
+      invoiceNumber: '',
+      customerName: '',
+      customerAddress: '',
+      customerMatricule: '',
+      notes: ''
+    };
+  }
+
+  getNextInvoiceNumber(): void {
+    this.http.get(`${environment.apiUrl}/invoices/next-number`).subscribe({
+      next: (response: any) => {
+        this.invoiceData.invoiceNumber = response.nextInvoiceNumber;
+      },
+      error: (error) => {
+        console.error('Error getting next invoice number:', error);
+        this.invoiceData.invoiceNumber = 'FAC-001';
+      }
+    });
+  }
+
+  updateInvoiceTotals(): void {
+    let subtotalHTVA = 0;
+    let totalTVA = 0;
+    let totalTTC = 0;
+
+    this.invoiceLines.forEach(line => {
+      const sousTotalTTC = line.quantity * line.prixVenteTTC;
+      const sousTotalHTVA = line.quantity * line.prixVenteHTVA;
+      const sousTotalTVA = line.quantity * line.montantTVA;
+
+      subtotalHTVA += sousTotalHTVA;
+      totalTVA += sousTotalTVA;
+      totalTTC += sousTotalTTC;
+
+      line.sousTotalTTC = sousTotalTTC;
+    });
+
+    this.invoiceTotals = {
+      subtotalHTVA: Math.round(subtotalHTVA * 100) / 100,
+      totalTVA: Math.round(totalTVA * 100) / 100,
+      totalTTC: Math.round(totalTTC * 100) / 100
+    };
+  }
+
+  createInvoice(): void {
+    if (!this.selectedExtract) return;
+
+    this.creatingInvoice = true;
+
+    const invoicePayload = {
+      date: this.selectedExtract.date,
+      invoiceNumber: this.invoiceData.invoiceNumber,
+      customerInfo: {
+        name: this.invoiceData.customerName,
+        address: this.invoiceData.customerAddress,
+        matricule: this.invoiceData.customerMatricule
+      },
+      lines: this.invoiceLines.map(line => ({
+        productId: line.productId,
+        quantity: line.quantity,
+        prixVenteTTC: line.prixVenteTTC
+      })),
+      notes: this.invoiceData.notes
+    };
+
+    this.http.post(`${environment.apiUrl}/invoices/from-extract`, invoicePayload).subscribe({
+      next: (response: any) => {
+        this.creatingInvoice = false;
+        this.closeInvoiceModal();
+        alert('Facture créée avec succès!');
+        // Optionally navigate to invoice details or show success message
+      },
+      error: (error) => {
+        this.creatingInvoice = false;
+        console.error('Error creating invoice:', error);
+        if (error.error?.error) {
+          alert(`Erreur: ${error.error.error}`);
+        } else {
+          alert('Erreur lors de la création de la facture');
+        }
+      }
+    });
   }
 }

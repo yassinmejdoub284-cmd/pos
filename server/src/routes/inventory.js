@@ -330,12 +330,11 @@ router.patch('/sessions/:id/status', requireRole(['ADMIN', 'MANAGER', 'STOCK_MAN
   }
 });
 
-// Update inventory item count
-router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+// Create new inventory item for a product
+router.post('/sessions/:sessionId/items', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
   try {
     const sessionId = parseInt(req.params.sessionId);
-    const itemId = parseInt(req.params.itemId);
-    const { countedQuantity, reason, notes } = req.body;
+    const { productId, theoreticalQuantity } = req.body;
 
     // Validate session exists and is in correct status
     const session = await prisma.inventorySession.findUnique({
@@ -347,7 +346,86 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
     }
 
     if (!['DRAFT', 'IN_PROGRESS'].includes(session.status)) {
-      return res.status(400).json({ error: 'Cannot update items in this session status' });
+      return res.status(400).json({ error: 'Cannot add items to this session status' });
+    }
+
+    // Check if product exists
+    const product = await prisma.product.findUnique({
+      where: { id: productId }
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Check if inventory item already exists for this product in this session
+    const existingItem = await prisma.inventoryItem.findFirst({
+      where: {
+        sessionId: sessionId,
+        productId: productId
+      }
+    });
+
+    if (existingItem) {
+      return res.status(400).json({ error: 'Inventory item already exists for this product' });
+    }
+
+    // Create new inventory item
+    const newItem = await prisma.inventoryItem.create({
+      data: {
+        sessionId: sessionId,
+        productId: productId,
+        theoreticalQuantity: theoreticalQuantity || 0
+      },
+      include: {
+        product: {
+          include: {
+            famille: true
+          }
+        }
+      }
+    });
+
+    await logAudit(req.user.id, 'inventory_items', newItem.id, 'CREATE', null, newItem);
+
+    res.status(201).json(newItem);
+  } catch (error) {
+    console.error('Error creating inventory item:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update inventory item count
+router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.sessionId);
+    const itemId = parseInt(req.params.itemId);
+    const { countedQuantity, reason, notes } = req.body;
+
+    console.log('Updating inventory item count:', {
+      sessionId,
+      itemId,
+      countedQuantity,
+      reason,
+      notes,
+      userId: req.user.id
+    });
+
+    // Validate session exists and is in correct status
+    const session = await prisma.inventorySession.findUnique({
+      where: { id: sessionId }
+    });
+
+    if (!session) {
+      console.error('Inventory session not found:', sessionId);
+      return res.status(404).json({ error: 'Inventory session not found' });
+    }
+
+    if (!['DRAFT', 'IN_PROGRESS'].includes(session.status)) {
+      console.error('Cannot update items in session status:', session.status);
+      return res.status(400).json({ 
+        error: `Cannot update items in this session status: ${session.status}. Only DRAFT and IN_PROGRESS sessions can be updated.` 
+      });
     }
 
     // Get the inventory item
@@ -359,8 +437,17 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
     });
 
     if (!item || item.sessionId !== sessionId) {
+      console.error('Inventory item not found:', { itemId, sessionId, itemExists: !!item });
       return res.status(404).json({ error: 'Inventory item not found' });
     }
+
+    console.log('Found inventory item:', {
+      itemId: item.id,
+      productId: item.productId,
+      productName: item.product.name,
+      theoreticalQuantity: item.theoreticalQuantity,
+      currentCountedQuantity: item.countedQuantity
+    });
 
     // Calculate écart
     const ecartQuantity = countedQuantity !== null ? countedQuantity - item.theoreticalQuantity : null;
@@ -375,6 +462,8 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
       countedAt: countedQuantity !== null ? new Date() : null,
       countedBy: countedQuantity !== null ? req.user.id : null
     };
+
+    console.log('Updating with data:', updateData);
 
     const updatedItem = await prisma.inventoryItem.update({
       where: { id: itemId },
@@ -402,6 +491,13 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
           }
         }
       }
+    });
+
+    console.log('Successfully updated inventory item:', {
+      itemId: updatedItem.id,
+      countedQuantity: updatedItem.countedQuantity,
+      ecartQuantity: updatedItem.ecartQuantity,
+      ecartValue: updatedItem.ecartValue
     });
 
     await logAudit(req.user.id, 'inventory_items', itemId, 'UPDATE', item, updatedItem);

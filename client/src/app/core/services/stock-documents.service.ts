@@ -46,6 +46,15 @@ export class StockDocumentsService {
     });
   }
 
+  createEntry(depotId: number, supplierId: number | null, items: any[], notes?: string): Observable<StockDocument> {
+    return this.http.post<StockDocument>(`${this.apiUrl}/entry`, {
+      depotId,
+      supplierId,
+      items,
+      notes
+    });
+  }
+
   validateDocument(id: number, status: string, notes?: string): Observable<StockDocument> {
     return this.http.post<StockDocument>(`${this.apiUrl}/${id}/validate`, {
       status,

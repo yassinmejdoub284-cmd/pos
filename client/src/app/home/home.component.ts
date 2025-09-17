@@ -45,6 +45,7 @@ export class HomeComponent implements OnInit {
   showClientActionDialog = false;
   showApprovalsActionDialog = false;
   showSupplierActionDialog = false;
+  showBillingCenterActionDialog = false;
   // Pending breakdown
   private pendingGiftCount = 0;
   private pendingExpenseCount = 0;
@@ -112,6 +113,16 @@ export class HomeComponent implements OnInit {
       roles: ['ADMIN', 'MANAGER']
     },
     {
+      id: 'invoices',
+      title: 'Factures',
+      description: 'Gestion factures',
+      route: '/invoices',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      color: 'from-emerald-500 to-teal-600',
+      gradient: 'from-emerald-50 to-teal-100',
+      roles: ['ADMIN', 'MANAGER', 'CASHIER']
+    },
+    {
       id: 'approvals',
       title: 'Validations',
       description: 'Centre d\'approbation',
@@ -150,6 +161,16 @@ export class HomeComponent implements OnInit {
       color: 'from-indigo-500 to-purple-600',
       gradient: 'from-indigo-50 to-purple-100',
       roles: ['ADMIN', 'MANAGER']
+    },
+    {
+      id: 'billing-center',
+      title: 'Centre de facturation',
+      description: 'Gestion des factures',
+      route: '/billing-center',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      color: 'from-cyan-500 to-blue-600',
+      gradient: 'from-cyan-50 to-blue-100',
+      roles: ['ADMIN', 'MANAGER', 'CASHIER']
     }
   ];
 
@@ -269,6 +290,8 @@ export class HomeComponent implements OnInit {
       this.showApprovalsActionDialog = true;
     } else if (route === '/suppliers') {
       this.showSupplierActionDialog = true;
+    } else if (route === '/billing-center') {
+      this.showBillingCenterActionDialog = true;
     } else {
       this.router.navigate([route]);
     }
@@ -357,6 +380,23 @@ export class HomeComponent implements OnInit {
 
   onSupplierDialogClosed(): void {
     this.showSupplierActionDialog = false;
+  }
+
+  onBillingCenterActionSelected(actionId: string): void {
+    this.showBillingCenterActionDialog = false;
+    
+    switch (actionId) {
+      case 'add-invoice':
+        this.router.navigate(['/invoices'], { queryParams: { action: 'add' } });
+        break;
+      case 'manage-invoices':
+        this.router.navigate(['/invoices']);
+        break;
+    }
+  }
+
+  onBillingCenterDialogClosed(): void {
+    this.showBillingCenterActionDialog = false;
   }
 
 

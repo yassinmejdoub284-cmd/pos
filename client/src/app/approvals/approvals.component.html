@@ -61,9 +61,21 @@
           Clôtures
           <span class="ml-2 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 text-xs">{{ varianceRequests.length }}</span>
         </button>
+        <button (click)="selectedTab='INVOICES'" [class]="'px-4 py-2 rounded-2xl text-sm font-medium ' + (selectedTab==='INVOICES' ? 'bg-blue-600 text-white' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100')">
+          Demandes de factures
+          <span class="ml-2 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-600 text-xs">{{ pendingInvoiceRequests.length }}</span>
+        </button>
         <button (click)="selectedTab='HISTORY'" [class]="'px-4 py-2 rounded-2xl text-sm font-medium ' + (selectedTab==='HISTORY' ? 'bg-slate-600 text-white' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100')">
           Historique
           <span class="ml-2 px-2 py-0.5 rounded-full bg-slate-500/20 text-slate-600 text-xs">{{ historyRequests.length }}</span>
+        </button>
+        <button (click)="selectedTab='RETURNS'" [class]="'px-4 py-2 rounded-2xl text-sm font-medium ' + (selectedTab==='RETURNS' ? 'bg-amber-600 text-white' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100')">
+          Bons de retour
+          <span class="ml-2 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 text-xs">{{ pendingReturns.length }}</span>
+        </button>
+        <button (click)="selectedTab='REButs'" [class]="'px-4 py-2 rounded-2xl text-sm font-medium ' + (selectedTab==='REButs' ? 'bg-rose-600 text-white' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100')">
+          Rebut
+          <span class="ml-2 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-700 text-xs">{{ pendingRebuts.length }}</span>
         </button>
       </div>
 
@@ -278,6 +290,50 @@
         </div>
       </div>
 
+      <!-- Invoice Requests -->
+      <div *ngIf="!loading && !error && selectedTab==='INVOICES'">
+        <!-- Debug info -->
+        <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <h4 class="font-semibold text-yellow-800">Debug Info:</h4>
+          <p class="text-sm text-yellow-700">Requests loaded: {{ pendingInvoiceRequests.length }}</p>
+          <button (click)="loadInvoiceRequests()" class="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm">
+            Reload Requests
+          </button>
+        </div>
+        
+        <div *ngIf="pendingInvoiceRequests.length === 0" class="text-slate-500 text-sm">
+          Aucune demande de facture en attente
+          <br><br>
+          <strong>Pour tester:</strong> Allez dans la caisse et créez une vente complétée, puis cliquez sur "Demander facture"
+        </div>
+        <div *ngFor="let request of pendingInvoiceRequests" class="bg-blue-50 rounded-2xl p-4 border border-blue-200 mb-2">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <div class="text-slate-800 font-bold">Demande #{{ request.id }}</div>
+              <div class="text-xs text-slate-500">{{ formatDate(request.createdAt) }}</div>
+              <div class="text-sm text-slate-600 mt-1">
+                <strong>Vente:</strong> #{{ request.sale.id }} - {{ formatCurrency(request.sale.finalTotal) }}
+              </div>
+              <div class="text-sm text-slate-600 mt-1">
+                <strong>Client:</strong> {{ request.sale.client ? request.sale.client.firstName + ' ' + request.sale.client.lastName : 'PASSAGER' }}
+              </div>
+              <div class="text-sm text-slate-600 mt-1">
+                <strong>Demandé par:</strong> {{ request.requestedBy.firstName }} {{ request.requestedBy.lastName }}
+              </div>
+              <div class="text-sm text-slate-500 mt-1" *ngIf="request.requestNotes">{{ request.requestNotes }}</div>
+            </div>
+            <div class="text-right ml-4">
+              <div class="text-blue-600 font-bold text-lg">{{ formatCurrency(request.sale.finalTotal) }}</div>
+              <div class="text-xs text-slate-500">{{ request.sale.items.length }} article(s)</div>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button (click)="rejectInvoiceRequest(request)" class="px-3 py-1 bg-red-600/70 hover:bg-red-600 text-white rounded-lg text-sm">Rejeter</button>
+            <button (click)="approveInvoiceRequest(request)" class="px-3 py-1 bg-emerald-600/70 hover:bg-emerald-600 text-white rounded-lg text-sm">Approuver</button>
+          </div>
+        </div>
+      </div>
+
       <!-- History list -->
       <div *ngIf="!loading && !error && selectedTab==='HISTORY'">
         <div *ngIf="historyRequests.length===0" class="text-slate-500 text-sm">Aucun historique disponible</div>
@@ -382,6 +438,63 @@
       <button (click)="rejectReason='ECART_COMPTAGE'" [class]="'w-full text-left px-4 py-3 rounded-xl border ' + (rejectReason==='ECART_COMPTAGE' ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:bg-slate-50')">Écart au comptage physique</button>
       <button (click)="rejectReason='SUSPICION_ANOMALIE'" [class]="'w-full text-left px-4 py-3 rounded-xl border ' + (rejectReason==='SUSPICION_ANOMALIE' ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:bg-slate-50')">Suspicion d'anomalie</button>
       
+      <!-- Returns approvals -->
+      <div *ngIf="!loading && !error && selectedTab==='RETURNS'">
+        <div *ngIf="loadingReturns" class="text-slate-500">Chargement...</div>
+        <div *ngIf="!loadingReturns && pendingReturns.length===0" class="text-slate-500 text-sm">Aucun bon de retour en attente</div>
+        <div *ngFor="let req of pendingReturns" class="bg-amber-50 rounded-2xl p-4 border border-amber-200 mb-3">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="text-slate-800 font-semibold">Bon de retour • {{ req.numero }}</div>
+              <div class="text-xs text-slate-500">{{ req.createdAt | date:'short' }}</div>
+            </div>
+            <div class="text-right">
+              <span class="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-700 border border-amber-300">{{ req.status }}</span>
+            </div>
+          </div>
+          <div class="mt-3 overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-slate-600">
+                  <th class="text-left p-2">Produit</th>
+                  <th class="text-right p-2">Demandé</th>
+                  <th class="text-right p-2">Non-rebut</th>
+                  <th class="text-right p-2">Rebut</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let it of req.items">
+                  <td class="p-2 text-slate-800">{{ it.product?.name || it.productId }}</td>
+                  <td class="p-2 text-right">{{ it.requestedQty }}</td>
+                  <td class="p-2 text-right">
+                    <input type="number" min="0" step="0.001" class="w-28 px-2 py-1 border rounded" (input)="setDisposition(it.id, 'nonRebutQty', $any($event.target).value)" placeholder="0.000" title="Quantité non-rebut" />
+                  </td>
+                  <td class="p-2 text-right">
+                    <input type="number" min="0" step="0.001" class="w-28 px-2 py-1 border rounded" (input)="setDisposition(it.id, 'rebutQty', $any($event.target).value)" placeholder="0.000" title="Quantité rebut" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex justify-end gap-2 mt-3">
+            <button (click)="approveReturnRequest(req)" class="px-3 py-1 bg-amber-600 text-white rounded-lg hover:bg-amber-500">Approuver</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rebut list -->
+      <div *ngIf="!loading && !error && selectedTab==='REButs'">
+        <div *ngIf="pendingRebuts.length===0" class="text-slate-500 text-sm">Aucun rebut en attente d'autorité</div>
+        <div *ngFor="let r of pendingRebuts" class="bg-rose-50 rounded-2xl p-4 border border-rose-200 mb-3">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-slate-800 font-semibold">{{ r.product?.name || r.productId }}</div>
+              <div class="text-xs text-slate-500">Qté: {{ r.quantity }} • Dépôt: {{ r.depot?.name || r.depotId }}</div>
+            </div>
+            <button (click)="archiveRebut(r.id)" class="px-3 py-1 bg-rose-600 text-white rounded-lg hover:bg-rose-500" title="Archiver après validation d'autorité" aria-label="Archiver le rebut">Archiver</button>
+          </div>
+        </div>
+      </div>
       <div *ngIf="rejectReason && rejectReason !== 'AUTRE'" class="pt-2">
         <div class="flex justify-end gap-2">
           <button (click)="showRejectModal=false" class="px-3 py-2 text-xs bg-slate-100 rounded-lg">Annuler</button>
@@ -447,5 +560,99 @@
   </div>
   <div class="p-4 border-t border-slate-200">
     <button (click)="finalizeCorrection()" class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm">Valider la clôture</button>
+  </div>
+</div>
+
+<!-- Invoice Approval Modal -->
+<div *ngIf="showInvoiceApprovalModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl max-w-2xl w-full">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-2xl font-bold text-slate-800">Approuver la demande de facture</h3>
+        <button 
+          (click)="closeInvoiceApprovalModal()"
+          class="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 transition-colors duration-300"
+          title="Fermer"
+        >
+          <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Request Info -->
+      <div *ngIf="selectedInvoiceRequest" class="bg-slate-50 rounded-lg p-4 mb-6">
+        <h4 class="text-lg font-semibold text-slate-800 mb-3">Détails de la demande</h4>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span class="text-slate-600">Demande #:</span>
+            <span class="font-semibold text-slate-800 ml-2">{{ selectedInvoiceRequest.id }}</span>
+          </div>
+          <div>
+            <span class="text-slate-600">Vente #:</span>
+            <span class="font-semibold text-slate-800 ml-2">{{ selectedInvoiceRequest.sale.id }}</span>
+          </div>
+          <div>
+            <span class="text-slate-600">Date:</span>
+            <span class="font-semibold text-slate-800 ml-2">{{ formatDate(selectedInvoiceRequest.createdAt) }}</span>
+          </div>
+          <div>
+            <span class="text-slate-600">Total:</span>
+            <span class="font-semibold text-slate-800 ml-2">{{ formatCurrency(selectedInvoiceRequest.sale.finalTotal) }}</span>
+          </div>
+          <div class="col-span-2">
+            <span class="text-slate-600">Demandé par:</span>
+            <span class="font-semibold text-slate-800 ml-2">{{ selectedInvoiceRequest.requestedBy.firstName }} {{ selectedInvoiceRequest.requestedBy.lastName }}</span>
+          </div>
+        </div>
+        <div *ngIf="selectedInvoiceRequest.requestNotes" class="mt-3">
+          <span class="text-slate-600">Notes:</span>
+          <p class="text-slate-800 mt-1">{{ selectedInvoiceRequest.requestNotes }}</p>
+        </div>
+      </div>
+
+      <!-- Invoice Form -->
+      <form (ngSubmit)="submitInvoiceApproval()" #invoiceApprovalForm="ngForm">
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-slate-700 mb-2">Numéro de facture</label>
+          <div class="flex space-x-2">
+            <input 
+              type="text" 
+              [(ngModel)]="invoiceApprovalData.invoiceNumber" 
+              name="invoiceNumber"
+              required
+              class="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="FAC-001"
+            >
+            <button 
+              type="button"
+              (click)="getNextInvoiceNumber()"
+              class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors duration-300"
+            >
+              Utiliser le dernier
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-end space-x-3">
+          <button 
+            type="button"
+            (click)="closeInvoiceApprovalModal()"
+            class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors duration-300"
+          >
+            Annuler
+          </button>
+          <button 
+            type="submit"
+            [disabled]="!invoiceApprovalForm.valid || submittingInvoiceApproval"
+            class="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
+          >
+            <span *ngIf="!submittingInvoiceApproval">Approuver et créer la facture</span>
+            <span *ngIf="submittingInvoiceApproval">Création...</span>
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>

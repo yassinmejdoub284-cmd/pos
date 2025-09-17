@@ -44,6 +44,11 @@ model User {
   inventorySessionsClosed InventorySession[] @relation("InventoryCloser")
   inventorySessionsPosted InventorySession[] @relation("InventoryPoster")
   inventoryItemsCounted InventoryItem[] @relation("InventoryCounter")
+  createdInvoices Invoice[] @relation("InvoiceCreator")
+  approvedInvoiceRequests InvoiceRequest[] @relation("InvoiceRequestApprover")
+  createdInvoiceRequests InvoiceRequest[] @relation("InvoiceRequestCreator")
+  requestedReturns ReturnRequest[] @relation("ReturnRequestedBy")
+  approvedReturns ReturnRequest[] @relation("ReturnApprovedBy")
 
   @@map("users")
 }
@@ -78,6 +83,9 @@ model Depot {
   sessions     SessionCaisse[]
   inventorySessions InventorySession[]
   clients      Client[]
+  invoices     Invoice[]
+  returnRequests ReturnRequest[]
+  rebutRecords RebutRecord[]
 
   @@map("depots")
 }
@@ -107,6 +115,7 @@ model Product {
   barcode       String?  @unique @db.VarChar(50)
   unite         String   @default("pcs") @db.VarChar(20)
   prix_vente_TTC Decimal @db.Decimal(10, 2) @map("prix_vente_ttc")
+  prix_achat    Decimal? @db.Decimal(10, 3) @map("prix_achat") // Purchase price
   tva           Decimal  @default(19) @db.Decimal(5, 2)
   photo         String?  @db.VarChar(255)
   duree_conservation Int? @map("duree_conservation")
@@ -135,6 +144,9 @@ model Product {
   conservation ProductConservation[]
   vracPrices VracPrice[]
   inventoryItems InventoryItem[]
+  invoiceLines InvoiceLine[]
+  returnItems ReturnItem[]
+  rebutRecords RebutRecord[]
 
   @@map("products")
 }
@@ -217,6 +229,7 @@ model Client {
   sales           Sale[]
   debtTransactions ClientDebtTransaction[]
   depot           Depot? @relation(fields: [depotId], references: [id])
+  invoices        Invoice[]
 
   @@map("clients")
 }
@@ -242,6 +255,12 @@ model AppSettings {
   id                    Int      @id @default(autoincrement())
   companyName           String?  @map("company_name") @db.VarChar(200)
   logoUrl               String?  @map("logo_url") @db.VarChar(255)
+  // Company details
+  companyAddress        String?  @map("company_address") @db.Text
+  companyPhone          String?  @map("company_phone") @db.VarChar(20)
+  companyEmail          String?  @map("company_email") @db.VarChar(100)
+  companyRC             String?  @map("company_rc") @db.VarChar(50)
+  companyMF             String?  @map("company_mf") @db.VarChar(50)
   loyaltyEnabled        Boolean  @default(false) @map("loyalty_enabled")
   loyaltyRate           Decimal  @default(1) @map("loyalty_rate") @db.Decimal(8, 3) // points per 1 dt
   maxDiscountPercent    Decimal  @default(50) @map("max_discount_percent") @db.Decimal(5, 2)
@@ -297,6 +316,8 @@ model Sale {
   advancePaymentMethodId Int? @map("advance_payment_method_id")
   advancePaymentDate DateTime? @map("advance_payment_date")
   advancePaymentNotes String? @map("advance_payment_notes") @db.Text
+  // Wholesale flag
+  isWholesale     Boolean     @default(false) @map("is_wholesale")
 
   user            User        @relation(fields: [userId], references: [id])
   depot           Depot       @relation(fields: [depotId], references: [id])
@@ -306,6 +327,8 @@ model Sale {
   client          Client?     @relation(fields: [clientId], references: [id])
   items           SaleItem[]
   debtTransactions ClientDebtTransaction[]
+  invoiceRequests InvoiceRequest[]
+  invoices        Invoice[]
 
   @@map("sales")
 }
@@ -523,6 +546,7 @@ model StockDocumentItem {
   productId         Int      @map("product_id")
   famille           String   @db.VarChar(100)
   quantity          Decimal  @db.Decimal(10, 3)
+  purchasePrice     Decimal? @db.Decimal(10, 3) @map("purchase_price")
   batch             String?  @db.VarChar(50)
   notes             String?  @db.Text
   barcode           String?  @unique @db.VarChar(50)
@@ -559,6 +583,84 @@ model StockDocumentLink {
 
   @@unique([sourceDocumentId, targetDocumentId])
   @@map("stock_document_links")
+}
+
+// Product return workflow
+model ReturnRequest {
+  id             Int                 @id @default(autoincrement())
+  numero         String              @unique @db.VarChar(50)
+  status         ReturnStatus        @default(PENDING)
+  depotId        Int                 @map("depot_id")
+  requestedById  Int                 @map("requested_by_id")
+  approvedById   Int?                @map("approved_by_id")
+  approvedAt     DateTime?           @map("approved_at")
+  notes          String?             @db.Text
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  depot          Depot               @relation(fields: [depotId], references: [id])
+  requestedBy    User                @relation("ReturnRequestedBy", fields: [requestedById], references: [id])
+  approvedBy     User?               @relation("ReturnApprovedBy", fields: [approvedById], references: [id])
+  items          ReturnItem[]
+  rebutRecords   RebutRecord[]
+
+  @@map("return_requests")
+}
+
+model ReturnItem {
+  id              Int           @id @default(autoincrement())
+  requestId       Int           @map("request_id")
+  productId       Int           @map("product_id")
+  requestedQty    Decimal       @map("requested_qty") @db.Decimal(10, 3)
+  disposition     ReturnDisposition? @default(NONE)
+  nonRebutQty     Decimal?      @map("non_rebut_qty") @db.Decimal(10, 3)
+  rebutQty        Decimal?      @map("rebut_qty") @db.Decimal(10, 3)
+  reason          String?       @db.Text
+
+  request         ReturnRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  product         Product       @relation(fields: [productId], references: [id])
+  rebutRecord     RebutRecord?
+
+  @@map("return_items")
+}
+
+model RebutRecord {
+  id              Int            @id @default(autoincrement())
+  requestId       Int            @map("request_id")
+  itemId          Int            @unique @map("item_id")
+  productId       Int            @map("product_id")
+  depotId         Int            @map("depot_id")
+  quantity        Decimal        @db.Decimal(10, 3)
+  status          RebutStatus    @default(PENDING_AUTHORITY)
+  notes           String?        @db.Text
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  authorityApprovedAt DateTime?  @map("authority_approved_at")
+
+  request         ReturnRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  item            ReturnItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  product         Product        @relation(fields: [productId], references: [id])
+  depot           Depot          @relation(fields: [depotId], references: [id])
+
+  @@map("rebut_records")
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+}
+
+enum RebutStatus {
+  PENDING_AUTHORITY
+  ARCHIVED
+}
+
+enum ReturnDisposition {
+  NONE
+  NON_REBUT
+  REBUT
 }
 
 model InventorySession {
@@ -685,6 +787,23 @@ enum ClientType {
   INDIVIDUAL
   BUSINESS
   WHOLESALE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+enum InvoiceRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InvoiceSource {
+  DAILY_EXTRACT
+  TICKET_REQUEST
 }
 
 model SessionCaisse {
@@ -831,4 +950,108 @@ enum InventorySessionStatus {
 enum InventoryReason {
   PHYSICAL_COUNT_DIFFERENCE
   SUSPICION_OF_ANOMALY
+}
+
+model Invoice {
+  id              Int           @id @default(autoincrement())
+  invoiceNumber   String        @unique @map("invoice_number") @db.VarChar(50)
+  status          InvoiceStatus @default(DRAFT)
+  source          InvoiceSource
+  issueDate       DateTime      @map("issue_date")
+  dueDate         DateTime?     @map("due_date")
+  paymentMethod   String?       @map("payment_method") @db.VarChar(50)
+  
+  // Company info (from app settings)
+  companyName     String        @map("company_name") @db.VarChar(200)
+  companyAddress  String        @map("company_address") @db.Text
+  companyMatricule String?      @map("company_matricule") @db.VarChar(50)
+  
+  // Customer info
+  customerName    String        @map("customer_name") @db.VarChar(200)
+  customerAddress String?       @map("customer_address") @db.Text
+  customerMatricule String?     @map("customer_matricule") @db.VarChar(50)
+  
+  // Totals
+  subtotalHTVA    Decimal       @map("subtotal_htva") @db.Decimal(12, 3)
+  totalTVA        Decimal       @map("total_tva") @db.Decimal(12, 3)
+  totalTTC        Decimal       @map("total_ttc") @db.Decimal(12, 3)
+  amountInWords   String?       @map("amount_in_words") @db.Text
+  
+  // Relations
+  depotId         Int           @map("depot_id")
+  clientId        Int?          @map("client_id")
+  createdById     Int           @map("created_by_id")
+  saleId          Int?          @map("sale_id") // For ticket-based invoices
+  
+  // Notes
+  notes           String?       @db.Text
+  quantityNote    String?       @map("quantity_note") @db.Text // Note about quantity differences from POS
+  
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  
+  depot           Depot         @relation(fields: [depotId], references: [id])
+  client          Client?       @relation(fields: [clientId], references: [id])
+  createdBy       User          @relation("InvoiceCreator", fields: [createdById], references: [id])
+  sale            Sale?         @relation(fields: [saleId], references: [id])
+  lines           InvoiceLine[]
+  invoiceRequest  InvoiceRequest?
+  
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id              Int      @id @default(autoincrement())
+  invoiceId       Int      @map("invoice_id")
+  productId       Int      @map("product_id")
+  
+  // Product info (snapshot at time of invoice)
+  familleName     String   @map("famille_name") @db.VarChar(100)
+  productName     String   @map("product_name") @db.VarChar(200)
+  legalDesignation String? @map("legal_designation") @db.VarChar(200)
+  unite           String   @db.VarChar(20)
+  
+  // Quantities and prices
+  quantity        Decimal  @db.Decimal(10, 3)
+  prixVenteTTC    Decimal  @map("prix_vente_ttc") @db.Decimal(10, 2)
+  prixVenteHTVA   Decimal  @map("prix_vente_htva") @db.Decimal(10, 2)
+  tvaPercent      Decimal  @map("tva_percent") @db.Decimal(5, 2)
+  montantTVA      Decimal  @map("montant_tva") @db.Decimal(10, 2)
+  sousTotalTTC    Decimal  @map("sous_total_ttc") @db.Decimal(10, 2)
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id])
+  
+  @@map("invoice_lines")
+}
+
+model InvoiceRequest {
+  id              Int                   @id @default(autoincrement())
+  status          InvoiceRequestStatus  @default(PENDING)
+  invoiceNumber   String?               @map("invoice_number") @db.VarChar(50)
+  
+  // Source information
+  saleId          Int                   @map("sale_id")
+  requestedById   Int                   @map("requested_by_id")
+  approvedById    Int?                  @map("approved_by_id")
+  approvedAt      DateTime?             @map("approved_at")
+  
+  // Invoice data (when approved)
+  invoiceId       Int?                  @unique @map("invoice_id")
+  
+  // Notes
+  requestNotes    String?               @map("request_notes") @db.Text
+  rejectionReason String?               @map("rejection_reason") @db.Text
+  
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+  
+  sale            Sale                  @relation(fields: [saleId], references: [id])
+  requestedBy     User                  @relation("InvoiceRequestCreator", fields: [requestedById], references: [id])
+  approvedBy      User?                 @relation("InvoiceRequestApprover", fields: [approvedById], references: [id])
+  invoice         Invoice?              @relation(fields: [invoiceId], references: [id])
+  
+  @@map("invoice_requests")
 } 

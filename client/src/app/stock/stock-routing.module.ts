@@ -32,14 +32,9 @@ const routes: Routes = [
     path: 'prepare-lot/:depotId', 
     loadChildren: () => import('./prepare-lot/prepare-lot.module').then(m => m.PrepareLotModule) 
   },
-                {
-                path: 'shop-transfer/:depotId',
-                loadChildren: () => import('./shop-transfer/shop-transfer.module').then(m => m.ShopTransferModule)
-              },
-              {
-                path: 'branch-inventory/:depotId',
-                loadChildren: () => import('./branch-inventory/branch-inventory.module').then(m => m.BranchInventoryModule)
-              },
+  { path: 'shop-transfer/:depotId', loadChildren: () => import('./shop-transfer/shop-transfer.module').then(m => m.ShopTransferModule) },
+  { path: 'branch-inventory/:depotId', loadChildren: () => import('./branch-inventory/branch-inventory.module').then(m => m.BranchInventoryModule) },
+  { path: 'entry/:depotId', loadChildren: () => import('./entry/entry.module').then(m => m.EntryModule) }
 ];
 
 @NgModule({

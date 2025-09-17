@@ -24,6 +24,7 @@ export interface FamilySummary {
 export interface ProductSummary {
   id: number;
   name: string;
+  designation_legale?: string;
   quantity: number;
   revenue: number;
   discount: number;

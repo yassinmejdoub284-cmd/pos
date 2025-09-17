@@ -66,97 +66,18 @@ export class AuthService {
       this.permissionsSubject.next(permissions);
       this.isAuthenticated.set(true);
       this.currentUser.set(user);
-    } else if (!environment.production) {
-      // In development, always set up persistent auth
-      this.setupMockUser();
     }
   }
 
-  private setupMockUser(): void {
-    const mockUser: User = {
-      id: 1,
-      username: 'admin',
-      email: 'admin@patisserie.com',
-      firstName: 'Admin',
-      lastName: 'User',
-      role: 'ADMIN',
-      depotId: 1, // This should match the first depot in the database
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
 
-    const mockPermissions: UserPermissions = {
-      canManageUsers: true,
-      canManageProducts: true,
-      canManageStock: true,
-      canApproveTransfers: true,
-      canViewReports: true,
-      canManageSettings: true,
-      canProcessSales: true,
-      canViewHistory: true
-    };
-
-    // Create a persistent token for development that won't expire
-    const mockToken = 'mock-jwt-token-ADMIN-DEV-PERSISTENT';
-
-    localStorage.setItem('token', mockToken);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    localStorage.setItem('permissions', JSON.stringify(mockPermissions));
-    
-    this.currentUserSubject.next(mockUser);
-    this.permissionsSubject.next(mockPermissions);
-    this.isAuthenticated.set(true);
-    this.currentUser.set(mockUser);
+  // Get current user role
+  getCurrentUserRole(): string | null {
+    const user = this.currentUser();
+    return user ? user.role : null;
   }
 
-  setupMockUserForRole(role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER'): void {
-    const mockUser: User = {
-      id: 1,
-      username: role.toLowerCase(),
-      email: `${role.toLowerCase()}@patisserie.com`,
-      firstName: role.charAt(0) + role.slice(1).toLowerCase(),
-      lastName: 'User',
-      role: role,
-      depotId: 1, // This should match the first depot in the database
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    const mockPermissions: UserPermissions = {
-      canManageUsers: role === 'ADMIN',
-      canManageProducts: ['ADMIN', 'MANAGER'].includes(role),
-      canManageStock: ['ADMIN', 'MANAGER', 'STOCK_MANAGER'].includes(role),
-      canApproveTransfers: ['ADMIN', 'MANAGER'].includes(role),
-      canViewReports: ['ADMIN', 'MANAGER'].includes(role),
-      canManageSettings: role === 'ADMIN',
-      canProcessSales: ['ADMIN', 'MANAGER', 'CASHIER'].includes(role),
-      canViewHistory: ['ADMIN', 'MANAGER'].includes(role)
-    };
-
-    const now = new Date();
-    const timestamp = now.getFullYear() + 
-      String(now.getMonth() + 1).padStart(2, '0') + 
-      String(now.getDate()).padStart(2, '0') + 
-      String(now.getHours()).padStart(2, '0') + 
-      String(now.getMinutes()).padStart(2, '0') + 
-      String(now.getSeconds()).padStart(2, '0') + 
-      String(now.getMilliseconds()).padStart(3, '0');
-    
-    const mockToken = `mock-jwt-token-${role}-${timestamp}`;
-
-    localStorage.setItem('token', mockToken);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    localStorage.setItem('permissions', JSON.stringify(mockPermissions));
-    
-    this.currentUserSubject.next(mockUser);
-    this.permissionsSubject.next(mockPermissions);
-    this.isAuthenticated.set(true);
-    this.currentUser.set(mockUser);
-  }
-
-  clearMockUser(): void {
-    this.logout();
+  // Check if current user is admin
+  isAdmin(): boolean {
+    return this.getCurrentUserRole() === 'ADMIN';
   }
 } 

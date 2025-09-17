@@ -16,7 +16,7 @@ router.get('/inventory', async (req, res) => {
       include: {
         product: {
           include: {
-            category: {
+            famille: {
               select: {
                 name: true
               }
@@ -36,7 +36,7 @@ router.get('/inventory', async (req, res) => {
       productName: item.product.name,
       sku: item.product.sku,
       unit: item.product.unit,
-      categoryName: item.product.category.name,
+      categoryName: item.product.famille?.name || 'N/A',
       product: undefined
     }));
 

@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { SupplierService } from '../core/services/supplier.service';
+import { SessionsService, SessionCaisse } from '../core/services/sessions.service';
 import { Supplier, SupplierPayment } from '../core/models/supplier.model';
 
 @Component({
@@ -19,12 +20,15 @@ export class SupplierPaymentsComponent implements OnInit {
   selectedSupplier: Supplier | null = null;
   showPaymentForm = false;
   loading = false;
+  currentSession: SessionCaisse | null = null;
+  remainingCash: number | null = null;
   
   // Form data
   paymentForm = {
     supplierId: null as number | null,
     amount: null as number | null,
-    notes: ''
+    notes: '',
+    paymentMethod: 'CASH' as 'CASH' | 'CARD' | 'CHECK' | 'BANK_TRANSFER'
   };
 
   // Filters
@@ -36,12 +40,17 @@ export class SupplierPaymentsComponent implements OnInit {
 
   constructor(
     private http: HttpClient,
-    private supplierService: SupplierService
+    private supplierService: SupplierService,
+    private sessionsService: SessionsService
   ) {}
 
   ngOnInit(): void {
     this.loadSuppliers();
     this.loadPayments();
+    this.sessionsService.getActiveSession().subscribe(session => {
+      this.currentSession = session;
+      this.updateRemainingCash();
+    });
   }
 
   loadSuppliers(): void {
@@ -92,8 +101,10 @@ export class SupplierPaymentsComponent implements OnInit {
     this.paymentForm = {
       supplierId: null,
       amount: null,
-      notes: ''
+      notes: '',
+      paymentMethod: 'CASH'
     };
+    this.updateRemainingCash();
   }
 
   hidePaymentForm(): void {
@@ -110,13 +121,15 @@ export class SupplierPaymentsComponent implements OnInit {
     this.supplierService.createSupplierPayment({
       supplierId: this.paymentForm.supplierId,
       amount: this.paymentForm.amount,
-      notes: this.paymentForm.notes
+      notes: this.paymentForm.notes,
+      paymentMethod: this.paymentForm.paymentMethod
     }).subscribe({
       next: () => {
         this.loadPayments();
         this.hidePaymentForm();
         this.loading = false;
         alert('Règlement enregistré avec succès');
+        this.sessionsService.refreshCurrentSession();
       },
       error: (error) => {
         console.error('Error creating payment:', error);
@@ -124,6 +137,16 @@ export class SupplierPaymentsComponent implements OnInit {
         alert('Erreur lors de l\'enregistrement du règlement');
       }
     });
+  }
+
+  updateRemainingCash(): void {
+    if (this.currentSession?.summary) {
+      this.remainingCash = this.currentSession.summary.expectedCash - (this.paymentForm.amount || 0);
+    } else if (this.currentSession) {
+      this.remainingCash = (this.currentSession.expectedCash || 0) - (this.paymentForm.amount || 0);
+    } else {
+      this.remainingCash = null;
+    }
   }
 
   formatDate(dateString: string): string {

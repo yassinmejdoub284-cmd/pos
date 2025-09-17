@@ -340,16 +340,62 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         }
       }),
       // Supplier payments: reduce what we owe (like client payments)
-      ...payments.map(payment => ({
-        type: 'payment',
-        date: payment.createdAt,
-        reference: `PAYMENT-${payment.id}`,
-        debit: parseFloat(payment.amount), // Payment reduces what we owe
-        credit: 0,
-        id: payment.id,
-        clickable: true,
-        description: payment.notes || 'Règlement fournisseur'
-      }))
+      ...payments.map(payment => {
+        const amount = parseFloat(payment.amount);
+        
+        // Extract bon d'entrée ID from notes
+        const bonMatch = payment.notes?.match(/Bon d'entrée #(\d+)/);
+        const bonId = bonMatch ? bonMatch[1] : null;
+        const reference = bonId ? `Bon d'entrée #${bonId}` : `PAYMENT-${payment.id}`;
+        
+        // Extract payment details from notes for partial payments
+        const paidMatch = payment.notes?.match(/Payé: ([\d.]+) dt/);
+        const totalMatch = payment.notes?.match(/Total: ([\d.]+) dt/);
+        
+        if (bonId && paidMatch && totalMatch) {
+          // Partial payment with both paid amount and total amount
+          const paidAmount = parseFloat(paidMatch[1]);
+          const totalAmount = parseFloat(totalMatch[1]);
+          
+          return {
+            type: 'bon_entree',
+            date: payment.createdAt,
+            reference: reference,
+            debit: paidAmount, // Amount actually paid
+            credit: totalAmount, // Total purchase amount
+            id: payment.id,
+            clickable: true,
+            bonId: bonId,
+            description: payment.notes || 'Bon d\'entrée'
+          };
+        } else if (amount < 0) {
+          // Full credit (no payment made)
+          return {
+            type: 'credit',
+            date: payment.createdAt,
+            reference: reference,
+            debit: 0,
+            credit: Math.abs(amount), // Credit increases what we owe
+            id: payment.id,
+            clickable: true,
+            bonId: bonId,
+            description: payment.notes || 'Crédit fournisseur'
+          };
+        } else {
+          // Regular payment (not from bon d'entrée)
+          return {
+            type: 'payment',
+            date: payment.createdAt,
+            reference: reference,
+            debit: amount, // Payment reduces what we owe
+            credit: 0,
+            id: payment.id,
+            clickable: true,
+            bonId: bonId,
+            description: payment.notes || 'Règlement fournisseur'
+          };
+        }
+      })
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     // Calculate running balance

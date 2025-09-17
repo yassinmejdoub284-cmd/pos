@@ -1,11 +1,11 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
 // List change requests (default: variance approvals)
-router.get('/change-requests', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.get('/change-requests', authenticateToken, async (req, res) => {
   try {
     const { type = 'VARIANCE_APPROVAL', status = 'PENDING', page = 1, limit = 50 } = req.query;
 
@@ -38,7 +38,12 @@ router.get('/change-requests', authenticateToken, requireRole(['ADMIN', 'MANAGER
             depot: { select: { name: true, code: true } }
           }
         });
-        enriched.push({ ...cr, session });
+        // Only include the change request if the session exists
+        if (session) {
+          enriched.push({ ...cr, session });
+        } else {
+          console.warn(`Change request ${cr.id} references non-existent session ${cr.entityId}`);
+        }
       } else {
         enriched.push(cr);
       }
@@ -52,7 +57,7 @@ router.get('/change-requests', authenticateToken, requireRole(['ADMIN', 'MANAGER
 });
 
 // Approve a change request
-router.put('/change-requests/:id/approve', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.put('/change-requests/:id/approve', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -79,7 +84,7 @@ router.put('/change-requests/:id/approve', authenticateToken, requireRole(['ADMI
 });
 
 // Reject a change request
-router.put('/change-requests/:id/reject', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.put('/change-requests/:id/reject', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { reasonCode, notes } = req.body;

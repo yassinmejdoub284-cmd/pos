@@ -1,0 +1,473 @@
+<div class="min-h-screen bg-white">
+  <div class="md:grid md:grid-cols-12 gap-2 h-screen p-2">
+    <!-- Left: Products -->
+    <div class="col-span-8 flex flex-col max-h-screen">
+      <div class="bg-gradient-to-r from-blue-50 via-white to-emerald-50 rounded-lg border border-blue-200/60 shadow mb-2">
+        <div class="flex items-center justify-between px-3 py-2">
+          <div class="flex items-center gap-2">
+            <div class="bg-blue-500 text-white px-3 py-1 rounded-lg font-mono text-sm font-bold shadow">#BED</div>
+            <div class="bg-emerald-500 text-white px-3 py-1 rounded-lg font-mono text-sm font-bold shadow">Dépôt {{ depotId }}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="sr-only" for="search">Rechercher</label>
+            <input id="search" type="text" [formControl]="itemSearchCtrl" placeholder="Chercher produit ou code barre" class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm w-64" title="Rechercher un produit" />
+          </div>
+        </div>
+        
+        <!-- Category Filter Labels -->
+        <div class="px-3 pb-2">
+          <div class="flex flex-wrap gap-2">
+            <button 
+              *ngFor="let category of productCategories" 
+              (click)="selectCategory(category)"
+              [class]="getCategoryButtonClass(category)"
+              class="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105 active:scale-95">
+              {{ category }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 p-2 overflow-y-auto bg-gray-50 rounded-lg border ">
+        <div *ngIf="loading" class="text-center py-16">Chargement...</div>
+        <div *ngIf="!loading" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
+          <div *ngFor="let p of filteredProducts(); trackBy: trackByProductId; let i = index" (click)="handleProductClick(p)" [class]="getProductCardClass(p.id)">
+            <div class="w-full h-12 mb-2 bg-gray-100 rounded flex items-center justify-center border">
+              <img *ngIf="p.photo" [src]="p.photo" [alt]="p.name || 'Produit'" title="Image produit" class="w-full h-full object-cover rounded" [loading]="i < 6 ? 'eager' : 'lazy'" decoding="async">
+              <svg *ngIf="!p.photo" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Sans image"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            <div class="font-medium text-xs mb-1 text-gray-800 text-center">{{ p.name }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Items + Keypad -->
+    <div class="col-span-4 bg-white rounded-lg border border-blue-200/60 p-2 flex flex-col shadow max-h-screen">
+
+      <!-- Total Section -->
+      <div *ngIf="itemsArray.length > 0" class="mb-3 bg-gradient-to-r from-blue-50 to-emerald-50 border border-blue-200 rounded-lg p-3">
+        <div class="flex justify-between items-center">
+          <div class="text-sm text-gray-600">
+            <span class="font-medium">{{ itemsArray.length }}</span> article{{ itemsArray.length > 1 ? 's' : '' }} • 
+            <span class="font-medium">{{ totalItems }}</span> unités
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-gray-500">Total TTC</div>
+            <div class="text-xl font-bold text-emerald-600">{{ totalAmount.toFixed(3) }} dt</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto border rounded">
+        <table class="w-full">
+          <thead class="sticky top-0 bg-gradient-to-r from-blue-100 to-emerald-100">
+            <tr>
+              <th class="text-left px-2 py-1 text-xs w-10">#</th>
+              <th class="text-left px-2 py-1 text-xs">PRODUIT</th>
+              <th class="text-right px-2 py-1 text-xs w-16">QTÉ</th>
+              <th class="text-right px-2 py-1 text-xs w-20">P.U. (dt)</th>
+              <th class="text-right px-2 py-1 text-xs w-20">TOTAL TTC</th>
+              <th class="text-center px-2 py-1 text-xs w-10"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let ctrl of itemsArray.controls; index as i" class="border-b hover:bg-blue-50 cursor-pointer" (click)="selectExisting(i)">
+              <td class="px-2 py-1 text-xs">{{ i + 1 }}</td>
+              <td class="px-2 py-1 text-xs">
+                <div class="font-medium">{{ getProductName(ctrl.get('productId')!.value) }}</div>
+              </td>
+              <td class="px-2 py-1 text-xs text-right">
+                <div (click)="$event.stopPropagation(); selectField(i, 'quantity')" 
+                     [class]="getFieldClass(i, 'quantity')" 
+                     title="Cliquer pour modifier la quantité">
+                  {{ ctrl.get('quantity')!.value || '0.000' }}
+                </div>
+              </td>
+              <td class="px-2 py-1 text-xs text-right">
+                <div (click)="$event.stopPropagation(); selectField(i, 'unitPrice')" 
+                     [class]="getFieldClass(i, 'unitPrice')" 
+                     title="Cliquer pour modifier le prix unitaire">
+                  {{ ctrl.get('unitPrice')!.value || '0.000' }}
+                </div>
+              </td>
+              <td class="px-2 py-1 text-xs text-right font-medium text-green-600">
+                {{ (ctrl.get('quantity')!.value * ctrl.get('unitPrice')!.value || 0).toFixed(3) }} dt
+              </td>
+              <td class="px-2 py-1 text-center">
+                <button (click)="$event.stopPropagation(); removeItem(i)" class="w-6 h-6 bg-rose-500 text-white rounded-full text-xs">×</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Keypad -->
+      <div class="mt-2">
+        <div class="mb-2 flex gap-2 items-end">
+          <div class="grow rounded-lg py-1 px-3 border bg-blue-50 border-blue-200">
+            <div class="text-xs text-gray-500 mb-1">
+              <span *ngIf="selectedField === 'quantity'">Quantité</span>
+              <span *ngIf="selectedField === 'unitPrice'">Prix Unitaire</span>
+              <span *ngIf="!selectedField && pendingProduct">Quantité (Nouveau)</span>
+              <span *ngIf="!selectedField && !pendingProduct">Sélectionner un champ</span>
+              <span *ngIf="lastEnteredValue" class="text-green-600"> ({{ lastEnteredValue }})</span>
+            </div>
+            <div class="text-gray-800 text-2xl font-mono">{{ currentInput || '0' }}</div>
+          </div>
+          <button (click)="clearInput()" class="bg-red-500 text-white rounded-lg px-3 py-1 border border-red-400">C</button>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button *ngFor="let num of [7,8,9]" (click)="addToInput(num.toString())" class="bg-white text-gray-800 py-2 rounded-lg border">{{ num }}</button>
+          <button *ngFor="let num of [4,5,6]" (click)="addToInput(num.toString())" class="bg-white text-gray-800 py-2 rounded-lg border">{{ num }}</button>
+          <button *ngFor="let num of [1,2,3]" (click)="addToInput(num.toString())" class="bg-white text-gray-800 py-2 rounded-lg border">{{ num }}</button>
+          <button (click)="addDecimal()" class="bg-white text-gray-800 py-2 rounded-lg border">.</button>
+          <button (click)="addToInput('0')" class="bg-white text-gray-800 py-2 rounded-lg border">0</button>
+          <button (click)="enterValue()" class="bg-emerald-500 text-white rounded-lg border border-emerald-400">OK</button>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="mt-3 flex gap-2">
+        <button (click)="cancel()" class="px-4 py-2 rounded-lg border" title="Annuler">Annuler</button>
+        <button (click)="submit()" [disabled]="loading || itemsArray.length===0" class="px-4 py-2 rounded-lg bg-emerald-600 text-white" title="Créer le bon d'entrée">
+          {{ loading ? 'Enregistrement...' : 'Créer le bon d\'entrée' }}
+        </button>
+      </div>
+
+      <div *ngIf="error" class="text-red-600 mt-3 text-sm">{{ error }}</div>
+      <div *ngIf="success" class="text-emerald-600 mt-3 text-sm">{{ success }}</div>
+    </div>
+  </div>
+
+  <!-- Supplier Selection Dialog -->
+  <div *ngIf="showSupplierDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-600 to-emerald-600 text-white p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold">Finaliser le bon d'entrée</h2>
+            <p class="text-blue-100 mt-1">Sélectionnez un fournisseur pour continuer</p>
+          </div>
+          <button (click)="closeSupplierDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 space-y-6">
+        <!-- Notes Section -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Notes (optionnel)</label>
+          <textarea [(ngModel)]="notes" 
+                    placeholder="Référence BL, observations..." 
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    rows="3"></textarea>
+        </div>
+
+        <!-- Supplier Selection -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-3">Fournisseur</label>
+          
+          <!-- Existing Suppliers -->
+          <div *ngIf="!showCreateSupplier" class="space-y-2">
+            <div *ngFor="let supplier of suppliers()" 
+                 (click)="selectedSupplierId = supplier.id" 
+                 [class]="selectedSupplierId === supplier.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                 class="border-2 rounded-lg p-4 cursor-pointer transition-all duration-200">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-medium text-gray-900">{{ supplier.name }}</h3>
+                  <div class="text-sm text-gray-500 mt-1">
+                    <span *ngIf="supplier.phone">📞 {{ supplier.phone }}</span>
+                    <span *ngIf="supplier.email" class="ml-3">✉️ {{ supplier.email }}</span>
+                  </div>
+                </div>
+                <div *ngIf="selectedSupplierId === supplier.id" class="text-blue-500">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Create New Supplier Form -->
+          <div *ngIf="showCreateSupplier" class="space-y-4 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur *</label>
+              <input [(ngModel)]="newSupplierName" 
+                     type="text" 
+                     placeholder="Nom du fournisseur" 
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                <input [(ngModel)]="newSupplierPhone" 
+                       type="tel" 
+                       placeholder="Numéro de téléphone" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input [(ngModel)]="newSupplierEmail" 
+                       type="email" 
+                       placeholder="Adresse email" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              </div>
+            </div>
+          </div>
+
+          <!-- Toggle Buttons -->
+          <div class="flex gap-2 mt-4">
+            <button (click)="toggleCreateSupplier()" 
+                    [class]="showCreateSupplier ? 'bg-gray-500 hover:bg-gray-600' : 'bg-emerald-500 hover:bg-emerald-600'"
+                    class="px-4 py-2 text-white rounded-lg transition-colors duration-200 text-sm font-medium">
+              {{ showCreateSupplier ? 'Sélectionner existant' : 'Créer nouveau' }}
+            </button>
+            <button *ngIf="showCreateSupplier" 
+                    (click)="createNewSupplier()" 
+                    [disabled]="!newSupplierName.trim() || loading"
+                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors duration-200 text-sm font-medium">
+              {{ loading ? 'Création...' : 'Créer' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+        <button (click)="closeSupplierDialog()" 
+                class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200">
+          Annuler
+        </button>
+        <button (click)="confirmEntry()" 
+                [disabled]="(!selectedSupplierId && !showCreateSupplier) || loading"
+                class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-lg transition-colors duration-200 font-medium">
+          {{ loading ? 'Création...' : 'Confirmer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Choice Dialog -->
+  <div *ngIf="showPaymentChoiceDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-emerald-600 to-green-600 text-white p-6 rounded-t-2xl">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold">Règlement</h2>
+            <p class="text-emerald-100 mt-1">Comment souhaitez-vous régler cette commande ?</p>
+          </div>
+          <button (click)="closePaymentChoiceDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6">
+        <div class="text-center mb-6">
+          <div class="text-3xl font-bold text-emerald-600 mb-2">{{ totalPurchaseAmount.toFixed(3) }} dt</div>
+          <p class="text-gray-600">Montant total à régler</p>
+        </div>
+
+        <div class="space-y-4">
+          <button (click)="proceedWithPayment()" 
+                  class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl p-4 hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
+            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+              </svg>
+            </div>
+            <div class="text-left">
+              <h4 class="font-semibold text-lg">Payer maintenant</h4>
+              <p class="text-sm opacity-90">Effectuer le règlement immédiatement</p>
+            </div>
+          </button>
+
+          <button (click)="proceedAsCredit()" 
+                  class="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl p-4 hover:from-orange-600 hover:to-red-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
+            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div class="text-left">
+              <h4 class="font-semibold text-lg">Enregistrer en crédit</h4>
+              <p class="text-sm opacity-90">Régler plus tard</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Dialog -->
+  <div *ngIf="showPaymentDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-6 rounded-t-2xl">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold">Paiement</h2>
+            <p class="text-blue-100 mt-1">Effectuer le règlement</p>
+          </div>
+          <button (click)="closePaymentDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 space-y-6">
+        <!-- Amount Display -->
+        <div class="text-center">
+          <div class="text-3xl font-bold text-blue-600 mb-2">{{ paymentAmount.toFixed(3) }} dt</div>
+          <p class="text-gray-600">Montant à payer</p>
+        </div>
+
+        <!-- Payment Method -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Mode de paiement</label>
+          <select [(ngModel)]="paymentMethod" title="Mode de paiement" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <option value="cash">Espèces</option>
+            <option value="card">Carte bancaire</option>
+            <option value="check">Chèque</option>
+            <option value="transfer">Virement</option>
+          </select>
+        </div>
+
+        <!-- Payment Notes -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Notes (optionnel)</label>
+          <textarea [(ngModel)]="paymentNotes" 
+                    placeholder="Référence, numéro de chèque..." 
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    rows="3"></textarea>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3 rounded-b-2xl">
+        <button (click)="closePaymentDialog()" 
+                class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200">
+          Annuler
+        </button>
+        <button (click)="processPayment()" 
+                [disabled]="loading"
+                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg transition-colors duration-200 font-medium">
+          {{ loading ? 'Traitement...' : 'Confirmer le paiement' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Partial Payment Dialog -->
+  <div *ngIf="showPartialPaymentDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-orange-600 to-red-600 text-white p-6 rounded-t-2xl">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xl font-bold">Paiement Partiel</h3>
+            <p class="text-orange-100 mt-1">Montant total: {{ totalSellingAmount.toFixed(3) }} dt</p>
+          </div>
+          <button (click)="closePartialPaymentDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6">
+        <div class="space-y-4">
+          <!-- Total Amount Display -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="text-center">
+              <div class="text-2xl font-bold text-gray-800">{{ totalPurchaseAmount.toFixed(3) }} dt</div>
+              <div class="text-sm text-gray-600">Montant total à régler</div>
+            </div>
+          </div>
+
+          <!-- Payment Amount Input -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Montant à payer maintenant</label>
+            <input 
+              type="number" 
+              [(ngModel)]="partialPaymentAmount" 
+              (ngModelChange)="updatePartialPayment()"
+              step="0.001"
+              min="0"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg font-medium"
+              placeholder="0.000">
+          </div>
+
+          <!-- Remaining Amount Display -->
+          <div *ngIf="remainingAmount > 0" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div class="text-center">
+              <div class="text-lg font-bold text-yellow-800">{{ remainingAmount.toFixed(3) }} dt</div>
+              <div class="text-sm text-yellow-600">Montant restant (sera enregistré en crédit)</div>
+            </div>
+          </div>
+
+          <!-- Overpayment Display -->
+          <div *ngIf="partialPaymentAmount > totalPurchaseAmount" class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="text-center">
+              <div class="text-lg font-bold text-green-800">{{ (partialPaymentAmount - totalPurchaseAmount).toFixed(3) }} dt</div>
+              <div class="text-sm text-green-600">Surpaiement (paiement complet)</div>
+            </div>
+          </div>
+
+          <!-- Payment Method -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Mode de paiement</label>
+            <select [(ngModel)]="paymentMethod" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" title="Mode de paiement">
+              <option value="cash">Espèces</option>
+              <option value="check">Chèque</option>
+              <option value="bank_transfer">Virement</option>
+              <option value="card">Carte bancaire</option>
+            </select>
+          </div>
+
+          <!-- Notes -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Notes (optionnel)</label>
+            <textarea 
+              [(ngModel)]="paymentNotes" 
+              rows="2"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              placeholder="Notes sur le paiement..."></textarea>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 mt-6">
+          <button 
+            (click)="closePartialPaymentDialog()" 
+            class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+            Annuler
+          </button>
+          <button 
+            (click)="proceedWithPartialPayment()" 
+            [disabled]="loading || partialPaymentAmount <= 0"
+            class="flex-1 px-4 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white rounded-lg transition-colors">
+            {{ loading ? 'Traitement...' : 'Confirmer' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

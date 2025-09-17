@@ -8,6 +8,7 @@ export interface Product {
   barcode?: string;
   unite: string;
   prix_vente_TTC: number;
+  prix_achat?: number;
   tva: number;
   photo?: string;
   duree_conservation?: number;

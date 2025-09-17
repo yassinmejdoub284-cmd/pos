@@ -30,8 +30,9 @@ export class RapportsComponent {
       case 'dashboard':
         this.router.navigate(['/rapports/dashboard']);
         break;
-      default:
-        console.log('Unknown report type:', reportType);
+      case 'inventory-sales-reconciliation':
+        this.router.navigate(['/rapports/inventory-sales-reconciliation']);
+        break;
     }
   }
 

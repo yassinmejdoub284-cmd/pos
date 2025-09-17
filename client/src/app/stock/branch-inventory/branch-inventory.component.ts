@@ -124,7 +124,6 @@ export class BranchInventoryComponent implements OnInit {
 
       const formData = this.form.getRawValue();
       
-      console.log('Sending transfer data:', formData);
       
       this.stockDocumentsService.createTransfer(
         formData.emetteurId,
@@ -241,7 +240,6 @@ export class BranchInventoryComponent implements OnInit {
             doc.destinataireId === depotId &&
             (doc.status === 'PREPARED' || doc.status === 'SENT')
           );
-          console.log('Loaded pending transfers:', this.pendingTransfers);
         }
       })
       .catch((error) => {
@@ -264,12 +262,9 @@ export class BranchInventoryComponent implements OnInit {
     this.error = '';
     this.success = '';
 
-    console.log('Approving transfer:', transfer.id, 'for depot:', this.currentDepot!.id);
-    console.log('Transfer status:', transfer.status);
 
     this.stockDocumentsService.receiveDocument(transfer.id, this.currentDepot!.id).subscribe({
       next: (updatedDocument) => {
-        console.log('Transfer approved successfully:', updatedDocument);
         this.approvingTransfer = false;
         this.showNotificationMessage('✅ Transfert approuvé et stock ajouté avec succès !', 'success');
         this.closeTransferDetails();

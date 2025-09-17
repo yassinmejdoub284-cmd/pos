@@ -31,6 +31,10 @@ const routes: Routes = [
   { 
     path: 'dashboard', 
     loadChildren: () => import('./dashboard/dashboard.module').then(m => m.DashboardModule)
+  },
+  { 
+    path: 'inventory-sales-reconciliation', 
+    loadChildren: () => import('./inventory-sales-reconciliation/inventory-sales-reconciliation.module').then(m => m.InventorySalesReconciliationModule)
   }
 ];
 

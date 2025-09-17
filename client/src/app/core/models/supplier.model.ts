@@ -77,6 +77,7 @@ export interface SupplierStatementItem {
   id: number;
   clickable: boolean;
   expenseId?: number;
+  bonId?: string;
 }
 
 export interface SupplierSummary {
