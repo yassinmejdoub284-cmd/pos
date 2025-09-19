@@ -54,6 +54,9 @@ export interface SessionSummary {
   salesByPayment: { [key: string]: { amount: number; count: number } };
   totalSales: number;
   totalTickets: number;
+  creditOutstanding?: number;
+  creditAdvancePaid?: number;
+  clientPaymentsTotal?: number;
 }
 
 export interface OpenSessionRequest {

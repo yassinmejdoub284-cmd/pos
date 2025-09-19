@@ -267,8 +267,8 @@ router.get('/stock-movements', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']
 // Daily Extracts endpoints
 router.get('/daily-extracts', async (req, res) => {
   try {
-    // Get depot ID from query params or user, default to 1 for consistency
-    const targetDepotId = parseInt(req.query.depotId || req.user?.depotId || '1');
+    // Get depot ID from query params or user, default to 3 (shop) for consistency
+    const targetDepotId = parseInt(req.query.depotId || req.user?.depotId || '3');
     
     // Get days parameter from query, default to 10 for backward compatibility
     const days = parseInt(req.query.days || '10');
@@ -462,8 +462,8 @@ router.get('/daily-extracts', async (req, res) => {
 router.get('/daily-extracts/:date', async (req, res) => {
   try {
     const { date } = req.params;
-    // For dev environment, use depot ID 1 as default
-    const targetDepotId = parseInt(req.user?.depotId || req.query.depotId || '1');
+    // For dev environment, use depot ID 3 (shop) as default
+    const targetDepotId = parseInt(req.user?.depotId || req.query.depotId || '3');
     
     // Parse date properly - handle YYYY-MM-DD format using local timezone
     const [year, month, day] = date.split('-').map(Number);
@@ -684,8 +684,8 @@ router.get('/daily-extracts/:date', async (req, res) => {
 router.get('/daily-extracts/archives', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    // For dev environment, use depot ID 1 as default
-    const targetDepotId = parseInt(req.user?.depotId || req.query.depotId || '1');
+    // For dev environment, use depot ID 3 (shop) as default
+    const targetDepotId = parseInt(req.user?.depotId || req.query.depotId || '3');
     
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Start date and end date are required' });

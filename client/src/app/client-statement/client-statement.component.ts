@@ -49,6 +49,7 @@ interface ClientSummary {
   periodBalance: number;
   _count: {
     sales: number;
+    debtTransactions: number;
   };
 }
 
@@ -73,6 +74,7 @@ export class ClientStatementComponent implements OnInit {
   // Payment Dialog
   showPaymentDialog = false;
   selectedPaymentId: number | null = null;
+  
   
   // Filters
   filters = {
@@ -224,6 +226,7 @@ export class ClientStatementComponent implements OnInit {
     this.showPaymentDialog = false;
     this.selectedPaymentId = null;
   }
+
 
   exportStatement(): void {
     if (!this.statement || !this.selectedClient) {
@@ -454,4 +457,5 @@ export class ClientStatementComponent implements OnInit {
     if (balance < 0) return 'text-red-600';   // Client still owes money
     return 'text-gray-600';
   }
+
 }

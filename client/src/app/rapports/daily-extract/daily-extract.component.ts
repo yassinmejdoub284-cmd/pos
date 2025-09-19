@@ -4,6 +4,7 @@ import { DailyExtractService, DailyExtract, FamilySummary, ProductSummary, Daily
 import { AuthService } from '../../core/services/auth.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import jsPDF from 'jspdf';
 
 @Component({
   selector: 'app-daily-extract',
@@ -403,8 +404,10 @@ export class DailyExtractComponent implements OnInit {
     });
 
     this.updateInvoiceTotals();
-    this.getNextInvoiceNumber();
     this.showInvoiceModal = true;
+    
+    // Automatically get the next invoice number when modal opens
+    this.getNextInvoiceNumber();
   }
 
   closeInvoiceModal(): void {
@@ -420,7 +423,13 @@ export class DailyExtractComponent implements OnInit {
   }
 
   getNextInvoiceNumber(): void {
-    this.http.get(`${environment.apiUrl}/invoices/next-number`).subscribe({
+    const token = this.authService.getToken();
+    const timestamp = new Date().getTime();
+    this.http.get(`${environment.apiUrl}/invoices/next-number?t=${timestamp}`, {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : ''
+      }
+    }).subscribe({
       next: (response: any) => {
         this.invoiceData.invoiceNumber = response.nextInvoiceNumber;
       },
@@ -476,8 +485,17 @@ export class DailyExtractComponent implements OnInit {
       notes: this.invoiceData.notes
     };
 
-    this.http.post(`${environment.apiUrl}/invoices/from-extract`, invoicePayload).subscribe({
+    const token = this.authService.getToken();
+    console.log('Creating invoice with payload:', invoicePayload);
+    console.log('API URL:', `${environment.apiUrl}/invoices/from-extract`);
+    
+    this.http.post(`${environment.apiUrl}/invoices/from-extract`, invoicePayload, {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : ''
+      }
+    }).subscribe({
       next: (response: any) => {
+        console.log('Invoice created successfully:', response);
         this.creatingInvoice = false;
         this.closeInvoiceModal();
         alert('Facture créée avec succès!');
@@ -486,12 +504,126 @@ export class DailyExtractComponent implements OnInit {
       error: (error) => {
         this.creatingInvoice = false;
         console.error('Error creating invoice:', error);
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          url: error.url,
+          error: error.error
+        });
         if (error.error?.error) {
           alert(`Erreur: ${error.error.error}`);
         } else {
           alert('Erreur lors de la création de la facture');
         }
       }
+    });
+  }
+
+  exportToPDF(): void {
+    if (!this.selectedExtract) return;
+
+    // Create a new PDF document
+    const doc = new jsPDF();
+    
+    // Set up the PDF content
+    this.generatePDFContent(doc);
+    
+    // Generate filename with date
+    const dateStr = this.selectedExtract.date.replace(/-/g, '');
+    const filename = `extrait-journalier-${dateStr}.pdf`;
+    
+    // Save the PDF
+    doc.save(filename);
+
+    // Show success message
+    alert('Extrait exporté en PDF! Vous pouvez maintenant l\'importer dans "Document Manager" pour créer un brouillon de facture.');
+  }
+
+
+  private generatePDFContent(doc: jsPDF): void {
+    if (!this.selectedExtract) return;
+
+    let yPosition = 20;
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 20;
+    
+    // Header
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('EXTRait JOURNALIÈRE', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 10;
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Date: ${this.selectedExtract.date}`, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 15;
+    
+    // Table headers - using simple text format that can be parsed
+    const headers = ['Date', 'Famille', 'Article', 'Désignation légale', 'Quantité', 'PV HTVA', 'TVA %', 'PV TTC'];
+    
+    // Create a simple table format that the backend can parse
+    // Use multiple spaces to separate columns for better parsing
+    let tableText = headers.join('  ') + '\n';
+    let totalHT = 0;
+    let totalTVA = 0;
+    let totalTTC = 0;
+    
+    // Add data rows
+    this.selectedExtract.families.forEach(family => {
+      family.products.forEach(product => {
+        if (product.quantity > 0) {
+          const unitPrice = product.revenue / product.quantity;
+          const tvaPercent = 19;
+          const prixHTVA = unitPrice / (1 + tvaPercent / 100);
+          const prixTTC = unitPrice;
+          
+          const rowData = [
+            this.selectedExtract!.date,
+            family.name,
+            product.name,
+            product.designation_legale || product.name,
+            product.quantity.toString(),
+            prixHTVA.toFixed(2),
+            tvaPercent.toString(),
+            prixTTC.toFixed(2)
+          ];
+          
+          tableText += rowData.join('  ') + '\n';
+          
+          totalHT += prixHTVA * product.quantity;
+          totalTVA += (prixTTC - prixHTVA) * product.quantity;
+          totalTTC += prixTTC * product.quantity;
+        }
+      });
+    });
+    
+    // Add totals
+    tableText += '\n';
+    tableText += `Total HT: ${totalHT.toFixed(2)} TND\n`;
+    tableText += `Total TVA: ${totalTVA.toFixed(2)} TND\n`;
+    tableText += `Total TTC: ${totalTTC.toFixed(2)} TND\n`;
+    
+    // Add the table text to the PDF
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    
+    // Split text into lines and add to PDF
+    const lines = tableText.split('\n');
+    lines.forEach((line, index) => {
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      // Make headers bold
+      if (index === 0) {
+        doc.setFont('helvetica', 'bold');
+      } else {
+        doc.setFont('helvetica', 'normal');
+      }
+      
+      doc.text(line, margin, yPosition);
+      yPosition += 6;
     });
   }
 }

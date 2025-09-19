@@ -140,11 +140,13 @@
                 {{ formatAmount(client.currentDebt) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-center">
-                <button title="Voir Relevé"
-                  (click)="filters.clientId = client.id; loadStatement()"
-                  class="bg-amber-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-amber-600 transition-colors">
-                  Voir Relevé
-                </button>
+                <div class="flex gap-2 justify-center">
+                  <button title="Voir Relevé"
+                    (click)="filters.clientId = client.id; loadStatement()"
+                    class="bg-amber-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-amber-600 transition-colors">
+                    Voir Relevé
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -164,17 +166,17 @@
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="bg-red-50 p-4 rounded-lg border border-red-200">
-          <div class="text-sm font-medium text-red-600">Total Débit</div>
-          <div class="text-2xl font-bold text-red-800">{{ formatAmount(statement.totalDebit) }}</div>
-        </div>
         <div class="bg-green-50 p-4 rounded-lg border border-green-200">
-          <div class="text-sm font-medium text-green-600">Total Crédit</div>
-          <div class="text-2xl font-bold text-green-800">{{ formatAmount(statement.totalCredit) }}</div>
+          <div class="text-sm font-medium text-green-600">Total Débit</div>
+          <div class="text-2xl font-bold text-green-800">{{ formatAmount(statement.totalDebit) }}</div>
+        </div>
+        <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+          <div class="text-sm font-medium text-red-600">Total Crédit</div>
+          <div class="text-2xl font-bold text-red-800">{{ formatAmount(statement.totalCredit) }}</div>
         </div>
         <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
           <div class="text-sm font-medium text-blue-600">Solde Actuel</div>
-          <div class="text-2xl font-bold" [class]="statement.currentBalance >= 0 ? 'text-blue-800' : 'text-red-800'">
+          <div class="text-2xl font-bold" [class]="statement.currentBalance >= 0 ? 'text-green-800' : 'text-red-800'">
             {{ formatAmount(statement.currentBalance) }}
           </div>
         </div>
@@ -223,7 +225,7 @@
               <td class="px-6 py-4 whitespace-nowrap">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
                       [class]="getTransactionTypeColor(item.type)">
-                  {{ getTransactionTypeLabel(item.type) }}
+                  {{ item.description || getTransactionTypeLabel(item.type) }}
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-amber-800">
@@ -237,19 +239,19 @@
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                <span *ngIf="item.debit > 0" class="text-red-600 font-semibold">
+                <span *ngIf="item.debit > 0" class="text-green-600 font-semibold">
                   {{ formatAmount(item.debit) }}
                 </span>
                 <span *ngIf="item.debit === 0" class="text-gray-400">-</span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                <span *ngIf="item.credit > 0" class="text-green-600 font-semibold">
+                <span *ngIf="item.credit > 0" class="text-red-600 font-semibold">
                   {{ formatAmount(item.credit) }}
                 </span>
                 <span *ngIf="item.credit === 0" class="text-gray-400">-</span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold" 
-                  [class]="item.balance >= 0 ? 'text-blue-600' : 'text-red-600'">
+                  [class]="item.balance >= 0 ? 'text-green-600' : 'text-red-600'">
                 {{ formatAmount(item.balance) }}
               </td>
             </tr>

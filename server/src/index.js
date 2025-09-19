@@ -26,6 +26,7 @@ const cashStatementsRoutes = require('./routes/cash-statements');
 const inventoryRoutes = require('./routes/inventory');
 const invoicesRoutes = require('./routes/invoices');
 const returnsRoutes = require('./routes/returns');
+const pdfRoutes = require('./routes/pdf');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -66,6 +67,7 @@ app.use('/api/cash-statements', authenticateToken, cashStatementsRoutes);
 app.use('/api/inventory', authenticateToken, inventoryRoutes);
 app.use('/api/invoices', authenticateToken, invoicesRoutes);
 app.use('/api/returns', authenticateToken, returnsRoutes);
+app.use('/api/pdf', authenticateToken, pdfRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*'} });

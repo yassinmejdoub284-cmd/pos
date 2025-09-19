@@ -47,7 +47,7 @@
           <div>
             <p class="text-sm font-semibold text-slate-600 mb-1">Ventes du jour</p>
             <p class="text-3xl font-bold text-emerald-600">{{ dashboardStats.todaySales | number:'1.3-3' }} dt</p>
-            <p class="text-xs text-slate-500 mt-1">+12% vs hier</p>
+            <p class="text-xs text-slate-500 mt-1">{{ getDeltaLabel(salesVsYesterdayPct) }} vs hier</p>
           </div>
           <div class="w-14 h-14 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
             <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -64,7 +64,7 @@
           <div>
             <p class="text-sm font-semibold text-slate-600 mb-1">Transactions</p>
             <p class="text-3xl font-bold text-blue-600">{{ dashboardStats.todayTransactions }}</p>
-            <p class="text-xs text-slate-500 mt-1">+8% vs hier</p>
+            <p class="text-xs text-slate-500 mt-1">{{ getDeltaLabel(transactionsVsYesterdayPct) }} vs hier</p>
           </div>
           <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
             <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">

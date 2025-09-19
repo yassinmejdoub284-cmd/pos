@@ -376,6 +376,29 @@ router.post('/', authenticateToken, async (req, res) => {
         console.log('[expenses.create] Auto-created supplier payment for advance:', supplierPayment.id, 'for supplier:', supplierId, 'amount:', numericAmount);
       }
 
+      // If CASH expense is auto-approved, create a linked cash movement in the creator's active session
+      try {
+        if (isAutoApproved && (paymentType || 'CASH').toUpperCase() === 'CASH') {
+          const activeSession = await tx.sessionCaisse.findFirst({
+            where: { userId: req.user.id, status: 'OPEN' },
+            orderBy: { openedAt: 'desc' }
+          });
+          if (activeSession) {
+            await tx.cashMovement.create({
+              data: {
+                sessionId: activeSession.id,
+                type: 'SORTIE',
+                amount: isNaN(numericAmount) ? 0 : numericAmount,
+                reason: `Dépense #${newExpense.id} (auto): ${newExpense.category?.name || 'Divers'}`,
+                createdById: req.user.id
+              }
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[expenses.create] Failed to create cash movement for expense', e);
+      }
+
       return newExpense;
     });
 
@@ -512,6 +535,29 @@ router.patch('/:id/approve', authenticateToken, async (req, res) => {
     });
 
     await AuditLogger.logUpdate('expenses', expense.id, existingExpense, expense, req.user.id, req);
+
+    // If approving a CASH expense, create a cash movement in the creator's active session
+    try {
+      if (isApproved && (existingExpense.paymentType || 'CASH').toUpperCase() === 'CASH') {
+        const activeSession = await prisma.sessionCaisse.findFirst({
+          where: { userId: existingExpense.userId, status: 'OPEN' },
+          orderBy: { openedAt: 'desc' }
+        });
+        if (activeSession) {
+          await prisma.cashMovement.create({
+            data: {
+              sessionId: activeSession.id,
+              type: 'SORTIE',
+              amount: parseFloat(existingExpense.amount),
+              reason: `Dépense approuvée #${existingExpense.id}: ${expense.category?.name || 'Divers'}`,
+              createdById: req.user.id
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[expenses.approve] Failed to create cash movement for approved expense', e);
+    }
 
     res.json(expense);
   } catch (error) {

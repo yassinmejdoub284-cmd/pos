@@ -383,11 +383,10 @@ export class EntryComponent implements OnInit {
   }
 
   createPartialPayment(supplierId: number, paidAmount: number, creditAmount: number, documentId?: number): void {
-    // Create single payment record representing the net effect
-    const netAmount = paidAmount - creditAmount;
+    // Send the paid amount; backend will normalize sign and handle cash movement
     const paymentData = {
       supplierId: supplierId,
-      amount: netAmount, // Net amount: positive if overpaid, negative if underpaid
+      amount: paidAmount,
       notes: `Paiement partiel - ${this.paymentMethod.toUpperCase()} - Bon d'entrée #${documentId} (Payé: ${paidAmount.toFixed(3)} dt, Total: ${creditAmount.toFixed(3)} dt)`
     };
 

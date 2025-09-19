@@ -56,11 +56,21 @@
                 <option *ngFor="let category of productCategories.slice(1)" [value]="category">{{ category }}</option>
               </select>
       </div>
+            <div class="flex items-center gap-2">
+              <div class="bg-slate-100 rounded-lg px-2 py-1 text-[11px] border border-slate-200">
+                <span class="text-slate-500">Total Achat:</span>
+                <span class="font-semibold text-slate-800">{{ getGrandPurchaseTotal() | number:'1.2-2' }}</span>
+              </div>
+              <div class="bg-slate-100 rounded-lg px-2 py-1 text-[11px] border border-slate-200">
+                <span class="text-slate-500">Total Vente:</span>
+                <span class="font-semibold text-slate-800">{{ getGrandSaleTotal() | number:'1.2-2' }}</span>
+              </div>
+            </div>
     </div>
   </div>
 
          <!-- Products Grid -->
-         <div class="flex-1 p-2 overflow-y-auto bg-gray-50 rounded-lg border-r-0" style="max-height: calc(100vh - 135px);">
+         <div class="flex-1 p-2 overflow-y-auto bg-gray-50 rounded-lg border-r-0 max-h-[calc(100vh-135px)]">
           <!-- Modern Loading State -->
           <div *ngIf="loading" class="text-center py-16">
             <div class="relative">
@@ -141,38 +151,27 @@
       <!-- Count Items Table -->
       <div class="h-full flex flex-col">
         <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center space-x-2">
-            <!-- Count Mode Header -->
-            <div class="relative">
-              <div class="relative rounded-lg px-3 py-2 shadow-lg bg-[#6b747c]">
-                <div class="flex items-center space-x-2">
-                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
-                    </path>
-                  </svg>
-                  <h3 class="text-lg font-bold text-white tracking-wide">
-                    COMPTAGE
-                  </h3>
-                </div>
+          
+          <div class="flex items-center justify-between w-full space-x-3">
+            <div class="flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg px-3 py-1.5 text-sm shadow-sm">
+              <svg class="w-4 h-4 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V6m0 12v-2m8-4a8 8 0 11-16 0 8 8 0 0116 0z"/>
+              </svg>
+              <span class="font-medium">Total Achat:</span>
+              <span class="font-bold">{{ getGrandPurchaseTotal() | number:'1.2-2' }}</span>
             </div>
-          </div>
-
-          </div>
-
-          <div class="flex items-center space-x-3">
-            <div class="text-sm text-gray-600">
-              <span class="font-medium">{{ countItems.length }}</span> article{{ countItems.length > 1 ? 's' : '' }}
-            </div>
-            <div
-              class="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-2 rounded-lg font-bold text-lg shadow-md">
-              {{ countedItems }}/{{ totalItems }}
+            <div class="flex items-center gap-1 bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-lg px-3 py-1.5 text-sm shadow-sm">
+              <svg class="w-4 h-4 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 6h12m-6-6v6"/>
+              </svg>
+              <span class="font-medium">Total Vente:</span>
+              <span class="font-bold">{{ getGrandSaleTotal() | number:'1.2-2' }}</span>
             </div>
           </div>
         </div>
 
          <!-- Count Items Table -->
-         <div class="bg-black/50 rounded-lg overflow-hidden border border-blue-200 flex-1 overflow-y-auto" style="max-height: calc(100vh - 400px);">
+         <div class="bg-black/50 rounded-lg overflow-hidden border border-blue-200 flex-1 overflow-y-auto max-h-[calc(100vh-400px)]">
           <div class="overflow-y-auto h-full bg-white">
             <table class="w-full">
               <thead class="sticky top-0 bg-gradient-to-r from-blue-100 to-emerald-100">
@@ -181,6 +180,8 @@
                   <th class="text-left px-2 py-2 text-xs font-medium text-gray-700">PRODUIT</th>
                   <th class="text-right px-2 py-2 text-xs font-medium text-gray-700 w-16">COMPTÉ</th>
                   <th class="text-right px-2 py-2 text-xs font-medium text-gray-700 w-16 border-r-0">ÉCART</th>
+                  <th class="text-right px-2 py-2 text-xs font-medium text-gray-700 w-24">P. Achat</th>
+                  <th class="text-right px-2 py-2 text-xs font-medium text-gray-700 w-24">P. Vente</th>
                   <th class="text-center px-2 py-2 text-xs font-medium text-gray-700 w-12"></th>
                 </tr>
               </thead>
@@ -205,6 +206,18 @@
                       {{ getEcartText(item) }}
                     </span>
                     <span *ngIf="item.countedQuantity === null" class="text-gray-400">-</span>
+                  </td>
+                  <td class="px-2 py-2 text-xs text-right">
+                    <span (click)="$event.stopPropagation(); setInputMode('purchasePrice', item)"
+                      [class]="'inline-block min-w-[3.5rem] text-right cursor-pointer border rounded px-2 py-0.5 ' + (selectedCountItem===item && inputMode==='purchasePrice' ? 'bg-blue-50 border-blue-400' : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50')">
+                      {{ item.purchasePrice | number:'1.2-2' }}
+                    </span>
+                  </td>
+                  <td class="px-2 py-2 text-xs text-right">
+                    <span (click)="$event.stopPropagation(); setInputMode('salePrice', item)"
+                      [class]="'inline-block min-w-[3.5rem] text-right cursor-pointer border rounded px-2 py-0.5 ' + (selectedCountItem===item && inputMode==='salePrice' ? 'bg-blue-50 border-blue-400' : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50')">
+                      {{ item.salePrice | number:'1.2-2' }}
+                    </span>
                   </td>
                   <td class="px-2 py-2 text-center">
                     <button (click)="removeCountItem(i)"

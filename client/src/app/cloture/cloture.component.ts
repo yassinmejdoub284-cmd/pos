@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -14,7 +14,7 @@ import { SettingsService } from '../core/services/settings.service';
   standalone: true,
   imports: [CommonModule, FormsModule]
 })
-export class ClotureComponent implements OnInit {
+export class ClotureComponent implements OnInit, OnDestroy {
   currentSession = signal<SessionCaisse | null>(null);
   loading = signal(false);
   error = signal('');
@@ -27,11 +27,151 @@ export class ClotureComponent implements OnInit {
   // UI state
   showCloseForm = signal(false);
   showFundForm = signal(false);
+  activeTab = signal<'historique' | 'cloture'>('cloture');
+  showDetails = signal({
+    encaissement: { clientPayments: false, advances: false, cash: false },
+    decaissement: { expenses: false, suppliers: false },
+    alimentations: { expanded: false }
+  });
   
   // Tickets modal state
   showTicketsModal = signal(false);
   sessionTickets = signal<{ id: number; amount: number }[]>([]);
   ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => sum + t.amount, 0));
+
+  // Refresh control
+  private refreshIntervalId: any;
+  private isRefreshing = false;
+  private triedAutoOpen = false;
+
+  // Crédit and supplier payments helpers
+  getCreditAmount(): number {
+    const session = this.currentSession();
+    const summary: any = session?.summary || {};
+    const direct = parseFloat(summary.creditOutstanding || 0) || 0;
+    if (direct > 0) return direct;
+    const credit = (summary.salesByPayment?.CREDIT?.amount) || 0;
+    return parseFloat(credit) || 0;
+  }
+
+  // Recent movements helper (pure)
+  getRecentMovements(limit: number, predicate: (m: any) => boolean): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
+    const movements = (this.currentSession()?.cashMovements || []) as any[];
+    return movements
+      .filter(predicate)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit)
+      .map(m => ({
+        createdAt: m.createdAt,
+        type: m.type,
+        reason: m.reason,
+        amount: parseFloat(m.amount || 0) || 0
+      }));
+  }
+
+  // Convenience filtered lists for template (avoid inline lambdas in template)
+  recentClientPayments(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
+    return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && (((m.reason || '').toLowerCase().includes('crédit')) || ((m.reason || '').toLowerCase().includes('credit'))));
+  }
+
+  recentOrderAdvances(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
+    return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && ((m.reason || '').toLowerCase().startsWith('acompte')));
+  }
+
+  recentExpenses(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
+    // Prefer server-provided details if any
+    const details = (this.currentSession()?.summary as any)?.expensesDetails as Array<any> | undefined;
+    if (details && details.length) {
+      return details.slice(0, 10).map(d => ({
+        createdAt: d.createdAt,
+        type: 'SORTIE',
+        reason: d.reason,
+        amount: d.amount
+      }));
+    }
+    // Fallback to movements with expense-like reason
+    return this.getRecentMovements(10, (m: any) => m.type === 'SORTIE' && (((m.reason || '').toLowerCase().includes('dépense')) || ((m.reason || '').toLowerCase().includes('depense'))));
+  }
+
+  recentSupplierPayments(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
+    const details = (this.currentSession()?.summary as any)?.supplierPaymentsDetails as Array<any> | undefined;
+    if (details && details.length) {
+      return details.slice(0, 10).map(d => ({
+        createdAt: d.createdAt,
+        type: 'SORTIE',
+        reason: `Règlement fournisseur #${d.supplierId} (${d.supplierName})`,
+        amount: d.amount
+      }));
+    }
+    return this.getRecentMovements(10, (m: any) => m.type === 'SORTIE' && ((m.reason || '').toLowerCase().includes('règlement fournisseur')));
+  }
+
+  getSupplierPaymentsTotal(): number {
+    const movements = this.currentSession()?.cashMovements || [];
+    return movements
+      .filter(m => m.type === 'SORTIE' && (m.reason || '').toLowerCase().includes('règlement fournisseur'))
+      .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
+  }
+
+  getNetAfterAdjustments(): number {
+    const totalSales = parseFloat((this.currentSession()?.summary?.totalSales as any) || 0) || 0;
+    const expectedCash = parseFloat((this.currentSession()?.summary?.expectedCash as any) || 0) || 0;
+    const credit = this.getCreditAmount();
+    const supplierRegs = this.getSupplierPaymentsTotal();
+    return totalSales + expectedCash - credit - supplierRegs;
+  }
+
+  // New computed helpers
+  getClientPaymentsTotal(): number {
+    const summary: any = this.currentSession()?.summary || {};
+    // Only use server-provided client payments total (standalone payments without saleId)
+    return parseFloat(summary.clientPaymentsTotal || 0) || 0;
+  }
+
+  getTotalOrderAdvances(): number {
+    const movements = this.currentSession()?.cashMovements || [];
+    return movements
+      .filter(m => m.type === 'ENTREE' && (m.reason || '').toLowerCase().startsWith('acompte commande'))
+      .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
+  }
+
+  getCashFromSalesNetOfCredit(): number {
+    const summary: any = this.currentSession()?.summary || {};
+    const totalSales = parseFloat(summary.totalSales || 0) || 0;
+    const credit = this.getCreditAmount();
+    return Math.max(0, totalSales - credit);
+  }
+
+  getExpensesTotal(): number {
+    // Prefer server-provided total if available
+    const summary: any = this.currentSession()?.summary || {};
+    const fromSummary = parseFloat(summary.expensesTotal || 0) || 0;
+    if (fromSummary > 0) return fromSummary;
+    // Fallback to movements tagged as expenses
+    const movements = this.currentSession()?.cashMovements || [];
+    return movements
+      .filter(m => m.type === 'SORTIE' && ((m.reason || '').toLowerCase().includes('dépense') || (m.reason || '').toLowerCase().includes('depense')))
+      .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
+  }
+
+  // Load and show current session tickets (id + amount)
+  openTicketsModal(): void {
+    const session = this.currentSession();
+    if (!session) return;
+    this.loading.set(true);
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (report: any) => {
+        const sales = (report?.session?.sales || []) as Array<{ id: number; finalTotal: number }>
+        this.sessionTickets.set(sales.map(s => ({ id: s.id, amount: parseFloat((s as any).finalTotal || 0) })));
+        this.loading.set(false);
+        this.showTicketsModal.set(true);
+      },
+      error: () => {
+        this.error.set('Erreur lors du chargement des tickets');
+        this.loading.set(false);
+      }
+    });
+  }
   
   // Fund form
   fundForm = {
@@ -50,32 +190,48 @@ export class ClotureComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadCurrentSession();
-    
-    // Refresh session data every 5 seconds to get updated sales
-    setInterval(() => {
+    // Refresh session data every 5 seconds to get updated sales (pause when modal open or tab hidden)
+    this.refreshIntervalId = setInterval(() => {
+      if (document?.hidden) return;
+      if (this.showCloseForm() || this.showFundForm() || this.showTicketsModal()) return;
       if (this.currentSession()) {
-        this.loadCurrentSession();
+        this.loadCurrentSession(true);
       }
     }, 5000);
   }
 
-  loadCurrentSession(): void {
-    this.loading.set(true);
+  ngOnDestroy(): void {
+    if (this.refreshIntervalId) {
+      clearInterval(this.refreshIntervalId);
+      this.refreshIntervalId = null;
+    }
+  }
+
+  loadCurrentSession(silent: boolean = false): void {
+    if (this.isRefreshing) return;
+    this.isRefreshing = true;
+    if (!silent) this.loading.set(true);
     this.sessionsService.getActiveSession().subscribe({
       next: (session) => {
         this.currentSession.set(session);
-        this.loading.set(false);
+        if (!silent) this.loading.set(false);
+        this.isRefreshing = false;
         
         // If no active session, automatically open one
-        if (!session) {
+        if (!session && !this.triedAutoOpen) {
+          this.triedAutoOpen = true;
           this.autoOpenSession();
         }
       },
       error: (error) => {
         this.error.set('Erreur lors du chargement de la session');
-        this.loading.set(false);
+        if (!silent) this.loading.set(false);
+        this.isRefreshing = false;
         // Try to auto-open session on error too
-        this.autoOpenSession();
+        if (!this.triedAutoOpen) {
+          this.triedAutoOpen = true;
+          this.autoOpenSession();
+        }
       }
     });
   }
@@ -101,24 +257,7 @@ export class ClotureComponent implements OnInit {
     });
   }
 
-  // Load and show current session tickets (id + amount)
-  openTicketsModal(): void {
-    const session = this.currentSession();
-    if (!session) return;
-    this.loading.set(true);
-    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
-      next: (report: any) => {
-        const sales = (report?.session?.sales || []) as Array<{ id: number; finalTotal: number }>
-        this.sessionTickets.set(sales.map(s => ({ id: s.id, amount: parseFloat((s as any).finalTotal || 0) })));
-        this.loading.set(false);
-        this.showTicketsModal.set(true);
-      },
-      error: () => {
-        this.error.set('Erreur lors du chargement des tickets');
-        this.loading.set(false);
-      }
-    });
-  }
+  
 
 
   closeSession(): void {
@@ -236,6 +375,40 @@ export class ClotureComponent implements OnInit {
 
   formatCurrency(amount: number): string {
     return this.sessionsService.formatCurrency(amount);
+  }
+
+  // UI actions
+  switchTab(tab: 'historique' | 'cloture'): void {
+    this.activeTab.set(tab);
+  }
+
+  scrollTo(sectionId: string): void {
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  toggleDetail(path: 'encaissement.clientPayments' | 'encaissement.advances' | 'encaissement.cash' | 'decaissement.expenses' | 'decaissement.suppliers' | 'alimentations.expanded'): void {
+    const current = this.showDetails();
+    const updated = JSON.parse(JSON.stringify(current));
+    const [group, key] = path.split('.') as [keyof typeof current, string];
+    updated[group][key] = !updated[group][key];
+    this.showDetails.set(updated);
+  }
+
+  // Préparer la clôture checklist (simple heuristics)
+  getPreparationChecklist(): Array<{ label: string; ok: boolean }> {
+    const expectedCash = parseFloat((this.currentSession()?.summary?.expectedCash as any) || 0) || 0;
+    const sales = parseFloat((this.currentSession()?.summary?.totalSales as any) || 0) || 0;
+    const credit = this.getCreditAmount();
+    const computedCashFromSales = Math.max(0, sales - credit);
+    const cashOk = Math.abs(expectedCash - (computedCashFromSales + this.getClientPaymentsTotal() + this.getTotalOrderAdvances() - this.getExpensesTotal() - this.getSupplierPaymentsTotal())) < 0.01;
+    return [
+      { label: 'Écarts de caisse', ok: cashOk },
+      { label: 'Doublons potentiels', ok: true },
+      { label: 'Pièces manquantes', ok: true }
+    ];
   }
 
   goToHistory(): void {

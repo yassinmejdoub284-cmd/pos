@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `invoices` MODIFY `source` ENUM('DAILY_EXTRACT', 'TICKET_REQUEST', 'PDF_IMPORT') NOT NULL;

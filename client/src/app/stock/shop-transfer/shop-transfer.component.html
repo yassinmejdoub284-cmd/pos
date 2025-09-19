@@ -1,14 +1,14 @@
 <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-4">
-  <div class="max-w-6xl mx-auto">
-    <div class="bg-white rounded-2xl p-6 border border-indigo-100/50">
-      <div class="flex items-center justify-between mb-6">
+  <div class="max-w-5xl mx-auto">
+    <div class="bg-white rounded-2xl p-4 border border-indigo-100/50">
+      <div class="flex items-center justify-between mb-4">
         <div>
-          <h1 class="text-3xl font-bold text-slate-800">Transfert vers {{ depotType }}</h1>
-          <p class="text-slate-600 text-sm">Confirmer Transferts depuis BRANCH</p>
+          <h1 class="text-2xl font-semibold text-slate-800">Transfert vers {{ depotType }}</h1>
+          <p class="text-slate-600 text-xs">Confirmer Transferts depuis BRANCH</p>
         </div>
         <button 
           (click)="goBack()"
-          class="px-4 py-2 bg-slate-200 hover:bg-indigo-500 text-slate-800 rounded-2xl transition-colors"
+          class="px-3 py-1.5 bg-slate-200 hover:bg-indigo-500 text-slate-800 rounded-xl text-sm transition-colors"
         >
           Retour
         </button>
@@ -18,48 +18,113 @@
         <div class="text-lg text-red-600">{{ error }}</div>
       </div>
 
-      <div *ngIf="currentDepot" class="space-y-6">
-        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-          <h3 class="text-lg font-semibold text-blue-800 mb-2">Dépôt Actuel</h3>
-          <p class="text-blue-700">{{ currentDepot.name }} ({{ currentDepot.type }})</p>
-          <p class="text-blue-600 text-sm">{{ currentDepot.address }}, {{ currentDepot.city }}</p>
+      <div *ngIf="currentDepot" class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3">
+          <h3 class="text-sm font-semibold text-blue-800 mb-1">Dépôt Actuel</h3>
+          <p class="text-blue-700 text-sm">{{ currentDepot.name }} ({{ currentDepot.type }})</p>
+          <p class="text-blue-600 text-xs">{{ currentDepot.address }}, {{ currentDepot.city }}</p>
         </div>
 
         <!-- Current Inventory -->
-        <div class="bg-white rounded-2xl p-6 border border-slate-200">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-semibold text-slate-800">📊 Inventaire Actuel du Magasin</h2>
-            <button 
-              type="button"
-              (click)="toggleCurrentInventory()"
-              class="flex items-center space-x-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-800 rounded-2xl transition-colors"
-            >
-              <span>{{ showCurrentInventory ? 'Masquer' : 'Afficher' }}</span>
-              <svg 
-                class="w-4 h-4 transition-transform duration-200" 
-                [class.rotate-180]="showCurrentInventory"
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-              </svg>
-            </button>
+        <div class="bg-white rounded-2xl p-4 border border-slate-200">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-slate-800">📊 Inventaire Actuel du Magasin</h2>
+            <div class="flex items-center gap-2">
+              <div class="hidden md:flex bg-slate-100 rounded-xl p-1 border border-slate-200">
+                <button (click)="setInventoryView('table')" [class.bg-white]="viewMode==='table'" class="px-2.5 py-1 rounded-lg text-xs">Table</button>
+                <button (click)="setInventoryView('grid')" [class.bg-white]="viewMode==='grid'" class="px-2.5 py-1 rounded-lg text-xs">Grid</button>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="inventory?.length" class="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
+            <div class="bg-slate-100 rounded-2xl p-2 border border-slate-200">
+              <div class="text-[11px] text-slate-500">Total Achat</div>
+              <div class="text-base font-semibold text-slate-800">{{ getInventoryTotals().totalPurchase | number:'1.2-2' }}</div>
+            </div>
+            <div class="bg-slate-100 rounded-2xl p-2 border border-slate-200">
+              <div class="text-[11px] text-slate-500">Total Vente</div>
+              <div class="text-base font-semibold text-slate-800">{{ getInventoryTotals().totalSale | number:'1.2-2' }}</div>
+            </div>
+            <div class="bg-slate-100 rounded-2xl p-2 border border-slate-200">
+              <div class="text-[11px] text-slate-500">Profit Total</div>
+              <div class="text-base font-semibold" [class]="getInventoryTotals().totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'">{{ getInventoryTotals().totalProfit | number:'1.2-2' }}</div>
+            </div>
+            <div class="bg-slate-100 rounded-2xl p-2 border border-slate-200">
+              <div class="text-[11px] text-slate-500">Marge %</div>
+              <div class="text-base font-semibold" [class]="getInventoryTotals().profitPercent >= 0 ? 'text-emerald-600' : 'text-red-600'">{{ getInventoryTotals().profitPercent | number:'1.0-2' }}%</div>
+            </div>
           </div>
           
-          <div *ngIf="showCurrentInventory" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div *ngFor="let item of inventory" class="bg-slate-100 rounded-2xl p-4">
+          <div *ngIf="viewMode==='grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div *ngFor="let item of inventory; trackBy: trackByItem" class="bg-slate-100 rounded-2xl p-3">
               <div class="flex items-center justify-between">
                 <div>
-                  <h3 class="font-medium text-slate-800">{{ getProductName(item.productId) }}</h3>
-                  <p class="text-sm text-slate-500">ID: {{ item.productId }}</p>
+                  <h3 class="font-medium text-slate-800 text-sm">{{ getProductName(item.productId) }}</h3>
+                  <p class="text-xs text-slate-500">ID: {{ item.productId }}</p>
                 </div>
                 <div class="text-right">
-                  <div class="text-2xl font-bold" [class]="item.quantity < 0 ? 'text-red-500' : 'text-green-400'">{{ item.quantity }}</div>
-                  <div class="text-xs text-slate-500">disponible</div>
+                  <div class="text-xl font-bold" [class]="item.quantity < 0 ? 'text-red-500' : 'text-green-400'">{{ item.quantity }}</div>
+                  <div class="text-[11px] text-slate-500">disponible</div>
+                </div>
+              </div>
+              <div class="mt-2 grid grid-cols-2 gap-2">
+                <div class="bg-white rounded-xl p-2 border border-slate-200">
+                  <div class="text-[11px] text-slate-500">Achat (U/T)</div>
+                  <div class="text-xs text-slate-700">
+                    {{ getPurchaseUnitPrice(item) | number:'1.2-2' }}
+                    <span class="text-slate-400">/</span>
+                    <span class="font-semibold">{{ getItemPurchaseTotal(item) | number:'1.2-2' }}</span>
+                  </div>
+                </div>
+                <div class="bg-white rounded-xl p-2 border border-slate-200">
+                  <div class="text-[11px] text-slate-500">Vente (U/T)</div>
+                  <div class="text-xs text-slate-700">
+                    {{ getSaleUnitPrice(item) | number:'1.2-2' }}
+                    <span class="text-slate-400">/</span>
+                    <span class="font-semibold">{{ getItemSaleTotal(item) | number:'1.2-2' }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-2 flex items-center justify-between">
+                <div class="text-[11px] text-slate-500">Profit</div>
+                <div class="text-xs font-semibold" [class]="getItemProfit(item) >= 0 ? 'text-emerald-600' : 'text-red-600'">
+                  {{ getItemProfit(item) | number:'1.2-2' }}
                 </div>
               </div>
             </div>
+          </div>
+          <div *ngIf="viewMode==='table'" class="overflow-auto rounded-2xl border border-slate-200">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-3 py-1.5 text-left text-[11px] font-medium text-slate-500 uppercase tracking-wider">Produit</th>
+                  <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Qté</th>
+                  <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Achat U</th>
+                  <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Achat T</th>
+                  <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Vente U</th>
+                  <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Vente T</th>
+                  <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Profit</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-slate-100">
+                <tr *ngFor="let item of inventory; trackBy: trackByItem" class="odd:bg-white even:bg-slate-50">
+                  <td class="px-3 py-1.5">
+                    <div class="text-slate-800 font-medium text-sm">{{ getProductName(item.productId) }}</div>
+                    <div class="text-[11px] text-slate-500">ID: {{ item.productId }}</div>
+                  </td>
+                  <td class="px-3 py-1.5 text-right">
+                    <span [class]="item.quantity < 0 ? 'text-red-500' : 'text-slate-800'" class="font-semibold text-sm">{{ item.quantity }}</span>
+                  </td>
+                  <td class="px-3 py-1.5 text-right text-sm">{{ getPurchaseUnitPrice(item) | number:'1.2-2' }}</td>
+                  <td class="px-3 py-1.5 text-right text-sm">{{ getItemPurchaseTotal(item) | number:'1.2-2' }}</td>
+                  <td class="px-3 py-1.5 text-right text-sm">{{ getSaleUnitPrice(item) | number:'1.2-2' }}</td>
+                  <td class="px-3 py-1.5 text-right text-sm">{{ getItemSaleTotal(item) | number:'1.2-2' }}</td>
+                  <td class="px-3 py-1.5 text-right">
+                    <span [class]="getItemProfit(item) >= 0 ? 'text-emerald-600' : 'text-red-600'" class="font-semibold text-sm">{{ getItemProfit(item) | number:'1.2-2' }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           
           <div *ngIf="!showCurrentInventory" class="text-center py-8 text-slate-500">
@@ -202,17 +267,66 @@
         <div class="bg-slate-100/50 rounded-2xl p-4 mb-6">
           <h4 class="text-lg font-semibold text-slate-800 mb-4">📦 Articles du Transfert</h4>
           <div class="space-y-3">
-            <div *ngFor="let item of selectedTransfer.items" class="bg-slate-200/50 rounded-2xl p-3">
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
+            <div *ngFor="let item of selectedTransfer.items; trackBy: trackByItem" class="bg-slate-200/50 rounded-2xl p-4">
+              <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
+                <div class="md:col-span-2">
                   <h5 class="font-medium text-slate-800">{{ getProductName(item.productId) }}</h5>
-                  <p class="text-sm text-slate-500">Famille: {{ item.famille }}</p>
-                  <p class="text-sm text-slate-500">ID Produit: {{ item.productId }}</p>
+                  <div class="text-xs text-slate-500">ID: {{ item.productId }} · {{ item.famille }}</div>
                 </div>
                 <div class="text-right">
-                  <div class="text-xl font-bold" [class]="item.quantity < 0 ? 'text-red-500' : 'text-green-400'">{{ item.quantity }}</div>
-                  <div class="text-xs text-slate-500">quantité</div>
+                  <div class="text-sm text-slate-500">Qté</div>
+                  <div class="text-xl font-semibold" [class]="item.quantity < 0 ? 'text-red-500' : 'text-green-400'">{{ item.quantity }}</div>
                 </div>
+                <div class="text-right">
+                  <div class="text-xs text-slate-500">Achat (U/T)</div>
+                  <div class="text-sm text-slate-700">
+                    {{ getPurchaseUnitPrice(item) | number:'1.2-2' }}
+                    <span class="text-slate-400">/</span>
+                    <span class="font-medium">{{ getItemPurchaseTotal(item) | number:'1.2-2' }}</span>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-xs text-slate-500">Vente (U/T)</div>
+                  <div class="text-sm text-slate-700">
+                    {{ getSaleUnitPrice(item) | number:'1.2-2' }}
+                    <span class="text-slate-400">/</span>
+                    <span class="font-medium">{{ getItemSaleTotal(item) | number:'1.2-2' }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="pt-2 mt-3 border-t border-slate-300/40 flex items-center justify-between">
+                <div class="text-xs text-slate-500">Profit</div>
+                <div class="text-right">
+                  <span class="text-sm font-semibold" [class]="getItemProfit(item) >= 0 ? 'text-emerald-600' : 'text-red-600'">
+                    {{ getItemProfit(item) | number:'1.2-2' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Totals / Mini Stats -->
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 mb-6" *ngIf="selectedTransfer?.items?.length">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-slate-100 rounded-2xl p-3">
+              <div class="text-xs text-slate-500">Total Achat</div>
+              <div class="text-lg font-semibold text-slate-800">{{ getTransferTotals(selectedTransfer).totalPurchase | number:'1.2-2' }}</div>
+            </div>
+            <div class="bg-slate-100 rounded-2xl p-3">
+              <div class="text-xs text-slate-500">Total Vente</div>
+              <div class="text-lg font-semibold text-slate-800">{{ getTransferTotals(selectedTransfer).totalSale | number:'1.2-2' }}</div>
+            </div>
+            <div class="bg-slate-100 rounded-2xl p-3">
+              <div class="text-xs text-slate-500">Profit Total</div>
+              <div class="text-lg font-semibold" [class]="getTransferTotals(selectedTransfer).totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'">
+                {{ getTransferTotals(selectedTransfer).totalProfit | number:'1.2-2' }}
+              </div>
+            </div>
+            <div class="bg-slate-100 rounded-2xl p-3">
+              <div class="text-xs text-slate-500">Marge %</div>
+              <div class="text-lg font-semibold" [class]="getTransferTotals(selectedTransfer).profitPercent >= 0 ? 'text-emerald-600' : 'text-red-600'">
+                {{ getTransferTotals(selectedTransfer).profitPercent | number:'1.0-2' }}%
               </div>
             </div>
           </div>

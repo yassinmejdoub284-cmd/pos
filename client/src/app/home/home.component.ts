@@ -51,6 +51,10 @@ export class HomeComponent implements OnInit {
   private pendingExpenseCount = 0;
   private pendingClotureCount = 0;
 
+  // Day-over-day deltas
+  salesVsYesterdayPct: number = 0;
+  transactionsVsYesterdayPct: number = 0;
+
   quickActions: QuickAction[] = [
     {
       id: 'caisse',
@@ -114,7 +118,7 @@ export class HomeComponent implements OnInit {
     },
     {
       id: 'invoices',
-      title: 'Factures',
+      title: 'Ventes Facturées',
       description: 'Gestion factures',
       route: '/invoices',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
@@ -214,6 +218,8 @@ export class HomeComponent implements OnInit {
       next: (sales) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
         
         const todaySales = sales.filter(sale => {
           const saleDate = new Date(sale.createdAt);
@@ -223,6 +229,19 @@ export class HomeComponent implements OnInit {
 
         this.dashboardStats.todaySales = todaySales.reduce((sum, sale) => sum + Number(sale.finalTotal), 0);
         this.dashboardStats.todayTransactions = todaySales.length;
+
+        // Compute yesterday metrics
+        const yesterdaySales = sales.filter(sale => {
+          const saleDate = new Date(sale.createdAt);
+          saleDate.setHours(0, 0, 0, 0);
+          return saleDate.getTime() === yesterday.getTime() && sale.status === 'COMPLETED';
+        });
+
+        const yesterdaySalesTotal = yesterdaySales.reduce((sum, sale) => sum + Number(sale.finalTotal), 0);
+        const yesterdayTransactions = yesterdaySales.length;
+
+        this.salesVsYesterdayPct = this.computePercentageChange(this.dashboardStats.todaySales, yesterdaySalesTotal);
+        this.transactionsVsYesterdayPct = this.computePercentageChange(this.dashboardStats.todayTransactions, yesterdayTransactions);
         
         // Count pending gift approvals (gifts awaiting admin)
         this.pendingGiftCount = sales.filter(sale => sale.status === 'PENDING_ADMIN').length;
@@ -392,6 +411,9 @@ export class HomeComponent implements OnInit {
       case 'manage-invoices':
         this.router.navigate(['/invoices']);
         break;
+      case 'invoice-extracts':
+        this.router.navigate(['/rapports/invoice-extracts']);
+        break;
     }
   }
 
@@ -415,5 +437,23 @@ export class HomeComponent implements OnInit {
   logout(): void {
     this.authService.logout();
     this.router.navigate(['/auth/login']);
+  }
+
+  private computePercentageChange(currentValue: number, previousValue: number): number {
+    if (previousValue === 0) {
+      if (currentValue === 0) return 0;
+      // Define 100% growth from zero to positive; could be Infinity, use 100 as a sensible cap
+      return 100;
+    }
+    const delta = ((currentValue - previousValue) / previousValue) * 100;
+    return delta;
+  }
+
+  getDeltaLabel(delta: number): string {
+    if (delta === undefined || delta === null || isNaN(delta)) return '0.0%';
+    const sign = delta > 0 ? '+' : delta < 0 ? '' : '';
+    // Show with one decimal, clamp extreme values for readability
+    const value = Math.abs(delta) > 9999 ? 9999 : delta;
+    return `${sign}${value.toFixed(1)}%`;
   }
 } 

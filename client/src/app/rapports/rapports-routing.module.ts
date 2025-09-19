@@ -35,6 +35,10 @@ const routes: Routes = [
   { 
     path: 'inventory-sales-reconciliation', 
     loadChildren: () => import('./inventory-sales-reconciliation/inventory-sales-reconciliation.module').then(m => m.InventorySalesReconciliationModule)
+  },
+  { 
+    path: 'invoice-extracts', 
+    loadChildren: () => import('./invoice-extracts/invoice-extracts.module').then(m => m.InvoiceExtractsModule)
   }
 ];
 

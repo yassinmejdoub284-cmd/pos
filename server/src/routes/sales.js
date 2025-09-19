@@ -191,8 +191,31 @@ router.post('/', async (req, res) => {
             const newDebt = parseFloat(client.currentDebt || 0) + remaining;
             await tx.client.update({ where: { id: client.id }, data: { currentDebt: newDebt } });
 
-            // NO separate transactions - the sale record itself will show everything
-            // The client statement will calculate debit/credit from the sale record
+            // Record client debt transactions
+            if (paidNow > 0) {
+              await tx.clientDebtTransaction.create({
+                data: {
+                  clientId: client.id,
+                  saleId: newSale.id,
+                  amount: paidNow,
+                  type: 'PAYMENT',
+                  userId: req.user.id,
+                  notes: 'Advance payment at sale'
+                }
+              });
+            }
+            if (remaining > 0) {
+              await tx.clientDebtTransaction.create({
+                data: {
+                  clientId: client.id,
+                  saleId: newSale.id,
+                  amount: remaining,
+                  type: 'DEBT',
+                  userId: req.user.id,
+                  notes: 'Debt from credit sale'
+                }
+              });
+            }
           }
         } else {
           // COMPTANT sales: instant payment, only go to caisse, no client statement entry
@@ -293,6 +316,14 @@ router.post('/temporary', async (req, res) => {
     const advancePaymentMethodId = advancePaymentMethod ? paymentMethodMap[advancePaymentMethod] : null;
 
     const sale = await prisma.$transaction(async (tx) => {
+      // Find active caisse session for cash movements
+      const activeSession = await tx.sessionCaisse.findFirst({
+        where: {
+          userId: req.user.id,
+          status: 'OPEN'
+        }
+      });
+
       const newSale = await tx.sale.create({
         data: {
           total: parseFloat(total),
@@ -327,6 +358,20 @@ router.post('/temporary', async (req, res) => {
         });
       }
 
+      // If advance payment is cash, record caisse entrée immediately
+      if (advanceAmount > 0 && activeSession && (advancePaymentMethod === 'cash')) {
+        await tx.cashMovement.create({
+          data: {
+            sessionId: activeSession.id,
+            type: 'ENTREE',
+            amount: advanceAmount,
+            reason: `Acompte commande #${newSale.id}`,
+            ticketId: null,
+            createdById: req.user.id
+          }
+        });
+      }
+
       return newSale;
     });
 
@@ -350,6 +395,7 @@ router.put('/temporary/:id/complete', async (req, res) => {
   try {
     const { id } = req.params;
     const { paymentType, amountPaid, chequeId, encaissementDate, virementNumber } = req.body;
+    const userDepotId = req.user.depotId;
 
     const temporarySale = await prisma.sale.findFirst({
       where: { id: parseInt(id), status: 'TEMPORARY', depotId: req.user.depotId },
@@ -545,6 +591,7 @@ router.post('/gift', async (req, res) => {
 router.put('/gift/:id/approve', async (req, res) => {
   try {
     const { id } = req.params;
+    const userDepotId = req.user.depotId;
 
     const giftSale = await prisma.sale.findFirst({
       where: { id: parseInt(id), status: 'PENDING_ADMIN', depotId: req.user.depotId },
@@ -898,24 +945,36 @@ router.post('/wholesale', async (req, res) => {
         const paid = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : parseFloat(finalTotal);
         const outstanding = Math.max(0, parseFloat(finalTotal) - paid);
 
-        if (outstanding > 0 && client) {
-          // Trust frontend validation; record debt without server-side limit checks
-          const newDebt = parseFloat(client.currentDebt || 0) + outstanding;
-          await tx.client.update({
-            where: { id: client.id },
-            data: { currentDebt: newDebt }
-          });
-
-          await tx.clientDebtTransaction.create({
-            data: {
-              clientId: client.id,
-              saleId: newSale.id,
-              amount: outstanding,
-              type: 'DEBT',
-              userId: req.user.id,
-              notes: 'Debt from wholesale sale'
-            }
-          });
+        if (client) {
+          // Record payment part if any
+          const paidPart = Math.max(0, paid);
+          if (paidPart > 0) {
+            await tx.clientDebtTransaction.create({
+              data: {
+                clientId: client.id,
+                saleId: newSale.id,
+                amount: paidPart,
+                type: 'PAYMENT',
+                userId: req.user.id,
+                notes: 'Payment at wholesale sale'
+              }
+            });
+          }
+          if (outstanding > 0) {
+            // Trust frontend validation; record debt without server-side limit checks
+            const newDebt = parseFloat(client.currentDebt || 0) + outstanding;
+            await tx.client.update({ where: { id: client.id }, data: { currentDebt: newDebt } });
+            await tx.clientDebtTransaction.create({
+              data: {
+                clientId: client.id,
+                saleId: newSale.id,
+                amount: outstanding,
+                type: 'DEBT',
+                userId: req.user.id,
+                notes: 'Debt from wholesale sale'
+              }
+            });
+          }
         }
 
         if (settings?.loyaltyEnabled) {

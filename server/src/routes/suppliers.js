@@ -30,6 +30,13 @@ router.get('/', authenticateToken, async (req, res) => {
           select: {
             amount: true
           }
+        },
+        _count: {
+          select: {
+            debtTransactions: true,
+            expenses: true,
+            payments: true
+          }
         }
       },
       orderBy: { name: 'asc' }
@@ -206,7 +213,9 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         },
         _count: {
           select: {
-            expenses: true
+            expenses: true,
+            debtTransactions: true,
+            payments: true
           }
         }
       }
@@ -288,12 +297,45 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'asc' }
     });
 
+    // Get debt transactions
+    const debtTransactions = await prisma.supplierDebtTransaction.findMany({
+      where: { 
+        supplierId: parseInt(supplierId),
+        createdAt: { gte: start, lte: end }
+      },
+      select: {
+        id: true,
+        amount: true,
+        type: true,
+        notes: true,
+        expenseId: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
     // Calculate running balance
     let balance = 0;
     const statement = [];
 
     // Combine and sort all transactions (opposite of client statement)
     const allTransactions = [
+      // Debt transactions: standalone debt/payment adjustments
+      ...debtTransactions.map(transaction => {
+        const amount = parseFloat(transaction.amount);
+        
+        return {
+          type: transaction.type.toLowerCase(),
+          date: transaction.createdAt,
+          reference: transaction.type === 'DEBT' ? `CREDIT-${transaction.id}` : `REGLEMENT-${transaction.id}`,
+          debit: transaction.type === 'PAYMENT' ? amount : 0,
+          credit: transaction.type === 'DEBT' ? amount : 0,
+          id: transaction.id,
+          clickable: transaction.type === 'PAYMENT',
+          expenseId: transaction.expenseId,
+          description: transaction.notes || ''
+        };
+      }),
       // Expenses: what we owe the supplier (increases debt)
       ...expenses.map(expense => {
         const totalAmount = parseFloat(expense.amount);
@@ -421,6 +463,77 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching supplier statement:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération du relevé fournisseur' });
+  }
+});
+
+// Initialize supplier solde (set currentDebt to custom amount)
+router.post('/:id/solde/init', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, notes } = req.body;
+
+    const supplier = await prisma.supplier.findUnique({ 
+      where: { id: parseInt(id) },
+      include: {
+        _count: {
+          select: {
+            debtTransactions: true,
+            expenses: true,
+            payments: true
+          }
+        }
+      }
+    });
+    if (!supplier) return res.status(404).json({ error: 'Fournisseur introuvable' });
+
+    // Check if supplier already has any movements (debt transactions, expenses, or payments)
+    const hasAnyMovement = supplier._count.debtTransactions > 0 || 
+                          supplier._count.expenses > 0 || 
+                          supplier._count.payments > 0;
+    
+    if (hasAnyMovement) {
+      return res.status(400).json({ error: 'Ce fournisseur a déjà des mouvements. Impossible de définir un solde de départ.' });
+    }
+
+    const newAmount = parseFloat(amount);
+    if (isNaN(newAmount)) {
+      return res.status(400).json({ error: 'Montant invalide' });
+    }
+
+    const currentDebt = parseFloat(supplier.currentDebt || 0);
+    const difference = newAmount - currentDebt;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // Set currentDebt to the new amount
+      const s = await tx.supplier.update({ 
+        where: { id: supplier.id }, 
+        data: { currentDebt: newAmount } 
+      });
+      
+      // Create a debt transaction to record the initial balance
+      if (difference !== 0) {
+        const transactionType = difference > 0 ? 'DEBT' : 'PAYMENT';
+        const transactionAmount = Math.abs(difference);
+        
+        await tx.supplierDebtTransaction.create({
+          data: { 
+            supplierId: supplier.id, 
+            expenseId: null, 
+            amount: transactionAmount, 
+            type: transactionType, 
+            notes: notes || 'Solde de départ',
+            userId: req.user?.id || null
+          }
+        });
+      }
+      
+      return s;
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error initializing supplier solde:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'initialisation du solde' });
   }
 });
 

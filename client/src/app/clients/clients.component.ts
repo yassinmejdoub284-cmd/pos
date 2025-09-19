@@ -48,6 +48,7 @@ export class ClientsComponent implements OnInit {
   showEditPopup = false;
   showDeletePopup = false;
   showDetailsPopup = false;
+  showInitSoldePopup = false;
   selectedClient: Client | null = null;
 
   // Form data
@@ -65,6 +66,10 @@ export class ClientsComponent implements OnInit {
   };
 
   editForm: UpdateClientRequest = {};
+
+  // Initialize solde form
+  initSoldeAmount: number | null = null;
+  initSoldeNotes = '';
 
   // Alert system
   showAlert = false;
@@ -208,12 +213,22 @@ export class ClientsComponent implements OnInit {
     this.showDetailsPopup = true;
   }
 
+  openInitSoldePopup(client: Client): void {
+    this.selectedClient = client;
+    this.initSoldeAmount = client.currentDebt || 0;
+    this.initSoldeNotes = '';
+    this.showInitSoldePopup = true;
+  }
+
   closePopups(): void {
     this.showCreatePopup = false;
     this.showEditPopup = false;
     this.showDeletePopup = false;
     this.showDetailsPopup = false;
+    this.showInitSoldePopup = false;
     this.selectedClient = null;
+    this.initSoldeAmount = null;
+    this.initSoldeNotes = '';
   }
 
   createClient(): void {
@@ -270,6 +285,25 @@ export class ClientsComponent implements OnInit {
     });
   }
 
+  initializeSolde(): void {
+    if (!this.selectedClient || this.initSoldeAmount === null || this.initSoldeAmount === undefined) {
+      this.showAlertMessage('Veuillez entrer un montant valide', 'error');
+      return;
+    }
+
+    this.clientsService.initializeSolde(this.selectedClient.id, this.initSoldeAmount, this.initSoldeNotes).subscribe({
+      next: () => {
+        this.showAlertMessage('Solde défini avec succès', 'success');
+        this.closePopups();
+        this.loadClients();
+      },
+      error: (error) => {
+        this.showAlertMessage('Erreur lors de la définition du solde', 'error');
+        console.error('Error setting solde:', error);
+      }
+    });
+  }
+
   getClientTypeLabel(type: ClientType): string {
     switch (type) {
       case 'INDIVIDUAL': return 'Particulier';
@@ -308,5 +342,9 @@ export class ClientsComponent implements OnInit {
     setTimeout(() => {
       this.showAlert = false;
     }, 3000);
+  }
+
+  hasNoDebt(client: Client): boolean {
+    return !client._count?.debtTransactions || client._count.debtTransactions === 0;
   }
 } 

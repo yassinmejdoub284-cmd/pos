@@ -11,6 +11,8 @@ interface CountItem {
   countedQuantity: number | null;
   isConfirmed: boolean;
   inventoryItemId?: number;
+  purchasePrice: number; // prix d'achat (editable)
+  salePrice: number;     // prix de vente (editable)
 }
 
 @Component({
@@ -41,7 +43,7 @@ export class CountComponent implements OnInit, OnDestroy {
   
   // Input handling (like caisse)
   currentInput: string = '';
-  inputMode: 'quantity' = 'quantity';
+  inputMode: 'quantity' | 'purchasePrice' | 'salePrice' = 'quantity';
   pendingProduct: Product | null = null;
   lastEnteredValue: string = '';
   
@@ -125,6 +127,15 @@ export class CountComponent implements OnInit, OnDestroy {
       next: (products) => {
         this.allProducts = products;
         this.filteredProducts = [...products];
+        // Backfill prices for existing count items after products load
+        this.countItems = this.countItems.map(ci => {
+          const prod = this.getProductById(ci.product.id);
+          return {
+            ...ci,
+            purchasePrice: ci.purchasePrice || (prod?.prix_achat ?? 0),
+            salePrice: ci.salePrice || (prod?.prix_vente_TTC ?? ci.product.prix_vente_TTC ?? 0)
+          };
+        });
       },
       error: (err) => {
         console.error('Error loading products:', err);
@@ -141,7 +152,9 @@ export class CountComponent implements OnInit, OnDestroy {
         theoreticalQuantity: item.theoreticalQuantity,
         countedQuantity: item.countedQuantity,
         isConfirmed: item.countedQuantity !== null,
-        inventoryItemId: item.id
+        inventoryItemId: item.id,
+        purchasePrice: this.getProductById(item.product!.id)?.prix_achat ?? 0,
+        salePrice: this.getProductById(item.product!.id)?.prix_vente_TTC ?? item.product?.prix_vente_TTC ?? 0
       } as CountItem));
   }
 
@@ -196,7 +209,9 @@ export class CountComponent implements OnInit, OnDestroy {
       theoreticalQuantity: theoreticalQuantity,
       countedQuantity: null,
       isConfirmed: false,
-      inventoryItemId: existingItem?.id
+      inventoryItemId: existingItem?.id,
+      purchasePrice: product.prix_achat ?? 0,
+      salePrice: product.prix_vente_TTC ?? 0
     };
     
     this.countItems.push(countItem);
@@ -208,7 +223,16 @@ export class CountComponent implements OnInit, OnDestroy {
     this.selectedCountItem = item;
     this.selectedCountItemIndex = index;
     this.pendingProduct = item.product;
-    this.currentInput = item.countedQuantity?.toString() || '';
+    // Keep current input aligned with selected input mode
+    if (this.inputMode === 'quantity') {
+      this.currentInput = item.countedQuantity?.toString() || '';
+    } else if (this.inputMode === 'purchasePrice') {
+      // Do not prefill when editing prices; start empty
+      this.currentInput = '';
+    } else if (this.inputMode === 'salePrice') {
+      // Do not prefill when editing prices; start empty
+      this.currentInput = '';
+    }
   }
 
   // Input handling (like caisse)
@@ -246,15 +270,31 @@ export class CountComponent implements OnInit, OnDestroy {
       const existingItem = this.countItems.find(item => item.product.id === this.pendingProduct!.id);
       
       if (existingItem) {
-        existingItem.countedQuantity = value;
-        existingItem.isConfirmed = true;
-        this.saveCountToBackend(existingItem);
+        if (this.inputMode === 'quantity') {
+          existingItem.countedQuantity = value;
+          existingItem.isConfirmed = true;
+          this.saveCountToBackend(existingItem);
+        } else if (this.inputMode === 'purchasePrice') {
+          existingItem.purchasePrice = value;
+          this.savePricesToNotes(existingItem);
+        } else if (this.inputMode === 'salePrice') {
+          existingItem.salePrice = value;
+          this.savePricesToNotes(existingItem);
+        }
       } else {
         this.addProductToCount(this.pendingProduct);
         const newItem = this.countItems[this.countItems.length - 1];
-        newItem.countedQuantity = value;
-        newItem.isConfirmed = true;
-        this.saveCountToBackend(newItem);
+        if (this.inputMode === 'quantity') {
+          newItem.countedQuantity = value;
+          newItem.isConfirmed = true;
+          this.saveCountToBackend(newItem);
+        } else if (this.inputMode === 'purchasePrice') {
+          newItem.purchasePrice = value;
+          this.savePricesToNotes(newItem);
+        } else if (this.inputMode === 'salePrice') {
+          newItem.salePrice = value;
+          this.savePricesToNotes(newItem);
+        }
       }
       
       this.pendingProduct = null;
@@ -283,11 +323,14 @@ export class CountComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Include prices encoded in notes for persistence
+    const notes = this.composeNotesWithPrices(item);
     this.inventoryService.updateItemCount(
       this.session.id,
       item.inventoryItemId,
       item.countedQuantity,
-      'PHYSICAL_COUNT_DIFFERENCE'
+      'PHYSICAL_COUNT_DIFFERENCE',
+      notes
     ).subscribe({
       next: (updatedItem) => {
         // Update the item in our local array
@@ -310,6 +353,61 @@ export class CountComponent implements OnInit, OnDestroy {
         });
       }
     });
+  }
+
+  // Persist price edits via notes field without changing server schema
+  private composeNotesWithPrices(item: CountItem): string {
+    const pa = Number.isFinite(item.purchasePrice) ? item.purchasePrice : 0;
+    const pv = Number.isFinite(item.salePrice) ? item.salePrice : 0;
+    return `PA=${pa};PV=${pv}`;
+  }
+
+  savePricesToNotes(item: CountItem): void {
+    if (!this.session || !item.inventoryItemId) return;
+    // Do a no-op quantity update (send current countedQuantity) with updated notes to persist prices
+    this.saving = true;
+    const notes = this.composeNotesWithPrices(item);
+    this.inventoryService.updateItemCount(
+      this.session.id,
+      item.inventoryItemId,
+      item.countedQuantity ?? null,
+      'PHYSICAL_COUNT_DIFFERENCE',
+      notes
+    ).subscribe({
+      next: () => { this.saving = false; },
+      error: () => { this.saving = false; }
+    });
+  }
+
+  // Helpers for totals
+  getItemPurchaseTotal(item: CountItem): number {
+    const qty = item.countedQuantity ?? 0;
+    return qty * (item.purchasePrice ?? 0);
+  }
+
+  getItemSaleTotal(item: CountItem): number {
+    const qty = item.countedQuantity ?? 0;
+    return qty * (item.salePrice ?? 0);
+  }
+
+  setInputMode(mode: 'quantity' | 'purchasePrice' | 'salePrice', item?: CountItem): void {
+    this.inputMode = mode;
+    if (item) {
+      this.selectCountItem(item);
+    }
+  }
+
+  // Grand totals for header chips
+  getGrandPurchaseTotal(): number {
+    return this.countItems.reduce((sum, it) => sum + this.getItemPurchaseTotal(it), 0);
+  }
+
+  getGrandSaleTotal(): number {
+    return this.countItems.reduce((sum, it) => sum + this.getItemSaleTotal(it), 0);
+  }
+
+  private getProductById(productId: number): Product | undefined {
+    return this.allProducts.find(p => p.id === productId);
   }
 
   createInventoryItemForProduct(item: CountItem): void {

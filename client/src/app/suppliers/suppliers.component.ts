@@ -34,7 +34,12 @@ export class SuppliersComponent implements OnInit {
   showEditPopup = false;
   showDeletePopup = false;
   showDetailsPopup = false;
+  showInitSoldePopup = false;
   selectedSupplier: Supplier | null = null;
+  
+  // Initialize Solde Dialog
+  initSoldeAmount: number | null = null;
+  initSoldeNotes = '';
 
   // Form data
   createForm: CreateSupplierRequest = {
@@ -177,7 +182,10 @@ export class SuppliersComponent implements OnInit {
     this.showEditPopup = false;
     this.showDeletePopup = false;
     this.showDetailsPopup = false;
+    this.showInitSoldePopup = false;
     this.selectedSupplier = null;
+    this.initSoldeAmount = null;
+    this.initSoldeNotes = '';
   }
 
   // CRUD operations
@@ -291,6 +299,46 @@ export class SuppliersComponent implements OnInit {
   // Calculate total debt owed to all suppliers
   getTotalDebt(): number {
     return this.suppliers.reduce((total, supplier) => total + (supplier.currentDebt || 0), 0);
+  }
+
+  // Solde initialization methods
+  openInitSoldePopup(supplier: Supplier): void {
+    this.selectedSupplier = supplier;
+    this.initSoldeAmount = supplier.currentDebt || 0;
+    this.initSoldeNotes = '';
+    this.showInitSoldePopup = true;
+  }
+
+  initializeSolde(): void {
+    if (!this.selectedSupplier || this.initSoldeAmount === null || this.initSoldeAmount === undefined) {
+      alert('Veuillez entrer un montant valide');
+      return;
+    }
+
+    this.loading = true;
+    this.supplierService.initializeSolde(this.selectedSupplier.id, this.initSoldeAmount, this.initSoldeNotes).subscribe({
+      next: () => {
+        this.loadSuppliers();
+        this.closePopups();
+        this.loading = false;
+        alert('Solde défini avec succès');
+      },
+      error: (error) => {
+        console.error('Error setting supplier solde:', error);
+        this.loading = false;
+        alert('Erreur lors de la définition du solde');
+      }
+    });
+  }
+
+  hasNoDebt(supplier: Supplier): boolean {
+    // Check if supplier has no debt transactions, expenses, or payments
+    const debtTransactionCount = supplier._count?.debtTransactions || 0;
+    const expenseCount = supplier._count?.expenses || 0;
+    const paymentCount = supplier._count?.payments || 0;
+    const hasAnyMovement = debtTransactionCount > 0 || expenseCount > 0 || paymentCount > 0;
+    
+    return !hasAnyMovement;
   }
 
   // Math utility for template

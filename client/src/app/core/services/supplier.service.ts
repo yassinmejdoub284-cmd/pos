@@ -96,4 +96,8 @@ export class SupplierService {
   createSupplierPayment(payment: { supplierId: number; amount: number; notes?: string; paymentMethod?: 'CASH'|'CARD'|'CHECK'|'BANK_TRANSFER' }): Observable<SupplierPayment> {
     return this.http.post<SupplierPayment>(`${environment.apiUrl}/supplier-payments`, payment);
   }
+
+  initializeSolde(id: number, amount: number, notes?: string): Observable<Supplier> {
+    return this.http.post<Supplier>(`${this.apiUrl}/${id}/solde/init`, { amount, notes });
+  }
 }

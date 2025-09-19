@@ -12,6 +12,7 @@ export interface ReconciliationRow {
   date: Date;
   designation: string;
   isWholesale?: boolean;
+  isGift?: boolean;
   achat: {
     entree: { qty: number; pu: number; totale: number };
     sortie: { qty: number; pu: number; totale: number };
@@ -331,6 +332,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
         date: new Date(movement.date),
         designation: movement.designation,
         isWholesale: movement.isWholesale || false,
+        isGift: (movement as any).isGift || false,
         achat: {
           entree: { qty: 0, pu: 0, totale: 0 },
           sortie: { qty: 0, pu: 0, totale: 0 },
@@ -398,22 +400,39 @@ export class InventorySalesReconciliationComponent implements OnInit {
         const outCost = this.valuationMode === 'CUMP' ? currentCost : this.getFIFOCost(fifoLayers, outQty);
 
         // VENTE sortie shows at sale price
-        // For wholesale sales, the unitPrice is actually the bundle total, so we need to calculate the per-unit price
         let unitPrice = Number(movement.unitPrice) || 0;
         let totalPrice = outQty * unitPrice;
         
         if (movement.isWholesale && outQty > 0) {
-          // For wholesale, unitPrice is the bundle total, so per-unit price = total / quantity
-          unitPrice = unitPrice / outQty;
-          totalPrice = Number(movement.unitPrice) || 0; // Keep the original bundle total
+          // For wholesale sales, use bundle information to calculate per-unit price
+          const bundleSize = (movement as any).bundleSize;
+          const bundlePrice = (movement as any).bundlePrice;
+          
+          if (bundleSize && bundlePrice) {
+            // Calculate per-unit price from bundle information
+            unitPrice = Number(bundlePrice) / Number(bundleSize);
+            totalPrice = outQty * unitPrice;
+          } else {
+            // Fallback: use the unitPrice as is (it should already be per-unit)
+            unitPrice = Number(movement.unitPrice) || 0;
+            totalPrice = outQty * unitPrice;
+          }
+        }
+        
+        // For gift sales, show 0 price but still consume inventory
+        if ((movement as any).isGift) {
+          unitPrice = 0;
+          totalPrice = 0;
         }
         
         row.vente.sortie = { qty: outQty, pu: unitPrice, totale: totalPrice };
         
-        // Update sale-only running average based on actual sales
-        saleCumQty += outQty;
-        saleCumValue += totalPrice;
-        saleAvgPrice = saleCumQty > 0 ? (saleCumValue / saleCumQty) : saleAvgPrice;
+        // Update sale-only running average based on actual sales (excluding gifts)
+        if (!(movement as any).isGift) {
+          saleCumQty += outQty;
+          saleCumValue += totalPrice;
+          saleAvgPrice = saleCumQty > 0 ? (saleCumValue / saleCumQty) : saleAvgPrice;
+        }
         
         // Remove any coupling between purchases and VENTE solde
         // totalSaleValue is no longer used to compute sale PU; keep for backward compatibility if needed
@@ -589,10 +608,10 @@ export class InventorySalesReconciliationComponent implements OnInit {
       // Find inventory for the specific product
       const productInventory = inventoryList?.find(item => item.productId === productId);
       
-      if (productInventory && productInventory.quantity > 0) {
+      if (productInventory && Number(productInventory.quantity) > 0) {
         return {
-          quantity: productInventory.quantity,
-          cost: productInventory.cost || 0
+          quantity: Number(productInventory.quantity),
+          cost: 0 // Cost will be determined from product's prix_achat in the reconciliation logic
         };
       }
       
@@ -623,16 +642,29 @@ export class InventorySalesReconciliationComponent implements OnInit {
         for (const item of saleItems) {
           // Check if this is a wholesale sale based on the actual wholesale flags from caisse
           const isWholesale = item.isWholesale || sale.isWholesale;
+          // Check if this is a gift sale
+          const isGift = sale.status === 'CADEAU';
           
+          // Determine designation based on sale type
+          let designation = `Vente #${sale.id}`;
+          if (isGift) {
+            designation += ' (CADEAU)';
+          } else if (isWholesale) {
+            designation += ' (GROS)';
+          }
           
           movements.push({
             date: sale.createdAt,
-            designation: `Vente #${sale.id}${isWholesale ? ' (GROS)' : ''}`,
+            designation: designation,
             type: 'VENTE_SORTIE',
             quantity: Number(item.quantity) || 0,
-            unitPrice: Number(item.unitPrice) || 0,
+            unitPrice: isGift ? 0 : (Number(item.unitPrice) || 0), // Gift sales have 0 price
             unitCost: 0, // Will be calculated based on valuation method
-            isWholesale: isWholesale
+            isWholesale: isWholesale,
+            isGift: isGift,
+            // Include bundle information for wholesale sales
+            bundleSize: item.bundleSize,
+            bundlePrice: item.bundlePrice
           });
         }
       }

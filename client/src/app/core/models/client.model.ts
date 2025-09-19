@@ -26,6 +26,7 @@ export interface Client {
   allowDebt?: boolean;
   _count?: {
     sales: number;
+    debtTransactions: number;
   };
   sales?: any[];
 }

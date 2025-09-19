@@ -676,7 +676,7 @@ async function calculateSessionSummary(sessionId) {
     .filter(m => ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type))
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
 
-  const expectedCash = parseFloat(session.openingFund) + cashSales + entree - sortie;
+  let expectedCash = parseFloat(session.openingFund) + cashSales + entree - sortie;
 
   // Group sales by payment method
   const salesByPayment = {};
@@ -689,6 +689,168 @@ async function calculateSessionSummary(sessionId) {
     salesByPayment[method].count += 1;
   });
 
+  // Calculate outstanding credit from client debt transactions tied to this session's sales
+  let creditOutstanding = 0;
+  let creditCount = 0;
+  let creditAdvancePaid = 0;
+  try {
+    const debtTransactions = await prisma.clientDebtTransaction.findMany({
+      where: {
+        type: 'DEBT',
+        sale: {
+          sessionId: sessionId
+        }
+      },
+      select: { amount: true, saleId: true }
+    });
+    creditOutstanding = debtTransactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+    creditCount = debtTransactions.length;
+
+    // Compute advances per sale: finalTotal - DEBT sum for that sale (only for CREDIT sales)
+    const debtBySaleId = debtTransactions.reduce((map, t) => {
+      const sid = t.saleId;
+      const amt = parseFloat(t.amount || 0) || 0;
+      map[sid] = (map[sid] || 0) + amt;
+      return map;
+    }, {});
+
+    session.sales.forEach(sale => {
+      if ((sale.paymentType || '').toUpperCase() === 'CREDIT') {
+        const total = parseFloat(sale.finalTotal || 0) || 0;
+        const debtForSale = debtBySaleId[sale.id] || 0;
+        const paid = Math.max(0, total - debtForSale);
+        creditAdvancePaid += paid;
+      }
+    });
+  } catch (e) {
+    // Fallback: keep previous behavior if relation is not available
+    session.sales.forEach(sale => {
+      if ((sale.paymentType || '').toUpperCase() === 'CREDIT') {
+        const total = parseFloat(sale.finalTotal || 0);
+        const advance = parseFloat(sale.advancePayment || 0);
+        const outstanding = Math.max(0, total - advance);
+        if (outstanding > 0) {
+          creditOutstanding += outstanding;
+          creditCount += 1;
+        }
+        creditAdvancePaid += advance;
+      }
+    });
+  }
+  if (creditOutstanding > 0) {
+    salesByPayment['CREDIT'] = {
+      amount: creditOutstanding,
+      count: creditCount
+    };
+  }
+
+  // Subtract credits from expected cash to reflect actual cash on hand
+  expectedCash = expectedCash - creditOutstanding;
+
+  // Include approved CASH expenses within the session timeframe ONLY if no explicit cash movement was created (avoid double subtraction)
+  let cashExpenseTotal = 0;
+  let expensesDetails = [];
+  try {
+    const sessionStart = new Date(session.openedAt);
+    const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
+
+    // Fetch approved cash expenses in session window
+    const approvedCashExpenses = await prisma.expense.findMany({
+      where: {
+        isApproved: true,
+        paymentType: 'CASH',
+        userId: session.userId,
+        OR: [
+          { approvedAt: { gte: sessionStart, lte: sessionEnd } },
+          { createdAt: { gte: sessionStart, lte: sessionEnd } },
+          { date: { gte: sessionStart, lte: sessionEnd } },
+          { collectionDate: { gte: sessionStart, lte: sessionEnd } }
+        ]
+      },
+      select: { id: true, amount: true, approvedAt: true, createdAt: true, date: true, notes: true, category: { select: { name: true } }, supplier: { select: { id: true, name: true } } }
+    });
+
+    // Build a set of expense IDs that already created a cash movement in this session
+    const expenseIdsWithMovement = new Set();
+    const expenseRegex = /Dépense(?: approuvée)? #(\d+)/i;
+    (session.cashMovements || []).forEach(m => {
+      const reason = String(m.reason || '');
+      const match = reason.match(expenseRegex);
+      if (match && match[1]) {
+        const idParsed = parseInt(match[1]);
+        if (!isNaN(idParsed)) expenseIdsWithMovement.add(idParsed);
+      }
+    });
+
+    // Keep only expenses without a corresponding cash movement to avoid double count
+    const expensesWithoutMovement = approvedCashExpenses.filter(e => !expenseIdsWithMovement.has(e.id));
+
+    cashExpenseTotal = expensesWithoutMovement.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+    expensesDetails = expensesWithoutMovement
+      .map(e => {
+        const categoryPart = e.category?.name ? ` · ${e.category.name}` : '';
+        const supplierPart = e.supplier?.name ? ` · Fournisseur: ${e.supplier.name}` : '';
+        return ({
+          id: e.id,
+          amount: parseFloat(e.amount || 0),
+          reason: `Dépense approuvée #${e.id}${categoryPart}${supplierPart}`,
+          createdAt: (e.approvedAt || e.createdAt || e.date)
+        });
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // expected cash should go down only by expenses without explicit cash movement
+    expectedCash = expectedCash - cashExpenseTotal;
+  } catch (e) {}
+
+  // Supplier payments details (for UI display with supplier name)
+  let supplierPaymentsDetails = [];
+  try {
+    const sessionStart = new Date(session.openedAt);
+    const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
+    const supplierPayments = await prisma.supplierPayment.findMany({
+      where: {
+        userId: session.userId,
+        OR: [
+          { paymentDate: { gte: sessionStart, lte: sessionEnd } },
+          { createdAt: { gte: sessionStart, lte: sessionEnd } }
+        ]
+      },
+      include: { supplier: { select: { id: true, name: true } } },
+      orderBy: { paymentDate: 'desc' }
+    });
+    supplierPaymentsDetails = supplierPayments.map(p => ({
+      id: p.id,
+      supplierId: p.supplier?.id || null,
+      supplierName: p.supplier?.name || 'Fournisseur',
+      amount: parseFloat(p.amount || 0),
+      createdAt: p.paymentDate || p.createdAt
+    }));
+  } catch (e) {}
+
+  // Compute client payments (only standalone PAYMENT debt transactions, no saleId)
+  let clientPaymentsTotal = 0;
+  try {
+    const sessionStart = new Date(session.openedAt);
+    const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
+    const standalonePayments = await prisma.clientDebtTransaction.findMany({
+      where: {
+        type: 'PAYMENT',
+        saleId: null, // Only standalone payments (no saleId)
+        userId: session.userId,
+        createdAt: {
+          gte: sessionStart,
+          lte: sessionEnd
+        }
+      },
+      select: { amount: true }
+    });
+    clientPaymentsTotal = standalonePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  } catch (e) {}
+
+  // Add standalone client payments (credit encashments) to expected cash
+  expectedCash = expectedCash + clientPaymentsTotal;
+
   return {
     expectedCash,
     cashSales,
@@ -696,7 +858,13 @@ async function calculateSessionSummary(sessionId) {
     sortie,
     salesByPayment,
     totalSales: session.sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0),
-    totalTickets: session.sales.length
+    totalTickets: session.sales.length,
+    creditOutstanding,
+    creditAdvancePaid,
+    clientPaymentsTotal,
+    expensesTotal: cashExpenseTotal,
+    expensesDetails,
+    supplierPaymentsDetails
   };
 }
 

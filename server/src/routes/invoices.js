@@ -121,7 +121,18 @@ router.get('/requests', authenticateToken, async (req, res) => {
   }
 });
 
-// Get invoice by ID
+// Get next invoice number suggestion
+router.get('/next-number', authenticateToken, async (req, res) => {
+  try {
+    const nextNumber = await getNextInvoiceNumber(req.user.depotId);
+    res.json({ nextInvoiceNumber: nextNumber });
+  } catch (error) {
+    console.error('Error getting next invoice number:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get invoice by ID (must be after specific routes)
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const invoiceId = parseInt(req.params.id);
@@ -695,17 +706,6 @@ router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
   }
 });
 
-// Get next invoice number suggestion
-router.get('/next-number', authenticateToken, async (req, res) => {
-  try {
-    const nextNumber = await getNextInvoiceNumber(req.user.depotId);
-    res.json({ nextInvoiceNumber: nextNumber });
-  } catch (error) {
-    console.error('Error getting next invoice number:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Mark invoice as printed
 router.patch('/:id/mark-printed', authenticateToken, async (req, res) => {
   try {
@@ -737,5 +737,217 @@ router.patch('/:id/mark-printed', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Temporary Invoice Draft Routes
+
+/**
+ * Create a temporary invoice draft from PDF data
+ */
+router.post('/temp-draft', authenticateToken, async (req, res) => {
+  try {
+    const { pdfData, customerInfo, invoiceDate, notes, sourceFilename } = req.body;
+
+    if (!pdfData || !customerInfo || !invoiceDate) {
+      return res.status(400).json({
+        error: 'Données manquantes: pdfData, customerInfo et invoiceDate sont requis'
+      });
+    }
+
+    // Get next invoice number
+    let invoiceNumber;
+    try {
+      invoiceNumber = await getNextInvoiceNumber(req.user.depotId);
+    } catch (error) {
+      // If no series available, use temporary number
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const timeStr = now.getTime().toString().slice(-4);
+      invoiceNumber = `DRAFT-${dateStr}-${timeStr}`;
+    }
+
+    // Process PDF data into invoice lines
+    const invoiceLines = processPDFDataToInvoiceLines(pdfData);
+
+    // Calculate totals
+    const totals = calculateInvoiceTotals(invoiceLines);
+
+    // Create temporary invoice draft
+    const tempDraft = {
+      id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      invoiceNumber,
+      customerId: customerInfo.customerId,
+      customerName: customerInfo.customerName,
+      customerAddress: customerInfo.customerAddress,
+      customerMatricule: customerInfo.customerMatricule,
+      date: invoiceDate,
+      notes: notes || '',
+      lines: invoiceLines,
+      totals,
+      status: invoiceNumber.startsWith('DRAFT-') ? 'Needs Number' : 'Numbered',
+      sourceFilename,
+      createdAt: new Date().toISOString(),
+      isTemporary: true
+    };
+
+    // TODO: Store in database or temporary storage
+    // For now, we'll return the draft object
+    // In a real implementation, you'd save this to a temp_drafts table
+
+    res.json(tempDraft);
+
+  } catch (error) {
+    console.error('Error creating temp invoice draft:', error);
+    res.status(500).json({
+      error: 'Erreur lors de la création du brouillon temporaire'
+    });
+  }
+});
+
+/**
+ * Get all temporary invoice drafts
+ */
+router.get('/temp-drafts', authenticateToken, async (req, res) => {
+  try {
+    // TODO: Fetch from database
+    // For now, return empty array
+    res.json([]);
+  } catch (error) {
+    console.error('Error fetching temp drafts:', error);
+    res.status(500).json({
+      error: 'Erreur lors de la récupération des brouillons'
+    });
+  }
+});
+
+/**
+ * Delete a temporary invoice draft
+ */
+router.delete('/temp-drafts/:draftId', authenticateToken, async (req, res) => {
+  try {
+    const { draftId } = req.params;
+
+    // TODO: Delete from database
+    // For now, just return success
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting temp draft:', error);
+    res.status(500).json({
+      error: 'Erreur lors de la suppression du brouillon'
+    });
+  }
+});
+
+/**
+ * Finalize a temporary invoice draft (convert to real invoice)
+ */
+router.post('/finalize-draft', authenticateToken, async (req, res) => {
+  try {
+    const { draftId } = req.body;
+
+    if (!draftId) {
+      return res.status(400).json({
+        error: 'ID du brouillon requis'
+      });
+    }
+
+    // TODO: Implement actual finalization logic
+    // This would typically:
+    // 1. Fetch the temp draft from database
+    // 2. Create a real invoice with the draft data
+    // 3. Assign proper invoice number if needed
+    // 4. Create invoice lines
+    // 5. Update stock if needed
+    // 6. Delete the temp draft
+    // 7. Return the created invoice
+
+    // For now, simulate success
+    console.log(`Finalizing draft: ${draftId}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Brouillon finalisé avec succès',
+      invoiceId: `INV-${Date.now()}`
+    });
+
+  } catch (error) {
+    console.error('Error finalizing draft:', error);
+    res.status(500).json({
+      error: 'Erreur lors de la finalisation du brouillon'
+    });
+  }
+});
+
+/**
+ * Process PDF data into invoice lines
+ */
+function processPDFDataToInvoiceLines(pdfData) {
+  const lines = [];
+
+  pdfData.rows.forEach((row, index) => {
+    // Skip rows with zero or missing quantity
+    const quantity = parseFloat(row.rawData['Quantité'] || row.rawData['quantite'] || row.rawData['qty'] || '0');
+    if (quantity <= 0) return;
+
+    const article = row.rawData['Article'] || row.rawData['article'] || row.rawData['designation'] || `Article ${index + 1}`;
+    const designationLegale = row.rawData['Désignation légale'] || row.rawData['designation_legale'] || article;
+    const famille = row.rawData['Famille'] || row.rawData['famille'] || 'Général';
+    
+    // Extract prices
+    const prixTTC = parseFloat(row.rawData['PV TTC'] || row.rawData['prix_ttc'] || row.rawData['ttc'] || '0');
+    const prixHTVA = parseFloat(row.rawData['PV HTVA'] || row.rawData['prix_htva'] || row.rawData['htva'] || '0');
+    const tvaPercent = parseFloat(row.rawData['TVA %'] || row.rawData['tva_percent'] || row.rawData['tva'] || '19');
+
+    // Calculate missing values
+    let finalPrixTTC = prixTTC;
+    let finalPrixHTVA = prixHTVA;
+    let finalTvaPercent = tvaPercent;
+
+    if (prixTTC && !prixHTVA) {
+      finalPrixHTVA = prixTTC / (1 + tvaPercent / 100);
+    } else if (prixHTVA && !prixTTC) {
+      finalPrixTTC = prixHTVA * (1 + tvaPercent / 100);
+    } else if (!prixTTC && !prixHTVA) {
+      // Skip this line if no price information
+      return;
+    }
+
+    const montantTVA = finalPrixTTC - finalPrixHTVA;
+    const sousTotalTTC = finalPrixTTC * quantity;
+
+    lines.push({
+      productName: article,
+      familleName: famille,
+      legalDesignation: designationLegale,
+      quantity,
+      prixVenteHTVA: Math.round(finalPrixHTVA * 100) / 100,
+      prixVenteTTC: Math.round(finalPrixTTC * 100) / 100,
+      tvaPercent: finalTvaPercent,
+      montantTVA: Math.round(montantTVA * 100) / 100,
+      sousTotalTTC: Math.round(sousTotalTTC * 100) / 100
+    });
+  });
+
+  return lines;
+}
+
+/**
+ * Calculate totals from invoice lines
+ */
+function calculateInvoiceTotals(lines) {
+  const totals = lines.reduce(
+    (acc, line) => ({
+      subtotalHTVA: acc.subtotalHTVA + (line.prixVenteHTVA * line.quantity),
+      totalTVA: acc.totalTVA + (line.montantTVA * line.quantity),
+      totalTTC: acc.totalTTC + line.sousTotalTTC
+    }),
+    { subtotalHTVA: 0, totalTVA: 0, totalTTC: 0 }
+  );
+
+  return {
+    subtotalHTVA: Math.round(totals.subtotalHTVA * 100) / 100,
+    totalTVA: Math.round(totals.totalTVA * 100) / 100,
+    totalTTC: Math.round(totals.totalTTC * 100) / 100
+  };
+}
 
 module.exports = router;

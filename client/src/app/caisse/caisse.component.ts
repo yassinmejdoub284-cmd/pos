@@ -14,6 +14,7 @@ import { DragDropService } from '../core/services/drag-drop.service';
 import { WholesaleRulesService, WholesaleRule } from '../core/services/wholesale-rules.service';
 import { AuthService } from '../core/services/auth.service';
 import { DepotsService } from '../core/services/depots.service';
+import { ReturnsService } from '../core/services/returns.service';
 import { Product } from '../core/models/product.model';
 import { Sale } from '../core/models/sale.model';
 import { Client } from '../core/models/client.model';
@@ -92,6 +93,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
   
   change: number = 0;
+
+  // Ticket menu functionality
+  showTicketMenu = false;
+  todaysTickets: Sale[] = [];
+  loadingTodaysTickets = false;
 
   // Product catalog
   allProducts: Product[] = [];
@@ -411,7 +417,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private dragDropService: DragDropService,
     private wholesaleRulesService: WholesaleRulesService,
     private authService: AuthService,
-    private depotsService: DepotsService
+    private depotsService: DepotsService,
+    private returnsService: ReturnsService
   ) {}
 
   ngOnInit(): void {
@@ -3742,6 +3749,59 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getCurrentVendor(): string {
     return 'Vendeur'; // You can replace this with actual vendor logic
+  }
+
+  // Ticket menu methods
+  onTicketIdClick(): void {
+    if (this.showTicketMenu) {
+      this.showTicketMenu = false;
+      return;
+    }
+    
+    this.loadTodaysTickets();
+    this.showTicketMenu = true;
+  }
+
+  loadTodaysTickets(): void {
+    this.loadingTodaysTickets = true;
+    this.salesService.getTodaysSales().subscribe({
+      next: (tickets) => {
+        this.todaysTickets = tickets;
+        this.loadingTodaysTickets = false;
+      },
+      error: (error) => {
+        console.error('Error loading today\'s tickets:', error);
+        this.loadingTodaysTickets = false;
+      }
+    });
+  }
+
+  onTicketSelect(ticket: Sale): void {
+    this.showTicketMenu = false;
+    this.openReturnExchangeDialog(ticket);
+  }
+
+  openReturnExchangeDialog(ticket: Sale): void {
+    // Navigate to historique with the selected ticket
+    this.router.navigate(['/historique'], { 
+      queryParams: { 
+        openReturnDialog: 'true', 
+        ticketId: ticket.id 
+      } 
+    });
+  }
+
+  closeTicketMenu(): void {
+    this.showTicketMenu = false;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    const target = event.target as HTMLElement;
+    const ticketMenu = target.closest('.ticket-menu-container');
+    if (!ticketMenu && this.showTicketMenu) {
+      this.closeTicketMenu();
+    }
   }
 
   getCurrentCashier(): string {

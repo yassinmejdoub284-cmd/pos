@@ -17,6 +17,11 @@ export interface Supplier {
   totalExpenses?: number; // Total amount we've spent with this supplier
   totalPayments?: number; // Total amount we've paid to this supplier
   recentExpenses?: SupplierExpense[]; // Recent expenses with this supplier
+  _count?: {
+    expenses: number;
+    debtTransactions: number;
+    payments: number;
+  };
 }
 
 export interface SupplierExpense {
@@ -91,6 +96,8 @@ export interface SupplierSummary {
   periodBalance: number;
   _count: {
     expenses: number;
+    debtTransactions: number;
+    payments: number;
   };
 }
 

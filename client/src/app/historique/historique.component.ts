@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { SalesService } from '../core/services/sales.service';
 import { Sale } from '../core/models/sale.model';
 import { PrintService } from '../core/services/print.service';
@@ -77,7 +78,8 @@ export class HistoriqueComponent implements OnInit {
     private printService: PrintService,
     private http: HttpClient,
     private returnsService: ReturnsService,
-    private authService: AuthService
+    private authService: AuthService,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
@@ -85,6 +87,14 @@ export class HistoriqueComponent implements OnInit {
     this.loadPaymentMethods();
     this.loadInvoiceRequests();
     this.loadProducts();
+    
+    // Check for query parameters to open return dialog
+    this.route.queryParams.subscribe(params => {
+      if (params['openReturnDialog'] === 'true' && params['ticketId']) {
+        const ticketId = parseInt(params['ticketId']);
+        this.openReturnDialogForTicket(ticketId);
+      }
+    });
   }
 
   loadSales(): void {
@@ -453,6 +463,25 @@ export class HistoriqueComponent implements OnInit {
     this.exchangeProducts = [];
     this.showReturnPicker = false;
     // Start with no rows; user will add items explicitly
+  }
+
+  openReturnDialogForTicket(ticketId: number): void {
+    // Find the sale by ID
+    const sale = this.sales.find(s => s.id === ticketId);
+    if (sale) {
+      this.openReturnRequestModal(sale);
+    } else {
+      // If sale not found in current list, try to load it
+      this.salesService.getSale(ticketId).subscribe({
+        next: (sale) => {
+          this.openReturnRequestModal(sale);
+        },
+        error: (error) => {
+          console.error('Error loading sale:', error);
+          this.showAlertMessage('Erreur lors du chargement du ticket', 'error');
+        }
+      });
+    }
   }
 
   closeReturnRequestModal(): void {

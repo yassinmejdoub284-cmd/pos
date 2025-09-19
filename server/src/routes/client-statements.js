@@ -26,100 +26,87 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Client non trouvé' });
     }
 
-    const whereClause = { clientId: parseInt(clientId) };
-    
-    if (startDate && endDate) {
-      whereClause.OR = [
-        { createdAt: { gte: new Date(startDate), lte: new Date(endDate) } },
-        { createdAt: { gte: new Date(startDate), lte: new Date(endDate) } }
-      ];
-    }
+    // Prepare optional date filter
+    const dateFilter = (startDate && endDate)
+      ? { gte: new Date(startDate), lte: new Date(endDate) }
+      : undefined;
 
-    // Get sales
-    const sales = await prisma.sale.findMany({
-      where: { clientId: parseInt(clientId) },
-      include: {
-        paymentMethod: { select: { name: true } }
+    // Get client debt transactions ONLY (single source of truth)
+    // Includes both DEBT (Crédit) and PAYMENT (Débit), with or without saleId
+    const debtTransactions = await prisma.clientDebtTransaction.findMany({
+      where: {
+        clientId: parseInt(clientId),
+        ...(dateFilter ? { createdAt: dateFilter } : {})
+      },
+      select: {
+        id: true,
+        amount: true,
+        type: true,
+        notes: true,
+        saleId: true,
+        createdAt: true
       },
       orderBy: { createdAt: 'asc' }
     });
 
-    // Get debt transactions
-    const debtTransactions = await prisma.clientDebtTransaction.findMany({
-      where: { clientId: parseInt(clientId) },
-      orderBy: { createdAt: 'asc' }
-    });
+    // Group transactions by saleId to merge Débit/Crédit of the same ticket
+    const groupedBySale = new Map();
+    const standaloneRows = [];
 
-    // Calculate running balance
-    let balance = 0;
-    const statement = [];
-
-    // Combine and sort all transactions
-    const allTransactions = [
-      // Include ALL sales (both CREDIT and COMPTANT)
-      ...sales.map(sale => {
-        const totalAmount = parseFloat(sale.finalTotal);
-        
-        if (sale.paymentType === 'CREDIT') {
-          // Credit sales: show advance payment as debit, total as credit
-          const advanceAmount = parseFloat(sale.advancePayment || 0);
-          const remainingAmount = totalAmount - advanceAmount;
-          
-          return {
-            type: 'credit',
-            date: sale.createdAt,
-            reference: `TICKET-${sale.id}`,
-            debit: advanceAmount, // Show advance payment as debit
-            credit: totalAmount, // Show total as credit
-            id: sale.id,
+    for (const t of debtTransactions) {
+      const amount = parseFloat(t.amount);
+      if (t.saleId) {
+        if (!groupedBySale.has(t.saleId)) {
+          groupedBySale.set(t.saleId, {
+            type: 'ticket',
+            date: t.createdAt,
+            reference: `TICKET-${t.saleId}`,
+            debit: 0,
+            credit: 0,
+            id: t.saleId,
             clickable: true,
-            saleId: sale.id,
-            remaining: remainingAmount
-          };
-        } else {
-          // Cash sales: show full payment as both debit and credit (débit = crédit)
-          return {
-            type: 'cash',
-            date: sale.createdAt,
-            reference: `TICKET-${sale.id}`,
-            debit: totalAmount, // Full payment as debit
-            credit: totalAmount, // Full amount as credit
-            id: sale.id,
-            clickable: true,
-            saleId: sale.id,
-            remaining: 0
-          };
+            saleId: t.saleId
+          });
         }
-      }),
-      // Only include standalone debt transactions (not related to sales)
-      ...debtTransactions.filter(transaction => !transaction.saleId).map(transaction => ({
-        type: transaction.type.toLowerCase(),
-        date: transaction.createdAt,
-        reference: transaction.type === 'DEBT' ? `CREDIT-${transaction.id}` : `REGLEMENT-${transaction.id}`,
-        debit: transaction.type === 'PAYMENT' ? parseFloat(transaction.amount) : 0,
-        credit: transaction.type === 'DEBT' ? parseFloat(transaction.amount) : 0,
-        id: transaction.id,
-        clickable: transaction.type === 'PAYMENT', // Make payments clickable
-        saleId: transaction.saleId
-      }))
-    ].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const row = groupedBySale.get(t.saleId);
+        // Keep earliest date for the ticket row
+        if (new Date(t.createdAt) < new Date(row.date)) {
+          row.date = t.createdAt;
+        }
+        if (t.type === 'PAYMENT') row.debit += amount;
+        if (t.type === 'DEBT') row.credit += amount;
+      } else {
+        // Standalone transactions remain separate
+        standaloneRows.push({
+          type: t.type.toLowerCase(),
+          date: t.createdAt,
+          reference: t.type === 'DEBT' ? `CREDIT-${t.id}` : `REGLEMENT-${t.id}`,
+          debit: t.type === 'PAYMENT' ? amount : 0,
+          credit: t.type === 'DEBT' ? amount : 0,
+          id: t.id,
+          clickable: t.type === 'PAYMENT',
+          saleId: null,
+          description: t.notes || ''
+        });
+      }
+    }
 
-    // Calculate running balance (Solde = Somme(Débits) - Somme(Crédits))
-    // Débit = argent reçu du client (paiement) - reduces debt
-    // Crédit = montant facturé au client à crédit (dette) - increases debt
-    allTransactions.forEach(transaction => {
-      balance = balance + transaction.debit - transaction.credit;
-      statement.push({
-        ...transaction,
-        balance: balance
+    const rows = [...Array.from(groupedBySale.values()), ...standaloneRows];
+
+    // Calculate running balance (Solde = Débits - Crédits)
+    let balance = 0;
+    const statement = rows
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .map(r => {
+        balance = balance + r.debit - r.credit;
+        return { ...r, balance };
       });
-    });
 
     res.json({
       client,
       statement,
-      totalDebit: allTransactions.reduce((sum, t) => sum + t.debit, 0),
-      totalCredit: allTransactions.reduce((sum, t) => sum + t.credit, 0),
+      totalDebit: rows.reduce((sum, t) => sum + t.debit, 0),
+      totalCredit: rows.reduce((sum, t) => sum + t.credit, 0),
       currentBalance: balance
     });
   } catch (error) {
@@ -153,7 +140,10 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         maxDebt: true,
         totalSpent: true,
         _count: {
-          select: { sales: true }
+          select: { 
+            sales: true,
+            debtTransactions: true
+          }
         }
       },
       orderBy: { totalSpent: 'desc' },

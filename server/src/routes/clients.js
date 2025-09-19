@@ -36,6 +36,11 @@ router.get('/', async (req, res) => {
             code: true,
             type: true
           }
+        },
+        _count: {
+          select: {
+            debtTransactions: true
+          }
         }
       },
       orderBy: { totalSpent: 'desc' },
@@ -336,6 +341,71 @@ router.post('/:id/debt/payments', async (req, res) => {
   } catch (error) {
     console.error('Error recording debt payment:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Initialize client solde (set currentDebt to custom amount)
+router.post('/:id/solde/init', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, notes } = req.body;
+
+    const client = await prisma.client.findUnique({ 
+      where: { id: parseInt(id) },
+      include: {
+        _count: {
+          select: {
+            debtTransactions: true
+          }
+        }
+      }
+    });
+    if (!client) return res.status(404).json({ error: 'Client introuvable' });
+
+    // Check if client already has any debt transactions
+    if (client._count.debtTransactions > 0) {
+      return res.status(400).json({ error: 'Ce client a déjà des mouvements. Impossible de définir un solde de départ.' });
+    }
+
+    const newAmount = parseFloat(amount);
+    if (isNaN(newAmount)) {
+      return res.status(400).json({ error: 'Montant invalide' });
+    }
+
+    const currentDebt = parseFloat(client.currentDebt || 0);
+    const difference = newAmount - currentDebt;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // Set currentDebt to the new amount
+      const c = await tx.client.update({ 
+        where: { id: client.id }, 
+        data: { currentDebt: newAmount } 
+      });
+      
+      // Create a debt transaction to record the initial balance
+      if (difference !== 0) {
+        const transactionType = difference > 0 ? 'DEBT' : 'PAYMENT';
+        const transactionAmount = Math.abs(difference);
+        
+        await tx.clientDebtTransaction.create({
+          data: { 
+            clientId: client.id, 
+            saleId: null, 
+            amount: transactionAmount, 
+            type: transactionType, 
+            notes: notes || `Solde de départ`,
+            userId: req.user?.id || null
+          }
+        });
+      }
+      
+      return c;
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error initializing client solde:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'initialisation du solde' });
   }
 });
 

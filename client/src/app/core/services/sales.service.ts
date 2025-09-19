@@ -131,4 +131,11 @@ export class SalesService {
   rejectGiftSale(saleId: number): Observable<Sale> {
     return this.http.put<Sale>(`${this.apiUrl}/gift/${saleId}/reject`, {});
   }
+
+  getTodaysSales(): Observable<Sale[]> {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    return this.http.get<Sale[]>(`${this.apiUrl}?date=${today}`).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
 } 

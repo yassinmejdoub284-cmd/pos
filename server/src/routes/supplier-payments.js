@@ -64,7 +64,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER'])
     }
 
     const payment = await prisma.$transaction(async (tx) => {
-      // Create the payment
+      // Create the payment with a provisional amount; we'll correct it after computing appliedAmount
       const supplierPayment = await tx.supplierPayment.create({
         data: {
           supplierId: Number(supplierId),
@@ -87,13 +87,14 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER'])
         }
       });
 
+      let appliedAmount = 0;
       if (supplier) {
-        let remainingPayment = Number(amount);
+        let remainingPayment = Math.abs(Number(amount));
         
         for (const expense of supplier.expenses) {
           if (remainingPayment <= 0) break;
           
-          const expenseAmount = parseFloat(expense.amount);
+          const expenseAmount = Math.abs(parseFloat(expense.amount));
           const paymentForThisExpense = Math.min(remainingPayment, expenseAmount);
           
           await tx.expense.update({
@@ -105,21 +106,39 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER'])
             }
           });
           
+          appliedAmount += paymentForThisExpense;
           remainingPayment -= paymentForThisExpense;
         }
       }
 
-      // If cash payment, create cash movement sortie
+      // After computing how much was actually applied, normalize the stored supplier payment amount
+      // We store supplier payments as NEGATIVE to indicate money going out
+      const normalizedApplied = appliedAmount > 0 ? appliedAmount : Math.abs(Number(amount));
+      await tx.supplierPayment.update({
+        where: { id: supplierPayment.id },
+        data: { amount: -normalizedApplied }
+      });
+
+      // If cash payment, create cash movement sortie (store positive amount; direction given by type)
       if (method === 'CASH') {
+        // Only withdraw the portion that actually matches unpaid supplier expenses.
+        // If none matched (no pending expenses), fallback to the requested amount.
+        const amt = normalizedApplied;
         await tx.cashMovement.create({
           data: {
             sessionId: activeSession.id,
             type: 'SORTIE',
-            amount: Number(amount),
+            amount: amt,
             reason: `Règlement fournisseur #${supplierPayment.id} (FOURN:${supplierId})`,
             ticketId: null,
             createdById: req.user.id
           }
+        });
+
+        // Keep session expected cash in sync immediately
+        await tx.sessionCaisse.update({
+          where: { id: activeSession.id },
+          data: { expectedCash: { decrement: amt } }
         });
       }
 

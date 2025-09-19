@@ -34,6 +34,7 @@ model User {
   auditLogs    AuditLog[]
   documentStatusHistory DocumentStatusHistory[]
   debtTransactions ClientDebtTransaction[]
+  supplierDebtTransactions SupplierDebtTransaction[]
   sessions     SessionCaisse[]
   cashMovements CashMovement[]
   requestedChanges ChangeRequest[] @relation("RequestedBy")
@@ -441,11 +442,13 @@ model Supplier {
   paymentTerms String? @map("payment_terms") @db.VarChar(100)
   notes       String?  @db.Text
   isActive    Boolean  @default(true) @map("is_active")
+  currentDebt Decimal  @default(0) @map("current_debt") @db.Decimal(12, 3)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   expenses    Expense[]
   payments    SupplierPayment[]
+  debtTransactions SupplierDebtTransaction[]
 
   @@map("suppliers")
 }
@@ -466,6 +469,23 @@ model SupplierPayment {
   user          User     @relation(fields: [userId], references: [id])
 
   @@map("supplier_payments")
+}
+
+model SupplierDebtTransaction {
+  id        Int      @id @default(autoincrement())
+  supplierId Int     @map("supplier_id")
+  expenseId  Int?    @map("expense_id")
+  amount    Decimal  @db.Decimal(12, 3)
+  type      String   @db.VarChar(20) // DEBT or PAYMENT
+  notes     String?  @db.Text
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  supplier  Supplier @relation(fields: [supplierId], references: [id])
+  expense   Expense? @relation(fields: [expenseId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("supplier_debt_transactions")
 }
 
 model Expense {
@@ -498,6 +518,7 @@ model Expense {
   supplier    Supplier?       @relation(fields: [supplierId], references: [id])
   approver    User?           @relation("ExpenseApprover", fields: [approvedBy], references: [id])
   payer       User?           @relation("ExpensePayer", fields: [paidBy], references: [id])
+  debtTransactions SupplierDebtTransaction[]
 
   @@map("expenses")
 }
