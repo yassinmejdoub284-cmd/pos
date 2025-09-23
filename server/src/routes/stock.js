@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { requireRole } = require('../middleware/auth');
+const { requireRole, authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -101,12 +101,12 @@ router.post('/adjust', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async
   }
 });
 
-router.get('/movements', async (req, res) => {
+router.get('/movements', authenticateToken, async (req, res) => {
   try {
-    const { startDate, endDate, type, productId, page = 1, limit = 50 } = req.query;
+    const { startDate, endDate, type, productId, depotId, page = 1, limit = 50 } = req.query;
 
     const whereClause = {
-      depotId: req.user.depotId
+      depotId: depotId ? parseInt(depotId) : req.user.depotId
     };
 
     if (startDate && endDate) {
@@ -130,7 +130,7 @@ router.get('/movements', async (req, res) => {
         product: {
           select: {
             name: true,
-            sku: true
+            barcode: true
           }
         },
         user: {

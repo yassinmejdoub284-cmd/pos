@@ -1,0 +1,385 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-4">
+      <button 
+        (click)="goBack()"
+        class="inline-flex items-center px-3 py-1 text-slate-600 hover:text-slate-900 hover:bg-white/50 rounded-lg transition-all duration-200 mb-3 font-medium">
+        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+        Retour
+      </button>
+      
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Importer Bon d'Entrée</h1>
+            <p class="text-slate-600 text-sm" *ngIf="depot">{{ depot.name }} ({{ depot.code }})</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error/Success Messages -->
+    <div *ngIf="error" class="bg-red-50/80 backdrop-blur-sm border border-red-200/50 rounded-xl p-3 mb-4 shadow-lg">
+      <div class="flex items-center">
+        <div class="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mr-2">
+          <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <span class="text-red-800 font-medium text-sm">{{ error }}</span>
+      </div>
+    </div>
+
+    <div *ngIf="success" class="bg-green-50/80 backdrop-blur-sm border border-green-200/50 rounded-xl p-3 mb-4 shadow-lg">
+      <div class="flex items-center">
+        <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
+          <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <span class="text-green-800 font-medium text-sm">{{ success }}</span>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading && !selectedEntry" class="flex justify-center items-center py-8">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+
+    <!-- Step 1: Select Entry -->
+    <div *ngIf="!selectedEntry && !loading" class="space-y-4">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-4">
+        <div class="text-center mb-4">
+          <h2 class="text-lg font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Sélectionner un Bon d'Entrée</h2>
+        </div>
+        
+        <div *ngIf="availableEntries().length === 0" class="text-center py-6 text-gray-500">
+          <svg class="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <span class="text-sm">Aucun bon d'entrée disponible</span>
+        </div>
+
+        <div *ngIf="availableEntries().length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div 
+            *ngFor="let entry of availableEntries()" 
+            (click)="selectEntry(entry)"
+            class="group bg-white/90 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl cursor-pointer transition-all duration-300 hover:scale-105 border border-white/20 overflow-hidden">
+            
+            <!-- Card Header -->
+            <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 text-white">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <div class="w-6 h-6 bg-white/20 rounded flex items-center justify-center">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                  </div>
+                  <span class="text-xs font-semibold">Bon d'Entrée</span>
+                </div>
+                <div class="text-xs opacity-90">{{ entry.createdAt | date:'dd/MM' }}</div>
+              </div>
+            </div>
+            
+            <!-- Card Content -->
+            <div class="p-4">
+              <!-- Document Number -->
+              <div class="text-center mb-3">
+                <div class="text-lg font-bold text-slate-800 group-hover:text-blue-600 transition-colors">#{{ entry.numero }}</div>
+              </div>
+              
+              <!-- Document Details -->
+              <div class="space-y-2">
+                <div class="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span class="text-xs font-medium text-slate-600">Fournisseur</span>
+                  <span class="text-xs text-slate-800 font-semibold truncate ml-2" *ngIf="entry.supplier">{{ entry.supplier.name }}</span>
+                  <span class="text-xs text-slate-400" *ngIf="!entry.supplier">-</span>
+                </div>
+                
+                <div class="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span class="text-xs font-medium text-slate-600">Produits</span>
+                  <span class="text-xs text-slate-800 font-semibold">{{ entry.items.length }}</span>
+                </div>
+                
+                <div class="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span class="text-xs font-medium text-slate-600">Quantité</span>
+                  <span class="text-xs text-slate-800 font-semibold">{{ getEntryTotalQuantity(entry) }}</span>
+                </div>
+                
+                <div class="flex items-center justify-between py-1">
+                  <span class="text-xs font-medium text-slate-600">Valeur</span>
+                  <span class="text-xs font-bold text-green-600">{{ getEntryTotalValue(entry) | currency:'EUR':'symbol':'1.2-2' }}</span>
+                </div>
+              </div>
+              
+              <!-- Action Button -->
+              <div class="mt-4">
+                <div class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-center py-1.5 rounded-lg text-xs font-medium group-hover:from-blue-600 group-hover:to-indigo-700 transition-all duration-200">
+                  Importer
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Edit and Import -->
+    <div *ngIf="selectedEntry" class="space-y-4">
+      <!-- Modern Document Container -->
+      <div class="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-4">
+        
+        <!-- Document Header -->
+        <div class="flex justify-between items-start mb-4">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <h1 class="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Bon d'Entrée</h1>
+              <div class="mt-1 space-y-0.5">
+                <div class="text-sm font-semibold text-slate-800">#{{ selectedEntry.numero }}</div>
+                <div class="text-xs text-slate-600" *ngIf="selectedEntry.supplier">{{ selectedEntry.supplier.name }}</div>
+                <div class="text-xs text-slate-600">{{ selectedEntry.createdAt | date:'dd/MM/yyyy' }}</div>
+              </div>
+            </div>
+          </div>
+          <button 
+            (click)="resetSelection()"
+            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-lg">
+            Changer
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Panel - Editable Items -->
+        <div class="lg:col-span-2 space-y-4">
+          <!-- Items List -->
+          <div class="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/30 p-4">
+            <div class="mb-4">
+              <h2 class="text-lg font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Produits à Importer</h2>
+            </div>
+            
+            <div *ngIf="editableItems().length === 0" class="text-center py-6 text-gray-500">
+              <span class="text-sm">Aucun produit à importer</span>
+            </div>
+
+            <div *ngIf="editableItems().length > 0" class="space-y-3">
+              <!-- Table Header -->
+              <div class="grid grid-cols-12 gap-3 py-3 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl px-3 font-semibold text-xs text-slate-700">
+                <div class="col-span-4">Produit</div>
+                <div class="col-span-2 text-center">Quantité</div>
+                <div class="col-span-2 text-center">Prix</div>
+                <div class="col-span-2 text-center">Total</div>
+                <div class="col-span-2 text-center">Actions</div>
+              </div>
+              
+              <div 
+                *ngFor="let item of editableItems(); let i = index" 
+                class="grid grid-cols-12 gap-3 py-3 bg-white/70 backdrop-blur-sm rounded-xl px-3 hover:bg-white/90 transition-all duration-200 border border-white/50">
+                
+                <!-- Product Info -->
+                <div class="col-span-4">
+                  <div class="font-semibold text-slate-800 text-sm">{{ item.productName }}</div>
+                  <div class="text-xs text-slate-500">{{ item.famille }}</div>
+                </div>
+                
+                <!-- Quantity -->
+                <div class="col-span-2">
+                  <input 
+                    type="number" 
+                    [value]="itemsArray.at(i).get('quantity')?.value"
+                    (input)="onDirectInputChange(i, 'quantity', $any($event.target).value)"
+                    (click)="selectField(i, 'quantity')"
+                    [class]="getFieldClass(i, 'quantity')"
+                    placeholder="Qty"
+                    min="0"
+                    step="0.01"
+                    class="w-full px-2 py-1 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm">
+                  <div class="text-xs text-slate-400 mt-0.5">Orig: {{ item.originalQuantity }}</div>
+                </div>
+                
+                <!-- Price -->
+                <div class="col-span-2">
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    [value]="itemsArray.at(i).get('purchasePrice')?.value"
+                    (input)="onDirectInputChange(i, 'purchasePrice', $any($event.target).value)"
+                    (click)="selectField(i, 'price')"
+                    [class]="getFieldClass(i, 'price')"
+                    placeholder="Prix"
+                    min="0"
+                    class="w-full px-2 py-1 border border-slate-200 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm">
+                  <div class="text-xs text-slate-400 mt-0.5">Orig: {{ item.originalPrice }}</div>
+                </div>
+                
+                <!-- Total -->
+                <div class="col-span-2 text-center">
+                  <div class="font-semibold text-slate-800 text-sm">{{ (item.quantity * item.purchasePrice) | currency:'EUR':'symbol':'1.2-2' }}</div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="col-span-2 text-center">
+                  <button 
+                    (click)="removeItem(i)"
+                    title="Supprimer ce produit"
+                    class="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-all duration-200 flex items-center justify-center">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Total Row -->
+              <div class="grid grid-cols-12 gap-3 py-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl px-3 font-bold text-slate-800 border border-green-200">
+                <div class="col-span-8 text-right text-sm">TOTAL:</div>
+                <div class="col-span-2 text-center text-green-600 text-sm">{{ getTotalValue() | currency:'EUR':'symbol':'1.2-2' }}</div>
+                <div class="col-span-2"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Panel - Controls & Summary -->
+        <div class="space-y-4">
+          <!-- Numeric Keypad -->
+          <div class="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/30 p-4">
+            <div class="mb-4">
+              <h2 class="text-sm font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Saisie</h2>
+            </div>
+            
+            <!-- Display -->
+            <div class="mb-4">
+              <div class="bg-gradient-to-r from-slate-100 to-blue-50 border border-slate-200 rounded-xl p-3 text-right shadow-inner">
+                <div class="text-lg font-mono text-slate-800 font-bold">{{ currentInput || '0' }}</div>
+                <div class="text-xs text-slate-600 font-medium mt-1" *ngIf="selectedField && selectedIndex >= 0">
+                  {{ selectedField === 'quantity' ? 'Qty' : 'Prix' }} - {{ editableItems()[selectedIndex].productName }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Keypad -->
+            <div class="grid grid-cols-3 gap-2 mb-4">
+              <button *ngFor="let digit of ['1', '2', '3', '4', '5', '6', '7', '8', '9']" 
+                      (click)="addDigit(digit)"
+                      class="bg-white hover:bg-blue-50 text-slate-700 font-bold py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md text-sm">
+                {{ digit }}
+              </button>
+              <button (click)="clearDisplay()"
+                      class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 rounded-lg border border-red-200 hover:border-red-300 transition-all duration-200 shadow-sm hover:shadow-md text-sm">
+                C
+              </button>
+              <button (click)="addDigit('0')"
+                      class="bg-white hover:bg-blue-50 text-slate-700 font-bold py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md text-sm">
+                0
+              </button>
+              <button (click)="addDigit('.')"
+                      class="bg-white hover:bg-blue-50 text-slate-700 font-bold py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md text-sm">
+                .
+              </button>
+            </div>
+
+            <button 
+              (click)="enterValue()"
+              class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl text-sm">
+              Entrer
+            </button>
+          </div>
+
+          <!-- Notes -->
+          <div class="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/30 p-4">
+            <div class="mb-3">
+              <h2 class="text-sm font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Notes</h2>
+            </div>
+            <textarea 
+              [(ngModel)]="notes"
+              placeholder="Notes..."
+              rows="2"
+              class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-all duration-200 bg-white/70 text-sm">
+            </textarea>
+          </div>
+
+          <!-- Summary -->
+          <div class="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/30 p-4">
+            <div class="mb-3">
+              <h2 class="text-sm font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Résumé</h2>
+            </div>
+            <div class="space-y-2">
+              <div class="flex justify-between items-center py-1 border-b border-slate-200">
+                <span class="text-slate-600 font-medium text-sm">Produits:</span>
+                <span class="font-bold text-slate-800 bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">{{ editableItems().length }}</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-slate-200">
+                <span class="text-slate-600 font-medium text-sm">Quantité:</span>
+                <span class="font-bold text-slate-800 text-sm">{{ getTotalQuantity() }}</span>
+              </div>
+              <div class="flex justify-between items-center py-2 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg px-3 border border-green-200">
+                <span class="text-slate-700 font-semibold text-sm">Total:</span>
+                <span class="font-bold text-green-600 text-lg">{{ getTotalValue() | currency:'EUR':'symbol':'1.2-2' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/30 p-4">
+            <div class="space-y-3">
+              <!-- Primary Import Button -->
+              <button 
+                (click)="submitImport()"
+                [disabled]="loading || editableItems().length === 0"
+                class="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none text-sm">
+                <span *ngIf="loading" class="flex items-center justify-center">
+                  <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Importation...
+                </span>
+                <span *ngIf="!loading" class="flex items-center justify-center">
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                  </svg>
+                  Importer l'Entrée
+                </span>
+              </button>
+
+              <!-- Secondary Import Button -->
+              <button 
+                (click)="importFromFile()"
+                [disabled]="loading"
+                class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white font-bold py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none text-sm">
+                <span class="flex items-center justify-center">
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                  </svg>
+                  Importer depuis Fichier
+                </span>
+              </button>
+              
+              <div class="text-center">
+                <div class="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                  <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  {{ editableItems().length }} produit(s)
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

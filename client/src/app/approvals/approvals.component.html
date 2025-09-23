@@ -77,6 +77,10 @@
           Rebut
           <span class="ml-2 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-700 text-xs">{{ pendingRebuts.length }}</span>
         </button>
+        <button (click)="selectedTab='RETURN_HISTORY'" [class]="'px-4 py-2 rounded-2xl text-sm font-medium ' + (selectedTab==='RETURN_HISTORY' ? 'bg-slate-600 text-white' : 'bg-slate-100/60 text-slate-600 hover:bg-slate-100')">
+          Historique retours
+          <span class="ml-2 px-2 py-0.5 rounded-full bg-slate-500/20 text-slate-700 text-xs">{{ returnHistory.length }}</span>
+        </button>
       </div>
 
       <!-- Lists -->
@@ -402,6 +406,178 @@
         </div>
       </div>
 
+      <!-- Returns approvals -->
+      <div *ngIf="!loading && !error && selectedTab==='RETURNS'">
+        <div *ngIf="loadingReturns" class="text-slate-500">Chargement...</div>
+        <div *ngIf="!loadingReturns && pendingReturns.length===0" class="text-slate-500 text-sm">Aucun bon de retour en attente</div>
+        
+        <div *ngFor="let req of pendingReturns" class="bg-white rounded-2xl p-6 border border-slate-200 mb-4">
+          <!-- Header -->
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-lg font-semibold text-slate-800">Bon de retour • {{ req.numero }}</h3>
+              <div class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</div>
+            </div>
+            <span class="px-3 py-1 rounded-full text-sm bg-amber-100 text-amber-700 border border-amber-200">{{ req.status }}</span>
+          </div>
+
+          <!-- Articles à retourner -->
+          <div class="mb-6">
+            <h4 class="text-md font-medium text-slate-700 mb-3">Articles à retourner</h4>
+            <div class="space-y-3">
+              <div *ngFor="let item of req.items" class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <div class="flex items-center justify-between">
+                  <div class="flex-1">
+                    <div class="font-medium text-slate-800">{{ item.product?.name || 'Produit #' + item.productId }}</div>
+                    <div class="text-sm text-slate-600">
+                      Vendu: {{ item.requestedQty }} • PU: {{ item.product?.prix_vente_TTC || 'N/A' }} TND
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-lg font-semibold text-slate-800">
+                      Retour: {{ (item.requestedQty * (item.product?.prix_vente_TTC || 0)) | number:'1.2-2' }} TND
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Remboursement details -->
+          <div class="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-4">
+            <h4 class="text-md font-medium text-slate-700 mb-3">Détails du remboursement</h4>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span class="text-slate-600">Montant original de la vente:</span>
+                <span class="font-semibold text-slate-800 ml-2">
+                  {{ req.originalSaleTotal ? (req.originalSaleTotal | number:'1.2-2') + ' TND' : 'Non disponible' }}
+                </span>
+              </div>
+              <div>
+                <span class="text-slate-600">Méthode de paiement:</span>
+                <span class="font-semibold text-slate-800 ml-2">Espèces</span>
+              </div>
+              <div>
+                <span class="text-slate-600">Valeur des articles retournés:</span>
+                <span class="font-semibold text-slate-800 ml-2">{{ getTotalReturnAmount(req) | number:'1.2-2' }} TND</span>
+              </div>
+              <div>
+                <span class="text-slate-600">Remboursement en espèces:</span>
+                <span class="font-semibold text-slate-800 ml-2">{{ getTotalReturnAmount(req) | number:'1.2-2' }} TND</span>
+              </div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-blue-200">
+              <div class="text-sm text-slate-600">
+                • Le montant à rembourser au client est <span class="font-semibold">{{ getTotalReturnAmount(req) | number:'1.2-2' }} TND</span> et sera automatiquement soustrait de la caisse.
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div *ngIf="req.notes" class="mb-4">
+            <h4 class="text-md font-medium text-slate-700 mb-2">Notes</h4>
+            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+              <p class="text-sm text-slate-700">{{ req.notes }}</p>
+            </div>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="flex justify-end gap-3">
+            <button (click)="rejectReturnRequest(req)" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              Rejeter
+            </button>
+            <button (click)="approveReturnRequest(req)" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+              Approuver
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rebut list -->
+      <div *ngIf="!loading && !error && selectedTab==='REButs'">
+        <div *ngIf="pendingRebuts.length===0" class="text-slate-500 text-sm">Aucun rebut en attente d'autorité</div>
+        <div *ngFor="let r of pendingRebuts" class="bg-rose-50 rounded-2xl p-4 border border-rose-200 mb-3">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-slate-800 font-semibold">{{ r.product?.name || r.productId }}</div>
+              <div class="text-xs text-slate-500">Qté: {{ r.quantity }} • Dépôt: {{ r.depot?.name || r.depotId }}</div>
+            </div>
+            <button (click)="archiveRebut(r.id)" class="px-3 py-1 bg-rose-600 text-white rounded-lg hover:bg-rose-500" title="Archiver après validation d'autorité" aria-label="Archiver le rebut">Archiver</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Return History -->
+      <div *ngIf="!loading && !error && selectedTab==='RETURN_HISTORY'">
+        <div *ngIf="loadingReturnHistory" class="text-slate-500">Chargement...</div>
+        <div *ngIf="!loadingReturnHistory && returnHistory.length===0" class="text-slate-500 text-sm">Aucun historique de retour disponible</div>
+        
+        <div *ngFor="let req of returnHistory" class="bg-white rounded-2xl p-6 border border-slate-200 mb-4">
+          <!-- Header -->
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-lg font-semibold text-slate-800">Bon de retour • {{ req.numero }}</h3>
+              <div class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span [class]="'px-3 py-1 rounded-full text-sm ' + (req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
+                {{ req.status === 'APPROVED' ? 'Approuvé' : 'Rejeté' }}
+              </span>
+              <div class="text-xs text-slate-500" *ngIf="req.approvedAt">
+                {{ req.approvedAt | date:'short' }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Articles retournés -->
+          <div class="mb-6">
+            <h4 class="text-md font-medium text-slate-700 mb-3">Articles retournés</h4>
+            <div class="space-y-3">
+              <div *ngFor="let item of req.items" class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <div class="flex items-center justify-between">
+                  <div class="flex-1">
+                    <div class="font-medium text-slate-800">{{ item.product?.name || 'Produit #' + item.productId }}</div>
+                    <div class="text-sm text-slate-600">
+                      Quantité: {{ item.requestedQty }} • PU: {{ item.product?.prix_vente_TTC || 'N/A' }} TND
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-lg font-semibold text-slate-800">
+                      {{ (item.requestedQty * (item.product?.prix_vente_TTC || 0)) | number:'1.2-2' }} TND
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Remboursement details -->
+          <div class="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-4">
+            <h4 class="text-md font-medium text-slate-700 mb-3">Détails du remboursement</h4>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span class="text-slate-600">Montant original de la vente:</span>
+                <span class="font-semibold text-slate-800 ml-2">
+                  {{ req.originalSaleTotal ? (req.originalSaleTotal | number:'1.2-2') + ' TND' : 'Non disponible' }}
+                </span>
+              </div>
+              <div>
+                <span class="text-slate-600">Valeur des articles retournés:</span>
+                <span class="font-semibold text-slate-800 ml-2">{{ getTotalReturnAmount(req) | number:'1.2-2' }} TND</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div *ngIf="req.notes" class="mb-4">
+            <h4 class="text-md font-medium text-slate-700 mb-2">Notes</h4>
+            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+              <p class="text-sm text-slate-700 whitespace-pre-line">{{ req.notes }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -438,63 +614,6 @@
       <button (click)="rejectReason='ECART_COMPTAGE'" [class]="'w-full text-left px-4 py-3 rounded-xl border ' + (rejectReason==='ECART_COMPTAGE' ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:bg-slate-50')">Écart au comptage physique</button>
       <button (click)="rejectReason='SUSPICION_ANOMALIE'" [class]="'w-full text-left px-4 py-3 rounded-xl border ' + (rejectReason==='SUSPICION_ANOMALIE' ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:bg-slate-50')">Suspicion d'anomalie</button>
       
-      <!-- Returns approvals -->
-      <div *ngIf="!loading && !error && selectedTab==='RETURNS'">
-        <div *ngIf="loadingReturns" class="text-slate-500">Chargement...</div>
-        <div *ngIf="!loadingReturns && pendingReturns.length===0" class="text-slate-500 text-sm">Aucun bon de retour en attente</div>
-        <div *ngFor="let req of pendingReturns" class="bg-amber-50 rounded-2xl p-4 border border-amber-200 mb-3">
-          <div class="flex items-start justify-between">
-            <div>
-              <div class="text-slate-800 font-semibold">Bon de retour • {{ req.numero }}</div>
-              <div class="text-xs text-slate-500">{{ req.createdAt | date:'short' }}</div>
-            </div>
-            <div class="text-right">
-              <span class="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-700 border border-amber-300">{{ req.status }}</span>
-            </div>
-          </div>
-          <div class="mt-3 overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-slate-600">
-                  <th class="text-left p-2">Produit</th>
-                  <th class="text-right p-2">Demandé</th>
-                  <th class="text-right p-2">Non-rebut</th>
-                  <th class="text-right p-2">Rebut</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let it of req.items">
-                  <td class="p-2 text-slate-800">{{ it.product?.name || it.productId }}</td>
-                  <td class="p-2 text-right">{{ it.requestedQty }}</td>
-                  <td class="p-2 text-right">
-                    <input type="number" min="0" step="0.001" class="w-28 px-2 py-1 border rounded" (input)="setDisposition(it.id, 'nonRebutQty', $any($event.target).value)" placeholder="0.000" title="Quantité non-rebut" />
-                  </td>
-                  <td class="p-2 text-right">
-                    <input type="number" min="0" step="0.001" class="w-28 px-2 py-1 border rounded" (input)="setDisposition(it.id, 'rebutQty', $any($event.target).value)" placeholder="0.000" title="Quantité rebut" />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="flex justify-end gap-2 mt-3">
-            <button (click)="approveReturnRequest(req)" class="px-3 py-1 bg-amber-600 text-white rounded-lg hover:bg-amber-500">Approuver</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Rebut list -->
-      <div *ngIf="!loading && !error && selectedTab==='REButs'">
-        <div *ngIf="pendingRebuts.length===0" class="text-slate-500 text-sm">Aucun rebut en attente d'autorité</div>
-        <div *ngFor="let r of pendingRebuts" class="bg-rose-50 rounded-2xl p-4 border border-rose-200 mb-3">
-          <div class="flex justify-between items-start">
-            <div>
-              <div class="text-slate-800 font-semibold">{{ r.product?.name || r.productId }}</div>
-              <div class="text-xs text-slate-500">Qté: {{ r.quantity }} • Dépôt: {{ r.depot?.name || r.depotId }}</div>
-            </div>
-            <button (click)="archiveRebut(r.id)" class="px-3 py-1 bg-rose-600 text-white rounded-lg hover:bg-rose-500" title="Archiver après validation d'autorité" aria-label="Archiver le rebut">Archiver</button>
-          </div>
-        </div>
-      </div>
       <div *ngIf="rejectReason && rejectReason !== 'AUTRE'" class="pt-2">
         <div class="flex justify-end gap-2">
           <button (click)="showRejectModal=false" class="px-3 py-2 text-xs bg-slate-100 rounded-lg">Annuler</button>

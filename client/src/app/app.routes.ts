@@ -77,5 +77,9 @@ export const routes: Routes = [
   { 
     path: 'invoices', 
     loadChildren: () => import('./invoices/invoices.module').then(m => m.InvoicesModule) 
+  },
+  { 
+    path: 'stock-management', 
+    loadChildren: () => import('./stock-management/stock-management.module').then(m => m.StockManagementModule) 
   }
 ];

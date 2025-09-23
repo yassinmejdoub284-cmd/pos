@@ -241,17 +241,26 @@ router.post('/expedition', authenticateToken, async (req, res) => {
           }
         });
 
-        if (!inventory || inventory.quantity < quantity) {
-          throw new Error(`Stock insuffisant pour le produit ID ${productId}. Disponible: ${inventory?.quantity || 0}, Demandé: ${quantity}`);
-        }
+        // Stock validation removed - frontend handles warnings, backend allows all operations
 
-        // Reduce stock from MAIN depot
-        await tx.inventory.update({
-          where: { id: inventory.id },
-          data: {
-            quantity: inventory.quantity - quantity
-          }
-        });
+        // Reduce stock from MAIN depot or create inventory record if it doesn't exist
+        if (inventory) {
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: {
+              quantity: inventory.quantity - quantity
+            }
+          });
+        } else {
+          // Create inventory record with negative quantity
+          await tx.inventory.create({
+            data: {
+              depotId: emetteurIdInt,
+              productId: productId,
+              quantity: -quantity
+            }
+          });
+        }
 
         // Create stock movement record
         await tx.stockMovement.create({
@@ -644,11 +653,7 @@ router.post('/scan-transfer', authenticateToken, async (req, res) => {
       }
     });
     
-    if (!fromInventory || fromInventory.quantity < item.quantity) {
-      return res.status(400).json({ 
-        error: `Stock insuffisant au dépôt d'origine (${fromInventory?.quantity || 0} < ${item.quantity})` 
-      });
-    }
+    // Stock validation removed - frontend handles warnings, backend allows all operations
     
     res.json({
       document,
@@ -750,17 +755,26 @@ router.post('/transfer', authenticateToken, async (req, res) => {
           }
         });
 
-        if (!inventory || inventory.quantity < quantity) {
-          throw new Error(`Stock insuffisant pour le produit ID ${productId}. Disponible: ${inventory?.quantity || 0}, Demandé: ${quantity}`);
-        }
+        // Stock validation removed - frontend handles warnings, backend allows all operations
 
-        // Reduce stock from BRANCH depot
-        await tx.inventory.update({
-          where: { id: inventory.id },
-          data: {
-            quantity: inventory.quantity - quantity
-          }
-        });
+        // Reduce stock from BRANCH depot or create inventory record if it doesn't exist
+        if (inventory) {
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: {
+              quantity: inventory.quantity - quantity
+            }
+          });
+        } else {
+          // Create inventory record with negative quantity
+          await tx.inventory.create({
+            data: {
+              depotId: emetteurIdInt,
+              productId: productId,
+              quantity: -quantity
+            }
+          });
+        }
 
         // Create stock movement record
         await tx.stockMovement.create({
@@ -948,16 +962,25 @@ router.post('/transfer', authenticateToken, async (req, res) => {
           }
         });
         
-        if (!inventory || inventory.quantity < item.quantity) {
-          throw new Error(`Stock insuffisant pour ${item.product.name}`);
-        }
+        // Stock validation removed - frontend handles warnings, backend allows all operations
         
-        await tx.inventory.update({
-          where: { id: inventory.id },
-          data: {
-            quantity: inventory.quantity - item.quantity
-          }
-        });
+        if (inventory) {
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: {
+              quantity: inventory.quantity - item.quantity
+            }
+          });
+        } else {
+          // Create inventory record with negative quantity
+          await tx.inventory.create({
+            data: {
+              depotId: parseInt(fromDepotId),
+              productId: item.productId,
+              quantity: -item.quantity
+            }
+          });
+        }
         
         const targetInventory = await tx.inventory.findUnique({
           where: {

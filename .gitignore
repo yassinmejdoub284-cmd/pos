@@ -53,6 +53,7 @@ server/dist
 server/coverage
 server/logs
 server/tmp
+server/uploads
 
 # Runtime data
 server/pids

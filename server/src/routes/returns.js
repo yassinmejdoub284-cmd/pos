@@ -7,7 +7,7 @@ const router = express.Router();
 // Create a return request (cashier)
 router.post('/requests', authenticateToken, async (req, res) => {
   try {
-    const { depotId, items, notes } = req.body;
+    const { depotId, items, notes, originalSaleId, originalSaleTotal } = req.body;
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Aucun article sélectionné' });
@@ -25,7 +25,9 @@ router.post('/requests', authenticateToken, async (req, res) => {
           numero,
           depotId: parseInt(depotId),
           requestedById: req.user.id,
-          notes: notes || null
+          notes: notes || null,
+          originalSaleId: originalSaleId ? parseInt(originalSaleId) : null,
+          originalSaleTotal: originalSaleTotal ? parseFloat(originalSaleTotal) : null
         }
       });
 
@@ -63,7 +65,19 @@ router.get('/requests', authenticateToken, async (req, res) => {
       include: {
         depot: true,
         requestedBy: { select: { id: true, firstName: true, lastName: true } },
-        items: { include: { product: { include: { famille: true } } } }
+        items: { 
+          include: { 
+            product: { 
+              select: {
+                id: true,
+                name: true,
+                prix_vente_TTC: true,
+                unite: true,
+                famille: { select: { id: true, name: true } }
+              }
+            } 
+          } 
+        },
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -179,6 +193,37 @@ router.post('/requests/:id/approve', authenticateToken, requireRole(['ADMIN', 'M
   } catch (error) {
     console.error('Error approving return request:', error);
     res.status(500).json({ error: 'Erreur lors du traitement du bon de retour' });
+  }
+});
+
+// Reject a return request
+router.post('/requests/:id/reject', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { reason } = req.body;
+
+    const request = await prisma.returnRequest.findUnique({
+      where: { id }
+    });
+    
+    if (!request || request.status !== 'PENDING') {
+      return res.status(404).json({ error: 'Demande introuvable ou déjà traitée' });
+    }
+
+    const updated = await prisma.returnRequest.update({
+      where: { id },
+      data: { 
+        status: 'REJECTED',
+        approvedById: req.user.id,
+        approvedAt: new Date(),
+        notes: request.notes ? `${request.notes}\n\nRejeté: ${reason || 'Aucune raison fournie'}` : `Rejeté: ${reason || 'Aucune raison fournie'}`
+      }
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error rejecting return request:', error);
+    res.status(500).json({ error: 'Erreur lors du rejet du bon de retour' });
   }
 });
 

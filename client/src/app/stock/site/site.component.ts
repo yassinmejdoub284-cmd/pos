@@ -10,7 +10,7 @@ import { Depot } from '../../core/models/depot.model';
 })
 export class SiteComponent implements OnInit {
   depotId!: number;
-  section: 'workspace' | 'preparer-lot' | 'reception-depot' | 'transfert-vers-branche' | 'transfert-vers-magasin' | 'reception-magasin' = 'workspace';
+  section: 'workspace' | 'preparer-lot' | 'reception-depot' | 'transfert-vers-branche' | 'transfert-vers-magasin' | 'reception-magasin' | 'stock-check' = 'workspace';
   depot?: Depot;
   loading = false;
   error = '';

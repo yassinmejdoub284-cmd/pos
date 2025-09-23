@@ -25,7 +25,7 @@ export class ApprovalsComponent implements OnInit {
   varianceRequests: ChangeRequest[] = [];
   historyRequests: ChangeRequest[] = [];
   clotureSummaries: { [sessionId: number]: any } = {};
-  selectedTab: 'ALL' | 'PENDING_ADMIN' | 'CADEAU' | 'EXPENSES' | 'CLOTURE' | 'INVOICES' | 'HISTORY' | 'RETURNS' | 'REButs' = 'ALL';
+  selectedTab: 'ALL' | 'PENDING_ADMIN' | 'CADEAU' | 'EXPENSES' | 'CLOTURE' | 'INVOICES' | 'HISTORY' | 'RETURNS' | 'REButs' | 'RETURN_HISTORY' = 'ALL';
   searchQuery = '';
   startDate = '';
   endDate = '';
@@ -58,9 +58,10 @@ export class ApprovalsComponent implements OnInit {
 
   // Returns
   pendingReturns: ReturnRequest[] = [];
-  dispositions: { [itemId: number]: { nonRebutQty?: number; rebutQty?: number } } = {};
   loadingReturns = false;
   pendingRebuts: any[] = [];
+  returnHistory: ReturnRequest[] = [];
+  loadingReturnHistory = false;
 
   constructor(
     private salesService: SalesService,
@@ -88,6 +89,7 @@ export class ApprovalsComponent implements OnInit {
     this.loadInvoiceRequests();
     this.loadPendingReturns();
     this.loadPendingRebuts();
+    this.loadReturnHistory();
   }
 
   loadGifts(): void {
@@ -585,38 +587,42 @@ export class ApprovalsComponent implements OnInit {
   // Returns
   loadPendingReturns(): void {
     this.loadingReturns = true;
+    console.log('Loading pending returns...');
     this.returnsService.listReturnRequests('PENDING').subscribe({
       next: (reqs) => {
+        console.log('Return requests loaded:', reqs);
         this.pendingReturns = reqs;
         this.loadingReturns = false;
       },
-      error: () => {
+      error: (error) => {
+        console.error('Error loading return requests:', error);
         this.loadingReturns = false;
         this.showAlertMessage('Erreur lors du chargement des bons de retour', 'error');
       }
     });
   }
 
-  setDisposition(itemId: number, field: 'nonRebutQty' | 'rebutQty', value: number): void {
-    const d = this.dispositions[itemId] || {};
-    d[field] = Number(value || 0);
-    this.dispositions[itemId] = d;
+  getTotalReturnAmount(request: ReturnRequest): number {
+    return request.items.reduce((total, item) => {
+      const price = item.product?.prix_vente_TTC || 0;
+      return total + (item.requestedQty * price);
+    }, 0);
   }
 
   approveReturnRequest(request: ReturnRequest): void {
-    const items = Object.entries(this.dispositions)
-      .map(([itemId, v]) => ({ itemId: Number(itemId), nonRebutQty: v.nonRebutQty || 0, rebutQty: v.rebutQty || 0 }))
-      .filter(x => request.items.some(it => it.id === x.itemId));
-    if (items.length === 0) {
-      this.showAlertMessage('Aucune disposition saisie', 'error');
-      return;
-    }
+    // Simple approval - all items are returned as non-rebut (restored to stock)
+    const items = request.items.map(item => ({
+      itemId: item.id,
+      nonRebutQty: item.requestedQty,
+      rebutQty: 0
+    }));
+
     this.returnsService.approveReturnRequest(request.id, items).subscribe({
       next: () => {
         this.showAlertMessage('Bon de retour approuvé', 'success');
-        this.dispositions = {};
         this.loadPendingReturns();
         this.loadPendingRebuts();
+        this.loadReturnHistory();
       },
       error: (e) => {
         console.error(e);
@@ -625,10 +631,52 @@ export class ApprovalsComponent implements OnInit {
     });
   }
 
+  rejectReturnRequest(request: ReturnRequest): void {
+    const reason = prompt('Raison du rejet (optionnel):') || '';
+    
+    if (confirm('Êtes-vous sûr de vouloir rejeter ce bon de retour ?')) {
+      this.returnsService.rejectReturnRequest(request.id, reason).subscribe({
+        next: () => {
+          this.showAlertMessage('Bon de retour rejeté', 'success');
+          this.loadPendingReturns();
+          this.loadReturnHistory();
+        },
+        error: (error) => {
+          console.error('Error rejecting return request:', error);
+          this.showAlertMessage("Erreur lors du rejet du bon de retour", 'error');
+        }
+      });
+    }
+  }
+
   loadPendingRebuts(): void {
     this.returnsService.listRebuts('PENDING_AUTHORITY').subscribe({
       next: (rows) => this.pendingRebuts = rows,
       error: () => {}
+    });
+  }
+
+  loadReturnHistory(): void {
+    this.loadingReturnHistory = true;
+    // Load both approved and rejected requests
+    this.returnsService.listReturnRequests('APPROVED').subscribe({
+      next: (approved) => {
+        this.returnsService.listReturnRequests('REJECTED').subscribe({
+          next: (rejected) => {
+            this.returnHistory = [...approved, ...rejected].sort((a, b) => 
+              new Date((b as any).updatedAt || b.createdAt).getTime() - new Date((a as any).updatedAt || a.createdAt).getTime()
+            );
+            this.loadingReturnHistory = false;
+          },
+          error: () => {
+            this.returnHistory = approved;
+            this.loadingReturnHistory = false;
+          }
+        });
+      },
+      error: () => {
+        this.loadingReturnHistory = false;
+      }
     });
   }
 

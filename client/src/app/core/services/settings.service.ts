@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
@@ -29,6 +29,25 @@ export interface AppSettings {
   droitDeTimbre: boolean;
   // Expenses
   autoApproveExpenseBelow: number;
+  // Print settings
+  printSettings: {
+    showLogo: boolean;
+    logoSize: 'small' | 'medium' | 'large';
+    dateFormat: 'dd/mm/yyyy' | 'mm/dd/yyyy' | 'yyyy-mm-dd';
+    timeFormat: '12h' | '24h';
+    currencySymbol: string;
+    currencyPosition: 'before' | 'after';
+    customTexts: {
+      thankYouMessage: string;
+      receiptTitle: string;
+      companySlogan: string;
+      footerMessage: string;
+    };
+    showCompanyDetails: boolean;
+    showClientInfo: boolean;
+    showPaymentMethod: boolean;
+    showDiscountDetails: boolean;
+  };
 }
 
 @Injectable({
@@ -36,6 +55,7 @@ export interface AppSettings {
 })
 export class SettingsService {
   private readonly API_URL = `${environment.apiUrl}/settings`;
+  private readonly BASE_URL = environment.apiUrl.replace('/api', '');
 
   constructor(private http: HttpClient) {}
 
@@ -45,5 +65,20 @@ export class SettingsService {
 
   updateSettings(settings: Partial<AppSettings>): Observable<AppSettings> {
     return this.http.put<AppSettings>(this.API_URL, settings);
+  }
+
+  uploadLogo(file: File): Observable<{ logoUrl: string }> {
+    const formData = new FormData();
+    formData.append('logo', file);
+    return this.http.post<{ logoUrl: string }>(`${this.API_URL}/logo`, formData);
+  }
+
+  /**
+   * Converts a relative logo URL to an absolute URL pointing to the server
+   */
+  getAbsoluteLogoUrl(logoUrl: string | undefined): string {
+    if (!logoUrl) return '';
+    if (logoUrl.startsWith('http')) return logoUrl;
+    return `${this.BASE_URL}${logoUrl}`;
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { ZReportData } from '../models/session.model';
 import { Sale } from '../models/sale.model';
+import { invoke } from '@tauri-apps/api/core';
 
 @Injectable({
   providedIn: 'root'
@@ -8,6 +9,72 @@ import { Sale } from '../models/sale.model';
 export class PrintService {
 
   constructor() { }
+
+  // --- New: System printer API via Tauri ---
+  async getAvailablePrinters(): Promise<Array<{ name: string; isDefault: boolean }>> {
+    if (!this.isTauri()) return Promise.resolve([]);
+    return invoke('get_available_printers');
+  }
+
+  async setDefaultPrinter(printerName: string): Promise<boolean> {
+    if (!this.isTauri()) return false;
+    const res = await invoke<{ success: boolean; message: string }>('set_default_printer', { printer_name: printerName });
+    return !!res?.success;
+  }
+
+  async printRawBase64(base64Data: string, printerName?: string): Promise<boolean> {
+    if (!this.isTauri()) return false;
+    const args: any = { data_base64: base64Data };
+    if (printerName) args.printer_name = printerName;
+    const res = await invoke<{ success: boolean; message: string }>('print_raw_bytes', args);
+    return !!res?.success;
+  }
+
+  async printText(text: string, printerName?: string): Promise<boolean> {
+    if (!this.isTauri()) return false;
+    const args: any = { text };
+    if (printerName) args.printer_name = printerName;
+    const res = await invoke<{ success: boolean; message: string }>('print_text_direct', args);
+    return !!res?.success;
+  }
+
+  async printPdfBase64(base64Pdf: string, printerName?: string): Promise<boolean> {
+    if (!this.isTauri()) return false;
+    const args: any = { pdf_base64: base64Pdf };
+    if (printerName) args.printer_name = printerName;
+    const res = await invoke<{ success: boolean; message: string }>('print_pdf_raw', args);
+    return !!res?.success;
+  }
+
+  async printEscPos(escposData: string, printerName?: string): Promise<boolean> {
+    // send as raw bytes to avoid any transformation
+    const b64 = this.toBase64(this.stringToBytes(escposData));
+    return this.printRawBase64(b64, printerName);
+  }
+
+  async openCashDrawer(printerName?: string): Promise<boolean> {
+    if (!this.isTauri()) return false;
+    const args: any = {};
+    if (printerName) args.printer_name = printerName;
+    const res = await invoke<{ success: boolean; message: string }>('open_cash_drawer', args);
+    return !!res?.success;
+  }
+
+  // --- Helpers ---
+  private stringToBytes(input: string): Uint8Array {
+    // ESC/POS control chars are within 0-127; UTF-8 encoding preserves those bytes
+    return new TextEncoder().encode(input);
+  }
+
+  private toBase64(bytes: Uint8Array): string {
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)) as unknown as number[]);
+    }
+    // btoa expects binary string (latin1)
+    return btoa(binary);
+  }
 
   // Print Z Report using ESC/POS commands
   printZReport(zReportData: ZReportData): void {
@@ -399,19 +466,14 @@ export class PrintService {
   // Print using Tauri (desktop app)
   private async printWithTauri(escposData: string): Promise<void> {
     try {
-      // This would use Tauri's printer API
-      // For now, we'll simulate it
-
-      // In a real implementation, you would:
-      // 1. Use Tauri's invoke to call a Rust function
-      // 2. The Rust function would send ESC/POS commands to the printer
-      // 3. Handle printer status and errors
-
-      alert('Impression envoyée à l\'imprimante (Tauri)');
+      await this.printEscPos(escposData);
     } catch (error) {
-      console.error('Tauri printing error:', error);
-      alert('Erreur d\'impression: ' + error);
+      alert('Erreur d\'impression');
     }
+  }
+
+  private isTauri(): boolean {
+    return typeof window !== 'undefined' && !!(window as any).__TAURI__;
   }
 
   // Print using Web API (browser)

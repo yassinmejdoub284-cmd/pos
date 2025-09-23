@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { authenticateToken } = require('../middleware/auth');
 const { logAudit } = require('../lib/audit');
+const ImageOptimizer = require('../lib/image-optimizer');
 
 const router = express.Router();
 
@@ -456,7 +457,22 @@ router.post('/:id/photo', authenticateToken, upload.single('photo'), async (req,
       return res.status(404).json({ error: 'Produit non trouvé' });
     }
     
-    const imageUrl = `${process.env.API_URL || 'http://localhost:3255'}/uploads/products/${req.file.filename}`;
+    // Clean up old images if they exist
+    if (product.photo) {
+      await ImageOptimizer.cleanupOldImages(product.photo);
+    }
+    
+    // Create optimized versions of the image
+    const inputPath = req.file.path;
+    const baseOutputPath = path.join('uploads/products', path.parse(req.file.filename).name + '.webp');
+    
+    const optimizedVersions = await ImageOptimizer.createOptimizedVersions(inputPath, baseOutputPath);
+    
+    // Use the medium version as the default photo URL
+    const imageUrl = `${process.env.API_URL || 'http://localhost:3255'}/${optimizedVersions.medium}`;
+    
+    // Clean up the original uploaded file
+    fs.unlinkSync(inputPath);
     
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
@@ -493,6 +509,11 @@ router.delete('/:id/photo', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Produit non trouvé' });
     }
     
+    // Clean up optimized image versions
+    if (product.photo) {
+      await ImageOptimizer.cleanupOldImages(product.photo);
+    }
+    
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
       data: { photo: null }
@@ -507,6 +528,42 @@ router.delete('/:id/photo', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error deleting product photo:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression de la photo' });
+  }
+});
+
+// Get optimized image URL for a product
+router.get('/:id/image/:context?', async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const context = req.params.context || 'medium'; // thumbnail, small, medium, original
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { photo: true }
+    });
+    
+    if (!product || !product.photo) {
+      return res.status(404).json({ error: 'Image non trouvée' });
+    }
+    
+    const optimizedUrl = ImageOptimizer.getOptimizedImageUrl(product.photo, context);
+    
+    if (!optimizedUrl) {
+      return res.status(404).json({ error: 'Image optimisée non trouvée' });
+    }
+    
+    res.json({ 
+      imageUrl: `${process.env.API_URL || 'http://localhost:3255'}/${optimizedUrl}`,
+      context,
+      originalUrl: product.photo
+    });
+  } catch (error) {
+    console.error('Error getting optimized image:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération de l\'image' });
   }
 });
 

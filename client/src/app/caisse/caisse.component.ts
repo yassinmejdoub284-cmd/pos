@@ -15,11 +15,13 @@ import { WholesaleRulesService, WholesaleRule } from '../core/services/wholesale
 import { AuthService } from '../core/services/auth.service';
 import { DepotsService } from '../core/services/depots.service';
 import { ReturnsService } from '../core/services/returns.service';
+import { ImagePreloadService } from '../core/services/image-preload.service';
 import { Product } from '../core/models/product.model';
 import { Sale } from '../core/models/sale.model';
 import { Client } from '../core/models/client.model';
 import { Subject, takeUntil } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { TicketActionDialogComponent } from '../shared/ticket-action-dialog/ticket-action-dialog.component';
 
 interface ReceiptItem {
   product: Product;
@@ -99,6 +101,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
   todaysTickets: Sale[] = [];
   loadingTodaysTickets = false;
 
+  // Ticket action dialog
+  showTicketActionDialog = false;
+  selectedTicket: Sale | null = null;
+
   // Product catalog
   allProducts: Product[] = [];
   filteredProducts: Product[] = [];
@@ -167,6 +173,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Remise payment popup
   showRemisePaymentPopup = false;
   remisePaymentAmount: number | undefined;
+  remisePaymentInput: string = '';
 
   // Temporary sales history popup
   showTemporarySalesHistory = false;
@@ -418,7 +425,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private wholesaleRulesService: WholesaleRulesService,
     private authService: AuthService,
     private depotsService: DepotsService,
-    private returnsService: ReturnsService
+    private returnsService: ReturnsService,
+    private imagePreloadService: ImagePreloadService
   ) {}
 
   ngOnInit(): void {
@@ -779,10 +787,29 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     // Update pagination
     this.updatePagination();
+    
+    // Preload images for current page and next page
+    this.preloadCurrentPageImages();
   }
 
   onSearchChange(): void {
     this.filterProducts();
+  }
+
+  preloadCurrentPageImages(): void {
+    // Preload images for current page
+    const currentPageProducts = this.getCurrentPageProducts();
+    const currentPageImageSrcs = currentPageProducts
+      .filter(product => product.photo)
+      .map(product => product.photo!)
+      .filter((src): src is string => src !== undefined);
+    
+    if (currentPageImageSrcs.length > 0) {
+      this.imagePreloadService.preloadImages(currentPageImageSrcs);
+    }
+    
+    // Preload images for next page
+    this.imagePreloadService.preloadNextPageImages(this.filteredProducts, this.currentPage, this.productsPerPage);
   }
 
   // Pagination methods
@@ -802,12 +829,16 @@ export class CaisseComponent implements OnInit, OnDestroy {
   goToNextPage(): void {
     if (this.currentPage < this.totalPages - 1) {
       this.currentPage++;
+      // Preload images for the next page
+      this.imagePreloadService.preloadNextPageImages(this.filteredProducts, this.currentPage, this.productsPerPage);
     }
   }
 
   goToPreviousPage(): void {
     if (this.currentPage > 0) {
       this.currentPage--;
+      // Preload images for the previous page
+      this.imagePreloadService.preloadPreviousPageImages(this.filteredProducts, this.currentPage, this.productsPerPage);
     }
   }
 
@@ -990,6 +1021,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
   showClientSearchPopup = false;
   clientSearchQuery = '';
   searchResults: any[] = [];
+  
+  // Client selection dialog
+  showClientSelectionDialog = false;
+  clientViewMode: 'grid' | 'table' = 'grid'; // Default to grid view
   allClientsCache: any[] = [];
   selectedClient: Client | null = null;
   selectedClientId: number | null = null;
@@ -1093,10 +1128,40 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.searchResults = this.allClientsCache.slice(0, 20);
       return;
     }
-    this.searchResults = this.allClientsCache.filter(c => {
-      const name = `${c.firstName || ''} ${c.lastName || ''}`.toLowerCase();
-      return name.includes(q) || (c.code || '').toLowerCase().includes(q) || (c.phone || '').toLowerCase().includes(q);
-    }).slice(0, 20);
+    
+    // Handle special search terms for client types
+    let filteredClients = this.allClientsCache;
+    
+    if (q === 'tous' || q === 'all') {
+      // Show all clients
+      filteredClients = this.allClientsCache;
+    } else if (q === 'gros' || q === 'wholesale') {
+      // Filter wholesale clients
+      filteredClients = this.allClientsCache.filter(c => c.clientType === 'WHOLESALE');
+    } else if (q === 'détail' || q === 'detail' || q === 'individual' || q === 'individuel') {
+      // Filter individual clients
+      filteredClients = this.allClientsCache.filter(c => c.clientType === 'INDIVIDUAL');
+    } else if (q === 'business' || q === 'entreprise' || q === 'société' || q === 'societe') {
+      // Filter business clients
+      filteredClients = this.allClientsCache.filter(c => c.clientType === 'BUSINESS');
+    } else {
+      // Regular search in name, code, phone, email, and client type
+      filteredClients = this.allClientsCache.filter(c => {
+        const name = `${c.firstName || ''} ${c.lastName || ''}`.toLowerCase();
+        const code = (c.code || '').toLowerCase();
+        const phone = (c.phone || '').toLowerCase();
+        const email = (c.email || '').toLowerCase();
+        const clientType = (c.clientType || '').toLowerCase();
+        
+        return name.includes(q) || 
+               code.includes(q) || 
+               phone.includes(q) || 
+               email.includes(q) ||
+               clientType.includes(q);
+      });
+    }
+    
+    this.searchResults = filteredClients.slice(0, 20);
   }
 
   searchClients(): void {
@@ -1131,6 +1196,76 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.showClientSearchPopup = false;
     // Refresh product list according to mode
     this.filterProducts();
+  }
+
+  // Client selection dialog methods
+  openClientSelectionDialog(): void {
+    this.showClientSelectionDialog = true;
+  }
+
+  closeClientSelectionDialog(): void {
+    this.showClientSelectionDialog = false;
+  }
+
+  selectCustomerOption(): void {
+    this.closeClientSelectionDialog();
+    this.openClientSearch();
+  }
+
+  selectWholesaleOption(): void {
+    this.closeClientSelectionDialog();
+    this.toggleWholesaleMode();
+  }
+
+  selectPassagerOption(): void {
+    this.closeClientSelectionDialog();
+    this.clearSelectedClient();
+    this.showAlertMessage('Mode Passager activé', 'info');
+  }
+
+  // Client type helper methods
+  getClientTypeLabel(clientType: string): string {
+    switch (clientType) {
+      case 'WHOLESALE':
+        return 'Gros';
+      case 'INDIVIDUAL':
+        return 'Détail';
+      case 'BUSINESS':
+        return 'Business';
+      default:
+        return 'Inconnu';
+    }
+  }
+
+  getClientTypeClass(clientType: string): string {
+    switch (clientType) {
+      case 'WHOLESALE':
+        return 'bg-purple-100 text-purple-700';
+      case 'INDIVIDUAL':
+        return 'bg-orange-100 text-orange-700';
+      case 'BUSINESS':
+        return 'bg-blue-100 text-blue-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  }
+
+  getClientTypeDotClass(clientType: string): string {
+    switch (clientType) {
+      case 'WHOLESALE':
+        return 'bg-purple-500';
+      case 'INDIVIDUAL':
+        return 'bg-orange-500';
+      case 'BUSINESS':
+        return 'bg-blue-500';
+      default:
+        return 'bg-gray-500';
+    }
+  }
+
+  // Toggle between grid and table view
+  toggleClientViewMode(): void {
+    this.clientViewMode = this.clientViewMode === 'grid' ? 'table' : 'grid';
   }
 
   clearSelectedClient(): void {
@@ -1373,11 +1508,32 @@ export class CaisseComponent implements OnInit, OnDestroy {
     }
     this.showRemisePaymentPopup = true;
     this.remisePaymentAmount = undefined;
+    this.remisePaymentInput = '';
   }
 
   cancelRemisePayment(): void {
     this.showRemisePaymentPopup = false;
     this.remisePaymentAmount = undefined;
+    this.remisePaymentInput = '';
+  }
+
+  pressRemiseKeypad(key: string): void {
+    if (key === 'C') {
+      this.remisePaymentInput = '';
+      this.remisePaymentAmount = undefined;
+      return;
+    }
+    if (key === '←') {
+      this.remisePaymentInput = this.remisePaymentInput.slice(0, -1);
+      this.remisePaymentAmount = this.remisePaymentInput === '' ? undefined : parseFloat(this.remisePaymentInput);
+      return;
+    }
+    if (key === '.' && this.remisePaymentInput.includes('.')) {
+      return; // Don't add decimal if one already exists
+    }
+    
+    this.remisePaymentInput += key;
+    this.remisePaymentAmount = parseFloat(this.remisePaymentInput);
   }
 
   // Temporary sales history methods
@@ -1463,6 +1619,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.isWholesaleMode = false;
     this.filterProducts();
     this.processPayment(false);
+    
+    // Open cash drawer after completing sale without printing
+    this.printService.openCashDrawer();
   }
 
   // Main payment processing method
@@ -2562,8 +2721,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   enterValue(): void {
     
-    // Priority 1: If a receipt item is selected, modify its quantity
-    if (this.selectedReceiptItem && this.selectedReceiptItemIndex !== -1) {
+    // Priority 1: If a receipt item is selected, modify its quantity (only in quantity mode)
+    if (this.selectedReceiptItem && this.selectedReceiptItemIndex !== -1 && this.inputMode === 'quantity') {
       const quantity = parseFloat(this.currentInput);
       
       if (!isNaN(quantity) && quantity > 0) {
@@ -2571,11 +2730,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
         if (this.selectedReceiptItem.isWholesale && this.selectedReceiptItem.bundleSize) {
           // For wholesale items, update bundle quantity
           this.selectedReceiptItem.bundleQuantity = quantity;
-          this.selectedReceiptItem.quantity = quantity * this.selectedReceiptItem.bundleSize;
+          this.selectedReceiptItem.quantity = this.roundQuantity(quantity * this.selectedReceiptItem.bundleSize);
           this.selectedReceiptItem.total = quantity * (this.selectedReceiptItem.bundlePrice || 0);
         } else {
           // For regular items, update quantity directly
-          this.selectedReceiptItem.quantity = quantity;
+          this.selectedReceiptItem.quantity = this.roundQuantity(quantity);
           this.selectedReceiptItem.total = quantity * this.selectedReceiptItem.unitPrice;
         }
         
@@ -2615,11 +2774,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
         if (lastItem.isWholesale && lastItem.bundleSize) {
           // For wholesale items, update bundle quantity
           lastItem.bundleQuantity = quantity;
-          lastItem.quantity = quantity * lastItem.bundleSize;
+          lastItem.quantity = this.roundQuantity(quantity * lastItem.bundleSize);
           lastItem.total = quantity * (lastItem.bundlePrice || 0);
         } else {
           // For regular items, update quantity directly
-          lastItem.quantity = quantity;
+          lastItem.quantity = this.roundQuantity(quantity);
           lastItem.total = quantity * lastItem.unitPrice;
         }
         
@@ -2640,7 +2799,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       
       // Update total price and calculate quantity based on unit price
       this.selectedReceiptItem.total = value;
-      this.selectedReceiptItem.quantity = value / Number(this.selectedReceiptItem.unitPrice);
+      this.selectedReceiptItem.quantity = Math.round((value / Number(this.selectedReceiptItem.unitPrice)) * 1000) / 1000;
       this.selectedReceiptItem.hasCustomTotal = true; // Mark as custom price
       this.calculateTotals();
       
@@ -2674,13 +2833,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.lastEnteredValue = this.currentInput;
     this.currentInput = '';
     
-    // Only reset to quantity mode if we were in quantity mode
-    // If we're in price mode, stay in price mode until manually toggled
-    if (this.inputMode === 'quantity') {
+    // Reset to quantity mode after entering a price
+    if (this.inputMode === 'price') {
       this.inputMode = 'quantity';
     }
-
-    this.inputMode = 'quantity';
   }
 
   // ⌫ button - backspace (delete one character)
@@ -3004,11 +3160,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
       if (isWholesaleContext && product.isWholesale && product.bundleSize) {
         // For wholesale items, update bundle quantity
         existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + Number(quantity);
-        existingItem.quantity = existingItem.bundleQuantity * product.bundleSize;
+        existingItem.quantity = this.roundQuantity(existingItem.bundleQuantity * product.bundleSize);
         existingItem.total = existingItem.bundleQuantity * (product.bundlePrice || 0);
       } else {
         // For regular items, update quantity directly
-        existingItem.quantity = Number(existingItem.quantity) + Number(quantity);
+        existingItem.quantity = this.roundQuantity(Number(existingItem.quantity) + Number(quantity));
         const unit = this.getEffectiveUnitPrice(product);
         existingItem.unitPrice = unit;
         existingItem.total = Number(existingItem.quantity) * unit;
@@ -3025,7 +3181,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       const isWholesaleContext = this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE';
       const newItem = {
         product,
-        quantity: isWholesaleContext && product.isWholesale && product.bundleSize ? Number(quantity) * product.bundleSize : Number(quantity),
+        quantity: this.roundQuantity(isWholesaleContext && product.isWholesale && product.bundleSize ? Number(quantity) * product.bundleSize : Number(quantity)),
         unitPrice: Number(unitPrice),
         total: Number(quantity) * Number(unitPrice),
         isGift: false,
@@ -3086,9 +3242,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     if (existingItem) {
       // Replace the quantity with the new one
-      existingItem.quantity = newQuantity;
+      existingItem.quantity = this.roundQuantity(newQuantity);
       existingItem.total = Number(existingItem.quantity) * Number(existingItem.unitPrice);
-      existingItem.quantity = Number(existingItem.quantity);
+      existingItem.quantity = this.roundQuantity(Number(existingItem.quantity));
       existingItem.unitPrice = Number(existingItem.unitPrice);
       
       // Select the existing item
@@ -3154,7 +3310,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     if (existingItem) {
       // Update existing item with new total price and calculate quantity
       existingItem.total = customTotalPrice;
-      existingItem.quantity = customTotalPrice / Number(existingItem.unitPrice);
+      existingItem.quantity = Math.round((customTotalPrice / Number(existingItem.unitPrice)) * 1000) / 1000;
       existingItem.hasCustomTotal = true;
       
       // Select the existing item
@@ -3163,7 +3319,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     } else {
       // Add new item with custom total price and calculate quantity
       const unitPrice = this.getEffectiveUnitPrice(product);
-      const calculatedQuantity = customTotalPrice / unitPrice;
+      const calculatedQuantity = Math.round((customTotalPrice / unitPrice) * 1000) / 1000;
       
       const newItem = {
         product,
@@ -3186,6 +3342,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Round to 50 millimes increments (0.050, 0.100, 0.150, etc.)
   roundToFiftyMillimes(value: number): number {
     return Math.round(value / 0.05) * 0.05;
+  }
+
+  // Round quantity to 3 decimal places
+  roundQuantity(quantity: number): number {
+    return Math.round(quantity * 1000) / 1000;
   }
 
   closeProductModal(): void {
@@ -3660,7 +3821,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const client = source?.selectedClient || this.selectedClient || null;
 
     const sale: Sale = {
-      id: source?.id || 0,
+      id: source?.id || (useLast && this.lastValidatedSale?.id) || Date.now(),
       items,
       total: subtotal,
       tax: 0,
@@ -3722,7 +3883,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // this.showAlertMessage('Article supprimé', 'info');
     } else {
       // Update quantity
-      this.selectedReceiptItem.quantity = newQuantity;
+      this.selectedReceiptItem.quantity = this.roundQuantity(newQuantity);
       this.selectedReceiptItem.total = Number(this.selectedReceiptItem.quantity) * Number(this.selectedReceiptItem.unitPrice);
       this.currentInput = newQuantity.toString();
       // this.showAlertMessage(`Quantité mise à jour: ${newQuantity}`, 'info');
@@ -3778,7 +3939,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   onTicketSelect(ticket: Sale): void {
     this.showTicketMenu = false;
-    this.openReturnExchangeDialog(ticket);
+    this.selectedTicket = ticket;
+    this.showTicketActionDialog = true;
   }
 
   openReturnExchangeDialog(ticket: Sale): void {
@@ -3786,6 +3948,50 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.router.navigate(['/historique'], { 
       queryParams: { 
         openReturnDialog: 'true', 
+        ticketId: ticket.id 
+      } 
+    });
+  }
+
+  // Ticket action dialog methods
+  onTicketActionSelected(actionId: string): void {
+    if (!this.selectedTicket) return;
+
+    switch (actionId) {
+      case 'print-ticket':
+        this.printTicket(this.selectedTicket);
+        break;
+      case 'return-exchange':
+        this.openReturnExchangeDialog(this.selectedTicket);
+        break;
+      case 'check-details':
+        this.showTicketDetails(this.selectedTicket);
+        break;
+    }
+    
+    this.closeTicketActionDialog();
+  }
+
+  closeTicketActionDialog(): void {
+    this.showTicketActionDialog = false;
+    this.selectedTicket = null;
+  }
+
+  printTicket(ticket: Sale): void {
+    // Use the existing print service to print the ticket
+    try {
+      this.printService.printSaleReceipt(ticket);
+      this.showAlertMessage('Ticket imprimé avec succès', 'success');
+    } catch (error) {
+      console.error('Error printing ticket:', error);
+      this.showAlertMessage('Erreur lors de l\'impression du ticket', 'error');
+    }
+  }
+
+  showTicketDetails(ticket: Sale): void {
+    // Navigate to historique to show ticket details
+    this.router.navigate(['/historique'], { 
+      queryParams: { 
         ticketId: ticket.id 
       } 
     });
@@ -4553,27 +4759,41 @@ export class CaisseComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Open print dialog for the approved invoice
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      try {
-        const htmlContent = this.generateInvoiceHTML(invoice);
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-        
-        // Mark as printed
-        this.markInvoiceAsPrinted(invoice.id);
-      } catch (error) {
-        console.error('Error generating invoice HTML:', error);
-        this.showAlertMessage('Erreur lors de la génération de la facture', 'error');
-        printWindow.close();
-      }
-    } else {
-      this.showAlertMessage('Erreur: Impossible d\'ouvrir la fenêtre d\'impression', 'error');
+    try {
+      // Convert invoice to sale format for printing
+      const sale = this.convertInvoiceToSale(invoice);
+      this.printService.printSaleReceipt(sale);
+      this.showAlertMessage('Facture imprimée avec succès!', 'success');
+      
+      // Mark as printed
+      this.markInvoiceAsPrinted(invoice.id);
+    } catch (error) {
+      console.error('Error printing invoice:', error);
+      this.showAlertMessage('Erreur lors de l\'impression de la facture', 'error');
     }
+  }
+
+  private convertInvoiceToSale(invoice: any): any {
+    // Convert invoice to sale format for printing
+    return {
+      id: invoice.id,
+      createdAt: invoice.createdAt || new Date().toISOString(),
+      total: invoice.total || 0,
+      items: (invoice.lines || []).map((line: any) => ({
+        productName: line.productName || line.name || 'Produit',
+        quantity: line.quantity || 1,
+        unitPrice: line.unitPrice || line.price || 0,
+        total: line.total || line.amount || 0
+      })),
+      paymentMethod: invoice.paymentMethod || 'ESPÈCES',
+      client: invoice.client ? {
+        firstName: invoice.client.firstName || '',
+        lastName: invoice.client.lastName || '',
+        code: invoice.client.code || ''
+      } : null,
+      discount: invoice.discount || 0,
+      tax: invoice.tax || 0
+    };
   }
 
   private markInvoiceAsPrinted(invoiceId: number): void {

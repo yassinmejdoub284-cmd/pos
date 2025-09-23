@@ -276,6 +276,8 @@ model AppSettings {
   requireApprovalForVariance Boolean @default(true) @map("require_approval_for_variance")
   ticketWidth           Int      @default(58) @map("ticket_width")
   droitDeTimbre         Boolean  @default(false) @map("droit_de_timbre")
+  // Print settings
+  printSettings         Json?    @map("print_settings")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
@@ -608,16 +610,18 @@ model StockDocumentLink {
 
 // Product return workflow
 model ReturnRequest {
-  id             Int                 @id @default(autoincrement())
-  numero         String              @unique @db.VarChar(50)
-  status         ReturnStatus        @default(PENDING)
-  depotId        Int                 @map("depot_id")
-  requestedById  Int                 @map("requested_by_id")
-  approvedById   Int?                @map("approved_by_id")
-  approvedAt     DateTime?           @map("approved_at")
-  notes          String?             @db.Text
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
+  id                 Int                 @id @default(autoincrement())
+  numero             String              @unique @db.VarChar(50)
+  status             ReturnStatus        @default(PENDING)
+  depotId            Int                 @map("depot_id")
+  requestedById      Int                 @map("requested_by_id")
+  approvedById       Int?                @map("approved_by_id")
+  approvedAt         DateTime?           @map("approved_at")
+  notes              String?             @db.Text
+  originalSaleId     Int?                @map("original_sale_id")
+  originalSaleTotal  Decimal?            @map("original_sale_total") @db.Decimal(10, 2)
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
 
   depot          Depot               @relation(fields: [depotId], references: [id])
   requestedBy    User                @relation("ReturnRequestedBy", fields: [requestedById], references: [id])

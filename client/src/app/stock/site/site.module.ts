@@ -4,6 +4,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { SiteComponent } from './site.component';
 import { SiteRoutingModule } from './site-routing.module';
+import { StockCheckModule } from '../stock-check/stock-check.module';
 
 
 @NgModule({
@@ -14,7 +15,8 @@ import { SiteRoutingModule } from './site-routing.module';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    SiteRoutingModule
+    SiteRoutingModule,
+    StockCheckModule
   ]
 })
 export class SiteModule { } 

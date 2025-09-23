@@ -13,10 +13,23 @@ export interface ReturnRequestCreatePayload {
   depotId: number;
   items: ReturnRequestCreateItem[];
   notes?: string;
+  originalSaleId?: number | null;
+  originalSaleTotal?: number | null;
 }
 
 export type ReturnStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PROCESSED';
 export type ReturnDisposition = 'NONE' | 'NON_REBUT' | 'REBUT';
+
+export interface Product {
+  id: number;
+  name: string;
+  prix_vente_TTC: number;
+  unite: string;
+  famille: {
+    id: number;
+    name: string;
+  };
+}
 
 export interface ReturnItem {
   id: number;
@@ -26,7 +39,7 @@ export interface ReturnItem {
   nonRebutQty?: number;
   rebutQty?: number;
   reason?: string;
-  product?: any;
+  product?: Product;
 }
 
 export interface ReturnRequest {
@@ -38,7 +51,10 @@ export interface ReturnRequest {
   approvedById?: number;
   approvedAt?: string;
   notes?: string;
+  originalSaleId?: number | null;
+  originalSaleTotal?: number | null;
   createdAt: string;
+  updatedAt?: string;
   items: ReturnItem[];
 }
 
@@ -58,6 +74,10 @@ export class ReturnsService {
 
   approveReturnRequest(id: number, items: Array<{ itemId: number; nonRebutQty?: number; rebutQty?: number; }>): Observable<ReturnRequest> {
     return this.http.post<ReturnRequest>(`${this.apiUrl}/requests/${id}/approve`, { items });
+  }
+
+  rejectReturnRequest(id: number, reason?: string): Observable<ReturnRequest> {
+    return this.http.post<ReturnRequest>(`${this.apiUrl}/requests/${id}/reject`, { reason });
   }
 
   listRebuts(status: 'PENDING_AUTHORITY' | 'ARCHIVED' = 'PENDING_AUTHORITY'): Observable<any[]> {

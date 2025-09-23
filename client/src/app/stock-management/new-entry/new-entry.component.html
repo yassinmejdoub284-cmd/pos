@@ -1,0 +1,252 @@
+<div class="min-h-screen bg-white">
+  <div class="md:grid md:grid-cols-12 gap-2 h-screen p-2">
+    <!-- Left: Products -->
+    <div class="col-span-8 flex flex-col max-h-screen">
+      <div class="bg-gradient-to-r from-blue-50 via-white to-emerald-50 rounded-lg border border-blue-200/60 shadow mb-2">
+        <div class="flex items-center justify-between px-3 py-2">
+          <div class="flex items-center gap-2">
+            <div class="bg-blue-500 text-white px-3 py-1 rounded-lg font-mono text-sm font-bold shadow">#BED</div>
+            <div class="bg-emerald-500 text-white px-3 py-1 rounded-lg font-mono text-sm font-bold shadow">Dépôt {{ depotId }}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="sr-only" for="search">Rechercher</label>
+            <input id="search" type="text" [formControl]="itemSearchCtrl" placeholder="Chercher produit ou code barre" class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm w-64" title="Rechercher un produit" />
+          </div>
+        </div>
+        
+        <!-- Category Filter Labels -->
+        <div class="px-3 pb-2">
+          <div class="flex flex-wrap gap-2">
+            <button 
+              *ngFor="let category of productCategories" 
+              (click)="selectCategory(category)"
+              [class]="getCategoryButtonClass(category)"
+              class="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105 active:scale-95">
+              {{ category }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 p-2 overflow-y-auto bg-gray-50 rounded-lg border ">
+        <div *ngIf="loading" class="text-center py-16">Chargement...</div>
+        <div *ngIf="!loading" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
+          <div *ngFor="let p of filteredProducts(); trackBy: trackByProductId; let i = index" (click)="handleProductClick(p)" [class]="getProductCardClass(p.id)">
+            <div class="w-full h-12 mb-2 bg-gray-100 rounded flex items-center justify-center border">
+              <img *ngIf="p.photo" [src]="p.photo" [alt]="p.name || 'Produit'" title="Image produit" class="w-full h-full object-cover rounded" [loading]="i < 6 ? 'eager' : 'lazy'" decoding="async">
+              <svg *ngIf="!p.photo" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Sans image"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            <div class="font-medium text-xs mb-1 text-gray-800 text-center">{{ p.name }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Items + Keypad -->
+    <div class="col-span-4 bg-white rounded-lg border border-blue-200/60 p-2 flex flex-col shadow max-h-screen">
+
+      <!-- Total Section -->
+      <div *ngIf="itemsArray.length > 0" class="mb-3 bg-gradient-to-r from-blue-50 to-emerald-50 border border-blue-200 rounded-lg p-3">
+        <div class="flex justify-between items-center">
+          <div class="text-sm text-gray-600">
+            <span class="font-medium">{{ itemsArray.length }}</span> article{{ itemsArray.length > 1 ? 's' : '' }} • 
+            <span class="font-medium">{{ totalItems }}</span> unités
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-gray-500">Total TTC</div>
+            <div class="text-xl font-bold text-emerald-600">{{ totalAmount.toFixed(3) }} dt</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto border rounded">
+        <table class="w-full">
+          <thead class="sticky top-0 bg-gradient-to-r from-blue-100 to-emerald-100">
+            <tr>
+              <th class="text-left px-2 py-1 text-xs w-10">#</th>
+              <th class="text-left px-2 py-1 text-xs">PRODUIT</th>
+              <th class="text-right px-2 py-1 text-xs w-16">QTÉ</th>
+              <th class="text-right px-2 py-1 text-xs w-20">P.U. (dt)</th>
+              <th class="text-right px-2 py-1 text-xs w-20">TOTAL TTC</th>
+              <th class="text-center px-2 py-1 text-xs w-10"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let ctrl of itemsArray.controls; index as i" class="border-b hover:bg-blue-50 cursor-pointer" (click)="selectExisting(i)">
+              <td class="px-2 py-1 text-xs">{{ i + 1 }}</td>
+              <td class="px-2 py-1 text-xs">
+                <div class="font-medium">{{ getProductName(ctrl.get('productId')!.value) }}</div>
+              </td>
+              <td class="px-2 py-1 text-xs text-right">
+                <div (click)="$event.stopPropagation(); selectField(i, 'quantity')" 
+                     [class]="getFieldClass(i, 'quantity')" 
+                     title="Cliquer pour modifier la quantité">
+                  {{ ctrl.get('quantity')!.value || '0.000' }}
+                </div>
+              </td>
+              <td class="px-2 py-1 text-xs text-right">
+                <div (click)="$event.stopPropagation(); selectField(i, 'unitPrice')" 
+                     [class]="getFieldClass(i, 'unitPrice')" 
+                     title="Cliquer pour modifier le prix unitaire">
+                  {{ ctrl.get('unitPrice')!.value || '0.000' }}
+                </div>
+              </td>
+              <td class="px-2 py-1 text-xs text-right font-medium text-green-600">
+                {{ (ctrl.get('quantity')!.value * ctrl.get('unitPrice')!.value || 0).toFixed(3) }} dt
+              </td>
+              <td class="px-2 py-1 text-center">
+                <button (click)="$event.stopPropagation(); removeItem(i)" class="w-6 h-6 bg-rose-500 text-white rounded-full text-xs">×</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Keypad -->
+      <div class="mt-2">
+        <div class="mb-2 flex gap-2 items-end">
+          <div class="grow rounded-lg py-1 px-3 border bg-blue-50 border-blue-200">
+            <div class="text-xs text-gray-500 mb-1">
+              <span *ngIf="selectedField === 'quantity'">Quantité</span>
+              <span *ngIf="selectedField === 'unitPrice'">Prix Unitaire</span>
+              <span *ngIf="!selectedField && pendingProduct">Quantité (Nouveau)</span>
+              <span *ngIf="!selectedField && !pendingProduct">Sélectionner un champ</span>
+              <span *ngIf="lastEnteredValue" class="text-green-600"> ({{ lastEnteredValue }})</span>
+            </div>
+            <div class="text-gray-800 text-2xl font-mono">{{ currentInput || '0' }}</div>
+          </div>
+          <button (click)="clearInput()" class="bg-red-500 text-white rounded-lg px-3 py-1 border border-red-400">C</button>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button *ngFor="let num of [7,8,9]" (click)="addToInput(num.toString())" class="bg-white text-gray-800 py-2 rounded-lg border">{{ num }}</button>
+          <button *ngFor="let num of [4,5,6]" (click)="addToInput(num.toString())" class="bg-white text-gray-800 py-2 rounded-lg border">{{ num }}</button>
+          <button *ngFor="let num of [1,2,3]" (click)="addToInput(num.toString())" class="bg-white text-gray-800 py-2 rounded-lg border">{{ num }}</button>
+          <button (click)="addDecimal()" class="bg-white text-gray-800 py-2 rounded-lg border">.</button>
+          <button (click)="addToInput('0')" class="bg-white text-gray-800 py-2 rounded-lg border">0</button>
+          <button (click)="enterValue()" class="bg-emerald-500 text-white rounded-lg border border-emerald-400">OK</button>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="mt-3 flex gap-2">
+        <button (click)="cancel()" class="px-4 py-2 rounded-lg border" title="Annuler">Annuler</button>
+        <button (click)="submit()" [disabled]="loading || itemsArray.length===0" class="px-4 py-2 rounded-lg bg-emerald-600 text-white" title="Créer le bon d'entrée">
+          {{ loading ? 'Enregistrement...' : 'Créer le bon d\'entrée' }}
+        </button>
+      </div>
+
+      <div *ngIf="error" class="text-red-600 mt-3 text-sm">{{ error }}</div>
+      <div *ngIf="success" class="text-emerald-600 mt-3 text-sm">{{ success }}</div>
+    </div>
+  </div>
+
+  <!-- Supplier Selection Dialog -->
+  <div *ngIf="showSupplierDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-600 to-emerald-600 text-white p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold">Finaliser le bon d'entrée</h2>
+            <p class="text-blue-100 mt-1">Sélectionnez un fournisseur pour continuer</p>
+          </div>
+          <button (click)="closeSupplierDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 space-y-6">
+        <!-- Notes Section -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Notes (optionnel)</label>
+          <textarea [(ngModel)]="notes" 
+                    placeholder="Référence BL, observations..." 
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    rows="3"></textarea>
+        </div>
+
+        <!-- Supplier Selection -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-3">Fournisseur</label>
+          
+          <!-- Existing Suppliers -->
+          <div *ngIf="!showCreateSupplier" class="space-y-2">
+            <div *ngFor="let supplier of suppliers()" 
+                 (click)="selectSupplier(supplier)" 
+                 [class]="selectedSupplierName === supplier.name ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                 class="border-2 rounded-lg p-4 cursor-pointer transition-all duration-200">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-medium text-gray-900">{{ supplier.name }}</h3>
+                  <div class="text-sm text-gray-500 mt-1">
+                    <span *ngIf="supplier.phone">📞 {{ supplier.phone }}</span>
+                    <span *ngIf="supplier.email" class="ml-3">✉️ {{ supplier.email }}</span>
+                  </div>
+                </div>
+                <div *ngIf="selectedSupplierName === supplier.name" class="text-blue-500">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Create New Supplier Form -->
+          <div *ngIf="showCreateSupplier" class="space-y-4 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur *</label>
+              <input [(ngModel)]="newSupplierName" 
+                     type="text" 
+                     placeholder="Nom du fournisseur" 
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                <input [(ngModel)]="newSupplierPhone" 
+                       type="tel" 
+                       placeholder="Numéro de téléphone" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input [(ngModel)]="newSupplierEmail" 
+                       type="email" 
+                       placeholder="Adresse email" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              </div>
+            </div>
+          </div>
+
+          <!-- Toggle Buttons -->
+          <div class="flex gap-2 mt-4">
+            <button (click)="toggleCreateSupplier()" 
+                    [class]="showCreateSupplier ? 'bg-gray-500 hover:bg-gray-600' : 'bg-emerald-500 hover:bg-emerald-600'"
+                    class="px-4 py-2 text-white rounded-lg transition-colors duration-200 text-sm font-medium">
+              {{ showCreateSupplier ? 'Sélectionner existant' : 'Créer nouveau' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+        <button (click)="closeSupplierDialog()" 
+                class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200">
+          Annuler
+        </button>
+        <button (click)="confirmEntry()" 
+                [disabled]="(!selectedSupplierName && !showCreateSupplier) || loading"
+                class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-lg transition-colors duration-200 font-medium">
+          {{ loading ? 'Création...' : 'Confirmer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>

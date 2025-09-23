@@ -1,11 +1,44 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 const { prisma } = require('../lib/prisma');
 
 const router = express.Router();
 
 const SETTINGS_FILE = path.join(__dirname, '../../uploads/app-settings.json');
+const LOGOS_DIR = path.join(__dirname, '../../uploads/logos');
+
+// Ensure logos directory exists
+if (!fs.existsSync(LOGOS_DIR)) {
+  fs.mkdirSync(LOGOS_DIR, { recursive: true });
+}
+
+// Configure multer for logo uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, LOGOS_DIR);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `logo-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  }
+});
 
 function ensureDefaults(data = {}) {
   return {
@@ -32,7 +65,26 @@ function ensureDefaults(data = {}) {
     ticketWidth: data.ticketWidth !== undefined ? Number(data.ticketWidth) : 58,
     droitDeTimbre: typeof data.droitDeTimbre === 'boolean' ? data.droitDeTimbre : false,
     // Expenses
-    autoApproveExpenseBelow: data.autoApproveExpenseBelow !== undefined ? Number(data.autoApproveExpenseBelow) : 0
+    autoApproveExpenseBelow: data.autoApproveExpenseBelow !== undefined ? Number(data.autoApproveExpenseBelow) : 0,
+    // Print settings
+    printSettings: {
+      showLogo: typeof data.printSettings?.showLogo === 'boolean' ? data.printSettings.showLogo : true,
+      logoSize: data.printSettings?.logoSize || 'medium',
+      dateFormat: data.printSettings?.dateFormat || 'dd/mm/yyyy',
+      timeFormat: data.printSettings?.timeFormat || '24h',
+      currencySymbol: data.printSettings?.currencySymbol || 'dt',
+      currencyPosition: data.printSettings?.currencyPosition || 'after',
+      customTexts: {
+        thankYouMessage: data.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!',
+        receiptTitle: data.printSettings?.customTexts?.receiptTitle || 'REÇU DE VENTE',
+        companySlogan: data.printSettings?.customTexts?.companySlogan || 'Votre pâtisserie de confiance',
+        footerMessage: data.printSettings?.customTexts?.footerMessage || 'Merci pour votre fidélité'
+      },
+      showCompanyDetails: typeof data.printSettings?.showCompanyDetails === 'boolean' ? data.printSettings.showCompanyDetails : true,
+      showClientInfo: typeof data.printSettings?.showClientInfo === 'boolean' ? data.printSettings.showClientInfo : true,
+      showPaymentMethod: typeof data.printSettings?.showPaymentMethod === 'boolean' ? data.printSettings.showPaymentMethod : true,
+      showDiscountDetails: typeof data.printSettings?.showDiscountDetails === 'boolean' ? data.printSettings.showDiscountDetails : true
+    }
   };
 }
 
@@ -111,6 +163,42 @@ router.put('/', async (req, res) => {
     return res.json(data);
   } catch (error) {
     console.error('Error updating settings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Logo upload endpoint
+router.post('/logo', upload.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const logoUrl = `/uploads/logos/${req.file.filename}`;
+    
+    // Update settings with new logo URL
+    const currentSettings = readFileSettings();
+    const updatedSettings = { ...currentSettings, logoUrl };
+    
+    if (prisma.appSettings) {
+      const existing = await prisma.appSettings.findFirst();
+      const { autoApproveExpenseBelow, ...dbData } = updatedSettings;
+      
+      if (existing) {
+        await prisma.appSettings.update({ 
+          where: { id: existing.id }, 
+          data: dbData 
+        });
+      } else {
+        await prisma.appSettings.create({ data: dbData });
+      }
+    }
+    
+    writeFileSettings(updatedSettings);
+    
+    res.json({ logoUrl });
+  } catch (error) {
+    console.error('Error uploading logo:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

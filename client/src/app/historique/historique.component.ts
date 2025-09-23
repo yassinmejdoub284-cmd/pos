@@ -755,7 +755,9 @@ export class HistoriqueComponent implements OnInit {
     const payload: ReturnRequestCreatePayload = {
       depotId,
       items: this.returnItems.map(i => ({ productId: i.productId, quantity: Number(i.quantity || 0) })),
-      notes: finalNotes
+      notes: finalNotes,
+      originalSaleId: this.selectedSaleForReturn?.id || null,
+      originalSaleTotal: this.selectedSaleForReturn?.finalTotal || null
     };
 
     this.returnsService.createReturnRequest(payload).subscribe({

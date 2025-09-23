@@ -96,6 +96,10 @@ export class StockDocumentsService {
     return this.http.get<any[]>(`${this.apiUrl}/inventory/${depotId}`);
   }
 
+  getStockMovements(depotId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/../stock/movements?depotId=${depotId}&limit=1000`);
+  }
+
   createTransfer(emetteurId: number, destinataireId: number, items: any[], notes?: string): Observable<StockDocument> {
     return this.http.post<StockDocument>(`${this.apiUrl}/transfer`, {
       emetteurId,
@@ -103,5 +107,11 @@ export class StockDocumentsService {
       items,
       notes
     });
+  }
+
+  createStockDocument(data: any): Observable<StockDocument> {
+    return this.http.post<StockDocument>(this.apiUrl, data).pipe(
+      catchError((error) => throwError(() => error))
+    );
   }
 } 
