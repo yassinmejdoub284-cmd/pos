@@ -1,0 +1,16 @@
+[package]
+name = "pos-patisserie-desktop"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["webview-data-url"] }
+base64 = "0.22"
+winapi = { version = "0.3", features = ["winspool", "winbase", "handleapi", "minwinbase"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.10"

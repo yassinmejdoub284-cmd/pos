@@ -18,6 +18,7 @@
     "autoCut": true,
     "printLogo": true
   },
+  "isDesktopVersion": false,
   "auditRetentionDays": 90,
   "varianceThreshold": 5,
   "defaultFonds": 50,

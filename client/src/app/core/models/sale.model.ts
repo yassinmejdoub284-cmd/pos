@@ -25,6 +25,8 @@ export interface Sale {
   advancePaymentNotes?: string;
   // Wholesale flag
   isWholesale?: boolean;
+  // Daily ticket number for printing
+  dailyTicketNumber?: string;
 }
 
 export interface SaleItem {

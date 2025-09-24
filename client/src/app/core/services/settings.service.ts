@@ -19,6 +19,7 @@ export interface AppSettings {
   defaultClientMaxDebt: number;
   keyboardShortcuts?: any;
   devicesConfig?: any;
+  isDesktopVersion?: boolean;
   auditRetentionDays: number;
   // Clôture settings
   varianceThreshold: number;
@@ -61,6 +62,12 @@ export class SettingsService {
 
   getSettings(): Observable<AppSettings> {
     return this.http.get<AppSettings>(this.API_URL);
+  }
+
+  getSettingsSync(): AppSettings | null {
+    // This is a simplified synchronous version - in a real app you'd want to cache settings
+    // For now, return null to use defaults
+    return null;
   }
 
   updateSettings(settings: Partial<AppSettings>): Observable<AppSettings> {

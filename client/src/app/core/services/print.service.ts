@@ -2,67 +2,138 @@ import { Injectable } from '@angular/core';
 import { ZReportData } from '../models/session.model';
 import { Sale } from '../models/sale.model';
 import { invoke } from '@tauri-apps/api/core';
+import jsPDF from 'jspdf';
+import { SettingsService, AppSettings } from './settings.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PrintService {
 
-  constructor() { }
+  constructor(private settingsService: SettingsService) { }
 
-  // --- New: System printer API via Tauri ---
-  async getAvailablePrinters(): Promise<Array<{ name: string; isDefault: boolean }>> {
-    if (!this.isTauri()) return Promise.resolve([]);
+  // Desktop-only printing via Tauri commands
+  async printPlainText(text: string): Promise<void> {
+    await invoke('print_text_direct', { text });
+  }
+
+  async printHtml(html: string): Promise<void> {
+    await invoke('print_html', { html });
+  }
+
+  async printPdf(pdfBase64: string): Promise<void> {
+    await invoke('print_pdf', { pdfBase64: pdfBase64 });
+  }
+
+  async printEscPos(escposData: string): Promise<void> {
+    const base64 = this.toBase64(this.stringToBytes(escposData));
+    await invoke('print_raw_bytes', { data_base64: base64 });
+  }
+
+  async openCashDrawer(): Promise<void> {
+    await invoke('open_cash_drawer');
+  }
+
+  // Receipts and reports route to Tauri print
+  printZReport(zReportData: ZReportData): void {
+    const escposData = this.generateESCReport(zReportData, 'Z');
+    void this.printEscPos(escposData);
+  }
+
+  printDailyExtractWithWithdrawal(dailyExtract: any, companyData?: any): void {
+    const escposData = this.generateDailyExtractESC(dailyExtract, companyData);
+    void this.printEscPos(escposData);
+  }
+
+  printXReport(xReportData: ZReportData): void {
+    const escposData = this.generateESCReport(xReportData, 'X');
+    void this.printEscPos(escposData);
+  }
+
+  printSaleReceipt(sale: Sale, options?: { openPreviewOnly?: boolean }): void {
+    this.settingsService.getSettings().subscribe({
+      next: (settings) => {
+        const text = this.buildSaleReceiptText(sale, settings);
+        
+        // Check if desktop version is enabled
+        if (settings?.isDesktopVersion) {
+          // Use Tauri direct printing
+          void this.printPlainText(text);
+        } else {
+          // Use browser window printing
+          this.printReceiptInBrowser(text);
+        }
+      },
+      error: () => {
+        // Fallback to default settings if error
+        const text = this.buildSaleReceiptText(sale, null);
+        void this.printPlainText(text);
+      }
+    });
+  }
+
+  // Printers management (stubs wired to backend)
+  getAvailablePrinters(): Promise<Array<{ name: string; isDefault: boolean }>> {
     return invoke('get_available_printers');
   }
 
-  async setDefaultPrinter(printerName: string): Promise<boolean> {
-    if (!this.isTauri()) return false;
-    const res = await invoke<{ success: boolean; message: string }>('set_default_printer', { printer_name: printerName });
-    return !!res?.success;
+  setDefaultPrinter(printerName: string): Promise<boolean> {
+    return invoke<{ success: boolean; message: string }>('set_default_printer', { printer_name: printerName })
+      .then(res => !!res?.success);
   }
 
-  async printRawBase64(base64Data: string, printerName?: string): Promise<boolean> {
-    if (!this.isTauri()) return false;
-    const args: any = { data_base64: base64Data };
-    if (printerName) args.printer_name = printerName;
-    const res = await invoke<{ success: boolean; message: string }>('print_raw_bytes', args);
-    return !!res?.success;
-  }
+  // Browser printing method
+  private printReceiptInBrowser(receiptText: string): void {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    
+    if (!printWindow) {
+      console.error('Could not open print window');
+      return;
+    }
 
-  async printText(text: string, printerName?: string): Promise<boolean> {
-    if (!this.isTauri()) return false;
-    const args: any = { text };
-    if (printerName) args.printer_name = printerName;
-    const res = await invoke<{ success: boolean; message: string }>('print_text_direct', args);
-    return !!res?.success;
-  }
+    // Create HTML content for the receipt
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Reçu de Vente</title>
+        <style>
+          body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.2;
+            margin: 0;
+            padding: 10px;
+            white-space: pre-line;
+            background: white;
+          }
+          @media print {
+            body { margin: 0; padding: 5px; }
+            @page { margin: 0.5cm; }
+          }
+        </style>
+      </head>
+      <body>
+        ${receiptText.replace(/\n/g, '<br>')}
+      </body>
+      </html>
+    `;
 
-  async printPdfBase64(base64Pdf: string, printerName?: string): Promise<boolean> {
-    if (!this.isTauri()) return false;
-    const args: any = { pdf_base64: base64Pdf };
-    if (printerName) args.printer_name = printerName;
-    const res = await invoke<{ success: boolean; message: string }>('print_pdf_raw', args);
-    return !!res?.success;
-  }
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
 
-  async printEscPos(escposData: string, printerName?: string): Promise<boolean> {
-    // send as raw bytes to avoid any transformation
-    const b64 = this.toBase64(this.stringToBytes(escposData));
-    return this.printRawBase64(b64, printerName);
-  }
-
-  async openCashDrawer(printerName?: string): Promise<boolean> {
-    if (!this.isTauri()) return false;
-    const args: any = {};
-    if (printerName) args.printer_name = printerName;
-    const res = await invoke<{ success: boolean; message: string }>('open_cash_drawer', args);
-    return !!res?.success;
+    // Wait for content to load, then print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 100);
+    };
   }
 
   // --- Helpers ---
   private stringToBytes(input: string): Uint8Array {
-    // ESC/POS control chars are within 0-127; UTF-8 encoding preserves those bytes
     return new TextEncoder().encode(input);
   }
 
@@ -72,159 +143,10 @@ export class PrintService {
     for (let i = 0; i < bytes.length; i += chunk) {
       binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)) as unknown as number[]);
     }
-    // btoa expects binary string (latin1)
     return btoa(binary);
   }
 
   // Print Z Report using ESC/POS commands
-  printZReport(zReportData: ZReportData): void {
-    const escposData = this.generateESCReport(zReportData, 'Z');
-    this.sendToPrinter(escposData);
-  }
-
-  printDailyExtractWithWithdrawal(dailyExtract: any, companyData?: any): void {
-    const escposData = this.generateDailyExtractESC(dailyExtract, companyData);
-    this.sendToPrinter(escposData);
-  }
-
-  // Print X Report using ESC/POS commands
-  printXReport(xReportData: ZReportData): void {
-    const escposData = this.generateESCReport(xReportData, 'X');
-    this.sendToPrinter(escposData);
-  }
-
-  // Print a single sale receipt (web-compatible HTML print)
-  printSaleReceipt(sale: Sale, options?: { openPreviewOnly?: boolean }): void {
-    const html = this.buildSaleReceiptHtml(sale);
-    try {
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        throw new Error('Impossible d\'ouvrir la fenêtre d\'impression');
-      }
-
-      printWindow.document.write(html);
-      printWindow.document.close();
-
-      if (!options?.openPreviewOnly) {
-        printWindow.onload = () => {
-          printWindow.print();
-          printWindow.close();
-        };
-      }
-    } catch (error) {
-      console.error('Erreur impression reçu:', error);
-      alert('Erreur d\'impression: ' + error);
-    }
-  }
-
-  // Build a simple, thermal-style HTML receipt for a sale
-  buildSaleReceiptHtml(sale: Sale): string {
-    const createdAt = new Date(sale.createdAt);
-    const date = createdAt.toLocaleDateString('fr-FR');
-    const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-    const itemsRows = (sale.items || [])
-      .map(item => {
-        const unit = Number(item.unitPrice || 0).toFixed(3);
-        const qty = Number(item.quantity || 0).toString();
-        const total = Number(item.total || 0).toFixed(3);
-        const name = (item.productName || '').toString();
-        
-        if (item.isWholesale) {
-          const bundleQty = item.bundleQuantity || 0;
-          const bundlePrice = item.bundlePrice || 0;
-          const bundleSize = item.bundleSize || 1;
-          return `
-            <tr>
-              <td class="name">${this.escapeHtml(name)}<br><small style="color: #8b5cf6; font-weight: bold;">GROS</small></td>
-              <td class="qty">${bundleQty} fardeau${bundleQty > 1 ? 'x' : ''}<br><small>(${qty} unités)</small></td>
-              <td class="price">${bundlePrice.toFixed(3)}/fardeau<br><small>(${(bundlePrice / bundleSize).toFixed(3)}/unité)</small></td>
-              <td class="total">${total}</td>
-            </tr>
-          `;
-        } else {
-          return `
-            <tr>
-              <td class="name">${this.escapeHtml(name)}</td>
-              <td class="qty">${qty}</td>
-              <td class="price">${unit}</td>
-              <td class="total">${total}</td>
-            </tr>
-          `;
-        }
-      })
-      .join('');
-
-    const discount = Number(sale.discount || 0);
-    const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
-    const net = Number(sale.finalTotal || subtotal - discount);
-    const payment = sale.paymentMethod?.name || '—';
-    const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
-
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Reçu Vente #${sale.id}</title>
-          <style>
-            @page { margin: 0 !important; }
-            body { font-family: 'Courier New', monospace; margin: 0; padding: 8px; }
-            .ticket { width: 300px; margin: 0 auto; }
-            .center { text-align: center; }
-            .line { border-top: 1px dashed #000; margin: 8px 0; }
-            .double-line { border-top: 2px solid #000; margin: 8px 0; }
-            table { width: 100%; border-collapse: collapse; }
-            td { font-size: 12px; padding: 2px 0; }
-            td.name { width: 48%; }
-            td.qty { width: 12%; text-align: right; }
-            td.price { width: 20%; text-align: right; }
-            td.total { width: 20%; text-align: right; }
-            .muted { color: #444; }
-            .bold { font-weight: 700; }
-          </style>
-        </head>
-        <body>
-          <div class="ticket">
-            <div class="center bold">PATISSERIE MODERNE</div>
-            <div class="center muted">123 Rue de la Paix</div>
-            <div class="center muted">Tunis, Tunisie</div>
-            <div class="center muted">Tel: +216 71 123 456</div>
-            <div class="double-line"></div>
-            <div>Date: ${date} &nbsp;&nbsp; Heure: ${time}</div>
-            ${clientName ? `<div>Client: ${this.escapeHtml(clientName)}</div>` : ''}
-            <div>Ticket: #${sale.id}</div>
-            ${this.isWholesaleSale(sale) ? '<div style="color: #8b5cf6; font-weight: bold; text-align: center;">VENTE GROS</div>' : ''}
-            <div class="line"></div>
-            <table>
-              <thead>
-                <tr>
-                  <td class="bold">ARTICLE</td>
-                  <td class="bold" style="text-align:right">QTE</td>
-                  <td class="bold" style="text-align:right">P.U.</td>
-                  <td class="bold" style="text-align:right">TOTAL</td>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsRows}
-              </tbody>
-            </table>
-            <div class="line"></div>
-            <table>
-              <tr><td class="bold">Sous-total</td><td style="text-align:right" class="bold">${subtotal.toFixed(3)} dt</td></tr>
-              ${discount > 0 ? `<tr><td>Remise</td><td style="text-align:right">-${discount.toFixed(3)} dt</td></tr>` : ''}
-              <tr><td class="bold">TOTAL A PAYER</td><td style="text-align:right" class="bold">${net.toFixed(3)} dt</td></tr>
-              <tr><td>Paiement</td><td style="text-align:right">${this.escapeHtml(payment)}</td></tr>
-            </table>
-            <div class="line"></div>
-            <div class="center">Merci de votre visite!</div>
-          </div>
-        </body>
-      </html>
-    `;
-  }
-
-  // Generate ESC/POS commands for reports
   private generateESCReport(reportData: ZReportData, type: 'X' | 'Z'): string {
     const { session, summary, closureData } = reportData;
 
@@ -454,102 +376,426 @@ export class PrintService {
     return escpos;
   }
 
-  private sendToPrinter(escposData: string): void {
-    // Check if running in Tauri environment
-    if (typeof window !== 'undefined' && (window as any).__TAURI__) {
-      this.printWithTauri(escposData);
-    } else {
-      this.printWithWebAPI(escposData);
-    }
-  }
+  // Build a simple, thermal-style HTML receipt for a sale
+  buildSaleReceiptHtml(sale: Sale): string {
+    const createdAt = new Date(sale.createdAt);
+    const date = createdAt.toLocaleDateString('fr-FR');
+    const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-  // Print using Tauri (desktop app)
-  private async printWithTauri(escposData: string): Promise<void> {
-    try {
-      await this.printEscPos(escposData);
-    } catch (error) {
-      alert('Erreur d\'impression');
-    }
-  }
+    const itemsRows = (sale.items || [])
+      .map(item => {
+        const unit = Number(item.unitPrice || 0).toFixed(3);
+        const qty = Number(item.quantity || 0).toString();
+        const total = Number(item.total || 0).toFixed(3);
+        const name = (item.productName || '').toString();
+        
+        if (item.isWholesale) {
+          const bundleQty = item.bundleQuantity || 0;
+          const bundlePrice = item.bundlePrice || 0;
+          const bundleSize = item.bundleSize || 1;
+          return `
+            <tr>
+              <td class="name">${this.escapeHtml(name)}<br><small style="color: #8b5cf6; font-weight: bold;">GROS</small></td>
+              <td class="qty">${bundleQty} fardeau${bundleQty > 1 ? 'x' : ''}<br><small>(${qty} unités)</small></td>
+              <td class="price">${bundlePrice.toFixed(3)}/fardeau<br><small>(${(bundlePrice / bundleSize).toFixed(3)}/unité)</small></td>
+              <td class="total">${total}</td>
+            </tr>
+          `;
+        } else {
+          return `
+            <tr>
+              <td class="name">${this.escapeHtml(name)}</td>
+              <td class="qty">${qty}</td>
+              <td class="price">${unit}</td>
+              <td class="total">${total}</td>
+            </tr>
+          `;
+        }
+      })
+      .join('');
 
-  private isTauri(): boolean {
-    return typeof window !== 'undefined' && !!(window as any).__TAURI__;
-  }
-
-  // Print using Web API (browser)
-  private printWithWebAPI(escposData: string): void {
-    try {
-      // Create a new window for printing
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        throw new Error('Impossible d\'ouvrir la fenêtre d\'impression');
-      }
-
-      // Convert ESC/POS to HTML for web printing
-      const htmlContent = this.escposToHtml(escposData);
-
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-
-      // Wait for content to load then print
-      printWindow.onload = () => {
-        printWindow.print();
-        printWindow.close();
-      };
-    } catch (error) {
-      console.error('Web printing error:', error);
-      alert('Erreur d\'impression: ' + error);
-    }
-  }
-
-  // Convert ESC/POS to HTML for web printing
-  private escposToHtml(escposData: string): string {
-    // Remove ESC/POS commands and convert to HTML
-    let html = escposData
-      .replace(/\x1B\[[0-9;]*[A-Za-z]/g, '') // Remove ANSI escape sequences
-      .replace(/\x1B\x40/g, '') // Remove ESC @
-      .replace(/\x1B\x61\x01/g, '') // Remove center align
-      .replace(/\x1B\x61\x00/g, '') // Remove left align
-      .replace(/\x1B\x21\x00/g, '') // Remove character size
-      .replace(/\x1D\x56\x00/g, '') // Remove cut command
-      .replace(/\n/g, '<br>');
+    const discount = Number(sale.discount || 0);
+    const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
+    const net = Number(sale.finalTotal || subtotal - discount);
+    const payment = sale.paymentMethod?.name || '—';
+    const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
 
     return `
       <!DOCTYPE html>
       <html>
-      <head>
-        <title>Rapport de Caisse</title>
-        <style>
-          @page {
-            margin: 0 !important;   /* 🔥 remove browser print margins */
-          }
-          body {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.2;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          .center { text-align: center; }
-          .left { text-align: left; }
-          .bold { font-weight: bold; }
-          .underline { text-decoration: underline; }
-          @media print {
-            body { margin: 0; padding: 0; }
-            * { margin: 0; padding: 0; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="center">
-          ${html}
-        </div>
-      </body>
+        <head>
+          <meta charset="utf-8">
+          <title>Reçu Vente #${sale.id}</title>
+          <style>
+            @page { margin: 0 !important; }
+            body { font-family: 'Courier New', monospace; margin: 0; padding: 8px; }
+            .ticket { width: 300px; margin: 0 auto; }
+            .center { text-align: center; }
+            .line { border-top: 1px dashed #000; margin: 8px 0; }
+            .double-line { border-top: 2px solid #000; margin: 8px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            td { font-size: 12px; padding: 2px 0; }
+            td.name { width: 48%; }
+            td.qty { width: 12%; text-align: right; }
+            td.price { width: 20%; text-align: right; }
+            td.total { width: 20%; text-align: right; }
+            .muted { color: #444; }
+            .bold { font-weight: 700; }
+          </style>
+        </head>
+        <body>
+          <div class="ticket">
+            <div class="center bold">PATISSERIE MODERNE</div>
+            <div class="center muted">123 Rue de la Paix</div>
+            <div class="center muted">Tunis, Tunisie</div>
+            <div class="center muted">Tel: +216 71 123 456</div>
+            <div class="double-line"></div>
+            <div>Date: ${date} &nbsp;&nbsp; Heure: ${time}</div>
+            ${clientName ? `<div>Client: ${this.escapeHtml(clientName)}</div>` : ''}
+            <div>Ticket: #${sale.id}</div>
+            ${this.isWholesaleSale(sale) ? '<div style="color: #8b5cf6; font-weight: bold; text-align: center;">VENTE GROS</div>' : ''}
+            <div class="line"></div>
+            <table>
+              <thead>
+                <tr>
+                  <td class="bold">ARTICLE</td>
+                  <td class="bold" style="text-align:right">QTE</td>
+                  <td class="bold" style="text-align:right">P.U.</td>
+                  <td class="bold" style="text-align:right">TOTAL</td>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsRows}
+              </tbody>
+            </table>
+            <div class="line"></div>
+            <table>
+              <tr><td class="bold">Sous-total</td><td style="text-align:right" class="bold">${subtotal.toFixed(3)} dt</td></tr>
+              ${discount > 0 ? `<tr><td>Remise</td><td style="text-align:right">-${discount.toFixed(3)} dt</td></tr>` : ''}
+              <tr><td class="bold">TOTAL A PAYER</td><td style="text-align:right" class="bold">${net.toFixed(3)} dt</td></tr>
+              <tr><td>Paiement</td><td style="text-align:right">${this.escapeHtml(payment)}</td></tr>
+            </table>
+            <div class="line"></div>
+            <div class="center">Merci de votre visite!</div>
+          </div>
+        </body>
       </html>
     `;
   }
 
+  buildSaleReceiptPdf(sale: Sale): string {
+    const createdAt = new Date(sale.createdAt);
+    const date = createdAt.toLocaleDateString('fr-FR');
+    const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    // Create PDF document
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [80, 200] // Receipt size
+    });
+
+    // Set font
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(10);
+
+    let y = 10;
+    const lineHeight = 5;
+    const pageWidth = 80;
+    const margin = 5;
+
+    // Helper function to add centered text
+    const addCenteredText = (text: string, fontSize?: number) => {
+      if (fontSize) doc.setFontSize(fontSize);
+      const textWidth = doc.getTextWidth(text);
+      const x = (pageWidth - textWidth) / 2;
+      doc.text(text, x, y);
+      y += lineHeight;
+    };
+
+    // Helper function to add right-aligned text
+    const addRightText = (text: string) => {
+      const textWidth = doc.getTextWidth(text);
+      const x = pageWidth - margin - textWidth;
+      doc.text(text, x, y);
+    };
+
+    // Helper function to add line
+    const addLine = () => {
+      doc.line(margin, y, pageWidth - margin, y);
+      y += lineHeight;
+    };
+
+    // Header
+    addCenteredText('PATISSERIE MODERNE', 12);
+    addCenteredText('123 Rue de la Paix');
+    addCenteredText('Tunis, Tunisie');
+    addCenteredText('Tel: +216 71 123 456');
+    y += 2;
+    addLine();
+    y += 2;
+
+    // Sale info
+    doc.text(`Date: ${date}`, margin, y);
+    y += lineHeight;
+    doc.text(`Heure: ${time}`, margin, y);
+    y += lineHeight;
+    doc.text(`Ticket: #${sale.id}`, margin, y);
+    y += lineHeight;
+
+    const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
+    if (clientName) {
+      doc.text(`Client: ${clientName}`, margin, y);
+      y += lineHeight;
+    }
+
+    if (this.isWholesaleSale(sale)) {
+      addCenteredText('VENTE GROS', 12);
+    }
+
+    addLine();
+    y += 2;
+
+    // Items header
+    doc.text('ARTICLE', margin, y);
+    doc.text('QTE', 45, y);
+    doc.text('P.U.', 55, y);
+    addRightText('TOTAL');
+    y += lineHeight;
+    addLine();
+    y += 2;
+
+    // Items
+    (sale.items || []).forEach(item => {
+      const name = (item.productName || '').toString();
+      const qty = Number(item.quantity || 0).toString();
+      const unit = Number(item.unitPrice || 0).toFixed(3);
+      const total = Number(item.total || 0).toFixed(3);
+
+      if (item.isWholesale) {
+        const bundleQty = item.bundleQuantity || 0;
+        const bundlePrice = item.bundlePrice || 0;
+        const bundleSize = item.bundleSize || 1;
+        
+        doc.text(`${name}`, margin, y);
+        doc.text('GROS', margin + 2, y + 3);
+        y += lineHeight;
+        doc.text(`${bundleQty} fardeau${bundleQty > 1 ? 'x' : ''}`, 45, y - lineHeight);
+        doc.text(`(${qty} unités)`, 45, y - lineHeight + 3);
+        doc.text(`${bundlePrice.toFixed(3)}/fardeau`, 55, y - lineHeight);
+        doc.text(`(${(bundlePrice / bundleSize).toFixed(3)}/unité)`, 55, y - lineHeight + 3);
+        addRightText(total);
+        y += lineHeight + 3;
+      } else {
+        doc.text(name, margin, y);
+        doc.text(qty, 45, y);
+        doc.text(unit, 55, y);
+        addRightText(total);
+        y += lineHeight;
+      }
+    });
+
+    addLine();
+    y += 2;
+
+    // Totals
+    const discount = Number(sale.discount || 0);
+    const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
+    const net = Number(sale.finalTotal || subtotal - discount);
+    const payment = sale.paymentMethod?.name || '—';
+
+    doc.text('Sous-total', margin, y);
+    addRightText(`${subtotal.toFixed(3)} dt`);
+    y += lineHeight;
+
+    if (discount > 0) {
+      doc.text('Remise', margin, y);
+      addRightText(`-${discount.toFixed(3)} dt`);
+      y += lineHeight;
+    }
+
+    doc.setFontSize(12);
+    doc.text('TOTAL A PAYER', margin, y);
+    addRightText(`${net.toFixed(3)} dt`);
+    y += lineHeight;
+
+    doc.setFontSize(10);
+    doc.text('Paiement', margin, y);
+    addRightText(payment);
+    y += lineHeight + 2;
+
+    addLine();
+    y += 2;
+    addCenteredText('Merci de votre visite!');
+
+    // Convert to base64
+    const pdfOutput = doc.output('datauristring');
+    return pdfOutput.split(',')[1]; // Remove data:application/pdf;filename=generated.pdf;base64, prefix
+  }
+
+  buildSaleReceiptText(sale: Sale, settings: AppSettings | null): string {
+    const createdAt = new Date(sale.createdAt);
+    
+    // Format date and time based on settings
+    const dateFormat = settings?.printSettings?.dateFormat || 'dd/mm/yyyy';
+    const timeFormat = settings?.printSettings?.timeFormat || '24h';
+    
+    let date: string;
+    let time: string;
+    
+    if (dateFormat === 'dd/mm/yyyy') {
+      date = createdAt.toLocaleDateString('fr-FR');
+    } else if (dateFormat === 'mm/dd/yyyy') {
+      date = createdAt.toLocaleDateString('en-US');
+    } else {
+      date = createdAt.toISOString().split('T')[0];
+    }
+    
+    if (timeFormat === '12h') {
+      time = createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } else {
+      time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    let text = '';
+    
+    // ESC/POS commands for formatting
+    const ESC = '\x1B';
+    const centerAlign = ESC + '\x61\x01'; // Center alignment
+    const leftAlign = ESC + '\x61\x00';   // Left alignment
+    const boldOn = ESC + '\x45\x01';      // Bold on
+    const boldOff = ESC + '\x45\x00';     // Bold off
+    const normalSize = ESC + '\x21\x00';  // Normal size
+    const monospaceFont = ESC + '\x4D\x00'; // Select font A (monospace)
+    const resetFont = ESC + '\x40';       // Initialize printer (resets font)
+    const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
+    const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
+    
+    // Eliminate margins and set monospace font
+    text += noTopMargin + noBottomMargin + monospaceFont;
+    
+    // Header
+    text += '==================\n';
+    
+    // Company name (bold and centered)
+    const companyName = settings?.companyName || 'PATISSERIE MODERNE';
+    text += centerAlign + boldOn + companyName + boldOff + normalSize + '\n';
+    
+    // Company details (centered)
+    if (settings?.printSettings?.showCompanyDetails) {
+      if (settings?.companyAddress) {
+        text += centerAlign + settings.companyAddress + '\n';
+      }
+      if (settings?.companyPhone) {
+        text += centerAlign + settings.companyPhone + '\n';
+      }
+      if (settings?.companyEmail) {
+        text += centerAlign + settings.companyEmail + '\n';
+      }
+    }
+    
+    text += leftAlign + '==================\n\n';
+    
+    // Sale info
+    text += `Date: ${date}     Heure: ${time}\n`;
+    text += `Ticket: #${sale.dailyTicketNumber || this.formatTicketId(sale.id)}\n`;
+    
+    // Client info (if enabled in settings)
+    if (settings?.printSettings?.showClientInfo) {
+      const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
+      if (clientName) {
+        text += `Client: ${clientName}\n`;
+      }
+    }
+    
+    if (this.isWholesaleSale(sale)) {
+      text += 'VENTE GROS\n';
+    }
+    
+    text += '------------------\n';
+    
+    // Format currency based on settings
+    const currencySymbol = settings?.printSettings?.currencySymbol || 'dt';
+    const currencyPosition = settings?.printSettings?.currencyPosition || 'after';
+    
+    const formatCurrency = (amount: number) => {
+      // Round to 3 decimal places maximum and remove trailing zeros
+      const rounded = Math.round(amount * 1000) / 1000;
+      const formatted = rounded.toString();
+      return currencyPosition === 'before' ? `${currencySymbol} ${formatted}` : `${formatted} ${currencySymbol}`;
+    };
+    
+    // Items header
+    text += 'ARTICLE           QTE  P.U.    TOTAL\n';
+    text += '------------------\n';
+    
+    // Items
+    (sale.items || []).forEach(item => {
+      const name = (item.productName || '').toString();
+      const qty = Number(item.quantity || 0).toString();
+      const unit = Number(item.unitPrice || 0);
+      const total = Number(item.total || 0);
+      
+      if (item.isWholesale) {
+        const bundleQty = item.bundleQuantity || 0;
+        const bundlePrice = item.bundlePrice || 0;
+        const bundleSize = item.bundleSize || 1;
+        
+        text += `${name}\n`;
+        text += `GROS              ${bundleQty} fardeau${bundleQty > 1 ? 'x' : ''}  ${formatCurrency(bundlePrice)}  ${formatCurrency(total)}\n`;
+        text += `                  (${qty} unités)\n`;
+      } else {
+        // Format item line with proper spacing
+        const namePadded = name.padEnd(16);
+        const qtyPadded = qty.padStart(3);
+        const unitPadded = formatCurrency(unit).padStart(6);
+        const totalPadded = formatCurrency(total).padStart(8);
+        text += `${namePadded} ${qtyPadded} ${unitPadded} ${totalPadded}\n`;
+      }
+    });
+    
+    text += '------------------\n';
+    
+    // Totals
+    const discount = Number(sale.discount || 0);
+    const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
+    const net = Number(sale.finalTotal || subtotal - discount);
+    const payment = sale.paymentMethod?.name || '—';
+    
+    text += `Sous-total                    ${formatCurrency(subtotal)}\n`;
+    if (discount > 0 && settings?.printSettings?.showDiscountDetails) {
+      text += `Remise                        -${formatCurrency(discount)}\n`;
+    }
+    text += `TOTAL A PAYER                 ${formatCurrency(net)}\n`;
+    // Payment method (if enabled in settings)
+    if (settings?.printSettings?.showPaymentMethod) {
+      text += `Paiement                      ${payment}\n`;
+    }
+    
+    text += '==================\n';
+    
+    // Custom thank you message from settings
+    const thankYouMessage = settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!';
+    text += centerAlign + thankYouMessage + '\n\n\n\n\n\n';
+    
+    // Paper cut command
+    text += ESC + '\x69'; // Full cut
+    text += ESC + '\x64\x01'; // Feed 6 lines before cutting
+    
+    return text;
+  }
+
   // Utility methods
+  private formatTicketId(id: number): string {
+    // Convert timestamp-based ID to a shorter, more readable format
+    // If it's a timestamp (13 digits), extract the last 6 digits
+    if (id.toString().length >= 10) {
+      return id.toString().slice(-6);
+    }
+    // Otherwise, use the full ID
+    return id.toString();
+  }
+
   private formatCurrency(amount: number | string): string {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return (isNaN(numAmount) ? 0 : numAmount).toFixed(3) + ' TND';

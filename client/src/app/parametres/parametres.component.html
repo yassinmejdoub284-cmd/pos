@@ -173,6 +173,18 @@
             <input title="Nom de l'imprimante" type="text" [(ngModel)]="settings.devicesConfig.customPrinterName" class="w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: HP LaserJet Pro"/>
           </div>
 
+          <!-- Version de l'application -->
+          <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div class="flex items-center gap-3">
+              <input id="isDesktopVersion" type="checkbox" [(ngModel)]="settings.isDesktopVersion" class="h-4 w-4"/>
+              <label for="isDesktopVersion" class="text-gray-700 font-medium">Version Desktop (Tauri)</label>
+            </div>
+            <p class="text-xs text-gray-600 mt-1 ml-7">
+              <span *ngIf="settings.isDesktopVersion">Utilise l'impression directe vers l'imprimante thermique</span>
+              <span *ngIf="!settings.isDesktopVersion">Utilise l'impression via le navigateur web</span>
+            </p>
+          </div>
+
           <!-- Options d'imprimante -->
           <div class="space-y-3 mb-4">
             <div class="flex items-center gap-3">

@@ -63,3 +63,20 @@ server/*.pid.lock
 
 # Environment file
 server/.env
+
+# -------------------------
+# Tauri (desktop)
+# -------------------------
+
+desktop/src-tauri/target
+desktop/src-tauri/Cargo.lock
+desktop/src-tauri/gen
+desktop/src-tauri/*.exe
+desktop/src-tauri/*.dmg
+desktop/src-tauri/*.deb
+desktop/src-tauri/*.AppImage
+desktop/src-tauri/*.msi
+desktop/src-tauri/*.app
+desktop/src-tauri/*.dmg
+desktop/src-tauri/*.tar.gz
+desktop/src-tauri/*.zip

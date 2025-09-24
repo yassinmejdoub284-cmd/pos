@@ -3119,12 +3119,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
       </html>
     `;
 
-    const w = window.open('', '_blank');
-    if (w) {
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-    }
+    // Desktop print via Tauri backend
+    void this.printService.printHtml(html);
     this.invoiceMode = false;
   }
 
@@ -3760,12 +3756,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
       </html>
     `;
 
-    const w = window.open('', '_blank');
-    if (w) {
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-    }
+    // Desktop print via Tauri backend
+    void this.printService.printHtml(html);
+    this.invoiceMode = false;
   }
 
   // Generate receipt data for last sale
@@ -3821,7 +3814,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const client = source?.selectedClient || this.selectedClient || null;
 
     const sale: Sale = {
-      id: source?.id || (useLast && this.lastValidatedSale?.id) || Date.now(),
+      id: source?.id || this.lastValidatedSale?.id || Date.now(),
       items,
       total: subtotal,
       tax: 0,
@@ -3837,7 +3830,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
       updatedAt: now,
       client: client ? { firstName: client.firstName, lastName: client.lastName, code: client.code || '' } : undefined,
       user: undefined,
-      loyaltyPointsEarned: source?.loyaltyEarned
+      loyaltyPointsEarned: source?.loyaltyEarned,
+      // Add daily ticket number for printing
+      dailyTicketNumber: this.getCurrentTicketNumber()
     };
 
     return sale;

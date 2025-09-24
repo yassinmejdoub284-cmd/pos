@@ -59,7 +59,8 @@ export class ParametresComponent implements OnInit {
       enableDrawer: true,
       autoCut: true,
       printLogo: true
-    }
+    },
+    isDesktopVersion: true
   };
 
   constructor(
