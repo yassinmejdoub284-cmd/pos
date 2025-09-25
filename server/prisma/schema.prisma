@@ -233,6 +233,18 @@ model ProductConservation {
   @@map("product_conservation")
 }
 
+model ProduitDeCaisse {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(200)
+  price       Decimal  @db.Decimal(10, 2)
+  productIds  Json     @map("product_ids") // Array of product IDs
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("produits_de_caisse")
+}
+
 model VracPrice {
   id          Int      @id @default(autoincrement())
   productId   Int      @map("product_id")

@@ -68,9 +68,9 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
       return res.status(400).json({ error: 'Une session est déjà ouverte pour cet utilisateur' });
     }
 
-    // Get last session's fonds as default if not provided
+    // Get last session's fonds as default if not provided (0 is valid)
     let defaultFonds = parseFloat(openingFund);
-    if (!openingFund) {
+    if (openingFund === undefined || openingFund === null) {
       const lastSession = await prisma.sessionCaisse.findFirst({
         where: {
           userId: req.user.id,
@@ -96,17 +96,23 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
       }
     }
 
-    // Determine depotId: ADMIN must specify a SHOP depot; others use their own depotId
+    // Determine depotId: ADMIN may omit depot; fallback to user's depot or first active SHOP
     let targetDepotId = req.user.depotId;
     if (req.user.role === 'ADMIN') {
-      if (!depotId) {
-        return res.status(400).json({ error: 'Depot selection required for admin. Please choose a SHOP depot.' });
+      let resolvedDepot = null;
+      if (depotId) {
+        resolvedDepot = await prisma.depot.findFirst({ where: { id: parseInt(depotId), isActive: true, type: 'SHOP' } });
       }
-      const depot = await prisma.depot.findFirst({ where: { id: parseInt(depotId), isActive: true, type: 'SHOP' } });
-      if (!depot) {
-        return res.status(400).json({ error: 'Invalid depot selection. Only active SHOP depots are allowed.' });
+      if (!resolvedDepot && targetDepotId) {
+        resolvedDepot = await prisma.depot.findFirst({ where: { id: parseInt(targetDepotId), isActive: true, type: 'SHOP' } });
       }
-      targetDepotId = depot.id;
+      if (!resolvedDepot) {
+        resolvedDepot = await prisma.depot.findFirst({ where: { isActive: true, type: 'SHOP' }, orderBy: { id: 'asc' } });
+      }
+      if (!resolvedDepot) {
+        return res.status(400).json({ error: 'Aucun dépôt SHOP actif disponible pour ouvrir une session.' });
+      }
+      targetDepotId = resolvedDepot.id;
     } else {
       if (!targetDepotId) {
         return res.status(400).json({ error: 'User is not assigned to any depot.' });

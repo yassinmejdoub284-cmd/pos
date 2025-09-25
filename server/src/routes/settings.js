@@ -184,17 +184,8 @@ router.put('/', async (req, res) => {
     });
     console.log('[settings.update] normalized data=', data);
 
-    let savedDb = null;
-    if (prisma.appSettings) {
-      // Maintain global DB settings for backward compatibility
-      const existing = await prisma.appSettings.findFirst();
-      const { autoApproveExpenseBelow, historyRetentionDays, ...dbData } = data;
-      if (existing) {
-        savedDb = await prisma.appSettings.update({ where: { id: existing.id }, data: dbData });
-      } else {
-        savedDb = await prisma.appSettings.create({ data: dbData });
-      }
-    }
+    // Skip DB writes to avoid schema mismatches; persist via file only
+    const savedDb = null;
 
     // Persist depot-scoped settings to file
     writeDepotSettings(userDepotId, data);
@@ -220,19 +211,7 @@ router.post('/logo', upload.single('logo'), async (req, res) => {
     const currentSettings = readDepotSettings(userDepotId);
     const updatedSettings = { ...currentSettings, logoUrl };
     
-    if (prisma.appSettings) {
-      const existing = await prisma.appSettings.findFirst();
-      const { autoApproveExpenseBelow, ...dbData } = updatedSettings;
-      
-      if (existing) {
-        await prisma.appSettings.update({ 
-          where: { id: existing.id }, 
-          data: dbData 
-        });
-      } else {
-        await prisma.appSettings.create({ data: dbData });
-      }
-    }
+    // Skip DB writes to avoid schema mismatches; persist via file only
     
     writeDepotSettings(userDepotId, updatedSettings);
     

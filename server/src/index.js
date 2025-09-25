@@ -2,6 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const { Server } = require('socket.io');
 const authRoutes = require('./routes/auth');
 const salesRoutes = require('./routes/sales');
@@ -29,6 +32,7 @@ const returnsRoutes = require('./routes/returns');
 const companiesRoutes = require('./routes/companies');
 const pdfRoutes = require('./routes/pdf');
 const attendanceRoutes = require('./routes/attendance');
+const produitsDeCaisseRoutes = require('./routes/produits-de-caisse');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -80,8 +84,29 @@ app.use('/api/returns', authenticateToken, returnsRoutes);
 app.use('/api/pdf', authenticateToken, pdfRoutes);
 app.use('/api/companies', authenticateToken, companiesRoutes);
 app.use('/api/attendance', authenticateToken, attendanceRoutes);
+app.use('/api/produits-de-caisse', authenticateToken, produitsDeCaisseRoutes);
 
-const server = http.createServer(app);
+// Create HTTP or HTTPS server based on env
+let server;
+try {
+  const keyPath = process.env.SSL_KEY_PATH;
+  const certPath = process.env.SSL_CERT_PATH;
+  if (keyPath && certPath && fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    const sslOptions = {
+      key: fs.readFileSync(path.resolve(keyPath)),
+      cert: fs.readFileSync(path.resolve(certPath))
+    };
+    server = https.createServer(sslOptions, app);
+    console.log('HTTPS enabled for backend (dev).');
+  } else {
+    server = http.createServer(app);
+    console.log('HTTPS not configured, running HTTP.');
+  }
+} catch (e) {
+  server = http.createServer(app);
+  console.log('Failed to initialize HTTPS, falling back to HTTP.');
+}
+
 const io = new Server(server, { cors: { origin: '*'} });
 
 // Make io instance available to routes

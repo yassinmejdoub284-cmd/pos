@@ -60,12 +60,22 @@
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "disableHostCheck": true,
+            "headers": {
+              "Content-Security-Policy": "upgrade-insecure-requests;"
+            }
+          },
           "configurations": {
             "production": {
               "buildTarget": "pos-patisserie:build:production"
             },
             "development": {
-              "buildTarget": "pos-patisserie:build:development"
+              "buildTarget": "pos-patisserie:build:development",
+              "disableHostCheck": true,
+              "headers": {
+                "Content-Security-Policy": "upgrade-insecure-requests;"
+              }
             }
           },
           "defaultConfiguration": "development"

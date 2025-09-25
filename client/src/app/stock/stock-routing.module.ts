@@ -34,7 +34,9 @@ const routes: Routes = [
   },
   { path: 'shop-transfer/:depotId', loadChildren: () => import('./shop-transfer/shop-transfer.module').then(m => m.ShopTransferModule) },
   { path: 'branch-inventory/:depotId', loadChildren: () => import('./branch-inventory/branch-inventory.module').then(m => m.BranchInventoryModule) },
-  { path: 'entry/:depotId', loadChildren: () => import('./entry/entry.module').then(m => m.EntryModule) }
+  { path: 'entry/:depotId', loadChildren: () => import('./entry/entry.module').then(m => m.EntryModule) },
+  { path: 'scan/:depotId', loadChildren: () => import('./scan-reception/scan-reception.module').then(m => m.ScanReceptionModule) },
+  { path: 'produits-de-caisse', loadChildren: () => import('./produits-de-caisse/produits-de-caisse.module').then(m => m.ProduitsDeCaisseModule) }
 ];
 
 @NgModule({

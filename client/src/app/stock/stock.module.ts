@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 import { StockRoutingModule } from './stock-routing.module';
 import { StockComponent } from './stock.component';
@@ -8,7 +9,8 @@ import { StockComponent } from './stock.component';
   declarations: [StockComponent],
   imports: [
     CommonModule,
-    StockRoutingModule
+    StockRoutingModule,
+    FormsModule
   ]
 })
 export class StockModule { }

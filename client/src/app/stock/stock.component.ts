@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { DepotsService } from '../core/services/depots.service';
 import { Depot } from '../core/models/depot.model';
+import { StockDocumentsService } from '../core/services/stock-documents.service';
 
 @Component({
   selector: 'app-stock',
@@ -17,9 +18,12 @@ export class StockComponent implements OnInit {
   showDepotChoiceModal = false;
   selectedDepot: Depot | null = null;
 
+  // Scan UI state (moved to dedicated page)
+
   constructor(
-    private depotsService: DepotsService, 
-    private router: Router
+    private depotsService: DepotsService,
+    private router: Router,
+    private stockDocs: StockDocumentsService
   ) {}
 
   ngOnInit(): void {
@@ -85,6 +89,11 @@ export class StockComponent implements OnInit {
   openInventoryManagement(depot: Depot): void {
     this.closeDepotChoiceModal();
     this.router.navigate(['/inventory', depot.id]);
+  }
+
+  openScan(depot: Depot): void {
+    this.closeDepotChoiceModal();
+    this.router.navigate(['/stock/scan', depot.id]);
   }
 
   // Depot type styling methods

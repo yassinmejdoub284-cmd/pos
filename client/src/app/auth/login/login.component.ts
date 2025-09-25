@@ -1,16 +1,17 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { UsersService } from '../../core/services/users.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { LoginThemeService } from '../../core/services/login-theme.service';
 
 @Component({
   selector: 'app-login',
   templateUrl: './login.component.html',
   standalone: false
 })
-export class LoginComponent implements OnInit {
+export class LoginComponent implements OnInit, OnDestroy {
   credentials = {
     pin: ''
   };
@@ -45,6 +46,8 @@ export class LoginComponent implements OnInit {
   currentUser: any = null;
   passwordChangeStep: 'new' | 'confirm' = 'new';
 
+  private readonly loginThemeService = inject(LoginThemeService);
+
   constructor(
     private authService: AuthService,
     private router: Router,
@@ -53,6 +56,10 @@ export class LoginComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Set theme based on URL/port and update favicon for login screen
+    this.loginThemeService.detectAndSetTheme();
+    this.loginThemeService.applyFaviconForLogin();
+
     // Redirect if already authenticated
     if (this.authService.isAuthenticated()) {
       this.router.navigate(['/home']);
@@ -62,8 +69,17 @@ export class LoginComponent implements OnInit {
     // Splash for a short time then reveal login
     setTimeout(() => {
       this.showSplash = false;
-    }, 2500);
+    }, 1000);
   }
+
+  ngOnDestroy(): void {
+    this.loginThemeService.restoreOriginalFavicon();
+  }
+
+  // Theme getters for template bindings
+  get themeLogoUrl(): string { return this.loginThemeService.theme().logoUrl; }
+  get primaryColor(): string { return this.loginThemeService.theme().primaryColor; }
+  get secondaryColor(): string { return this.loginThemeService.theme().secondaryColor; }
 
   onSubmit(): void {
     if (!this.credentials.pin) {

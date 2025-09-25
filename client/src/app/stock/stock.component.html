@@ -46,6 +46,26 @@
       </div>
     </a>
 
+    <!-- Produits de Caisse Card -->
+    <a routerLink="/stock/produits-de-caisse" class="group">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-blue-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        
+        <div class="relative z-10">
+          <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"></path>
+            </svg>
+          </div>
+          
+          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors duration-300">Produits de Caisse</h3>
+          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Regroupements pour la caisse</p>
+        </div>
+        
+        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-blue-400/20 transition-all duration-300"></div>
+      </div>
+    </a>
+
     <!-- Depot Cards -->
     <ng-container *ngFor="let depot of depots">
       <div (click)="openDepotChoiceModal(depot)" class="group cursor-pointer">
@@ -185,6 +205,23 @@
           <p class="text-sm opacity-90">Faire l'inventaire du dépôt</p>
         </div>
       </button>
+
+      <!-- Scan Barcode Option -->
+      <div class="border-t border-gray-200 pt-4"></div>
+      <div class="space-y-3">
+        <button (click)="openScan(selectedDepot!)" 
+          class="w-full bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white rounded-xl p-4 hover:from-fuchsia-600 hover:to-pink-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
+          <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h4M17 7h4M3 17h4M17 17h4M6 7v10M10 7v10M14 7v10"></path>
+            </svg>
+          </div>
+          <div class="text-left">
+            <h4 class="font-semibold text-lg">Scanner un code-barres</h4>
+            <p class="text-sm opacity-90">Rechercher un produit par code-barres</p>
+          </div>
+        </button>
+      </div>
     </div>
 
     <div class="p-4 border-t border-gray-200">

@@ -1,10 +1,9 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const { prisma } = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
 // PDF service removed - using HTML print instead
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Helper function to calculate HTVA and TVA from TTC
 function calculateHTVAAndTVA(prixTTC, tvaPercent) {
@@ -104,7 +103,12 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/requests', authenticateToken, async (req, res) => {
   try {
     console.log('Getting invoice requests for user:', req.user?.role, req.user?.id);
-    
+    // Guard against missing Prisma model (client not regenerated)
+    if (!prisma || !prisma.invoiceRequest || typeof prisma.invoiceRequest.findMany !== 'function') {
+      console.warn('Prisma model invoiceRequest is not available; returning empty list');
+      return res.json({ requests: [] });
+    }
+
     const requests = await prisma.invoiceRequest.findMany({
       where: { 
         sale: {
@@ -520,7 +524,11 @@ router.post('/request-from-ticket', authenticateToken, async (req, res) => {
 router.get('/requests/pending', authenticateToken, async (req, res) => {
   try {
     console.log('Getting pending invoice requests for user:', req.user.role);
-    
+    if (!prisma || !prisma.invoiceRequest || typeof prisma.invoiceRequest.findMany !== 'function') {
+      console.warn('Prisma model invoiceRequest is not available; returning empty list');
+      return res.json([]);
+    }
+
     const requests = await prisma.invoiceRequest.findMany({
       where: { status: 'PENDING' },
       include: {
@@ -562,6 +570,9 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
     const requestId = parseInt(req.params.id);
     if (isNaN(requestId)) {
       return res.status(400).json({ error: 'Invalid request ID' });
+    }
+    if (!prisma || !prisma.invoiceRequest) {
+      return res.status(503).json({ error: 'Invoice request model unavailable' });
     }
     
     // Validate invoice number uniqueness
@@ -702,6 +713,9 @@ router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
     const requestId = parseInt(req.params.id);
     if (isNaN(requestId)) {
       return res.status(400).json({ error: 'Invalid request ID' });
+    }
+    if (!prisma || !prisma.invoiceRequest) {
+      return res.status(503).json({ error: 'Invoice request model unavailable' });
     }
     
     const invoiceRequest = await prisma.invoiceRequest.findUnique({

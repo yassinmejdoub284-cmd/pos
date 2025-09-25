@@ -36,7 +36,9 @@
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^4.1.13",
     "tslib": "^2.3.0",
-    "zone.js": "~0.15.0"
+    "zone.js": "~0.15.0",
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.20.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^19.2.0",
