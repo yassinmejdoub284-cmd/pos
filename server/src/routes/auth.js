@@ -59,7 +59,7 @@ router.post('/login', async (req, res) => {
 
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName, role, depotId } = req.body;
+    const { username, email, password, firstName, lastName, role, depotId, pin } = req.body;
 
     if (!username || !email || !password || !firstName || !lastName || !role) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -88,7 +88,8 @@ router.post('/register', async (req, res) => {
         firstName,
         lastName,
         role,
-        depotId
+        depotId,
+        pin: pin || '0000'
       }
     });
 

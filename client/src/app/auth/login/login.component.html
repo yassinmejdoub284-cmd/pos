@@ -1,275 +1,248 @@
-<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-  
-  <!-- Main Login Card -->
-  <div class="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row">
-    
-    <!-- Left Side - Login Form -->
-    <div class="flex-1 flex flex-col p-8 lg:p-12">
-      
-      <!-- Header Section -->
-      <div class="flex items-center space-x-4 mb-8">
-        <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-          <img src="/logo.webp" alt="PoS Pâtisserie" class="w-10 h-10 object-contain">
-        </div>
-        <div>
-          <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">PoS Pâtisserie</h1>
-          <p class="text-gray-600 text-sm">Système de Point de Vente</p>
-        </div>
-      </div>
-
-      <!-- Login Form Section -->
-      <div class="flex-1 flex flex-col justify-center">
-        <div class="max-w-md">
-          <div class="text-center mb-8">
-            <h2 class="text-4xl font-bold text-gray-800 mb-2">Connexion</h2>
-            <p class="text-gray-600">Entrez votre code PIN pour accéder au système</p>
-          </div>
-
-          <!-- PIN Input Form -->
-          <form (ngSubmit)="onSubmit()" class="space-y-6">
-            
-            <!-- PIN Display -->
-            <div class="text-right">
-              <div class="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-2xl p-6 mb-4 shadow-inner">
-                <div class="flex justify-end space-x-3">
-                  <div *ngFor="let digit of [0,1,2,3,4,5,6,7]" 
-                       class="w-10 h-10 rounded-xl border-2 flex items-center justify-center text-xl font-bold transition-all duration-300 flex-shrink-0 shadow-sm"
-                       [class]="credentials.pin.length > digit ? 'border-blue-500 bg-gradient-to-br from-blue-400 to-blue-600 text-white shadow-lg' : 'border-gray-300 bg-white text-gray-400'">
-                    <span *ngIf="credentials.pin.length > digit">•</span>
-                  </div>
-                </div>
-              </div>
-              <p class="text-sm text-gray-500 text-right">Code PIN (4-8 chiffres)</p>
+<!-- Splash + Login sequence with smooth fade -->
+<div class="relative min-h-screen bg-[url('/bg.webp')] bg-cover bg-center flex items-center justify-center p-4 overflow-hidden">
+  <!-- Light overlay for readability -->
+  <div class="absolute inset-0 bg-white/80"></div>
+  <!-- Splash Screen (overlay) -->
+  <div class="absolute inset-0 flex items-center justify-center transition-opacity duration-700 ease-out"
+       [ngClass]="showSplash ? 'opacity-100' : 'opacity-0 pointer-events-none'">
+    <div class="w-full max-w-4xl">
+      <div>
+        <div class="relative w-full flex items-center justify-center py-16 sm:py-24">
+          <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-blue-100 via-indigo-100 to-cyan-100 opacity-80"></div>
+          <div class="relative z-10 flex flex-col items-center text-center px-10 animate-[fadeIn_0.6s_ease-out]">
+            <img src="/logo.webp" alt="PoS Pâtisserie Logo" class="w-24 h-24 mb-2 object-contain">
+            <span class="text-2xl font-bold text-gray-800 mb-2">PoS Pâtisserie</span>
+            <span class="text-sm text-gray-600">Solution de point de vente moderne</span>
+            <div class="mt-10 w-full max-w-sm text-left">
+              <span class="block text-2xl font-extrabold text-[#569797]">La vie est courte,</span>
+              <span class="block text-2xl font-extrabold text-[#569797]">rendez-la sucrée !</span>
             </div>
-
-            <!-- Hidden PIN Input for form validation -->
-            <input title="Code PIN"
-              type="password"
-              [(ngModel)]="credentials.pin"
-              name="pin"
-              class="sr-only"
-              readonly
-            >
-
-            <!-- Error Message -->
-            <div *ngIf="error" class="bg-red-50 border-2 border-red-200 rounded-xl p-4">
-              <div class="flex items-start">
-                <svg class="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <p class="ml-3 text-sm text-red-700 flex-1">{{ error }}</p>
-              </div>
-            </div>
-
-            <!-- Login Button -->
-            <button
-              type="submit"
-              [disabled]="loading || credentials.pin.length < 4"
-              class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 px-6 rounded-xl font-bold text-lg hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-            >
-              <span *ngIf="!loading">Se connecter</span>
-              <span *ngIf="loading" class="flex items-center justify-center">
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Connexion...
-              </span>
-            </button>
-          </form>
-        </div>
-
-        <!-- Demo PINs -->
-        <div class="mt-8">
-          <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-4 shadow-sm">
-            <h3 class="text-sm font-semibold text-green-800 mb-3 text-center">Codes PIN de démonstration</h3>
-            <div class="grid grid-cols-2 gap-3 text-xs">
-              <div class="bg-white rounded-xl p-3 shadow-sm border border-green-100">
-                <div class="font-semibold text-gray-900">Admin</div>
-                <div class="text-green-600 font-mono font-bold">00010001</div>
-              </div>
-              <div class="bg-white rounded-xl p-3 shadow-sm border border-green-100">
-                <div class="font-semibold text-gray-900">Manager</div>
-                <div class="text-green-600 font-mono font-bold">00020002</div>
-              </div>
-              <div class="bg-white rounded-xl p-3 shadow-sm border border-green-100">
-                <div class="font-semibold text-gray-900">Caissier</div>
-                <div class="text-green-600 font-mono font-bold">00030003</div>
-              </div>
-              <div class="bg-white rounded-xl p-3 shadow-sm border border-green-100">
-                <div class="font-semibold text-gray-900">Stock</div>
-                <div class="text-green-600 font-mono font-bold">00040004</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Side - Virtual Keyboard (Desktop) -->
-    <div class="hidden lg:flex lg:w-96 bg-gradient-to-br from-gray-50 to-blue-50 p-6 border-l border-gray-200">
-      <div class="w-full flex flex-col space-y-4">
-        
-        <!-- Numeric Keypad -->
-        <div class="flex-1">
-          <div class="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
-            <div class="grid grid-cols-3 gap-3">
-              <!-- Numbers 7, 8, 9 -->
-              <button *ngFor="let num of [7, 8, 9]" 
-                      (click)="addToInput(num.toString())"
-                      class="num-key bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold rounded-xl hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 text-xl py-4 shadow-md hover:shadow-lg transform hover:-translate-y-1">
-                {{ num }}
-              </button>
-              
-              <!-- Numbers 4, 5, 6 -->
-              <button *ngFor="let num of [4, 5, 6]" 
-                      (click)="addToInput(num.toString())"
-                      class="num-key bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold rounded-xl hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 text-xl py-4 shadow-md hover:shadow-lg transform hover:-translate-y-1">
-                {{ num }}
-              </button>
-              
-              <!-- Numbers 1, 2, 3 -->
-              <button *ngFor="let num of [1, 2, 3]" 
-                      (click)="addToInput(num.toString())"
-                      class="num-key bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold rounded-xl hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 text-xl py-4 shadow-md hover:shadow-lg transform hover:-translate-y-1">
-                {{ num }}
-              </button>
-              
-              <!-- 0 and Clear -->
-              <button (click)="addToInput('0')" 
-                      class="num-key bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold rounded-xl hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 text-xl py-4 shadow-md hover:shadow-lg transform hover:-translate-y-1">
-                0
-              </button>
-              <button (click)="backspace()" 
-                      class="num-key bg-gradient-to-br from-orange-500 to-red-500 text-white font-bold rounded-xl hover:from-orange-600 hover:to-red-600 active:from-orange-700 active:to-red-700 transition-all duration-200 text-xl py-4 shadow-md hover:shadow-lg transform hover:-translate-y-1">
-                ←
-              </button>
-              <button (click)="clearAll()" 
-                      class="num-key bg-gradient-to-br from-red-500 to-pink-500 text-white font-bold rounded-xl hover:from-red-600 hover:to-pink-600 active:from-red-700 active:to-pink-700 transition-all duration-200 text-xl py-4 shadow-md hover:shadow-lg transform hover:-translate-y-1">
-                C
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="space-y-3">
-          <button
-            (click)="onSubmit()"
-            [disabled]="loading || credentials.pin.length < 4"
-            class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white p-4 rounded-xl shadow-lg hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex flex-col items-center justify-center transform hover:-translate-y-1 hover:shadow-xl"
-          >
-            <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
-            </svg>
-            <span class="text-sm font-bold">ENTRÉE</span>
-          </button>
-          
-          <button
-            (click)="backspace()"
-            class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white p-4 rounded-xl shadow-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 flex flex-col items-center justify-center transform hover:-translate-y-1 hover:shadow-xl"
-          >
-            <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2H6.828a2 2 0 00-1.414.586L3 12z"></path>
-            </svg>
-            <span class="text-sm font-bold">EFFACER</span>
-          </button>
-          
-          <button
-            (click)="clearAll()"
-            class="w-full bg-gradient-to-r from-red-500 to-pink-500 text-white p-4 rounded-xl shadow-lg hover:from-red-600 hover:to-pink-600 transition-all duration-200 flex flex-col items-center justify-center transform hover:-translate-y-1 hover:shadow-xl"
-          >
-            <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-            </svg>
-            <span class="text-sm font-bold">TOUT EFFACER</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Mobile Virtual Keyboard -->
-    <div class="lg:hidden bg-gradient-to-r from-gray-50 to-blue-50 p-4 border-t border-gray-200">
-      <div class="max-w-lg mx-auto">
-        <div class="flex gap-4">
-          
-          <!-- Numeric Keypad -->
-          <div class="flex-1">
-            <div class="bg-white rounded-xl p-3 shadow-lg">
-              <div class="grid grid-cols-3 gap-2">
-                <!-- Numbers 7, 8, 9 -->
-                <button *ngFor="let num of [7, 8, 9]" 
-                        (click)="addToInput(num.toString())"
-                        class="num-key bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 text-lg py-3 shadow-md hover:shadow-lg">
-                  {{ num }}
-                </button>
-                
-                <!-- Numbers 4, 5, 6 -->
-                <button *ngFor="let num of [4, 5, 6]" 
-                        (click)="addToInput(num.toString())"
-                        class="num-key bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 text-lg py-3 shadow-md hover:shadow-lg">
-                  {{ num }}
-                </button>
-                
-                <!-- Numbers 1, 2, 3 -->
-                <button *ngFor="let num of [1, 2, 3]" 
-                        (click)="addToInput(num.toString())"
-                        class="num-key bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 text-lg py-3 shadow-md hover:shadow-lg">
-                  {{ num }}
-                </button>
-                
-                <!-- 0 and Clear -->
-                <button (click)="addToInput('0')" 
-                        class="num-key bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 text-lg py-3 shadow-md hover:shadow-lg">
-                  0
-                </button>
-                <button (click)="backspace()" 
-                        class="num-key bg-gradient-to-br from-orange-500 to-red-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-red-600 active:from-orange-700 active:to-red-700 transition-all duration-200 text-lg py-3 shadow-md hover:shadow-lg">
-                  ←
-                </button>
-                <button (click)="clearAll()" 
-                        class="num-key bg-gradient-to-br from-red-500 to-pink-500 text-white font-bold rounded-lg hover:from-red-600 hover:to-pink-600 active:from-red-700 active:to-pink-700 transition-all duration-200 text-lg py-3 shadow-md hover:shadow-lg">
-                  C
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="w-24 flex flex-col space-y-2">
-            <button
-              (click)="onSubmit()"
-              [disabled]="loading || credentials.pin.length < 4"
-              class="flex-1 bg-gradient-to-b from-green-500 to-emerald-600 text-white p-3 rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex flex-col items-center justify-center"
-            >
-              <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
-              </svg>
-              <span class="text-xs font-medium">ENTRÉE</span>
-            </button>
-            
-            <button
-              (click)="backspace()"
-              class="flex-1 bg-gradient-to-b from-yellow-500 to-orange-500 text-white p-3 rounded-lg shadow-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 flex flex-col items-center justify-center"
-            >
-              <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2H6.828a2 2 0 00-1.414.586L3 12z"></path>
-              </svg>
-              <span class="text-xs font-medium">EFFACER</span>
-            </button>
-            
-            <button
-              (click)="clearAll()"
-              class="flex-1 bg-gradient-to-b from-red-500 to-pink-500 text-white p-3 rounded-lg shadow-lg hover:from-red-600 hover:to-pink-600 transition-all duration-200 flex flex-col items-center justify-center"
-            >
-              <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-              </svg>
-              <span class="text-xs font-medium">TOUT EFFACER</span>
-            </button>
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Login Card (fades in) -->
+  <div class="w-full max-w-5xl transition-all duration-700 ease-out"
+       [ngClass]="showSplash ? 'opacity-0 translate-y-3 pointer-events-none' : 'opacity-100 translate-y-0'">
+    <div class="flex items-center justify-between gap-8">
+      <!-- Login Form -->
+      <div class="flex-1 max-w-md">
+        <div class="text-center mb-8">
+          <span class="block text-3xl font-extrabold text-gray-800">Bonjour !</span>
+          <span class="block text-sm text-[#569797] mt-1">Heureux de vous revoir. Entrez votre code PIN pour continuer.</span>
+        </div>
+
+        <!-- PIN form -->
+        <form (ngSubmit)="onSubmit()" class="space-y-6">
+        <!-- PIN dots -->
+        <div>
+          <div class="w-full bg-white/80 border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+            <div class="flex justify-center gap-2 sm:gap-3">
+              <div *ngFor="let digit of [0,1,2,3,4,5,6,7]" 
+                   class="md:w-10 md:h-10 w-6 h-6 rounded-xl border-2 flex items-center justify-center text-xl font-bold transition-all duration-300 flex-shrink-0"
+                   [class]="credentials.pin.length > digit ? 'border-[#569797] bg-[#569797] text-white shadow-md' : 'border-gray-300 bg-white text-gray-400'">
+                <span *ngIf="credentials.pin.length > digit">•</span>
+              </div>
+            </div>
+          </div>
+          <span class="block text-xs text-gray-600 text-center mt-2">Code PIN (4 à 8 chiffres)</span>
+        </div>
+
+        <!-- Hidden input to bind model -->
+        <input title="Code PIN"
+               type="password"
+               [(ngModel)]="credentials.pin"
+               name="pin"
+               class="sr-only"
+               readonly>
+
+        <!-- Error -->
+        <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-xl p-3">
+          <div class="flex items-start">
+            <svg class="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span class="ml-3 text-sm text-red-700 flex-1">{{ error }}</span>
+          </div>
+        </div>
+
+        <!-- Keypad -->
+        <div class="grid grid-cols-3 gap-3 select-none">
+          <button *ngFor="let num of [1,2,3,4,5,6,7,8,9]"
+                  type="button"
+                  (click)="addToInput(num.toString())"
+                  class="bg-[#569797] text-white font-semibold rounded-xl py-3 shadow-sm hover:bg-[#4a7d7d] active:bg-[#3e6b6b] transition-colors">
+            {{ num }}
+          </button>
+          <button type="button" (click)="clearAll()" class="bg-gray-100 text-gray-700 font-semibold rounded-xl py-3 shadow-sm border border-gray-200 hover:bg-gray-200">C</button>
+          <button type="button" (click)="addToInput('0')" class="bg-[#569797] text-white font-semibold rounded-xl py-3 shadow-sm hover:bg-[#4a7d7d] active:bg-[#3e6b6b] transition-colors">0</button>
+          <button type="button" (click)="backspace()" class="bg-gray-100 text-gray-700 font-semibold rounded-xl py-3 shadow-sm border border-gray-200 hover:bg-gray-200">←</button>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit"
+                [disabled]="loading || credentials.pin.length < 4"
+                class="w-full bg-[#569797] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#4a7d7d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          <span *ngIf="!loading">Se connecter</span>
+          <span *ngIf="loading" class="flex items-center justify-center">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Connexion...</span>
+          </span>
+        </button>
+
+        <div class="text-center">
+          <span class="text-xs text-gray-600">Mot de passe oublié ? </span>
+          <a href="tel:22212319" title="Appeler l'administrateur" class="text-xs font-semibold text-[#569797] hover:underline">Contacter l'administrateur</a>
+        </div>
+        </form>
+      </div>
+
+      <!-- Logo Section -->
+      <div class="flex-shrink-0 text-center">
+        <div class="bg-white/90 rounded-2xl p-8 shadow-lg border border-gray-200">
+          <img src="/logo.webp" alt="PoS Pâtisserie Logo" class="w-40 h-40 mx-auto mb-4 object-contain">
+          <span class="block text-2xl font-bold text-gray-800 mb-2">PoS Pâtisserie</span>
+          <span class="block text-sm text-gray-600">Solution de point de vente moderne</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+
+<!-- Admin depot selection dialog -->
+<div *ngIf="showDepotChoice" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40">
+  <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border p-4 md:p-6">
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <h3 class="text-xl font-bold">Choisir le dépôt de visite</h3>
+        <p class="text-sm text-gray-600">Sélectionnez le dépôt que vous souhaitez visiter pour cette session administrateur.</p>
+      </div>
+      <button (click)="cancelDepotSelection()" class="px-2 py-1 rounded-lg border">Fermer</button>
+    </div>
+
+    <!-- Type filters -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button (click)="activeTypeFilter = 'ALL'" [class]="activeTypeFilter==='ALL' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-semibold border">Tous</button>
+      <button *ngFor="let t of depotTypes" (click)="activeTypeFilter = t" [class]="activeTypeFilter===t ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'" class="px-3 py-1.5 rounded-full text-xs font-semibold border">{{ getTypeLabel(t) }}</button>
+    </div>
+
+    <!-- Depot cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <button type="button"
+              *ngFor="let d of getFilteredDepots()"
+              (click)="selectedDepotId = d.id"
+              [class]="selectedDepotId===d.id ? 'border-[#569797] ring-2 ring-[#569797]/30' : 'border-gray-200'"
+              class="text-left bg-white rounded-xl border p-4 hover:shadow-md transition-shadow">
+        <div class="flex items-start gap-3">
+          <div class="text-2xl" aria-hidden="true">{{ getDepotIcon(d.type) }}</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <div class="font-semibold truncate">{{ d.name }}</div>
+              <span class="text-xs text-gray-500 ml-2">{{ d.code }}</span>
+            </div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700 border">{{ getTypeLabel(d.type) }}</span>
+              <span *ngIf="d.city" class="text-[10px] text-gray-500">{{ d.city }}</span>
+            </div>
+          </div>
+        </div>
+      </button>
+    </div>
+
+    <!-- Footer actions -->
+    <div class="flex justify-end gap-2 mt-5">
+      <button (click)="cancelDepotSelection()" class="px-3 py-2 rounded-lg border">Annuler</button>
+      <button (click)="confirmDepotSelection()" [disabled]="!selectedDepotId" class="px-3 py-2 rounded-lg bg-[#569797] text-white disabled:opacity-50">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Password Change Modal -->
+<div *ngIf="showPasswordChange" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40">
+  <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border p-6">
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+        </svg>
+      </div>
+      <h3 class="text-xl font-bold text-gray-800 mb-2">Changement de code PIN requis</h3>
+      <p class="text-sm text-gray-600">Bonjour {{ currentUser?.firstName }} {{ currentUser?.lastName }},</p>
+      <p class="text-sm text-gray-600">Veuillez changer votre code PIN par défaut pour des raisons de sécurité.</p>
+    </div>
+
+    <!-- PIN Input -->
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        {{ passwordChangeStep === 'new' ? 'Nouveau code PIN' : 'Confirmer le code PIN' }}
+      </label>
+      <div class="w-full bg-white border border-gray-200 rounded-xl p-3">
+        <div class="flex justify-center gap-2">
+          <div *ngFor="let digit of [0,1,2,3,4,5,6,7]" 
+               class="w-8 h-8 rounded-lg border-2 flex items-center justify-center text-lg font-bold transition-all duration-300"
+               [class]="(passwordChangeStep === 'new' ? passwordChangeData.newPin.length : passwordChangeData.confirmPin.length) > digit ? 'border-[#569797] bg-[#569797] text-white' : 'border-gray-300 bg-white text-gray-400'">
+            <span *ngIf="(passwordChangeStep === 'new' ? passwordChangeData.newPin.length : passwordChangeData.confirmPin.length) > digit">•</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error message -->
+    <div *ngIf="passwordChangeError" class="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+      <div class="flex items-start">
+        <svg class="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="ml-3 text-sm text-red-700 flex-1">{{ passwordChangeError }}</span>
+      </div>
+    </div>
+
+    <!-- Single Keypad -->
+    <div class="grid grid-cols-3 gap-2 mb-6">
+      <button *ngFor="let num of [1,2,3,4,5,6,7,8,9]"
+              type="button"
+              (click)="addToPasswordInput(num.toString(), 'newPin')"
+              class="bg-[#569797] text-white font-semibold rounded-lg py-2 shadow-sm hover:bg-[#4a7d7d] transition-colors">
+        {{ num }}
+      </button>
+      <button type="button" (click)="clearPassword('newPin')" class="bg-gray-100 text-gray-700 font-semibold rounded-lg py-2 shadow-sm border border-gray-200 hover:bg-gray-200">C</button>
+      <button type="button" (click)="addToPasswordInput('0', 'newPin')" class="bg-[#569797] text-white font-semibold rounded-lg py-2 shadow-sm hover:bg-[#4a7d7d] transition-colors">0</button>
+      <button type="button" (click)="backspacePassword('newPin')" class="bg-gray-100 text-gray-700 font-semibold rounded-lg py-2 shadow-sm border border-gray-200 hover:bg-gray-200">←</button>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-3">
+      <button (click)="closePasswordChange()" 
+              class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">
+        Annuler
+      </button>
+      <button *ngIf="passwordChangeStep === 'new'" (click)="nextStep()" 
+              [disabled]="passwordChangeData.newPin.length < 4"
+              class="flex-1 px-4 py-2 bg-[#569797] text-white rounded-xl font-medium shadow-lg hover:bg-[#4a7d7d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        Suivant
+      </button>
+      <button *ngIf="passwordChangeStep === 'confirm'" (click)="updatePassword()" 
+              [disabled]="passwordChangeLoading || passwordChangeData.confirmPin.length < 4"
+              class="flex-1 px-4 py-2 bg-[#569797] text-white rounded-xl font-medium shadow-lg hover:bg-[#4a7d7d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        <span *ngIf="!passwordChangeLoading">Mettre à jour</span>
+        <span *ngIf="passwordChangeLoading" class="flex items-center justify-center">
+          <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>Mise à jour...</span>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- keyframes for subtle fade-in (supported by Tailwind arbitrary animations) -->
+<style>
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+</style>

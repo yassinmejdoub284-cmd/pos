@@ -2,11 +2,13 @@ import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { SessionsService, SessionCaisse, CashMovementRequest, CloseSessionRequest } from '../core/services/sessions.service';
+import { SessionsService, SessionCaisse, CashMovementRequest, CloseSessionRequest, OpenSessionRequest } from '../core/services/sessions.service';
 import { AuthService } from '../core/services/auth.service';
 import { PrintService } from '../core/services/print.service';
 import { DailyExtractService } from '../core/services/daily-extract.service';
 import { SettingsService } from '../core/services/settings.service';
+import { DepotsService } from '../core/services/depots.service';
+import { Depot } from '../core/models/depot.model';
 
 @Component({
   selector: 'app-cloture',
@@ -18,6 +20,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   currentSession = signal<SessionCaisse | null>(null);
   loading = signal(false);
   error = signal('');
+  // Depot selection removed; rely on visiting depot chosen at login
   
   // Close session form - only withdrawal
   closeSessionForm = {
@@ -43,6 +46,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   private refreshIntervalId: any;
   private isRefreshing = false;
   private triedAutoOpen = false;
+  isAdminUser = false;
 
   // Crédit and supplier payments helpers
   getCreditAmount(): number {
@@ -185,10 +189,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
     private router: Router,
     private printService: PrintService,
     private dailyExtractService: DailyExtractService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private depotsService: DepotsService
   ) {}
 
   ngOnInit(): void {
+    this.isAdminUser = this.authService.isAdmin();
+    // Load immediately; depot scope is handled globally via header
     this.loadCurrentSession();
     // Refresh session data every 5 seconds to get updated sales (pause when modal open or tab hidden)
     this.refreshIntervalId = setInterval(() => {
@@ -211,7 +218,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     if (this.isRefreshing) return;
     this.isRefreshing = true;
     if (!silent) this.loading.set(true);
-    this.sessionsService.getActiveSession().subscribe({
+    this.sessionsService.getActiveSession(undefined, undefined).subscribe({
       next: (session) => {
         this.currentSession.set(session);
         if (!silent) this.loading.set(false);
@@ -227,7 +234,6 @@ export class ClotureComponent implements OnInit, OnDestroy {
         this.error.set('Erreur lors du chargement de la session');
         if (!silent) this.loading.set(false);
         this.isRefreshing = false;
-        // Try to auto-open session on error too
         if (!this.triedAutoOpen) {
           this.triedAutoOpen = true;
           this.autoOpenSession();
@@ -238,11 +244,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   autoOpenSession(): void {
     this.loading.set(true);
-    const defaultSession = {
-      openingFund: 0, // No opening fund by default
+    const defaultSession: OpenSessionRequest = {
+      openingFund: 0,
       posId: 1,
       note: 'Session automatique'
     };
+    // Depot is inferred from visiting depot header; no explicit depotId needed
+    try { console.debug('[Cloture] Opening session payload', defaultSession); } catch {}
     
     this.sessionsService.openSession(defaultSession).subscribe({
       next: (session) => {
@@ -251,11 +259,14 @@ export class ClotureComponent implements OnInit, OnDestroy {
         this.error.set('');
       },
       error: (error) => {
-        this.error.set('Erreur lors de l\'ouverture automatique de la session');
+        const msg = error?.error?.error || 'Erreur lors de l\'ouverture automatique de la session';
+        this.error.set(msg);
         this.loading.set(false);
       }
     });
   }
+
+  // Depot choosing removed
 
   
 
@@ -498,4 +509,68 @@ export class ClotureComponent implements OnInit, OnDestroy {
   clearFundAmount(): void {
     this.fundForm.amount = '';
   }
+
+  exportSessionData(): void {
+    const session = this.currentSession();
+    if (!session) {
+      this.error.set('Aucune session active trouvée');
+      return;
+    }
+
+    this.loading.set(true);
+    
+    // Get session report data
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (sessionReport) => {
+        // Prepare export data
+        const exportData = {
+          sessionInfo: {
+            id: session.id,
+            openedAt: session.openedAt,
+            user: session.user,
+            depot: sessionReport.session?.depot,
+            openingFund: session.openingFund
+          },
+          summary: {
+            totalSales: sessionReport.summary?.totalSales || 0,
+            totalTickets: sessionReport.summary?.totalTickets || 0,
+            expectedCash: sessionReport.summary?.expectedCash || 0,
+            creditAmount: this.getCreditAmount(),
+            clientPaymentsTotal: this.getClientPaymentsTotal(),
+            totalOrderAdvances: this.getTotalOrderAdvances(),
+            expensesTotal: this.getExpensesTotal(),
+            supplierPaymentsTotal: this.getSupplierPaymentsTotal(),
+            cashFromSales: this.getCashFromSalesNetOfCredit()
+          },
+          sales: sessionReport.session?.sales || [],
+          cashMovements: sessionReport.session?.cashMovements || [],
+          families: sessionReport.families || [],
+          exportDate: new Date().toISOString(),
+          exportType: 'session_closure'
+        };
+
+        // Create and download JSON file
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `session_${session.id}_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        this.loading.set(false);
+        this.error.set('');
+      },
+      error: (error) => {
+        this.error.set('Erreur lors de l\'export des données: ' + (error.error?.error || error.message || 'Erreur inconnue'));
+        this.loading.set(false);
+      }
+    });
+  }
+
+  // Depot search removed
 } 

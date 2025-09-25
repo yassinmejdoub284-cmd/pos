@@ -35,14 +35,30 @@ async function getNextInvoiceNumber(depotId) {
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 20, status, source } = req.query;
-    const offset = (page - 1) * limit;
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20;
+    const offset = (pageNum - 1) * limitNum;
     
     const where = {
       depotId: req.user.depotId
     };
     
-    if (status) where.status = status;
-    if (source) where.source = source;
+    // Validate enums to avoid Prisma enum errors
+    const allowedStatus = ['DRAFT', 'ISSUED', 'CANCELLED'];
+    const allowedSource = ['DAILY_EXTRACT', 'TICKET_REQUEST'];
+
+    if (typeof status === 'string' && allowedStatus.includes(status)) {
+      where.status = status;
+    } else {
+      // Exclude rows with invalid stored enum values
+      where.status = { in: allowedStatus };
+    }
+    if (typeof source === 'string' && allowedSource.includes(source)) {
+      where.source = source;
+    } else {
+      // Exclude rows with invalid stored enum values
+      where.source = { in: allowedSource };
+    }
     
     const [invoices, total] = await Promise.all([
       prisma.invoice.findMany({
@@ -64,7 +80,7 @@ router.get('/', authenticateToken, async (req, res) => {
         },
         orderBy: { createdAt: 'desc' },
         skip: offset,
-        take: parseInt(limit)
+        take: limitNum
       }),
       prisma.invoice.count({ where })
     ]);
@@ -72,10 +88,10 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json({
       invoices,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
@@ -180,7 +196,8 @@ router.post('/', authenticateToken, async (req, res) => {
       clientId,
       items,
       totalAmount,
-      status = 'DRAFT'
+      status = 'DRAFT',
+      companyId
     } = req.body;
     
     // Validate required fields
@@ -202,11 +219,12 @@ router.post('/', authenticateToken, async (req, res) => {
     // Get next invoice number
     const invoiceNumber = await getNextInvoiceNumber(req.user.depotId);
     
-    // Get app settings for company info
+    // Determine issuing company info
+    const depot = await prisma.depot.findUnique({ where: { id: req.user.depotId } });
     const appSettings = await prisma.appSettings.findFirst();
-    const depot = await prisma.depot.findUnique({
-      where: { id: req.user.depotId }
-    });
+    const company = companyId
+      ? await prisma.company.findUnique({ where: { id: Number(companyId) } })
+      : null;
     
     // Calculate totals
     let subtotalHTVA = 0;
@@ -258,9 +276,9 @@ router.post('/', authenticateToken, async (req, res) => {
         status: status,
         source: 'TICKET_REQUEST',
         issueDate: new Date(),
-        companyName: appSettings?.companyName || depot.name,
-        companyAddress: depot.address,
-        companyMatricule: appSettings?.companyMatricule,
+        companyName: company?.raisonSociale || appSettings?.companyName || depot.name,
+        companyAddress: company?.adresse || depot.address,
+        companyMatricule: company?.matriculeFiscal || appSettings?.companyMatricule,
         customerName: `${client.firstName} ${client.lastName}`,
         customerAddress: client.address,
         customerMatricule: client.matricule,
@@ -269,6 +287,7 @@ router.post('/', authenticateToken, async (req, res) => {
         totalTTC,
         depotId: req.user.depotId,
         clientId: client.id,
+        companyId: company?.id || null,
         createdById: req.user.id,
         lines: {
           create: invoiceLines
@@ -310,7 +329,8 @@ router.post('/from-extract', authenticateToken, async (req, res) => {
       invoiceNumber,
       customerInfo,
       lines,
-      notes
+      notes,
+      companyId
     } = req.body;
     
     // Validate invoice number uniqueness
@@ -324,11 +344,12 @@ router.post('/from-extract', authenticateToken, async (req, res) => {
       });
     }
     
-    // Get app settings for company info
+    // Determine issuing company info
     const appSettings = await prisma.appSettings.findFirst();
-    const depot = await prisma.depot.findUnique({
-      where: { id: req.user.depotId }
-    });
+    const depot = await prisma.depot.findUnique({ where: { id: req.user.depotId } });
+    const company = companyId
+      ? await prisma.company.findUnique({ where: { id: Number(companyId) } })
+      : null;
     
     // Calculate totals
     let subtotalHTVA = 0;
@@ -380,9 +401,9 @@ router.post('/from-extract', authenticateToken, async (req, res) => {
         status: 'ISSUED',
         source: 'DAILY_EXTRACT',
         issueDate: new Date(date),
-        companyName: appSettings?.companyName || depot.name,
-        companyAddress: depot.address,
-        companyMatricule: appSettings?.companyMatricule,
+        companyName: company?.raisonSociale || appSettings?.companyName || depot.name,
+        companyAddress: company?.adresse || depot.address,
+        companyMatricule: company?.matriculeFiscal || appSettings?.companyMatricule,
         customerName: customerInfo.name,
         customerAddress: customerInfo.address,
         customerMatricule: customerInfo.matricule,
@@ -391,6 +412,7 @@ router.post('/from-extract', authenticateToken, async (req, res) => {
         totalTTC,
         depotId: req.user.depotId,
         clientId: customerInfo.clientId || null,
+        companyId: company?.id || null,
         createdById: req.user.id,
         notes,
         lines: {
@@ -579,7 +601,7 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Request not found or not pending' });
     }
     
-    // Get app settings for company info
+    // Get app settings for company info (fallback)
     const appSettings = await prisma.appSettings.findFirst();
     
     // Calculate totals
@@ -638,6 +660,7 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
         totalTTC,
         depotId: invoiceRequest.sale.depotId,
         clientId: invoiceRequest.sale.clientId,
+        companyId: null,
         createdById: req.user.id,
         saleId: invoiceRequest.saleId,
         lines: {

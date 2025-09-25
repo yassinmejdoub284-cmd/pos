@@ -5,17 +5,23 @@ const { logAudit } = require('../lib/audit');
 
 const router = express.Router();
 
-// Get active session for user
+// Get active session for user (optionally filtered by depotId for ADMIN)
 router.get('/active', authenticateToken, async (req, res) => {
   try {
-    const { posId } = req.query;
+    const { posId, depotId } = req.query;
     
+    const where = {
+      userId: req.user.id,
+      posId: posId ? parseInt(posId) : 1,
+      status: 'OPEN'
+    };
+    // For ADMIN, allow querying by depotId to scope per shop
+    if (depotId && req.user.role === 'ADMIN') {
+      where.depotId = parseInt(depotId);
+    }
+
     const activeSession = await prisma.sessionCaisse.findFirst({
-      where: {
-        userId: req.user.id,
-        posId: posId ? parseInt(posId) : 1,
-        status: 'OPEN'
-      },
+      where,
       include: {
         user: { select: { firstName: true, lastName: true } },
         depot: { select: { name: true, code: true } },
@@ -43,7 +49,7 @@ router.get('/active', authenticateToken, async (req, res) => {
 // Open new session
 router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
   try {
-    const { openingFund, posId, note } = req.body;
+    const { openingFund, posId, note, depotId } = req.body;
 
     if (openingFund === undefined || openingFund === null || openingFund < 0) {
       return res.status(400).json({ error: 'Fonds de caisse requis et doit être positif ou zéro' });
@@ -90,11 +96,28 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
       }
     }
 
+    // Determine depotId: ADMIN must specify a SHOP depot; others use their own depotId
+    let targetDepotId = req.user.depotId;
+    if (req.user.role === 'ADMIN') {
+      if (!depotId) {
+        return res.status(400).json({ error: 'Depot selection required for admin. Please choose a SHOP depot.' });
+      }
+      const depot = await prisma.depot.findFirst({ where: { id: parseInt(depotId), isActive: true, type: 'SHOP' } });
+      if (!depot) {
+        return res.status(400).json({ error: 'Invalid depot selection. Only active SHOP depots are allowed.' });
+      }
+      targetDepotId = depot.id;
+    } else {
+      if (!targetDepotId) {
+        return res.status(400).json({ error: 'User is not assigned to any depot.' });
+      }
+    }
+
     const session = await prisma.sessionCaisse.create({
       data: {
         posId: posId ? parseInt(posId) : 1,
         userId: req.user.id,
-        depotId: req.user.depotId,
+        depotId: targetDepotId,
         openingFund: defaultFonds,
         expectedCash: defaultFonds,
         note: note || null

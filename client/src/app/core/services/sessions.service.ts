@@ -62,6 +62,7 @@ export interface SessionSummary {
 export interface OpenSessionRequest {
   openingFund: number;
   posId?: number;
+  depotId?: number;
   note?: string;
 }
 
@@ -124,10 +125,11 @@ export class SessionsService {
     };
   }
 
-  // Get active session for current user
-  getActiveSession(posId?: number): Observable<SessionCaisse | null> {
+  // Get active session for current user (optionally for a specific depot)
+  getActiveSession(posId?: number, depotId?: number): Observable<SessionCaisse | null> {
     const params: any = {};
     if (posId) params.posId = posId.toString();
+    if (depotId) params.depotId = depotId.toString();
     
     return this.http.get<SessionCaisse | null>(`${this.API_URL}/active`, { 
       params,

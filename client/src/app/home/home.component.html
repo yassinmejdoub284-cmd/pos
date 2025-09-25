@@ -1,34 +1,96 @@
-<div class="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
-  <!-- Header Section -->
-  <div class="bg-white/90 backdrop-blur-md border-b border-amber-200/60 sticky top-0 z-10 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+  <div class="min-h-screen bg-gradient-to-br from-amber-50 via-violet-50 to-amber-100 relative overflow-hidden">
+  <!-- CRAZY ANIMATED PARTICLE SYSTEM -->
+  <div class="absolute inset-0 overflow-hidden">
+    <!-- Floating Orbs with Organic Movement -->
+    <div class="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-amber-300 via-pink-300 to-violet-300 rounded-full mix-blend-multiply filter blur-2xl opacity-40 float-organic-1"></div>
+    <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-violet-300 via-amber-300 to-cyan-300 rounded-full mix-blend-multiply filter blur-2xl opacity-35 float-organic-2"></div>
+    <div class="absolute top-40 left-1/2 w-72 h-72 bg-gradient-to-br from-pink-300 via-rose-300 to-amber-300 rounded-full mix-blend-multiply filter blur-2xl opacity-30 float-organic-3"></div>
+    
+    <!-- Static Prismatic Particles -->
+    <div class="absolute top-1/4 left-1/4 w-4 h-4 bg-gradient-to-r from-amber-400 via-pink-400 to-violet-400 rounded-full opacity-60"></div>
+    <div class="absolute top-3/4 right-1/4 w-3 h-3 bg-gradient-to-r from-violet-400 via-cyan-400 to-amber-400 rounded-full opacity-50"></div>
+    <div class="absolute bottom-1/4 left-1/3 w-5 h-5 bg-gradient-to-r from-pink-400 via-rose-400 to-violet-400 rounded-full opacity-40"></div>
+    
+    <!-- Static Cyberpunk Grid Lines -->
+    <div class="absolute inset-0 opacity-10">
+      <div class="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
+      <div class="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-violet-400 to-transparent"></div>
+      <div class="absolute top-0 left-0 w-px h-full bg-gradient-to-b from-transparent via-pink-400 to-transparent"></div>
+      <div class="absolute top-0 right-0 w-px h-full bg-gradient-to-b from-transparent via-cyan-400 to-transparent"></div>
+    </div>
+  </div>
+
+  <!-- COMPACT MOBILE-OPTIMIZED HEADER -->
+  <div class="z-10 bg-gradient-to-b from-white/95 to-transparent sticky top-0">
+    <!-- Subtle gradient overlay -->
+    <div class="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-pink-500/5"></div>
+    
+    <div class="relative mx-auto px-3 sm:px-6 py-2 sm:py-3">
       <div class="flex items-center justify-between">
-        <!-- Logo and Title -->
-        <div class="flex items-center space-x-4">
-          <div class="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-amber-100">
-            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-            </svg>
+        <!-- COMPACT LOGO SECTION -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+          <!-- Company Logo -->
+          <div class="relative">
+            <div class="w-auto h-8 sm:h-14 flex items-center justify-center overflow-hidden">
+              <!-- Company Logo Image -->
+              <img *ngIf="companyLogo" title="Logo de la société"
+                   [src]="companyLogo" 
+                   [alt]="companyName + ' Logo'"
+                   class="w-full h-full object-contain rounded-lg sm:rounded-xl">
+              <!-- Fallback SVG Icon -->
+              <svg *ngIf="!companyLogo" 
+                   class="w-4 h-4 sm:w-5 sm:h-5 text-white" 
+                   fill="none" 
+                   stroke="currentColor" 
+                   viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+              </svg>
+            </div>
+            <!-- Subtle glow -->
+            <div class="absolute inset-0 bg-gradient-to-br from-amber-600 to-pink-600 rounded-lg sm:rounded-xl opacity-5 blur-sm"></div>
           </div>
-          <div>
-            <h1 class="text-2xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-              PoS Pâtisserie
+          
+          <!-- Compact Typography -->
+          <div class="hidden sm:block">
+            <h1 class="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
+              {{ companyName }}
             </h1>
-            <p class="text-sm text-amber-600/70 font-medium">Système de Point de Vente</p>
+            <p class="text-xs text-gray-500 font-medium">Point de Vente</p>
+          </div>
+          <!-- Mobile-only title -->
+          <div class="block sm:hidden">
+            <h1 class="text-sm font-bold text-gray-900 tracking-tight">{{ companyName }}</h1>
           </div>
         </div>
 
-        <!-- User Info and Actions -->
-        <div class="flex items-center space-x-4">
-          <div class="text-right">
-            <p class="text-sm font-medium text-amber-800">{{ greeting }}, {{ currentUser?.firstName }}</p>
-            <p class="text-xs text-amber-600/80 font-medium">{{ getRoleDisplayName() }}</p>
+        <!-- COMPACT USER SECTION -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+          <!-- User Info Card - Responsive -->
+          <div class="flex items-center space-x-2 sm:space-x-3 rounded-lg sm:rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 border border-gray-200/50">
+            <!-- User Avatar -->
+            <div class="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-amber-500 to-pink-500 rounded-md sm:rounded-lg flex items-center justify-center">
+              <span class="text-white text-xs sm:text-sm font-bold">{{ currentUser?.firstName?.charAt(0) }}</span>
+            </div>
+            
+            <!-- User Details - Hidden on mobile -->
+            <div class="hidden sm:block text-left">
+              <p class="text-sm font-semibold text-gray-900">{{ greeting }}, {{ currentUser?.firstName }}</p>
+              <p class="text-xs text-gray-500 font-medium">{{ getRoleDisplayName() }}</p>
+            </div>
+            <!-- Mobile user name only -->
+            <div class="block sm:hidden text-left">
+              <p class="text-xs font-semibold text-gray-900">{{ currentUser?.firstName }}</p>
+            </div>
           </div>
-          <button title="Déconnexion" (click)="logout()" 
-            class="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all duration-200 hover:scale-95">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-            </svg>
+          
+          <!-- Compact Logout Button -->
+          <button type="button" title="Déconnexion" (click)="logout()" 
+            class="relative p-1.5 sm:p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg sm:rounded-xl transition-all duration-200 active:scale-95 group">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+              </svg>
+            <!-- Hover indicator -->
+            <div class="absolute inset-0 rounded-lg sm:rounded-xl bg-gray-100 opacity-0 group-hover:opacity-40 transition-opacity duration-200"></div>
           </button>
         </div>
       </div>
@@ -36,129 +98,273 @@
   </div>
 
   <!-- Main Content -->
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="relative z-10 w-full p-4">
     
 
-    <!-- Modern Dashboard Stats - Admin Only -->
-    <div *ngIf="isAdmin()" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <!-- Today's Sales -->
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl hover:scale-105 transition-all duration-300">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-semibold text-slate-600 mb-1">Ventes du jour</p>
-            <p class="text-3xl font-bold text-emerald-600">{{ dashboardStats.todaySales | number:'1.3-3' }} dt</p>
-            <p class="text-xs text-slate-500 mt-1">{{ getDeltaLabel(salesVsYesterdayPct) }} vs hier</p>
+    <!-- INSANE MORPHING ACTION GRID -->
+    <div class="relative h-[calc(100vh-120px)] w-full">
+      <!-- Static Organic Background -->
+      <div class="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-pink-500/5 to-violet-500/5 rounded-3xl"></div>
+      
+      <!-- Action Grid - FULL SCREEN RESPONSIVE -->
+      <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 relative z-10 h-full w-full">
+        <!-- SPECIAL CAISSE BUTTON - SPANS 2x2 -->
+        <div *ngIf="getFilteredActions()[0]?.id === 'caisse'" 
+             (click)="navigateTo(getFilteredActions()[0].route)"
+             class="relative group col-span-2 row-span-2">
+          
+          <!-- SPECIAL CAISSE BUTTON WITH SESSION BACKGROUND -->
+          <div class="relative">
+            <!-- Session Status Background -->
+            <div class="absolute inset-0 rounded-2xl p-1" 
+                 [class]="dashboardStats.activeSession ? 'bg-gradient-to-br from-emerald-500/20 to-green-500/20' : 'bg-gradient-to-br from-rose-500/20 to-pink-500/20'">
+              <!-- Session Status Indicator -->
+              <div class="absolute top-10 right-5 z-30">
+                <div class="flex items-center space-x-2 bg-white/90 rounded-xl px-3 py-1 border" 
+                     [class]="dashboardStats.activeSession ? 'border-emerald-300/50' : 'border-rose-300/50'">
+                  <!-- Animated Status Dot -->
+                  <div class="relative">
+                    <div class="w-3 h-3 rounded-full" 
+                         [class]="dashboardStats.activeSession ? 'bg-emerald-500' : 'bg-rose-500'">
+                      <div class="w-1.5 h-1.5 rounded-full bg-white animate-pulse absolute top-0.5 left-0.5"></div>
+                    </div>
+                    <!-- Pulsing Ring -->
+                    <div class="absolute inset-0 rounded-full animate-ping opacity-30" 
+                         [class]="dashboardStats.activeSession ? 'bg-emerald-400' : 'bg-rose-400'"></div>
+                  </div>
+                  <span class="text-xs font-bold uppercase tracking-wider" 
+                        [class]="dashboardStats.activeSession ? 'text-emerald-600' : 'text-rose-600'">
+                    Session
+                  </span>
+                </div>
+              </div>
+              
+              <!-- Rotated Sales Display -->
+              <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
+                <div class="bg-white/90 rounded-xl px-4 py-2 border-2 border-gray-300">
+                  <div class="text-xs font-black text-gray-600 whitespace-nowrap">
+                    Vente du jour:
+                    <span class="font-black text-emerald-600"> {{ dashboardStats.todaySales | number:'1.3-3' }} dt</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="w-14 h-14 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"></path>
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"></path>
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Today's Transactions -->
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl hover:scale-105 transition-all duration-300">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-semibold text-slate-600 mb-1">Transactions</p>
-            <p class="text-3xl font-bold text-blue-600">{{ dashboardStats.todayTransactions }}</p>
-            <p class="text-xs text-slate-500 mt-1">{{ getDeltaLabel(transactionsVsYesterdayPct) }} vs hier</p>
-          </div>
-          <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pending Approvals -->
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl hover:scale-105 transition-all duration-300">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-semibold text-slate-600 mb-1">En attente</p>
-            <p class="text-3xl font-bold text-orange-600">{{ dashboardStats.pendingApprovals }}</p>
-            <p class="text-xs text-slate-500 mt-1">À traiter</p>
-          </div>
-          <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Session Status -->
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl hover:scale-105 transition-all duration-300">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-semibold text-slate-600 mb-1">Session</p>
-            <p class="text-3xl font-bold" [class]="dashboardStats.activeSession ? 'text-emerald-600' : 'text-rose-600'">
-              {{ dashboardStats.activeSession ? 'Active' : 'Fermée' }}
+          
+          <!-- LARGE CAISSE ACTION BUTTON -->
+          <div class="bg-white/20 backdrop-blur-2xl rounded-2xl p-6 border-2 border-amber-300/30 shadow-2xl active:scale-95 active:shadow-3xl transition-all duration-300 h-full w-full flex flex-col items-center justify-center overflow-hidden neumorphic-action-button relative z-20">
+            
+            <!-- LARGE ICON CONTAINER -->
+            <div class="relative w-20 h-20 bg-gradient-to-br rounded-2xl flex items-center justify-center mb-6 shadow-2xl neumorphic-icon" 
+                 [ngClass]="getFilteredActions()[0].color">
+              
+              <!-- Static NEON RING -->
+              <div class="absolute inset-0 rounded-2xl border-2 border-transparent bg-gradient-to-r from-white/30 via-white/60 to-white/30 opacity-60 cyberpunk-ring"></div>
+              
+              <!-- ICON WITH GLOW -->
+              <svg class="w-10 h-10 text-white relative z-10 drop-shadow-2xl icon-glow" 
+                   [attr.fill]="getFilteredActions()[0].id === 'caisse' ? 'currentColor' : 'none'" 
+                   [attr.stroke]="getFilteredActions()[0].id === 'caisse' ? 'none' : 'currentColor'" 
+                   [attr.viewBox]="getFilteredActions()[0].id === 'caisse' ? '0 0 496 496' : '0 0 24 24'" 
+                   [attr.stroke-width]="getFilteredActions()[0].id === 'caisse' ? '0' : '2'">
+                <path [attr.d]="getFilteredActions()[0].icon"></path>
+              </svg>
+            </div>
+            
+            <span class="text-2xl font-black text-gray-800 text-center leading-tight mb-2 tracking-wide brutalist-text">
+              {{ getFilteredActions()[0].title }}
+            </span>
+            
+            <!-- LARGE CYBERPUNK DESCRIPTION -->
+            <p class="text-xs text-gray-400 text-center font-bold uppercase tracking-widest">
+              {{ getFilteredActions()[0].description }}
             </p>
-            <p class="text-xs text-slate-500 mt-1">{{ dashboardStats.activeSession ? 'En cours' : 'Terminée' }}</p>
-          </div>
-          <div class="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg" 
-               [class]="dashboardStats.activeSession ? 'bg-gradient-to-br from-emerald-500 to-green-600' : 'bg-gradient-to-br from-rose-500 to-pink-600'">
-            <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-            </svg>
+            
+            <!-- ACTIVE PRESS MORPHING EFFECT -->
+            <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 active:opacity-30 transition-opacity duration-150" 
+                 [ngClass]="getFilteredActions()[0].color"></div>
+            
+            <!-- Static FLOATING PARTICLES -->
+            <div class="absolute top-2 right-2 w-2 h-2 bg-gradient-to-r from-amber-400 to-pink-400 rounded-full opacity-60"></div>
+            <div class="absolute bottom-2 left-2 w-1 h-1 bg-gradient-to-r from-violet-400 to-cyan-400 rounded-full opacity-40"></div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Modern Quick Actions -->
-    <div>
-      <div class="flex items-center gap-4 mb-6">
-        <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-          <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
-          </svg>
-        </div>
-        <h3 class="text-2xl font-bold text-slate-800">Actions Rapides</h3>
-      </div>
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        <div *ngFor="let action of getFilteredActions()" 
+        
+        <!-- REGULAR ACTION BUTTONS -->
+        <div *ngFor="let action of getFilteredActions().slice(1); let i = index" 
              (click)="navigateTo(action.route)"
-             class="group cursor-pointer bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl hover:scale-105 transition-all duration-300 relative overflow-hidden">
+             class="relative group h-full w-full">
           
-          <!-- Icon Container -->
-          <div class="w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg" 
-               [ngClass]="action.color">
-            <svg class="w-8 h-8 text-white" [attr.fill]="action.id === 'caisse' ? 'currentColor' : 'none'" [attr.stroke]="action.id === 'caisse' ? 'none' : 'currentColor'" [attr.viewBox]="action.id === 'caisse' ? '0 0 496 496' : '0 0 24 24'" [attr.stroke-width]="action.id === 'caisse' ? '0' : '2'">
-              <path [attr.d]="action.icon"></path>
-            </svg>
+          <!-- ACTION BUTTON -->
+          <div class="relative bg-white/20 backdrop-blur-2xl rounded-2xl p-4 border-2 border-amber-300/30 shadow-2xl active:scale-95 active:shadow-3xl transition-all duration-300 h-full w-full flex flex-col items-center justify-center overflow-hidden neumorphic-action-button">
+            <!-- Pending Approvals Badge -->
+            <div *ngIf="action.id === 'approvals' && (dashboardStats?.pendingApprovals ?? 0) > 0" class="absolute -top-1 -right-1 z-30">
+              <span class="inline-flex m-3 items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold text-white bg-rose-500 shadow-md ring-2 ring-white">
+                {{ dashboardStats.pendingApprovals }}
+              </span>
+            </div>
+            
+            <!-- ICON CONTAINER -->
+            <div class="relative w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center mb-4 shadow-2xl neumorphic-icon" 
+                 [ngClass]="action.color">
+              
+              <!-- Static NEON RING -->
+              <div class="absolute inset-0 rounded-2xl border-2 border-transparent bg-gradient-to-r from-white/30 via-white/60 to-white/30 opacity-60 cyberpunk-ring"></div>
+              
+              <!-- ICON WITH GLOW -->
+              <svg class="w-8 h-8 text-white relative z-10 drop-shadow-2xl icon-glow" 
+                   [attr.fill]="action.id === 'caisse' ? 'currentColor' : 'none'" 
+                   [attr.stroke]="action.id === 'caisse' ? 'none' : 'currentColor'" 
+                   [attr.viewBox]="action.id === 'caisse' ? '0 0 496 496' : '0 0 24 24'" 
+                   [attr.stroke-width]="action.id === 'caisse' ? '0' : '2'">
+                <path [attr.d]="action.icon"></path>
+              </svg>
+            </div>
+            
+            <!-- BRUTALIST TITLE -->
+            <span class="text-lg font-black text-gray-800 text-center leading-tight mb-1 tracking-wide brutalist-text">
+              {{ action.title }}
+            </span>
+            
+            <!-- CYBERPUNK DESCRIPTION -->
+            <p class="text-[10px] text-gray-400 text-center font-bold uppercase tracking-widest">
+              {{ action.description }}
+            </p>
+            
+            <!-- ACTIVE PRESS MORPHING EFFECT -->
+            <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 active:opacity-30 transition-opacity duration-150" 
+                 [ngClass]="action.color"></div>
+            
+            <!-- Static FLOATING PARTICLES -->
+            <div class="absolute top-2 right-2 w-2 h-2 bg-gradient-to-r from-amber-400 to-pink-400 rounded-full opacity-60"></div>
+            <div class="absolute bottom-2 left-2 w-1 h-1 bg-gradient-to-r from-violet-400 to-cyan-400 rounded-full opacity-40"></div>
           </div>
-          
-          <!-- Title and Description -->
-          <h4 class="text-lg font-bold text-slate-800 mb-2 text-center group-hover:text-blue-600 transition-colors">
-            {{ action.title }}
-          </h4>
-          <p class="text-sm text-slate-600 text-center group-hover:text-slate-700 transition-colors font-medium">
-            {{ action.description }}
-          </p>
-          
-          <!-- Hover Effect -->
-          <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 group-hover:opacity-5 transition-opacity duration-300" 
-               [ngClass]="action.gradient"></div>
         </div>
       </div>
     </div>
 
   </div>
 
-  <!-- Loading Overlay -->
-  <div *ngIf="loading" class="fixed inset-0 bg-amber-900/20 flex items-center justify-center z-50">
-    <div class="bg-white rounded-2xl p-8 shadow-2xl ring-1 ring-amber-100">
-      <div class="flex items-center space-x-4">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
-        <span class="text-amber-800 font-medium text-lg">Chargement des données...</span>
+  <!-- INSANE LOADING OVERLAY -->
+  <div *ngIf="loading" class="fixed inset-0 bg-gradient-to-br from-amber-900/30 via-pink-900/20 to-violet-900/30 flex items-center justify-center z-50">
+    <div class="relative bg-white/20 backdrop-blur-2xl rounded-3xl p-8 shadow-2xl border border-amber-300/30 neumorphic-container">
+      <!-- Static Holographic Background -->
+      <div class="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-pink-500/10 to-violet-500/10 rounded-3xl"></div>
+      <div class="flex items-center space-x-4 relative z-10">
+        <!-- Spinning Neon Ring -->
+        <div class="relative">
+          <div class="animate-spin rounded-full h-12 w-12 border-4 border-transparent bg-gradient-to-r from-amber-400 via-pink-400 to-violet-400 cyberpunk-spinner"></div>
+          <div class="absolute inset-0 rounded-full border-2 border-amber-300/30"></div>
+        </div>
+        <span class="text-gray-800 font-black text-xl tracking-wide holographic-text">CHARGEMENT DES DONNÉES...</span>
       </div>
     </div>
   </div>
+
+  <!-- CUSTOM CSS CLASSES -->
+  <style>
+    /* Organic floating animations */
+    .float-organic-1 {
+      animation: float-organic 8s ease-in-out infinite;
+    }
+    
+    .float-organic-2 {
+      animation: float-organic 12s ease-in-out infinite reverse;
+      animation-delay: 2s;
+    }
+    
+    .float-organic-3 {
+      animation: float-organic 10s ease-in-out infinite;
+      animation-delay: 4s;
+    }
+    
+    @keyframes float-organic {
+      0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+      25% { transform: translate(20px, -30px) rotate(90deg) scale(1.1); }
+      50% { transform: translate(-10px, -20px) rotate(180deg) scale(0.9); }
+      75% { transform: translate(-30px, 10px) rotate(270deg) scale(1.05); }
+    }
+    
+    /* Neumorphic effects */
+    .neumorphic-header {
+      box-shadow: 0 8px 32px rgba(147, 51, 234, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
+    .neumorphic-logo {
+      box-shadow: 20px 20px 60px rgba(147, 51, 234, 0.2), -20px -20px 60px rgba(255, 255, 255, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+    }
+    
+    .neumorphic-button {
+      box-shadow: 8px 8px 16px rgba(147, 51, 234, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
+    }
+    
+    .neumorphic-container {
+      box-shadow: 0 8px 32px rgba(147, 51, 234, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
+    .neumorphic-card-emerald {
+      box-shadow: 8px 8px 16px rgba(16, 185, 129, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
+    }
+    
+    .neumorphic-card-blue {
+      box-shadow: 8px 8px 16px rgba(59, 130, 246, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
+    }
+    
+    .neumorphic-card-orange {
+      box-shadow: 8px 8px 16px rgba(249, 115, 22, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
+    }
+    
+    .neumorphic-card-rose {
+      box-shadow: 8px 8px 16px rgba(244, 63, 94, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
+    }
+    
+    .neumorphic-action-button {
+      box-shadow: 12px 12px 24px rgba(147, 51, 234, 0.15), -12px -12px 24px rgba(255, 255, 255, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
+    .neumorphic-icon {
+      box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
+    }
+    
+    /* Glassmorphic effects */
+    .glassmorphic-card {
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Cyberpunk effects */
+    .cyberpunk-ring {
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    }
+    
+    .cyberpunk-border {
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    }
+    
+    .cyberpunk-spinner {
+      animation-duration: 1s;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    }
+    
+    /* Holographic effects */
+    .holographic-text {
+      text-shadow: 0 0 20px rgba(147, 51, 234, 0.5);
+    }
+    
+    /* Brutalist effects */
+    .brutalist-text {
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Icon glow */
+    .icon-glow {
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+    }
+    
+    /* Organic overlay */
+    .organic-overlay {
+      background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(147, 51, 234, 0.1) 0%, transparent 50%);
+    }
+  </style>
 
   <!-- Expense Action Dialog -->
   <app-expense-action-dialog 
@@ -195,5 +401,44 @@
     (actionSelected)="onBillingCenterActionSelected($event)"
     (dialogClosed)="onBillingCenterDialogClosed()">
   </app-billing-center-action-dialog>
+
+  <!-- Settings Action Dialog -->
+  <app-settings-action-dialog 
+    *ngIf="showSettingsActionDialog"
+    (actionSelected)="onSettingsActionSelected($event)"
+    (dialogClosed)="onSettingsDialogClosed()">
+  </app-settings-action-dialog>
+
+  <!-- Enterprise Action Dialog -->
+  <app-enterprise-action-dialog
+    *ngIf="showEnterpriseActionDialog"
+    (actionSelected)="onEnterpriseActionSelected($event)"
+    (dialogClosed)="onEnterpriseDialogClosed()">
+  </app-enterprise-action-dialog>
+
+  <!-- Historique Choice Dialog -->
+  <div *ngIf="showHistoriqueChoiceDialog" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/30" (click)="onHistoriqueChoiceClosed()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 w-[90%] max-w-3xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold text-slate-800">Choisir un historique</h2>
+        <button class="text-slate-500 hover:text-slate-700" (click)="onHistoriqueChoiceClosed()" aria-label="Fermer">
+          ✕
+        </button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <button (click)="onHistoriqueChoiceSelected('VENTES')" class="group text-left rounded-xl border border-slate-200 p-5 hover:border-slate-300 hover:shadow transition bg-gradient-to-br from-slate-50 to-white">
+          <div class="text-lg font-semibold text-slate-800 mb-1">Historique des Ventes</div>
+          <div class="text-sm text-slate-600 mb-1">Tickets, paiements, retours</div>
+          <div class="text-xs text-slate-500">Consulter les ventes passées avec filtres et détails.</div>
+        </button>
+        <button (click)="onHistoriqueChoiceSelected('POINTAGE')" class="group text-left rounded-xl border border-slate-200 p-5 hover:border-slate-300 hover:shadow transition bg-gradient-to-br from-indigo-50 to-white">
+          <div class="text-lg font-semibold text-slate-800 mb-1">Historique Pointage (Entrée/Sortie)</div>
+          <div class="text-sm text-slate-600 mb-1">Présences, retards, absences</div>
+          <div class="text-xs text-slate-500">Suivre les pointages employés et les corrections.</div>
+        </button>
+      </div>
+    </div>
+  </div>
 
 </div>

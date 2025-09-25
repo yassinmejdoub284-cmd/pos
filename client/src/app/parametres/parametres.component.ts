@@ -1,4 +1,6 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
 import { PrintService } from '../core/services/print.service';
 
@@ -35,6 +37,7 @@ export class ParametresComponent implements OnInit {
     ticketWidth: 58,
     droitDeTimbre: false,
     autoApproveExpenseBelow: 0,
+    historyRetentionDays: 30,
     printSettings: {
       showLogo: true,
       logoSize: 'medium',
@@ -65,12 +68,17 @@ export class ParametresComponent implements OnInit {
 
   constructor(
     private settingsService: SettingsService,
-    private printService: PrintService
+    private printService: PrintService,
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
     this.load();
-    this.loadAvailablePrinters();
+    this.updateSectionFromRoute();
+    this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => {
+      this.updateSectionFromRoute();
+    });
   }
 
   load(): void {
@@ -117,6 +125,37 @@ export class ParametresComponent implements OnInit {
     });
   }
 
+  private currentSection: string | null = null;
+
+  private updateSectionFromRoute(): void {
+    // Get the last segment after /parametres
+    const url = this.router.url || '';
+    const parts = url.split('?')[0].split('#')[0].split('/').filter(Boolean);
+    const idx = parts.indexOf('parametres');
+    this.currentSection = idx >= 0 && parts[idx + 1] ? parts[idx + 1] : null;
+  }
+
+  showSection(sectionKey: string): boolean {
+    // Only show when this component is used for a specific sub-route
+    return this.currentSection === sectionKey;
+  }
+
+  get currentSectionLabel(): string {
+    const map: Record<string, string> = {
+      general: "Général",
+      peripheriques: "Périphériques",
+      fidelite: "Fidélité",
+      'remises-dettes': "Remises & Dettes",
+      raccourcis: "Raccourcis",
+      caisse: "Caisse",
+      impression: "Impression",
+      depenses: "Dépenses",
+      cloture: "Clôture",
+      logs: "Logs & Audit"
+    };
+    return this.currentSection ? (map[this.currentSection] || this.currentSection) : 'Paramètres';
+  }
+
   save(): void {
     this.saving = true;
     // Ensure denominations are synced from input field
@@ -152,6 +191,7 @@ export class ParametresComponent implements OnInit {
     this.settings.defaultFonds = Number(this.settings.defaultFonds) || 0;
     this.settings.ticketWidth = Number(this.settings.ticketWidth) || 58;
     this.settings.autoApproveExpenseBelow = Number(this.settings.autoApproveExpenseBelow) || 0;
+    this.settings.historyRetentionDays = Number((this.settings as any).historyRetentionDays) || 30;
     
     console.log('Saving settings with devicesConfig:', this.settings.devicesConfig);
     
@@ -208,41 +248,6 @@ export class ParametresComponent implements OnInit {
         this.error = 'Erreur lors de l\'upload du logo';
         console.error('Logo upload error:', error);
       }
-    });
-  }
-
-  loadAvailablePrinters(): void {
-    this.loadingPrinters = true;
-    this.printService.getAvailablePrinters().then(printers => {
-      this.availablePrinters = printers;
-      this.loadingPrinters = false;
-      
-      // Ensure devicesConfig exists
-      if (!this.settings.devicesConfig) {
-        this.settings.devicesConfig = {
-          printer: 'POS-80C',
-          customPrinterName: '',
-          enableDrawer: true,
-          autoCut: true,
-          printLogo: true
-        };
-      }
-      
-      // If no printer is currently selected, select the default one
-      if (!this.settings.devicesConfig.printer && printers.length > 0) {
-        const defaultPrinter = printers.find(p => p.isDefault);
-        if (defaultPrinter) {
-          this.settings.devicesConfig.printer = defaultPrinter.name;
-          console.log('Auto-selected default printer:', defaultPrinter.name);
-        }
-      }
-      
-      console.log('Available printers loaded:', printers);
-      console.log('Current devicesConfig:', this.settings.devicesConfig);
-    }).catch(error => {
-      console.error('Error loading printers:', error);
-      this.loadingPrinters = false;
-      this.error = 'Erreur lors du chargement de la liste des imprimantes';
     });
   }
 

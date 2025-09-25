@@ -26,7 +26,9 @@ const cashStatementsRoutes = require('./routes/cash-statements');
 const inventoryRoutes = require('./routes/inventory');
 const invoicesRoutes = require('./routes/invoices');
 const returnsRoutes = require('./routes/returns');
+const companiesRoutes = require('./routes/companies');
 const pdfRoutes = require('./routes/pdf');
+const attendanceRoutes = require('./routes/attendance');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -36,7 +38,15 @@ app.use(cors({
   origin: true, // Allow all origins for development
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-Depot-Id'],
+  exposedHeaders: ['Content-Disposition', 'Content-Length', 'Content-Type']
+}));
+// Handle CORS preflight requests globally
+app.options('*', cors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-Depot-Id'],
   exposedHeaders: ['Content-Disposition', 'Content-Length', 'Content-Type']
 }));
 app.use(express.json());
@@ -68,6 +78,8 @@ app.use('/api/inventory', authenticateToken, inventoryRoutes);
 app.use('/api/invoices', authenticateToken, invoicesRoutes);
 app.use('/api/returns', authenticateToken, returnsRoutes);
 app.use('/api/pdf', authenticateToken, pdfRoutes);
+app.use('/api/companies', authenticateToken, companiesRoutes);
+app.use('/api/attendance', authenticateToken, attendanceRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*'} });

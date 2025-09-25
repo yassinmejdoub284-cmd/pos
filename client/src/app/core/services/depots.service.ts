@@ -24,4 +24,22 @@ export class DepotsService {
       catchError((error) => throwError(() => error))
     );
   }
+
+  create(payload: Partial<Depot> & { companyId?: number | null }): Observable<Depot> {
+    return this.http.post<Depot>(this.apiUrl, payload).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
+
+  update(id: number, payload: Partial<Depot> & { companyId?: number | null }): Observable<Depot> {
+    return this.http.put<Depot>(`${this.apiUrl}/${id}`, payload).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
+
+  delete(id: number): Observable<{ success: boolean }> {
+    return this.http.delete<{ success: boolean }>(`${this.apiUrl}/${id}`).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
 } 

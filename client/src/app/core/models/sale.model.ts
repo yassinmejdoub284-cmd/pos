@@ -9,6 +9,7 @@ export interface Sale {
   status: SaleStatus;
   cashierId: number;
   customerId?: number;
+  depotId?: number;
   expectedDate?: Date;
   notes?: string;
   createdAt: Date;

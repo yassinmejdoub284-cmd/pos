@@ -58,6 +58,8 @@ function ensureDefaults(data = {}) {
     devicesConfig: typeof data.devicesConfig === 'object' ? data.devicesConfig : (data.devicesConfig || {}),
     isDesktopVersion: typeof data.isDesktopVersion === 'boolean' ? data.isDesktopVersion : true,
     auditRetentionDays: data.auditRetentionDays !== undefined ? Number(data.auditRetentionDays) : 90,
+  // Historique (display-only retention window)
+  historyRetentionDays: data.historyRetentionDays !== undefined ? Number(data.historyRetentionDays) : 30,
     // Clôture settings
     varianceThreshold: data.varianceThreshold !== undefined ? Number(data.varianceThreshold) : 5.0,
     defaultFonds: data.defaultFonds !== undefined ? Number(data.defaultFonds) : 50.0,
@@ -89,37 +91,71 @@ function ensureDefaults(data = {}) {
   };
 }
 
-function readFileSettings() {
+// Read the raw JSON file (can be legacy flat object or new map keyed by depotId)
+function readAllFileSettingsRaw() {
   try {
     if (fs.existsSync(SETTINGS_FILE)) {
       const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
-      const parsed = JSON.parse(raw || '{}');
-      return ensureDefaults(parsed);
+      return JSON.parse(raw || '{}');
     }
   } catch {}
-  return ensureDefaults({});
+  return {};
 }
 
-function writeFileSettings(data) {
+// Persist the full raw structure (object)
+function writeAllFileSettingsRaw(rawObject) {
   const dir = path.dirname(SETTINGS_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(ensureDefaults(data), null, 2), 'utf-8');
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(rawObject || {}, null, 2), 'utf-8');
+}
+
+// Read settings for a specific depotId, supporting legacy format
+function readDepotSettings(depotId) {
+  const all = readAllFileSettingsRaw();
+  // Legacy flat object detection: presence of known fields like companyName
+  if (all && typeof all === 'object' && !Array.isArray(all) && (all.companyName !== undefined || all.printSettings !== undefined)) {
+    // Return legacy settings as defaults for all depots
+    return ensureDefaults(all);
+  }
+  const key = String(depotId);
+  const depotData = (all && typeof all === 'object') ? all[key] : undefined;
+  return ensureDefaults(depotData || {});
+}
+
+// Write settings for a specific depotId, migrating legacy format to map
+function writeDepotSettings(depotId, data) {
+  let all = readAllFileSettingsRaw();
+  if (!all || typeof all !== 'object' || Array.isArray(all)) {
+    all = {};
+  }
+  // If legacy flat object, migrate it under an unknown key 'default' without overriding specific depots
+  if (all.companyName !== undefined || all.printSettings !== undefined) {
+    all = { default: ensureDefaults(all) };
+  }
+  all[String(depotId)] = ensureDefaults(data);
+  writeAllFileSettingsRaw(all);
 }
 
 router.get('/', async (req, res) => {
   try {
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId || isNaN(parseInt(String(userDepotId), 10))) {
+      return res.status(400).json({ error: 'Depot ID is required for settings' });
+    }
+    // Always scope file-based settings by connected depot
+    const fileSettings = readDepotSettings(userDepotId);
+
+    // If Prisma appSettings exists (global), merge non-depot fields as generic defaults if needed
     if (prisma.appSettings && typeof prisma.appSettings.findFirst === 'function') {
-      const settings = await prisma.appSettings.findFirst();
-      // Merge DB with file to include fields not in Prisma schema (like autoApproveExpenseBelow)
-      const fileSettings = readFileSettings();
+      const dbSettings = await prisma.appSettings.findFirst();
       const merged = ensureDefaults({
-        ...(settings || {}),
-        autoApproveExpenseBelow: fileSettings.autoApproveExpenseBelow
+        ...(dbSettings || {}),
+        ...fileSettings
       });
       return res.json(merged);
     }
-    const settings = readFileSettings();
-    return res.json(settings);
+
+    return res.json(fileSettings);
   } catch (error) {
     console.error('Error fetching settings:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -128,6 +164,10 @@ router.get('/', async (req, res) => {
 
 router.put('/', async (req, res) => {
   try {
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId || isNaN(parseInt(String(userDepotId), 10))) {
+      return res.status(400).json({ error: 'Depot ID is required for settings' });
+    }
     const body = req.body || {};
     console.log('[settings.update] incoming body=', body);
 
@@ -144,24 +184,22 @@ router.put('/', async (req, res) => {
     });
     console.log('[settings.update] normalized data=', data);
 
+    let savedDb = null;
     if (prisma.appSettings) {
-      // Use findFirst + update/create to avoid specifying auto-increment id on create
+      // Maintain global DB settings for backward compatibility
       const existing = await prisma.appSettings.findFirst();
-      let saved;
-      // Strip non-Prisma fields for DB write but keep full data for file
-      const { autoApproveExpenseBelow, ...dbData } = data;
+      const { autoApproveExpenseBelow, historyRetentionDays, ...dbData } = data;
       if (existing) {
-        saved = await prisma.appSettings.update({ where: { id: existing.id }, data: dbData });
+        savedDb = await prisma.appSettings.update({ where: { id: existing.id }, data: dbData });
       } else {
-        saved = await prisma.appSettings.create({ data: dbData });
+        savedDb = await prisma.appSettings.create({ data: dbData });
       }
-      // Persist full settings (including threshold) to file
-      try { writeFileSettings({ ...saved, autoApproveExpenseBelow }); } catch {}
-      return res.json(ensureDefaults({ ...saved, autoApproveExpenseBelow }));
     }
 
-    writeFileSettings(data);
-    return res.json(data);
+    // Persist depot-scoped settings to file
+    writeDepotSettings(userDepotId, data);
+
+    return res.json(ensureDefaults({ ...(savedDb || {}), ...data }));
   } catch (error) {
     console.error('Error updating settings:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -177,8 +215,9 @@ router.post('/logo', upload.single('logo'), async (req, res) => {
 
     const logoUrl = `/uploads/logos/${req.file.filename}`;
     
-    // Update settings with new logo URL
-    const currentSettings = readFileSettings();
+    // Update depot settings with new logo URL
+    const userDepotId = req.user?.depotId;
+    const currentSettings = readDepotSettings(userDepotId);
     const updatedSettings = { ...currentSettings, logoUrl };
     
     if (prisma.appSettings) {
@@ -195,7 +234,7 @@ router.post('/logo', upload.single('logo'), async (req, res) => {
       }
     }
     
-    writeFileSettings(updatedSettings);
+    writeDepotSettings(userDepotId, updatedSettings);
     
     res.json({ logoUrl });
   } catch (error) {

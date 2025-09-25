@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+ 
 use std::{fs, path::{Path, PathBuf}};
 
 use serde::Deserialize;
@@ -29,7 +31,7 @@ fn read_app_config(app_handle: &tauri::AppHandle) -> AppConfig {
     }
   }
 
-  AppConfig{ target_url: "http://localhost:4200".into() }
+  AppConfig{ target_url: "http://patisserie.solumove.net".into() }
 }
 
 #[tauri::command]
@@ -227,7 +229,7 @@ fn main() {
       let external = tauri::Url::parse(&cfg.target_url).unwrap_or_else(|_| tauri::Url::parse("about:blank").unwrap());
       let _ = tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(external))
         .title("PoS Patisserie")
-        .inner_size(1200.0, 800.0)
+        .inner_size(1366.0, 768.0)
         .resizable(true)
         .visible(true)
         .build()?;

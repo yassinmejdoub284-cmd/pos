@@ -5,6 +5,7 @@ import { environment } from '../../environments/environment';
 import { ClientsService } from '../core/services/clients.service';
 import { Client } from '../core/models/client.model';
 import { ProductsService } from '../core/services/products.service';
+import { EnterpriseService } from '../core/services/enterprise.service';
 import { Product } from '../core/models/product.model';
 
 interface InvoiceItem {
@@ -50,6 +51,14 @@ export class InvoicesComponent implements OnInit {
   invoicePreviewHTML = '';
 
   // Client selection for invoice creation
+  // Company selection comes first when adding
+  showCompanySelection = false;
+  companies: any[] = [];
+  filteredCompanies: any[] = [];
+  selectedCompany: any | null = null;
+  companySearchQuery = '';
+  loadingCompanies = false;
+
   showClientSelection = false;
   clients: Client[] = [];
   filteredClients: Client[] = [];
@@ -85,7 +94,8 @@ export class InvoicesComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private clientsService: ClientsService,
-    private productsService: ProductsService
+    private productsService: ProductsService,
+    private enterpriseService: EnterpriseService
   ) {}
 
   ngOnInit(): void {
@@ -97,10 +107,15 @@ export class InvoicesComponent implements OnInit {
           this.showProductSelection = true;
           this.loadProductsForSelection();
           this.loadSelectedClient(params['clientId']);
-        } else {
-          // Show client selection first
+        } else if (params['companyId']) {
+          // Company preselected, load it then show clients
+          this.loadSelectedCompany(Number(params['companyId']));
           this.showClientSelection = true;
           this.loadClientsForSelection();
+        } else {
+          // Ask for company first
+          this.showCompanySelection = true;
+          this.loadCompaniesForSelection();
         }
       } else {
         this.loadInvoices();
@@ -516,6 +531,73 @@ export class InvoicesComponent implements OnInit {
   }
 
   // Client selection methods
+  // Company selection methods
+  loadCompaniesForSelection(): void {
+    this.loadingCompanies = true;
+    this.error = '';
+
+    this.enterpriseService.listCompanies().subscribe({
+      next: (companies) => {
+        this.companies = companies || [];
+        this.filterCompanies();
+        this.loadingCompanies = false;
+      },
+      error: (error) => {
+        this.error = 'Erreur lors du chargement des sociétés';
+        this.loadingCompanies = false;
+        console.error('Error loading companies:', error);
+      }
+    });
+  }
+
+  filterCompanies(): void {
+    const query = this.companySearchQuery.trim().toLowerCase();
+    this.filteredCompanies = !query
+      ? [...this.companies]
+      : this.companies.filter((c: any) =>
+          (c.raisonSociale || '').toLowerCase().includes(query) ||
+          (c.matriculeFiscal || '').toLowerCase().includes(query) ||
+          (c.ville || '').toLowerCase().includes(query)
+        );
+  }
+
+  onCompanySearchChange(): void {
+    this.filterCompanies();
+  }
+
+  selectCompany(company: any): void {
+    this.selectedCompany = company;
+    this.showCompanySelection = false;
+    // Move to client selection; keep URL param for deep-linking
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { action: 'add', companyId: company.id },
+      queryParamsHandling: 'merge'
+    });
+    this.showClientSelection = true;
+    this.loadClientsForSelection();
+    this.showAlertMessage(`Société sélectionnée: ${company.raisonSociale}`, 'success');
+  }
+
+  cancelCompanySelection(): void {
+    this.showCompanySelection = false;
+    this.selectedCompany = null;
+    this.companySearchQuery = '';
+    this.router.navigate(['/invoices']);
+  }
+
+  loadSelectedCompany(companyId: number): void {
+    this.enterpriseService.getCompany(companyId).subscribe({
+      next: (company) => {
+        this.selectedCompany = company;
+      },
+      error: () => {
+        this.showAlertMessage('Erreur lors du chargement de la société', 'error');
+      }
+    });
+  }
+
+  // Client selection methods
   loadClientsForSelection(): void {
     this.loadingClients = true;
     this.error = '';
@@ -847,6 +929,7 @@ export class InvoicesComponent implements OnInit {
 
     // Prepare invoice data
     const invoiceData = {
+      companyId: this.selectedCompany?.id ?? null,
       clientId: this.selectedClient.id,
       items: this.invoiceItems.map(item => ({
         productId: item.product.id,

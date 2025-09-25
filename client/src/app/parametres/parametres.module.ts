@@ -4,9 +4,10 @@ import { FormsModule } from '@angular/forms';
 
 import { ParametresRoutingModule } from './parametres-routing.module';
 import { ParametresComponent } from './parametres.component';
+import { ParametresOverviewComponent } from './sections/overview/parametres-overview.component';
 
 @NgModule({
-  declarations: [ParametresComponent],
+  declarations: [ParametresComponent, ParametresOverviewComponent],
   imports: [
     CommonModule,
     FormsModule,

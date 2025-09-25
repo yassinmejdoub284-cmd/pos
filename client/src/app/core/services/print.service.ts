@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import { ZReportData } from '../models/session.model';
 import { Sale } from '../models/sale.model';
 import { invoke } from '@tauri-apps/api/core';
-import jsPDF from 'jspdf';
 import { SettingsService, AppSettings } from './settings.service';
 
 @Injectable({
@@ -61,7 +60,7 @@ export class PrintService {
           void this.printPlainText(text);
         } else {
           // Use browser window printing
-          this.printReceiptInBrowser(text);
+          this.printReceiptInBrowser(text, settings);
         }
       },
       error: () => {
@@ -83,13 +82,30 @@ export class PrintService {
   }
 
   // Browser printing method
-  private printReceiptInBrowser(receiptText: string): void {
+  private printReceiptInBrowser(receiptText: string, settings?: AppSettings | null): void {
     // Create a new window for printing
     const printWindow = window.open('', '_blank', 'width=400,height=600');
     
     if (!printWindow) {
       console.error('Could not open print window');
       return;
+    }
+
+    // Generate logo HTML if enabled
+    let logoHtml = '';
+    if (settings?.printSettings?.showLogo && settings?.logoUrl) {
+      const logoSize = settings.printSettings.logoSize || 'medium';
+      const logoUrl = this.settingsService.getAbsoluteLogoUrl(settings.logoUrl);
+      
+      let logoWidth = '60px';
+      if (logoSize === 'large') logoWidth = '80px';
+      else if (logoSize === 'small') logoWidth = '40px';
+      
+      logoHtml = `
+        <div style="text-align: center; margin-bottom: 10px;">
+          <img src="${logoUrl}" alt="Company Logo" style="max-width: ${logoWidth}; height: auto; max-height: 60px;" />
+        </div>
+      `;
     }
 
     // Create HTML content for the receipt
@@ -115,6 +131,7 @@ export class PrintService {
         </style>
       </head>
       <body>
+        ${logoHtml}
         ${receiptText.replace(/\n/g, '<br>')}
       </body>
       </html>
@@ -377,7 +394,7 @@ export class PrintService {
   }
 
   // Build a simple, thermal-style HTML receipt for a sale
-  buildSaleReceiptHtml(sale: Sale): string {
+  buildSaleReceiptHtml(sale: Sale, settings?: AppSettings | null): string {
     const createdAt = new Date(sale.createdAt);
     const date = createdAt.toLocaleDateString('fr-FR');
     const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -420,6 +437,27 @@ export class PrintService {
     const payment = sale.paymentMethod?.name || '—';
     const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
 
+    // Generate logo HTML if enabled
+    let logoHtml = '';
+    if (settings?.printSettings?.showLogo && settings?.logoUrl) {
+      const logoSize = settings.printSettings.logoSize || 'medium';
+      const logoUrl = this.settingsService.getAbsoluteLogoUrl(settings.logoUrl);
+      
+      let logoWidth = '60px';
+      if (logoSize === 'large') logoWidth = '80px';
+      else if (logoSize === 'small') logoWidth = '40px';
+      
+      logoHtml = `
+        <div class="center" style="margin-bottom: 10px;">
+          <img src="${logoUrl}" alt="Company Logo" style="max-width: ${logoWidth}; height: auto; max-height: 60px;" />
+        </div>
+      `;
+    }
+
+    const companyName = settings?.companyName || 'PATISSERIE MODERNE';
+    const companyAddress = settings?.companyAddress || '123 Rue de la Paix, Tunis, Tunisie';
+    const companyPhone = settings?.companyPhone || 'Tel: +216 71 123 456';
+
     return `
       <!DOCTYPE html>
       <html>
@@ -445,10 +483,10 @@ export class PrintService {
         </head>
         <body>
           <div class="ticket">
-            <div class="center bold">PATISSERIE MODERNE</div>
-            <div class="center muted">123 Rue de la Paix</div>
-            <div class="center muted">Tunis, Tunisie</div>
-            <div class="center muted">Tel: +216 71 123 456</div>
+            ${logoHtml}
+            <div class="center bold">${this.escapeHtml(companyName)}</div>
+            <div class="center muted">${this.escapeHtml(companyAddress)}</div>
+            <div class="center muted">${this.escapeHtml(companyPhone)}</div>
             <div class="double-line"></div>
             <div>Date: ${date} &nbsp;&nbsp; Heure: ${time}</div>
             ${clientName ? `<div>Client: ${this.escapeHtml(clientName)}</div>` : ''}
@@ -483,155 +521,6 @@ export class PrintService {
     `;
   }
 
-  buildSaleReceiptPdf(sale: Sale): string {
-    const createdAt = new Date(sale.createdAt);
-    const date = createdAt.toLocaleDateString('fr-FR');
-    const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-    // Create PDF document
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [80, 200] // Receipt size
-    });
-
-    // Set font
-    doc.setFont('courier', 'normal');
-    doc.setFontSize(10);
-
-    let y = 10;
-    const lineHeight = 5;
-    const pageWidth = 80;
-    const margin = 5;
-
-    // Helper function to add centered text
-    const addCenteredText = (text: string, fontSize?: number) => {
-      if (fontSize) doc.setFontSize(fontSize);
-      const textWidth = doc.getTextWidth(text);
-      const x = (pageWidth - textWidth) / 2;
-      doc.text(text, x, y);
-      y += lineHeight;
-    };
-
-    // Helper function to add right-aligned text
-    const addRightText = (text: string) => {
-      const textWidth = doc.getTextWidth(text);
-      const x = pageWidth - margin - textWidth;
-      doc.text(text, x, y);
-    };
-
-    // Helper function to add line
-    const addLine = () => {
-      doc.line(margin, y, pageWidth - margin, y);
-      y += lineHeight;
-    };
-
-    // Header
-    addCenteredText('PATISSERIE MODERNE', 12);
-    addCenteredText('123 Rue de la Paix');
-    addCenteredText('Tunis, Tunisie');
-    addCenteredText('Tel: +216 71 123 456');
-    y += 2;
-    addLine();
-    y += 2;
-
-    // Sale info
-    doc.text(`Date: ${date}`, margin, y);
-    y += lineHeight;
-    doc.text(`Heure: ${time}`, margin, y);
-    y += lineHeight;
-    doc.text(`Ticket: #${sale.id}`, margin, y);
-    y += lineHeight;
-
-    const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
-    if (clientName) {
-      doc.text(`Client: ${clientName}`, margin, y);
-      y += lineHeight;
-    }
-
-    if (this.isWholesaleSale(sale)) {
-      addCenteredText('VENTE GROS', 12);
-    }
-
-    addLine();
-    y += 2;
-
-    // Items header
-    doc.text('ARTICLE', margin, y);
-    doc.text('QTE', 45, y);
-    doc.text('P.U.', 55, y);
-    addRightText('TOTAL');
-    y += lineHeight;
-    addLine();
-    y += 2;
-
-    // Items
-    (sale.items || []).forEach(item => {
-      const name = (item.productName || '').toString();
-      const qty = Number(item.quantity || 0).toString();
-      const unit = Number(item.unitPrice || 0).toFixed(3);
-      const total = Number(item.total || 0).toFixed(3);
-
-      if (item.isWholesale) {
-        const bundleQty = item.bundleQuantity || 0;
-        const bundlePrice = item.bundlePrice || 0;
-        const bundleSize = item.bundleSize || 1;
-        
-        doc.text(`${name}`, margin, y);
-        doc.text('GROS', margin + 2, y + 3);
-        y += lineHeight;
-        doc.text(`${bundleQty} fardeau${bundleQty > 1 ? 'x' : ''}`, 45, y - lineHeight);
-        doc.text(`(${qty} unités)`, 45, y - lineHeight + 3);
-        doc.text(`${bundlePrice.toFixed(3)}/fardeau`, 55, y - lineHeight);
-        doc.text(`(${(bundlePrice / bundleSize).toFixed(3)}/unité)`, 55, y - lineHeight + 3);
-        addRightText(total);
-        y += lineHeight + 3;
-      } else {
-        doc.text(name, margin, y);
-        doc.text(qty, 45, y);
-        doc.text(unit, 55, y);
-        addRightText(total);
-        y += lineHeight;
-      }
-    });
-
-    addLine();
-    y += 2;
-
-    // Totals
-    const discount = Number(sale.discount || 0);
-    const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
-    const net = Number(sale.finalTotal || subtotal - discount);
-    const payment = sale.paymentMethod?.name || '—';
-
-    doc.text('Sous-total', margin, y);
-    addRightText(`${subtotal.toFixed(3)} dt`);
-    y += lineHeight;
-
-    if (discount > 0) {
-      doc.text('Remise', margin, y);
-      addRightText(`-${discount.toFixed(3)} dt`);
-      y += lineHeight;
-    }
-
-    doc.setFontSize(12);
-    doc.text('TOTAL A PAYER', margin, y);
-    addRightText(`${net.toFixed(3)} dt`);
-    y += lineHeight;
-
-    doc.setFontSize(10);
-    doc.text('Paiement', margin, y);
-    addRightText(payment);
-    y += lineHeight + 2;
-
-    addLine();
-    y += 2;
-    addCenteredText('Merci de votre visite!');
-
-    // Convert to base64
-    const pdfOutput = doc.output('datauristring');
-    return pdfOutput.split(',')[1]; // Remove data:application/pdf;filename=generated.pdf;base64, prefix
-  }
 
   buildSaleReceiptText(sale: Sale, settings: AppSettings | null): string {
     const createdAt = new Date(sale.createdAt);
@@ -677,20 +566,21 @@ export class PrintService {
     // Header
     text += '==================\n';
     
-    // Company name (bold and centered)
-    const companyName = settings?.companyName || 'PATISSERIE MODERNE';
+    
+    // Company name (bold and centered) - sanitized for thermal printer
+    const companyName = this.sanitizeForThermalPrinter(settings?.companyName || 'PATISSERIE MODERNE');
     text += centerAlign + boldOn + companyName + boldOff + normalSize + '\n';
     
-    // Company details (centered)
+    // Company details (centered) - sanitized for thermal printer
     if (settings?.printSettings?.showCompanyDetails) {
       if (settings?.companyAddress) {
-        text += centerAlign + settings.companyAddress + '\n';
+        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyAddress) + '\n';
       }
       if (settings?.companyPhone) {
-        text += centerAlign + settings.companyPhone + '\n';
+        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyPhone) + '\n';
       }
       if (settings?.companyEmail) {
-        text += centerAlign + settings.companyEmail + '\n';
+        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyEmail) + '\n';
       }
     }
     
@@ -700,11 +590,11 @@ export class PrintService {
     text += `Date: ${date}     Heure: ${time}\n`;
     text += `Ticket: #${sale.dailyTicketNumber || this.formatTicketId(sale.id)}\n`;
     
-    // Client info (if enabled in settings)
+    // Client info (if enabled in settings) - sanitized for thermal printer
     if (settings?.printSettings?.showClientInfo) {
       const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
       if (clientName) {
-        text += `Client: ${clientName}\n`;
+        text += `Client: ${this.sanitizeForThermalPrinter(clientName)}\n`;
       }
     }
     
@@ -729,9 +619,9 @@ export class PrintService {
     text += 'ARTICLE           QTE  P.U.    TOTAL\n';
     text += '------------------\n';
     
-    // Items
+    // Items - sanitized for thermal printer
     (sale.items || []).forEach(item => {
-      const name = (item.productName || '').toString();
+      const name = this.sanitizeForThermalPrinter((item.productName || '').toString());
       const qty = Number(item.quantity || 0).toString();
       const unit = Number(item.unitPrice || 0);
       const total = Number(item.total || 0);
@@ -767,15 +657,15 @@ export class PrintService {
       text += `Remise                        -${formatCurrency(discount)}\n`;
     }
     text += `TOTAL A PAYER                 ${formatCurrency(net)}\n`;
-    // Payment method (if enabled in settings)
+    // Payment method (if enabled in settings) - sanitized for thermal printer
     if (settings?.printSettings?.showPaymentMethod) {
-      text += `Paiement                      ${payment}\n`;
+      text += `Paiement                      ${this.sanitizeForThermalPrinter(payment)}\n`;
     }
     
     text += '==================\n';
     
-    // Custom thank you message from settings
-    const thankYouMessage = settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!';
+    // Custom thank you message from settings - sanitized for thermal printer
+    const thankYouMessage = this.sanitizeForThermalPrinter(settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!');
     text += centerAlign + thankYouMessage + '\n\n\n\n\n\n';
     
     // Paper cut command
@@ -846,6 +736,96 @@ export class PrintService {
       .replace(/'/g, '&#39;');
   }
 
+  /**
+   * Sanitize text for thermal printer compatibility
+   * Converts special characters to ASCII equivalents
+   */
+  private sanitizeForThermalPrinter(input: string): string {
+    return input
+      .replace(/[ÀÁÂÃÄÅ]/g, 'A')
+      .replace(/[àáâãäå]/g, 'a')
+      .replace(/[ÈÉÊË]/g, 'E')
+      .replace(/[èéêë]/g, 'e')
+      .replace(/[ÌÍÎÏ]/g, 'I')
+      .replace(/[ìíîï]/g, 'i')
+      .replace(/[ÒÓÔÕÖ]/g, 'O')
+      .replace(/[òóôõö]/g, 'o')
+      .replace(/[ÙÚÛÜ]/g, 'U')
+      .replace(/[ùúûü]/g, 'u')
+      .replace(/[Ç]/g, 'C')
+      .replace(/[ç]/g, 'c')
+      .replace(/[Ñ]/g, 'N')
+      .replace(/[ñ]/g, 'n')
+      .replace(/[Ý]/g, 'Y')
+      .replace(/[ý]/g, 'y')
+      .replace(/[Ÿ]/g, 'Y')
+      .replace(/[ÿ]/g, 'y')
+      .replace(/[Æ]/g, 'AE')
+      .replace(/[æ]/g, 'ae')
+      .replace(/[Œ]/g, 'OE')
+      .replace(/[œ]/g, 'oe')
+      .replace(/[ß]/g, 'ss')
+      .replace(/[€]/g, 'EUR')
+      .replace(/[£]/g, 'GBP')
+      .replace(/[¥]/g, 'YEN')
+      .replace(/[©]/g, '(c)')
+      .replace(/[®]/g, '(R)')
+      .replace(/[™]/g, 'TM')
+      .replace(/[°]/g, 'deg')
+      .replace(/[±]/g, '+/-')
+      .replace(/[×]/g, 'x')
+      .replace(/[÷]/g, '/')
+      .replace(/[¼]/g, '1/4')
+      .replace(/[½]/g, '1/2')
+      .replace(/[¾]/g, '3/4')
+      .replace(/[¹]/g, '1')
+      .replace(/[²]/g, '2')
+      .replace(/[³]/g, '3')
+      .replace(/[µ]/g, 'u')
+      .replace(/[¶]/g, 'P')
+      .replace(/[·]/g, '.')
+      .replace(/[¸]/g, ',')
+      .replace(/[¹]/g, '1')
+      .replace(/[º]/g, 'o')
+      .replace(/[»]/g, '>>')
+      .replace(/[¼]/g, '1/4')
+      .replace(/[½]/g, '1/2')
+      .replace(/[¾]/g, '3/4')
+      .replace(/[¿]/g, '?')
+      .replace(/[¡]/g, '!')
+      .replace(/[«]/g, '<<')
+      .replace(/[»]/g, '>>')
+      .replace(/[–]/g, '-')
+      .replace(/[—]/g, '-')
+      .replace(/['']/g, "'")
+      .replace(/[""]/g, '"')
+      .replace(/[…]/g, '...')
+      .replace(/[•]/g, '*')
+      .replace(/[▪]/g, '*')
+      .replace(/[▫]/g, '*')
+      .replace(/[‣]/g, '*')
+      .replace(/[⁃]/g, '-')
+      .replace(/[⁌]/g, '-')
+      .replace(/[⁍]/g, '-')
+      .replace(/[⁎]/g, '*')
+      .replace(/[⁏]/g, ';')
+      .replace(/[⁐]/g, '?')
+      .replace(/[⁑]/g, '**')
+      .replace(/[⁒]/g, '%')
+      .replace(/[⁓]/g, '~')
+      .replace(/[⁔]/g, '^')
+      .replace(/[⁕]/g, '*')
+      .replace(/[⁖]/g, '***')
+      .replace(/[⁗]/g, '****')
+      .replace(/[⁘]/g, '*')
+      .replace(/[⁙]/g, '*****')
+      .replace(/[⁚]/g, '**')
+      .replace(/[⁛]/g, '***')
+      .replace(/[⁜]/g, '****')
+      .replace(/[⁝]/g, '*****')
+      .replace(/[⁞]/g, '******');
+  }
+
   // Test printer connection
   testPrinter(): Promise<boolean> {
     return new Promise((resolve) => {
@@ -886,4 +866,7 @@ export class PrintService {
       }
     });
   }
+
+
+
 }

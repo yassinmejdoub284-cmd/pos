@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { AttendanceService } from './attendance.service';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { User, AuthResponse, LoginRequest, UserPermissions } from '../models/user.model';
 import { environment } from '../../../environments/environment';
@@ -18,20 +19,29 @@ export class AuthService {
   public isAuthenticated = signal(false);
   public currentUser = signal<User | null>(null);
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private attendanceService: AttendanceService) {
     this.loadStoredAuth();
   }
 
   login(credentials: LoginRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.API_URL}/auth/login`, credentials).pipe(
-      tap(response => this.setAuthData(response))
+      tap(response => {
+        this.setAuthData(response);
+        // Fire check-in punch after successful login (non-blocking)
+        this.attendanceService.punch('CHECK_IN').subscribe({ next: () => {}, error: () => {} });
+      })
     );
   }
 
   logout(): void {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('permissions');
+    // Fire check-out punch before clearing session (best effort)
+    try {
+      this.attendanceService.punch('CHECK_OUT').subscribe({ next: () => {}, error: () => {} });
+    } catch {}
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('permissions');
+    sessionStorage.removeItem('visitingDepotId');
     this.currentUserSubject.next(null);
     this.permissionsSubject.next(null);
     this.isAuthenticated.set(false);
@@ -39,13 +49,14 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem('token');
+    return sessionStorage.getItem('token');
   }
 
   private setAuthData(response: AuthResponse): void {
-    localStorage.setItem('token', response.token);
-    localStorage.setItem('user', JSON.stringify(response.user));
-    localStorage.setItem('permissions', JSON.stringify(response.permissions));
+    sessionStorage.setItem('token', response.token);
+    sessionStorage.setItem('user', JSON.stringify(response.user));
+    sessionStorage.setItem('permissions', JSON.stringify(response.permissions));
+    // Preserve any preselected visitingDepotId if already set (e.g., from login flow)
     
     this.currentUserSubject.next(response.user);
     this.permissionsSubject.next(response.permissions);
@@ -54,9 +65,9 @@ export class AuthService {
   }
 
   private loadStoredAuth(): void {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-    const permissionsStr = localStorage.getItem('permissions');
+    const token = sessionStorage.getItem('token');
+    const userStr = sessionStorage.getItem('user');
+    const permissionsStr = sessionStorage.getItem('permissions');
 
     if (token && userStr && permissionsStr) {
       const user = JSON.parse(userStr);

@@ -4,6 +4,7 @@ import { DailyExtractService, DailyExtract, FamilySummary, ProductSummary, Daily
 import { AuthService } from '../../core/services/auth.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { SettingsService, AppSettings } from '../../core/services/settings.service';
 import jsPDF from 'jspdf';
 
 @Component({
@@ -19,6 +20,7 @@ export class DailyExtractComponent implements OnInit {
   loadingArchives = false;
   currentLoadedDays = 0;
   maxDaysToLoad = 30; // Maximum days to prevent infinite loading
+  appSettings: AppSettings | null = null;
 
   // Invoice generation properties
   showInvoiceModal = false;
@@ -41,19 +43,31 @@ export class DailyExtractComponent implements OnInit {
     private router: Router,
     private dailyExtractService: DailyExtractService,
     private authService: AuthService,
-    private http: HttpClient
+    private http: HttpClient,
+    private settingsService: SettingsService
   ) {}
 
   ngOnInit() {
-    this.loadDailyExtracts();
+    // Load settings first to get historyRetentionDays; fallback handled inside
+    this.settingsService.getSettings().subscribe({
+      next: (s) => {
+        this.appSettings = s;
+        const days = Number((s as any).historyRetentionDays || 30);
+        this.maxDaysToLoad = Math.max(1, days);
+        this.loadDailyExtracts(days);
+      },
+      error: () => {
+        this.maxDaysToLoad = 30;
+        this.loadDailyExtracts(30);
+      }
+    });
   }
 
-  loadDailyExtracts() {
+  loadDailyExtracts(daysOverride?: number) {
     this.loading = true;
-    
-    // Check if user is admin to determine how many days to load
-    const isAdmin = this.isUserAdmin();
-    const daysToLoad = isAdmin ? 10 : 5;
+    // Determine days to load based on settings, fallback to previous behavior
+    const daysFromSettings = Number(daysOverride || (this.appSettings as any)?.historyRetentionDays || 30);
+    const daysToLoad = daysFromSettings > 0 ? daysFromSettings : (this.isUserAdmin() ? 10 : 5);
     this.currentLoadedDays = daysToLoad;
     
     this.dailyExtractService.getLastNDaysExtracts(daysToLoad).subscribe({

@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { requireRole } = require('../middleware/auth');
+const { requireRole, authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -99,13 +99,18 @@ router.put('/:id', requireRole(['ADMIN']), async (req, res) => {
   }
 });
 
-router.put('/:id/pin', requireRole(['ADMIN']), async (req, res) => {
+router.put('/:id/pin', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { pin } = req.body;
 
-    if (!pin || String(pin).length !== 8) {
-      return res.status(400).json({ error: 'PIN invalide (8 chiffres requis)' });
+    // Check if user is trying to change their own PIN or if they're admin
+    if (parseInt(id) !== req.user.id && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Vous ne pouvez modifier que votre propre PIN' });
+    }
+
+    if (!pin || String(pin).length < 4 || String(pin).length > 8) {
+      return res.status(400).json({ error: 'PIN invalide (4-8 chiffres requis)' });
     }
 
     const updatedUser = await prisma.user.update({

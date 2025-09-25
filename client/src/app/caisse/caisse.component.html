@@ -594,41 +594,93 @@
 
   <!-- Remise Popup -->
   <!-- Discount Type Selection Popup -->
-  <div *ngIf="showDiscountTypeSelection" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl border border-gray-200 max-w-md w-full overflow-hidden shadow-2xl">
-      <div class="bg-white/60 p-4 border-b border-slate-300 flex justify-between items-center">
-        <h2 class="text-xl font-bold text-slate-800">Type de remise</h2>
-        <button (click)="cancelDiscount()" title="Annuler la remise"
-          class="text-slate-500 hover:text-slate-800 transition-colors">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
+  <div *ngIf="showDiscountTypeSelection" class="fixed inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white/95 backdrop-blur-md rounded-2xl border border-white/20 max-w-lg w-full overflow-hidden shadow-2xl transform transition-all duration-300 scale-100">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-6 text-white">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center space-x-3">
+            <div class="p-2 bg-white/20 rounded-lg">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-2xl font-bold">Type de remise</h2>
+              <p class="text-white/80 text-sm">Sélectionnez votre méthode de remise</p>
+            </div>
+          </div>
+          <button (click)="cancelDiscount()" title="Annuler"
+            class="p-2 hover:bg-white/20 rounded-lg transition-all duration-200 group">
+            <svg class="w-6 h-6 group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <div class="p-6 space-y-4">
-        <p class="text-slate-600 text-center mb-6">Choisissez le type de remise à appliquer</p>
-
-        <div class="space-y-3">
+      <!-- Content -->
+      <div class="p-8 space-y-6">
+        <div class="grid grid-cols-1 gap-4">
+          <!-- Percentage Discount Option -->
           <button (click)="selectDiscountType('percentage')"
-            class="w-full py-10 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-slate-800 p-4 rounded-lg transition-all flex items-center justify-center space-x-3">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z">
-              </path>
-            </svg>
-            <span class="font-medium">Remise en pourcentage (%)</span>
+            class="group relative overflow-hidden bg-gradient-to-br from-emerald-400 via-cyan-400 to-blue-500 hover:from-emerald-300 hover:via-cyan-300 hover:to-blue-400 text-white p-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl border border-white/20">
+            <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="relative flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <div class="p-3 bg-white/20 rounded-xl group-hover:bg-white/30 transition-colors duration-200">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                  </svg>
+                </div>
+                <div class="text-left">
+                  <h3 class="text-xl font-bold mb-1">Remise en pourcentage</h3>
+                  <p class="text-white/80 text-sm">Réduction basée sur un pourcentage du total</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-3xl font-bold">%</div>
+                <div class="text-white/60 text-xs">Ex: 10%</div>
+              </div>
+            </div>
           </button>
 
+          <!-- Amount Discount Option -->
           <button (click)="selectDiscountType('amount')"
-            class="w-full py-10 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-slate-800 p-4 rounded-lg transition-all flex items-center justify-center space-x-3">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1">
-              </path>
-            </svg>
-            <span class="font-medium">Remise en montant (dt)</span>
+            class="group relative overflow-hidden bg-gradient-to-br from-orange-400 via-red-400 to-pink-500 hover:from-orange-300 hover:via-red-300 hover:to-pink-400 text-white p-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl border border-white/20">
+            <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div class="relative flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <div class="p-3 bg-white/20 rounded-xl group-hover:bg-white/30 transition-colors duration-200">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                  </svg>
+                </div>
+                <div class="text-left">
+                  <h3 class="text-xl font-bold mb-1">Remise en montant</h3>
+                  <p class="text-white/80 text-sm">Réduction d'un montant fixe en dinars</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-3xl font-bold">DT</div>
+                <div class="text-white/60 text-xs">Ex: 5.000</div>
+              </div>
+            </div>
           </button>
+        </div>
+
+        <!-- Quick Info -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+          <div class="flex items-start space-x-3">
+            <div class="p-1 bg-blue-500 rounded-lg">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="text-sm text-blue-700">
+              <span class="font-medium">Astuce:</span> Utilisez le pourcentage pour les remises standard, le montant fixe pour les réductions précises.
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -3099,6 +3151,69 @@
       <p class="text-center text-purple-600 text-sm font-medium">
         💡 Choisissez l'option qui correspond à votre vente
       </p>
+    </div>
+  </div>
+</div>
+
+<!-- Depot Selection Modal for Admins -->
+<div *ngIf="showDepotSelection" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-gray-900">Sélectionner un dépôt</h3>
+        <button (click)="closeDepotSelection()" 
+                class="text-gray-400 hover:text-gray-600 transition-colors"
+                title="Fermer">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <p class="text-gray-600 mb-6">En tant qu'administrateur, veuillez sélectionner le dépôt pour cette session de caisse.</p>
+      
+      <div class="space-y-3 max-h-64 overflow-y-auto">
+        <div *ngFor="let depot of depots" 
+             (click)="selectDepot(depot)"
+             class="p-4 border-2 rounded-lg cursor-pointer transition-all duration-200"
+             [class.border-blue-500]="selectedDepot?.id === depot.id"
+             [class.bg-blue-50]="selectedDepot?.id === depot.id"
+             [class.border-gray-200]="selectedDepot?.id !== depot.id"
+             [class.hover:border-gray-300]="selectedDepot?.id !== depot.id">
+          <div class="flex items-center justify-between">
+            <div>
+              <h4 class="font-semibold text-gray-900">{{ depot.name }}</h4>
+              <p class="text-sm text-gray-600">{{ depot.address }}</p>
+              <span class="inline-block mt-1 px-2 py-1 text-xs font-medium rounded-full"
+                    [class.bg-green-100]="depot.type === 'SHOP'"
+                    [class.text-green-800]="depot.type === 'SHOP'"
+                    [class.bg-blue-100]="depot.type === 'WAREHOUSE'"
+                    [class.text-blue-800]="depot.type === 'WAREHOUSE'"
+                    [class.bg-purple-100]="depot.type === 'MAIN'"
+                    [class.text-purple-800]="depot.type === 'MAIN'">
+                {{ depot.type === 'SHOP' ? 'Magasin' : depot.type === 'WAREHOUSE' ? 'Entrepôt' : 'Principal' }}
+              </span>
+            </div>
+            <div *ngIf="selectedDepot?.id === depot.id" class="text-blue-500">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex gap-3 mt-6">
+        <button (click)="closeDepotSelection()" 
+                class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+          Annuler
+        </button>
+        <button (click)="confirmDepotSelection()" 
+                [disabled]="!selectedDepot"
+                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          Confirmer
+        </button>
+      </div>
     </div>
   </div>
 </div>

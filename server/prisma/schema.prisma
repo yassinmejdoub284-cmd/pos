@@ -50,6 +50,11 @@ model User {
   createdInvoiceRequests InvoiceRequest[] @relation("InvoiceRequestCreator")
   requestedReturns ReturnRequest[] @relation("ReturnRequestedBy")
   approvedReturns ReturnRequest[] @relation("ReturnApprovedBy")
+  // Attendance relations
+  punches        AttendancePunch[]
+  attendanceDays AttendanceDay[]
+  requestedAttendanceCorrections AttendanceCorrection[] @relation("AttendanceRequestedBy")
+  approvedAttendanceCorrections  AttendanceCorrection[] @relation("AttendanceApprovedBy")
 
   @@map("users")
 }
@@ -67,6 +72,10 @@ model Depot {
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Company relation (nullable for unassigned depots)
+  companyId Int?     @map("company_id")
+  company   Company? @relation(fields: [companyId], references: [id])
 
   manager   User?    @relation("DepotManager", fields: [managerId], references: [id])
   users     User[]   @relation("DepotUsers")
@@ -87,8 +96,61 @@ model Depot {
   invoices     Invoice[]
   returnRequests ReturnRequest[]
   rebutRecords RebutRecord[]
+  // Attendance
+  attendanceDays AttendanceDay[]
 
   @@map("depots")
+}
+
+// Company management for Enterprise area
+model Company {
+  id               Int       @id @default(autoincrement())
+  raisonSociale    String    @db.VarChar(200)
+  formeJuridique   String    @db.VarChar(50)
+  activite         String?   @db.VarChar(200)
+  dateCreation     DateTime?
+  logoUrl          String?   @db.VarChar(255)
+  brandColor       String?   @db.VarChar(20)
+  statut           CompanyStatus @default(ACTIF)
+
+  // Coordonnées
+  adresse          String?   @db.Text
+  ville            String?   @db.VarChar(100)
+  delegation       String?   @db.VarChar(100)
+  gouvernorat      String?   @db.VarChar(100)
+  codePostal       String?   @db.VarChar(10)
+  telephone        String?   @db.VarChar(20)
+  email            String?   @db.VarChar(100)
+  siteWeb          String?   @db.VarChar(150)
+
+  // Légal (Tunisie)
+  matriculeFiscal  String    @db.VarChar(50)
+  rne              String    @db.VarChar(50)
+  registreCommerce String?   @db.VarChar(50)
+  tvaAssujetti     Boolean   @default(false)
+  numeroTva        String?   @db.VarChar(50)
+  tauxTva          Decimal   @default(19) @db.Decimal(5, 2)
+  capitalSocial    Decimal   @default(0)  @db.Decimal(14, 3)
+  representantNom  String?   @db.VarChar(100)
+  representantCin  String?   @db.VarChar(20)
+
+  // Bancaire (facultatif)
+  rib              String?   @db.VarChar(50)
+  banque           String?   @db.VarChar(100)
+  bic              String?   @db.VarChar(20)
+
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  depots           Depot[]
+  invoices         Invoice[]
+
+  @@map("companies")
+}
+
+enum CompanyStatus {
+  ACTIF
+  ARCHIVE
 }
 
 
@@ -743,6 +805,7 @@ enum UserRole {
   MANAGER
   CASHIER
   STOCK_MANAGER
+  EMPLOYEE
 }
 
 enum DepotType {
@@ -858,6 +921,83 @@ model SessionCaisse {
   sales         Sale[]
 
   @@map("session_caisse")
+}
+
+// Attendance: raw punch events
+model AttendancePunch {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      PunchType
+  timestamp DateTime @db.Timestamp(0)
+  source    String?  @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, timestamp])
+  @@map("attendance_punches")
+}
+
+enum PunchType {
+  CHECK_IN
+  CHECK_OUT
+  PAUSE_START
+  PAUSE_END
+}
+
+// Attendance: daily aggregates per user
+model AttendanceDay {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  depotId         Int?
+  date            DateTime @db.Date
+  firstCheckIn    DateTime?
+  lastCheckOut    DateTime?
+  pausesSeconds   Int      @default(0)
+  workedSeconds   Int      @default(0)
+  overtimeSeconds Int      @default(0)
+  isLate          Boolean  @default(false)
+  isAbsent        Boolean  @default(false)
+  isComplete      Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user            User     @relation(fields: [userId], references: [id])
+  depot           Depot?   @relation(fields: [depotId], references: [id])
+  corrections     AttendanceCorrection[]
+
+  @@unique([userId, date])
+  @@index([depotId, date])
+  @@map("attendance_days")
+}
+
+// Attendance: correction workflow
+model AttendanceCorrection {
+  id              Int                 @id @default(autoincrement())
+  dayId           Int                 @map("day_id")
+  requestedById   Int                 @map("requested_by")
+  reviewedById    Int?                @map("reviewed_by")
+  status          AttendanceStatus    @default(PENDING)
+  reason          String              @db.Text
+  proposedFirstIn DateTime?           @map("proposed_first_in")
+  proposedLastOut DateTime?           @map("proposed_last_out")
+  proposedPauses  String?             @db.Text // JSON of intervals
+  reviewNotes     String?             @map("review_notes") @db.Text
+  createdAt       DateTime            @default(now()) @map("created_at")
+  reviewedAt      DateTime?           @map("reviewed_at")
+
+  day             AttendanceDay       @relation(fields: [dayId], references: [id])
+  requestedBy     User                @relation("AttendanceRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy      User?               @relation("AttendanceApprovedBy", fields: [reviewedById], references: [id])
+
+  @@index([status])
+  @@map("attendance_corrections")
+}
+
+enum AttendanceStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model CashMovement {
@@ -1006,6 +1146,7 @@ model Invoice {
   // Relations
   depotId         Int           @map("depot_id")
   clientId        Int?          @map("client_id")
+  companyId       Int?          @map("company_id")
   createdById     Int           @map("created_by_id")
   saleId          Int?          @map("sale_id") // For ticket-based invoices
   
@@ -1018,6 +1159,7 @@ model Invoice {
   
   depot           Depot         @relation(fields: [depotId], references: [id])
   client          Client?       @relation(fields: [clientId], references: [id])
+  company         Company?      @relation(fields: [companyId], references: [id])
   createdBy       User          @relation("InvoiceCreator", fields: [createdById], references: [id])
   sale            Sale?         @relation(fields: [saleId], references: [id])
   lines           InvoiceLine[]

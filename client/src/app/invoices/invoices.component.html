@@ -15,6 +15,67 @@
     </div>
   </div>
 
+  <!-- Company Selection Interface -->
+  <div *ngIf="showCompanySelection" class="bg-white rounded-2xl border border-cyan-100/50 p-6 mb-6 shadow-sm">
+    <div class="flex items-center gap-4 mb-6">
+      <div class="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-emerald-100">
+        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h3m10-12h1a2 2 0 012 2v8a2 2 0 01-2 2h-7m0 0H8m4 0v-6m0 6h4"/>
+        </svg>
+      </div>
+      <div>
+        <span class="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">Sélection de la Société</span>
+        <span class="block text-sm text-emerald-700/70 font-medium">Choisissez la société à facturer</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div>
+        <span class="block text-sm text-slate-600 mb-1">Rechercher une société</span>
+        <input type="text" [(ngModel)]="companySearchQuery" (input)="onCompanySearchChange()" placeholder="Raison sociale, MF, ville..." class="w-full bg-slate-100/50 border border-slate-200/50 rounded-2xl px-3 py-2 text-slate-800 placeholder-gray-400 focus:outline-none focus:border-emerald-600 transition-colors shadow-inner">
+      </div>
+    </div>
+
+    <div *ngIf="loadingCompanies" class="text-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+      <span class="text-slate-500 mt-4 block">Chargement des sociétés...</span>
+    </div>
+
+    <div *ngIf="!loadingCompanies" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div *ngFor="let company of filteredCompanies" (click)="selectCompany(company)" class="group cursor-pointer bg-white rounded-2xl p-4 shadow-lg border border-emerald-100/50 hover:shadow-xl hover:scale-95 transition-all duration-300 ring-1 ring-emerald-50 relative overflow-hidden">
+        <div class="flex items-start gap-3 mb-3">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white/70" [style.background]="(company.brandColor || '#10b981') + '33'">
+            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h3m10-12h1a2 2 0 012 2v8a2 2 0 01-2 2h-7m0 0H8m4 0v-6m0 6h4"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <span class="text-lg font-semibold text-slate-800 group-hover:text-emerald-600 transition-colors truncate block">{{ company.raisonSociale }}</span>
+            <span class="text-xs text-slate-600 font-medium block">MF: {{ company.matriculeFiscal || 'N/A' }}</span>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-xs text-slate-600">
+          <span>Ville: <span class="font-medium">{{ company.ville || '—' }}</span></span>
+          <span class="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">{{ company.statut === 'ACTIF' ? 'Actif' : 'Archivé' }}</span>
+        </div>
+        <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-300 from-emerald-50 to-green-100"></div>
+      </div>
+    </div>
+
+    <div *ngIf="!loadingCompanies && filteredCompanies.length === 0" class="text-center py-12">
+      <svg class="w-16 h-16 mx-auto mb-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h3m10-12h1a2 2 0 012 2v8a2 2 0 01-2 2h-7m0 0H8m4 0v-6m0 6h4"/>
+      </svg>
+      <span class="text-slate-500 block">Aucune société trouvée</span>
+      <span class="text-sm text-slate-400 mt-1 block">Essayez de modifier vos critères de recherche</span>
+    </div>
+
+    <div class="flex justify-between items-center mt-6 pt-6 border-t border-emerald-200/60">
+      <button (click)="cancelCompanySelection()" class="bg-gradient-to-r from-slate-200 to-slate-100 hover:from-slate-300 hover:to-slate-200 text-slate-800 px-6 py-2 rounded-2xl transition-colors shadow">Annuler</button>
+      <span class="text-slate-600 text-sm">{{ filteredCompanies.length }} société{{ filteredCompanies.length !== 1 ? 's' : '' }} trouvée{{ filteredCompanies.length !== 1 ? 's' : '' }}</span>
+    </div>
+  </div>
+
   <!-- Client Selection Interface -->
   <div *ngIf="showClientSelection" class="bg-white rounded-2xl border border-cyan-100/50 p-6 mb-6 shadow-sm">
     <div class="flex items-center gap-4 mb-6">

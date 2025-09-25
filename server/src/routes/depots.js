@@ -53,7 +53,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', requireRole(['ADMIN']), async (req, res) => {
   try {
-    const { name, code, type, address, city, phone, email, managerId } = req.body;
+    const { name, code, type, address, city, phone, email, managerId, companyId } = req.body;
 
     if (!name || !code || !type || !address || !city) {
       return res.status(400).json({ error: 'Required fields missing' });
@@ -68,7 +68,8 @@ router.post('/', requireRole(['ADMIN']), async (req, res) => {
         city,
         phone,
         email,
-        managerId: managerId ? parseInt(managerId) : null
+        managerId: managerId ? parseInt(managerId) : null,
+        companyId: companyId ? parseInt(companyId) : null
       }
     });
 
@@ -82,7 +83,7 @@ router.post('/', requireRole(['ADMIN']), async (req, res) => {
 router.put('/:id', requireRole(['ADMIN']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, code, type, address, city, phone, email, managerId, isActive } = req.body;
+    const { name, code, type, address, city, phone, email, managerId, isActive, companyId } = req.body;
 
     const updatedDepot = await prisma.depot.update({
       where: { id: parseInt(id) },
@@ -95,13 +96,25 @@ router.put('/:id', requireRole(['ADMIN']), async (req, res) => {
         phone,
         email,
         managerId: managerId ? parseInt(managerId) : null,
-        isActive
+        isActive,
+        companyId: typeof companyId === 'undefined' ? undefined : (companyId === null ? null : parseInt(companyId))
       }
     });
 
     res.json(updatedDepot);
   } catch (error) {
     console.error('Error updating depot:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/:id', requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.depot.delete({ where: { id: parseInt(id) } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting depot:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

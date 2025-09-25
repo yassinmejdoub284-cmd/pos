@@ -6,6 +6,7 @@ import { PrintService } from '../core/services/print.service';
 import { HttpClient } from '@angular/common/http';
 import { ReturnsService, ReturnRequestCreatePayload } from '../core/services/returns.service';
 import { AuthService } from '../core/services/auth.service';
+import { SettingsService, AppSettings } from '../core/services/settings.service';
 import { environment } from '../../environments/environment';
 
 type ReturnTypeOption = 'RETURN' | 'EXCHANGE_CASH' | 'EXCHANGE_PRODUCTS' | 'EXCHANGE_NOTHING';
@@ -51,6 +52,9 @@ export class HistoriqueComponent implements OnInit {
   selectedSaleForReceipt: Sale | null = null;
   receiptHtmlPreview = '';
 
+  // Settings
+  appSettings: AppSettings | null = null;
+
   // Invoice request modal
   showInvoiceRequestModal = false;
   selectedSaleForInvoice: Sale | null = null;
@@ -79,6 +83,7 @@ export class HistoriqueComponent implements OnInit {
     private http: HttpClient,
     private returnsService: ReturnsService,
     private authService: AuthService,
+    private settingsService: SettingsService,
     private route: ActivatedRoute
   ) {}
 
@@ -86,6 +91,7 @@ export class HistoriqueComponent implements OnInit {
     this.loadSales();
     this.loadPaymentMethods();
     this.loadInvoiceRequests();
+    this.loadSettings();
     this.loadProducts();
     
     // Check for query parameters to open return dialog
@@ -123,6 +129,30 @@ export class HistoriqueComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading payment methods:', error);
+      }
+    });
+  }
+
+  loadSettings(): void {
+    this.settingsService.getSettings().subscribe({
+      next: (settings) => {
+        this.appSettings = settings;
+        // Apply default date filter based on historyRetentionDays
+        const days = Number((settings as any).historyRetentionDays || 30);
+        if (days > 0) {
+          const end = new Date();
+          const start = new Date();
+          start.setDate(end.getDate() - (days - 1));
+          // Format as yyyy-mm-dd for input[type=date]
+          const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          this.startDate = toIso(start);
+          this.endDate = toIso(end);
+          this.applyFilters();
+        }
+      },
+      error: (error) => {
+        console.error('Error loading settings:', error);
+        // Keep default values
       }
     });
   }
@@ -369,7 +399,7 @@ export class HistoriqueComponent implements OnInit {
 
   openReceiptPreview(sale: Sale): void {
     this.selectedSaleForReceipt = sale;
-    this.receiptHtmlPreview = this.printService.buildSaleReceiptHtml(sale);
+    this.receiptHtmlPreview = this.printService.buildSaleReceiptHtml(sale, this.appSettings);
     this.showReceiptModal = true;
   }
 

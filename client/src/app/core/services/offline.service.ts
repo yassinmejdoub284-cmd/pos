@@ -127,7 +127,7 @@ export class OfflineService {
       method: item.action === 'POST' ? 'POST' : 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
       },
       body: JSON.stringify(item.data)
     });

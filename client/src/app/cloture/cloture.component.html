@@ -15,6 +15,12 @@
       </div>
 
       <div class="flex items-center gap-2 md:gap-3">
+        <button (click)="exportSessionData()" [disabled]="loading()" class="px-3 md:px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          {{ loading() ? 'Export...' : 'Exporter' }}
+        </button>
         <button (click)="showCloseForm.set(true)" class="px-4 md:px-5 py-2 md:py-2.5 rounded-lg bg-red-600 text-white text-sm md:text-base font-semibold shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400">
           Clôturer la caisse
         </button>
@@ -51,6 +57,8 @@
     </div>
   }
 
+  
+
   <!-- Auto-opening session message -->
   @if (!currentSession() && !loading()) {
     <div class="max-w-2xl mx-auto">
@@ -63,6 +71,7 @@
           </div>
           <h2 class="mt-4 text-2xl font-bold text-gray-900">Ouverture automatique</h2>
           <p class="mt-2 text-slate-600">Une nouvelle session de caisse va s'ouvrir automatiquement</p>
+          
         </div>
       </div>
     </div>

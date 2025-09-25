@@ -64,6 +64,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
   currentCashier: string = 'CAISSIER +';
   total: number = 0;
 
+  // Depot selection for admins
+  showDepotSelection = false;
+  depots: any[] = [];
+  selectedDepot: any = null;
+
   // Ticket number management
   currentTicketNumber: number = 1;
   lastTicketDate: string = '';
@@ -432,8 +437,24 @@ export class CaisseComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Ensure user is logged in (do not override role)
     
-    // Set depot ID from user account
-    this.currentShopDepotId = this.authService.currentUser()?.depotId || 0;
+    // Set depot ID from user account or visiting depot
+    const userDepotId = this.authService.currentUser()?.depotId;
+    const visitingDepotId = sessionStorage.getItem('visitingDepotId');
+    
+    // Use visiting depot if available, otherwise use user's depot
+    this.currentShopDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
+    
+    // If user is admin and has no depot ID, show depot selection
+    if (this.authService.isAdmin() && (!this.currentShopDepotId || this.currentShopDepotId === 0)) {
+      this.showDepotSelection = true;
+      this.loadDepots();
+      // Don't load shop name or inventory until depot is selected
+      this.currentShopName = 'Sélection du dépôt...';
+    } else {
+      // For regular users or admins with depot, load normally
+      this.loadShopName();
+      this.loadShopInventory();
+    }
     
     this.loadTicketState(); // Initialize ticket number system
     this.initializeMultiClientSystem();
@@ -441,8 +462,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadPendingTemporarySalesCount();
     this.loadPendingGiftSalesCount();
     this.loadInvoiceRequests(); // Load existing invoice requests
-    this.loadShopInventory();
-    this.loadShopName();
     this.loadSettings();
     
     this.loadCurrentSession();
@@ -5078,4 +5097,37 @@ export class CaisseComponent implements OnInit, OnDestroy {
     `;
   }
 
+  // Depot selection methods for admins
+  loadDepots(): void {
+    this.depotsService.list().subscribe({
+      next: (depots: any[]) => {
+        this.depots = depots;
+      },
+      error: (error: any) => {
+        console.error('Error loading depots:', error);
+      }
+    });
+  }
+
+  selectDepot(depot: any): void {
+    this.selectedDepot = depot;
+  }
+
+  confirmDepotSelection(): void {
+    if (this.selectedDepot) {
+      this.currentShopDepotId = this.selectedDepot.id;
+      this.currentShopName = this.selectedDepot.name;
+      this.showDepotSelection = false;
+      
+      // Reload data with the selected depot
+      this.loadShopInventory();
+      // Note: loadShopName() is not needed here since we already set currentShopName
+    }
+  }
+
+  closeDepotSelection(): void {
+    this.showDepotSelection = false;
+    // Redirect back to home if no depot is selected
+    this.router.navigate(['/home']);
+  }
 } 

@@ -30,6 +30,8 @@ export interface AppSettings {
   droitDeTimbre: boolean;
   // Expenses
   autoApproveExpenseBelow: number;
+  // Historique
+  historyRetentionDays?: number;
   // Print settings
   printSettings: {
     showLogo: boolean;

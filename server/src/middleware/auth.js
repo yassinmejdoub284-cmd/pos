@@ -42,7 +42,16 @@ async function authenticateToken(req, res, next) {
       return res.status(401).json({ error: 'User not found or inactive' });
     }
 
-    req.user = user;
+    // Allow admin to override visiting depot via header for per-request scoping
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    let visitingDepotId = user.depotId;
+    if (user.role === 'ADMIN' && visitingDepotHeader) {
+      const parsed = parseInt(Array.isArray(visitingDepotHeader) ? visitingDepotHeader[0] : String(visitingDepotHeader), 10);
+      if (!isNaN(parsed)) {
+        visitingDepotId = parsed;
+      }
+    }
+    req.user = { ...user, depotId: visitingDepotId };
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
