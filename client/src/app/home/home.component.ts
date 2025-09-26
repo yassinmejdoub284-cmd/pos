@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { SalesService } from '../core/services/sales.service';
@@ -6,6 +6,8 @@ import { ExpenseService } from '../core/services/expense.service';
 import { ApprovalsService } from '../core/services/approvals.service';
 import { SessionsService } from '../core/services/sessions.service';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
+import { Subject, forkJoin, timer } from 'rxjs';
+import { takeUntil, catchError } from 'rxjs/operators';
 
 interface DashboardStats {
   todaySales: number;
@@ -28,9 +30,11 @@ interface QuickAction {
 @Component({
   selector: 'app-home',
   templateUrl: './home.component.html',
+  styleUrls: ['./home.component.css'],
   standalone: false,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
   currentUser: any = null;
   dashboardStats: DashboardStats = {
     todaySales: 0,
@@ -55,6 +59,7 @@ export class HomeComponent implements OnInit {
   appSettings: AppSettings | null = null;
   companyName = 'PoS Pâtisserie';
   companyLogo = '';
+  logoLoadError = false;
   // Pending breakdown
   private pendingGiftCount = 0;
   private pendingExpenseCount = 0;
@@ -63,6 +68,10 @@ export class HomeComponent implements OnInit {
   // Day-over-day deltas
   salesVsYesterdayPct: number = 0;
   transactionsVsYesterdayPct: number = 0;
+  
+  // Performance optimization
+  private destroy$ = new Subject<void>();
+  private timeInterval: any;
 
   quickActions: QuickAction[] = [
     {
@@ -197,7 +206,8 @@ export class HomeComponent implements OnInit {
     private expenseService: ExpenseService,
     private approvalsService: ApprovalsService,
     private settingsService: SettingsService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -206,11 +216,20 @@ export class HomeComponent implements OnInit {
     this.loadDashboardStats();
     this.loadSettings();
     
-    // Update time every minute
-    setInterval(() => {
+    // Update time every minute - optimized with proper cleanup
+    this.timeInterval = setInterval(() => {
       this.currentTime = new Date();
       this.updateGreeting();
+      this.cdr.markForCheck();
     }, 60000);
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    if (this.timeInterval) {
+      clearInterval(this.timeInterval);
+    }
   }
 
   updateGreeting(): void {
@@ -227,87 +246,106 @@ export class HomeComponent implements OnInit {
   loadDashboardStats(): void {
     this.loading = true;
     
-    // Load today's sales
-    this.salesService.getSales().subscribe({
-      next: (sales) => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        
-        // Filter sales by current user's depot ID
-        const userDepotId = this.currentUser?.depotId;
-        const filteredSales = userDepotId ? sales.filter(sale => sale.depotId === userDepotId) : sales;
-        
-        const todaySales = filteredSales.filter(sale => {
-          const saleDate = new Date(sale.createdAt);
-          saleDate.setHours(0, 0, 0, 0);
-          return saleDate.getTime() === today.getTime() && sale.status === 'COMPLETED';
-        });
-
-        this.dashboardStats.todaySales = todaySales.reduce((sum, sale) => sum + Number(sale.finalTotal), 0);
-        this.dashboardStats.todayTransactions = todaySales.length;
-
-        // Compute yesterday metrics
-        const yesterdaySales = filteredSales.filter(sale => {
-          const saleDate = new Date(sale.createdAt);
-          saleDate.setHours(0, 0, 0, 0);
-          return saleDate.getTime() === yesterday.getTime() && sale.status === 'COMPLETED';
-        });
-
-        const yesterdaySalesTotal = yesterdaySales.reduce((sum, sale) => sum + Number(sale.finalTotal), 0);
-        const yesterdayTransactions = yesterdaySales.length;
-
-        this.salesVsYesterdayPct = this.computePercentageChange(this.dashboardStats.todaySales, yesterdaySalesTotal);
-        this.transactionsVsYesterdayPct = this.computePercentageChange(this.dashboardStats.todayTransactions, yesterdayTransactions);
-        
-        // Count pending gift approvals (gifts awaiting admin) - filtered by depot
-        this.pendingGiftCount = filteredSales.filter(sale => sale.status === 'PENDING_ADMIN').length;
-        this.updatePendingApprovals();
-        
-        this.loading = false;
-      },
-      error: (error) => {
+    // Optimize: Load all data in parallel with proper error handling
+    const sales$ = this.salesService.getSales().pipe(
+      takeUntil(this.destroy$),
+      catchError(error => {
         console.error('Error loading sales:', error);
-        this.loading = false;
-      }
-    });
+        return [];
+      })
+    );
 
-    // Count pending expenses (not approved) - filtered by depot
-    this.expenseService.getExpenses().subscribe({
-      next: (expenses) => {
-        const userDepotId = this.currentUser?.depotId;
-        const filteredExpenses = userDepotId ? (expenses || []).filter((e: any) => e.depotId === userDepotId) : (expenses || []);
-        this.pendingExpenseCount = filteredExpenses.filter((e: any) => !e.isApproved).length;
-        this.updatePendingApprovals();
-      },
-      error: (error) => {
+    const expenses$ = this.expenseService.getExpenses().pipe(
+      takeUntil(this.destroy$),
+      catchError(error => {
         console.error('Error loading expenses:', error);
-      }
-    });
+        return [];
+      })
+    );
 
-    // Count pending clôture change requests - filtered by depot
-    this.approvalsService.getVarianceChangeRequests('PENDING').subscribe({
-      next: (requests) => {
-        const userDepotId = this.currentUser?.depotId;
-        const filteredRequests = userDepotId ? (requests || []).filter((r: any) => r.session?.depot?.id === userDepotId) : (requests || []);
-        this.pendingClotureCount = filteredRequests.length;
-        this.updatePendingApprovals();
-      },
-      error: (error) => {
+    const varianceRequests$ = this.approvalsService.getVarianceChangeRequests('PENDING').pipe(
+      takeUntil(this.destroy$),
+      catchError(error => {
         console.error('Error loading variance requests:', error);
+        return [];
+      })
+    );
+
+    // Load all data in parallel
+    forkJoin({
+      sales: sales$,
+      expenses: expenses$,
+      varianceRequests: varianceRequests$
+    }).subscribe({
+      next: (data) => {
+        this.processDashboardData(data);
+        this.loading = false;
+        this.cdr.markForCheck();
+      },
+      error: (error) => {
+        console.error('Error loading dashboard data:', error);
+        this.loading = false;
+        this.cdr.markForCheck();
       }
     });
 
-    // Check for active session
-    this.sessionsService.getActiveSession().subscribe({
-      next: (session) => {
-        this.dashboardStats.activeSession = !!session;
-      },
-      error: (error) => {
+    // Load active session separately
+    this.sessionsService.getActiveSession().pipe(
+      takeUntil(this.destroy$),
+      catchError(error => {
         console.error('Error loading session:', error);
-      }
+        return [null];
+      })
+    ).subscribe(session => {
+      this.dashboardStats.activeSession = !!session;
+      this.cdr.markForCheck();
     });
+  }
+
+  private processDashboardData(data: any): void {
+    const { sales, expenses, varianceRequests } = data;
+    
+    // Process sales data
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    
+    const userDepotId = this.currentUser?.depotId;
+    const filteredSales = userDepotId ? sales.filter((sale: any) => sale.depotId === userDepotId) : sales;
+    
+    const todaySales = filteredSales.filter((sale: any) => {
+      const saleDate = new Date(sale.createdAt);
+      saleDate.setHours(0, 0, 0, 0);
+      return saleDate.getTime() === today.getTime() && sale.status === 'COMPLETED';
+    });
+
+    this.dashboardStats.todaySales = todaySales.reduce((sum: number, sale: any) => sum + Number(sale.finalTotal), 0);
+    this.dashboardStats.todayTransactions = todaySales.length;
+
+    // Compute yesterday metrics
+    const yesterdaySales = filteredSales.filter((sale: any) => {
+      const saleDate = new Date(sale.createdAt);
+      saleDate.setHours(0, 0, 0, 0);
+      return saleDate.getTime() === yesterday.getTime() && sale.status === 'COMPLETED';
+    });
+
+    const yesterdaySalesTotal = yesterdaySales.reduce((sum: number, sale: any) => sum + Number(sale.finalTotal), 0);
+    const yesterdayTransactions = yesterdaySales.length;
+
+    this.salesVsYesterdayPct = this.computePercentageChange(this.dashboardStats.todaySales, yesterdaySalesTotal);
+    this.transactionsVsYesterdayPct = this.computePercentageChange(this.dashboardStats.todayTransactions, yesterdayTransactions);
+    
+    // Count pending approvals
+    this.pendingGiftCount = filteredSales.filter((sale: any) => sale.status === 'PENDING_ADMIN').length;
+    
+    const filteredExpenses = userDepotId ? (expenses || []).filter((e: any) => e.depotId === userDepotId) : (expenses || []);
+    this.pendingExpenseCount = filteredExpenses.filter((e: any) => !e.isApproved).length;
+    
+    const filteredRequests = userDepotId ? (varianceRequests || []).filter((r: any) => r.session?.depot?.id === userDepotId) : (varianceRequests || []);
+    this.pendingClotureCount = filteredRequests.length;
+    
+    this.updatePendingApprovals();
   }
 
   private updatePendingApprovals(): void {
@@ -341,6 +379,7 @@ export class HomeComponent implements OnInit {
     } else {
       this.router.navigate([route]);
     }
+    this.cdr.markForCheck();
   }
 
   onHistoriqueChoiceSelected(choice: 'VENTES' | 'POINTAGE'): void {
@@ -350,10 +389,12 @@ export class HomeComponent implements OnInit {
     } else if (choice === 'POINTAGE') {
       this.router.navigate(['/pointage']);
     }
+    this.cdr.markForCheck();
   }
 
   onHistoriqueChoiceClosed(): void {
     this.showHistoriqueChoiceDialog = false;
+    this.cdr.markForCheck();
   }
 
   onExpenseActionSelected(actionId: string): void {
@@ -377,6 +418,7 @@ export class HomeComponent implements OnInit {
 
   onExpenseDialogClosed(): void {
     this.showExpenseActionDialog = false;
+    this.cdr.markForCheck();
   }
 
   onClientActionSelected(actionId: string): void {
@@ -403,6 +445,7 @@ export class HomeComponent implements OnInit {
 
   onClientDialogClosed(): void {
     this.showClientActionDialog = false;
+    this.cdr.markForCheck();
   }
 
   onApprovalsActionSelected(actionId: string): void {
@@ -416,6 +459,7 @@ export class HomeComponent implements OnInit {
 
   onApprovalsDialogClosed(): void {
     this.showApprovalsActionDialog = false;
+    this.cdr.markForCheck();
   }
 
   onSupplierActionSelected(actionId: string): void {
@@ -439,6 +483,7 @@ export class HomeComponent implements OnInit {
 
   onSupplierDialogClosed(): void {
     this.showSupplierActionDialog = false;
+    this.cdr.markForCheck();
   }
 
   onBillingCenterActionSelected(actionId: string): void {
@@ -462,6 +507,7 @@ export class HomeComponent implements OnInit {
 
   onBillingCenterDialogClosed(): void {
     this.showBillingCenterActionDialog = false;
+    this.cdr.markForCheck();
   }
 
   onSettingsActionSelected(actionId: string): void {
@@ -482,6 +528,7 @@ export class HomeComponent implements OnInit {
 
   onSettingsDialogClosed(): void {
     this.showSettingsActionDialog = false;
+    this.cdr.markForCheck();
   }
 
   onEnterpriseActionSelected(actionId: string): void {
@@ -495,6 +542,7 @@ export class HomeComponent implements OnInit {
 
   onEnterpriseDialogClosed(): void {
     this.showEnterpriseActionDialog = false;
+    this.cdr.markForCheck();
   }
 
 
@@ -520,17 +568,26 @@ export class HomeComponent implements OnInit {
   }
 
   loadSettings(): void {
-    this.settingsService.getSettings().subscribe({
-      next: (settings) => {
+    this.settingsService.getSettings().pipe(
+      takeUntil(this.destroy$),
+      catchError(error => {
+        console.error('Error loading settings:', error);
+        return [];
+      })
+    ).subscribe(settings => {
+      if (settings) {
         this.appSettings = settings;
         this.companyName = settings.companyName || 'PoS Pâtisserie';
         this.companyLogo = settings.logoUrl ? this.settingsService.getAbsoluteLogoUrl(settings.logoUrl) : '';
-      },
-      error: (error) => {
-        console.error('Error loading settings:', error);
-        // Keep default values
+        this.logoLoadError = false; // Reset error state when loading new settings
+        this.cdr.markForCheck();
       }
     });
+  }
+
+  onLogoError(): void {
+    this.logoLoadError = true;
+    this.cdr.markForCheck();
   }
 
   private computePercentageChange(currentValue: number, previousValue: number): number {

@@ -12,6 +12,7 @@ import { environment } from '../../environments/environment';
 @Component({
   selector: 'app-approvals',
   templateUrl: './approvals.component.html',
+  styleUrls: ['./approvals.component.css'],
   standalone: false
 })
 export class ApprovalsComponent implements OnInit {

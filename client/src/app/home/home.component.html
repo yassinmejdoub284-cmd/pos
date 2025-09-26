@@ -1,23 +1,9 @@
-  <div class="min-h-screen bg-gradient-to-br from-amber-50 via-violet-50 to-amber-100 relative overflow-hidden">
-  <!-- CRAZY ANIMATED PARTICLE SYSTEM -->
+  <div class="min-h-screen bg-gradient-to-br from-amber-50 via-violet-50 to-amber-100 relative">
+  <!-- Simplified Background -->
   <div class="absolute inset-0 overflow-hidden">
-    <!-- Floating Orbs with Organic Movement -->
-    <div class="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-amber-300 via-pink-300 to-violet-300 rounded-full mix-blend-multiply filter blur-2xl opacity-40 float-organic-1"></div>
-    <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-violet-300 via-amber-300 to-cyan-300 rounded-full mix-blend-multiply filter blur-2xl opacity-35 float-organic-2"></div>
-    <div class="absolute top-40 left-1/2 w-72 h-72 bg-gradient-to-br from-pink-300 via-rose-300 to-amber-300 rounded-full mix-blend-multiply filter blur-2xl opacity-30 float-organic-3"></div>
-    
-    <!-- Static Prismatic Particles -->
-    <div class="absolute top-1/4 left-1/4 w-4 h-4 bg-gradient-to-r from-amber-400 via-pink-400 to-violet-400 rounded-full opacity-60"></div>
-    <div class="absolute top-3/4 right-1/4 w-3 h-3 bg-gradient-to-r from-violet-400 via-cyan-400 to-amber-400 rounded-full opacity-50"></div>
-    <div class="absolute bottom-1/4 left-1/3 w-5 h-5 bg-gradient-to-r from-pink-400 via-rose-400 to-violet-400 rounded-full opacity-40"></div>
-    
-    <!-- Static Cyberpunk Grid Lines -->
-    <div class="absolute inset-0 opacity-10">
-      <div class="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
-      <div class="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-violet-400 to-transparent"></div>
-      <div class="absolute top-0 left-0 w-px h-full bg-gradient-to-b from-transparent via-pink-400 to-transparent"></div>
-      <div class="absolute top-0 right-0 w-px h-full bg-gradient-to-b from-transparent via-cyan-400 to-transparent"></div>
-    </div>
+    <!-- Static Background Orbs - No Animation -->
+    <div class="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-amber-300/20 via-pink-300/20 to-violet-300/20 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-violet-300/20 via-amber-300/20 to-cyan-300/20 rounded-full blur-3xl"></div>
   </div>
 
   <!-- COMPACT MOBILE-OPTIMIZED HEADER -->
@@ -33,18 +19,19 @@
           <div class="relative">
             <div class="w-auto h-8 sm:h-14 flex items-center justify-center overflow-hidden">
               <!-- Company Logo Image -->
-              <img *ngIf="companyLogo" title="Logo de la société"
+              <img *ngIf="companyLogo && !logoLoadError" 
+                   title="Logo de la société"
                    [src]="companyLogo" 
                    [alt]="companyName + ' Logo'"
-                   class="w-full h-full object-contain rounded-lg sm:rounded-xl">
-              <!-- Fallback SVG Icon -->
-              <svg *ngIf="!companyLogo" 
-                   class="w-4 h-4 sm:w-5 sm:h-5 text-white" 
-                   fill="none" 
-                   stroke="currentColor" 
-                   viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-              </svg>
+                   class="w-full h-full object-contain rounded-lg sm:rounded-xl"
+                   (error)="onLogoError()">
+               <!-- Fallback SVG Icon -->
+               <svg *ngIf="!companyLogo || logoLoadError" 
+                    class="w-full h-full text-amber-600" 
+                    fill="currentColor" 
+                    viewBox="0 0 24 24">
+                 <path d="M12 2L2 7L12 12L22 7L12 2ZM2 17L12 22L22 17M2 12L12 17L22 12"/>
+               </svg>
             </div>
             <!-- Subtle glow -->
             <div class="absolute inset-0 bg-gradient-to-br from-amber-600 to-pink-600 rounded-lg sm:rounded-xl opacity-5 blur-sm"></div>
@@ -152,17 +139,14 @@
           </div>
           
           <!-- LARGE CAISSE ACTION BUTTON -->
-          <div class="bg-white/20 backdrop-blur-2xl rounded-2xl p-6 border-2 border-amber-300/30 shadow-2xl active:scale-95 active:shadow-3xl transition-all duration-300 h-full w-full flex flex-col items-center justify-center overflow-hidden neumorphic-action-button relative z-20">
+          <div class="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-amber-300/30 shadow-lg active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center relative">
             
             <!-- LARGE ICON CONTAINER -->
-            <div class="relative w-20 h-20 bg-gradient-to-br rounded-2xl flex items-center justify-center mb-6 shadow-2xl neumorphic-icon" 
+            <div class="relative w-20 h-20 bg-gradient-to-br rounded-2xl flex items-center justify-center mb-6 shadow-lg" 
                  [ngClass]="getFilteredActions()[0].color">
               
-              <!-- Static NEON RING -->
-              <div class="absolute inset-0 rounded-2xl border-2 border-transparent bg-gradient-to-r from-white/30 via-white/60 to-white/30 opacity-60 cyberpunk-ring"></div>
-              
-              <!-- ICON WITH GLOW -->
-              <svg class="w-10 h-10 text-white relative z-10 drop-shadow-2xl icon-glow" 
+              <!-- ICON -->
+              <svg class="w-10 h-10 text-white" 
                    [attr.fill]="getFilteredActions()[0].id === 'caisse' ? 'currentColor' : 'none'" 
                    [attr.stroke]="getFilteredActions()[0].id === 'caisse' ? 'none' : 'currentColor'" 
                    [attr.viewBox]="getFilteredActions()[0].id === 'caisse' ? '0 0 496 496' : '0 0 24 24'" 
@@ -171,22 +155,13 @@
               </svg>
             </div>
             
-            <span class="text-2xl font-black text-gray-800 text-center leading-tight mb-2 tracking-wide brutalist-text">
+            <span class="text-2xl font-black text-gray-800 text-center leading-tight mb-2 tracking-wide">
               {{ getFilteredActions()[0].title }}
             </span>
             
-            <!-- LARGE CYBERPUNK DESCRIPTION -->
             <p class="text-xs text-gray-400 text-center font-bold uppercase tracking-widest">
               {{ getFilteredActions()[0].description }}
             </p>
-            
-            <!-- ACTIVE PRESS MORPHING EFFECT -->
-            <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 active:opacity-30 transition-opacity duration-150" 
-                 [ngClass]="getFilteredActions()[0].color"></div>
-            
-            <!-- Static FLOATING PARTICLES -->
-            <div class="absolute top-2 right-2 w-2 h-2 bg-gradient-to-r from-amber-400 to-pink-400 rounded-full opacity-60"></div>
-            <div class="absolute bottom-2 left-2 w-1 h-1 bg-gradient-to-r from-violet-400 to-cyan-400 rounded-full opacity-40"></div>
           </div>
         </div>
         
@@ -196,23 +171,20 @@
              class="relative group h-full w-full">
           
           <!-- ACTION BUTTON -->
-          <div class="relative bg-white/20 backdrop-blur-2xl rounded-2xl p-4 border-2 border-amber-300/30 shadow-2xl active:scale-95 active:shadow-3xl transition-all duration-300 h-full w-full flex flex-col items-center justify-center overflow-hidden neumorphic-action-button">
+          <div class="relative bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-amber-300/30 shadow-lg active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center">
             <!-- Pending Approvals Badge -->
             <div *ngIf="action.id === 'approvals' && (dashboardStats?.pendingApprovals ?? 0) > 0" class="absolute -top-1 -right-1 z-30">
-              <span class="inline-flex m-3 items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold text-white bg-rose-500 shadow-md ring-2 ring-white">
+              <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold text-white bg-rose-500 shadow-md ring-2 ring-white">
                 {{ dashboardStats.pendingApprovals }}
               </span>
             </div>
             
             <!-- ICON CONTAINER -->
-            <div class="relative w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center mb-4 shadow-2xl neumorphic-icon" 
+            <div class="relative w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center mb-4 shadow-lg" 
                  [ngClass]="action.color">
               
-              <!-- Static NEON RING -->
-              <div class="absolute inset-0 rounded-2xl border-2 border-transparent bg-gradient-to-r from-white/30 via-white/60 to-white/30 opacity-60 cyberpunk-ring"></div>
-              
-              <!-- ICON WITH GLOW -->
-              <svg class="w-8 h-8 text-white relative z-10 drop-shadow-2xl icon-glow" 
+              <!-- ICON -->
+              <svg class="w-8 h-8 text-white" 
                    [attr.fill]="action.id === 'caisse' ? 'currentColor' : 'none'" 
                    [attr.stroke]="action.id === 'caisse' ? 'none' : 'currentColor'" 
                    [attr.viewBox]="action.id === 'caisse' ? '0 0 496 496' : '0 0 24 24'" 
@@ -221,23 +193,13 @@
               </svg>
             </div>
             
-            <!-- BRUTALIST TITLE -->
-            <span class="text-lg font-black text-gray-800 text-center leading-tight mb-1 tracking-wide brutalist-text">
+            <span class="text-lg font-black text-gray-800 text-center leading-tight mb-1 tracking-wide">
               {{ action.title }}
             </span>
             
-            <!-- CYBERPUNK DESCRIPTION -->
             <p class="text-[10px] text-gray-400 text-center font-bold uppercase tracking-widest">
               {{ action.description }}
             </p>
-            
-            <!-- ACTIVE PRESS MORPHING EFFECT -->
-            <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 active:opacity-30 transition-opacity duration-150" 
-                 [ngClass]="action.color"></div>
-            
-            <!-- Static FLOATING PARTICLES -->
-            <div class="absolute top-2 right-2 w-2 h-2 bg-gradient-to-r from-amber-400 to-pink-400 rounded-full opacity-60"></div>
-            <div class="absolute bottom-2 left-2 w-1 h-1 bg-gradient-to-r from-violet-400 to-cyan-400 rounded-full opacity-40"></div>
           </div>
         </div>
       </div>
@@ -245,126 +207,16 @@
 
   </div>
 
-  <!-- INSANE LOADING OVERLAY -->
-  <div *ngIf="loading" class="fixed inset-0 bg-gradient-to-br from-amber-900/30 via-pink-900/20 to-violet-900/30 flex items-center justify-center z-50">
-    <div class="relative bg-white/20 backdrop-blur-2xl rounded-3xl p-8 shadow-2xl border border-amber-300/30 neumorphic-container">
-      <!-- Static Holographic Background -->
-      <div class="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-pink-500/10 to-violet-500/10 rounded-3xl"></div>
-      <div class="flex items-center space-x-4 relative z-10">
-        <!-- Spinning Neon Ring -->
-        <div class="relative">
-          <div class="animate-spin rounded-full h-12 w-12 border-4 border-transparent bg-gradient-to-r from-amber-400 via-pink-400 to-violet-400 cyberpunk-spinner"></div>
-          <div class="absolute inset-0 rounded-full border-2 border-amber-300/30"></div>
-        </div>
-        <span class="text-gray-800 font-black text-xl tracking-wide holographic-text">CHARGEMENT DES DONNÉES...</span>
+  <!-- Loading Overlay -->
+  <div *ngIf="loading" class="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
+      <div class="flex items-center space-x-4">
+        <div class="animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-amber-500"></div>
+        <span class="text-gray-800 font-semibold text-lg">Chargement...</span>
       </div>
     </div>
   </div>
 
-  <!-- CUSTOM CSS CLASSES -->
-  <style>
-    /* Organic floating animations */
-    .float-organic-1 {
-      animation: float-organic 8s ease-in-out infinite;
-    }
-    
-    .float-organic-2 {
-      animation: float-organic 12s ease-in-out infinite reverse;
-      animation-delay: 2s;
-    }
-    
-    .float-organic-3 {
-      animation: float-organic 10s ease-in-out infinite;
-      animation-delay: 4s;
-    }
-    
-    @keyframes float-organic {
-      0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
-      25% { transform: translate(20px, -30px) rotate(90deg) scale(1.1); }
-      50% { transform: translate(-10px, -20px) rotate(180deg) scale(0.9); }
-      75% { transform: translate(-30px, 10px) rotate(270deg) scale(1.05); }
-    }
-    
-    /* Neumorphic effects */
-    .neumorphic-header {
-      box-shadow: 0 8px 32px rgba(147, 51, 234, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    }
-    
-    .neumorphic-logo {
-      box-shadow: 20px 20px 60px rgba(147, 51, 234, 0.2), -20px -20px 60px rgba(255, 255, 255, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
-    }
-    
-    .neumorphic-button {
-      box-shadow: 8px 8px 16px rgba(147, 51, 234, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
-    }
-    
-    .neumorphic-container {
-      box-shadow: 0 8px 32px rgba(147, 51, 234, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    }
-    
-    .neumorphic-card-emerald {
-      box-shadow: 8px 8px 16px rgba(16, 185, 129, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
-    }
-    
-    .neumorphic-card-blue {
-      box-shadow: 8px 8px 16px rgba(59, 130, 246, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
-    }
-    
-    .neumorphic-card-orange {
-      box-shadow: 8px 8px 16px rgba(249, 115, 22, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
-    }
-    
-    .neumorphic-card-rose {
-      box-shadow: 8px 8px 16px rgba(244, 63, 94, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
-    }
-    
-    .neumorphic-action-button {
-      box-shadow: 12px 12px 24px rgba(147, 51, 234, 0.15), -12px -12px 24px rgba(255, 255, 255, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    }
-    
-    .neumorphic-icon {
-      box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.2), -8px -8px 16px rgba(255, 255, 255, 0.8);
-    }
-    
-    /* Glassmorphic effects */
-    .glassmorphic-card {
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    }
-    
-    /* Cyberpunk effects */
-    .cyberpunk-ring {
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    }
-    
-    .cyberpunk-border {
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    }
-    
-    .cyberpunk-spinner {
-      animation-duration: 1s;
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    }
-    
-    /* Holographic effects */
-    .holographic-text {
-      text-shadow: 0 0 20px rgba(147, 51, 234, 0.5);
-    }
-    
-    /* Brutalist effects */
-    .brutalist-text {
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* Icon glow */
-    .icon-glow {
-      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
-    }
-    
-    /* Organic overlay */
-    .organic-overlay {
-      background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(147, 51, 234, 0.1) 0%, transparent 50%);
-    }
-  </style>
 
   <!-- Expense Action Dialog -->
   <app-expense-action-dialog 
