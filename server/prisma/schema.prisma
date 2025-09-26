@@ -98,6 +98,7 @@ model Depot {
   rebutRecords RebutRecord[]
   // Attendance
   attendanceDays AttendanceDay[]
+  produitsDeCaisse ProduitDeCaisse[]
 
   @@map("depots")
 }
@@ -238,9 +239,12 @@ model ProduitDeCaisse {
   name        String   @db.VarChar(200)
   price       Decimal  @db.Decimal(10, 2)
   productIds  Json     @map("product_ids") // Array of product IDs
+  depotId     Int      @map("depot_id")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+
+  depot       Depot    @relation(fields: [depotId], references: [id], onDelete: Cascade)
 
   @@map("produits_de_caisse")
 }
@@ -1234,4 +1238,50 @@ model InvoiceRequest {
   invoice         Invoice?              @relation(fields: [invoiceId], references: [id])
   
   @@map("invoice_requests")
-} 
+}
+
+// Vehicle management models
+model VehicleBrand {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  models    Json     // Array of model names
+  logoUrl   String?  @db.VarChar(255)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  vehicles  Vehicle[]
+
+  @@map("vehicle_brands")
+}
+
+model Vehicle {
+  id        Int      @id @default(autoincrement())
+  matricule String   @unique @db.VarChar(20) // e.g., "206 TU 6520"
+  model     String   @db.VarChar(100)
+  brandId   Int      @map("brand_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  brand     VehicleBrand @relation(fields: [brandId], references: [id])
+
+  @@map("vehicles")
+}
+
+model Driver {
+  id            Int      @id @default(autoincrement())
+  nom           String   @db.VarChar(100)
+  prenom        String   @db.VarChar(100)
+  cin           String   @unique @db.VarChar(8)
+  phone         String?  @db.VarChar(20)
+  email         String?  @db.VarChar(100)
+  address       String?  @db.Text
+  licenseNumber String?  @db.VarChar(50)
+  licenseExpiry DateTime?
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("drivers")
+}

@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, OnInit, signal, inject } from '
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ProduitDeCaisse } from '../../../core/models/produit-de-caisse.model';
 import { Product } from '../../../core/models/product.model';
+import { Depot } from '../../../core/models/depot.model';
 import { ProduitsDeCaisseService } from '../../../core/services/produits-de-caisse.service';
 
 @Component({
@@ -22,11 +23,28 @@ export class ProduitsDeCaisseFormComponent implements OnInit {
   loading = signal(false);
   error = signal('');
   selectedProducts = signal<number[]>([]);
+  selectedDepot = signal<Depot | null>(null);
 
   ngOnInit(): void {
     this.initializeForm();
     if (this.produit) {
       this.selectedProducts.set([...this.produit.productIds]);
+      // Set selected depot if editing existing produit
+      if (this.produit.depot) {
+        // Convert the partial depot object to a full Depot object
+        const fullDepot: Depot = {
+          id: this.produit.depot.id,
+          name: this.produit.depot.name,
+          code: this.produit.depot.code,
+          type: this.produit.depot.type as any,
+          address: '', // Default values for missing properties
+          city: '',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        this.selectedDepot.set(fullDepot);
+      }
     }
     
     // Update filtered products when search changes
@@ -96,8 +114,12 @@ export class ProduitsDeCaisseFormComponent implements OnInit {
     target.src = '/images/placeholder-product.svg';
   }
 
+  onDepotSelected(depot: Depot | null): void {
+    this.selectedDepot.set(depot);
+  }
+
   onSubmit(): void {
-    if (this.form.valid && this.selectedProducts().length > 0) {
+    if (this.form.valid && this.selectedProducts().length > 0 && this.selectedDepot()) {
       this.loading.set(true);
       this.error.set('');
 
@@ -106,6 +128,7 @@ export class ProduitsDeCaisseFormComponent implements OnInit {
         name: formData.name,
         price: formData.price,
         productIds: this.selectedProducts(),
+        depotId: this.selectedDepot()!.id,
         isActive: formData.isActive
       };
 
@@ -125,7 +148,7 @@ export class ProduitsDeCaisseFormComponent implements OnInit {
         }
       });
     } else {
-      this.error.set('Veuillez remplir tous les champs et sélectionner au moins un produit');
+      this.error.set('Veuillez remplir tous les champs, sélectionner un dépôt et au moins un produit');
     }
   }
 

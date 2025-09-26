@@ -66,6 +66,46 @@
       </div>
     </a>
 
+    <!-- Vehicles Card -->
+    <a routerLink="/stock/vehicles" class="group">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-emerald-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        
+        <div class="relative z-10">
+          <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M8 5a1 1 0 011 1v1h1a1 1 0 110 2H9v1a1 1 0 11-2 0V9H6a1 1 0 110-2h1V6a1 1 0 011-1zM2 2a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V4a2 2 0 00-2-2H2zm16 2v12H2V4h16z"></path>
+            </svg>
+          </div>
+          
+          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-emerald-600 transition-colors duration-300">Gestion des Véhicules</h3>
+          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Matricules et modèles</p>
+        </div>
+        
+        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-emerald-400/20 transition-all duration-300"></div>
+      </div>
+    </a>
+
+    <!-- Drivers Card -->
+    <a routerLink="/stock/drivers" class="group">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-blue-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        
+        <div class="relative z-10">
+          <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
+            </svg>
+          </div>
+          
+          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors duration-300">Gestion des Chauffeurs</h3>
+          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Nom, prénom et CIN</p>
+        </div>
+        
+        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-blue-400/20 transition-all duration-300"></div>
+      </div>
+    </a>
+
     <!-- Depot Cards -->
     <ng-container *ngFor="let depot of depots">
       <div (click)="openDepotChoiceModal(depot)" class="group cursor-pointer">

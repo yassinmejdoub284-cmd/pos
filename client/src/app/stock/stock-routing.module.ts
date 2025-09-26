@@ -36,7 +36,9 @@ const routes: Routes = [
   { path: 'branch-inventory/:depotId', loadChildren: () => import('./branch-inventory/branch-inventory.module').then(m => m.BranchInventoryModule) },
   { path: 'entry/:depotId', loadChildren: () => import('./entry/entry.module').then(m => m.EntryModule) },
   { path: 'scan/:depotId', loadChildren: () => import('./scan-reception/scan-reception.module').then(m => m.ScanReceptionModule) },
-  { path: 'produits-de-caisse', loadChildren: () => import('./produits-de-caisse/produits-de-caisse.module').then(m => m.ProduitsDeCaisseModule) }
+  { path: 'produits-de-caisse', loadChildren: () => import('./produits-de-caisse/produits-de-caisse.module').then(m => m.ProduitsDeCaisseModule) },
+  { path: 'vehicles', loadChildren: () => import('./vehicles/vehicles.module').then(m => m.VehiclesModule) },
+  { path: 'drivers', loadChildren: () => import('./drivers/drivers.module').then(m => m.DriversModule) }
 ];
 
 @NgModule({

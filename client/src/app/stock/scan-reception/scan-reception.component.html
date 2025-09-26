@@ -1,33 +1,53 @@
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4">
-  <div class="max-w-4xl mx-auto space-y-4">
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow border border-slate-200/50">
-      <div class="flex items-center justify-between">
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-2 sm:p-4">
+  <div class="max-w-4xl mx-auto space-y-3 sm:space-y-4">
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-3 sm:p-4 shadow border border-slate-200/50">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-gradient-to-br from-fuchsia-500 to-pink-600 rounded-lg flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-fuchsia-500 to-pink-600 rounded-lg flex items-center justify-center">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h4M17 7h4M3 17h4M17 17h4M6 7v10M10 7v10M14 7v10"></path>
             </svg>
           </div>
           <div>
-            <span class="text-xl font-bold text-slate-800">Scanner & Réception</span>
-            <div class="text-slate-600 text-sm">Scanner les produits transférés et les enregistrer</div>
+            <span class="text-lg sm:text-xl font-bold text-slate-800">Scanner & Réception</span>
+            <div class="text-slate-600 text-xs sm:text-sm">Scanner les produits transférés et les enregistrer</div>
           </div>
+        </div>
+        
+        <!-- Session Document Type Display -->
+        <div *ngIf="sessionDocumentType" class="flex items-center gap-2">
+          <span class="text-xs sm:text-sm text-slate-600 hidden sm:inline">Type de document:</span>
+          <div class="flex items-center gap-2 px-2 sm:px-3 py-1 rounded-lg"
+               [class]="sessionDocumentType === 'sortie' ? 'bg-blue-100 text-blue-800' : sessionDocumentType === 'transfert' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'">
+            <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path *ngIf="sessionDocumentType === 'sortie' || sessionDocumentType === 'transfert'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+              <path *ngIf="sessionDocumentType === 'livraison'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+            </svg>
+            <span class="text-xs sm:text-sm font-medium">
+              {{ sessionDocumentType === 'sortie' ? 'Bon de sortie' : sessionDocumentType === 'transfert' ? 'Bon de transfert' : 'Bon de livraison' }}
+            </span>
+          </div>
+          <button (click)="showDocumentTypeSelection()" title="Changer le type de document" class="p-1 hover:bg-slate-100 rounded transition">
+            <svg class="w-3 h-3 sm:w-4 sm:h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+            </svg>
+          </button>
         </div>
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-4 space-y-4">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="md:col-span-1">
+    <div class="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4 space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div class="lg:col-span-1">
           <label class="block text-sm text-slate-600 mb-2">Dépôt source (optionnel)</label>
-          <select [(ngModel)]="fromDepotId" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+          <select [(ngModel)]="fromDepotId" title="Sélectionner le dépôt source" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">
             <option [ngValue]="null">Indifférent</option>
             <option *ngFor="let d of depots()" [ngValue]="d.id">{{ d.name }} ({{ d.type }})</option>
           </select>
         </div>
-        <div class="md:col-span-2 flex items-end gap-2">
-          <input [(ngModel)]="manualBarcode" (keyup.enter)="submitManual()" placeholder="Saisir manuellement" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
-          <button (click)="submitManual()" class="px-4 py-2 bg-slate-800 text-white rounded-xl">Valider</button>
+        <div class="lg:col-span-2 flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+          <input [(ngModel)]="manualBarcode" (keyup.enter)="submitManual()" placeholder="Saisir manuellement" class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+          <button (click)="submitManual()" class="px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-medium">Valider</button>
         </div>
       </div>
 
@@ -35,39 +55,39 @@
       <div class="relative rounded-2xl overflow-hidden bg-black">
         <video id="scanVideo" class="w-full aspect-video object-cover" (click)="tapToFocus($event)"></video>
         <div class="absolute inset-0 pointer-events-none">
-          <div class="absolute inset-10 border-2 border-fuchsia-500/70 rounded-xl"></div>
+          <div class="absolute inset-4 sm:inset-10 border-2 border-fuchsia-500/70 rounded-xl"></div>
           <!-- Scanning guide lines -->
-          <div class="absolute inset-10 flex items-center justify-center">
-            <div class="w-32 h-1 bg-fuchsia-500/50 rounded-full animate-pulse"></div>
+          <div class="absolute inset-4 sm:inset-10 flex items-center justify-center">
+            <div class="w-20 sm:w-32 h-1 bg-fuchsia-500/50 rounded-full animate-pulse"></div>
           </div>
-          <div class="absolute inset-10 flex items-center justify-center">
-            <div class="h-32 w-1 bg-fuchsia-500/50 rounded-full animate-pulse"></div>
+          <div class="absolute inset-4 sm:inset-10 flex items-center justify-center">
+            <div class="h-20 sm:h-32 w-1 bg-fuchsia-500/50 rounded-full animate-pulse"></div>
           </div>
           <!-- Corner guides -->
-          <div class="absolute top-10 left-10 w-6 h-6 border-l-2 border-t-2 border-fuchsia-500"></div>
-          <div class="absolute top-10 right-10 w-6 h-6 border-r-2 border-t-2 border-fuchsia-500"></div>
-          <div class="absolute bottom-10 left-10 w-6 h-6 border-l-2 border-b-2 border-fuchsia-500"></div>
-          <div class="absolute bottom-10 right-10 w-6 h-6 border-r-2 border-b-2 border-fuchsia-500"></div>
+          <div class="absolute top-4 left-4 sm:top-10 sm:left-10 w-4 h-4 sm:w-6 sm:h-6 border-l-2 border-t-2 border-fuchsia-500"></div>
+          <div class="absolute top-4 right-4 sm:top-10 sm:right-10 w-4 h-4 sm:w-6 sm:h-6 border-r-2 border-t-2 border-fuchsia-500"></div>
+          <div class="absolute bottom-4 left-4 sm:bottom-10 sm:left-10 w-4 h-4 sm:w-6 sm:h-6 border-l-2 border-b-2 border-fuchsia-500"></div>
+          <div class="absolute bottom-4 right-4 sm:bottom-10 sm:right-10 w-4 h-4 sm:w-6 sm:h-6 border-r-2 border-b-2 border-fuchsia-500"></div>
         </div>
 
         <!-- Top controls -->
-        <div class="absolute top-4 left-4 right-4 flex items-center justify-between">
-          <button (click)="toggleFacingMode()"
-            class="pointer-events-auto w-10 h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/70 transition">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 flex items-center justify-between">
+          <button (click)="toggleFacingMode()" title="Changer de caméra"
+            class="pointer-events-auto w-8 h-8 sm:w-10 sm:h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/70 transition">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h4l2-3h6l2 3h4v10H3V7z"></path>
             </svg>
           </button>
-          <div class="flex gap-2">
-            <button (click)="restartCamera()"
-              class="pointer-events-auto w-10 h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/70 transition">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex gap-1 sm:gap-2">
+            <button (click)="restartCamera()" title="Redémarrer la caméra"
+              class="pointer-events-auto w-8 h-8 sm:w-10 sm:h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/70 transition">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
               </svg>
             </button>
-            <button (click)="flashEnabled = !flashEnabled"
-              class="pointer-events-auto w-10 h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/70 transition">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button (click)="flashEnabled = !flashEnabled" title="Activer/Désactiver le flash"
+              class="pointer-events-auto w-8 h-8 sm:w-10 sm:h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/70 transition">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
               </svg>
             </button>
@@ -75,12 +95,13 @@
         </div>
 
         <!-- Big shutter button -->
-        <div class="absolute inset-0 flex items-end justify-center pb-6">
+        <div class="absolute inset-0 flex items-end justify-center pb-4 sm:pb-6">
           <button 
             (click)="captureFromVideo()"
             [disabled]="!isCameraReady || isCapturing"
-            class="pointer-events-auto w-16 h-16 rounded-full bg-white/80 text-slate-800 shadow-xl flex items-center justify-center active:scale-95 transition disabled:opacity-60 disabled:active:scale-100 relative">
-            <div *ngIf="isCapturing" class="w-6 h-6 border-2 border-slate-700 border-t-transparent rounded-full animate-spin"></div>
+            title="Capturer une photo"
+            class="pointer-events-auto w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-white/80 text-slate-800 shadow-xl flex items-center justify-center active:scale-95 transition disabled:opacity-60 disabled:active:scale-100 relative">
+            <div *ngIf="isCapturing" class="w-4 h-4 sm:w-6 sm:h-6 border-2 border-slate-700 border-t-transparent rounded-full animate-spin"></div>
             <!-- Cooldown indicator -->
             <div *ngIf="!isCapturing && isCameraReady" class="absolute inset-0 rounded-full border-2 border-fuchsia-500/30"></div>
           </button>
@@ -89,7 +110,7 @@
 
       <!-- Optional: photo from file if camera blocked -->
       <div *ngIf="!useCamera" class="flex items-center gap-2">
-        <input #photoInput type="file" accept="image/*;capture=camera" (change)="onImageCapture($event)" class="block w-full text-sm text-slate-700" />
+        <input #photoInput type="file" accept="image/*;capture=camera" (change)="onImageCapture($event)" title="Sélectionner une image" class="block w-full text-sm text-slate-700" />
         <button (click)="photoInput.click()" class="px-4 py-2 bg-fuchsia-600 text-white rounded-xl">Prendre une photo</button>
       </div>
 
@@ -123,80 +144,644 @@
       </div>
 
       <!-- Scanned Items List -->
-      <div *ngIf="scannedItems.length > 0" class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
-        <div class="flex items-center justify-between mb-3">
+      <div *ngIf="scannedItems.length > 0" class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3 sm:p-4 border border-green-200">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
           <div class="flex items-center gap-2">
-            <div class="w-6 h-6 bg-green-600 rounded-lg flex items-center justify-center">
+            <div class="w-5 h-5 sm:w-6 sm:h-6 bg-green-600 rounded-lg flex items-center justify-center">
               <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
               </svg>
             </div>
-            <span class="font-semibold text-slate-800">Articles scannés</span>
-            <span class="text-sm text-slate-600">({{ scannedItems.length }})</span>
+            <span class="font-semibold text-slate-800 text-sm sm:text-base">Articles scannés</span>
+            <span class="text-xs sm:text-sm text-slate-600">({{ scannedItems.length }})</span>
           </div>
-          <button (click)="clearScannedItems()" 
-            class="px-3 py-1 text-xs bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition">
-            Effacer tout
-          </button>
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <button *ngIf="scannedItems.length > 0 && sessionDocumentType" 
+              (click)="printDocument()" 
+              class="px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+              </svg>
+              <span class="hidden sm:inline">Générer {{ sessionDocumentType === 'sortie' ? 'Bon de sortie' : sessionDocumentType === 'transfert' ? 'Bon de transfert' : 'Bon de livraison' }}</span>
+              <span class="sm:hidden">Générer</span>
+            </button>
+            <button (click)="clearScannedItems()" 
+              class="px-3 py-1 text-xs bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition">
+              Effacer tout
+            </button>
+          </div>
         </div>
         <div class="space-y-2">
           <div *ngFor="let item of scannedItems" 
-            class="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <span class="text-green-600 font-bold text-sm">{{ item.articleId }}</span>
+            class="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-white rounded-lg border border-green-200 hover:border-green-300 transition-all duration-200 hover:shadow-sm">
+            <div class="flex items-center gap-3 flex-1">
+              <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center shadow-sm">
+                <span class="text-white font-bold text-xs sm:text-sm">{{ item.articleId }}</span>
               </div>
-              <div>
-                <span class="font-semibold text-slate-800">{{ item.productName }}</span>
-                <div class="text-sm text-slate-600">
+              
+              <div class="flex-1 min-w-0">
+                <span class="font-semibold text-slate-800 text-sm sm:text-base block truncate">{{ item.productName }}</span>
+                <div class="text-xs sm:text-sm text-slate-600">
                   <span class="font-mono">Qté: {{ item.quantity }}kg</span>
-                  <span class="mx-2">•</span>
+                  <span class="mx-1 sm:mx-2">•</span>
                   <span class="font-mono">Colis: {{ item.count }}</span>
                 </div>
                 <div class="text-xs text-slate-500">{{ item.lastScanned | date:'HH:mm:ss' }}</div>
               </div>
             </div>
-            <button (click)="removeScannedItem(item.articleId)" 
-              class="px-3 py-1 text-xs bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition">
-              x
-            </button>
+            
+            <div class="flex items-center gap-2">
+              <button (click)="showQuantityNumpadForItem(item)" 
+                class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white text-xs sm:text-sm font-medium rounded-lg hover:from-fuchsia-600 hover:to-pink-600 transition-all duration-200 shadow-sm hover:shadow-md active:scale-95">
+                <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                <span class="hidden sm:inline">Multiplier</span>
+                <span class="sm:hidden">×</span>
+              </button>
+              
+              <button (click)="removeScannedItem(item.articleId)" 
+                class="px-2 sm:px-3 py-1 text-xs bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition">
+                x
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Recent Scans -->
-      <div *ngIf="recentScans.length > 0" class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="w-6 h-6 bg-slate-600 rounded-lg flex items-center justify-center">
-            <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-          </div>
-          <span class="font-semibold text-slate-800">Scans récents</span>
+    </div>
+  </div>
+</div>
+
+<!-- Document Type Selection Modal -->
+<div *ngIf="showDocumentTypeModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <span class="text-lg font-semibold text-slate-800">Type de document</span>
+        <button (click)="closeDocumentTypeModal()" title="Fermer" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center hover:bg-slate-200 transition">
+          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <div *ngIf="currentBarcode" class="text-sm text-slate-600 mb-4">Code-barres scanné: {{ currentBarcode }}</div>
+        <div class="text-sm text-slate-700 mb-4">
+          {{ currentBarcode ? 'Que souhaitez-vous faire avec ce produit ?' : 'Choisissez le type de document pour cette session' }}
         </div>
-        <div class="space-y-2">
-          <div *ngFor="let scan of recentScans; let i = index" 
-            class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-            <div class="flex items-center gap-3">
-              <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-              </div>
-              <div>
-                <span class="font-mono text-sm text-slate-800">{{ scan.barcode }}</span>
-                <div class="text-xs text-slate-500">{{ scan.timestamp | date:'HH:mm:ss' }}</div>
-              </div>
+      </div>
+
+      <!-- Document Type Options -->
+      <div class="space-y-3">
+        <button (click)="selectDocumentType('sortie')" 
+          class="w-full p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-sm hover:shadow-md">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+              </svg>
             </div>
-            <button (click)="rescanBarcode(scan.barcode)" 
-              class="px-3 py-1 text-xs bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition">
-              Rescanner
-            </button>
+            <div class="text-left">
+              <div class="font-semibold">Bon de sortie</div>
+              <div class="text-sm opacity-90">Transférer vers un autre dépôt</div>
+            </div>
           </div>
-        </div>
+        </button>
+
+        <button (click)="selectDocumentType('transfert')" 
+          class="w-full p-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-sm hover:shadow-md">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+              </svg>
+            </div>
+            <div class="text-left">
+              <div class="font-semibold">Bon de transfert</div>
+              <div class="text-sm opacity-90">Transférer avec véhicule</div>
+            </div>
+          </div>
+        </button>
+
+        <button (click)="selectDocumentType('livraison')" 
+          class="w-full p-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+            </div>
+            <div class="text-left">
+              <div class="font-semibold">Bon de livraison</div>
+              <div class="text-sm opacity-90">Vendre à un client</div>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex gap-3 mt-6">
+        <button (click)="closeDocumentTypeModal()" class="flex-1 h-12 bg-slate-200 hover:bg-slate-300 rounded-xl font-semibold text-slate-700 transition">
+          Annuler
+        </button>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Depot Selection Modal for Bon de Sortie -->
+<div *ngIf="showDepotSelectionModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <span class="text-lg font-semibold text-slate-800">Sélectionner le dépôt de destination</span>
+        <button (click)="closeDepotSelectionModal()" title="Fermer" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center hover:bg-slate-200 transition">
+          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <div class="text-sm text-slate-600 mb-2">Code-barres: {{ currentBarcode }}</div>
+        <div class="text-sm text-slate-700 mb-4">Vers quel dépôt souhaitez-vous transférer ce produit ?</div>
+      </div>
+
+      <!-- Depot Selection Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+        <div 
+          *ngFor="let depot of availableDepots" 
+          (click)="selectDestinationDepot(depot)"
+          [class]="getDepotCardClasses(depot)"
+          class="cursor-pointer transition-all duration-200 hover:scale-105">
+          
+          <!-- Depot Logo -->
+          <div class="w-12 h-12 mx-auto mb-3 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
+            <img 
+              *ngIf="getDepotLogo(depot.id)" 
+              [src]="getDepotLogo(depot.id)" 
+              [alt]="depot.name + ' logo'"
+              title="Logo du dépôt"
+              class="w-full h-full object-cover"
+              (error)="onImageError($event)">
+            <div 
+              *ngIf="!getDepotLogo(depot.id)" 
+              class="w-full h-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+              </svg>
+            </div>
+          </div>
+          
+          <!-- Depot Info -->
+          <div class="text-center">
+            <h3 class="font-semibold text-slate-800 text-sm">{{ depot.name }}</h3>
+            <p class="text-xs text-slate-500">{{ depot.code }}</p>
+            <span class="inline-block px-2 py-1 text-xs rounded-full mt-1"
+                  [class]="getTypeBadgeClasses(depot.type)">
+              {{ getTypeLabel(depot.type) }}
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Selected Depot Display -->
+      <div *ngIf="selectedDestinationDepot" class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
+            <img 
+              *ngIf="getDepotLogo(selectedDestinationDepot.id)" 
+              [src]="getDepotLogo(selectedDestinationDepot.id)" 
+              [alt]="selectedDestinationDepot.name + ' logo'"
+              title="Logo du dépôt sélectionné"
+              class="w-full h-full object-cover"
+              (error)="onImageError($event)">
+            <div 
+              *ngIf="!getDepotLogo(selectedDestinationDepot.id)" 
+              class="w-full h-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <span class="font-medium text-slate-800">{{ selectedDestinationDepot.name }}</span>
+            <span class="text-sm text-slate-500 ml-2">{{ selectedDestinationDepot.code }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex gap-3 mt-6">
+        <button (click)="closeDepotSelectionModal()" class="flex-1 h-12 bg-slate-200 hover:bg-slate-300 rounded-xl font-semibold text-slate-700 transition">
+          Annuler
+        </button>
+        <button (click)="confirmDepotSelection()" [disabled]="!selectedDestinationDepot" 
+          class="flex-1 h-12 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 rounded-xl font-semibold text-white transition">
+          Confirmer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Client Selection Modal for Bon de Livraison -->
+<div *ngIf="showClientSelectionModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <span class="text-lg font-semibold text-slate-800">Sélectionner le client</span>
+        <button (click)="closeClientSelectionModal()" title="Fermer" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center hover:bg-slate-200 transition">
+          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <div class="text-sm text-slate-600 mb-2">Code-barres: {{ currentBarcode }}</div>
+        <div class="text-sm text-slate-700 mb-4">Pour quel client souhaitez-vous créer ce bon de livraison ?</div>
+      </div>
+
+      <!-- Client Search -->
+      <div class="mb-4">
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          <input 
+            type="text"
+            [(ngModel)]="clientSearchQuery"
+            (input)="filterClients()"
+            placeholder="Rechercher un client..."
+            class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm">
+        </div>
+      </div>
+
+      <!-- Client List -->
+      <div class="max-h-96 overflow-y-auto space-y-2">
+        <div 
+          *ngFor="let client of filteredClients" 
+          (click)="selectClient(client)"
+          [class]="getClientCardClasses(client)"
+          class="cursor-pointer transition-all duration-200 hover:scale-[1.02] p-3 rounded-lg border">
+          
+          <div class="flex items-center gap-3">
+            <!-- Client Avatar -->
+            <div class="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center text-white font-semibold text-sm">
+              {{ getClientInitials(client) }}
+            </div>
+            
+            <!-- Client Info -->
+            <div class="flex-1">
+              <div class="font-semibold text-slate-800">{{ client.firstName }} {{ client.lastName }}</div>
+              <div class="text-sm text-slate-500">{{ client.phone || 'Aucun contact' }}</div>
+              <div class="text-xs text-slate-400 mt-1">
+                <span class="inline-block px-2 py-1 rounded-full"
+                      [class]="getClientTypeBadgeClasses(client.clientType)">
+                  {{ getClientTypeLabel(client.clientType) }}
+                </span>
+              </div>
+            </div>
+            
+            <!-- Selection Indicator -->
+            <div *ngIf="selectedClient?.id === client.id" class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+        
+        <!-- No Clients Found -->
+        <div *ngIf="filteredClients.length === 0" class="text-center py-8">
+          <div class="text-slate-400 text-sm">Aucun client trouvé</div>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex gap-3 mt-6">
+        <button (click)="closeClientSelectionModal()" class="flex-1 h-12 bg-slate-200 hover:bg-slate-300 rounded-xl font-semibold text-slate-700 transition">
+          Annuler
+        </button>
+        <button (click)="confirmClientSelection()" [disabled]="!selectedClient" 
+          class="flex-1 h-12 bg-green-600 hover:bg-green-700 disabled:bg-slate-300 disabled:text-slate-500 rounded-xl font-semibold text-white transition">
+          Confirmer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quantity Numpad Modal -->
+<div *ngIf="showNumpad" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-lg font-semibold text-slate-800">
+          {{ currentInputType === 'quantity' ? 'Quantité (kg)' : 'Nombre de colis' }}
+        </span>
+        <button (click)="closeNumpad()" title="Fermer" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center hover:bg-slate-200 transition">
+          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <div class="text-sm text-slate-600 mb-2">Code-barres: {{ currentBarcode }}</div>
+        
+        <!-- Quantity Input -->
+        <div class="mb-3">
+          <div class="text-sm text-slate-600 mb-2">Quantité (kg)</div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center" 
+               [class.bg-fuchsia-50]="currentInputType === 'quantity'"
+               [class.border-fuchsia-300]="currentInputType === 'quantity'">
+            <span class="text-2xl font-mono text-slate-800">{{ quantityInput || '0' }}</span>
+          </div>
+        </div>
+
+        <!-- Colis Input -->
+        <div class="mb-3" *ngIf="quantityInput && parseInt(quantityInput) > 0">
+          <div class="text-sm text-slate-600 mb-2">Nombre de colis</div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center"
+               [class.bg-fuchsia-50]="currentInputType === 'colis'"
+               [class.border-fuchsia-300]="currentInputType === 'colis'">
+            <span class="text-2xl font-mono text-slate-800">{{ colisInput || '0' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Numpad -->
+      <div class="grid grid-cols-3 gap-3 mb-4">
+        <button (click)="addDigit('1')" class="h-12 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-800 transition">1</button>
+        <button (click)="addDigit('2')" class="h-12 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-800 transition">2</button>
+        <button (click)="addDigit('3')" class="h-12 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-800 transition">3</button>
+        <button (click)="addDigit('4')" class="h-12 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-800 transition">4</button>
+        <button (click)="addDigit('5')" class="h-12 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-800 transition">5</button>
+        <button (click)="addDigit('6')" class="h-12 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-800 transition">6</button>
+        <button (click)="addDigit('7')" class="h-12 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-800 transition">7</button>
+        <button (click)="addDigit('8')" class="h-12 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-800 transition">8</button>
+        <button (click)="addDigit('9')" class="h-12 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-800 transition">9</button>
+        <button (click)="clearCurrentInput()" class="h-12 bg-red-100 hover:bg-red-200 rounded-xl font-semibold text-red-600 transition">C</button>
+        <button (click)="addDigit('0')" class="h-12 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-800 transition">0</button>
+        <button (click)="backspaceCurrentInput()" title="Effacer le dernier chiffre" class="h-12 bg-amber-100 hover:bg-amber-200 rounded-xl font-semibold text-amber-600 transition">
+          <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex gap-3">
+        <button (click)="closeNumpad()" class="flex-1 h-12 bg-slate-200 hover:bg-slate-300 rounded-xl font-semibold text-slate-700 transition">
+          Annuler
+        </button>
+        <button (click)="confirmInput()" 
+          [disabled]="(currentInputType === 'quantity' && (!quantityInput || quantityInput === '0')) || (currentInputType === 'colis' && (!colisInput || colisInput === '0'))" 
+          class="flex-1 h-12 bg-fuchsia-600 hover:bg-fuchsia-700 disabled:bg-slate-300 disabled:text-slate-500 rounded-xl font-semibold text-white transition">
+          {{ currentInputType === 'quantity' ? 'Suivant' : 'Confirmer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Vehicle Selection Modal for Bon de Sortie -->
+<div *ngIf="showVehicleSelectionModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+    <div class="p-4 sm:p-6">
+      <div class="flex items-center justify-between mb-4 sm:mb-6">
+        <span class="text-base sm:text-lg font-semibold text-slate-800">
+          {{ sessionDocumentType === 'transfert' ? 'Sélection du chauffeur' : 'Sélection du véhicule et chauffeur' }}
+        </span>
+        <button (click)="closeVehicleSelectionModal()" title="Fermer" class="w-6 h-6 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center hover:bg-slate-200 transition">
+          <svg class="w-3 h-3 sm:w-4 sm:h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Progress Steps -->
+      <div class="flex items-center justify-center mb-4 sm:mb-6">
+        <div class="flex items-center space-x-1 sm:space-x-2">
+          <!-- Vehicle Step (only for Bon de Sortie) -->
+          <div *ngIf="sessionDocumentType === 'sortie'" class="flex items-center">
+            <div [class]="vehicleSelectionStep === 'vehicle' ? 'w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 text-white' : 'w-5 h-5 sm:w-6 sm:h-6 bg-slate-200 text-slate-600'" 
+                 class="rounded-full flex items-center justify-center text-xs font-semibold">1</div>
+            <span class="ml-1 text-xs sm:text-sm font-medium text-slate-600">Véhicule</span>
+          </div>
+          <div *ngIf="sessionDocumentType === 'sortie'" class="w-3 sm:w-4 h-0.5 bg-slate-200"></div>
+          
+          <!-- Driver Step -->
+          <div class="flex items-center">
+            <div [class]="vehicleSelectionStep === 'driver' ? 'w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 text-white' : 'w-5 h-5 sm:w-6 sm:h-6 bg-slate-200 text-slate-600'" 
+                 class="rounded-full flex items-center justify-center text-xs font-semibold">{{ sessionDocumentType === 'transfert' ? '1' : '2' }}</div>
+            <span class="ml-1 text-xs sm:text-sm font-medium text-slate-600">Chauffeur</span>
+          </div>
+          
+          <!-- Details Step (only for Bon de Sortie) -->
+          <div *ngIf="sessionDocumentType === 'sortie'">
+            <div class="w-3 sm:w-4 h-0.5 bg-slate-200"></div>
+            <div class="flex items-center">
+              <div [class]="vehicleSelectionStep === 'details' ? 'w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 text-white' : 'w-5 h-5 sm:w-6 sm:h-6 bg-slate-200 text-slate-600'" 
+                   class="rounded-full flex items-center justify-center text-xs font-semibold">3</div>
+              <span class="ml-1 text-xs sm:text-sm font-medium text-slate-600">Détails</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 1: Vehicle Selection -->
+      <div *ngIf="vehicleSelectionStep === 'vehicle'" class="space-y-4">
+        <div class="text-center mb-4">
+          <span class="text-lg font-semibold text-slate-800">Sélectionner le véhicule</span>
+        </div>
+        
+        <!-- Vehicle Search -->
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          <input 
+            type="text"
+            [(ngModel)]="vehicleSearchQuery"
+            (input)="filterVehicles()"
+            placeholder="Rechercher un véhicule..."
+            class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+        </div>
+
+        <!-- Vehicle Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 max-h-80 sm:max-h-96 overflow-y-auto">
+          <div 
+            *ngFor="let vehicle of filteredVehicles" 
+            (click)="selectVehicle(vehicle)"
+            [class]="getVehicleCardClasses(vehicle)"
+            class="cursor-pointer transition-all duration-200 hover:scale-105">
+            
+            <!-- Vehicle Info -->
+            <div class="flex items-center gap-3">
+              <!-- Brand Logo -->
+              <div class="w-8 h-8 sm:w-12 sm:h-12 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0">
+                <ng-container *ngIf="getVehicleBrandLogo(vehicle) as logoUrl; else noLogo">
+                  <img 
+                    [src]="logoUrl" 
+                    [alt]="vehicle.brand.name + ' logo'"
+                    title="Logo de la marque"
+                    class="w-full h-full object-cover"
+                    (error)="onImageError($event)">
+                </ng-container>
+                <ng-template #noLogo>
+                  <div class="w-full h-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center">
+                    <svg class="w-4 h-4 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                  </div>
+                </ng-template>
+              </div>
+              
+              <!-- Vehicle Details -->
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-slate-800 text-xs sm:text-sm truncate">{{ vehicle.brand.name }} {{ vehicle.model }}</h3>
+                <p class="text-xs text-slate-500 font-mono">{{ vehicle.matricule }}</p>
+                <p class="text-xs text-slate-500">Véhicule</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Driver Selection -->
+      <div *ngIf="vehicleSelectionStep === 'driver'" class="space-y-4">
+        <div class="text-center mb-4">
+          <span class="text-lg font-semibold text-slate-800">Sélectionner le chauffeur</span>
+          <div *ngIf="sessionDocumentType === 'sortie'" class="text-sm text-slate-600 mt-1">{{ selectedVehicle?.brand?.name }} {{ selectedVehicle?.model }} - {{ selectedVehicle?.matricule }}</div>
+        </div>
+        
+        <!-- Driver Search -->
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          <input 
+            type="text"
+            [(ngModel)]="driverSearchQuery"
+            (input)="filterDrivers()"
+            placeholder="Rechercher un chauffeur..."
+            class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm">
+        </div>
+
+        <!-- Driver List -->
+        <div class="max-h-80 sm:max-h-96 overflow-y-auto space-y-2">
+          <div 
+            *ngFor="let driver of filteredDrivers" 
+            (click)="selectDriver(driver)"
+            [class]="getDriverCardClasses(driver)"
+            class="cursor-pointer transition-all duration-200 hover:scale-[1.02] p-3 rounded-lg border">
+            
+            <div class="flex items-center gap-2 sm:gap-3">
+              <!-- Driver Avatar -->
+              <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
+                {{ getDriverInitials(driver) }}
+              </div>
+              
+              <!-- Driver Info -->
+              <div class="flex-1 min-w-0">
+                <div class="font-semibold text-slate-800 text-sm sm:text-base truncate">{{ driver.prenom }} {{ driver.nom }}</div>
+                <div class="text-xs sm:text-sm text-slate-500">CIN: {{ driver.cin }}</div>
+                <div class="text-xs sm:text-sm text-slate-500 truncate">{{ driver.phone || 'Aucun contact' }}</div>
+              </div>
+              
+              <!-- Selection Indicator -->
+              <div *ngIf="selectedDriver?.id === driver.id" class="w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Back Button (only for Bon de Sortie) -->
+        <div *ngIf="sessionDocumentType === 'sortie'" class="flex justify-center mt-4">
+          <button (click)="goBackToVehicleSelection()" 
+            class="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg font-semibold text-slate-700 transition">
+            Retour aux véhicules
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: Details (only for Bon de Sortie) -->
+      <div *ngIf="vehicleSelectionStep === 'details' && sessionDocumentType === 'sortie'" class="space-y-4">
+        <div class="text-center mb-4">
+          <span class="text-lg font-semibold text-slate-800">Détails du document</span>
+          <div class="text-sm text-slate-600 mt-1">{{ selectedVehicle?.brand?.name }} {{ selectedVehicle?.model }} - {{ selectedVehicle?.matricule }}</div>
+          <div class="text-sm text-slate-600">{{ selectedDriver?.prenom }} {{ selectedDriver?.nom }}</div>
+        </div>
+        
+        <!-- Destination -->
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-slate-700">Destination *</label>
+          <input 
+            [(ngModel)]="destination"
+            type="text"
+            placeholder="Saisir la destination..."
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+        </div>
+        
+        <!-- Date Range -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="block text-sm font-medium text-slate-700">Validité du *</label>
+            <input 
+              [(ngModel)]="validationFromDate"
+              type="date"
+              title="Date de début de validité"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+          </div>
+          <div class="space-y-2">
+            <label class="block text-sm font-medium text-slate-700">Validité au *</label>
+            <input 
+              [(ngModel)]="validationToDate"
+              type="date"
+              title="Date de fin de validité"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+          </div>
+        </div>
+        
+        <!-- Back Button -->
+        <div class="flex justify-center mt-4">
+          <button (click)="goBackToDriverSelection()" 
+            class="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg font-semibold text-slate-700 transition">
+            Retour au chauffeur
+          </button>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
+        <button (click)="closeVehicleSelectionModal()" class="flex-1 h-10 sm:h-12 bg-slate-200 hover:bg-slate-300 rounded-xl font-semibold text-slate-700 transition text-sm sm:text-base">
+          Annuler
+        </button>
+        <button (click)="confirmVehicleSelection()" 
+          [disabled]="sessionDocumentType === 'sortie' ? (!selectedVehicle || !selectedDriver || !destination || !validationFromDate || !validationToDate) : !selectedDriver" 
+          class="flex-1 h-10 sm:h-12 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 rounded-xl font-semibold text-white transition text-sm sm:text-base">
+          <span class="hidden sm:inline">Imprimer le document</span>
+          <span class="sm:hidden">Imprimer</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 

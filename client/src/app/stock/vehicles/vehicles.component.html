@@ -1,0 +1,89 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+  <!-- Modern Header -->
+  <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+    <div class="flex justify-between items-center">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+          <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M8 5a1 1 0 011 1v1h1a1 1 0 110 2H9v1a1 1 0 11-2 0V9H6a1 1 0 110-2h1V6a1 1 0 011-1zM2 2a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V4a2 2 0 00-2-2H2zm16 2v12H2V4h16z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Gestion des Véhicules</h1>
+          <p class="text-slate-600 font-medium">Matricules et modèles de véhicules</p>
+        </div>
+      </div>
+      <a routerLink="/stock"
+        class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold hover:from-slate-200 hover:to-slate-300 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+        title="Retour au Stock">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
+        </svg>
+        Retour
+      </a>
+    </div>
+  </div>
+
+  <!-- Modern Grid Layout -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Vehicles List Card -->
+    <div (click)="navigateToVehiclesList()" class="group cursor-pointer">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-blue-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        
+        <div class="relative z-10">
+          <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"></path>
+            </svg>
+          </div>
+          
+          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors duration-300">Liste des Véhicules</h3>
+          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Voir et gérer tous les véhicules</p>
+        </div>
+        
+        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-blue-400/20 transition-all duration-300"></div>
+      </div>
+    </div>
+
+    <!-- Add Vehicle Card -->
+    <div (click)="navigateToVehicleForm()" class="group cursor-pointer">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-emerald-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        
+        <div class="relative z-10">
+          <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path>
+            </svg>
+          </div>
+          
+          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-emerald-600 transition-colors duration-300">Ajouter Véhicule</h3>
+          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Enregistrer un nouveau véhicule</p>
+        </div>
+        
+        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-emerald-400/20 transition-all duration-300"></div>
+      </div>
+    </div>
+
+    <!-- Vehicle Brands Card -->
+    <div (click)="navigateToVehicleBrands()" class="group cursor-pointer">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-purple-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        
+        <div class="relative z-10">
+          <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+            </svg>
+          </div>
+          
+          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-purple-600 transition-colors duration-300">Marques & Modèles</h3>
+          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Gérer les marques et modèles</p>
+        </div>
+        
+        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-purple-400/20 transition-all duration-300"></div>
+      </div>
+    </div>
+  </div>
+</div>

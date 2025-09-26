@@ -33,6 +33,8 @@ const companiesRoutes = require('./routes/companies');
 const pdfRoutes = require('./routes/pdf');
 const attendanceRoutes = require('./routes/attendance');
 const produitsDeCaisseRoutes = require('./routes/produits-de-caisse');
+const driversRoutes = require('./routes/drivers');
+const vehiclesRoutes = require('./routes/vehicles');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -54,6 +56,7 @@ app.options('*', cors({
   exposedHeaders: ['Content-Disposition', 'Content-Length', 'Content-Type']
 }));
 app.use(express.json());
+
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads'));
@@ -85,13 +88,15 @@ app.use('/api/pdf', authenticateToken, pdfRoutes);
 app.use('/api/companies', authenticateToken, companiesRoutes);
 app.use('/api/attendance', authenticateToken, attendanceRoutes);
 app.use('/api/produits-de-caisse', authenticateToken, produitsDeCaisseRoutes);
+app.use('/api/drivers', authenticateToken, driversRoutes);
+app.use('/api/vehicles', authenticateToken, vehiclesRoutes);
 
 // Create HTTP or HTTPS server based on env
 let server;
 try {
-  const keyPath = process.env.SSL_KEY_PATH;
-  const certPath = process.env.SSL_CERT_PATH;
-  if (keyPath && certPath && fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+  const keyPath = './certs/key.pem';
+  const certPath = './certs/cert.pem';
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
     const sslOptions = {
       key: fs.readFileSync(path.resolve(keyPath)),
       cert: fs.readFileSync(path.resolve(certPath))

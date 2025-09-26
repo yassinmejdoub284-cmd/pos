@@ -47,6 +47,15 @@
           </div>
         </div>
 
+        <!-- Depot Selection -->
+        <div>
+          <app-depot-selector 
+            [selectedDepotId]="selectedDepot()?.id || null"
+            [required]="true"
+            (depotSelected)="onDepotSelected($event)">
+          </app-depot-selector>
+        </div>
+
         <!-- Active Status -->
         <div class="flex items-center">
           <input 

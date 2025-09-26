@@ -10,14 +10,14 @@ export interface LoginTheme {
 }
 
 const THEME_MAP: Record<string, LoginTheme> = {
-  'localhost:4201': {
+  '192.168.1.22:4201': {
     companyId: 1,
     logoUrl: '/logo_sfax.webp',
     primaryColor: '#662c94',
     secondaryColor: '#1E3A8A',
     faviconUrl: '/favicon.ico'
   },
-  'localhost:4200': {
+  '192.168.1.22:4200': {
     companyId: 2,
     logoUrl: '/logo_tunis.webp',
     primaryColor: '#569797',

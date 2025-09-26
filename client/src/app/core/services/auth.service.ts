@@ -25,19 +25,37 @@ export class AuthService {
 
   login(credentials: LoginRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.API_URL}/auth/login`, credentials).pipe(
-      tap(response => {
-        this.setAuthData(response);
-        // Fire check-in punch after successful login (non-blocking)
-        this.attendanceService.punch('CHECK_IN').subscribe({ next: () => {}, error: () => {} });
+      tap({
+        next: (response) => {
+          console.log('Login successful, setting auth data');
+          this.setAuthData(response);
+          // Fire check-in punch after successful login (non-blocking) with a small delay
+          // Temporarily disabled to debug spam issue
+          // setTimeout(() => {
+          //   console.log('Calling punch CHECK_IN after successful login');
+          //   this.attendanceService.punch('CHECK_IN').subscribe({ 
+          //     next: () => console.log('Punch check-in successful'), 
+          //     error: (err) => console.log('Punch check-in failed:', err) 
+          //   });
+          // }, 100);
+        },
+        error: (error) => {
+          // Don't call punch on login failure
+          console.log('Login failed:', error);
+        }
       })
     );
   }
 
   logout(): void {
     // Fire check-out punch before clearing session (best effort)
-    try {
-      this.attendanceService.punch('CHECK_OUT').subscribe({ next: () => {}, error: () => {} });
-    } catch {}
+    // Temporarily disabled to debug spam issue
+    // try {
+    //   this.attendanceService.punch('CHECK_OUT').subscribe({ 
+    //     next: () => {}, 
+    //     error: (err) => console.log('Punch check-out failed:', err) 
+    //   });
+    // } catch {}
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('permissions');

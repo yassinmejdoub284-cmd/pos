@@ -9,6 +9,16 @@ const prisma = new PrismaClient();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const produits = await prisma.produitDeCaisse.findMany({
+      include: {
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     });
     res.json(produits);
@@ -23,6 +33,16 @@ router.get('/active', authenticateToken, async (req, res) => {
   try {
     const produits = await prisma.produitDeCaisse.findMany({
       where: { isActive: true },
+      include: {
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        }
+      },
       orderBy: { name: 'asc' }
     });
     res.json(produits);
@@ -37,7 +57,17 @@ router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const produit = await prisma.produitDeCaisse.findUnique({
-      where: { id: parseInt(id) }
+      where: { id: parseInt(id) },
+      include: {
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        }
+      }
     });
 
     if (!produit) {
@@ -54,18 +84,29 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new produit de caisse
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { name, price, productIds, isActive = true } = req.body;
+    const { name, price, productIds, depotId, isActive = true } = req.body;
 
     // Validation
-    if (!name || !price || !productIds || !Array.isArray(productIds) || productIds.length === 0) {
+    if (!name || !price || !productIds || !Array.isArray(productIds) || productIds.length === 0 || !depotId) {
       return res.status(400).json({ 
-        error: 'Nom, prix et liste des produits sont requis' 
+        error: 'Nom, prix, liste des produits et dépôt sont requis' 
       });
     }
 
     if (price <= 0) {
       return res.status(400).json({ 
         error: 'Le prix doit être supérieur à 0' 
+      });
+    }
+
+    // Check if depot exists
+    const depot = await prisma.depot.findUnique({
+      where: { id: parseInt(depotId) }
+    });
+
+    if (!depot) {
+      return res.status(400).json({ 
+        error: 'Le dépôt sélectionné n\'existe pas' 
       });
     }
 
@@ -80,14 +121,17 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if name already exists
+    // Check if name already exists for this depot
     const existingProduit = await prisma.produitDeCaisse.findFirst({
-      where: { name }
+      where: { 
+        name,
+        depotId: parseInt(depotId)
+      }
     });
 
     if (existingProduit) {
       return res.status(400).json({ 
-        error: 'Un regroupement avec ce nom existe déjà' 
+        error: 'Un regroupement avec ce nom existe déjà pour ce dépôt' 
       });
     }
 
@@ -96,7 +140,18 @@ router.post('/', authenticateToken, async (req, res) => {
         name,
         price,
         productIds,
+        depotId: parseInt(depotId),
         isActive
+      },
+      include: {
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        }
       }
     });
 
@@ -168,11 +223,22 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (name !== undefined) updateData.name = name;
     if (price !== undefined) updateData.price = price;
     if (productIds !== undefined) updateData.productIds = productIds;
+    if (depotId !== undefined) updateData.depotId = parseInt(depotId);
     if (isActive !== undefined) updateData.isActive = isActive;
 
     const produit = await prisma.produitDeCaisse.update({
       where: { id: parseInt(id) },
-      data: updateData
+      data: updateData,
+      include: {
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        }
+      }
     });
 
     res.json(produit);

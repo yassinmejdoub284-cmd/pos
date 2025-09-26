@@ -15,19 +15,24 @@ function calculateHTVAAndTVA(prixTTC, tvaPercent) {
   };
 }
 
-// Helper function to get next invoice number
+// Helper function to get next invoice number with atomic increment
 async function getNextInvoiceNumber(depotId) {
-  const lastInvoice = await prisma.invoice.findFirst({
-    where: { depotId },
-    orderBy: { invoiceNumber: 'desc' }
-  });
-  
-  if (!lastInvoice) {
-    return 'FAC-001';
+  try {
+    // Use a more robust approach with timestamp + random component
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const timestamp = now.getTime().toString().slice(-6);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    
+    // Format: FAC-YYMMDD-XXXXXX-XXX (e.g., FAC-250125-123456-789)
+    return `FAC-${year}${month}${day}-${timestamp}-${random}`;
+  } catch (error) {
+    console.error('Error generating invoice number:', error);
+    // Ultimate fallback
+    return `FAC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
-  
-  const lastNumber = parseInt(lastInvoice.invoiceNumber.split('-')[1]);
-  return `FAC-${String(lastNumber + 1).padStart(3, '0')}`;
 }
 
 // Get all invoices
@@ -273,46 +278,67 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
     
-    // Create invoice
-    const invoice = await prisma.invoice.create({
-      data: {
-        invoiceNumber,
-        status: status,
-        source: 'TICKET_REQUEST',
-        issueDate: new Date(),
-        companyName: company?.raisonSociale || appSettings?.companyName || depot.name,
-        companyAddress: company?.adresse || depot.address,
-        companyMatricule: company?.matriculeFiscal || appSettings?.companyMatricule,
-        customerName: `${client.firstName} ${client.lastName}`,
-        customerAddress: client.address,
-        customerMatricule: client.matricule,
-        subtotalHTVA,
-        totalTVA,
-        totalTTC,
-        depotId: req.user.depotId,
-        clientId: client.id,
-        companyId: company?.id || null,
-        createdById: req.user.id,
-        lines: {
-          create: invoiceLines
-        }
-      },
-      include: {
-        client: true,
-        createdBy: {
-          select: { firstName: true, lastName: true }
-        },
-        lines: {
+    // Create invoice with retry logic for uniqueness
+    let invoice;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        invoice = await prisma.invoice.create({
+          data: {
+            invoiceNumber,
+            status: status,
+            source: 'TICKET_REQUEST',
+            issueDate: new Date(),
+            companyName: company?.raisonSociale || appSettings?.companyName || depot.name,
+            companyAddress: company?.adresse || depot.address,
+            companyMatricule: company?.matriculeFiscal || appSettings?.companyMatricule,
+            customerName: `${client.firstName} ${client.lastName}`,
+            customerAddress: client.address,
+            customerMatricule: client.matricule,
+            subtotalHTVA,
+            totalTVA,
+            totalTTC,
+            depotId: req.user.depotId,
+            clientId: client.id,
+            companyId: company?.id || null,
+            createdById: req.user.id,
+            lines: {
+              create: invoiceLines
+            }
+          },
           include: {
-            product: {
+            client: true,
+            createdBy: {
+              select: { firstName: true, lastName: true }
+            },
+            lines: {
               include: {
-                famille: true
+                product: {
+                  include: {
+                    famille: true
+                  }
+                }
               }
             }
           }
+        });
+        break; // Success, exit the retry loop
+      } catch (error) {
+        if (error.code === 'P2002' && error.meta?.target === 'invoices_invoice_number_key') {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            throw new Error('Failed to create invoice after multiple attempts due to duplicate invoice numbers');
+          }
+          // Generate a new invoice number and try again
+          invoiceNumber = await getNextInvoiceNumber(req.user.depotId);
+          console.log(`Retrying with new invoice number: ${invoiceNumber}`);
+        } else {
+          throw error; // Re-throw non-uniqueness errors
         }
       }
-    });
+    }
 
     // Add additional fields that the frontend expects
     invoice.numero = invoice.invoiceNumber;

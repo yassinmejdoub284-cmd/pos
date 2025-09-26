@@ -47,6 +47,7 @@ export class AttendanceService {
   }
 
   punch(type: 'CHECK_IN' | 'CHECK_OUT'): Observable<any> {
+    console.log(`Punch ${type} called`);
     return this.http.post(`${this.API}/punch`, { type });
   }
 }
