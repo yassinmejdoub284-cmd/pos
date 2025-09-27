@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { SalesService } from '../core/services/sales.service';
@@ -6,8 +6,8 @@ import { ExpenseService } from '../core/services/expense.service';
 import { ApprovalsService } from '../core/services/approvals.service';
 import { SessionsService } from '../core/services/sessions.service';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
-import { Subject, forkJoin, timer } from 'rxjs';
-import { takeUntil, catchError } from 'rxjs/operators';
+import { Subject, forkJoin, timer, of } from 'rxjs';
+import { takeUntil, catchError, shareReplay, debounceTime } from 'rxjs/operators';
 
 interface DashboardStats {
   todaySales: number;
@@ -35,31 +35,35 @@ interface QuickAction {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HomeComponent implements OnInit, OnDestroy {
-  currentUser: any = null;
-  dashboardStats: DashboardStats = {
+  // Signals for reactive state management
+  currentUser = signal<any>(null);
+  dashboardStats = signal<DashboardStats>({
     todaySales: 0,
     todayTransactions: 0,
     pendingApprovals: 0,
     activeSession: false
-  };
+  });
   
-  loading = true;
-  currentTime = new Date();
-  greeting = '';
-  showExpenseActionDialog = false;
-  showClientActionDialog = false;
-  showApprovalsActionDialog = false;
-  showSupplierActionDialog = false;
-  showBillingCenterActionDialog = false;
-  showSettingsActionDialog = false;
-  showEnterpriseActionDialog = false;
-  showHistoriqueChoiceDialog = false;
+  loading = signal(true);
+  currentTime = signal(new Date());
+  greeting = signal('');
+  
+  // Dialog states
+  showExpenseActionDialog = signal(false);
+  showClientActionDialog = signal(false);
+  showApprovalsActionDialog = signal(false);
+  showSupplierActionDialog = signal(false);
+  showBillingCenterActionDialog = signal(false);
+  showSettingsActionDialog = signal(false);
+  showEnterpriseActionDialog = signal(false);
+  showHistoriqueChoiceDialog = signal(false);
   
   // Settings
-  appSettings: AppSettings | null = null;
-  companyName = 'PoS Pâtisserie';
-  companyLogo = '';
-  logoLoadError = false;
+  appSettings = signal<AppSettings | null>(null);
+  companyName = signal('PoS Pâtisserie');
+  companyLogo = signal('');
+  logoLoadError = signal(false);
+  
   // Pending breakdown
   private pendingGiftCount = 0;
   private pendingExpenseCount = 0;
@@ -72,6 +76,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   // Performance optimization
   private destroy$ = new Subject<void>();
   private timeInterval: any;
+  
+  // Cached filtered actions to avoid repeated computation
+  private _cachedFilteredActions: QuickAction[] = [];
+  private _lastUserRole: string | null = null;
 
   quickActions: QuickAction[] = [
     {
@@ -211,16 +219,15 @@ export class HomeComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.currentUser = this.authService.currentUser();
+    this.currentUser.set(this.authService.currentUser());
     this.updateGreeting();
     this.loadDashboardStats();
     this.loadSettings();
     
     // Update time every minute - optimized with proper cleanup
     this.timeInterval = setInterval(() => {
-      this.currentTime = new Date();
+      this.currentTime.set(new Date());
       this.updateGreeting();
-      this.cdr.markForCheck();
     }, 60000);
   }
 
@@ -233,77 +240,82 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   updateGreeting(): void {
-    const hour = this.currentTime.getHours();
+    const hour = this.currentTime().getHours();
     if (hour < 12) {
-      this.greeting = 'Bonjour';
+      this.greeting.set('Bonjour');
     } else if (hour < 18) {
-      this.greeting = 'Bon après-midi';
+      this.greeting.set('Bon après-midi');
     } else {
-      this.greeting = 'Bonsoir';
+      this.greeting.set('Bonsoir');
     }
   }
 
   loadDashboardStats(): void {
-    this.loading = true;
+    this.loading.set(true);
     
-    // Optimize: Load all data in parallel with proper error handling
-    const sales$ = this.salesService.getSales().pipe(
-      takeUntil(this.destroy$),
-      catchError(error => {
-        console.error('Error loading sales:', error);
-        return [];
-      })
-    );
-
-    const expenses$ = this.expenseService.getExpenses().pipe(
-      takeUntil(this.destroy$),
-      catchError(error => {
-        console.error('Error loading expenses:', error);
-        return [];
-      })
-    );
-
-    const varianceRequests$ = this.approvalsService.getVarianceChangeRequests('PENDING').pipe(
-      takeUntil(this.destroy$),
-      catchError(error => {
-        console.error('Error loading variance requests:', error);
-        return [];
-      })
-    );
-
-    // Load all data in parallel
-    forkJoin({
-      sales: sales$,
-      expenses: expenses$,
-      varianceRequests: varianceRequests$
-    }).subscribe({
-      next: (data) => {
-        this.processDashboardData(data);
-        this.loading = false;
-        this.cdr.markForCheck();
-      },
-      error: (error) => {
-        console.error('Error loading dashboard data:', error);
-        this.loading = false;
-        this.cdr.markForCheck();
-      }
+    // Optimize: Load critical data first, then non-critical data
+    const criticalData$ = forkJoin({
+      sales: this.salesService.getSales().pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Error loading sales:', error);
+          return of([]);
+        })
+      ),
+      session: this.sessionsService.getActiveSession().pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Error loading session:', error);
+          return of(null);
+        })
+      )
     });
 
-    // Load active session separately
-    this.sessionsService.getActiveSession().pipe(
-      takeUntil(this.destroy$),
-      catchError(error => {
-        console.error('Error loading session:', error);
-        return [null];
-      })
-    ).subscribe(session => {
-      this.dashboardStats.activeSession = !!session;
-      this.cdr.markForCheck();
+    // Load critical data first
+    criticalData$.subscribe({
+      next: (data) => {
+        this.processCriticalData(data);
+        this.loading.set(false);
+        // Load non-critical data in background
+        this.loadNonCriticalData();
+      },
+      error: (error) => {
+        console.error('Error loading critical dashboard data:', error);
+        this.loading.set(false);
+        this.loadNonCriticalData();
+      }
     });
   }
 
-  private processDashboardData(data: any): void {
-    const { sales, expenses, varianceRequests } = data;
+  private loadNonCriticalData(): void {
+    // Load non-critical data in background without blocking UI
+    forkJoin({
+      expenses: this.expenseService.getExpenses().pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Error loading expenses:', error);
+          return of([]);
+        })
+      ),
+      varianceRequests: this.approvalsService.getVarianceChangeRequests('PENDING').pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Error loading variance requests:', error);
+          return of([]);
+        })
+      )
+    }).subscribe({
+      next: (data) => {
+        this.processNonCriticalData(data);
+      },
+      error: (error) => {
+        console.error('Error loading non-critical dashboard data:', error);
+      }
+    });
+  }
+
+  private processCriticalData(data: any): void {
+    const { sales, session } = data;
     
     // Process sales data
     const today = new Date();
@@ -311,7 +323,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
     
-    const userDepotId = this.currentUser?.depotId;
+    const userDepotId = this.currentUser()?.depotId;
     const filteredSales = userDepotId ? sales.filter((sale: any) => sale.depotId === userDepotId) : sales;
     
     const todaySales = filteredSales.filter((sale: any) => {
@@ -320,8 +332,8 @@ export class HomeComponent implements OnInit, OnDestroy {
       return saleDate.getTime() === today.getTime() && sale.status === 'COMPLETED';
     });
 
-    this.dashboardStats.todaySales = todaySales.reduce((sum: number, sale: any) => sum + Number(sale.finalTotal), 0);
-    this.dashboardStats.todayTransactions = todaySales.length;
+    const todaySalesTotal = todaySales.reduce((sum: number, sale: any) => sum + Number(sale.finalTotal), 0);
+    const todayTransactions = todaySales.length;
 
     // Compute yesterday metrics
     const yesterdaySales = filteredSales.filter((sale: any) => {
@@ -333,11 +345,27 @@ export class HomeComponent implements OnInit, OnDestroy {
     const yesterdaySalesTotal = yesterdaySales.reduce((sum: number, sale: any) => sum + Number(sale.finalTotal), 0);
     const yesterdayTransactions = yesterdaySales.length;
 
-    this.salesVsYesterdayPct = this.computePercentageChange(this.dashboardStats.todaySales, yesterdaySalesTotal);
-    this.transactionsVsYesterdayPct = this.computePercentageChange(this.dashboardStats.todayTransactions, yesterdayTransactions);
+    this.salesVsYesterdayPct = this.computePercentageChange(todaySalesTotal, yesterdaySalesTotal);
+    this.transactionsVsYesterdayPct = this.computePercentageChange(todayTransactions, yesterdayTransactions);
     
-    // Count pending approvals
+    // Count pending approvals from sales
     this.pendingGiftCount = filteredSales.filter((sale: any) => sale.status === 'PENDING_ADMIN').length;
+    
+    // Update dashboard stats with critical data
+    this.dashboardStats.update(stats => ({
+      ...stats,
+      todaySales: todaySalesTotal,
+      todayTransactions: todayTransactions,
+      activeSession: !!session
+    }));
+    
+    this.updatePendingApprovals();
+  }
+
+  private processNonCriticalData(data: any): void {
+    const { expenses, varianceRequests } = data;
+    
+    const userDepotId = this.currentUser()?.depotId;
     
     const filteredExpenses = userDepotId ? (expenses || []).filter((e: any) => e.depotId === userDepotId) : (expenses || []);
     this.pendingExpenseCount = filteredExpenses.filter((e: any) => !e.isApproved).length;
@@ -349,56 +377,63 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private updatePendingApprovals(): void {
-    this.dashboardStats.pendingApprovals = this.pendingGiftCount + this.pendingExpenseCount + this.pendingClotureCount;
+    this.dashboardStats.update(stats => ({
+      ...stats,
+      pendingApprovals: this.pendingGiftCount + this.pendingExpenseCount + this.pendingClotureCount
+    }));
   }
 
   getFilteredActions(): QuickAction[] {
-    if (!this.currentUser) return [];
+    const currentUser = this.currentUser();
+    if (!currentUser) return [];
     
-    return this.quickActions.filter(action => 
-      action.roles.includes(this.currentUser.role)
-    );
+    // Cache filtered actions to avoid repeated computation
+    if (this._lastUserRole !== currentUser.role) {
+      this._cachedFilteredActions = this.quickActions.filter(action => 
+        action.roles.includes(currentUser.role)
+      );
+      this._lastUserRole = currentUser.role;
+    }
+    
+    return this._cachedFilteredActions;
   }
 
   navigateTo(route: string): void {
     if (route === '/charges') {
-      this.showExpenseActionDialog = true;
+      this.showExpenseActionDialog.set(true);
     } else if (route === '/clients') {
-      this.showClientActionDialog = true;
+      this.showClientActionDialog.set(true);
     } else if (route === '/approvals') {
-      this.showApprovalsActionDialog = true;
+      this.showApprovalsActionDialog.set(true);
     } else if (route === '/suppliers') {
-      this.showSupplierActionDialog = true;
+      this.showSupplierActionDialog.set(true);
     } else if (route === '/billing-center') {
-      this.showBillingCenterActionDialog = true;
+      this.showBillingCenterActionDialog.set(true);
     } else if (route === '/parametres') {
-      this.showSettingsActionDialog = true;
+      this.showSettingsActionDialog.set(true);
     } else if (route === '/historique') {
       // Intercept Historique to show choice screen
-      this.showHistoriqueChoiceDialog = true;
+      this.showHistoriqueChoiceDialog.set(true);
     } else {
       this.router.navigate([route]);
     }
-    this.cdr.markForCheck();
   }
 
   onHistoriqueChoiceSelected(choice: 'VENTES' | 'POINTAGE'): void {
-    this.showHistoriqueChoiceDialog = false;
+    this.showHistoriqueChoiceDialog.set(false);
     if (choice === 'VENTES') {
       this.router.navigate(['/historique']);
     } else if (choice === 'POINTAGE') {
       this.router.navigate(['/pointage']);
     }
-    this.cdr.markForCheck();
   }
 
   onHistoriqueChoiceClosed(): void {
-    this.showHistoriqueChoiceDialog = false;
-    this.cdr.markForCheck();
+    this.showHistoriqueChoiceDialog.set(false);
   }
 
   onExpenseActionSelected(actionId: string): void {
-    this.showExpenseActionDialog = false;
+    this.showExpenseActionDialog.set(false);
     
     switch (actionId) {
       case 'consult':
@@ -417,12 +452,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   onExpenseDialogClosed(): void {
-    this.showExpenseActionDialog = false;
-    this.cdr.markForCheck();
+    this.showExpenseActionDialog.set(false);
   }
 
   onClientActionSelected(actionId: string): void {
-    this.showClientActionDialog = false;
+    this.showClientActionDialog.set(false);
     
     switch (actionId) {
       case 'consult':
@@ -444,12 +478,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   onClientDialogClosed(): void {
-    this.showClientActionDialog = false;
-    this.cdr.markForCheck();
+    this.showClientActionDialog.set(false);
   }
 
   onApprovalsActionSelected(actionId: string): void {
-    this.showApprovalsActionDialog = false;
+    this.showApprovalsActionDialog.set(false);
     if (actionId === 'pending') {
       this.router.navigate(['/approvals'], { queryParams: { tab: 'EXPENSES' } });
     } else {
@@ -458,12 +491,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   onApprovalsDialogClosed(): void {
-    this.showApprovalsActionDialog = false;
-    this.cdr.markForCheck();
+    this.showApprovalsActionDialog.set(false);
   }
 
   onSupplierActionSelected(actionId: string): void {
-    this.showSupplierActionDialog = false;
+    this.showSupplierActionDialog.set(false);
     
     switch (actionId) {
       case 'consult':
@@ -482,12 +514,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   onSupplierDialogClosed(): void {
-    this.showSupplierActionDialog = false;
-    this.cdr.markForCheck();
+    this.showSupplierActionDialog.set(false);
   }
 
   onBillingCenterActionSelected(actionId: string): void {
-    this.showBillingCenterActionDialog = false;
+    this.showBillingCenterActionDialog.set(false);
     
     switch (actionId) {
       case 'add-invoice':
@@ -506,12 +537,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   onBillingCenterDialogClosed(): void {
-    this.showBillingCenterActionDialog = false;
-    this.cdr.markForCheck();
+    this.showBillingCenterActionDialog.set(false);
   }
 
   onSettingsActionSelected(actionId: string): void {
-    this.showSettingsActionDialog = false;
+    this.showSettingsActionDialog.set(false);
     
     switch (actionId) {
       case 'general':
@@ -521,18 +551,17 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.router.navigate(['/auth/users']);
         break;
       case 'enterprise':
-        this.showEnterpriseActionDialog = true;
+        this.showEnterpriseActionDialog.set(true);
         break;
     }
   }
 
   onSettingsDialogClosed(): void {
-    this.showSettingsActionDialog = false;
-    this.cdr.markForCheck();
+    this.showSettingsActionDialog.set(false);
   }
 
   onEnterpriseActionSelected(actionId: string): void {
-    this.showEnterpriseActionDialog = false;
+    this.showEnterpriseActionDialog.set(false);
     if (actionId === 'enterprises') {
       this.router.navigate(['/enterprise/companies']);
     } else if (actionId === 'depots-shops') {
@@ -541,25 +570,25 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   onEnterpriseDialogClosed(): void {
-    this.showEnterpriseActionDialog = false;
-    this.cdr.markForCheck();
+    this.showEnterpriseActionDialog.set(false);
   }
 
 
   getRoleDisplayName(): string {
-    if (!this.currentUser) return '';
+    const currentUser = this.currentUser();
+    if (!currentUser) return '';
     
-    switch (this.currentUser.role) {
+    switch (currentUser.role) {
       case 'ADMIN': return 'Administrateur';
       case 'MANAGER': return 'Responsable Magasin';
       case 'CASHIER': return 'Caissier';
       case 'STOCK_MANAGER': return 'Gestionnaire Stock';
-      default: return this.currentUser.role;
+      default: return currentUser.role;
     }
   }
 
   isAdmin(): boolean {
-    return this.currentUser?.role === 'ADMIN';
+    return this.currentUser()?.role === 'ADMIN';
   }
 
   logout(): void {
@@ -572,22 +601,21 @@ export class HomeComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$),
       catchError(error => {
         console.error('Error loading settings:', error);
-        return [];
+        return of(null);
       })
     ).subscribe(settings => {
       if (settings) {
-        this.appSettings = settings;
-        this.companyName = settings.companyName || 'PoS Pâtisserie';
-        this.companyLogo = settings.logoUrl ? this.settingsService.getAbsoluteLogoUrl(settings.logoUrl) : '';
-        this.logoLoadError = false; // Reset error state when loading new settings
-        this.cdr.markForCheck();
+        this.appSettings.set(settings);
+        this.companyName.set(settings.companyName || 'PoS Pâtisserie');
+        this.companyLogo.set(settings.logoUrl ? this.settingsService.getAbsoluteLogoUrl(settings.logoUrl) : '');
+        this.logoLoadError.set(false); // Reset error state when loading new settings
       }
     });
   }
 
   onLogoError(): void {
-    this.logoLoadError = true;
-    this.cdr.markForCheck();
+    this.logoLoadError.set(true);
+    this.companyLogo.set(''); // Clear the logo URL to ensure fallback shows
   }
 
   private computePercentageChange(currentValue: number, previousValue: number): number {

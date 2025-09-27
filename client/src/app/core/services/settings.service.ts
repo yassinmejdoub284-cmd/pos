@@ -88,6 +88,16 @@ export class SettingsService {
   getAbsoluteLogoUrl(logoUrl: string | undefined): string {
     if (!logoUrl) return '';
     if (logoUrl.startsWith('http')) return logoUrl;
-    return `${this.BASE_URL}${logoUrl}`;
+    
+    // Handle different server configurations
+    const baseUrl = this.BASE_URL;
+    
+    // If the logo URL starts with /uploads, ensure it's properly formatted
+    if (logoUrl.startsWith('/uploads/')) {
+      return `${baseUrl}${logoUrl}`;
+    }
+    
+    // For other relative URLs, add the base URL
+    return `${baseUrl}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`;
   }
 }

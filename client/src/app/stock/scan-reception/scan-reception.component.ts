@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, signal, inject } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DepotsService } from '../../core/services/depots.service';
 import { StockDocumentsService } from '../../core/services/stock-documents.service';
 import { ProductsService } from '../../core/services/products.service';
@@ -7,11 +7,13 @@ import { ClientsService } from '../../core/services/clients.service';
 import { PrintService } from '../../core/services/print.service';
 import { VehiclesService } from '../../core/services/vehicles.service';
 import { DriversService } from '../../core/services/drivers.service';
+import { ProduitsDeCaisseService } from '../../core/services/produits-de-caisse.service';
 import { Product } from '../../core/models/product.model';
 import { Depot } from '../../core/models/depot.model';
 import { Client } from '../../core/models/client.model';
 import { VehicleBrand, Vehicle } from '../../core/models/vehicle.model';
 import { Driver } from '../../core/models/driver.model';
+import { ProduitDeCaisse } from '../../core/models/produit-de-caisse.model';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 
@@ -29,11 +31,14 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
 
   // Products cache for fast lookup
   private productsCache = new Map<number, Product>();
+  private produitsDeCaisseCache = new Map<number, ProduitDeCaisse>();
   private productsService = inject(ProductsService);
   private clientsService = inject(ClientsService);
   private printService = inject(PrintService);
   private vehiclesService = inject(VehiclesService);
   private driversService = inject(DriversService);
+  private produitsDeCaisseService = inject(ProduitsDeCaisseService);
+  private stockDocs = inject(StockDocumentsService);
 
   // Audio feedback
   private successSound: HTMLAudioElement | null = null;
@@ -120,8 +125,8 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
 
   constructor(
     private route: ActivatedRoute,
-    private depotsService: DepotsService,
-    private stockDocs: StockDocumentsService
+    private router: Router,
+    private depotsService: DepotsService
   ) {}
 
   ngOnInit(): void {
@@ -135,6 +140,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     this.loadVehicles();
     this.loadVehicleBrands();
     this.loadDrivers();
+    this.loadProduitsDeCaisse();
     this.initSounds();
     queueMicrotask(() => this.initCamera());
     
@@ -225,9 +231,16 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     });
   }
 
-  private getProductName(articleId: number): string {
-    const product = this.productsCache.get(articleId);
-    return product ? product.name : `Article ${articleId}`;
+  private getProductName(articleId: number): string | null {
+    // ONLY look in sous-produits (produits-de-caisse) - NO fallback to main products
+    for (const [produitId, produit] of this.produitsDeCaisseCache) {
+      if (produit.id === articleId) {
+        return produit.name;
+      }
+    }
+    
+    // Return null if not found in sous-produits - NO fallback to main products
+    return null;
   }
 
   private initSounds(): void {
@@ -557,10 +570,16 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         return;
       }
 
+      // Check if product exists in sous-produits first
+      const productName = this.getProductName(articleId);
+      if (!productName) {
+        this.error = `Produit ${articleId} non trouvé dans les sous-produits`;
+        this.playErrorSound();
+        return;
+      }
+      
       // Find existing item or create new one
       const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
-      
-      const productName = this.getProductName(articleId);
       
       if (existingItemIndex >= 0) {
         // Update existing item - add quantity and increment count
@@ -610,30 +629,81 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     this.scannedItems = this.scannedItems.filter(item => item.articleId !== articleId);
   }
 
+  getGroupedScannedItems(): Array<{
+    mainProduct: ProduitDeCaisse | null;
+    subProducts: Array<{
+      articleId: number;
+      productName: string;
+      quantity: number;
+      count: number;
+      lastScanned: Date;
+    }>;
+  }> {
+    return this.groupScannedItemsByProduitDeCaisse();
+  }
+
   private submitScan(code: string): void {
     this.loading = true;
     this.error = '';
     this.success = '';
 
     const fromDepotId = this.fromDepotId ?? 0;
+    
+    // Map session document type to backend document type
+    let documentType: string | undefined;
+    if (this.sessionDocumentType) {
+      switch (this.sessionDocumentType) {
+        case 'sortie':
+          documentType = 'BON_EXPEDITION';
+          break;
+        case 'transfert':
+          documentType = 'BON_TRANSFERT';
+          break;
+        case 'livraison':
+          documentType = 'BON_ENTREE_DEPOT';
+          break;
+      }
+    }
+
     const call$ = fromDepotId
       ? this.stockDocs.scanTransfer(fromDepotId, this.depotId, code)
-      : this.stockDocs.scanBarcode(code, this.depotId);
+      : this.stockDocs.scanBarcode(code, this.depotId, documentType);
 
     call$.subscribe({
-      next: () => {
+      next: (result) => {
         this.loading = false;
-        this.success = `Produit scanné: ${code}`;
+        if (result.isNewDocument) {
+          this.success = `Nouveau document créé: ${result.document.numero}`;
+          // Navigate to the new document
+          this.router.navigate([`/stock/documents/${this.getDocumentRoute(result.document.type)}/${result.document.id}`]);
+        } else {
+          this.success = `Produit scanné: ${code}`;
+        }
         this.error = '';
         setTimeout(() => { this.success = ''; }, 3000);
       },
-      error: () => {
+      error: (error) => {
         this.loading = false;
         this.error = `Code-barres introuvable: ${code}`;
         this.success = '';
         setTimeout(() => { this.error = ''; }, 5000);
       }
     });
+  }
+
+  private getDocumentRoute(documentType: string): string {
+    switch (documentType) {
+      case 'BON_EXPEDITION':
+        return 'bon-sortie';
+      case 'BON_TRANSFERT':
+        return 'bon-transfert';
+      case 'BON_ENTREE_DEPOT':
+        return 'bon-entree';
+      case 'BON_ENTREE_MAGASIN':
+        return 'bon-livraison';
+      default:
+        return 'bon-entree';
+    }
   }
 
   private getReader(): BrowserMultiFormatReader {
@@ -911,9 +981,16 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         return;
       }
 
+      // Check if product exists in sous-produits first
+      const productName = this.getProductName(articleId);
+      if (!productName) {
+        this.error = `Produit ${articleId} non trouvé dans les sous-produits`;
+        this.playErrorSound();
+        return;
+      }
+      
       // Find existing item or create new one
       const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
-      const productName = this.getProductName(articleId);
       
       if (existingItemIndex >= 0) {
         // Update existing item - set exact quantity and colis
@@ -1189,49 +1266,356 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // For bon de livraison, print directly
+    // Save document to database and print
     this.printDocumentDirectly();
   }
 
   private printDocumentDirectly(): void {
-    const printContent = this.generateDocumentContent();
-    let documentTitle = 'Bon de livraison';
-    if (this.sessionDocumentType === 'sortie') {
-      documentTitle = 'Bon de sortie';
-    } else if (this.sessionDocumentType === 'transfert') {
-      documentTitle = 'Bon de transfert';
-    }
-    
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      this.error = 'Impossible d\'ouvrir la fenêtre d\'impression';
-      return;
-    }
+    // First save the document to database
+    this.saveDocumentToDatabase().then((savedDocument) => {
+      if (savedDocument) {
+        const printContent = this.generateDocumentContent(savedDocument);
+        let documentTitle = 'Bon de livraison';
+        if (this.sessionDocumentType === 'sortie') {
+          documentTitle = 'Bon de sortie';
+        } else if (this.sessionDocumentType === 'transfert') {
+          documentTitle = 'Bon de transfert';
+        }
+        
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+          this.error = 'Impossible d\'ouvrir la fenêtre d\'impression';
+          return;
+        }
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${documentTitle}</title>
-        <style>
-          ${this.getPrintStyles()}
-        </style>
-      </head>
-      <body>
-        ${printContent}
-      </body>
-      </html>
-    `);
-    
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 500);
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>${documentTitle}</title>
+            <style>
+              ${this.getPrintStyles()}
+            </style>
+          </head>
+          <body>
+            ${printContent}
+          </body>
+          </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 500);
+      }
+    }).catch((error) => {
+      console.error('Error saving document:', error);
+      this.error = 'Erreur lors de la sauvegarde du document';
+    });
   }
 
-  private generateDocumentContent(): string {
+  private async loadProduitsDeCaisse(): Promise<void> {
+    try {
+      const produits = await this.produitsDeCaisseService.getActiveProduitsDeCaisse().toPromise();
+      if (produits) {
+        produits.forEach(produit => {
+          this.produitsDeCaisseCache.set(produit.id, produit);
+        });
+      }
+    } catch (error) {
+      console.error('Error loading produits de caisse:', error);
+    }
+  }
+
+  private groupScannedItemsByProduitDeCaisse(): Array<{
+    mainProduct: ProduitDeCaisse | null;
+    subProducts: Array<{
+      articleId: number;
+      productName: string;
+      quantity: number;
+      count: number;
+      lastScanned: Date;
+    }>;
+  }> {
+    const groups = new Map<number, Array<{
+      articleId: number;
+      productName: string;
+      quantity: number;
+      count: number;
+      lastScanned: Date;
+    }>>();
+
+    // Group scanned items by their parent product (if they are sous-produits)
+    this.scannedItems.forEach(item => {
+      // Check if this scanned item is a sous-produit (produit-de-caisse)
+      const scannedProduit = this.produitsDeCaisseCache.get(item.articleId);
+      if (scannedProduit && scannedProduit.parentProductId) {
+        // This is a sous-produit, group it under its parent product
+        const parentProductId = scannedProduit.parentProductId;
+        if (!groups.has(parentProductId)) {
+          groups.set(parentProductId, []);
+        }
+        groups.get(parentProductId)!.push(item);
+      } else {
+        // If it's a sous-produit without parent, create a standalone group
+        const standaloneKey = -item.articleId; // Use negative ID to avoid conflicts
+        if (!groups.has(standaloneKey)) {
+          groups.set(standaloneKey, []);
+        }
+        groups.get(standaloneKey)!.push(item);
+      }
+    });
+
+    // Convert to the required format
+    const result: Array<{
+      mainProduct: ProduitDeCaisse | null;
+      subProducts: Array<{
+        articleId: number;
+        productName: string;
+        quantity: number;
+        count: number;
+        lastScanned: Date;
+      }>;
+    }> = [];
+
+    for (const [key, items] of groups) {
+      if (key > 0) {
+        // This is a parent product group - find the parent product
+        const parentProduct = this.productsCache.get(key);
+        if (parentProduct) {
+          result.push({
+            mainProduct: null, // We don't have a ProduitDeCaisse for the parent, just the Product
+            subProducts: items
+          });
+        }
+      } else {
+        // This is a standalone sous-produit group
+        result.push({
+          mainProduct: null,
+          subProducts: items
+        });
+      }
+    }
+
+    return result;
+  }
+
+  private generateGroupedItemsRows(groupedItems: Array<{
+    mainProduct: ProduitDeCaisse | null;
+    subProducts: Array<{
+      articleId: number;
+      productName: string;
+      quantity: number;
+      count: number;
+      lastScanned: Date;
+    }>;
+  }>): string {
+    let rows = '';
+    
+    console.log('Generating rows for grouped items:', groupedItems);
+    
+    groupedItems.forEach((group, groupIndex) => {
+      console.log(`Processing group ${groupIndex}:`, group);
+      
+      if (group.subProducts.length > 0) {
+        // Get the first sub-product to determine if it's a sous-produit
+        const firstSubProduct = group.subProducts[0];
+        const scannedProduit = this.produitsDeCaisseCache.get(firstSubProduct.articleId);
+        
+        console.log(`First sub-product:`, firstSubProduct);
+        console.log(`Scanned produit:`, scannedProduit);
+        
+        if (scannedProduit && scannedProduit.parentProductId) {
+          // This is a group of sous-produits, show parent product info
+          const parentProduct = this.productsCache.get(scannedProduit.parentProductId);
+          console.log(`Parent product:`, parentProduct);
+          
+          if (parentProduct) {
+            const totalQuantity = group.subProducts.reduce((sum, item) => sum + item.quantity, 0);
+            const totalCount = group.subProducts.reduce((sum, item) => sum + item.count, 0);
+            
+            // Calculate pricing for the group
+            let totalHT = 0;
+            let totalTVA = 0;
+            let totalTTC = 0;
+            
+            group.subProducts.forEach(subProduct => {
+              const produit = this.produitsDeCaisseCache.get(subProduct.articleId);
+              if (produit) {
+                const prixUnitaire = produit.prix_vente_TTC || 0;
+                const tva = produit.tva || 19;
+                const quantite = subProduct.quantity / 1000; // Convert to kg
+                
+                const montantTTC = prixUnitaire * quantite;
+                const montantHT = montantTTC / (1 + tva / 100);
+                const montantTVA = montantTTC - montantHT;
+                
+                totalHT += montantHT;
+                totalTVA += montantTVA;
+                totalTTC += montantTTC;
+              }
+            });
+            
+            console.log(`Total quantity: ${totalQuantity}, Total count: ${totalCount}`);
+            console.log(`Pricing - HT: ${totalHT}, TVA: ${totalTVA}, TTC: ${totalTTC}`);
+            
+            // Parent product row with sub-products in same designation
+            const subProductNames = group.subProducts.map(sub => sub.productName).join(', ');
+            rows += `
+              <tr class="main-product-row">
+                <td class="text-center font-semibold">${parentProduct.id}</td>
+                <td class="font-semibold">${parentProduct.name} (${subProductNames})</td>
+                <td class="text-center font-semibold">${(totalQuantity/1000).toFixed(3)} kg</td>
+                <td class="text-center font-semibold">${totalCount}</td>
+                <td class="text-center font-semibold">${totalHT.toFixed(3)} TND</td>
+                <td class="text-center font-semibold">${totalTVA.toFixed(3)} TND</td>
+                <td class="text-center font-semibold">${totalTTC.toFixed(3)} TND</td>
+              </tr>
+            `;
+          }
+        } else {
+          // This is a standalone sous-produit (no parent)
+          console.log(`Standalone sous-produit:`, group.subProducts);
+          group.subProducts.forEach(item => {
+            const produit = this.produitsDeCaisseCache.get(item.articleId);
+            if (produit) {
+              const prixUnitaire = produit.prix_vente_TTC || 0;
+              const tva = produit.tva || 19;
+              const quantite = item.quantity / 1000; // Convert to kg
+              
+              const montantTTC = prixUnitaire * quantite;
+              const montantHT = montantTTC / (1 + tva / 100);
+              const montantTVA = montantTTC - montantHT;
+              
+              rows += `
+                <tr>
+                  <td class="text-center">${item.articleId}</td>
+                  <td>${item.productName}</td>
+                  <td class="text-center">${quantite.toFixed(3)} kg</td>
+                  <td class="text-center">${item.count}</td>
+                  <td class="text-center">${montantHT.toFixed(3)} TND</td>
+                  <td class="text-center">${montantTVA.toFixed(3)} TND</td>
+                  <td class="text-center">${montantTTC.toFixed(3)} TND</td>
+                </tr>
+              `;
+            }
+          });
+        }
+      }
+    });
+    
+    console.log('Generated rows:', rows);
+    return rows;
+  }
+
+  private async saveDocumentToDatabase(): Promise<any> {
+    try {
+      const documentData = await this.prepareDocumentData();
+      const savedDocument = await this.stockDocs.createDocument(documentData).toPromise();
+      console.log('Document saved:', savedDocument);
+      return savedDocument;
+    } catch (error) {
+      console.error('Error saving document to database:', error);
+      throw error;
+    }
+  }
+
+  private async prepareDocumentData(): Promise<any> {
+    const documentType = this.getDocumentTypeForAPI();
+    const documentNumber = await this.getNextDocumentNumber(documentType);
+    
+    // Calculate totals
+    let totalHT = 0;
+    let totalTVA = 0;
+    let totalTTC = 0;
+    
+    this.scannedItems.forEach(item => {
+      const produit = this.produitsDeCaisseCache.get(item.articleId);
+      if (produit) {
+        const prixUnitaire = produit.prix_vente_TTC || 0;
+        const tva = produit.tva || 19;
+        const quantite = item.quantity / 1000;
+        
+        const montantTTC = prixUnitaire * quantite;
+        const montantHT = montantTTC / (1 + tva / 100);
+        const montantTVA = montantTTC - montantHT;
+        
+        totalHT += montantHT;
+        totalTVA += montantTVA;
+        totalTTC += montantTTC;
+      }
+    });
+
+    const documentData: any = {
+      type: documentType,
+      numero: documentNumber,
+      depotId: this.depotId,
+      fromDepotId: this.fromDepotId,
+      totalHT: totalHT,
+      totalTVA: totalTVA,
+      totalTTC: totalTTC,
+      status: 'COMPLETED',
+      items: this.scannedItems.map(item => {
+        const produit = this.produitsDeCaisseCache.get(item.articleId);
+        return {
+          produitId: item.articleId,
+          quantity: item.quantity / 1000, // Convert to kg
+          count: item.count,
+          prixUnitaire: produit?.prix_vente_TTC || 0,
+          tva: produit?.tva || 19,
+          montantHT: produit ? (produit.prix_vente_TTC * (item.quantity / 1000)) / (1 + (produit.tva || 19) / 100) : 0,
+          montantTVA: produit ? (produit.prix_vente_TTC * (item.quantity / 1000)) - ((produit.prix_vente_TTC * (item.quantity / 1000)) / (1 + (produit.tva || 19) / 100)) : 0,
+          montantTTC: produit ? produit.prix_vente_TTC * (item.quantity / 1000) : 0
+        };
+      })
+    };
+
+    // Add specific data based on document type
+    if (this.sessionDocumentType === 'sortie') {
+      documentData.destinationDepotId = this.selectedDestinationDepot?.id;
+      documentData.vehicleId = this.selectedVehicle?.id;
+      documentData.driverId = this.selectedDriver?.id;
+      documentData.destination = this.destination;
+      documentData.validationFromDate = this.validationFromDate;
+      documentData.validationToDate = this.validationToDate;
+    } else if (this.sessionDocumentType === 'transfert') {
+      documentData.destinationDepotId = this.selectedDestinationDepot?.id;
+      documentData.driverId = this.selectedDriver?.id;
+    } else if (this.sessionDocumentType === 'livraison') {
+      documentData.clientId = this.selectedClient?.id;
+    }
+
+    return documentData;
+  }
+
+  private getDocumentTypeForAPI(): string {
+    switch (this.sessionDocumentType) {
+      case 'sortie':
+        return 'BON_EXPEDITION';
+      case 'transfert':
+        return 'BON_TRANSFERT';
+      case 'livraison':
+        return 'BON_ENTREE_DEPOT';
+      default:
+        return 'BON_ENTREE_DEPOT';
+    }
+  }
+
+  private async getNextDocumentNumber(documentType: string): Promise<string> {
+    try {
+      // Get the next document number from the database
+      const nextNumber = await this.stockDocs.getNextDocumentNumber(documentType).toPromise();
+      return nextNumber || this.generateDocumentNumber();
+    } catch (error) {
+      console.error('Error getting next document number:', error);
+      // Fallback to generated number
+      return this.generateDocumentNumber();
+    }
+  }
+
+  private generateDocumentContent(savedDocument?: any): string {
     let documentType = 'Bon de livraison';
     if (this.sessionDocumentType === 'sortie') {
       documentType = 'Bon de sortie';
@@ -1241,7 +1625,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     
     const currentDate = new Date().toLocaleDateString('fr-FR');
     const currentTime = new Date().toLocaleTimeString('fr-FR');
-    const documentNumber = this.generateDocumentNumber();
+    const documentNumber = savedDocument?.numero || this.generateDocumentNumber();
     
      let headerInfo = '';
      if (this.sessionDocumentType === 'sortie') {
@@ -1322,24 +1706,60 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       `;
     }
 
-    const itemsRows = this.scannedItems.map(item => `
-      <tr>
-        <td class="text-center">${item.articleId}</td>
-        <td>${item.productName}</td>
-        <td class="text-center">${item.quantity/1000} kg</td>
-        <td class="text-center">${item.count}</td>
-      </tr>
-    `).join('');
+    const groupedItems = this.groupScannedItemsByProduitDeCaisse();
+    const itemsRows = this.generateGroupedItemsRows(groupedItems);
+
+    // Use saved document totals or calculate if not available
+    let totalHT = savedDocument?.totalHT || 0;
+    let totalTVA = savedDocument?.totalTVA || 0;
+    let totalTTC = savedDocument?.totalTTC || 0;
+    
+    // If no saved document, calculate totals
+    if (!savedDocument) {
+      this.scannedItems.forEach(item => {
+        const produit = this.produitsDeCaisseCache.get(item.articleId);
+        if (produit) {
+          const prixUnitaire = produit.prix_vente_TTC || 0;
+          const tva = produit.tva || 19;
+          const quantite = item.quantity / 1000; // Convert to kg
+          
+          const montantTTC = prixUnitaire * quantite;
+          const montantHT = montantTTC / (1 + tva / 100);
+          const montantTVA = montantTTC - montantHT;
+          
+          totalHT += montantHT;
+          totalTVA += montantTVA;
+          totalTTC += montantTTC;
+        }
+      });
+    }
 
     const totalQuantity = this.scannedItems.reduce((sum, item) => sum + item.quantity, 0);
     const totalColis = this.scannedItems.reduce((sum, item) => sum + item.count, 0);
+    
+    // Get current depot info
+    const currentDepot = this.depots().find(d => d.id === this.depotId);
 
     return `
       <div class="container">
         <div class="header">
           <div class="company-info">
-            <div class="title">${documentType}</div>
+            <div class="title">${documentType === 'Bon de livraison' ? 'FACTURE' : documentType}</div>
             <div class="subtitle">N° ${documentNumber}</div>
+            ${currentDepot ? `
+              <div class="company-details">
+                <div class="company-name">${currentDepot.name}</div>
+                <div class="company-address">${currentDepot.address || 'Adresse non renseignée'}</div>
+                <div class="company-contact">
+                  ${currentDepot.phone ? `Tél: ${currentDepot.phone}` : ''}
+                  ${currentDepot.email ? ` | Email: ${currentDepot.email}` : ''}
+                </div>
+                <div class="company-fiscal">
+                  Matricule Fiscal: ${currentDepot.matriculeFiscal || 'Non renseigné'}
+                  ${currentDepot.registreCommerce ? ` | RC: ${currentDepot.registreCommerce}` : ''}
+                </div>
+              </div>
+            ` : ''}
           </div>
           <div class="document-info">
             <div class="info-row">
@@ -1350,6 +1770,10 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
               <span class="label">Heure:</span>
               <span class="value">${currentTime}</span>
             </div>
+            <div class="info-row">
+              <span class="label">Dépôt:</span>
+              <span class="value">${currentDepot?.name || 'Non spécifié'}</span>
+            </div>
           </div>
         </div>
 
@@ -1358,19 +1782,56 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         <table>
           <thead>
             <tr>
-              <th>Code Article</th>
-              <th>Designation</th>
-              <th>Quantité</th>
+              <th>Code</th>
+              <th>Désignation</th>
+              <th>Qté (kg)</th>
               <th>Colis</th>
+              <th>Montant HT</th>
+              <th>TVA</th>
+              <th>Montant TTC</th>
             </tr>
           </thead>
           <tbody>
             ${itemsRows}
           </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="4" class="text-right font-bold">TOTAL:</td>
+              <td class="text-center font-bold">${totalHT.toFixed(3)} TND</td>
+              <td class="text-center font-bold">${totalTVA.toFixed(3)} TND</td>
+              <td class="text-center font-bold">${totalTTC.toFixed(3)} TND</td>
+            </tr>
+          </tfoot>
         </table>
 
+        <div class="totals-summary">
+          <div class="total-breakdown">
+            <div class="total-line">
+              <span class="label">Total HT:</span>
+              <span class="value">${totalHT.toFixed(3)} TND</span>
+            </div>
+            <div class="total-line">
+              <span class="label">Total TVA:</span>
+              <span class="value">${totalTVA.toFixed(3)} TND</span>
+            </div>
+            <div class="total-line total-final">
+              <span class="label">Total TTC:</span>
+              <span class="value">${totalTTC.toFixed(3)} TND</span>
+            </div>
+          </div>
+        </div>
+
         <div class="footer">
-          <div>Cachet et Signature</div>
+          <div class="signature-section">
+            <div class="signature-box">
+              <div class="signature-label">Cachet et Signature</div>
+              <div class="signature-line"></div>
+            </div>
+          </div>
+          <div class="legal-notice">
+            <p>Arrêté à la somme de: <strong>${this.numberToWords(totalTTC)} dinars tunisiens</strong></p>
+            <p>Conformément à la législation tunisienne en vigueur</p>
+          </div>
         </div>
       </div>
     `;
@@ -1421,6 +1882,19 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         margin-bottom: 10px; 
         font-weight: bold;
       }
+      .company-details {
+        margin-top: 10px;
+        font-size: 11px;
+      }
+      .company-name {
+        font-weight: bold;
+        font-size: 14px;
+        margin-bottom: 5px;
+      }
+      .company-address, .company-contact, .company-fiscal {
+        margin-bottom: 3px;
+        color: #333;
+      }
       .info-row { 
         margin: 4px 0; 
         font-size: 12px; 
@@ -1451,7 +1925,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       }
       th, td { 
         border: 1px solid #000; 
-        padding: 10px; 
+        padding: 8px; 
         text-align: left; 
       }
       th { 
@@ -1462,20 +1936,102 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
+      tfoot {
+        border-top: 2px solid #000;
+      }
+      .total-row {
+        background-color: #f0f0f0;
+        font-weight: bold;
+      }
       .text-right { 
         text-align: right; 
       }
       .text-center {
         text-align: center;
       }
+      .main-product-row {
+        background-color: #f0f8ff;
+        font-weight: bold;
+        border-top: 2px solid #000;
+      }
+      .main-product-row td {
+        border-top: 2px solid #000;
+        font-weight: bold;
+      }
+      .sub-product-row {
+        background-color: #fafafa;
+      }
+      .sub-product-row td {
+        border-top: 1px solid #ccc;
+        font-size: 11px;
+      }
+      .pl-4 {
+        padding-left: 16px;
+      }
+      .text-sm {
+        font-size: 11px;
+      }
+      .font-semibold {
+        font-weight: 600;
+      }
+      .font-bold {
+        font-weight: bold;
+      }
+      .totals-summary {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f8f8f8;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      .total-breakdown {
+        display: flex;
+        justify-content: flex-end;
+        flex-direction: column;
+        align-items: flex-end;
+      }
+      .total-line {
+        display: flex;
+        justify-content: space-between;
+        width: 300px;
+        margin-bottom: 5px;
+        font-size: 13px;
+      }
+      .total-final {
+        border-top: 1px solid #000;
+        padding-top: 5px;
+        font-weight: bold;
+        font-size: 14px;
+      }
       .footer { 
         margin-top: 40px; 
-        text-align: center; 
-        font-size: 14px; 
-        color: #000; 
         border-top: 2px solid #000; 
         padding-top: 20px; 
+      }
+      .signature-section {
+        margin-bottom: 20px;
+      }
+      .signature-box {
+        width: 300px;
+        margin: 0 auto;
+        text-align: center;
+      }
+      .signature-label {
         font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .signature-line {
+        border-bottom: 1px solid #000;
+        height: 20px;
+      }
+      .legal-notice {
+        text-align: center;
+        font-size: 11px;
+        color: #333;
+        margin-top: 20px;
+      }
+      .legal-notice p {
+        margin: 5px 0;
       }
       @media print { 
         body { 
@@ -1629,6 +2185,54 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     
     this.validationFromDate = today.toISOString().split('T')[0];
     this.validationToDate = tomorrow.toISOString().split('T')[0];
+  }
+
+  private numberToWords(num: number): string {
+    const ones = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
+    const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante-dix', 'quatre-vingt', 'quatre-vingt-dix'];
+    
+    if (num === 0) return 'zéro';
+    
+    const integerPart = Math.floor(num);
+    const decimalPart = Math.round((num - integerPart) * 1000);
+    
+    let result = '';
+    
+    if (integerPart >= 1000) {
+      const thousands = Math.floor(integerPart / 1000);
+      result += this.numberToWords(thousands) + ' mille ';
+      const remainder = integerPart % 1000;
+      if (remainder > 0) {
+        result += this.numberToWords(remainder);
+      }
+    } else if (integerPart >= 100) {
+      const hundreds = Math.floor(integerPart / 100);
+      result += ones[hundreds] + ' cent';
+      if (hundreds > 1) result += 's';
+      const remainder = integerPart % 100;
+      if (remainder > 0) {
+        result += ' ' + this.numberToWords(remainder);
+      }
+    } else if (integerPart >= 20) {
+      const ten = Math.floor(integerPart / 10);
+      const one = integerPart % 10;
+      result += tens[ten];
+      if (one > 0) {
+        if (ten === 7 || ten === 9) {
+          result += '-' + ones[one + 10];
+        } else {
+          result += '-' + ones[one];
+        }
+      }
+    } else {
+      result += ones[integerPart];
+    }
+    
+    if (decimalPart > 0) {
+      result += ' virgule ' + decimalPart.toString();
+    }
+    
+    return result;
   }
 }
 

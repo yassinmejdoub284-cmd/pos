@@ -2,7 +2,6 @@ import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef } fro
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ProductsService } from '../core/services/products.service';
-import { ProduitsDeCaisseService } from '../core/services/produits-de-caisse.service';
 import { SalesService, CreateSaleRequest } from '../core/services/sales.service';
 import { ClientsService } from '../core/services/clients.service';
 import { StockDocumentsService } from '../core/services/stock-documents.service';
@@ -114,8 +113,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Product catalog
   allProducts: Product[] = [];
   filteredProducts: Product[] = [];
-  groupedProducts: any[] = []; // Combined individual and grouped products for display
-  productCategories: string[] = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrac', 'Pâtisserie Tunisienne', 'Jus et Smoothies', 'Regroupés'];
+  productCategories: string[] = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrac', 'Pâtisserie Tunisienne', 'Jus et Smoothies'];
   selectedCategory: string = 'Tous';
   searchQuery: string = '';
 
@@ -420,7 +418,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private router: Router,
     private http: HttpClient,
     private productsService: ProductsService,
-    private produitsDeCaisseService: ProduitsDeCaisseService,
     private salesService: SalesService,
     private clientsService: ClientsService,
     private stockDocumentsService: StockDocumentsService,
@@ -735,8 +732,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
           return a.displayIndex! - b.displayIndex!;
         });
         
-        // Load grouped products and create combined list
-        this.loadGroupedProducts();
         this.loadProductSalesData();
       },
       error: (error) => {
@@ -745,30 +740,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadGroupedProducts(): void {
-    this.produitsDeCaisseService.getActiveProduitsDeCaisse().subscribe({
-      next: (groupedProducts) => {
-        // Show ONLY grouped products from produits de caisse table
-        this.groupedProducts = groupedProducts.map(group => ({
-          id: `group_${group.id}`,
-          name: group.name,
-          prix_vente_TTC: group.price,
-          isGrouped: true,
-          groupId: group.id,
-          productIds: group.productIds,
-          famille: { name: 'Regroupés' }
-        }));
-        
-        this.filterProducts();
-      },
-      error: (error) => {
-        console.error('Error loading grouped products:', error);
-        // Fallback to empty list if no grouped products
-        this.groupedProducts = [];
-        this.filterProducts();
-      }
-    });
-  }
 
   loadProductSalesData(): void {
     // Get sales data for the last 30 days to order products by popularity
@@ -811,7 +782,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   filterProducts(): void {
-    let filtered = this.groupedProducts;
+    let filtered = this.allProducts;
     
     // Filter by category
     if (this.selectedCategory !== 'Tous') {
@@ -918,11 +889,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
-    // Handle grouped products
-    if (product.isGrouped) {
-      this.addGroupedProductToReceipt(product);
-      return;
-    }
     
     // Check if product supports wholesale and we're in wholesale mode
     if (this.isWholesaleMode && product.isWholesale && product.bundleSize && product.bundlePrice) {
@@ -965,33 +931,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.calculateTotals();
   }
 
-  addGroupedProductToReceipt(groupedProduct: any): void {
-    const activeCart = this.getActiveCart();
-    if (!activeCart) return;
-    
-    // Add each individual product from the group to the cart
-    groupedProduct.productIds.forEach((productId: number) => {
-      const product = this.allProducts.find(p => p.id === productId);
-      if (product) {
-        const existingItem = activeCart.items.find(item => item.product.id === product.id && !item.isWholesale);
-        
-        if (existingItem) {
-          existingItem.quantity += 1;
-        } else {
-          activeCart.items.push({
-            product: product,
-            quantity: 1,
-            unitPrice: product.prix_vente_TTC,
-            total: product.prix_vente_TTC,
-            isWholesale: false,
-            isGift: false
-          });
-        }
-      }
-    });
-    
-    this.calculateTotals();
-  }
 
   addWholesaleProductToReceipt(product: Product, bundleCount: number = 1): void {
     const activeCart = this.getActiveCart();

@@ -12,6 +12,7 @@ export class AuthService {
   private readonly API_URL = `${environment.apiUrl}`;
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   private permissionsSubject = new BehaviorSubject<UserPermissions | null>(null);
+  private punchInProgress = false;
   
   public currentUser$ = this.currentUserSubject.asObservable();
   public permissions$ = this.permissionsSubject.asObservable();
@@ -30,14 +31,41 @@ export class AuthService {
           console.log('Login successful, setting auth data');
           this.setAuthData(response);
           // Fire check-in punch after successful login (non-blocking) with a small delay
-          // Temporarily disabled to debug spam issue
-          // setTimeout(() => {
-          //   console.log('Calling punch CHECK_IN after successful login');
-          //   this.attendanceService.punch('CHECK_IN').subscribe({ 
-          //     next: () => console.log('Punch check-in successful'), 
-          //     error: (err) => console.log('Punch check-in failed:', err) 
-          //   });
-          // }, 100);
+          setTimeout(() => {
+            if (!this.punchInProgress) {
+              this.punchInProgress = true;
+              console.log('Calling punch CHECK_IN after successful login');
+              this.attendanceService.punch('CHECK_IN', response.user.id).subscribe({ 
+                next: () => {
+                  console.log('Punch check-in successful');
+                  this.punchInProgress = false;
+                }, 
+                error: (err) => {
+                  console.log('Punch check-in failed:', err);
+                  this.punchInProgress = false;
+                  // Don't retry on 401 - likely auth issue
+                  if (err.status !== 401) {
+                    console.log('Retrying punch in 2 seconds...');
+                    setTimeout(() => {
+                      if (!this.punchInProgress) {
+                        this.punchInProgress = true;
+                        this.attendanceService.punch('CHECK_IN', response.user.id).subscribe({
+                          next: () => {
+                            console.log('Punch check-in retry successful');
+                            this.punchInProgress = false;
+                          },
+                          error: (retryErr) => {
+                            console.log('Punch check-in retry failed:', retryErr);
+                            this.punchInProgress = false;
+                          }
+                        });
+                      }
+                    }, 2000);
+                  }
+                }
+              });
+            }
+          }, 100);
         },
         error: (error) => {
           // Don't call punch on login failure
@@ -49,13 +77,25 @@ export class AuthService {
 
   logout(): void {
     // Fire check-out punch before clearing session (best effort)
-    // Temporarily disabled to debug spam issue
-    // try {
-    //   this.attendanceService.punch('CHECK_OUT').subscribe({ 
-    //     next: () => {}, 
-    //     error: (err) => console.log('Punch check-out failed:', err) 
-    //   });
-    // } catch {}
+    if (!this.punchInProgress) {
+      this.punchInProgress = true;
+      try {
+        this.attendanceService.punch('CHECK_OUT', this.currentUser()?.id).subscribe({ 
+          next: () => {
+            console.log('Punch check-out successful');
+            this.punchInProgress = false;
+          }, 
+          error: (err) => {
+            console.log('Punch check-out failed:', err);
+            this.punchInProgress = false;
+          }
+        });
+      } catch (error) {
+        console.log('Error calling punch on logout:', error);
+        this.punchInProgress = false;
+      }
+    }
+    
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('permissions');

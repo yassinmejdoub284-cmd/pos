@@ -1,7 +1,8 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, signal, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ProductsService } from '../../../core/services/products.service';
 import { Product, ProductFamily } from '../../../core/models/product.model';
+import { Depot } from '../../../core/models/depot.model';
 
 @Component({
   selector: 'app-product-form',
@@ -16,11 +17,13 @@ export class ProductFormComponent implements OnInit {
   @Output() cancelled = new EventEmitter<void>();
 
   productForm: FormGroup;
-  loading = false;
-  error = '';
+  loading = signal(false);
+  error = signal('');
   selectedFile: File | null = null;
   imagePreview: string | null = null;
   families: ProductFamily[] = [];
+  imageInputType: 'file' | 'url' = 'file';
+  selectedDepotIds = signal<number[]>([]);
 
   constructor(
     private fb: FormBuilder,
@@ -42,12 +45,15 @@ export class ProductFormComponent implements OnInit {
       // Wholesale fields
       isWholesale: [false],
       bundleSize: [null],
-      bundlePrice: [null]
+      bundlePrice: [null],
+      // Image fields
+      photoUrl: ['']
     });
   }
 
   ngOnInit(): void {
     this.loadFamilies();
+    this.initializeSelectedDepots();
     
     if (this.product) {
       this.productForm.patchValue({
@@ -92,7 +98,7 @@ export class ProductFormComponent implements OnInit {
         }
       },
       error: (error) => {
-        this.error = 'Erreur lors du chargement des familles';
+        this.error.set('Erreur lors du chargement des familles');
       }
     });
   }
@@ -115,46 +121,58 @@ export class ProductFormComponent implements OnInit {
         this.productForm.patchValue({ barcode: response.barcode });
       },
       error: (error) => {
-        this.error = 'Erreur lors de la génération du code-barres';
+        this.error.set('Erreur lors de la génération du code-barres');
       }
     });
   }
 
+  initializeSelectedDepots(): void {
+    if (this.product && this.product.assignedDepots) {
+      this.selectedDepotIds.set(this.product.assignedDepots.map(depot => depot.id));
+    }
+  }
+
+  onDepotsSelected(depotIds: number[]): void {
+    this.selectedDepotIds.set(depotIds);
+  }
+
   onSubmit(): void {
-    if (this.productForm.valid) {
-      this.loading = true;
-      this.error = '';
+    if (this.productForm.valid && this.selectedDepotIds().length > 0) {
+      this.loading.set(true);
+      this.error.set('');
 
       // Get all form values including disabled controls
       const formData = this.productForm.getRawValue();
+      formData.depotIds = this.selectedDepotIds();
       console.log('Form data being sent:', formData);
 
       const saveProduct = () => {
         if (this.product) {
           this.productsService.updateProduct(this.product.id, formData).subscribe({
             next: (product) => {
-              this.loading = false;
+              this.loading.set(false);
               this.saved.emit(product);
             },
             error: (error) => {
-              this.loading = false;
-              this.error = 'Erreur lors de la mise à jour du produit';
+              this.loading.set(false);
+              this.error.set('Erreur lors de la mise à jour du produit');
             }
           });
         } else {
           this.productsService.createProduct(formData).subscribe({
             next: (product) => {
-              this.loading = false;
+              this.loading.set(false);
               this.saved.emit(product);
             },
             error: (error) => {
-              this.loading = false;
-              this.error = 'Erreur lors de la création du produit';
+              this.loading.set(false);
+              this.error.set('Erreur lors de la création du produit');
             }
           });
         }
       };
 
+      // Handle image - either file upload or URL
       if (this.selectedFile) {
         this.productsService.uploadImage(this.selectedFile).subscribe({
           next: (response) => {
@@ -162,10 +180,13 @@ export class ProductFormComponent implements OnInit {
             saveProduct();
           },
           error: (error) => {
-            this.loading = false;
-            this.error = 'Erreur lors du téléchargement de l\'image';
+            this.loading.set(false);
+            this.error.set('Erreur lors du téléchargement de l\'image');
           }
         });
+      } else if (this.imageInputType === 'url' && this.productForm.get('photoUrl')?.value) {
+        formData.photo = this.productForm.get('photoUrl')?.value;
+        saveProduct();
       } else {
         saveProduct();
       }
@@ -221,5 +242,49 @@ export class ProductFormComponent implements OnInit {
     
     bundleSizeControl?.updateValueAndValidity();
     bundlePriceControl?.updateValueAndValidity();
+  }
+
+  setImageInputType(type: 'file' | 'url'): void {
+    this.imageInputType = type;
+    if (type === 'file') {
+      this.productForm.get('photoUrl')?.setValue('');
+    } else {
+      this.selectedFile = null;
+    }
+  }
+
+  loadImageFromUrl(): void {
+    const url = this.productForm.get('photoUrl')?.value;
+    if (url && this.isValidImageUrl(url)) {
+      this.imagePreview = url;
+      this.selectedFile = null;
+    } else {
+      this.error.set('URL d\'image invalide');
+    }
+  }
+
+  clearImage(): void {
+    this.imagePreview = null;
+    this.selectedFile = null;
+    this.productForm.get('photoUrl')?.setValue('');
+  }
+
+  private isValidImageUrl(url: string): boolean {
+    try {
+      const urlObj = new URL(url);
+      const validProtocols = ['http:', 'https:'];
+      const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+      
+      if (!validProtocols.includes(urlObj.protocol)) {
+        return false;
+      }
+      
+      const pathname = urlObj.pathname.toLowerCase();
+      return validExtensions.some(ext => pathname.endsWith(ext)) || 
+             pathname.includes('image') || 
+             url.includes('placeholder');
+    } catch {
+      return false;
+    }
   }
 } 

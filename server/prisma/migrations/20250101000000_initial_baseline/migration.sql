@@ -1,0 +1,2 @@
+-- Initial baseline migration
+-- Database schema is already established

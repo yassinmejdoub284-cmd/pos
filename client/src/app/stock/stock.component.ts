@@ -15,8 +15,68 @@ export class StockComponent implements OnInit {
   error = '';
 
   // Modal properties
-  showDepotChoiceModal = false;
-  selectedDepot: Depot | null = null;
+  showActionDepotModal = false;
+  selectedAction: string | null = null;
+
+  // Action cards configuration
+  actionCards = [
+    {
+      id: 'entry',
+      title: 'Bon d\'entrée',
+      description: 'Ajouter des produits depuis un fournisseur',
+      icon: 'M12 4v16m8-8H4',
+      color: 'from-emerald-500 to-green-600'
+    },
+    {
+      id: 'stock',
+      title: 'Gestion de Stock',
+      description: 'Gérer les produits et inventaires',
+      icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+      color: 'from-blue-500 to-indigo-600'
+    },
+    {
+      id: 'bon-sortie',
+      title: 'Bon de sortie',
+      description: 'Documents de sortie de stock',
+      icon: 'M20 12H4m16 0l-4-4m4 4l-4 4',
+      color: 'from-red-500 to-pink-600'
+    },
+    {
+      id: 'bon-transfert',
+      title: 'Bon de transfert',
+      description: 'Transferts entre dépôts',
+      icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
+      color: 'from-amber-500 to-yellow-600'
+    },
+    {
+      id: 'bon-livraison',
+      title: 'Bon de livraison',
+      description: 'Documents de livraison',
+      icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+      color: 'from-green-500 to-teal-600'
+    },
+    {
+      id: 'inventory',
+      title: 'Inventaire',
+      description: 'Faire l\'inventaire du dépôt',
+      icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
+      color: 'from-purple-500 to-violet-600'
+    },
+    {
+      id: 'scan',
+      title: 'Scanner un code-barres',
+      description: 'Rechercher un produit par code-barres',
+      icon: 'M3 7h4M17 7h4M3 17h4M17 17h4M6 7v10M10 7v10M14 7v10',
+      color: 'from-cyan-500 to-blue-600'
+    },
+    {
+      id: 'drivers',
+      title: 'Gestion des Chauffeurs',
+      description: 'Nom, prénom et CIN',
+      icon: 'M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z',
+      color: 'from-slate-500 to-gray-600'
+    }
+  ];
 
   // Scan UI state (moved to dedicated page)
 
@@ -65,36 +125,130 @@ export class StockComponent implements OnInit {
     }
   }
 
-  // Choice modal methods
-  openDepotChoiceModal(depot: Depot): void {
-    this.selectedDepot = depot;
-    this.showDepotChoiceModal = true;
+  // Action depot selection methods
+  openActionDepotSelection(action: string): void {
+    this.selectedAction = action;
+    this.showActionDepotModal = true;
   }
 
-  closeDepotChoiceModal(): void {
-    this.showDepotChoiceModal = false;
-    this.selectedDepot = null;
+  closeActionDepotModal(): void {
+    this.showActionDepotModal = false;
+    this.selectedAction = null;
   }
 
-  openStockManagement(depot: Depot): void {
-    this.closeDepotChoiceModal();
-    this.openWorkspace(depot);
+  getAvailableDepots(): Depot[] {
+    if (this.selectedAction === 'scan' || this.selectedAction === 'drivers') {
+      // Exclude SHOP type depots for scan and drivers actions
+      return this.depots.filter(depot => depot.type !== 'SHOP');
+    }
+    return this.depots;
   }
 
-  openEntryManagement(depot: Depot): void {
-    this.closeDepotChoiceModal();
-    this.router.navigate(['/stock/entry', depot.id]);
+  selectDepotForAction(depot: Depot): void {
+    if (!this.selectedAction) return;
+
+    // Store the action before closing the modal
+    const action = this.selectedAction;
+    this.closeActionDepotModal();
+
+    switch (action) {
+      case 'stock':
+        this.openWorkspace(depot);
+        break;
+      case 'entry':
+        this.router.navigate(['/stock/entry', depot.id]);
+        break;
+      case 'inventory':
+        this.router.navigate(['/inventory', depot.id]);
+        break;
+      case 'scan':
+        this.router.navigate(['/stock/scan', depot.id]);
+        break;
+      case 'drivers':
+        this.router.navigate(['/stock/drivers', depot.id]);
+        break;
+      case 'bon-sortie':
+        this.router.navigate(['/stock/documents/bon-sortie', depot.id]);
+        break;
+      case 'bon-transfert':
+        this.router.navigate(['/stock/documents/bon-transfert', depot.id]);
+        break;
+      case 'bon-livraison':
+        this.router.navigate(['/stock/documents/bon-livraison', depot.id]);
+        break;
+    }
   }
 
-  openInventoryManagement(depot: Depot): void {
-    this.closeDepotChoiceModal();
-    this.router.navigate(['/inventory', depot.id]);
+  getActionTitle(): string {
+    switch (this.selectedAction) {
+      case 'stock':
+        return 'Gestion de Stock';
+      case 'entry':
+        return 'Bon d\'entrée';
+      case 'inventory':
+        return 'Inventaire';
+      case 'scan':
+        return 'Scanner un code-barres';
+      case 'drivers':
+        return 'Gestion des Chauffeurs';
+      case 'bon-sortie':
+        return 'Bon de sortie';
+      case 'bon-transfert':
+        return 'Bon de transfert';
+      case 'bon-livraison':
+        return 'Bon de livraison';
+      default:
+        return 'Action';
+    }
   }
 
-  openScan(depot: Depot): void {
-    this.closeDepotChoiceModal();
-    this.router.navigate(['/stock/scan', depot.id]);
+  getActionIcon(): string {
+    switch (this.selectedAction) {
+      case 'stock':
+        return 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4';
+      case 'entry':
+        return 'M12 4v16m8-8H4';
+      case 'inventory':
+        return 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01';
+      case 'scan':
+        return 'M3 7h4M17 7h4M3 17h4M17 17h4M6 7v10M10 7v10M14 7v10';
+      case 'drivers':
+        return 'M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z';
+      case 'bon-sortie':
+        return 'M20 12H4m16 0l-4-4m4 4l-4 4';
+      case 'bon-transfert':
+        return 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4';
+      case 'bon-livraison':
+        return 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4';
+      default:
+        return 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z';
+    }
   }
+
+  getActionIconClass(): string {
+    switch (this.selectedAction) {
+      case 'stock':
+        return 'bg-gradient-to-br from-blue-500 to-cyan-600';
+      case 'entry':
+        return 'bg-gradient-to-br from-emerald-500 to-green-600';
+      case 'inventory':
+        return 'bg-gradient-to-br from-emerald-500 to-teal-600';
+      case 'scan':
+        return 'bg-gradient-to-br from-fuchsia-500 to-pink-600';
+      case 'drivers':
+        return 'bg-gradient-to-br from-blue-500 to-indigo-600';
+      case 'bon-sortie':
+        return 'bg-gradient-to-br from-red-500 to-rose-600';
+      case 'bon-transfert':
+        return 'bg-gradient-to-br from-amber-500 to-orange-600';
+      case 'bon-livraison':
+        return 'bg-gradient-to-br from-green-500 to-emerald-600';
+      default:
+        return 'bg-gradient-to-br from-gray-500 to-slate-600';
+    }
+  }
+
+
 
   // Depot type styling methods
   getDepotIcon(depot: Depot): string {

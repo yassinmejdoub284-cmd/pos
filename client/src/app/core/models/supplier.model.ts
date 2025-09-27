@@ -11,29 +11,19 @@ export interface Supplier {
   paymentTerms?: string;
   notes?: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  currentDebt?: number; // What we owe the supplier
-  totalExpenses?: number; // Total amount we've spent with this supplier
-  totalPayments?: number; // Total amount we've paid to this supplier
-  recentExpenses?: SupplierExpense[]; // Recent expenses with this supplier
+  createdAt: Date;
+  updatedAt: Date;
+  
+  // Additional properties from backend
+  currentDebt?: number;
+  totalExpenses?: number;
+  totalPayments?: number;
+  recentExpenses?: any[];
   _count?: {
-    expenses: number;
     debtTransactions: number;
+    expenses: number;
     payments: number;
   };
-}
-
-export interface SupplierExpense {
-  id: number;
-  amount: number;
-  date: string;
-  category: {
-    id: number;
-    name: string;
-  };
-  notes?: string;
-  isPaid: boolean;
 }
 
 export interface CreateSupplierRequest {
@@ -66,51 +56,49 @@ export interface UpdateSupplierRequest {
 export interface SupplierStatement {
   supplier: Supplier;
   statement: SupplierStatementItem[];
+  summary: SupplierSummary;
   totalDebit: number;
   totalCredit: number;
   currentBalance: number;
 }
 
 export interface SupplierStatementItem {
-  type: string;
   date: string;
+  type: string;
   reference: string;
+  description: string;
+  amount: number;
+  balance: number;
   debit: number;
   credit: number;
-  balance: number;
-  description: string;
-  id: number;
   clickable: boolean;
-  expenseId?: number;
-  bonId?: string;
+  bonId?: number;
 }
 
 export interface SupplierSummary {
   id: number;
   name: string;
-  currentDebt: number;
-  totalExpenses: number;
+  openingBalance: number;
+  totalDebits: number;
+  totalCredits: number;
+  closingBalance: number;
   periodExpenses: number;
   periodPayments: number;
   periodDebts: number;
   periodBalance: number;
-  _count: {
-    expenses: number;
-    debtTransactions: number;
-    payments: number;
-  };
+  currentDebt: number;
 }
 
 export interface SupplierPayment {
   id: number;
+  supplierId: number;
+  supplier?: Supplier;
   amount: number;
-  notes: string;
-  createdAt: string;
-  supplier: {
-    id: number;
-    name: string;
-  };
-  user: {
+  date: Date;
+  notes?: string;
+  createdAt: Date;
+  userId?: number;
+  user?: {
     id: number;
     firstName: string;
     lastName: string;

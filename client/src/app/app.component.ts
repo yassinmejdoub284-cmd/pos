@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { RouterOutlet, RouterModule } from '@angular/router';
 import { AuthService } from './core/services/auth.service';
+import { AttendanceService } from './core/services/attendance.service';
 
 @Component({
   selector: 'app-root',
@@ -10,11 +11,36 @@ import { AuthService } from './core/services/auth.service';
 })
 export class AppComponent implements OnInit {
   title = 'pos-patisserie';
+  private punchSent = false;
 
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private attendanceService: AttendanceService
+  ) {}
 
   ngOnInit(): void {
     // Ensure auth is initialized on app start
     this.authService.getToken();
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  beforeUnloadHandler(event: BeforeUnloadEvent): void {
+    // Fire check-out punch when user closes browser/tab (best effort)
+    if (this.authService.isAuthenticated() && !this.punchSent) {
+      this.punchSent = true;
+      try {
+        // Use synchronous XMLHttpRequest for reliable delivery during page unload
+        const currentUser = this.authService.currentUser();
+        if (currentUser?.id) {
+          const data = JSON.stringify({ type: 'CHECK_OUT', userId: currentUser.id });
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `${window.location.origin}/api/attendance/punch`, false);
+          xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.send(data);
+        }
+      } catch (error) {
+        console.log('Error calling punch on beforeunload:', error);
+      }
+    }
   }
 }

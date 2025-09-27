@@ -73,6 +73,7 @@ router.post('/', async (req, res) => {
   try {
     const { matricule, model, brand } = req.body;
 
+
     // Validate required fields
     if (!matricule || !model || !brand) {
       return res.status(400).json({ error: 'Matricule, model, and brand are required' });
@@ -88,25 +89,37 @@ router.post('/', async (req, res) => {
     }
 
     // Find or create brand
+    // Extract brand name if brand is an object, otherwise use as string
+    const brandName = typeof brand === 'object' ? brand.name : brand;
+    
+    // Extract model name if model is an object, otherwise use as string
+    let modelName;
+    if (typeof model === 'object' && model !== null) {
+      // Try different possible properties
+      modelName = model.name || model.model || model.value || model.label || JSON.stringify(model);
+    } else {
+      modelName = model;
+    }
+    
     let vehicleBrand = await prisma.vehicleBrand.findFirst({
-      where: { name: brand }
+      where: { name: brandName }
     });
 
     if (!vehicleBrand) {
       vehicleBrand = await prisma.vehicleBrand.create({
         data: {
-          name: brand,
-          models: [model]
+          name: brandName,
+          models: JSON.stringify([modelName])
         }
       });
     } else {
       // Add model to existing brand if not already present
-      const currentModels = vehicleBrand.models || [];
-      if (!currentModels.includes(model)) {
+      const currentModels = JSON.parse(vehicleBrand.models || '[]');
+      if (!currentModels.includes(modelName)) {
         await prisma.vehicleBrand.update({
           where: { id: vehicleBrand.id },
           data: {
-            models: [...currentModels, model]
+            models: JSON.stringify([...currentModels, modelName])
           }
         });
       }
@@ -115,7 +128,7 @@ router.post('/', async (req, res) => {
     const vehicle = await prisma.vehicle.create({
       data: {
         matricule,
-        model,
+        model: modelName,
         brandId: vehicleBrand.id
       },
       include: {
@@ -140,6 +153,7 @@ router.put('/:id', async (req, res) => {
     
     const { matricule, model, brand, isActive } = req.body;
 
+
     // Check if vehicle exists
     const existingVehicle = await prisma.vehicle.findUnique({
       where: { id: parseInt(id) }
@@ -160,32 +174,44 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    // Extract model name if model is an object, otherwise use as string
+    let modelName;
+    if (typeof model === 'object' && model !== null) {
+      // Try different possible properties
+      modelName = model.name || model.model || model.value || model.label || JSON.stringify(model);
+    } else {
+      modelName = model;
+    }
+
     let updateData = {};
     if (matricule !== undefined) updateData.matricule = matricule;
-    if (model !== undefined) updateData.model = model;
+    if (model !== undefined) updateData.model = modelName;
     if (isActive !== undefined) updateData.isActive = isActive;
 
     // Handle brand update
     if (brand) {
+      // Extract brand name if brand is an object, otherwise use as string
+      const brandName = typeof brand === 'object' ? brand.name : brand;
+      
       let vehicleBrand = await prisma.vehicleBrand.findFirst({
-        where: { name: brand }
+        where: { name: brandName }
       });
 
       if (!vehicleBrand) {
         vehicleBrand = await prisma.vehicleBrand.create({
           data: {
-            name: brand,
-            models: model ? [model] : []
+            name: brandName,
+            models: JSON.stringify(modelName ? [modelName] : [])
           }
         });
-      } else if (model) {
+      } else if (modelName) {
         // Add model to existing brand if not already present
-        const currentModels = vehicleBrand.models || [];
-        if (!currentModels.includes(model)) {
+        const currentModels = JSON.parse(vehicleBrand.models || '[]');
+        if (!currentModels.includes(modelName)) {
           await prisma.vehicleBrand.update({
             where: { id: vehicleBrand.id },
             data: {
-              models: [...currentModels, model]
+              models: JSON.stringify([...currentModels, modelName])
             }
           });
         }
@@ -244,7 +270,14 @@ router.get('/brands', async (req, res) => {
         name: 'asc'
       }
     });
-    res.json(brands);
+    
+    // Parse models JSON for each brand
+    const brandsWithParsedModels = brands.map(brand => ({
+      ...brand,
+      models: JSON.parse(brand.models || '[]')
+    }));
+    
+    res.json(brandsWithParsedModels);
   } catch (error) {
     console.error('Error fetching vehicle brands:', error);
     res.status(500).json({ error: 'Failed to fetch vehicle brands' });
@@ -261,7 +294,14 @@ router.get('/brands/active', async (req, res) => {
         name: 'asc'
       }
     });
-    res.json(brands);
+    
+    // Parse models JSON for each brand
+    const brandsWithParsedModels = brands.map(brand => ({
+      ...brand,
+      models: JSON.parse(brand.models || '[]')
+    }));
+    
+    res.json(brandsWithParsedModels);
   } catch (error) {
     console.error('Error fetching active vehicle brands:', error);
     res.status(500).json({ error: 'Failed to fetch active vehicle brands' });
@@ -283,7 +323,14 @@ router.get('/brands/search', async (req, res) => {
         name: 'asc'
       }
     });
-    res.json(brands);
+    
+    // Parse models JSON for each brand
+    const brandsWithParsedModels = brands.map(brand => ({
+      ...brand,
+      models: JSON.parse(brand.models || '[]')
+    }));
+    
+    res.json(brandsWithParsedModels);
   } catch (error) {
     console.error('Error searching vehicle brands:', error);
     res.status(500).json({ error: 'Failed to search vehicle brands' });
@@ -306,7 +353,13 @@ router.get('/brands/:id', async (req, res) => {
       return res.status(404).json({ error: 'Vehicle brand not found' });
     }
 
-    res.json(brand);
+    // Parse models JSON
+    const brandWithParsedModels = {
+      ...brand,
+      models: JSON.parse(brand.models || '[]')
+    };
+
+    res.json(brandWithParsedModels);
   } catch (error) {
     console.error('Error fetching vehicle brand:', error);
     res.status(500).json({ error: 'Failed to fetch vehicle brand' });
@@ -333,12 +386,18 @@ router.post('/brands', async (req, res) => {
     const brand = await prisma.vehicleBrand.create({
       data: {
         name,
-        models: models || [],
+        models: JSON.stringify(models || []),
         logoUrl: logoUrl || null
       }
     });
 
-    res.status(201).json(brand);
+    // Parse models JSON for response
+    const brandWithParsedModels = {
+      ...brand,
+      models: JSON.parse(brand.models || '[]')
+    };
+
+    res.status(201).json(brandWithParsedModels);
   } catch (error) {
     console.error('Error creating vehicle brand:', error);
     res.status(500).json({ error: 'Failed to create vehicle brand' });
@@ -376,7 +435,7 @@ router.put('/brands/:id', async (req, res) => {
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
-    if (models !== undefined) updateData.models = models;
+    if (models !== undefined) updateData.models = JSON.stringify(models);
     if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
     if (isActive !== undefined) updateData.isActive = isActive;
 
@@ -385,7 +444,13 @@ router.put('/brands/:id', async (req, res) => {
       data: updateData
     });
 
-    res.json(updatedBrand);
+    // Parse models JSON for response
+    const brandWithParsedModels = {
+      ...updatedBrand,
+      models: JSON.parse(updatedBrand.models || '[]')
+    };
+
+    res.json(brandWithParsedModels);
   } catch (error) {
     console.error('Error updating vehicle brand:', error);
     res.status(500).json({ error: 'Failed to update vehicle brand' });

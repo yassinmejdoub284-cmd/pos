@@ -55,6 +55,12 @@ export class StockDocumentsService {
     });
   }
 
+  updateDocument(id: number, data: any): Observable<StockDocument> {
+    return this.http.put<StockDocument>(`${this.apiUrl}/${id}`, data).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
+
   validateDocument(id: number, status: string, notes?: string): Observable<StockDocument> {
     return this.http.post<StockDocument>(`${this.apiUrl}/${id}/validate`, {
       status,
@@ -62,10 +68,11 @@ export class StockDocumentsService {
     });
   }
 
-  scanBarcode(barcode: string, depotId: number): Observable<ScanResult> {
+  scanBarcode(barcode: string, depotId: number, documentType?: string): Observable<ScanResult> {
     return this.http.post<ScanResult>(`${this.apiUrl}/scan`, {
       barcode,
-      depotId
+      depotId,
+      documentType
     });
   }
 
@@ -111,6 +118,18 @@ export class StockDocumentsService {
 
   createStockDocument(data: any): Observable<StockDocument> {
     return this.http.post<StockDocument>(this.apiUrl, data).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
+
+  createDocument(data: any): Observable<StockDocument> {
+    return this.http.post<StockDocument>(this.apiUrl, data).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
+
+  getNextDocumentNumber(documentType: string): Observable<string> {
+    return this.http.get<string>(`${this.apiUrl}/next-number/${documentType}`).pipe(
       catchError((error) => throwError(() => error))
     );
   }

@@ -1,32 +1,21 @@
-/* Optimized styles for home component */
+/* High-performance home component styles */
 
-/* Simplified animations - only essential ones */
+/* Critical performance optimizations */
+* {
+  will-change: auto;
+  contain: layout style paint;
+}
+
+/* Optimized animations with GPU acceleration */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* Optimized button hover effects */
-.action-button {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.action-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.action-button:active {
-  transform: scale(0.95);
-}
-
-/* Optimized loading spinner */
-.loading-spinner {
-  animation: spin 1s linear infinite;
+  from { 
+    opacity: 0; 
+    transform: translate3d(0, 10px, 0); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translate3d(0, 0, 0); 
+  }
 }
 
 @keyframes spin {
@@ -34,28 +23,94 @@
   to { transform: rotate(360deg); }
 }
 
-/* Performance optimizations */
-* {
-  will-change: auto;
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-/* Reduce paint complexity */
+@keyframes ping {
+  75%, 100% { 
+    transform: scale(2); 
+    opacity: 0; 
+  }
+}
+
+/* Optimized loading spinner */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+  will-change: transform;
+}
+
+/* Performance-optimized button effects */
+.action-button {
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  will-change: transform, box-shadow;
+  contain: layout style paint;
+}
+
+.action-button:hover {
+  transform: translate3d(0, -2px, 0);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.action-button:active {
+  transform: scale3d(0.95, 0.95, 1);
+}
+
+/* Optimized glass effect with reduced blur */
 .glass-effect {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  will-change: backdrop-filter;
 }
 
-/* Optimized gradients */
+/* Simplified gradients for better performance */
 .gradient-bg {
   background: linear-gradient(135deg, #fef3c7 0%, #e0e7ff 50%, #fef3c7 100%);
+  will-change: background;
 }
 
-/* Simplified shadows */
+/* Optimized shadows with fewer layers */
 .card-shadow {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .card-shadow-lg {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Performance-optimized status indicators */
+.status-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  will-change: opacity;
+}
+
+.status-ping {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+  will-change: transform, opacity;
+}
+
+/* Optimized grid layout */
+.action-grid {
+  contain: layout style;
+  will-change: contents;
+}
+
+/* Reduce repaints on scroll */
+.sticky-header {
+  contain: layout style paint;
+  will-change: transform;
+}
+
+/* Optimized dialog animations */
+.dialog-backdrop {
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  will-change: backdrop-filter, opacity;
+}
+
+.dialog-content {
+  will-change: transform, opacity;
+  contain: layout style paint;
 }
 

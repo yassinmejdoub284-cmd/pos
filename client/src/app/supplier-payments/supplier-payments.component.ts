@@ -149,8 +149,8 @@ export class SupplierPaymentsComponent implements OnInit {
     }
   }
 
-  formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleString('fr-FR');
+  formatDate(date: Date | string): string {
+    return new Date(date).toLocaleString('fr-FR');
   }
 
   formatAmount(amount: number): string {

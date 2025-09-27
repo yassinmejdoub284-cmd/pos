@@ -1,6 +1,6 @@
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-3">
   <!-- Modern Header -->
-  <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+  <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-5 mb-4 shadow-lg border border-slate-200/50">
     <div class="flex justify-between items-center">
       <div class="flex items-center gap-4">
         <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -24,252 +24,142 @@
     </div>
   </div>
 
-  <!-- Modern Grid Layout -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-    <!-- Products Card -->
-    <a routerLink="/stock/produits" class="group">
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-pink-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        
-        <div class="relative z-10">
-          <div class="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
-            </svg>
-          </div>
-          
-          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-pink-600 transition-colors duration-300">Produits</h3>
-          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Gestion des produits pâtisserie</p>
+  <!-- Action Options Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
+    <div *ngFor="let card of actionCards" 
+         (click)="openActionDepotSelection(card.id)" 
+         class="cursor-pointer">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg" 
+             [ngClass]="card.color">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="card.icon"></path>
+          </svg>
         </div>
         
-        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-pink-400/20 transition-all duration-300"></div>
+        <h3 class="text-lg font-bold text-slate-800 mb-2">{{ card.title }}</h3>
+        <p class="text-slate-500 text-sm">{{ card.description }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Other Options Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <!-- Products Card -->
+    <a routerLink="/stock/produits">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+          </svg>
+        </div>
+        
+        <h3 class="text-lg font-bold text-slate-800 mb-2">Produits</h3>
+        <p class="text-slate-500 text-sm">Gestion des produits pâtisserie</p>
       </div>
     </a>
 
-    <!-- Produits de Caisse Card -->
-    <a routerLink="/stock/produits-de-caisse" class="group">
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-blue-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        
-        <div class="relative z-10">
-          <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"></path>
-            </svg>
-          </div>
-          
-          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors duration-300">Produits de Caisse</h3>
-          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Regroupements pour la caisse</p>
+    <!-- Produits de Stock Card -->
+    <a routerLink="/stock/produits-de-caisse">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"></path>
+          </svg>
         </div>
         
-        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-blue-400/20 transition-all duration-300"></div>
+        <h3 class="text-lg font-bold text-slate-800 mb-2">Produits de Stock</h3>
+        <p class="text-slate-500 text-sm">Sous-produits de stock</p>
       </div>
     </a>
 
     <!-- Vehicles Card -->
-    <a routerLink="/stock/vehicles" class="group">
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-emerald-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        
-        <div class="relative z-10">
-          <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M8 5a1 1 0 011 1v1h1a1 1 0 110 2H9v1a1 1 0 11-2 0V9H6a1 1 0 110-2h1V6a1 1 0 011-1zM2 2a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V4a2 2 0 00-2-2H2zm16 2v12H2V4h16z"></path>
-            </svg>
-          </div>
-          
-          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-emerald-600 transition-colors duration-300">Gestion des Véhicules</h3>
-          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Matricules et modèles</p>
+    <a routerLink="/stock/vehicles">
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M8 5a1 1 0 011 1v1h1a1 1 0 110 2H9v1a1 1 0 11-2 0V9H6a1 1 0 110-2h1V6a1 1 0 011-1zM2 2a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V4a2 2 0 00-2-2H2zm16 2v12H2V4h16z"></path>
+          </svg>
         </div>
         
-        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-emerald-400/20 transition-all duration-300"></div>
+        <h3 class="text-lg font-bold text-slate-800 mb-2">Gestion des Véhicules</h3>
+        <p class="text-slate-500 text-sm">Matricules et modèles</p>
       </div>
     </a>
 
-    <!-- Drivers Card -->
-    <a routerLink="/stock/drivers" class="group">
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-blue-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        
-        <div class="relative z-10">
-          <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
+
+
+      <a routerLink="/stock/wholesale">
+        <div class="bg-white/80 rounded-xl border border-primary-200/50 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+          <div class="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <svg class="w-8 h-8 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
             </svg>
           </div>
           
-          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors duration-300">Gestion des Chauffeurs</h3>
-          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Nom, prénom et CIN</p>
-        </div>
-        
-        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-blue-400/20 transition-all duration-300"></div>
-      </div>
-    </a>
-
-    <!-- Depot Cards -->
-    <ng-container *ngFor="let depot of depots">
-      <div (click)="openDepotChoiceModal(depot)" class="group cursor-pointer">
-        <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden" 
-             [ngClass]="getDepotHoverBorder(depot)">
-          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" 
-               [ngClass]="getDepotHoverGradient(depot)"></div>
-          
-          <div class="relative z-10">
-            <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg" 
-                 [ngClass]="'bg-gradient-to-br ' + getDepotGradient(depot)">
-              <svg class="w-8 h-8" [ngClass]="getDepotIconColor(depot)" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" [attr.d]="getDepotIcon(depot)" clip-rule="evenodd"></path>
-              </svg>
-            </div>
-            
-            <h3 class="text-lg font-bold text-slate-800 mb-2 transition-colors duration-300" 
-                [ngClass]="getDepotHoverText(depot)">{{ depot.name }}</h3>
-            <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">
-              {{ depot.city }} • {{ getDepotTypeLabel(depot) }}
-            </p>
-          </div>
-          
-          <div class="absolute inset-0 rounded-2xl border-2 border-transparent transition-all duration-300" 
-               [ngClass]="getDepotHoverBorderRing(depot)"></div>
-        </div>
-      </div>
-    </ng-container>
-
-    <!-- Documents Card -->
-    <a routerLink="/stock/documents" class="group">
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 hover:border-purple-400/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        
-        <div class="relative z-10">
-          <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
-            </svg>
-          </div>
-          
-          <h3 class="text-lg font-bold text-slate-800 mb-2 group-hover:text-purple-600 transition-colors duration-300">Documents</h3>
-          <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300 text-sm">Traçabilité & historique</p>
-        </div>
-        
-        <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-purple-400/20 transition-all duration-300"></div>
-      </div>
-    </a>
-
-      <a routerLink="/stock/wholesale" class="group">
-        <div class="bg-white/80 rounded-xl border border-primary-200/50 hover:border-violet-400/50 transition-all duration-300 transform hover:scale-95 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
-          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          
-          <div class="relative z-10">
-            <div class="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-              <svg class="w-8 h-8 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-              </svg>
-            </div>
-            
-            <h3 class="text-lg font-semibold text-slate-800 mb-2 group-hover:text-violet-400 transition-colors duration-300">Vente en Gros</h3>
-            <p class="text-slate-500 group-hover:text-slate-600 transition-colors duration-300">Fardeaux & marges</p>
-          </div>
-          
-          <div class="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-violet-400/20 transition-all duration-300"></div>
+          <h3 class="text-lg font-semibold text-slate-800 mb-2">Vente en Gros</h3>
+          <p class="text-slate-500">Fardeaux & marges</p>
         </div>
       </a>
   </div>
 </div>
 
-<!-- Depot Choice Modal -->
-<div *ngIf="showDepotChoiceModal"
+<!-- Action Depot Selection Modal -->
+<div *ngIf="showActionDepotModal"
   class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
-  <div class="bg-white rounded-xl border border-gray-200 w-full max-w-md max-h-[95vh] flex flex-col">
-    <div class="flex justify-between items-center p-4 border-b border-gray-200" *ngIf="selectedDepot">
+  <div class="bg-white rounded-xl border border-gray-200 w-full max-w-lg max-h-[95vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-gray-200">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-full flex items-center justify-center" [ngClass]="'bg-gradient-to-br ' + getDepotGradient(selectedDepot)">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center" [ngClass]="getActionIconClass()">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="getDepotIcon(selectedDepot)"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="getActionIcon()"></path>
           </svg>
         </div>
         <div>
-          <h3 class="text-lg font-semibold text-slate-800">{{ selectedDepot.name }}</h3>
-          <p class="text-sm text-slate-500">{{ getDepotTypeLabel(selectedDepot) }} • {{ selectedDepot.city }}</p>
+          <h3 class="text-lg font-semibold text-slate-800">{{ getActionTitle() }}</h3>
+          <p class="text-sm text-slate-500">Sélectionnez un dépôt</p>
         </div>
       </div>
-      <button (click)="closeDepotChoiceModal()" class="text-slate-400 hover:text-slate-800" title="Fermer">
+      <button (click)="closeActionDepotModal()" class="text-slate-400" title="Fermer">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
       </button>
     </div>
 
-    <div class="p-6 space-y-4">
+    <div class="p-6">
       <div class="text-center mb-6">
-        <p class="text-slate-600">Que souhaitez-vous faire avec ce dépôt ?</p>
+        <p class="text-slate-600">Dans quel dépôt souhaitez-vous effectuer cette action ?</p>
       </div>
 
-      <!-- Stock Management Option -->
-      <button (click)="openStockManagement(selectedDepot!)" 
-        class="w-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl p-4 hover:from-blue-600 hover:to-cyan-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
-        <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+      <div class="space-y-3 max-h-96 overflow-y-auto">
+        <ng-container *ngFor="let depot of getAvailableDepots()">
+        <button (click)="selectDepotForAction(depot)" 
+          class="w-full bg-white border border-slate-200 rounded-xl p-4 flex items-center space-x-4 text-left">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center" [ngClass]="'bg-gradient-to-br ' + getDepotGradient(depot)">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="getDepotIcon(depot)"></path>
           </svg>
         </div>
-        <div class="text-left">
-          <h4 class="font-semibold text-lg">Gestion de Stock</h4>
-          <p class="text-sm opacity-90">Gérer les produits et inventaires</p>
+            <div class="flex-1">
+              <h4 class="font-semibold text-slate-800">{{ depot.name }}</h4>
+              <p class="text-sm text-slate-500">{{ getDepotTypeLabel(depot) }} • {{ depot.city }}</p>
         </div>
-      </button>
-
-      <!-- Entry (Bon d'entrée) Option -->
-      <button (click)="openEntryManagement(selectedDepot!)" 
-        class="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl p-4 hover:from-emerald-600 hover:to-green-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
-        <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-          </svg>
-        </div>
-        <div class="text-left">
-          <h4 class="font-semibold text-lg">Bon d'entrée</h4>
-          <p class="text-sm opacity-90">Ajouter des produits depuis un fournisseur</p>
-        </div>
-      </button>
-
-      <!-- Inventory Management Option -->
-      <button (click)="openInventoryManagement(selectedDepot!)" 
-        class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl p-4 hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
-        <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-          </svg>
-        </div>
-        <div class="text-left">
-          <h4 class="font-semibold text-lg">Inventaire</h4>
-          <p class="text-sm opacity-90">Faire l'inventaire du dépôt</p>
-        </div>
-      </button>
-
-      <!-- Scan Barcode Option -->
-      <div class="border-t border-gray-200 pt-4"></div>
-      <div class="space-y-3">
-        <button (click)="openScan(selectedDepot!)" 
-          class="w-full bg-gradient-to-r from-fuchsia-500 to-pink-600 text-white rounded-xl p-4 hover:from-fuchsia-600 hover:to-pink-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
-          <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h4M17 7h4M3 17h4M17 17h4M6 7v10M10 7v10M14 7v10"></path>
+            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
             </svg>
-          </div>
-          <div class="text-left">
-            <h4 class="font-semibold text-lg">Scanner un code-barres</h4>
-            <p class="text-sm opacity-90">Rechercher un produit par code-barres</p>
-          </div>
         </button>
+        </ng-container>
       </div>
     </div>
 
     <div class="p-4 border-t border-gray-200">
-      <button (click)="closeDepotChoiceModal()"
-        class="w-full bg-gray-200 text-slate-800 font-semibold py-3 px-4 rounded-xl hover:bg-gray-300 transition-all">
+      <button (click)="closeActionDepotModal()"
+        class="w-full bg-gray-200 text-slate-800 font-semibold py-3 px-4 rounded-xl">
         Annuler
       </button>
     </div>
   </div>
 </div>
+
 

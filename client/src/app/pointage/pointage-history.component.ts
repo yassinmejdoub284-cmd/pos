@@ -96,8 +96,16 @@ export class PointageHistoryComponent {
   }
 
   ngOnInit(): void {
+    // Set default period to today
+    this.setPeriod('TODAY');
+    
     this.usersService.getUsers().subscribe({
-      next: (users) => { this.allUsers = users || []; this.hydrateFromUsers(); },
+      next: (users) => { 
+        this.allUsers = users || []; 
+        this.hydrateFromUsers();
+        // Load initial data
+        this.refresh();
+      },
       error: () => {}
     });
   }
@@ -174,22 +182,41 @@ export class PointageHistoryComponent {
   }
 
   openDetails(emp: any): void {
-    // Mock data for login/logout details - replace with actual API call
-    const mockLoginHistory = [
-      { date: '2024-01-15', loginTime: '08:30', logoutTime: '17:45' },
-      { date: '2024-01-14', loginTime: '08:45', logoutTime: '18:00' },
-      { date: '2024-01-13', loginTime: '09:00', logoutTime: '17:30' },
-      { date: '2024-01-12', loginTime: '08:15', logoutTime: '17:15' },
-      { date: '2024-01-11', loginTime: '08:30', logoutTime: '18:30' }
-    ];
+    this.loading = true;
     
-    this.showDetailsFor = { 
-      employeeId: emp.employeeId, 
-      employeeName: emp.employeeName,
-      firstLogin: '08:30',
-      lastLogout: '17:45',
-      loginHistory: mockLoginHistory
-    };
+    // Get real attendance details from API
+    this.attendanceService.getDetails(emp.employeeId, this.startDate, this.endDate).subscribe({
+      next: (data) => {
+        const loginHistory = data.loginHistory || [];
+        const firstLogin = loginHistory.length > 0 ? loginHistory[0].loginTime : null;
+        const lastLogout = loginHistory.length > 0 ? loginHistory[0].logoutTime : null;
+        
+        this.showDetailsFor = { 
+          employeeId: emp.employeeId, 
+          employeeName: emp.employeeName,
+          firstLogin,
+          lastLogout,
+          loginHistory: loginHistory.map((item: any) => ({
+            date: item.date,
+            loginTime: item.loginTime,
+            logoutTime: item.logoutTime
+          }))
+        };
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Error loading attendance details:', error);
+        this.loading = false;
+        // Fallback to empty data
+        this.showDetailsFor = { 
+          employeeId: emp.employeeId, 
+          employeeName: emp.employeeName,
+          firstLogin: undefined,
+          lastLogout: undefined,
+          loginHistory: []
+        };
+      }
+    });
   }
 
   closeDetails(): void {
@@ -224,7 +251,7 @@ export class PointageHistoryComponent {
   formatTime(value?: string): string {
     if (!value) return '-';
     const d = new Date(value);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 
   formatH(seconds?: number): string {

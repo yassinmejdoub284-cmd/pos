@@ -4,9 +4,13 @@ import { FormsModule } from '@angular/forms';
 
 import { StockRoutingModule } from './stock-routing.module';
 import { StockComponent } from './stock.component';
+import { DocumentSelectionDialogComponent } from './document-selection-dialog/document-selection-dialog.component';
 
 @NgModule({
-  declarations: [StockComponent],
+  declarations: [
+    StockComponent,
+    DocumentSelectionDialogComponent
+  ],
   imports: [
     CommonModule,
     StockRoutingModule,

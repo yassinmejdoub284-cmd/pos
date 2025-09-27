@@ -54,6 +54,25 @@ function checkBarcodeExists(barcode) {
   });
 }
 
+function isValidImageUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    const validProtocols = ['http:', 'https:'];
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+    
+    if (!validProtocols.includes(urlObj.protocol)) {
+      return false;
+    }
+    
+    const pathname = urlObj.pathname.toLowerCase();
+    return validExtensions.some(ext => pathname.endsWith(ext)) || 
+           pathname.includes('image') || 
+           url.includes('placeholder');
+  } catch {
+    return false;
+  }
+}
+
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const products = await prisma.product.findMany({
@@ -136,6 +155,7 @@ router.post('/', authenticateToken, async (req, res) => {
       prix_vente_TTC,
       tva,
       duree_conservation,
+      photo,
       isVrac,
       originalProductId,
       isStockable,
@@ -144,7 +164,8 @@ router.post('/', authenticateToken, async (req, res) => {
       bundleSize,
       bundlePrice,
       minMargin,
-      requiresApproval
+      requiresApproval,
+      depotIds
     } = req.body;
     
     if (!name || !prix_vente_TTC || !familleId) {
@@ -153,6 +174,11 @@ router.post('/', authenticateToken, async (req, res) => {
     
     if (prix_vente_TTC < 0) {
       return res.status(400).json({ error: 'Le prix de vente doit être positif' });
+    }
+
+    // Validate photo URL if provided
+    if (photo && !isValidImageUrl(photo)) {
+      return res.status(400).json({ error: 'URL d\'image invalide' });
     }
 
     // Validate wholesale fields
@@ -195,6 +221,7 @@ router.post('/', authenticateToken, async (req, res) => {
       prix_vente_TTC: parseFloat(prix_vente_TTC),
       tva: tva ? parseFloat(tva) : 19,
       duree_conservation: duree_conservation ? parseInt(duree_conservation) : null,
+      photo: photo || null,
       isVrac: isVrac || false,
       originalProductId: originalProductId ? parseInt(originalProductId) : null,
       isStockable: isStockable !== undefined ? isStockable : true,
@@ -211,6 +238,16 @@ router.post('/', authenticateToken, async (req, res) => {
     const product = await prisma.product.create({
       data: productData
     });
+    
+    // Handle depot assignments if depotIds are provided
+    if (depotIds && depotIds.length > 0) {
+      await prisma.productDepot.createMany({
+        data: depotIds.map(depotId => ({
+          productId: product.id,
+          depotId: parseInt(depotId)
+        }))
+      });
+    }
     
     // Only create inventory for stockable products
     if (productData.isStockable) {
@@ -302,6 +339,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       prix_vente_TTC,
       tva,
       duree_conservation,
+      photo,
       isVrac,
       originalProductId,
       isStockable,
@@ -310,11 +348,17 @@ router.put('/:id', authenticateToken, async (req, res) => {
       bundleSize,
       bundlePrice,
       minMargin,
-      requiresApproval
+      requiresApproval,
+      depotIds
     } = req.body;
     
     if (prix_vente_TTC !== undefined && prix_vente_TTC < 0) {
       return res.status(400).json({ error: 'Le prix de vente doit être positif' });
+    }
+
+    // Validate photo URL if provided
+    if (photo !== undefined && photo && !isValidImageUrl(photo)) {
+      return res.status(400).json({ error: 'URL d\'image invalide' });
     }
 
     // Validate wholesale fields
@@ -351,6 +395,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (prix_vente_TTC !== undefined) updateData.prix_vente_TTC = parseFloat(prix_vente_TTC);
     if (tva !== undefined) updateData.tva = parseFloat(tva);
     if (duree_conservation !== undefined) updateData.duree_conservation = duree_conservation ? parseInt(duree_conservation) : null;
+    if (photo !== undefined) updateData.photo = photo || null;
     if (isVrac !== undefined) updateData.isVrac = isVrac;
     if (originalProductId !== undefined) updateData.originalProductId = originalProductId ? parseInt(originalProductId) : null;
     if (isStockable !== undefined) updateData.isStockable = isStockable;
@@ -367,6 +412,24 @@ router.put('/:id', authenticateToken, async (req, res) => {
       where: { id: productId },
       data: updateData
     });
+    
+    // Handle depot assignments if depotIds are provided
+    if (depotIds !== undefined) {
+      // Remove existing depot assignments
+      await prisma.productDepot.deleteMany({
+        where: { productId: productId }
+      });
+      
+      // Add new depot assignments
+      if (depotIds && depotIds.length > 0) {
+        await prisma.productDepot.createMany({
+          data: depotIds.map(depotId => ({
+            productId: productId,
+            depotId: parseInt(depotId)
+          }))
+        });
+      }
+    }
     
     await logAudit(req.user.id, 'products', productId, 'UPDATE', oldProduct, updateData);
     

@@ -106,6 +106,7 @@ export interface ScanResult {
   document: StockDocument;
   item: StockDocumentItem;
   canReceive: boolean;
+  isNewDocument?: boolean;
 }
 
 export interface TransferItem {

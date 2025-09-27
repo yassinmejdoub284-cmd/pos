@@ -9,12 +9,16 @@ import { ProduitsDeCaisseService } from '../../../core/services/produits-de-cais
   standalone: false
 })
 export class ProduitsDeCaisseListComponent {
-  @Input() produitsDeCaisse: ProduitDeCaisse[] = [];
+  @Input() produits: ProduitDeCaisse[] = [];
   @Input() allProducts: Product[] = [];
   @Input() searchQuery: string = '';
   @Input() selectedCategory: string = 'Tous';
+  @Input() productCategories: string[] = [];
   @Output() produitUpdated = new EventEmitter<void>();
   @Output() produitDeleted = new EventEmitter<void>();
+  @Output() produitEdit = new EventEmitter<ProduitDeCaisse>();
+  @Output() produitDelete = new EventEmitter<void>();
+  @Output() produitToggleActive = new EventEmitter<void>();
 
   private produitsDeCaisseService = inject(ProduitsDeCaisseService);
 
@@ -27,11 +31,11 @@ export class ProduitsDeCaisseListComponent {
   }
 
   getTotalQuantity(produit: ProduitDeCaisse): number {
-    return produit.productIds.length;
+    return 1; // Each produit de stock is now a single sub-product
   }
 
   getFilteredProduits(): ProduitDeCaisse[] {
-    let filtered = this.produitsDeCaisse;
+    let filtered = this.produits;
 
     // Filter by search query
     if (this.searchQuery.trim()) {
@@ -44,11 +48,8 @@ export class ProduitsDeCaisseListComponent {
     // Filter by category
     if (this.selectedCategory !== 'Tous') {
       filtered = filtered.filter(produit => {
-        // Check if any product in the group belongs to the selected category
-        return produit.productIds.some(productId => {
-          const product = this.allProducts.find(p => p.id === productId);
-          return product?.famille?.name === this.selectedCategory;
-        });
+        // Check if the produit belongs to the selected category
+        return produit.famille?.name === this.selectedCategory;
       });
     }
 
@@ -61,8 +62,13 @@ export class ProduitsDeCaisseListComponent {
   }
 
   getFirstProductImage(produit: ProduitDeCaisse): string {
-    if (produit.productIds.length > 0) {
-      return this.getProductImage(produit.productIds[0]);
+    // Show the actual produit-de-caisse image if it exists
+    if (produit.photo) {
+      return produit.photo;
+    }
+    // Fallback to parent product image if no produit-de-caisse image
+    if (produit.parentProductId) {
+      return this.getProductImage(produit.parentProductId);
     }
     return '/images/placeholder-product.svg';
   }
@@ -74,17 +80,17 @@ export class ProduitsDeCaisseListComponent {
 
   editProduit(produit: ProduitDeCaisse): void {
     // Emit event to parent component to handle editing
-    this.produitUpdated.emit();
+    this.produitEdit.emit(produit);
   }
 
   deleteProduit(produit: ProduitDeCaisse): void {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer le regroupement "${produit.name}" ?`)) {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer le sous-produit "${produit.name}" ?`)) {
       this.loading.set(true);
       this.error.set('');
       
       this.produitsDeCaisseService.deleteProduitDeCaisse(produit.id).subscribe({
         next: () => {
-          this.produitDeleted.emit();
+          this.produitDelete.emit();
           this.loading.set(false);
         },
         error: (err) => {
@@ -104,7 +110,7 @@ export class ProduitsDeCaisseListComponent {
       isActive: !produit.isActive
     }).subscribe({
       next: () => {
-        this.produitUpdated.emit();
+        this.produitToggleActive.emit();
         this.loading.set(false);
       },
       error: (err) => {

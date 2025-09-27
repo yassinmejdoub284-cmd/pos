@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface AttendanceFilters {
@@ -46,9 +47,25 @@ export class AttendanceService {
     return this.http.patch(`${this.API}/corrections/${id}`, { action, notes });
   }
 
-  punch(type: 'CHECK_IN' | 'CHECK_OUT'): Observable<any> {
+  punch(type: 'CHECK_IN' | 'CHECK_OUT', userId?: number): Observable<any> {
     console.log(`Punch ${type} called`);
-    return this.http.post(`${this.API}/punch`, { type });
+    const body: { type: 'CHECK_IN' | 'CHECK_OUT'; userId?: number } = { type };
+    if (userId) {
+      body.userId = userId;
+    }
+    return this.http.post(`${this.API}/punch`, body).pipe(
+      catchError(error => {
+        console.error(`Punch ${type} error:`, error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  getDetails(userId: number, startDate?: string, endDate?: string): Observable<any> {
+    let params = new HttpParams().set('userId', String(userId));
+    if (startDate) params = params.set('startDate', startDate);
+    if (endDate) params = params.set('endDate', endDate);
+    return this.http.get<any>(`${this.API}/details/${userId}`, { params });
   }
 }
 

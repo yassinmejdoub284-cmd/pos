@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `session_caisse` MODIFY `status` ENUM('OPEN', 'CLOSED', 'REOPENED', 'ADMIN_CORRECTED') NOT NULL DEFAULT 'OPEN';

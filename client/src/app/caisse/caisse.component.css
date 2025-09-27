@@ -37,15 +37,6 @@
   border-radius: 0.5rem;
 }
 
-.edge-hover-left {
-  border-left: 4px solid #3b82f6;
-  background-color: rgba(59, 130, 246, 0.1);
-}
-
-.edge-hover-right {
-  border-right: 4px solid #3b82f6;
-  background-color: rgba(59, 130, 246, 0.1);
-}
 
 /* Touch handling improvements - Keep minimal CSS for drag functionality */
 .product-grid {

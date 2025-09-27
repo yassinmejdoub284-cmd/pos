@@ -114,19 +114,35 @@ export class DepotSelectorComponent implements OnInit {
 
   private loadDepotLogos(): void {
     // Load logos from settings for each depot
-    this.depots.forEach(depot => {
-      // This would need to be implemented based on how logos are stored per depot
-      // For now, we'll use a placeholder approach
-      const logoUrl = this.getDepotLogoFromSettings(depot.id);
-      if (logoUrl) {
-        this.depotLogos.set(depot.id, logoUrl);
+    this.settingsService.getSettings().subscribe({
+      next: (settings: any) => {
+        this.depots.forEach(depot => {
+          const logoUrl = this.getDepotLogoFromSettings(depot.id, settings);
+          if (logoUrl) {
+            this.depotLogos.set(depot.id, logoUrl);
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Error loading depot logos from settings:', error);
       }
     });
   }
 
-  private getDepotLogoFromSettings(depotId: number): string | null {
-    // This is a placeholder - you'll need to implement based on your settings structure
-    // For now, return null to use the default icon
+  private getDepotLogoFromSettings(depotId: number, settings: any): string | null {
+    // Get depot-specific settings
+    const depotSettings = settings[depotId.toString()];
+    if (depotSettings && depotSettings.logoUrl) {
+      // Convert relative URL to absolute URL
+      return this.settingsService.getAbsoluteLogoUrl(depotSettings.logoUrl);
+    }
+    
+    // Fallback to default settings
+    const defaultSettings = settings['default'];
+    if (defaultSettings && defaultSettings.logoUrl) {
+      return this.settingsService.getAbsoluteLogoUrl(defaultSettings.logoUrl);
+    }
+    
     return null;
   }
 

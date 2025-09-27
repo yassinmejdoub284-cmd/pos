@@ -19,6 +19,20 @@ function generateDocumentNumber(type) {
   return `${prefix}-${year}${month}-${timestamp}`;
 }
 
+async function getNextDocumentId(type) {
+  try {
+    const lastDocument = await prisma.stockDocument.findFirst({
+      where: { type },
+      orderBy: { id: 'desc' }
+    });
+    
+    return lastDocument ? lastDocument.id + 1 : 1;
+  } catch (error) {
+    console.error('Error getting next document ID:', error);
+    return 1;
+  }
+}
+
 
 
 router.get('/', async (req, res) => {
@@ -535,12 +549,65 @@ router.post('/:id/validate', authenticateToken, async (req, res) => {
 
 router.post('/scan', authenticateToken, async (req, res) => {
   try {
-    const { barcode, depotId } = req.body;
+    const { barcode, depotId, documentType } = req.body;
     
     if (!barcode || !depotId) {
       return res.status(400).json({ error: 'Code-barres et dépôt requis' });
     }
     
+    // If documentType is provided, create a new document with auto-incrementing ID
+    if (documentType) {
+      const nextId = await getNextDocumentId(documentType);
+      const numero = generateDocumentNumber(documentType);
+      
+      // Create a new document for the scan
+      const newDocument = await prisma.stockDocument.create({
+        data: {
+          id: nextId,
+          numero,
+          type: documentType,
+          status: 'PREPARED',
+          emetteurId: parseInt(depotId),
+          destinataireId: parseInt(depotId),
+          notes: `Document créé par scan - ${barcode}`,
+          items: {
+            create: [{
+              productId: 1, // Default product, should be updated based on barcode lookup
+              famille: 'SCAN',
+              quantity: 1,
+              batch: null,
+              notes: `Scanné: ${barcode}`,
+              barcode: barcode
+            }]
+          },
+          statusHistory: {
+            create: {
+              status: 'PREPARED',
+              userId: req.user.id,
+              notes: 'Document créé par scan'
+            }
+          }
+        },
+        include: {
+          emetteur: true,
+          destinataire: true,
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+      
+      return res.json({
+        document: newDocument,
+        item: newDocument.items[0],
+        canReceive: true,
+        isNewDocument: true
+      });
+    }
+    
+    // Original scan logic for existing documents
     const item = await prisma.stockDocumentItem.findUnique({
       where: { barcode },
       include: {
@@ -586,7 +653,8 @@ router.post('/scan', authenticateToken, async (req, res) => {
     res.json({
       document,
       item,
-      canReceive: document.status === 'SENT'
+      canReceive: document.status === 'SENT',
+      isNewDocument: false
     });
   } catch (error) {
     console.error('Error scanning barcode:', error);
@@ -1122,6 +1190,193 @@ router.get('/:id/export-pdf', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error exporting PDF:', error);
     res.status(500).json({ error: 'Erreur lors de l\'export PDF' });
+  }
+});
+
+// Get next document number for a specific type
+router.get('/next-number/:type', authenticateToken, async (req, res) => {
+  try {
+    const { type } = req.params;
+    const numero = generateDocumentNumber(type);
+    res.json(numero);
+  } catch (error) {
+    console.error('Error generating next document number:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération du numéro' });
+  }
+});
+
+// General document creation endpoint
+router.post('/', authenticateToken, async (req, res) => {
+  try {
+    const { 
+      type, 
+      numero, 
+      depotId, 
+      fromDepotId, 
+      destinationDepotId,
+      clientId,
+      vehicleId,
+      driverId,
+      destination,
+      validationFromDate,
+      validationToDate,
+      totalHT,
+      totalTVA,
+      totalTTC,
+      status,
+      items,
+      notes 
+    } = req.body;
+
+    if (!type || !items || items.length === 0) {
+      return res.status(400).json({ error: 'Type et items requis' });
+    }
+
+    const documentNumber = numero || generateDocumentNumber(type);
+    
+    // Validate and convert status to valid DocumentStatus enum value
+    const validStatuses = ['PREPARED', 'SENT', 'RECEIVED', 'CANCELLED'];
+    const validatedStatus = validStatuses.includes(status) ? status : 'PREPARED';
+    
+    if (status && !validStatuses.includes(status)) {
+      console.log(`Invalid status '${status}' received, converting to 'PREPARED'`);
+    }
+    
+    const document = await prisma.$transaction(async (tx) => {
+      // Create the document
+      const doc = await tx.stockDocument.create({
+        data: {
+          numero: documentNumber,
+          type,
+          status: validatedStatus,
+          emetteurId: fromDepotId || depotId,
+          destinataireId: destinationDepotId || depotId,
+          notes: notes || null,
+          items: {
+            create: items.map(item => ({
+              productId: item.produitId,
+              famille: item.famille || 'SCAN',
+              quantity: parseFloat(item.quantity),
+              count: item.count || 1,
+              prixUnitaire: item.prixUnitaire || 0,
+              tva: item.tva || 19,
+              montantHT: item.montantHT || 0,
+              montantTVA: item.montantTVA || 0,
+              montantTTC: item.montantTTC || 0,
+              batch: item.batch || null,
+              notes: item.notes || null,
+              barcode: item.barcode || null
+            }))
+          },
+          statusHistory: {
+            create: {
+              status: validatedStatus,
+              userId: req.user.id,
+              notes: 'Document créé par scan'
+            }
+          }
+        },
+        include: {
+          emetteur: true,
+          destinataire: true,
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+
+      // Update inventory based on document type
+      for (const item of items) {
+        const productId = item.produitId;
+        const quantity = parseFloat(item.quantity);
+        const depotIdInt = parseInt(depotId);
+
+        if (type === 'BON_ENTREE_DEPOT') {
+          // Add to inventory
+          const inventory = await tx.inventory.findUnique({
+            where: {
+              depotId_productId: {
+                depotId: depotIdInt,
+                productId: productId
+              }
+            }
+          });
+
+          if (inventory) {
+            await tx.inventory.update({
+              where: { id: inventory.id },
+              data: { quantity: inventory.quantity + quantity }
+            });
+          } else {
+            await tx.inventory.create({
+              data: { depotId: depotIdInt, productId, quantity }
+            });
+          }
+
+          // Create stock movement
+          await tx.stockMovement.create({
+            data: {
+              productId,
+              depotId: depotIdInt,
+              quantity,
+              type: 'IN',
+              fromDepotId: null,
+              toDepotId: depotIdInt,
+              reason: 'ENTRY_SCAN',
+              reference: documentNumber,
+              userId: req.user.id
+            }
+          });
+        } else if (type === 'BON_EXPEDITION' || type === 'BON_TRANSFERT') {
+          // Remove from inventory
+          const inventory = await tx.inventory.findUnique({
+            where: {
+              depotId_productId: {
+                depotId: depotIdInt,
+                productId: productId
+              }
+            }
+          });
+
+          if (inventory) {
+            await tx.inventory.update({
+              where: { id: inventory.id },
+              data: { quantity: inventory.quantity - quantity }
+            });
+          } else {
+            await tx.inventory.create({
+              data: { depotId: depotIdInt, productId, quantity: -quantity }
+            });
+          }
+
+          // Create stock movement
+          await tx.stockMovement.create({
+            data: {
+              productId,
+              depotId: depotIdInt,
+              quantity: -quantity,
+              type: 'OUT',
+              fromDepotId: depotIdInt,
+              toDepotId: destinationDepotId || depotIdInt,
+              reason: type === 'BON_EXPEDITION' ? 'EXPEDITION_SCAN' : 'TRANSFERT_SCAN',
+              reference: documentNumber,
+              userId: req.user.id
+            }
+          });
+        }
+      }
+
+      return doc;
+    });
+
+    await logAudit(req.user.id, 'stock_documents', document.id, 'CREATE', null, document);
+
+    res.status(201).json(document);
+  } catch (error) {
+    console.error('Error creating document:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du document' });
   }
 });
 

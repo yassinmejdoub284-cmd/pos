@@ -3,23 +3,23 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { ProduitsDeCaisseRoutingModule } from './produits-de-caisse-routing.module';
-import { ProduitsDeCaisseComponent } from './produits-de-caisse.component';
+import { ProduitsDeStockComponent } from './produits-de-caisse.component';
 import { ProduitsDeCaisseListComponent } from './produits-de-caisse-list/produits-de-caisse-list.component';
-import { ProduitsDeCaisseFormComponent } from './produits-de-caisse-form/produits-de-caisse-form.component';
-import { DepotSelectorComponent } from '../../shared/depot-selector/depot-selector.component';
+import { ProduitsDeStockFormComponent } from './produits-de-caisse-form/produits-de-caisse-form.component';
+import { MultiDepotSelectorComponent } from '../../shared/multi-depot-selector/multi-depot-selector.component';
 
 @NgModule({
   declarations: [
-    ProduitsDeCaisseComponent,
+    ProduitsDeStockComponent,
     ProduitsDeCaisseListComponent,
-    ProduitsDeCaisseFormComponent
+    ProduitsDeStockFormComponent
   ],
   imports: [
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
     ProduitsDeCaisseRoutingModule,
-    DepotSelectorComponent
+    MultiDepotSelectorComponent
   ]
 })
 export class ProduitsDeCaisseModule { }

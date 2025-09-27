@@ -1,5 +1,5 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { DriversService } from '../../../core/services/drivers.service';
 import { Driver } from '../../../core/models/driver.model';
 
@@ -11,13 +11,16 @@ import { Driver } from '../../../core/models/driver.model';
 export class DriversListComponent implements OnInit {
   private driversService = inject(DriversService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   drivers = signal<Driver[]>([]);
   loading = signal(false);
   error = signal('');
   searchQuery = signal('');
+  depotId: string | null = null;
 
   ngOnInit(): void {
+    this.depotId = this.route.snapshot.paramMap.get('depotId');
     this.loadDrivers();
   }
 
@@ -43,11 +46,19 @@ export class DriversListComponent implements OnInit {
   }
 
   onAddDriver(): void {
-    this.router.navigate(['/stock/drivers/new']);
+    if (this.depotId) {
+      this.router.navigate(['/stock/drivers/new'], { queryParams: { depotId: this.depotId } });
+    } else {
+      this.router.navigate(['/stock/drivers/new']);
+    }
   }
 
   onEditDriver(driver: Driver): void {
-    this.router.navigate(['/stock/drivers/edit', driver.id]);
+    if (this.depotId) {
+      this.router.navigate(['/stock/drivers/edit', driver.id], { queryParams: { depotId: this.depotId } });
+    } else {
+      this.router.navigate(['/stock/drivers/edit', driver.id]);
+    }
   }
 
   onDeleteDriver(driver: Driver): void {

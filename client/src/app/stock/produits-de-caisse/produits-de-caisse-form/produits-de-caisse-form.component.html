@@ -1,63 +1,125 @@
-<!-- Modal Overlay -->
-<div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-  <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-    
+<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-3xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
     <!-- Header -->
-    <div class="flex items-center justify-between p-6 border-b border-slate-200">
-      <h2 class="text-xl font-bold text-slate-800">
-        {{ produit ? 'Modifier le regroupement' : 'Nouveau regroupement' }}
-      </h2>
-      <button (click)="onCancel()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-        <span class="text-slate-500 text-xl">×</span>
+    <div class="flex items-center justify-between p-6 border-b border-indigo-100/50 bg-gradient-to-r from-indigo-50 to-purple-50">
+      <h3 class="text-lg font-semibold text-slate-800">
+        {{ produit ? 'Modifier le Sous-Produit' : 'Nouveau Sous-Produit' }}
+      </h3>
+      <button (click)="onCancel()" class="text-slate-400 hover:text-slate-600 transition-colors" title="Fermer">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
       </button>
     </div>
 
-    <!-- Form Content -->
-    <div class="flex flex-col h-[calc(90vh-140px)]">
-      
-      <!-- Error Message -->
-      <div *ngIf="error()" class="bg-red-50 border border-red-200 rounded-xl p-4 m-6 mb-0">
-        <span class="text-red-600 font-medium">{{ error() }}</span>
-      </div>
+    <!-- Error Message -->
+    <div *ngIf="error()" class="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+      {{ error() }}
+    </div>
 
-      <!-- Scrollable Form Content -->
-      <div class="flex-1 overflow-y-auto p-6">
-        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-6">
-        
-        <!-- Basic Info -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">Nom du regroupement</label>
-            <input 
-              formControlName="name"
-              type="text"
-              placeholder="ex: Cookies"
-              class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">Prix (DT)</label>
-            <input 
-              formControlName="price"
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="12.00"
-              class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-          </div>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="flex-1 overflow-y-auto p-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Nom du produit -->
+        <div class="lg:col-span-2">
+          <label class="block text-sm font-medium text-slate-600 mb-2">Nom du produit *</label>
+          <input type="text" formControlName="name"
+            class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+            placeholder="Nom du produit">
+        </div>
+
+        <!-- Produit Parent -->
+        <div class="lg:col-span-2">
+          <label class="block text-sm font-medium text-slate-600 mb-2">Produit Parent *</label>
+          <select formControlName="parentProductId" title="Sélectionner un produit parent"
+            class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all">
+            <option value="">Sélectionner un produit parent</option>
+            <option *ngFor="let product of allProducts" [value]="product.id">{{ product.name }}</option>
+          </select>
+        </div>
+
+        <!-- Prix d'achat -->
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-2">Prix d'achat</label>
+          <input type="number" formControlName="prix_achat" step="0.001"
+            class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+            placeholder="0.000">
+        </div>
+
+        <!-- Prix de vente TTC -->
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-2">Prix de vente TTC *</label>
+          <input type="number" formControlName="prix_vente_TTC" step="0.01"
+            class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+            placeholder="0.00">
+        </div>
+
+        <!-- TVA -->
+        <div>
+          <label class="block text-sm font-medium text-slate-600 mb-2">TVA (%) *</label>
+          <input type="number" formControlName="tva" step="0.01"
+            class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+            placeholder="19">
         </div>
 
         <!-- Depot Selection -->
-        <div>
-          <app-depot-selector 
-            [selectedDepotId]="selectedDepot()?.id || null"
+        <div class="lg:col-span-2">
+          <app-multi-depot-selector 
+            [selectedDepotIds]="selectedDepotIds()"
+            [allowedDepotTypes]="['MAIN', 'BRANCH']"
             [required]="true"
-            (depotSelected)="onDepotSelected($event)">
-          </app-depot-selector>
+            (depotsSelected)="onDepotsSelected($event)">
+          </app-multi-depot-selector>
+        </div>
+
+        <!-- Image Upload Section -->
+        <div class="lg:col-span-2">
+          <label class="block text-sm font-medium text-slate-600 mb-2">Photo du produit</label>
+          
+          <!-- Image Input Type Toggle -->
+          <div class="flex space-x-2 mb-3">
+            <button type="button" (click)="imageInputType = 'file'" 
+              [class]="imageInputType === 'file' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'"
+              class="px-3 py-1 rounded-lg text-sm transition-all">
+              Fichier
+            </button>
+            <button type="button" (click)="imageInputType = 'url'"
+              [class]="imageInputType === 'url' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'"
+              class="px-3 py-1 rounded-lg text-sm transition-all">
+              URL
+            </button>
+          </div>
+
+          <!-- File Upload Input -->
+          <div *ngIf="imageInputType === 'file'" class="flex items-center space-x-4">
+            <input type="file" (change)="onFileSelected($event)" accept="image/*" title="Sélectionner une photo"
+              class="flex-1 px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 file:mr-4 file:py-2 file:px-4 file:rounded-2xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-slate-800 hover:file:bg-pink-700">
+          </div>
+
+          <!-- URL Input -->
+          <div *ngIf="imageInputType === 'url'" class="space-y-2">
+            <input type="url" formControlName="photoUrl" 
+              class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+              placeholder="https://example.com/image.jpg">
+            <button type="button" (click)="loadImageFromUrl()" 
+              class="px-4 py-2 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all text-sm">
+              Charger l'image
+            </button>
+          </div>
+          
+          <!-- Image Preview -->
+          <div *ngIf="imagePreview" class="mt-4 flex items-center space-x-4">
+            <div class="w-20 h-20">
+              <img [src]="imagePreview" alt="Aperçu" class="w-full h-full object-cover rounded-2xl">
+            </div>
+            <button type="button" (click)="clearImage()" 
+              class="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all text-sm">
+              Supprimer
+            </button>
+          </div>
         </div>
 
         <!-- Active Status -->
-        <div class="flex items-center">
+        <div class="lg:col-span-2 flex items-center">
           <input 
             formControlName="isActive"
             type="checkbox"
@@ -66,112 +128,25 @@
           <label for="isActive" class="ml-2 text-sm text-slate-700">Actif</label>
         </div>
 
-        <!-- Products Selection -->
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-3">
-            Produits à regrouper ({{ selectedProducts().length }} sélectionnés)
-          </label>
-          
-          <!-- Search Products -->
-          <div class="mb-4">
-            <div class="relative">
-              <div class="absolute inset-y-0 right-0 pl-3 flex items-center pointer-events-none">
-                <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-              </div>
-              <input 
-                type="text"
-                formControlName="searchQuery"
-                placeholder="Rechercher un produit..."
-                class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
-            </div>
-          </div>
-          
-          <!-- Selected Products Preview -->
-          <div *ngIf="selectedProducts().length > 0" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl">
-            <div class="text-sm font-medium text-green-800 mb-2">Produits sélectionnés:</div>
-            <div class="flex flex-wrap gap-2">
-              <div *ngFor="let productId of selectedProducts()" 
-                   class="flex items-center gap-2 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-lg">
-                <div class="w-4 h-4 bg-slate-200 rounded overflow-hidden">
-                  <img 
-                    [src]="getProductImage(productId)" 
-                    [alt]="getProductName(productId)"
-                    class="w-full h-full object-cover"
-                    (error)="onImageError($event)">
-                </div>
-                <span>{{ getProductName(productId) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Products Grid -->
-          <div class="grid grid-cols-1 gap-2 overflow-y-auto border border-slate-200 rounded-xl p-3">
-            <!-- Loading State -->
-            <div *ngIf="allProducts.length === 0" class="text-center py-8">
-              <div class="text-slate-400 text-sm">Chargement des produits...</div>
-            </div>
-            
-            <!-- Products Grid (3 columns) -->
-            <div class="grid grid-cols-3 gap-3">
-              <div *ngFor="let product of filteredProducts()" 
-                   (click)="toggleProduct(product.id)"
-                   class="flex flex-col items-center p-3 rounded-lg cursor-pointer transition-colors border"
-                   [class]="isProductSelected(product.id) ? 'bg-blue-100 border-blue-300' : 'bg-slate-50 hover:bg-slate-100 border-slate-200'">
-                
-                <div class="relative w-full mb-2">
-                  <div class="w-16 h-16 bg-slate-200 rounded overflow-hidden mx-auto">
-                    <img 
-                      [src]="getProductImage(product.id)" 
-                      [alt]="product.name"
-                      class="w-full h-full object-cover"
-                      (error)="onImageError($event)">
-                  </div>
-                  <input 
-                    type="checkbox"
-                    [checked]="isProductSelected(product.id)"
-                    class="absolute top-1 right-1 w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                    (click)="$event.stopPropagation()">
-                </div>
-                
-                <div class="text-center w-full">
-                  <div class="text-xs font-medium text-slate-800 truncate mb-1">{{ product.name }}</div>
-                  <div class="text-xs text-slate-500">{{ product.famille?.name || 'Sans catégorie' }}</div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- No Products Found -->
-            <div *ngIf="allProducts.length > 0 && filteredProducts().length === 0" class="text-center py-8">
-              <div class="text-slate-400 text-sm">Aucun produit trouvé pour "{{ form.get('searchQuery')?.value }}"</div>
-            </div>
-          </div>
-        </div>
-
-        </form>
       </div>
+    </form>
 
-      <!-- Fixed Actions Bar -->
-      <div class="border-t border-slate-200 p-4 bg-white">
-        <div class="flex items-center justify-end gap-3">
-          <button 
-            type="button"
-            (click)="onCancel()"
-            class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
-            Annuler
-          </button>
-          
-          <button 
-            type="button"
-            (click)="onSubmit()"
-            [disabled]="loading() || !form.valid || selectedProducts().length === 0"
-            class="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-            <span *ngIf="loading()" class="mr-2">⏳</span>
-            {{ produit ? 'Modifier' : 'Créer' }}
-          </button>
-        </div>
-      </div>
+    <div class="flex space-x-3 p-6 border-t border-indigo-100/50 bg-white">
+      <button (click)="onCancel()" type="button"
+        class="flex-1 bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-2xl hover:bg-slate-200 transition-all">
+        Annuler
+      </button>
+      <button (click)="onSubmit()" type="submit" [disabled]="!form.valid || loading()"
+        class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-slate-800 font-semibold py-3 px-4 rounded-2xl hover:from-pink-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+        <span *ngIf="loading()" class="flex items-center justify-center">
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-slate-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Enregistrement...
+        </span>
+        <span *ngIf="!loading()">{{ produit ? 'Modifier' : 'Créer' }}</span>
+      </button>
     </div>
   </div>
 </div>

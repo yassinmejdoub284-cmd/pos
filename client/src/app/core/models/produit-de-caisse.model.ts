@@ -1,32 +1,127 @@
-export interface ProduitDeCaisse {
+import { Product, ProductFamily, ProductConservation, Inventory, Depot, VracPrice } from './product.model';
+
+export interface ProduitDeCaisseDepot {
+  id: number;
+  produitDeCaisseId: number;
+  depotId: number;
+  createdAt: Date;
+  updatedAt: Date;
+  depot?: Depot;
+}
+
+export interface ProduitDeStock {
   id: number;
   name: string;
-  price: number;
-  productIds: number[];
-  depotId: number;
+  designation_legale?: string;
+  description?: string;
+  familleId: number;
+  famille?: ProductFamily;
+  barcode?: string;
+  unite: string;
+  prix_vente_TTC: number;
+  price: number; // Alias for prix_vente_TTC
+  prix_achat?: number;
+  tva: number;
+  photo?: string;
+  duree_conservation?: number;
+  // Vrac fields
+  isVrac?: boolean;
+  originalProductId?: number;
+  originalProduct?: Product;
+  isStockable?: boolean;
+  // New configuration fields
+  isVraguable?: boolean;
+  initialStock?: number;
+  minStock?: number;
+  maxStock?: number;
+  displayIndex?: number;
+  // Wholesale/Bundle fields
+  isWholesale?: boolean;
+  bundleSize?: number;
+  bundlePrice?: number;
+  // Stock-specific fields - now as sub-products
+  parentProductId?: number;
+  parentProduct?: Product;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  depot?: {
-    id: number;
-    name: string;
-    code: string;
-    type: string;
-  };
+  depotAssignments?: ProduitDeCaisseDepot[];
+  assignedDepots?: Depot[]; // Computed field for easier access
+  inventory?: Inventory[];
+  conservation?: ProductConservation[];
+  vracProducts?: Product[];
+  vracPrices?: VracPrice[];
 }
 
-export interface CreateProduitDeCaisseRequest {
+// Keep alias for backward compatibility
+export type ProduitDeCaisse = ProduitDeStock;
+
+export interface CreateProduitDeStockRequest {
   name: string;
-  price: number;
-  productIds: number[];
-  depotId: number;
+  designation_legale?: string;
+  description?: string;
+  familleId: number;
+  barcode?: string;
+  unite: string;
+  prix_vente_TTC: number;
+  prix_achat?: number;
+  tva: number;
+  photo?: string;
+  duree_conservation?: number;
+  // Vrac fields
+  isVrac?: boolean;
+  originalProductId?: number;
+  isStockable?: boolean;
+  // New configuration fields
+  isVraguable?: boolean;
+  initialStock?: number;
+  minStock?: number;
+  maxStock?: number;
+  displayIndex?: number;
+  // Wholesale/Bundle fields
+  isWholesale?: boolean;
+  bundleSize?: number;
+  bundlePrice?: number;
+  // Stock-specific fields - now as sub-products
+  parentProductId?: number;
+  depotIds: number[]; // Array of depot IDs to assign to
   isActive?: boolean;
 }
 
-export interface UpdateProduitDeCaisseRequest {
+// Keep alias for backward compatibility
+export type CreateProduitDeCaisseRequest = CreateProduitDeStockRequest;
+
+export interface UpdateProduitDeStockRequest {
   name?: string;
-  price?: number;
-  productIds?: number[];
-  depotId?: number;
+  designation_legale?: string;
+  description?: string;
+  familleId?: number;
+  barcode?: string;
+  unite?: string;
+  prix_vente_TTC?: number;
+  prix_achat?: number;
+  tva?: number;
+  photo?: string;
+  duree_conservation?: number;
+  // Vrac fields
+  isVrac?: boolean;
+  originalProductId?: number;
+  isStockable?: boolean;
+  // New configuration fields
+  isVraguable?: boolean;
+  initialStock?: number;
+  minStock?: number;
+  maxStock?: number;
+  displayIndex?: number;
+  // Wholesale/Bundle fields
+  isWholesale?: boolean;
+  bundleSize?: number;
+  bundlePrice?: number;
+  // Stock-specific fields - now as sub-products
+  parentProductId?: number;
+  depotIds?: number[]; // Array of depot IDs to assign to
   isActive?: boolean;
 }
+
+// Keep alias for backward compatibility
+export type UpdateProduitDeCaisseRequest = UpdateProduitDeStockRequest;

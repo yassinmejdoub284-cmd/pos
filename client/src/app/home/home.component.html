@@ -7,7 +7,7 @@
   </div>
 
   <!-- COMPACT MOBILE-OPTIMIZED HEADER -->
-  <div class="z-10 bg-gradient-to-b from-white/95 to-transparent sticky top-0">
+  <div class="z-10 bg-gradient-to-b from-white/95 to-transparent sticky top-0 sticky-header">
     <!-- Subtle gradient overlay -->
     <div class="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-pink-500/5"></div>
     
@@ -19,14 +19,14 @@
           <div class="relative">
             <div class="w-auto h-8 sm:h-14 flex items-center justify-center overflow-hidden">
               <!-- Company Logo Image -->
-              <img *ngIf="companyLogo && !logoLoadError" 
+              <img *ngIf="companyLogo() && !logoLoadError()" 
                    title="Logo de la société"
-                   [src]="companyLogo" 
-                   [alt]="companyName + ' Logo'"
+                   [src]="companyLogo()" 
+                   [alt]="companyName() + ' Logo'"
                    class="w-full h-full object-contain rounded-lg sm:rounded-xl"
                    (error)="onLogoError()">
                <!-- Fallback SVG Icon -->
-               <svg *ngIf="!companyLogo || logoLoadError" 
+               <svg *ngIf="!companyLogo() || logoLoadError()" 
                     class="w-full h-full text-amber-600" 
                     fill="currentColor" 
                     viewBox="0 0 24 24">
@@ -40,13 +40,13 @@
           <!-- Compact Typography -->
           <div class="hidden sm:block">
             <h1 class="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
-              {{ companyName }}
+              {{ companyName() }}
             </h1>
             <p class="text-xs text-gray-500 font-medium">Point de Vente</p>
           </div>
           <!-- Mobile-only title -->
           <div class="block sm:hidden">
-            <h1 class="text-sm font-bold text-gray-900 tracking-tight">{{ companyName }}</h1>
+            <h1 class="text-sm font-bold text-gray-900 tracking-tight">{{ companyName() }}</h1>
           </div>
         </div>
 
@@ -56,17 +56,17 @@
           <div class="flex items-center space-x-2 sm:space-x-3 rounded-lg sm:rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 border border-gray-200/50">
             <!-- User Avatar -->
             <div class="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-amber-500 to-pink-500 rounded-md sm:rounded-lg flex items-center justify-center">
-              <span class="text-white text-xs sm:text-sm font-bold">{{ currentUser?.firstName?.charAt(0) }}</span>
+              <span class="text-white text-xs sm:text-sm font-bold">{{ currentUser()?.firstName?.charAt(0) }}</span>
             </div>
             
             <!-- User Details - Hidden on mobile -->
             <div class="hidden sm:block text-left">
-              <p class="text-sm font-semibold text-gray-900">{{ greeting }}, {{ currentUser?.firstName }}</p>
+              <p class="text-sm font-semibold text-gray-900">{{ greeting() }}, {{ currentUser()?.firstName }}</p>
               <p class="text-xs text-gray-500 font-medium">{{ getRoleDisplayName() }}</p>
             </div>
             <!-- Mobile user name only -->
             <div class="block sm:hidden text-left">
-              <p class="text-xs font-semibold text-gray-900">{{ currentUser?.firstName }}</p>
+              <p class="text-xs font-semibold text-gray-900">{{ currentUser()?.firstName }}</p>
             </div>
           </div>
           
@@ -94,7 +94,7 @@
       <div class="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-pink-500/5 to-violet-500/5 rounded-3xl"></div>
       
       <!-- Action Grid - FULL SCREEN RESPONSIVE -->
-      <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 relative z-10 h-full w-full">
+      <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 relative z-10 h-full w-full action-grid">
         <!-- SPECIAL CAISSE BUTTON - SPANS 2x2 -->
         <div *ngIf="getFilteredActions()[0]?.id === 'caisse'" 
              (click)="navigateTo(getFilteredActions()[0].route)"
@@ -104,23 +104,23 @@
           <div class="relative">
             <!-- Session Status Background -->
             <div class="absolute inset-0 rounded-2xl p-1" 
-                 [class]="dashboardStats.activeSession ? 'bg-gradient-to-br from-emerald-500/20 to-green-500/20' : 'bg-gradient-to-br from-rose-500/20 to-pink-500/20'">
+                 [class]="dashboardStats().activeSession ? 'bg-gradient-to-br from-emerald-500/20 to-green-500/20' : 'bg-gradient-to-br from-rose-500/20 to-pink-500/20'">
               <!-- Session Status Indicator -->
               <div class="absolute top-10 right-5 z-30">
                 <div class="flex items-center space-x-2 bg-white/90 rounded-xl px-3 py-1 border" 
-                     [class]="dashboardStats.activeSession ? 'border-emerald-300/50' : 'border-rose-300/50'">
+                     [class]="dashboardStats().activeSession ? 'border-emerald-300/50' : 'border-rose-300/50'">
                   <!-- Animated Status Dot -->
                   <div class="relative">
                     <div class="w-3 h-3 rounded-full" 
-                         [class]="dashboardStats.activeSession ? 'bg-emerald-500' : 'bg-rose-500'">
-                      <div class="w-1.5 h-1.5 rounded-full bg-white animate-pulse absolute top-0.5 left-0.5"></div>
+                         [class]="dashboardStats().activeSession ? 'bg-emerald-500' : 'bg-rose-500'">
+                      <div class="w-1.5 h-1.5 rounded-full bg-white status-pulse absolute top-0.5 left-0.5"></div>
                     </div>
                     <!-- Pulsing Ring -->
-                    <div class="absolute inset-0 rounded-full animate-ping opacity-30" 
-                         [class]="dashboardStats.activeSession ? 'bg-emerald-400' : 'bg-rose-400'"></div>
+                    <div class="absolute inset-0 rounded-full status-ping opacity-30" 
+                         [class]="dashboardStats().activeSession ? 'bg-emerald-400' : 'bg-rose-400'"></div>
                   </div>
                   <span class="text-xs font-bold uppercase tracking-wider" 
-                        [class]="dashboardStats.activeSession ? 'text-emerald-600' : 'text-rose-600'">
+                        [class]="dashboardStats().activeSession ? 'text-emerald-600' : 'text-rose-600'">
                     Session
                   </span>
                 </div>
@@ -131,7 +131,7 @@
                 <div class="bg-white/90 rounded-xl px-4 py-2 border-2 border-gray-300">
                   <div class="text-xs font-black text-gray-600 whitespace-nowrap">
                     Vente du jour:
-                    <span class="font-black text-emerald-600"> {{ dashboardStats.todaySales | number:'1.3-3' }} dt</span>
+                    <span class="font-black text-emerald-600"> {{ dashboardStats().todaySales | number:'1.3-3' }} dt</span>
                   </div>
                 </div>
               </div>
@@ -139,7 +139,7 @@
           </div>
           
           <!-- LARGE CAISSE ACTION BUTTON -->
-          <div class="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-amber-300/30 shadow-lg active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center relative">
+          <div class="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-amber-300/30 shadow-lg active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center relative action-button">
             
             <!-- LARGE ICON CONTAINER -->
             <div class="relative w-20 h-20 bg-gradient-to-br rounded-2xl flex items-center justify-center mb-6 shadow-lg" 
@@ -171,11 +171,11 @@
              class="relative group h-full w-full">
           
           <!-- ACTION BUTTON -->
-          <div class="relative bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-amber-300/30 shadow-lg active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center">
+          <div class="relative bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-amber-300/30 shadow-lg active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center action-button">
             <!-- Pending Approvals Badge -->
-            <div *ngIf="action.id === 'approvals' && (dashboardStats?.pendingApprovals ?? 0) > 0" class="absolute -top-1 -right-1 z-30">
+            <div *ngIf="action.id === 'approvals' && (dashboardStats()?.pendingApprovals ?? 0) > 0" class="absolute top-2 right-2 z-30">
               <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold text-white bg-rose-500 shadow-md ring-2 ring-white">
-                {{ dashboardStats.pendingApprovals }}
+                {{ dashboardStats().pendingApprovals }}
               </span>
             </div>
             
@@ -208,89 +208,92 @@
   </div>
 
   <!-- Loading Overlay -->
-  <div *ngIf="loading" class="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+  <div *ngIf="loading()" class="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
     <div class="bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
       <div class="flex items-center space-x-4">
-        <div class="animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-amber-500"></div>
+        <div class="loading-spinner rounded-full h-8 w-8 border-4 border-gray-300 border-t-amber-500"></div>
         <span class="text-gray-800 font-semibold text-lg">Chargement...</span>
       </div>
     </div>
   </div>
 
 
-  <!-- Expense Action Dialog -->
-  <app-expense-action-dialog 
-    *ngIf="showExpenseActionDialog"
-    (actionSelected)="onExpenseActionSelected($event)"
-    (dialogClosed)="onExpenseDialogClosed()">
-  </app-expense-action-dialog>
+  <!-- Lazy-loaded Dialogs -->
+  @if (showExpenseActionDialog()) {
+    <app-expense-action-dialog 
+      (actionSelected)="onExpenseActionSelected($event)"
+      (dialogClosed)="onExpenseDialogClosed()">
+    </app-expense-action-dialog>
+  }
 
-  <!-- Client Action Dialog -->
-  <app-client-action-dialog 
-    *ngIf="showClientActionDialog"
-    (actionSelected)="onClientActionSelected($event)"
-    (dialogClosed)="onClientDialogClosed()">
-  </app-client-action-dialog>
+  @if (showClientActionDialog()) {
+    <app-client-action-dialog 
+      (actionSelected)="onClientActionSelected($event)"
+      (dialogClosed)="onClientDialogClosed()">
+    </app-client-action-dialog>
+  }
 
-  <!-- Approvals Action Dialog -->
-  <app-approvals-action-dialog 
-    *ngIf="showApprovalsActionDialog"
-    [pendingCount]="dashboardStats.pendingApprovals"
-    (actionSelected)="onApprovalsActionSelected($event)"
-    (dialogClosed)="onApprovalsDialogClosed()">
-  </app-approvals-action-dialog>
+  @if (showApprovalsActionDialog()) {
+    <app-approvals-action-dialog 
+      [pendingCount]="dashboardStats().pendingApprovals"
+      (actionSelected)="onApprovalsActionSelected($event)"
+      (dialogClosed)="onApprovalsDialogClosed()">
+    </app-approvals-action-dialog>
+  }
 
-  <!-- Supplier Action Dialog -->
-  <app-supplier-action-dialog 
-    *ngIf="showSupplierActionDialog"
-    (actionSelected)="onSupplierActionSelected($event)"
-    (dialogClosed)="onSupplierDialogClosed()">
-  </app-supplier-action-dialog>
+  @if (showSupplierActionDialog()) {
+    <app-supplier-action-dialog 
+      (actionSelected)="onSupplierActionSelected($event)"
+      (dialogClosed)="onSupplierDialogClosed()">
+    </app-supplier-action-dialog>
+  }
 
-  <!-- Billing Center Action Dialog -->
-  <app-billing-center-action-dialog 
-    *ngIf="showBillingCenterActionDialog"
-    (actionSelected)="onBillingCenterActionSelected($event)"
-    (dialogClosed)="onBillingCenterDialogClosed()">
-  </app-billing-center-action-dialog>
+  @if (showBillingCenterActionDialog()) {
+    <app-billing-center-action-dialog 
+      (actionSelected)="onBillingCenterActionSelected($event)"
+      (dialogClosed)="onBillingCenterDialogClosed()">
+    </app-billing-center-action-dialog>
+  }
 
-  <!-- Settings Action Dialog -->
-  <app-settings-action-dialog 
-    *ngIf="showSettingsActionDialog"
-    (actionSelected)="onSettingsActionSelected($event)"
-    (dialogClosed)="onSettingsDialogClosed()">
-  </app-settings-action-dialog>
+  @if (showSettingsActionDialog()) {
+    <app-settings-action-dialog 
+      (actionSelected)="onSettingsActionSelected($event)"
+      (dialogClosed)="onSettingsDialogClosed()">
+    </app-settings-action-dialog>
+  }
 
-  <!-- Enterprise Action Dialog -->
-  <app-enterprise-action-dialog
-    *ngIf="showEnterpriseActionDialog"
-    (actionSelected)="onEnterpriseActionSelected($event)"
-    (dialogClosed)="onEnterpriseDialogClosed()">
-  </app-enterprise-action-dialog>
+  @if (showEnterpriseActionDialog()) {
+    <app-enterprise-action-dialog
+      (actionSelected)="onEnterpriseActionSelected($event)"
+      (dialogClosed)="onEnterpriseDialogClosed()">
+    </app-enterprise-action-dialog>
+  }
 
   <!-- Historique Choice Dialog -->
-  <div *ngIf="showHistoriqueChoiceDialog" class="fixed inset-0 z-50 flex items-center justify-center">
-    <div class="absolute inset-0 bg-black/30" (click)="onHistoriqueChoiceClosed()"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 w-[90%] max-w-3xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-bold text-slate-800">Choisir un historique</h2>
-        <button class="text-slate-500 hover:text-slate-700" (click)="onHistoriqueChoiceClosed()" aria-label="Fermer">
-          ✕
-        </button>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <button (click)="onHistoriqueChoiceSelected('VENTES')" class="group text-left rounded-xl border border-slate-200 p-5 hover:border-slate-300 hover:shadow transition bg-gradient-to-br from-slate-50 to-white">
-          <div class="text-lg font-semibold text-slate-800 mb-1">Historique des Ventes</div>
-          <div class="text-sm text-slate-600 mb-1">Tickets, paiements, retours</div>
-          <div class="text-xs text-slate-500">Consulter les ventes passées avec filtres et détails.</div>
-        </button>
-        <button (click)="onHistoriqueChoiceSelected('POINTAGE')" class="group text-left rounded-xl border border-slate-200 p-5 hover:border-slate-300 hover:shadow transition bg-gradient-to-br from-indigo-50 to-white">
-          <div class="text-lg font-semibold text-slate-800 mb-1">Historique Pointage (Entrée/Sortie)</div>
-          <div class="text-sm text-slate-600 mb-1">Présences, retards, absences</div>
-          <div class="text-xs text-slate-500">Suivre les pointages employés et les corrections.</div>
-        </button>
+  @if (showHistoriqueChoiceDialog()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-black/30 dialog-backdrop" (click)="onHistoriqueChoiceClosed()"></div>
+      <div class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 w-[90%] max-w-3xl p-6 dialog-content">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-slate-800">Choisir un historique</h2>
+          <button class="text-slate-500 hover:text-slate-700" (click)="onHistoriqueChoiceClosed()" aria-label="Fermer">
+            ✕
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button (click)="onHistoriqueChoiceSelected('VENTES')" class="group text-left rounded-xl border border-slate-200 p-5 hover:border-slate-300 hover:shadow transition bg-gradient-to-br from-slate-50 to-white">
+            <div class="text-lg font-semibold text-slate-800 mb-1">Historique des Ventes</div>
+            <div class="text-sm text-slate-600 mb-1">Tickets, paiements, retours</div>
+            <div class="text-xs text-slate-500">Consulter les ventes passées avec filtres et détails.</div>
+          </button>
+          <button (click)="onHistoriqueChoiceSelected('POINTAGE')" class="group text-left rounded-xl border border-slate-200 p-5 hover:border-slate-300 hover:shadow transition bg-gradient-to-br from-indigo-50 to-white">
+            <div class="text-lg font-semibold text-slate-800 mb-1">Historique Pointage (Entrée/Sortie)</div>
+            <div class="text-sm text-slate-600 mb-1">Présences, retards, absences</div>
+            <div class="text-xs text-slate-500">Suivre les pointages employés et les corrections.</div>
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  }
 
 </div>

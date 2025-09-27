@@ -275,8 +275,8 @@ export class SuppliersComponent implements OnInit {
   }
 
   // Utility methods
-  formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('fr-FR');
+  formatDate(date: Date | string): string {
+    return new Date(date).toLocaleDateString('fr-FR');
   }
 
   getStatusColor(isActive: boolean): string {

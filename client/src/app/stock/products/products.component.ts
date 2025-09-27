@@ -27,6 +27,7 @@ export class ProductsComponent implements OnInit {
   selectedProductForImage: Product | null = null;
   selectedProductForVrac: Product | null = null;
   families: ProductFamily[] = [];
+  viewMode: 'table' | 'grid' = 'table';
 
   // Palette classes for family badges (light vibrant colors)
   private familyColorClasses: string[] = [
@@ -308,5 +309,9 @@ export class ProductsComponent implements OnInit {
 
   getVracProductsCount(): number {
     return this.displayedProducts.filter(product => product.isVrac === true).length;
+  }
+
+  toggleViewMode(): void {
+    this.viewMode = this.viewMode === 'table' ? 'grid' : 'table';
   }
 } 

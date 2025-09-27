@@ -27,6 +27,9 @@ export interface Product {
   isWholesale?: boolean;
   bundleSize?: number;
   bundlePrice?: number;
+  // Depot assignment fields
+  depotAssignments?: ProductDepot[];
+  assignedDepots?: Depot[]; // Computed field for easier access
   createdAt: Date;
   updatedAt: Date;
   inventory?: Inventory[];
@@ -71,6 +74,15 @@ export interface Inventory {
   quantity: number;
   reservedQuantity: number;
   lastUpdated: Date;
+  depot?: Depot;
+}
+
+export interface ProductDepot {
+  id: number;
+  productId: number;
+  depotId: number;
+  createdAt: Date;
+  updatedAt: Date;
   depot?: Depot;
 }
 

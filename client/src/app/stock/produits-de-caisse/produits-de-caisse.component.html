@@ -1,94 +1,431 @@
-<div class="min-h-screen bg-slate-50 p-4">
-  <div class="max-w-7xl mx-auto space-y-6">
-    <!-- Header -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-4">
-          <button 
-            routerLink="/home"
-            class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-            <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-            </svg>
-          </button>
-          <div>
-            <h1 class="text-2xl font-bold text-slate-800">Produits de Caisse</h1>
-            <p class="text-slate-600 mt-1">Gérer les regroupements de produits pour la caisse</p>
-          </div>
-        </div>
-        <button 
-          (click)="onProduitAdded()"
-          class="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl flex items-center gap-2">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path>
-          </svg>
-          Nouveau Regroupement
-        </button>
-      </div>
+<div class="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-6">
+  <!-- Home Button -->
+  <div class="fixed top-6 right-6 z-40">
+    <a routerLink="/home"
+      class="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+      title="Accueil">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+        </path>
+      </svg>
+    </a>
+  </div>
 
-      <!-- Filters -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Search -->
-        <div class="relative">
-          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
-          </div>
-          <input 
-            type="text"
-            [value]="searchQuery()"
-            (input)="onSearchChange($event)"
-            placeholder="Rechercher par nom..."
-            class="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50">
-        </div>
+  <!-- Loading State -->
+  <div *ngIf="loading()" class="flex items-center justify-center h-64">
+    <div class="text-center">
+      <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-t-4 border-emerald-600 mx-auto mb-6"></div>
+      <p class="text-emerald-700 font-medium">Chargement des produits de stock...</p>
+    </div>
+  </div>
 
-        <!-- Category Filter -->
+  <div *ngIf="!loading()" class="space-y-6 mx-auto">
+    <!-- Header Section -->
+    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl p-6 shadow-lg">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
         <div>
-          <select 
-            [value]="selectedCategory()"
-            (change)="onCategoryChange($event)"
-            class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50">
-            <option *ngFor="let category of productCategories()" [value]="category">{{ category }}</option>
-          </select>
+          <h1 class="text-3xl font-bold text-white mb-1">Produits de Stock</h1>
+          <p class="text-emerald-100">Gérez les sous-produits de stock</p>
+        </div>
+        
+        <div class="flex flex-wrap gap-3">
+          <!-- View Mode Toggle -->
+          <div class="flex bg-white rounded-xl shadow-md overflow-hidden">
+            <button (click)="viewMode.set('table')"
+              [class]="'px-4 py-2.5 flex items-center space-x-2 font-medium transition-all ' + (viewMode() === 'table' ? 'bg-emerald-500 text-white' : 'text-emerald-700 hover:bg-emerald-50')"
+              title="Vue tableau">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0V4a1 1 0 011-1h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path>
+              </svg>
+              <span>Tableau</span>
+            </button>
+            <button (click)="viewMode.set('grid')"
+              [class]="'px-4 py-2.5 flex items-center space-x-2 font-medium transition-all ' + (viewMode() === 'grid' ? 'bg-emerald-500 text-white' : 'text-emerald-700 hover:bg-emerald-50')"
+              title="Vue grille">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+              </svg>
+              <span>Grille</span>
+            </button>
+          </div>
+          
+          <button (click)="onProduitAdded()"
+            class="bg-white text-emerald-700 px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2 font-medium">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            <span>Nouveau Sous-Produit</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search & Filter Section -->
+    <div class="bg-white rounded-3xl p-6 border border-emerald-100 shadow-md">
+      <div class="grid grid-cols-1 lg:grid-cols-3 items-center gap-5">
+        <div class="lg:col-span-2">
+          <label class="block text-sm font-bold text-emerald-700 mb-2">Recherche</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+              <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </div>
+            <input type="text" 
+              [value]="searchQuery()"
+              (input)="onSearchChange($event)"
+              placeholder="Rechercher par nom..."
+              class="w-full pl-12 pr-4 py-3 bg-white border-2 border-emerald-200 rounded-xl text-emerald-800 placeholder-emerald-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm">
+          </div>
+          <!-- Category chips under search -->
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button (click)="setCategoryFilter('Tous')"
+              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedCategory() === 'Tous' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-transparent shadow-sm' : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50')">
+              Toutes
+            </button>
+            <button *ngFor="let category of productCategories().slice(1)" 
+              (click)="setCategoryFilter(category)"
+              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedCategory() === category ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-transparent shadow-sm' : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50')">
+              {{ category }}
+            </button>
+          </div>
+        </div>
+        
+        <div class="flex items-end">
+          <button (click)="onSearch()"
+            class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-5 py-3 rounded-xl hover:shadow-lg transition-all font-medium">
+            <span class="flex items-center justify-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+              Rechercher
+            </span>
+          </button>
         </div>
       </div>
     </div>
 
     <!-- Error Message -->
-    <div *ngIf="error()" class="bg-red-50 border border-red-200 rounded-xl p-4">
+    <div *ngIf="error()" class="mb-6 p-5 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-700 rounded-xl shadow-sm">
       <div class="flex items-center">
-        <span class="text-red-600 font-medium">{{ error() }}</span>
-      </div>
-    </div>
-
-    <!-- Loading -->
-    <div *ngIf="loading()" class="bg-white rounded-2xl border border-slate-200 p-8">
-      <div class="flex items-center justify-center">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span class="ml-3 text-slate-600">Chargement...</span>
+        <svg class="w-6 h-6 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <p class="font-medium">{{ error() }}</p>
       </div>
     </div>
 
     <!-- Content -->
-    <div *ngIf="!loading() && !error()">
-      <app-produits-de-caisse-list 
-        [produitsDeCaisse]="produitsDeCaisse()"
-        [allProducts]="allProducts()"
-        [searchQuery]="searchQuery()"
-        [selectedCategory]="selectedCategory()"
-        (produitUpdated)="onProduitUpdated()"
-        (produitDeleted)="onProduitDeleted()">
-      </app-produits-de-caisse-list>
+    <div class="space-y-6">
+      <!-- Table View -->
+      <div *ngIf="viewMode() === 'table'">
+        <div *ngFor="let group of groupedProducts()" class="bg-white rounded-3xl border border-emerald-100 shadow-md overflow-hidden mb-6">
+          <!-- Main Product Header -->
+          <div class="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 border-b border-emerald-100">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <!-- Product Image -->
+                <div class="relative">
+                  <div *ngIf="group.product.photo && group.product.photo !== '/images/placeholder-product.svg'" 
+                       class="w-16 h-16 rounded-xl overflow-hidden shadow-md">
+                    <img [src]="group.product.photo" 
+                         [alt]="group.product.name"
+                         [title]="group.product.name"
+                         class="w-full h-full object-cover hover:scale-105 transition-transform duration-200">
+                  </div>
+                  <div *ngIf="!group.product.photo || group.product.photo === '/images/placeholder-product.svg'" 
+                       class="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl flex items-center justify-center shadow-md">
+                    <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                  </div>
+                  <!-- Product count badge -->
+                  <div class="absolute -top-2 -right-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                    {{ group.subProducts.length }}
+                  </div>
+                </div>
+                <div>
+                  <h3 class="text-xl font-bold text-emerald-800">{{ group.product.name }}</h3>
+                  <div class="flex items-center space-x-2 mb-1">
+                    <span class="text-xs font-mono text-emerald-500 bg-emerald-100 px-2 py-1 rounded-lg">#{{ group.product.id }}</span>
+                    <span class="text-emerald-600 text-sm">{{ group.product.famille?.name }}</span>
+                  </div>
+                  <div class="flex items-center space-x-2 mt-1">
+                    <span class="text-sm font-semibold text-emerald-700">{{ group.product.prix_vente_TTC | currency:'TND':'symbol':'1.3-3' }}</span>
+                    <span class="text-xs text-emerald-500">•</span>
+                    <span class="text-sm text-emerald-600">{{ group.product.unite }}</span>
+                  </div>
+                </div>
+              </div>
+              <button (click)="onSubProductAdded(group.product)"
+                class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-2 rounded-xl hover:shadow-lg transition-all flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                <span>Ajouter Sous-Produit</span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Sub-Products Table -->
+          <div *ngIf="group.subProducts.length > 0" class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-100">
+                  <th class="px-5 py-4 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider">Photo</th>
+                  <th class="px-5 py-4 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider">Code</th>
+                  <th class="px-5 py-4 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider">Nom</th>
+                  <th class="px-5 py-4 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider">Prix TTC</th>
+                  <th class="px-5 py-4 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider">Prix d'achat</th>
+                  <th class="px-5 py-4 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider">TVA</th>
+                  <th class="px-5 py-4 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider">Dépôt</th>
+                  <th class="px-5 py-4 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider">Statut</th>
+                  <th class="px-5 py-4 text-left text-xs font-bold text-emerald-700 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-emerald-50">
+                <tr *ngFor="let subProduct of group.subProducts" 
+                    class="hover:bg-emerald-50/30 transition-colors">
+                  <td class="px-5 py-4">
+                    <div class="relative">
+                      <img *ngIf="subProduct.photo && subProduct.photo !== '/images/placeholder-product.svg'" 
+                           [src]="subProduct.photo" 
+                           [alt]="subProduct.name" 
+                           title="Photo"
+                           class="w-16 h-16 object-cover rounded-xl shadow-md hover:shadow-lg transition-all hover:scale-105">
+                      <div *ngIf="!subProduct.photo || subProduct.photo === '/images/placeholder-product.svg'" 
+                           class="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl flex items-center justify-center shadow-md">
+                        <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                      </div>
+                      <!-- Status indicator -->
+                      <div class="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white"
+                           [class]="subProduct.isActive ? 'bg-emerald-500' : 'bg-red-500'"></div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-4">
+                    <div class="text-sm font-mono text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg inline-block">
+                      #{{ subProduct.id }}
+                    </div>
+                  </td>
+                  <td class="px-5 py-4">
+                    <div class="text-base font-medium text-emerald-800">{{ subProduct.name }}</div>
+                  </td>
+                  <td class="px-5 py-4">
+                    <div class="text-lg font-bold text-teal-700">{{ subProduct.prix_vente_TTC | currency:'TND':'symbol':'1.3-3' }}</div>
+                  </td>
+                  <td class="px-5 py-4">
+                    <div class="text-sm text-emerald-700">{{ subProduct.prix_achat | currency:'TND':'symbol':'1.3-3' }}</div>
+                  </td>
+                  <td class="px-5 py-4">
+                    <div class="text-sm text-emerald-700">{{ subProduct.tva }}%</div>
+                  </td>
+                  <td class="px-5 py-4">
+                    <div class="text-sm text-emerald-700">
+                      <span *ngFor="let depot of subProduct.assignedDepots || []; let last = last">
+                        {{ depot.name }}<span *ngIf="!last">, </span>
+                      </span>
+                      <span *ngIf="!subProduct.assignedDepots || subProduct.assignedDepots.length === 0">Aucun dépôt</span>
+                    </div>
+                  </td>
+                  <td class="px-5 py-4">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                          [class]="subProduct.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'">
+                      {{ subProduct.isActive ? 'Actif' : 'Inactif' }}
+                    </span>
+                  </td>
+                  <td class="px-5 py-4">
+                    <div class="flex space-x-3">
+                      <button (click)="onProduitEdit(subProduct)"
+                              class="p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                              title="Modifier">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- No Sub-Products Message -->
+          <div *ngIf="group.subProducts.length === 0" class="p-8 text-center">
+            <div class="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <svg class="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-emerald-800 mb-2">Aucun sous-produit</h3>
+            <p class="text-emerald-600 mb-4">Ce produit principal n'a pas encore de sous-produits</p>
+            <button (click)="onSubProductAdded(group.product)"
+              class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:shadow-lg transition-all">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+              </svg>
+              Créer le premier sous-produit
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid View -->
+      <div *ngIf="viewMode() === 'grid'">
+        <div *ngFor="let group of groupedProducts()" class="bg-white rounded-3xl border border-emerald-100 shadow-md overflow-hidden">
+          <!-- Main Product Header -->
+          <div class="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 border-b border-emerald-100">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <!-- Product Image -->
+                <div class="relative">
+                  <div *ngIf="group.product.photo && group.product.photo !== '/images/placeholder-product.svg'" 
+                       class="w-16 h-16 rounded-xl overflow-hidden shadow-md">
+                    <img [src]="group.product.photo" 
+                         [alt]="group.product.name"
+                         [title]="group.product.name"
+                         class="w-full h-full object-cover hover:scale-105 transition-transform duration-200">
+                  </div>
+                  <div *ngIf="!group.product.photo || group.product.photo === '/images/placeholder-product.svg'" 
+                       class="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl flex items-center justify-center shadow-md">
+                    <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                  </div>
+                  <!-- Product count badge -->
+                  <div class="absolute -top-2 -right-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                    {{ group.subProducts.length }}
+                  </div>
+                </div>
+                <div>
+                  <h3 class="text-xl font-bold text-emerald-800">{{ group.product.name }}</h3>
+                  <div class="flex items-center space-x-2 mb-1">
+                    <span class="text-xs font-mono text-emerald-500 bg-emerald-100 px-2 py-1 rounded-lg">#{{ group.product.id }}</span>
+                    <span class="text-emerald-600 text-sm">{{ group.product.famille?.name }}</span>
+                  </div>
+                  <div class="flex items-center space-x-2 mt-1">
+                    <span class="text-sm font-semibold text-emerald-700">{{ group.product.prix_vente_TTC | currency:'TND':'symbol':'1.3-3' }}</span>
+                    <span class="text-xs text-emerald-500">•</span>
+                    <span class="text-sm text-emerald-600">{{ group.product.unite }}</span>
+                  </div>
+                </div>
+              </div>
+              <button (click)="onSubProductAdded(group.product)"
+                class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-2 rounded-xl hover:shadow-lg transition-all flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                <span>Ajouter Sous-Produit</span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Sub-Products List -->
+          <div *ngIf="group.subProducts.length > 0" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div *ngFor="let subProduct of group.subProducts" 
+                class="bg-gradient-to-br from-white to-emerald-50 border border-emerald-200 rounded-2xl p-5 hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+                
+                <!-- Product Image -->
+                <div class="relative mb-4">
+                  <div *ngIf="subProduct.photo && subProduct.photo !== '/images/placeholder-product.svg'" 
+                       class="w-full h-32 rounded-xl overflow-hidden shadow-md">
+                    <img [src]="subProduct.photo" 
+                         [alt]="subProduct.name"
+                         [title]="subProduct.name"
+                         class="w-full h-full object-cover hover:scale-105 transition-transform duration-200">
+                  </div>
+                  <div *ngIf="!subProduct.photo || subProduct.photo === '/images/placeholder-product.svg'" 
+                       class="w-full h-32 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl flex items-center justify-center shadow-md">
+                    <svg class="w-12 h-12 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                  </div>
+                  <!-- Status badge -->
+                  <div class="absolute top-2 right-2">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                          [class]="subProduct.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'">
+                      {{ subProduct.isActive ? 'Actif' : 'Inactif' }}
+                    </span>
+                  </div>
+                </div>
+                
+                <!-- Product Info -->
+                <div class="space-y-3">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <h4 class="font-semibold text-emerald-800 text-sm leading-tight">{{ subProduct.name }}</h4>
+                      <div class="text-xs font-mono text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg inline-block mt-1">
+                        #{{ subProduct.id }}
+                      </div>
+                    </div>
+                    <button (click)="onProduitEdit(subProduct)"
+                      class="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors flex-shrink-0"
+                      title="Modifier le sous-produit">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center">
+                      <span class="text-emerald-600">Prix:</span>
+                      <span class="font-bold text-emerald-800">{{ subProduct.prix_vente_TTC | currency:'TND':'symbol':'1.3-3' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span class="text-emerald-600">Prix d'achat:</span>
+                      <span class="text-emerald-700">{{ subProduct.prix_achat | currency:'TND':'symbol':'1.3-3' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span class="text-emerald-600">TVA:</span>
+                      <span class="text-emerald-700">{{ subProduct.tva }}%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span class="text-emerald-600">Dépôts:</span>
+                      <span class="text-emerald-700 text-xs">
+                        <span *ngFor="let depot of subProduct.assignedDepots || []; let last = last">
+                          {{ depot.name }}<span *ngIf="!last">, </span>
+                        </span>
+                        <span *ngIf="!subProduct.assignedDepots || subProduct.assignedDepots.length === 0">Aucun</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- No Sub-Products Message -->
+          <div *ngIf="group.subProducts.length === 0" class="p-8 text-center">
+            <div class="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <svg class="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-emerald-800 mb-2">Aucun sous-produit</h3>
+            <p class="text-emerald-600 mb-4">Ce produit principal n'a pas encore de sous-produits</p>
+            <button (click)="onSubProductAdded(group.product)"
+              class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:shadow-lg transition-all">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+              </svg>
+              Créer le premier sous-produit
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Form Modal -->
-    <app-produits-de-caisse-form 
+    <app-produits-de-stock-form 
       *ngIf="showForm()"
-      [produit]="null"
+      [produit]="editingProduit()"
       [allProducts]="allProducts()"
       (close)="onFormClose()"
       (submit)="onFormSubmit()">
-    </app-produits-de-caisse-form>
+    </app-produits-de-stock-form>
   </div>
 </div>

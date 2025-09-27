@@ -64,7 +64,7 @@ export class VehicleFormComponent implements OnInit {
         this.vehicle = vehicle;
         this.vehicleForm.patchValue({
           matricule: vehicle.matricule,
-          brand: vehicle.brand,
+          brand: vehicle.brand?.name || '',
           model: vehicle.model,
           isActive: vehicle.isActive
         });
@@ -95,6 +95,11 @@ export class VehicleFormComponent implements OnInit {
       this.error = '';
 
       const formData = this.vehicleForm.value;
+      
+      // Ensure brand is a string, not an object
+      if (typeof formData.brand === 'object' && formData.brand !== null) {
+        formData.brand = formData.brand.name || '';
+      }
 
       if (this.isEditMode && this.vehicle) {
         this.vehiclesService.updateVehicle(this.vehicle.id, formData).subscribe({

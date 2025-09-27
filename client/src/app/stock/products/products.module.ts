@@ -11,6 +11,7 @@ import { VracConversionFormComponent } from './vrac-conversion-form/vrac-convers
 import { VracStatisticsComponent } from './vrac-statistics/vrac-statistics.component';
 import { ImageUploadModalComponent } from '../../shared/components/image-upload-modal/image-upload-modal.component';
 import { ConservationWarningsComponent } from '../../shared/components/conservation-warnings/conservation-warnings.component';
+import { MultiDepotSelectorComponent } from '../../shared/multi-depot-selector/multi-depot-selector.component';
 
 @NgModule({
   declarations: [
@@ -26,7 +27,8 @@ import { ConservationWarningsComponent } from '../../shared/components/conservat
     ReactiveFormsModule,
     ProductsRoutingModule,
     ImageUploadModalComponent,
-    ConservationWarningsComponent
+    ConservationWarningsComponent,
+    MultiDepotSelectorComponent
   ]
 })
 export class ProductsModule { } 

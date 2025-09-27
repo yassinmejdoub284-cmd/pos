@@ -59,7 +59,7 @@ app.use(express.json());
 
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/sales', authenticateToken, salesRoutes);
