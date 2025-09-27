@@ -156,7 +156,8 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     this.depotsService.list().subscribe({
       next: (list) => {
         this.depots.set(list.filter((d: any) => d.isActive));
-        this.availableDepots = list.filter((d: any) => d.isActive);
+        // Filter out current depot from available depots for destination selection
+        this.availableDepots = list.filter((d: any) => d.isActive && d.id !== this.depotId);
       },
       error: () => {}
     });
@@ -1469,9 +1470,11 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
                 <td class="font-semibold">${parentProduct.name} (${subProductNames})</td>
                 <td class="text-center font-semibold">${(totalQuantity/1000).toFixed(3)} kg</td>
                 <td class="text-center font-semibold">${totalCount}</td>
-                <td class="text-center font-semibold">${totalHT.toFixed(3)} TND</td>
-                <td class="text-center font-semibold">${totalTVA.toFixed(3)} TND</td>
-                <td class="text-center font-semibold">${totalTTC.toFixed(3)} TND</td>
+                ${this.sessionDocumentType !== 'sortie' ? `
+                  <td class="text-center font-semibold">${totalHT.toFixed(3)} TND</td>
+                  <td class="text-center font-semibold">${totalTVA.toFixed(3)} TND</td>
+                  <td class="text-center font-semibold">${totalTTC.toFixed(3)} TND</td>
+                ` : ''}
               </tr>
             `;
           }
@@ -1495,9 +1498,11 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
                   <td>${item.productName}</td>
                   <td class="text-center">${quantite.toFixed(3)} kg</td>
                   <td class="text-center">${item.count}</td>
-                  <td class="text-center">${montantHT.toFixed(3)} TND</td>
-                  <td class="text-center">${montantTVA.toFixed(3)} TND</td>
-                  <td class="text-center">${montantTTC.toFixed(3)} TND</td>
+                  ${this.sessionDocumentType !== 'sortie' ? `
+                    <td class="text-center">${montantHT.toFixed(3)} TND</td>
+                    <td class="text-center">${montantTVA.toFixed(3)} TND</td>
+                    <td class="text-center">${montantTTC.toFixed(3)} TND</td>
+                  ` : ''}
                 </tr>
               `;
             }
@@ -1526,51 +1531,66 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     const documentType = this.getDocumentTypeForAPI();
     const documentNumber = await this.getNextDocumentNumber(documentType);
     
-    // Calculate totals
+    // Calculate totals only for non-sortie documents
     let totalHT = 0;
     let totalTVA = 0;
     let totalTTC = 0;
     
-    this.scannedItems.forEach(item => {
-      const produit = this.produitsDeCaisseCache.get(item.articleId);
-      if (produit) {
-        const prixUnitaire = produit.prix_vente_TTC || 0;
-        const tva = produit.tva || 19;
-        const quantite = item.quantity / 1000;
-        
-        const montantTTC = prixUnitaire * quantite;
-        const montantHT = montantTTC / (1 + tva / 100);
-        const montantTVA = montantTTC - montantHT;
-        
-        totalHT += montantHT;
-        totalTVA += montantTVA;
-        totalTTC += montantTTC;
-      }
-    });
+    if (documentType !== 'BON_EXPEDITION') {
+      this.scannedItems.forEach(item => {
+        const produit = this.produitsDeCaisseCache.get(item.articleId);
+        if (produit) {
+          const prixUnitaire = produit.prix_vente_TTC || 0;
+          const tva = produit.tva || 19;
+          const quantite = item.quantity / 1000;
+          
+          const montantTTC = prixUnitaire * quantite;
+          const montantHT = montantTTC / (1 + tva / 100);
+          const montantTVA = montantTTC - montantHT;
+          
+          totalHT += montantHT;
+          totalTVA += montantTVA;
+          totalTTC += montantTTC;
+        }
+      });
+    }
 
     const documentData: any = {
       type: documentType,
       numero: documentNumber,
       depotId: this.depotId,
       fromDepotId: this.fromDepotId,
-      totalHT: totalHT,
-      totalTVA: totalTVA,
-      totalTTC: totalTTC,
       status: 'COMPLETED',
       items: this.scannedItems.map(item => {
         const produit = this.produitsDeCaisseCache.get(item.articleId);
-        return {
+        const baseItem = {
           produitId: item.articleId,
           quantity: item.quantity / 1000, // Convert to kg
-          count: item.count,
-          prixUnitaire: produit?.prix_vente_TTC || 0,
-          tva: produit?.tva || 19,
-          montantHT: produit ? (produit.prix_vente_TTC * (item.quantity / 1000)) / (1 + (produit.tva || 19) / 100) : 0,
-          montantTVA: produit ? (produit.prix_vente_TTC * (item.quantity / 1000)) - ((produit.prix_vente_TTC * (item.quantity / 1000)) / (1 + (produit.tva || 19) / 100)) : 0,
-          montantTTC: produit ? produit.prix_vente_TTC * (item.quantity / 1000) : 0
+          count: item.count
         };
+        
+        // Only include price fields for non-sortie documents
+        if (documentType !== 'BON_EXPEDITION') {
+          return {
+            ...baseItem,
+            prixUnitaire: produit?.prix_vente_TTC || 0,
+            tva: produit?.tva || 19,
+            montantHT: produit ? (produit.prix_vente_TTC * (item.quantity / 1000)) / (1 + (produit.tva || 19) / 100) : 0,
+            montantTVA: produit ? (produit.prix_vente_TTC * (item.quantity / 1000)) - ((produit.prix_vente_TTC * (item.quantity / 1000)) / (1 + (produit.tva || 19) / 100)) : 0,
+            montantTTC: produit ? produit.prix_vente_TTC * (item.quantity / 1000) : 0
+          };
+        }
+        
+        return baseItem;
       })
     };
+
+    // Only include totals for non-sortie documents
+    if (documentType !== 'BON_EXPEDITION') {
+      documentData.totalHT = totalHT;
+      documentData.totalTVA = totalTVA;
+      documentData.totalTTC = totalTTC;
+    }
 
     // Add specific data based on document type
     if (this.sessionDocumentType === 'sortie') {
@@ -1714,8 +1734,8 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     let totalTVA = savedDocument?.totalTVA || 0;
     let totalTTC = savedDocument?.totalTTC || 0;
     
-    // If no saved document, calculate totals
-    if (!savedDocument) {
+    // If no saved document, calculate totals only for non-sortie documents
+    if (!savedDocument && this.sessionDocumentType !== 'sortie') {
       this.scannedItems.forEach(item => {
         const produit = this.produitsDeCaisseCache.get(item.articleId);
         if (produit) {
@@ -1786,40 +1806,46 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
               <th>Désignation</th>
               <th>Qté (kg)</th>
               <th>Colis</th>
-              <th>Montant HT</th>
-              <th>TVA</th>
-              <th>Montant TTC</th>
+              ${this.sessionDocumentType !== 'sortie' ? `
+                <th>Montant HT</th>
+                <th>TVA</th>
+                <th>Montant TTC</th>
+              ` : ''}
             </tr>
           </thead>
           <tbody>
             ${itemsRows}
           </tbody>
-          <tfoot>
-            <tr class="total-row">
-              <td colspan="4" class="text-right font-bold">TOTAL:</td>
-              <td class="text-center font-bold">${totalHT.toFixed(3)} TND</td>
-              <td class="text-center font-bold">${totalTVA.toFixed(3)} TND</td>
-              <td class="text-center font-bold">${totalTTC.toFixed(3)} TND</td>
-            </tr>
-          </tfoot>
+          ${this.sessionDocumentType !== 'sortie' ? `
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="4" class="text-right font-bold">TOTAL:</td>
+                <td class="text-center font-bold">${totalHT.toFixed(3)} TND</td>
+                <td class="text-center font-bold">${totalTVA.toFixed(3)} TND</td>
+                <td class="text-center font-bold">${totalTTC.toFixed(3)} TND</td>
+              </tr>
+            </tfoot>
+          ` : ''}
         </table>
 
-        <div class="totals-summary">
-          <div class="total-breakdown">
-            <div class="total-line">
-              <span class="label">Total HT:</span>
-              <span class="value">${totalHT.toFixed(3)} TND</span>
-            </div>
-            <div class="total-line">
-              <span class="label">Total TVA:</span>
-              <span class="value">${totalTVA.toFixed(3)} TND</span>
-            </div>
-            <div class="total-line total-final">
-              <span class="label">Total TTC:</span>
-              <span class="value">${totalTTC.toFixed(3)} TND</span>
+        ${this.sessionDocumentType !== 'sortie' ? `
+          <div class="totals-summary">
+            <div class="total-breakdown">
+              <div class="total-line">
+                <span class="label">Total HT:</span>
+                <span class="value">${totalHT.toFixed(3)} TND</span>
+              </div>
+              <div class="total-line">
+                <span class="label">Total TVA:</span>
+                <span class="value">${totalTVA.toFixed(3)} TND</span>
+              </div>
+              <div class="total-line total-final">
+                <span class="label">Total TTC:</span>
+                <span class="value">${totalTTC.toFixed(3)} TND</span>
+              </div>
             </div>
           </div>
-        </div>
+        ` : ''}
 
         <div class="footer">
           <div class="signature-section">
@@ -1829,7 +1855,9 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
             </div>
           </div>
           <div class="legal-notice">
-            <p>Arrêté à la somme de: <strong>${this.numberToWords(totalTTC)} dinars tunisiens</strong></p>
+            ${this.sessionDocumentType !== 'sortie' ? `
+              <p>Arrêté à la somme de: <strong>${this.numberToWords(totalTTC)} dinars tunisiens</strong></p>
+            ` : ''}
             <p>Conformément à la législation tunisienne en vigueur</p>
           </div>
         </div>

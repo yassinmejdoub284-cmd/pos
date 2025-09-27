@@ -7,9 +7,9 @@ import { DriverFormComponent } from './driver-form/driver-form.component';
 
 const routes: Routes = [
   { path: '', component: DriversListComponent },
-  { path: ':depotId', component: DriversListComponent },
   { path: 'new', component: DriverFormComponent },
-  { path: 'edit/:id', component: DriverFormComponent }
+  { path: 'edit/:id', component: DriverFormComponent },
+  { path: ':depotId', component: DriversListComponent }
 ];
 
 @NgModule({

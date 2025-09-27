@@ -7,11 +7,15 @@ import { DocumentsRoutingModule } from './documents-routing.module';
 import { DocumentsComponent } from './documents.component';
 import { BonEntreeComponent } from './bon-entree/bon-entree.component';
 import { BonSortieComponent } from './bon-sortie/bon-sortie.component';
+import { BonTransfertComponent } from './bon-transfert/bon-transfert.component';
+import { BonLivraisonComponent } from './bon-livraison/bon-livraison.component';
 
 @NgModule({
   declarations: [
     BonEntreeComponent,
-    BonSortieComponent
+    BonSortieComponent,
+    BonTransfertComponent,
+    BonLivraisonComponent
   ],
   imports: [
     CommonModule,

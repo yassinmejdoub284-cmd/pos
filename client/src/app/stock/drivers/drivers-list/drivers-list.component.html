@@ -12,16 +12,40 @@
           <div>
             <h1 class="text-2xl font-bold text-slate-800">Gestion des Chauffeurs</h1>
             <p class="text-slate-600">Gérer les chauffeurs et leurs informations</p>
-          </div>
+          </div>  
         </div>
         
-        <button (click)="onAddDriver()" 
-          class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-          </svg>
-          <span class="font-semibold">Nouveau Chauffeur</span>
-        </button>
+        <div class="flex items-center gap-3">
+          <!-- View Toggle -->
+          <div class="flex items-center bg-slate-100 rounded-xl p-1">
+            <button 
+              (click)="viewMode.set('grid')"
+              [class]="viewMode() === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-800'"
+              class="px-3 py-2 rounded-lg transition-all duration-200 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+              </svg>
+              <span class="text-sm font-medium">Grille</span>
+            </button>
+            <button 
+              (click)="viewMode.set('table')"
+              [class]="viewMode() === 'table' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-800'"
+              class="px-3 py-2 rounded-lg transition-all duration-200 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0V4a1 1 0 011-1h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path>
+              </svg>
+              <span class="text-sm font-medium">Tableau</span>
+            </button>
+          </div>
+
+          <button (click)="onAddDriver()" 
+            class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            <span class="font-semibold">Nouveau Chauffeur</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -84,7 +108,8 @@
         </button>
       </div>
 
-      <div *ngIf="drivers().length > 0" class="divide-y divide-slate-200">
+      <!-- Grid View -->
+      <div *ngIf="drivers().length > 0 && viewMode() === 'grid'" class="divide-y divide-slate-200">
         <div *ngFor="let driver of drivers()" 
           class="p-6 hover:bg-slate-50 transition-colors">
           <div class="flex items-center justify-between">
@@ -105,12 +130,24 @@
                     {{ getStatusLabel(driver.isActive) }}
                   </span>
                 </div>
-                <div class="text-sm text-slate-600">
+                <div class="text-sm text-slate-600 space-y-1">
                   <div class="flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path>
                     </svg>
                     <span>CIN: {{ driver.cin }}</span>
+                  </div>
+                  <div *ngIf="driver.depot" class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                    <span>Dépôt: {{ driver.depot.name }} ({{ driver.depot.code }})</span>
+                  </div>
+                  <div *ngIf="!driver.depot" class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                    <span class="text-slate-400">Aucun dépôt assigné</span>
                   </div>
                 </div>
               </div>
@@ -135,6 +172,70 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Table View -->
+      <div *ngIf="drivers().length > 0 && viewMode() === 'table'" class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">Chauffeur</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">CIN</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">Dépôt</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">Statut</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-slate-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            <tr *ngFor="let driver of drivers()" class="hover:bg-slate-50 transition-colors">
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center text-white font-semibold text-sm">
+                    {{ getDriverInitials(driver) }}
+                  </div>
+                  <div>
+                    <div class="font-semibold text-slate-800">{{ driver.prenom }} {{ driver.nom }}</div>
+                    <div class="text-sm text-slate-500" *ngIf="driver.phone">{{ driver.phone }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-6 py-4 text-sm text-slate-600">{{ driver.cin }}</td>
+              <td class="px-6 py-4 text-sm text-slate-600">
+                <span *ngIf="driver.depot" class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                  </svg>
+                  {{ driver.depot.name }} ({{ driver.depot.code }})
+                </span>
+                <span *ngIf="!driver.depot" class="text-slate-400">Aucun dépôt assigné</span>
+              </td>
+              <td class="px-6 py-4">
+                <span class="inline-block px-2 py-1 text-xs rounded-full"
+                      [class]="getStatusBadgeClasses(driver.isActive)">
+                  {{ getStatusLabel(driver.isActive) }}
+                </span>
+              </td>
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-2">
+                  <button (click)="onEditDriver(driver)" 
+                    title="Modifier le chauffeur"
+                    class="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                  </button>
+                  <button (click)="onDeleteDriver(driver)" 
+                    title="Supprimer le chauffeur"
+                    class="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

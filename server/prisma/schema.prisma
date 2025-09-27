@@ -93,6 +93,7 @@ model Depot {
   toStockMovements      StockMovement[]        @relation("ToDepot")
   fromTransfers         StockTransfer[]        @relation("FromDepot")
   toTransfers           StockTransfer[]        @relation("ToDepot")
+  drivers               Driver[]
   users                 User[]                 @relation("DepotUsers")
   productAssignments    ProductDepot[]
 
@@ -1166,8 +1167,11 @@ model Driver {
   licenseNumber String?   @db.VarChar(50)
   licenseExpiry DateTime?
   isActive      Boolean   @default(true) @map("is_active")
+  depotId       Int?      @map("depot_id")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  depot         Depot?    @relation(fields: [depotId], references: [id])
 
   @@map("drivers")
 }

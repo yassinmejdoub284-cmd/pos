@@ -18,6 +18,7 @@ export class DriversListComponent implements OnInit {
   error = signal('');
   searchQuery = signal('');
   depotId: string | null = null;
+  viewMode = signal<'grid' | 'table'>('grid');
 
   ngOnInit(): void {
     this.depotId = this.route.snapshot.paramMap.get('depotId');
@@ -87,5 +88,9 @@ export class DriversListComponent implements OnInit {
 
   getStatusLabel(isActive: boolean): string {
     return isActive ? 'Actif' : 'Inactif';
+  }
+
+  toggleViewMode(): void {
+    this.viewMode.set(this.viewMode() === 'grid' ? 'table' : 'grid');
   }
 }

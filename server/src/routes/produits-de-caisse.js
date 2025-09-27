@@ -207,18 +207,18 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if all depots exist and are of type SHOP
+    // Check if all depots exist and are of type MAIN or BRANCH
     const depotIdsInt = depotIds.map(id => parseInt(id)).filter(id => !isNaN(id));
     const depots = await prisma.depot.findMany({
       where: { 
         id: { in: depotIdsInt },
-        type: 'SHOP' // Only allow SHOP type depots
+        type: { in: ['MAIN', 'BRANCH'] } // Only allow MAIN and BRANCH type depots
       }
     });
 
     if (depots.length !== depotIdsInt.length) {
       return res.status(400).json({ 
-        error: 'Certains dépôts n\'existent pas ou ne sont pas de type SHOP' 
+        error: 'Certains dépôts n\'existent pas ou ne sont pas de type MAIN ou BRANCH' 
       });
     }
 
@@ -413,13 +413,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
       const depots = await prisma.depot.findMany({
         where: { 
           id: { in: depotIdsInt },
-          type: 'SHOP' // Only allow SHOP type depots
+          type: { in: ['MAIN', 'BRANCH'] } // Only allow MAIN and BRANCH type depots
         }
       });
 
       if (depots.length !== depotIdsInt.length) {
         return res.status(400).json({ 
-          error: 'Certains dépôts n\'existent pas ou ne sont pas de type SHOP' 
+          error: 'Certains dépôts n\'existent pas ou ne sont pas de type MAIN ou BRANCH' 
         });
       }
     }

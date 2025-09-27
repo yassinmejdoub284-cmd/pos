@@ -21,9 +21,13 @@ export class DriverFormComponent implements OnInit {
   loading = signal(false);
   error = signal('');
   isEditMode = signal(false);
+  depotId: string | null = null;
 
   ngOnInit(): void {
     this.initializeForm();
+    
+    // Get depotId from query parameters
+    this.depotId = this.route.snapshot.queryParamMap.get('depotId');
     
     // Check if we're in edit mode
     const id = this.route.snapshot.paramMap.get('id');
@@ -78,7 +82,8 @@ export class DriverFormComponent implements OnInit {
       const requestData: CreateDriverRequest | UpdateDriverRequest = {
         nom: formData.nom,
         prenom: formData.prenom,
-        cin: formData.cin
+        cin: formData.cin,
+        depotId: this.depotId ? parseInt(this.depotId) : undefined
       };
 
       if (this.isEditMode() && this.driver) {
@@ -86,7 +91,7 @@ export class DriverFormComponent implements OnInit {
         (requestData as UpdateDriverRequest).isActive = formData.isActive;
         this.driversService.updateDriver(this.driver.id, requestData as UpdateDriverRequest).subscribe({
           next: () => {
-            this.router.navigate(['/stock/drivers']);
+            this.navigateBack();
           },
           error: (error) => {
             console.error('Error updating driver:', error);
@@ -98,7 +103,7 @@ export class DriverFormComponent implements OnInit {
         // Create new driver
         this.driversService.createDriver(requestData as CreateDriverRequest).subscribe({
           next: () => {
-            this.router.navigate(['/stock/drivers']);
+            this.navigateBack();
           },
           error: (error) => {
             console.error('Error creating driver:', error);
@@ -113,7 +118,15 @@ export class DriverFormComponent implements OnInit {
   }
 
   onCancel(): void {
-    this.router.navigate(['/stock/drivers']);
+    this.navigateBack();
+  }
+
+  private navigateBack(): void {
+    if (this.depotId) {
+      this.router.navigate(['/stock/drivers', this.depotId]);
+    } else {
+      this.router.navigate(['/stock/drivers']);
+    }
   }
 
   private markFormGroupTouched(): void {

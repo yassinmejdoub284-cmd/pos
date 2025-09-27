@@ -6,12 +6,12 @@ import { StockDocument } from '../../../core/models/stock-document.model';
 import { Depot } from '../../../core/models/stock-document.model';
 
 @Component({
-  selector: 'app-bon-sortie',
-  templateUrl: './bon-sortie.component.html',
-  styleUrls: ['./bon-sortie.component.css'],
+  selector: 'app-bon-livraison',
+  templateUrl: './bon-livraison.component.html',
+  styleUrls: ['./bon-livraison.component.css'],
   standalone: false
 })
-export class BonSortieComponent implements OnInit {
+export class BonLivraisonComponent implements OnInit {
   depotId: string | null = null;
   documents: StockDocument[] = [];
   selectedDocument: StockDocument | null = null;
@@ -57,7 +57,7 @@ export class BonSortieComponent implements OnInit {
     if (!this.depotId) return;
     
     this.loading = true;
-    this.stockDocsService.getDocuments(1, 50, 'BON_EXPEDITION', undefined, parseInt(this.depotId)).subscribe({
+    this.stockDocsService.getDocuments(1, 50, 'BON_ENTREE_MAGASIN', undefined, parseInt(this.depotId)).subscribe({
       next: (response) => {
         this.documents = response.data || [];
         this.loading = false;

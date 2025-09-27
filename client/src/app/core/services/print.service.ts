@@ -52,15 +52,14 @@ export class PrintService {
   printSaleReceipt(sale: Sale, options?: { openPreviewOnly?: boolean }): void {
     this.settingsService.getSettings().subscribe({
       next: (settings) => {
-        const text = this.buildSaleReceiptText(sale, settings);
-        
         // Check if desktop version is enabled
         if (settings?.isDesktopVersion) {
-          // Use Tauri direct printing
+          // Use Tauri direct printing with text format
+          const text = this.buildSaleReceiptText(sale, settings);
           void this.printPlainText(text);
         } else {
-          // Use browser window printing
-          this.printReceiptInBrowser(text, settings);
+          // Use browser window printing with HTML format
+          this.printReceiptInBrowser(sale, settings);
         }
       },
       error: () => {
@@ -82,7 +81,7 @@ export class PrintService {
   }
 
   // Browser printing method
-  private printReceiptInBrowser(receiptText: string, settings?: AppSettings | null): void {
+  private printReceiptInBrowser(sale: Sale, settings?: AppSettings | null): void {
     // Create a new window for printing
     const printWindow = window.open('', '_blank', 'width=400,height=600');
     
@@ -91,51 +90,8 @@ export class PrintService {
       return;
     }
 
-    // Generate logo HTML if enabled
-    let logoHtml = '';
-    if (settings?.printSettings?.showLogo && settings?.logoUrl) {
-      const logoSize = settings.printSettings.logoSize || 'medium';
-      const logoUrl = this.settingsService.getAbsoluteLogoUrl(settings.logoUrl);
-      
-      let logoWidth = '60px';
-      if (logoSize === 'large') logoWidth = '80px';
-      else if (logoSize === 'small') logoWidth = '40px';
-      
-      logoHtml = `
-        <div style="text-align: center; margin-bottom: 10px;">
-          <img src="${logoUrl}" alt="Company Logo" style="max-width: ${logoWidth}; height: auto; max-height: 60px;" />
-        </div>
-      `;
-    }
-
-    // Create HTML content for the receipt
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Reçu de Vente</title>
-        <style>
-          body {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.2;
-            margin: 0;
-            padding: 10px;
-            white-space: pre-line;
-            background: white;
-          }
-          @media print {
-            body { margin: 0; padding: 5px; }
-            @page { margin: 0.5cm; }
-          }
-        </style>
-      </head>
-      <body>
-        ${logoHtml}
-        ${receiptText.replace(/\n/g, '<br>')}
-      </body>
-      </html>
-    `;
+    // Use the existing HTML receipt builder
+    const htmlContent = this.buildSaleReceiptHtml(sale, settings);
 
     printWindow.document.write(htmlContent);
     printWindow.document.close();
@@ -148,6 +104,7 @@ export class PrintService {
       }, 100);
     };
   }
+
 
   // --- Helpers ---
   private stringToBytes(input: string): Uint8Array {

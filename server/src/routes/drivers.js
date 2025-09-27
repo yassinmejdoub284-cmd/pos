@@ -27,7 +27,17 @@ router.get('/', async (req, res) => {
         where: whereClause,
         skip: skip,
         take: parseInt(limit),
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        include: {
+          depot: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              type: true
+            }
+          }
+        }
       }),
       prisma.driver.count({ where: whereClause })
     ]);
@@ -52,7 +62,17 @@ router.get('/active', async (req, res) => {
   try {
     const drivers = await prisma.driver.findMany({
       where: { isActive: true },
-      orderBy: { nom: 'asc' }
+      orderBy: { nom: 'asc' },
+      include: {
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        }
+      }
     });
     res.json(drivers);
   } catch (error) {
@@ -66,7 +86,17 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const driver = await prisma.driver.findUnique({
-      where: { id: parseInt(id) }
+      where: { id: parseInt(id) },
+      include: {
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        }
+      }
     });
 
     if (!driver) {
@@ -109,7 +139,18 @@ router.post('/', async (req, res) => {
         address: address || null,
         licenseNumber: licenseNumber || null,
         licenseExpiry: licenseExpiry ? new Date(licenseExpiry) : null,
+        depotId: req.body.depotId || null,
         isActive: true
+      },
+      include: {
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        }
       }
     });
 

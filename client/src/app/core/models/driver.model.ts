@@ -9,6 +9,13 @@ export interface Driver {
   licenseNumber?: string;
   licenseExpiry?: Date;
   isActive: boolean;
+  depotId?: number;
+  depot?: {
+    id: number;
+    name: string;
+    code: string;
+    type: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +29,7 @@ export interface CreateDriverRequest {
   address?: string;
   licenseNumber?: string;
   licenseExpiry?: Date;
+  depotId?: number;
 }
 
 export interface UpdateDriverRequest {
@@ -34,6 +42,7 @@ export interface UpdateDriverRequest {
   licenseNumber?: string;
   licenseExpiry?: Date;
   isActive?: boolean;
+  depotId?: number;
 }
 
 export interface DriversResponse {
