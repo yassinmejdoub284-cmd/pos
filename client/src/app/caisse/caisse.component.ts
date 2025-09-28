@@ -1148,9 +1148,20 @@ export class CaisseComponent implements OnInit, OnDestroy {
     lastName: '',
     phone: '',
     city: 'Tunis',
+    address: '',
     clientType: 'INDIVIDUAL' as 'INDIVIDUAL' | 'BUSINESS' | 'WHOLESALE',
-    allowDebt: true
+    depotId: 0, // Will be set to currentShopDepotId when form opens
+    notes: '',
+    allowDebt: true,
+    maxDebt: null
   };
+
+  // Tunisian governorates (24)
+  tunisianCities: string[] = [
+    'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan', 'Bizerte', 'Beja', 'Jendouba',
+    'Kef', 'Siliana', 'Kairouan', 'Kasserine', 'Sidi Bouzid', 'Sfax', 'Mahdia', 'Monastir',
+    'Sousse', 'Gabes', 'Medenine', 'Tataouine', 'Gafsa', 'Tozeur', 'Kebili'
+  ];
 
   // Invoice request functionality
   showInvoiceRequestModal = false;
@@ -1403,8 +1414,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
       lastName: '',
       phone: '',
       city: 'Tunis',
+      address: '',
       clientType: 'INDIVIDUAL',
-      allowDebt: true
+      depotId: this.currentShopDepotId, // Use current depot ID
+      notes: '',
+      allowDebt: true,
+      maxDebt: null
     };
     this.showQuickAddClientPopup = true;
   }
@@ -1424,12 +1439,15 @@ export class CaisseComponent implements OnInit, OnDestroy {
       lastName: this.quickAddForm.lastName,
       phone: this.quickAddForm.phone || '',
       city: this.quickAddForm.city,
-      address: '',
+      address: this.quickAddForm.address || '',
       clientType: this.quickAddForm.clientType,
-      notes: '',
+      depotId: this.quickAddForm.depotId,
+      notes: this.quickAddForm.notes || '',
       allowDebt: this.quickAddForm.allowDebt,
-      maxDebt: null
+      maxDebt: this.quickAddForm.maxDebt
     };
+
+    console.log('Creating client with current depot ID:', this.quickAddForm.depotId, 'Full form:', this.quickAddForm);
 
     this.clientsService.createClient(createRequest).subscribe({
       next: (newClient) => {
@@ -1451,6 +1469,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+
+
+  trackByCity(index: number, city: string): string {
+    return city;
+  }
+
 
   showHistory(): void {
     this.router.navigate(['/historique']);
@@ -5194,6 +5219,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.depotsService.list().subscribe({
       next: (depots: any[]) => {
         this.depots = depots;
+        console.log('Loaded depots:', depots);
       },
       error: (error: any) => {
         console.error('Error loading depots:', error);
