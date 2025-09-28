@@ -480,7 +480,12 @@ router.delete('/brands/:id', async (req, res) => {
 
     if (vehiclesUsingBrand > 0) {
       return res.status(400).json({ 
-        error: 'Cannot delete brand that is being used by vehicles' 
+        error: 'Impossible de supprimer : des véhicules utilisent cette marque',
+        constraint: 'vehicle_brand_fkey',
+        dependents: [{
+          table: 'vehicles',
+          count: vehiclesUsingBrand
+        }]
       });
     }
 

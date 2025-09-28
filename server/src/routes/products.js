@@ -75,7 +75,24 @@ function isValidImageUrl(url) {
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    const { depotId } = req.query;
+    
+    // Build where clause for depot filtering
+    let whereClause = {};
+    
+    // If depotId is provided, filter products by depot
+    if (depotId) {
+      whereClause = {
+        depotAssignments: {
+          some: {
+            depotId: parseInt(depotId)
+          }
+        }
+      };
+    }
+    
     const products = await prisma.product.findMany({
+      where: whereClause,
       orderBy: [
         { displayIndex: 'asc' },
         { createdAt: 'desc' }
@@ -83,6 +100,11 @@ router.get('/', authenticateToken, async (req, res) => {
       include: {
         famille: true,
         inventory: {
+          include: {
+            depot: true
+          }
+        },
+        depotAssignments: {
           include: {
             depot: true
           }

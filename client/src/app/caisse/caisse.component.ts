@@ -16,6 +16,7 @@ import { AuthService } from '../core/services/auth.service';
 import { DepotsService } from '../core/services/depots.service';
 import { ReturnsService } from '../core/services/returns.service';
 import { ImagePreloadService } from '../core/services/image-preload.service';
+import { TicketCounterService } from '../core/services/ticket-counter.service';
 import { Product } from '../core/models/product.model';
 import { Sale } from '../core/models/sale.model';
 import { Client } from '../core/models/client.model';
@@ -110,12 +111,16 @@ export class CaisseComponent implements OnInit, OnDestroy {
   showTicketActionDialog = false;
   selectedTicket: Sale | null = null;
 
+  // Ticket details modal
+  showTicketDetailsModal = false;
+
   // Product catalog
   allProducts: Product[] = [];
   filteredProducts: Product[] = [];
-  productCategories: string[] = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrac', 'Pâtisserie Tunisienne', 'Jus et Smoothies'];
+  productCategories: string[] = ['Tous'];
   selectedCategory: string = 'Tous';
   searchQuery: string = '';
+  productFamilies: any[] = [];
 
   // Sales data for ordering
   productSalesData: ProductSalesData[] = [];
@@ -431,7 +436,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private depotsService: DepotsService,
     private returnsService: ReturnsService,
-    private imagePreloadService: ImagePreloadService
+    private imagePreloadService: ImagePreloadService,
+    private ticketCounterService: TicketCounterService
   ) {}
 
   ngOnInit(): void {
@@ -443,6 +449,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     // Use visiting depot if available, otherwise use user's depot
     this.currentShopDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
+    
+    // Set depot ID in ticket counter service for isolation
+    if (this.currentShopDepotId) {
+      this.ticketCounterService.setDepotId(this.currentShopDepotId);
+    }
     
     // If user is admin and has no depot ID, show depot selection
     if (this.authService.isAdmin() && (!this.currentShopDepotId || this.currentShopDepotId === 0)) {
@@ -456,7 +467,15 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.loadShopInventory();
     }
     
-    this.loadTicketState(); // Initialize ticket number system
+    // Subscribe to ticket counter service
+    this.ticketCounterService.ticketState$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(ticketState => {
+      this.currentTicketNumber = ticketState.currentTicketNumber;
+      this.lastTicketDate = ticketState.lastTicketDate;
+      this.isShiftOpen = ticketState.isShiftOpen;
+    });
+    
     this.initializeMultiClientSystem();
     this.loadProducts();
     this.loadPendingTemporarySalesCount();
@@ -721,8 +740,14 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   loadProducts(): void {
-    // Load products and grouped products in parallel
-    this.productsService.getProducts().subscribe({
+    // Only load products if we have a depot ID
+    if (!this.currentShopDepotId) {
+      console.warn('No depot ID available, skipping product loading');
+      return;
+    }
+    
+    // Load products filtered by current depot
+    this.productsService.getProducts(this.currentShopDepotId).subscribe({
       next: (products) => {
         // Sort products by displayIndex (null values go to end)
         this.allProducts = products.sort((a, b) => {
@@ -733,9 +758,52 @@ export class CaisseComponent implements OnInit, OnDestroy {
         });
         
         this.loadProductSalesData();
+        // Load families after products are loaded so we can filter by product count
+        this.loadProductFamilies();
       },
       error: (error) => {
         console.error('Error loading products:', error);
+      }
+    });
+  }
+
+  loadProductFamilies(): void {
+    this.productsService.getFamilles().subscribe({
+      next: (families) => {
+        this.productFamilies = families;
+        
+        // Separate families into those with multiple products and those with 1 or fewer
+        const familiesWithMultipleProducts = families.filter(family => {
+          const productCount = this.allProducts.filter(product => product.famille?.id === family.id).length;
+          return productCount > 1;
+        });
+        
+        const familiesWithFewProducts = families.filter(family => {
+          const productCount = this.allProducts.filter(product => product.famille?.id === family.id).length;
+          return productCount <= 1;
+        });
+        
+        // Build categories: "Tous", families with multiple products, and "Autres" if there are families with few products
+        const categories = ['Tous', ...familiesWithMultipleProducts.map(family => family.name)];
+        
+        // Add "Autres" category if there are families with 1 or fewer products
+        if (familiesWithFewProducts.length > 0) {
+          categories.push('Autres');
+        }
+        
+        this.productCategories = categories;
+        
+        // Reset to "Tous" if current selection is no longer valid
+        if (!this.productCategories.includes(this.selectedCategory)) {
+          this.selectedCategory = 'Tous';
+        }
+        // Apply current filter
+        this.filterProducts();
+      },
+      error: (error) => {
+        console.error('Error loading product families:', error);
+        // Fallback to default categories if API fails
+        this.productCategories = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrac', 'Pâtisserie Tunisienne', 'Jus et Smoothies'];
       }
     });
   }
@@ -786,7 +854,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     // Filter by category
     if (this.selectedCategory !== 'Tous') {
-      filtered = filtered.filter(p => p.famille?.name === this.selectedCategory);
+      if (this.selectedCategory === 'Autres') {
+        // For "Autres", show products from families that have 1 or fewer products
+        const familiesWithFewProducts = this.productFamilies.filter(family => {
+          const productCount = this.allProducts.filter(product => product.famille?.id === family.id).length;
+          return productCount <= 1;
+        });
+        
+        const familyIdsWithFewProducts = familiesWithFewProducts.map(family => family.id);
+        filtered = filtered.filter(product => 
+          product.famille?.id && familyIdsWithFewProducts.includes(product.famille.id)
+        );
+      } else {
+        // For specific family categories, show products from that family
+        filtered = filtered.filter(p => p.famille?.name === this.selectedCategory);
+      }
     }
     
     // Filter by search query
@@ -1688,7 +1770,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
       clientId: activeCart.clientId || undefined,
       amountPaid: this.amountPaid !== undefined ? Number(this.amountPaid) : Number(activeCart.netTotal),
       isWholesale: this.isWholesaleSale(),
-      paymentType: this.salePaymentType
+      paymentType: this.salePaymentType,
+      dailyTicketNumber: this.getCurrentTicketNumber()
     };
 
     this.salesService.createSale(saleData).subscribe({
@@ -2438,16 +2521,27 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   loadCurrentSession(): void {
-    this.sessionsService.getActiveSession().subscribe({
+    // Always pass the current depot ID to ensure isolation
+    this.sessionsService.getActiveSession(1, this.currentShopDepotId).subscribe({
       next: (session) => {
         this.currentSession = session;
         this.isShiftOpen = !!session;
+        if (session) {
+          // Ensure depot ID is set first, then session ID
+          this.ticketCounterService.setDepotId(session.depotId || this.currentShopDepotId);
+          this.ticketCounterService.setSessionId(session.id);
+        } else {
+          // No session found, ensure depot ID is set for new session
+          this.ticketCounterService.setDepotId(this.currentShopDepotId);
+        }
         if (!session) {
           this.autoOpenSession();
         }
       },
       error: (error) => {
         console.error('Error loading current session:', error);
+        // Ensure depot ID is set even on error
+        this.ticketCounterService.setDepotId(this.currentShopDepotId);
         this.autoOpenSession();
       }
     });
@@ -2457,12 +2551,17 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const defaultSession = {
       openingFund: 0,
       posId: 1,
+      depotId: this.currentShopDepotId, // Ensure depot isolation
       note: 'Session automatique'
     };
     this.sessionsService.openSession(defaultSession).subscribe({
       next: (session) => {
         this.currentSession = session;
         this.isShiftOpen = true;
+        if (session) {
+          this.ticketCounterService.setSessionId(session.id);
+          this.ticketCounterService.setDepotId(session.depotId || this.currentShopDepotId);
+        }
       },
       error: (error) => {
         console.error('Erreur lors de l\'ouverture automatique de la session:', error);
@@ -2515,7 +2614,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
         
         // Reset ticket number for new shift
         this.resetTicketNumber();
-        this.saveTicketState();
         
         // Auto-print daily extract if withdrawal was made
         if (this.closureForm.retraitCentrale > 0) {
@@ -3915,6 +4013,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
     return this.currentTicketNumber.toString().padStart(4, '0');
   }
 
+  getFormattedTicketNumber(ticket: Sale): string {
+    // If we have a stored daily ticket number, extract just the ticket number part
+    if (ticket.dailyTicketNumber) {
+      // Check if it contains a slash (old format: "sessionId/ticketNumber")
+      if (ticket.dailyTicketNumber.includes('/')) {
+        return ticket.dailyTicketNumber.split('/')[1];
+      }
+      // If no slash, it's already just the ticket number
+      return ticket.dailyTicketNumber;
+    }
+    
+    // For existing sales without dailyTicketNumber, use the sale ID
+    return ticket.id.toString().padStart(4, '0');
+  }
+
   getCurrentDate(): string {
     return new Date().toLocaleDateString('fr-FR');
   }
@@ -3945,7 +4058,17 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadingTodaysTickets = true;
     this.salesService.getTodaysSales().subscribe({
       next: (tickets) => {
-        this.todaysTickets = tickets;
+        // Filter to only show today's sales
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        
+        this.todaysTickets = tickets.filter(ticket => {
+          const ticketDate = new Date(ticket.createdAt);
+          return ticketDate >= today && ticketDate < tomorrow;
+        });
+        
         this.loadingTodaysTickets = false;
       },
       error: (error) => {
@@ -3975,24 +4098,30 @@ export class CaisseComponent implements OnInit, OnDestroy {
   onTicketActionSelected(actionId: string): void {
     if (!this.selectedTicket) return;
 
+    const ticket = this.selectedTicket; // Store reference before closing dialog
+
     switch (actionId) {
       case 'print-ticket':
-        this.printTicket(this.selectedTicket);
+        this.printTicket(ticket);
+        this.closeTicketActionDialog();
         break;
       case 'return-exchange':
-        this.openReturnExchangeDialog(this.selectedTicket);
+        this.openReturnExchangeDialog(ticket);
+        this.closeTicketActionDialog();
         break;
       case 'check-details':
-        this.showTicketDetails(this.selectedTicket);
+        this.showTicketDetails(ticket);
+        this.closeTicketActionDialog();
         break;
     }
-    
-    this.closeTicketActionDialog();
   }
 
   closeTicketActionDialog(): void {
     this.showTicketActionDialog = false;
-    this.selectedTicket = null;
+    // Don't clear selectedTicket if we're showing the details modal
+    if (!this.showTicketDetailsModal) {
+      this.selectedTicket = null;
+    }
   }
 
   printTicket(ticket: Sale): void {
@@ -4007,16 +4136,28 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   showTicketDetails(ticket: Sale): void {
-    // Navigate to historique to show ticket details
-    this.router.navigate(['/historique'], { 
-      queryParams: { 
-        ticketId: ticket.id 
-      } 
-    });
+    // Show ticket details inline instead of redirecting
+    this.selectedTicket = ticket;
+    this.showTicketDetailsModal = true;
   }
 
   closeTicketMenu(): void {
     this.showTicketMenu = false;
+  }
+
+  closeTicketDetailsModal(): void {
+    this.showTicketDetailsModal = false;
+    this.selectedTicket = null;
+  }
+
+  onTicketDetailsPrintRequested(ticket: Sale): void {
+    this.printTicket(ticket);
+    this.closeTicketDetailsModal();
+  }
+
+  onTicketDetailsReturnExchangeRequested(ticket: Sale): void {
+    this.openReturnExchangeDialog(ticket);
+    this.closeTicketDetailsModal();
   }
 
   @HostListener('document:click', ['$event'])
@@ -4033,67 +4174,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   incrementTicketNumber(): void {
-    const today = new Date().toDateString();
-    
-    // Check if it's a new day
-    if (this.lastTicketDate !== today) {
-      this.currentTicketNumber = 1;
-      this.lastTicketDate = today;
-    } else {
-      this.currentTicketNumber++;
-    }
-    
-    // Save to localStorage for persistence
-    this.saveTicketState();
+    this.ticketCounterService.incrementTicketNumber();
   }
 
   resetTicketNumber(): void {
-    this.currentTicketNumber = 1;
-    this.lastTicketDate = new Date().toDateString();
-    this.saveTicketState();
+    this.ticketCounterService.resetTicketCounter();
   }
 
-  private saveTicketState(): void {
-    const ticketState = {
-      currentTicketNumber: this.currentTicketNumber,
-      lastTicketDate: this.lastTicketDate,
-      isShiftOpen: this.isShiftOpen
-    };
-    localStorage.setItem('pos_ticket_state', JSON.stringify(ticketState));
-  }
-
-  private loadTicketState(): void {
-    const savedState = localStorage.getItem('pos_ticket_state');
-    if (savedState) {
-      try {
-        const ticketState = JSON.parse(savedState);
-        const today = new Date().toDateString();
-        
-        // If it's a new day, reset ticket number
-        if (ticketState.lastTicketDate !== today) {
-          this.currentTicketNumber = 1;
-          this.lastTicketDate = today;
-        } else {
-          this.currentTicketNumber = ticketState.currentTicketNumber || 1;
-          this.lastTicketDate = ticketState.lastTicketDate || today;
-        }
-        
-        this.isShiftOpen = ticketState.isShiftOpen !== false; // Default to true
-      } catch (error) {
-        console.error('Error loading ticket state:', error);
-        this.initializeTicketState();
-      }
-    } else {
-      this.initializeTicketState();
-    }
-  }
-
-  private initializeTicketState(): void {
-    this.currentTicketNumber = 1;
-    this.lastTicketDate = new Date().toDateString();
-    this.isShiftOpen = true;
-    this.saveTicketState();
-  }
 
   ngOnDestroy(): void {
     this.destroy$.next();
@@ -4665,7 +4752,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
       clientId: activeCart.client?.id || undefined,
       notes: this.invoiceRequestData.notes,
       paymentMethodId: 1, // Default to cash payment
-      status: 'COMPLETED' // Mark as completed since we're requesting an invoice
+      status: 'COMPLETED', // Mark as completed since we're requesting an invoice
+      dailyTicketNumber: this.getCurrentTicketNumber()
     };
 
     this.salesService.createSale(saleData).subscribe({
@@ -5123,8 +5211,18 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.currentShopName = this.selectedDepot.name;
       this.showDepotSelection = false;
       
+      // Set depot ID in ticket counter service for isolation
+      // This will automatically load the depot-specific ticket state
+      this.ticketCounterService.setDepotId(this.currentShopDepotId);
+      
+      // Clear current session since we're switching depots
+      this.currentSession = null;
+      this.isShiftOpen = false;
+      
       // Reload data with the selected depot
       this.loadShopInventory();
+      this.loadCurrentSession();
+      this.loadProducts(); // Reload products for the selected depot (families will be loaded after products)
       // Note: loadShopName() is not needed here since we already set currentShopName
     }
   }

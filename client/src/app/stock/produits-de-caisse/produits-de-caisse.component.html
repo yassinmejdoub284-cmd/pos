@@ -118,9 +118,27 @@
 
     <!-- Content -->
     <div class="space-y-6">
+      <!-- No Results Message -->
+      <div *ngIf="filteredProducts().length === 0 && !loading()" class="bg-white rounded-3xl p-12 text-center border border-emerald-100 shadow-md">
+        <div class="w-24 h-24 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full mx-auto mb-6 flex items-center justify-center">
+          <svg class="w-12 h-12 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-emerald-800 mb-2">Aucun résultat trouvé</h3>
+        <p class="text-emerald-600 mb-4">Aucun produit ne correspond à vos critères de recherche</p>
+        <button (click)="searchQuery.set(''); selectedCategory.set('Tous')"
+          class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:shadow-lg transition-all">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          Réinitialiser les filtres
+        </button>
+      </div>
+
       <!-- Table View -->
-      <div *ngIf="viewMode() === 'table'">
-        <div *ngFor="let group of groupedProducts()" class="bg-white rounded-3xl border border-emerald-100 shadow-md overflow-hidden mb-6">
+      <div *ngIf="viewMode() === 'table' && filteredProducts().length > 0">
+        <div *ngFor="let group of filteredProducts()" class="bg-white rounded-3xl border border-emerald-100 shadow-md overflow-hidden mb-6">
           <!-- Main Product Header -->
           <div class="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 border-b border-emerald-100">
             <div class="flex items-center justify-between">
@@ -273,8 +291,8 @@
       </div>
 
       <!-- Grid View -->
-      <div *ngIf="viewMode() === 'grid'">
-        <div *ngFor="let group of groupedProducts()" class="bg-white rounded-3xl border border-emerald-100 shadow-md overflow-hidden">
+      <div *ngIf="viewMode() === 'grid' && filteredProducts().length > 0">
+        <div *ngFor="let group of filteredProducts()" class="bg-white rounded-3xl border border-emerald-100 shadow-md overflow-hidden">
           <!-- Main Product Header -->
           <div class="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 border-b border-emerald-100">
             <div class="flex items-center justify-between">

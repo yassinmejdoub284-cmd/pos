@@ -58,7 +58,9 @@ export interface AppSettings {
 })
 export class SettingsService {
   private readonly API_URL = `${environment.apiUrl}/settings`;
-  private readonly BASE_URL = environment.apiUrl.replace('/api', '');
+  private readonly BASE_URL = environment.production 
+    ? 'https://patisserie.solumove.net' 
+    : environment.apiUrl.replace('/api', '');
 
   constructor(private http: HttpClient) {}
 

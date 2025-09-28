@@ -107,7 +107,6 @@ router.get('/', authenticateToken, async (req, res) => {
 // Get invoice requests for current user (for cashiers to see their own requests)
 router.get('/requests', authenticateToken, async (req, res) => {
   try {
-    console.log('Getting invoice requests for user:', req.user?.role, req.user?.id);
     // Guard against missing Prisma model (client not regenerated)
     if (!prisma || !prisma.invoiceRequest || typeof prisma.invoiceRequest.findMany !== 'function') {
       console.warn('Prisma model invoiceRequest is not available; returning empty list');

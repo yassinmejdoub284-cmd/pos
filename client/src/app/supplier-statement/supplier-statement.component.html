@@ -108,11 +108,9 @@
           <thead class="bg-amber-50">
             <tr>
               <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Fournisseur</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Dépenses Période</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Règlements</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Dettes</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Solde Période</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Solde Actuel</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Débit</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Crédit</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Solde</th>
               <th class="px-6 py-3 text-center text-xs font-medium text-amber-700 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
@@ -121,18 +119,11 @@
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium text-amber-900">{{ supplier.name }}</div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600 font-semibold">
-                {{ formatAmount(supplier.periodExpenses) }}
-              </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 font-semibold">
                 {{ formatAmount(supplier.periodPayments) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600 font-semibold">
-                {{ formatAmount(supplier.periodDebts) }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold" 
-                  [class]="getBalanceColor(supplier.periodBalance)">
-                {{ formatAmount(supplier.periodBalance) }}
+                {{ formatAmount(supplier.periodExpenses) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold" 
                   [class]="getBalanceColor(supplier.currentDebt)">

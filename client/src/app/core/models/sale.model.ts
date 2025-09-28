@@ -28,6 +28,9 @@ export interface Sale {
   isWholesale?: boolean;
   // Daily ticket number for printing
   dailyTicketNumber?: string;
+  // Session information
+  sessionId?: number;
+  session?: { id: number };
 }
 
 export interface SaleItem {

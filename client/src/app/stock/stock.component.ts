@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { DepotsService } from '../core/services/depots.service';
 import { Depot } from '../core/models/depot.model';
 import { StockDocumentsService } from '../core/services/stock-documents.service';
+import { AuthService } from '../core/services/auth.service';
 
 @Component({
   selector: 'app-stock',
@@ -83,7 +84,8 @@ export class StockComponent implements OnInit {
   constructor(
     private depotsService: DepotsService,
     private router: Router,
-    private stockDocs: StockDocumentsService
+    private stockDocs: StockDocumentsService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -128,6 +130,20 @@ export class StockComponent implements OnInit {
   // Action depot selection methods
   openActionDepotSelection(action: string): void {
     this.selectedAction = action;
+    this.error = ''; // Clear any previous errors
+    
+    const currentUser = this.authService.currentUser();
+    console.log('Opening action:', action, 'for user:', currentUser?.role, 'depotId:', currentUser?.depotId);
+    
+    // For non-admin users, auto-route to their assigned depot
+    if (!this.isAdmin()) {
+      console.log('Non-admin user, auto-routing to assigned depot');
+      this.routeToAssignedDepot(action);
+      return;
+    }
+    
+    // For admin users, show depot selection dialog
+    console.log('Admin user, showing depot selection dialog');
     this.showActionDepotModal = true;
   }
 
@@ -369,5 +385,41 @@ export class StockComponent implements OnInit {
       default:
         return depot.type;
     }
+  }
+
+  isStockOnlyUser(): boolean {
+    const currentUser = this.authService.currentUser();
+    return currentUser?.role === 'STOCK_MANAGER';
+  }
+
+  isAdmin(): boolean {
+    const currentUser = this.authService.currentUser();
+    return currentUser?.role === 'ADMIN';
+  }
+
+  routeToAssignedDepot(action: string): void {
+    const currentUser = this.authService.currentUser();
+    if (!currentUser?.depotId) {
+      console.error('No assigned depot found for user');
+      this.error = 'Aucun dépôt assigné trouvé pour cet utilisateur';
+      return;
+    }
+
+    // Find the assigned depot
+    const assignedDepot = this.depots.find(depot => depot.id === currentUser.depotId);
+    if (!assignedDepot) {
+      console.error('Assigned depot not found in available depots');
+      this.error = 'Dépôt assigné non trouvé dans les dépôts disponibles';
+      return;
+    }
+
+    console.log('Auto-routing to assigned depot:', assignedDepot.name, 'for action:', action);
+    // Route directly to the assigned depot
+    this.selectDepotForAction(assignedDepot);
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.router.navigate(['/auth/login']);
   }
 } 

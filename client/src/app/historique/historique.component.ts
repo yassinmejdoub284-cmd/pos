@@ -1,5 +1,7 @@
-import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
+import { filter, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 import { SalesService } from '../core/services/sales.service';
 import { Sale } from '../core/models/sale.model';
 import { PrintService } from '../core/services/print.service';
@@ -77,6 +79,8 @@ export class HistoriqueComponent implements OnInit {
   showReturnPicker = false;
   showAddItemPicker = false;
 
+  private destroy$ = new Subject<void>();
+
   constructor(
     private salesService: SalesService, 
     private printService: PrintService,
@@ -88,6 +92,12 @@ export class HistoriqueComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Initialize with empty arrays to prevent undefined errors
+    this.sales = [];
+    this.filteredSales = [];
+    this.totalItems = 0;
+    
+    // Load data in proper order to avoid race conditions
     this.loadSales();
     this.loadPaymentMethods();
     this.loadInvoiceRequests();
@@ -95,87 +105,160 @@ export class HistoriqueComponent implements OnInit {
     this.loadProducts();
     
     // Check for query parameters to open return dialog
-    this.route.queryParams.subscribe(params => {
-      if (params['openReturnDialog'] === 'true' && params['ticketId']) {
-        const ticketId = parseInt(params['ticketId']);
-        this.openReturnDialogForTicket(ticketId);
-      }
-    });
+    this.route.queryParams
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((params: any) => {
+        if (params['openReturnDialog'] === 'true' && params['ticketId']) {
+          const ticketId = parseInt(params['ticketId']);
+          this.openReturnDialogForTicket(ticketId);
+        }
+      });
+
+    // Handle hot reload scenarios - reload data when window regains focus
+    // This helps with development rebuilds
+    window.addEventListener('focus', this.handleWindowFocus.bind(this));
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    // Clean up event listener
+    window.removeEventListener('focus', this.handleWindowFocus.bind(this));
+  }
+
+  private handleWindowFocus(): void {
+    // Reload data when window regains focus (helps with hot reloads)
+    // Only reload if we don't have data or if there's an error
+    if (this.sales.length === 0 || this.error) {
+      this.loadSales();
+    }
+  }
+
+  // Public method to force reload (useful for debugging)
+  public forceReload(): void {
+    this.sales = [];
+    this.filteredSales = [];
+    this.totalItems = 0;
+    this.error = '';
+    this.loadSales();
   }
 
   loadSales(): void {
     this.loading = true;
     this.error = '';
 
-    this.salesService.getSales().subscribe({
-      next: (sales) => {
-        this.sales = sales;
-        this.filteredSales = sales;
-        this.totalItems = sales.length;
-        this.loading = false;
-      },
-      error: (error) => {
-        console.error('Error loading sales:', error);
-        this.error = 'Erreur lors du chargement des ventes';
-        this.loading = false;
-      }
-    });
+    this.salesService.getSales()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (sales: any) => {
+          this.sales = sales || [];
+          this.filteredSales = this.sales;
+          this.totalItems = this.sales.length;
+          this.loading = false;
+          
+          // Apply any existing filters after loading
+          if (this.searchQuery || this.selectedStatus || this.selectedPaymentMethod || 
+              this.selectedSaleType || this.startDate || this.endDate) {
+            this.applyFilters();
+          }
+        },
+        error: (error) => {
+          console.error('Error loading sales:', error);
+          this.error = 'Erreur lors du chargement des ventes';
+          this.sales = [];
+          this.filteredSales = [];
+          this.totalItems = 0;
+          this.loading = false;
+        }
+      });
   }
 
   loadPaymentMethods(): void {
-    this.salesService.getPaymentMethods().subscribe({
-      next: (methods) => {
-        this.paymentMethods = methods;
-      },
-      error: (error) => {
-        console.error('Error loading payment methods:', error);
-      }
-    });
+    this.salesService.getPaymentMethods()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (methods: any) => {
+          this.paymentMethods = methods;
+        },
+        error: (error) => {
+          console.error('Error loading payment methods:', error);
+        }
+      });
   }
 
   loadSettings(): void {
-    this.settingsService.getSettings().subscribe({
-      next: (settings) => {
-        this.appSettings = settings;
-        // Apply default date filter based on historyRetentionDays
-        const days = Number((settings as any).historyRetentionDays || 30);
-        if (days > 0) {
-          const end = new Date();
-          const start = new Date();
-          start.setDate(end.getDate() - (days - 1));
-          // Format as yyyy-mm-dd for input[type=date]
-          const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          this.startDate = toIso(start);
-          this.endDate = toIso(end);
-          this.applyFilters();
+    this.settingsService.getSettings()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (settings: any) => {
+          this.appSettings = settings;
+          // Apply default date filter based on historyRetentionDays
+          const days = Number((settings as any).historyRetentionDays || 30);
+          if (days > 0) {
+            const end = new Date();
+            const start = new Date();
+            start.setDate(end.getDate() - (days - 1));
+            // Format as yyyy-mm-dd for input[type=date]
+            const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            this.startDate = toIso(start);
+            this.endDate = toIso(end);
+            // Only apply filters if we have sales data
+            if (this.sales && this.sales.length > 0) {
+              this.applyFilters();
+            }
+          }
+        },
+        error: (error) => {
+          console.error('Error loading settings:', error);
+          // Keep default values
         }
-      },
-      error: (error) => {
-        console.error('Error loading settings:', error);
-        // Keep default values
-      }
-    });
+      });
   }
 
   applyFilters(): void {
+    // Ensure we have sales data before filtering
+    if (!this.sales || this.sales.length === 0) {
+      this.filteredSales = [];
+      this.totalItems = 0;
+      return;
+    }
+
+    // Debug logging
+    console.log('Applying filters:', {
+      totalSales: this.sales.length,
+      searchQuery: this.searchQuery,
+      selectedStatus: this.selectedStatus,
+      selectedPaymentMethod: this.selectedPaymentMethod,
+      selectedSaleType: this.selectedSaleType,
+      startDate: this.startDate,
+      endDate: this.endDate
+    });
+
     this.filteredSales = this.sales.filter(sale => {
       // Search query
-      if (this.searchQuery) {
-        const query = this.searchQuery.toLowerCase();
+      if (this.searchQuery && this.searchQuery.trim()) {
+        const query = this.searchQuery.toLowerCase().trim();
+        const formattedTicketNumber = this.getFormattedTicketNumber(sale);
         const matchesSearch = 
           sale.id.toString().includes(query) ||
+          formattedTicketNumber.toLowerCase().includes(query) ||
           (sale.items && sale.items.some(item => item.productName.toLowerCase().includes(query))) ||
           (sale.paymentMethod && sale.paymentMethod.name.toLowerCase().includes(query));
-        if (!matchesSearch) return false;
+        if (!matchesSearch) {
+          console.log('Sale filtered out by search:', sale.id, query);
+          return false;
+        }
       }
 
       // Status filter
       if (this.selectedStatus && sale.status !== this.selectedStatus) {
+        console.log('Sale filtered out by status:', sale.id, sale.status, this.selectedStatus);
         return false;
       }
 
       // Payment method filter
       if (this.selectedPaymentMethod && sale.paymentMethod && sale.paymentMethod.id.toString() !== this.selectedPaymentMethod) {
+        console.log('Sale filtered out by payment method:', sale.id, sale.paymentMethod?.id, this.selectedPaymentMethod);
         return false;
       }
 
@@ -183,9 +266,11 @@ export class HistoriqueComponent implements OnInit {
       if (this.selectedSaleType) {
         const isWholesale = this.isWholesaleSale(sale);
         if (this.selectedSaleType === 'wholesale' && !isWholesale) {
+          console.log('Sale filtered out by sale type (wholesale):', sale.id, isWholesale);
           return false;
         }
         if (this.selectedSaleType === 'retail' && isWholesale) {
+          console.log('Sale filtered out by sale type (retail):', sale.id, isWholesale);
           return false;
         }
       }
@@ -193,11 +278,21 @@ export class HistoriqueComponent implements OnInit {
       // Date range filter
       if (this.startDate || this.endDate) {
         const saleDate = new Date(sale.createdAt);
-        if (this.startDate && saleDate < new Date(this.startDate)) {
-          return false;
+        const saleDateOnly = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate());
+        
+        if (this.startDate) {
+          const startDateOnly = new Date(this.startDate);
+          if (saleDateOnly < startDateOnly) {
+            console.log('Sale filtered out by start date:', sale.id, saleDateOnly, startDateOnly);
+            return false;
+          }
         }
-        if (this.endDate && saleDate > new Date(this.endDate)) {
-          return false;
+        if (this.endDate) {
+          const endDateOnly = new Date(this.endDate);
+          if (saleDateOnly > endDateOnly) {
+            console.log('Sale filtered out by end date:', sale.id, saleDateOnly, endDateOnly);
+            return false;
+          }
         }
       }
 
@@ -206,6 +301,12 @@ export class HistoriqueComponent implements OnInit {
 
     this.totalItems = this.filteredSales.length;
     this.currentPage = 1;
+    
+    console.log('Filter result:', {
+      originalCount: this.sales.length,
+      filteredCount: this.filteredSales.length,
+      totalItems: this.totalItems
+    });
   }
 
   clearFilters(): void {
@@ -342,7 +443,7 @@ export class HistoriqueComponent implements OnInit {
   }
 
   showSaleDetails(sale: Sale): void {
-    let details = `Vente #${sale.id}\n`;
+    let details = `Vente #${this.getFormattedTicketNumber(sale)}\n`;
     details += `Date: ${this.formatDate(sale.createdAt)}\n`;
     details += `Statut: ${this.getStatusText(sale.status)}\n`;
    
@@ -397,6 +498,21 @@ export class HistoriqueComponent implements OnInit {
     return `${itemCount} article${itemCount > 1 ? 's' : ''} - ${firstItems}${sale.items.length > 2 ? '...' : ''}`;
   }
 
+  getFormattedTicketNumber(ticket: Sale): string {
+    // If we have a stored daily ticket number, extract just the ticket number part
+    if (ticket.dailyTicketNumber) {
+      // Check if it contains a slash (old format: "sessionId/ticketNumber")
+      if (ticket.dailyTicketNumber.includes('/')) {
+        return ticket.dailyTicketNumber.split('/')[1];
+      }
+      // If no slash, it's already just the ticket number
+      return ticket.dailyTicketNumber;
+    }
+    
+    // For existing sales without dailyTicketNumber, use the sale ID
+    return ticket.id.toString().padStart(4, '0');
+  }
+
   openReceiptPreview(sale: Sale): void {
     this.selectedSaleForReceipt = sale;
     this.receiptHtmlPreview = this.printService.buildSaleReceiptHtml(sale, this.appSettings);
@@ -426,14 +542,16 @@ export class HistoriqueComponent implements OnInit {
   }
 
   loadProducts(): void {
-    this.http.get(`${environment.apiUrl}/products`).subscribe({
-      next: (products: any) => {
-        this.allProducts = products;
-      },
-      error: (error) => {
-        console.error('Error loading products:', error);
-      }
-    });
+    this.http.get(`${environment.apiUrl}/products`)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (products: any) => {
+          this.allProducts = products;
+        },
+        error: (error) => {
+          console.error('Error loading products:', error);
+        }
+      });
   }
 
   requestInvoice(sale: Sale): void {

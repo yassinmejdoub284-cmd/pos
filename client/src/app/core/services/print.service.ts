@@ -120,6 +120,21 @@ export class PrintService {
     return btoa(binary);
   }
 
+  // Helper method to get ticket number for printing
+  private getTicketNumberForPrint(sale: any): string {
+    let ticketNumber = sale.id.toString().padStart(4, '0'); // Default fallback
+    
+    if (sale.dailyTicketNumber) {
+      if (sale.dailyTicketNumber.includes('/')) {
+        ticketNumber = sale.dailyTicketNumber.split('/')[1];
+      } else {
+        ticketNumber = sale.dailyTicketNumber;
+      }
+    }
+    
+    return ticketNumber;
+  }
+
   // Print Z Report using ESC/POS commands
   private generateESCReport(reportData: ZReportData, type: 'X' | 'Z'): string {
     const { session, summary, closureData } = reportData;
@@ -420,7 +435,7 @@ export class PrintService {
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Reçu Vente #${sale.id}</title>
+          <title>Reçu Vente #${this.getTicketNumberForPrint(sale)}</title>
           <style>
             @page { margin: 0 !important; }
             body { font-family: 'Courier New', monospace; margin: 0; padding: 8px; }
@@ -447,7 +462,7 @@ export class PrintService {
             <div class="double-line"></div>
             <div>Date: ${date} &nbsp;&nbsp; Heure: ${time}</div>
             ${clientName ? `<div>Client: ${this.escapeHtml(clientName)}</div>` : ''}
-            <div>Ticket: #${sale.id}</div>
+            <div>Ticket: #${this.getTicketNumberForPrint(sale)}</div>
             ${this.isWholesaleSale(sale) ? '<div style="color: #8b5cf6; font-weight: bold; text-align: center;">VENTE GROS</div>' : ''}
             <div class="line"></div>
             <table>
@@ -545,7 +560,8 @@ export class PrintService {
     
     // Sale info
     text += `Date: ${date}     Heure: ${time}\n`;
-    text += `Ticket: #${sale.dailyTicketNumber || this.formatTicketId(sale.id)}\n`;
+    // Extract just the ticket number part (without session ID) for printing
+    text += `Ticket: #${this.getTicketNumberForPrint(sale)}\n`;
     
     // Client info (if enabled in settings) - sanitized for thermal printer
     if (settings?.printSettings?.showClientInfo) {

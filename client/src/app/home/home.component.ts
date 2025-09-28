@@ -57,12 +57,19 @@ export class HomeComponent implements OnInit, OnDestroy {
   showSettingsActionDialog = signal(false);
   showEnterpriseActionDialog = signal(false);
   showHistoriqueChoiceDialog = signal(false);
+  showErpUnlockDialog = signal(false);
   
   // Settings
   appSettings = signal<AppSettings | null>(null);
   companyName = signal('PoS Pâtisserie');
   companyLogo = signal('');
   logoLoadError = signal(false);
+  
+  // ERP Token properties
+  erpToken = '';
+  erpErrorMessage = '';
+  erpLoading = false;
+  
   
   // Pending breakdown
   private pendingGiftCount = 0;
@@ -401,19 +408,24 @@ export class HomeComponent implements OnInit, OnDestroy {
   navigateTo(route: string): void {
     if (route === '/charges') {
       this.showExpenseActionDialog.set(true);
+      this.cdr.detectChanges();
     } else if (route === '/clients') {
       this.showClientActionDialog.set(true);
-    } else if (route === '/approvals') {
-      this.showApprovalsActionDialog.set(true);
+      this.cdr.detectChanges();
     } else if (route === '/suppliers') {
       this.showSupplierActionDialog.set(true);
-    } else if (route === '/billing-center') {
-      this.showBillingCenterActionDialog.set(true);
+      this.cdr.detectChanges();
     } else if (route === '/parametres') {
       this.showSettingsActionDialog.set(true);
+      this.cdr.detectChanges();
     } else if (route === '/historique') {
       // Intercept Historique to show choice screen
       this.showHistoriqueChoiceDialog.set(true);
+      this.cdr.detectChanges();
+    } else if (route === '/billing-center') {
+      // Show ERP unlock dialog first, then billing center dialog
+      this.showErpUnlockDialog.set(true);
+      this.cdr.detectChanges();
     } else {
       this.router.navigate([route]);
     }
@@ -572,6 +584,43 @@ export class HomeComponent implements OnInit, OnDestroy {
   onEnterpriseDialogClosed(): void {
     this.showEnterpriseActionDialog.set(false);
   }
+
+  onErpTokenValidated(isValid: boolean): void {
+    this.showErpUnlockDialog.set(false);
+    if (isValid) {
+      // Show billing center action dialog after successful authentication
+      this.showBillingCenterActionDialog.set(true);
+    }
+  }
+
+  onErpDialogClosed(): void {
+    this.showErpUnlockDialog.set(false);
+    this.erpToken = '';
+    this.erpErrorMessage = '';
+    this.erpLoading = false;
+  }
+
+  validateErpToken(): void {
+    if (!this.erpToken.trim()) {
+      this.erpErrorMessage = 'Veuillez entrer un jeton';
+      return;
+    }
+
+    this.erpLoading = true;
+    this.erpErrorMessage = '';
+
+    // Simulate validation delay
+    setTimeout(() => {
+      if (this.erpToken.trim() === 'achraf2025') {
+        this.onErpTokenValidated(true);
+      } else {
+        this.erpErrorMessage = 'Jeton invalide. Veuillez réessayer.';
+        this.erpToken = '';
+      }
+      this.erpLoading = false;
+    }, 500);
+  }
+
 
 
   getRoleDisplayName(): string {

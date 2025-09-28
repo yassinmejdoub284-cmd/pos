@@ -1,7 +1,7 @@
 {
   "1": {
     "companyName": "DEPOT TUNIS",
-    "logoUrl": "",
+    "logoUrl": "/uploads/logos/logo-1759043187618-80620683.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -169,7 +169,7 @@
   },
   "4": {
     "companyName": "Société Hentati Frères Distribution",
-    "logoUrl": "",
+    "logoUrl": "/uploads/logos/logo-1759034663376-28137207.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -181,7 +181,7 @@
     "defaultClientMaxDebt": 0,
     "keyboardShortcuts": {},
     "devicesConfig": {},
-    "isDesktopVersion": true,
+    "isDesktopVersion": false,
     "auditRetentionDays": 90,
     "historyRetentionDays": 30,
     "varianceThreshold": 5,

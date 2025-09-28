@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ProduitsDeStockService } from '../../core/services/produits-de-caisse.service';
 import { ProductsService } from '../../core/services/products.service';
@@ -29,6 +29,25 @@ export class ProduitsDeStockComponent implements OnInit {
   // Grouped products for display
   groupedProducts = signal<{product: Product, subProducts: ProduitDeStock[]}[]>([]);
   
+  // Filtered products computed signal
+  filteredProducts = computed(() => {
+    const groups = this.groupedProducts();
+    const search = this.searchQuery().toLowerCase().trim();
+    const category = this.selectedCategory();
+    
+    return groups.filter(group => {
+      // Category filter
+      const categoryMatch = category === 'Tous' || group.product.famille?.name === category;
+      
+      // Search filter - search in product name and subproduct names
+      const searchMatch = !search || 
+        group.product.name.toLowerCase().includes(search) ||
+        group.subProducts.some(sub => sub.name.toLowerCase().includes(search));
+      
+      return categoryMatch && searchMatch;
+    });
+  });
+  
   // View mode toggle
   viewMode = signal<'table' | 'grid'>('table');
 
@@ -52,8 +71,12 @@ export class ProduitsDeStockComponent implements OnInit {
       // Group sub-products under their parent products
       this.groupProductsWithSubProducts(products, produits);
       
-      // Extract unique categories from products
-      const categories = ['Tous', ...new Set(products.map(p => p.famille?.name).filter(Boolean) as string[])];
+      // Extract unique categories only from products that have subproducts
+      const categories = ['Tous', ...new Set(
+        this.groupedProducts()
+          .map(group => group.product.famille?.name)
+          .filter(Boolean) as string[]
+      )];
       this.productCategories.set(categories);
     } catch (err) {
       this.error.set('Erreur lors du chargement des données');
@@ -64,10 +87,13 @@ export class ProduitsDeStockComponent implements OnInit {
   }
 
   private groupProductsWithSubProducts(products: Product[], subProducts: ProduitDeStock[]): void {
-    const grouped = products.map(product => ({
-      product,
-      subProducts: subProducts.filter(sub => sub.parentProductId === product.id)
-    }));
+    const grouped = products
+      .map(product => ({
+        product,
+        subProducts: subProducts.filter(sub => sub.parentProductId === product.id)
+      }))
+      .filter(group => group.subProducts.length > 0) // Only show products with subproducts
+      .sort((a, b) => b.subProducts.length - a.subProducts.length); // Order by most to least subproducts
     
     this.groupedProducts.set(grouped);
   }
@@ -110,6 +136,7 @@ export class ProduitsDeStockComponent implements OnInit {
   onSearchChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.searchQuery.set(target.value);
+    // Filtering is automatically applied via the computed signal
   }
 
   onCategoryChange(event: Event): void {
@@ -119,6 +146,7 @@ export class ProduitsDeStockComponent implements OnInit {
 
   setCategoryFilter(category: string): void {
     this.selectedCategory.set(category);
+    // Filtering is automatically applied via the computed signal
   }
 
   onSearch(): void {

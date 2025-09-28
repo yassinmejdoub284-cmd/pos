@@ -51,7 +51,6 @@ router.get('/', authenticateToken, async (req, res) => {
             }
           }
         },
-        famille: true,
         parentProduct: {
           select: {
             id: true,

@@ -18,6 +18,11 @@ export class ParametresComponent implements OnInit {
   devicesConfigInput = '';
   availablePrinters: {name: string, isDefault: boolean}[] = [];
   loadingPrinters = false;
+  
+  // Toast system
+  showAlert = false;
+  alertMessage = '';
+  alertType: 'success' | 'error' | 'info' = 'info';
   settings: AppSettings = {
     companyName: '',
     companyAddress: '',
@@ -67,7 +72,7 @@ export class ParametresComponent implements OnInit {
   };
 
   constructor(
-    private settingsService: SettingsService,
+    public settingsService: SettingsService,
     private printService: PrintService,
     private route: ActivatedRoute,
     private router: Router
@@ -158,6 +163,16 @@ export class ParametresComponent implements OnInit {
 
   save(): void {
     this.saving = true;
+    this.error = '';
+    this.hideAlert();
+    
+    // Validate required fields
+    if (!this.validateRequiredFields()) {
+      this.saving = false;
+      this.showAlertMessage('Veuillez vérifier les champs requis.', 'error');
+      return;
+    }
+    
     // Ensure denominations are synced from input field
     this.settings.denominations = this.parseDenominations(this.denominationsInput);
     // Parse JSON inputs back to objects (only if they have content)
@@ -203,10 +218,17 @@ export class ParametresComponent implements OnInit {
         try { this.devicesConfigInput = this.settings.devicesConfig ? JSON.stringify(this.settings.devicesConfig, null, 2) : ''; } catch {}
         this.saving = false;
         console.log('Settings saved successfully:', this.settings.devicesConfig);
+        
+        // Show success toast and navigate back
+        this.showAlertMessage('Paramètres enregistrés avec succès.', 'success');
+        setTimeout(() => {
+          this.navigateBack();
+        }, 1500);
       },
       error: (error) => {
         this.saving = false;
         this.error = "Erreur lors de l'enregistrement";
+        this.showAlertMessage('Veuillez vérifier les champs requis.', 'error');
         console.error('Error saving settings:', error);
       }
     });
@@ -224,28 +246,47 @@ export class ParametresComponent implements OnInit {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       this.error = 'Veuillez sélectionner un fichier image valide';
+      this.showAlertMessage('Veuillez sélectionner un fichier image valide', 'error');
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       this.error = 'Le fichier est trop volumineux (max 5MB)';
+      this.showAlertMessage('Le fichier est trop volumineux (max 5MB)', 'error');
       return;
     }
 
     this.saving = true;
     this.error = '';
+    this.hideAlert();
 
     this.settingsService.uploadLogo(file).subscribe({
       next: (response) => {
-        this.settings.logoUrl = this.settingsService.getAbsoluteLogoUrl(response.logoUrl);
-        this.saving = false;
-        // Clear the input
-        if (input) input.value = '';
+        // Update the settings with the new logo URL
+        this.settings.logoUrl = response.logoUrl;
+        
+        // Immediately update the settings record to persist the logo
+        this.settingsService.updateSettings(this.settings).subscribe({
+          next: (updatedSettings) => {
+            this.settings = updatedSettings;
+            this.saving = false;
+            this.showAlertMessage('Logo mis à jour avec succès', 'success');
+            // Clear the input
+            if (input) input.value = '';
+          },
+          error: (updateError) => {
+            this.saving = false;
+            this.error = 'Erreur lors de la mise à jour des paramètres';
+            this.showAlertMessage('Erreur lors de la mise à jour des paramètres', 'error');
+            console.error('Settings update error:', updateError);
+          }
+        });
       },
       error: (error) => {
         this.saving = false;
         this.error = 'Erreur lors de l\'upload du logo';
+        this.showAlertMessage('Erreur lors de l\'upload du logo', 'error');
         console.error('Logo upload error:', error);
       }
     });
@@ -381,5 +422,34 @@ export class ParametresComponent implements OnInit {
       .map((p) => Number(String(p).trim().replace(/\s+/g, '')))
       .filter((n) => !isNaN(n) && n >= 0)
       .sort((a, b) => b - a);
+  }
+
+  private validateRequiredFields(): boolean {
+    // Basic validation - can be extended based on requirements
+    if (!this.settings.companyName?.trim()) {
+      return false;
+    }
+    return true;
+  }
+
+  showAlertMessage(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+    this.alertMessage = message;
+    this.alertType = type;
+    this.showAlert = true;
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      this.hideAlert();
+    }, 5000);
+  }
+
+  hideAlert(): void {
+    this.showAlert = false;
+    this.alertMessage = '';
+  }
+
+  navigateBack(): void {
+    // Navigate back to the parametres overview or home
+    this.router.navigate(['/parametres']);
   }
 } 

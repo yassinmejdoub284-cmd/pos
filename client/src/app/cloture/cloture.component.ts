@@ -8,6 +8,7 @@ import { PrintService } from '../core/services/print.service';
 import { DailyExtractService } from '../core/services/daily-extract.service';
 import { SettingsService } from '../core/services/settings.service';
 import { DepotsService } from '../core/services/depots.service';
+import { TicketCounterService } from '../core/services/ticket-counter.service';
 import { Depot } from '../core/models/depot.model';
 
 @Component({
@@ -190,7 +191,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
     private printService: PrintService,
     private dailyExtractService: DailyExtractService,
     private settingsService: SettingsService,
-    private depotsService: DepotsService
+    private depotsService: DepotsService,
+    private ticketCounterService: TicketCounterService
   ) {}
 
   ngOnInit(): void {
@@ -218,7 +220,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
     if (this.isRefreshing) return;
     this.isRefreshing = true;
     if (!silent) this.loading.set(true);
-    this.sessionsService.getActiveSession(undefined, undefined).subscribe({
+    
+    // Get user's depot ID for isolation
+    const userDepotId = this.authService.currentUser()?.depotId;
+    const visitingDepotId = sessionStorage.getItem('visitingDepotId');
+    const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
+    
+    this.sessionsService.getActiveSession(1, currentDepotId).subscribe({
       next: (session) => {
         this.currentSession.set(session);
         if (!silent) this.loading.set(false);
@@ -227,7 +235,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
         // If no active session, automatically open one
         if (!session && !this.triedAutoOpen) {
           this.triedAutoOpen = true;
-          this.autoOpenSession();
+          this.autoOpenSession(0);
         }
       },
       error: (error) => {
@@ -236,20 +244,26 @@ export class ClotureComponent implements OnInit, OnDestroy {
         this.isRefreshing = false;
         if (!this.triedAutoOpen) {
           this.triedAutoOpen = true;
-          this.autoOpenSession();
+          this.autoOpenSession(0);
         }
       }
     });
   }
 
-  autoOpenSession(): void {
+  autoOpenSession(openingFund: number = 0): void {
     this.loading.set(true);
+    
+    // Get user's depot ID for isolation
+    const userDepotId = this.authService.currentUser()?.depotId;
+    const visitingDepotId = sessionStorage.getItem('visitingDepotId');
+    const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
+    
     const defaultSession: OpenSessionRequest = {
-      openingFund: 0,
+      openingFund: openingFund,
       posId: 1,
+      depotId: currentDepotId, // Ensure depot isolation
       note: 'Session automatique'
     };
-    // Depot is inferred from visiting depot header; no explicit depotId needed
     try { console.debug('[Cloture] Opening session payload', defaultSession); } catch {}
     
     this.sessionsService.openSession(defaultSession).subscribe({
@@ -339,8 +353,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
             this.loading.set(false);
             this.error.set('');
             
-            // Automatically open new session
-            this.autoOpenSession();
+            // Reset ticket counter after successful session closure
+            this.ticketCounterService.resetTicketCounter();
+            
+            // Automatically open new session with the remaining balance
+            this.autoOpenSession(resp.remainingBalance || 0);
             
             // If approval is required, redirect to approvals center, else back to caisse
             setTimeout(() => {

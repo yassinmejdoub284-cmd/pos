@@ -15,8 +15,13 @@ export class ProductsService {
     private http: HttpClient
   ) {}
 
-  getProducts(): Observable<Product[]> {
-    return this.http.get<Product[]>(this.apiUrl).pipe(
+  getProducts(depotId?: number): Observable<Product[]> {
+    let params = new HttpParams();
+    if (depotId) {
+      params = params.set('depotId', depotId.toString());
+    }
+    
+    return this.http.get<Product[]>(this.apiUrl, { params }).pipe(
       catchError((error) => throwError(() => error))
     );
   }

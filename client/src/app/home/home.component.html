@@ -98,7 +98,7 @@
         <!-- SPECIAL CAISSE BUTTON - SPANS 2x2 -->
         <div *ngIf="getFilteredActions()[0]?.id === 'caisse'" 
              (click)="navigateTo(getFilteredActions()[0].route)"
-             class="relative group col-span-2 row-span-2">
+             class="relative group col-span-2 row-span-2 cursor-pointer">
           
           <!-- SPECIAL CAISSE BUTTON WITH SESSION BACKGROUND -->
           <div class="relative">
@@ -168,7 +168,8 @@
         <!-- REGULAR ACTION BUTTONS -->
         <div *ngFor="let action of getFilteredActions().slice(1); let i = index" 
              (click)="navigateTo(action.route)"
-             class="relative group h-full w-full">
+             class="relative group h-full w-full cursor-pointer"
+             [title]="'Click to navigate to: ' + action.route">
           
           <!-- ACTION BUTTON -->
           <div class="relative bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-amber-300/30 shadow-lg active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center action-button">
@@ -220,10 +221,92 @@
 
   <!-- Lazy-loaded Dialogs -->
   @if (showExpenseActionDialog()) {
-    <app-expense-action-dialog 
-      (actionSelected)="onExpenseActionSelected($event)"
-      (dialogClosed)="onExpenseDialogClosed()">
-    </app-expense-action-dialog>
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="onExpenseDialogClosed()">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-amber-100/50" (click)="$event.stopPropagation()">
+        <!-- Header -->
+        <div class="p-4 border-b border-amber-100/50">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-rose-600 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-red-100">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-gray-800">Dépenses</h2>
+              <p class="text-xs text-gray-600">Que souhaitez-vous faire ?</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="p-4">
+          <div class="grid grid-cols-2 gap-4">
+            <button (click)="onExpenseActionSelected('consult')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-red-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
+              <div class="flex flex-col items-center space-y-3">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                  </svg>
+                </div>
+                <div class="text-center">
+                  <div class="font-semibold text-gray-800 text-base">Consulter</div>
+                  <div class="text-sm text-gray-600">Voir toutes</div>
+                </div>
+              </div>
+            </button>
+
+            <button (click)="onExpenseActionSelected('add')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-red-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
+              <div class="flex flex-col items-center space-y-3">
+                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                </div>
+                <div class="text-center">
+                  <div class="font-semibold text-gray-800 text-base">Ajouter</div>
+                  <div class="text-sm text-gray-600">Nouvelle</div>
+                </div>
+              </div>
+            </button>
+
+            <button (click)="onExpenseActionSelected('add-category')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-red-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
+              <div class="flex flex-col items-center space-y-3">
+                <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                  </svg>
+                </div>
+                <div class="text-center">
+                  <div class="font-semibold text-gray-800 text-base">Catégorie</div>
+                  <div class="text-sm text-gray-600">Nouvelle</div>
+                </div>
+              </div>
+            </button>
+
+            <button (click)="onExpenseActionSelected('statistics')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-red-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
+              <div class="flex flex-col items-center space-y-3">
+                <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                </div>
+                <div class="text-center">
+                  <div class="font-semibold text-gray-800 text-base">Statistiques</div>
+                  <div class="text-sm text-gray-600">Rapports</div>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-gray-100">
+          <button (click)="onExpenseDialogClosed()" class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
   }
 
   @if (showClientActionDialog()) {
@@ -249,10 +332,92 @@
   }
 
   @if (showBillingCenterActionDialog()) {
-    <app-billing-center-action-dialog 
-      (actionSelected)="onBillingCenterActionSelected($event)"
-      (dialogClosed)="onBillingCenterDialogClosed()">
-    </app-billing-center-action-dialog>
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="onBillingCenterDialogClosed()">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-amber-100/50" (click)="$event.stopPropagation()">
+        <!-- Header -->
+        <div class="p-4 border-b border-amber-100/50">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-cyan-100">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-gray-800">ERP de Gestion</h2>
+              <p class="text-xs text-gray-600">Que souhaitez-vous faire ?</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="p-4">
+          <div class="grid grid-cols-2 gap-4">
+            <button (click)="onBillingCenterActionSelected('add-invoice')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-cyan-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
+              <div class="flex flex-col items-center space-y-3">
+                <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                </div>
+                <div class="text-center">
+                  <div class="font-semibold text-gray-800 text-base">Ajouter nouvelle facture</div>
+                  <div class="text-sm text-gray-600">Créer une nouvelle facture</div>
+                </div>
+              </div>
+            </button>
+
+            <button (click)="onBillingCenterActionSelected('manage-invoices')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-cyan-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
+              <div class="flex flex-col items-center space-y-3">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                  </svg>
+                </div>
+                <div class="text-center">
+                  <div class="font-semibold text-gray-800 text-base">Gérer les factures</div>
+                  <div class="text-sm text-gray-600">Consulter et gérer</div>
+                </div>
+              </div>
+            </button>
+
+            <button (click)="onBillingCenterActionSelected('invoice-extracts')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-cyan-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
+              <div class="flex flex-col items-center space-y-3">
+                <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                </div>
+                <div class="text-center">
+                  <div class="font-semibold text-gray-800 text-base">Extraits facturés</div>
+                  <div class="text-sm text-gray-600">Journaliers avec quantités</div>
+                </div>
+              </div>
+            </button>
+
+            <button (click)="onBillingCenterActionSelected('stock-management')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-cyan-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
+              <div class="flex flex-col items-center space-y-3">
+                <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                  </svg>
+                </div>
+                <div class="text-center">
+                  <div class="font-semibold text-gray-800 text-base">Gestion de Stock</div>
+                  <div class="text-sm text-gray-600">Entrées pour tous dépôts</div>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-gray-100">
+          <button (click)="onBillingCenterDialogClosed()" class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
   }
 
   @if (showSettingsActionDialog()) {
@@ -269,27 +434,209 @@
     </app-enterprise-action-dialog>
   }
 
+  @if (showErpUnlockDialog()) {
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="onErpDialogClosed()">
+      <div class="bg-white rounded-2xl border border-amber-100/50 max-w-lg w-full shadow-2xl ring-1 ring-amber-50" (click)="$event.stopPropagation()">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-cyan-50 to-blue-50 p-4 border-b border-cyan-200/60 rounded-t-2xl">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-cyan-100">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-lg font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+                  Accès ERP de Gestion
+                </h2>
+                <p class="text-xs text-cyan-600/70 font-medium">Authentification requise</p>
+              </div>
+            </div>
+            <button (click)="onErpDialogClosed()" 
+              title="Fermer"
+              class="p-2 text-cyan-500 hover:text-cyan-700 hover:bg-cyan-50 rounded-xl transition-all duration-200 hover:scale-95">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-4">
+          <div class="mb-4">
+            <!-- Premium Module Info -->
+            <div class="mb-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-lg">
+              <div class="flex items-start space-x-3">
+                <div class="w-8 h-8 bg-gradient-to-br from-red-500 to-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-sm font-semibold text-red-800 mb-1">🔒 Module Premium ERP - Accès Restreint</h3>
+                  <p class="text-xs text-red-700 mb-2">Ce module est <strong>payant</strong> et nécessite un achat pour être débloqué.</p>
+                  <div class="text-xs text-red-600">
+                    <span class="font-medium">❌ Accès non autorisé sans achat</span>
+                    <ul class="mt-1 space-y-1">
+                      <li>• Module verrouillé</li>
+                      <li>• Achat requis</li>
+                      <li>• Jeton d'activation nécessaire</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p class="text-gray-700 text-center mb-3 text-sm">
+              <strong>Vous devez acheter ce module pour y accéder.</strong><br>
+              Si vous avez déjà acheté, entrez votre jeton d'activation.
+            </p>
+            
+            <!-- Error Message -->
+            <div *ngIf="erpErrorMessage" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div class="flex items-center space-x-2">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="text-red-700 text-sm font-medium">{{ erpErrorMessage }}</span>
+              </div>
+            </div>
+
+            <!-- Token Input -->
+            <div class="space-y-2">
+              <label for="token" class="block text-sm font-medium text-gray-700">🔑 Jeton d'activation (Achat requis)</label>
+              <input 
+                id="token"
+                type="password" 
+                [(ngModel)]="erpToken"
+                (keyup.enter)="validateErpToken()"
+                placeholder="Entrez votre jeton d'activation..."
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
+                [class.border-red-300]="erpErrorMessage"
+                [class.focus:ring-red-500]="erpErrorMessage"
+                [class.focus:border-red-500]="erpErrorMessage">
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex space-x-3">
+            <button 
+              (click)="onErpDialogClosed()"
+              class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium">
+              Annuler
+            </button>
+            <button 
+              (click)="validateErpToken()"
+              [disabled]="!erpToken || erpLoading"
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+              <span *ngIf="!erpLoading">Activer le module</span>
+              <span *ngIf="erpLoading" class="flex items-center justify-center">
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Vérification...
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
   <!-- Historique Choice Dialog -->
   @if (showHistoriqueChoiceDialog()) {
-    <div class="fixed inset-0 z-50 flex items-center justify-center">
-      <div class="absolute inset-0 bg-black/30 dialog-backdrop" (click)="onHistoriqueChoiceClosed()"></div>
-      <div class="relative bg-white rounded-2xl shadow-2xl border border-slate-200 w-[90%] max-w-3xl p-6 dialog-content">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-slate-800">Choisir un historique</h2>
-          <button class="text-slate-500 hover:text-slate-700" (click)="onHistoriqueChoiceClosed()" aria-label="Fermer">
-            ✕
-          </button>
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm dialog-backdrop" (click)="onHistoriqueChoiceClosed()"></div>
+      <div class="relative bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-4xl dialog-content">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-violet-50 to-pink-50 p-6 border-b border-gray-100 rounded-t-3xl">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-12 h-12 bg-gradient-to-br from-violet-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-violet-100">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-2xl font-bold bg-gradient-to-r from-violet-600 to-pink-600 bg-clip-text text-transparent">
+                  Choisir un historique
+                </h2>
+                <p class="text-sm text-gray-600 font-medium">Sélectionnez le type d'historique à consulter</p>
+              </div>
+            </div>
+            <button (click)="onHistoriqueChoiceClosed()" 
+              title="Fermer"
+              class="p-2 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded-xl transition-all duration-200 hover:scale-95">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button (click)="onHistoriqueChoiceSelected('VENTES')" class="group text-left rounded-xl border border-slate-200 p-5 hover:border-slate-300 hover:shadow transition bg-gradient-to-br from-slate-50 to-white">
-            <div class="text-lg font-semibold text-slate-800 mb-1">Historique des Ventes</div>
-            <div class="text-sm text-slate-600 mb-1">Tickets, paiements, retours</div>
-            <div class="text-xs text-slate-500">Consulter les ventes passées avec filtres et détails.</div>
-          </button>
-          <button (click)="onHistoriqueChoiceSelected('POINTAGE')" class="group text-left rounded-xl border border-slate-200 p-5 hover:border-slate-300 hover:shadow transition bg-gradient-to-br from-indigo-50 to-white">
-            <div class="text-lg font-semibold text-slate-800 mb-1">Historique Pointage (Entrée/Sortie)</div>
-            <div class="text-sm text-slate-600 mb-1">Présences, retards, absences</div>
-            <div class="text-xs text-slate-500">Suivre les pointages employés et les corrections.</div>
+
+        <!-- Content -->
+        <div class="p-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            <!-- Historique des Ventes -->
+            <button (click)="onHistoriqueChoiceSelected('VENTES')" 
+              class="group relative bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-8 border border-emerald-200/50 hover:border-emerald-300 hover:shadow-lg transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+              <div class="flex flex-col items-center text-center space-y-4">
+                <!-- Icon -->
+                <div class="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+                  <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                  </svg>
+                </div>
+                <!-- Content -->
+                <div class="space-y-2">
+                  <h3 class="text-xl font-bold text-emerald-800 group-hover:text-emerald-900 transition-colors">
+                    Historique des Ventes
+                  </h3>
+                  <p class="text-sm text-emerald-600 font-medium">Tickets & Paiements</p>
+                  <p class="text-xs text-emerald-500 leading-relaxed">
+                    Consulter les ventes passées avec filtres et détails complets
+                  </p>
+                </div>
+              </div>
+              <!-- Hover effect -->
+              <div class="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </button>
+
+            <!-- Historique Pointage -->
+            <button (click)="onHistoriqueChoiceSelected('POINTAGE')" 
+              class="group relative bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-200/50 hover:border-blue-300 hover:shadow-lg transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+              <div class="flex flex-col items-center text-center space-y-4">
+                <!-- Icon -->
+                <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+                  <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+                <!-- Content -->
+                <div class="space-y-2">
+                  <h3 class="text-xl font-bold text-blue-800 group-hover:text-blue-900 transition-colors">
+                    Historique Pointage
+                  </h3>
+                  <p class="text-sm text-blue-600 font-medium">Entrée/Sortie</p>
+                  <p class="text-xs text-blue-500 leading-relaxed">
+                    Suivre les pointages employés et les corrections
+                  </p>
+                </div>
+              </div>
+              <!-- Hover effect -->
+              <div class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-6 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl">
+          <button (click)="onHistoriqueChoiceClosed()" 
+            class="w-full px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors font-medium">
+            Annuler
           </button>
         </div>
       </div>

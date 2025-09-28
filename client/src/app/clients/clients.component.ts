@@ -1,29 +1,37 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Router } from '@angular/router';
 import { ClientsService } from '../core/services/clients.service';
 import { Client, ClientType, CreateClientRequest, UpdateClientRequest } from '../core/models/client.model';
-import { Depot } from '../core/models/depot.model';
+import { Depot, DepotType } from '../core/models/depot.model';
 import { DepotsService } from '../core/services/depots.service';
+import { Subject, takeUntil, debounceTime, distinctUntilChanged } from 'rxjs';
 
 @Component({
   selector: 'app-clients',
   templateUrl: './clients.component.html',
-  standalone: false
+  standalone: false,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ClientsComponent implements OnInit {
+export class ClientsComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+  private searchSubject = new Subject<string>();
+  
   loading = false;
   error = '';
   clients: Client[] = [];
   totalClients = 0;
   currentPage = 1;
   totalPages = 1;
-  itemsPerPage = 20;
+  itemsPerPage = 12;
 
   // Filters
   searchQuery = '';
   selectedType: string = '';
   selectedStatus: string = 'true';
+  
+  // View mode
+  viewMode: 'grid' | 'table' = 'grid';
 
   // Tunisian governorates (24)
   tunisianCities: string[] = [
@@ -80,24 +88,44 @@ export class ClientsComponent implements OnInit {
     private clientsService: ClientsService,
     private depotsService: DepotsService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
+    this.setupSearchDebounce();
     this.loadClients();
     this.loadDepots();
     
     // Check if we should open the create popup based on query parameters
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       if (params['action'] === 'add') {
         this.openCreatePopup();
       }
     });
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private setupSearchDebounce(): void {
+    this.searchSubject.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$)
+    ).subscribe(searchQuery => {
+      this.searchQuery = searchQuery;
+      this.currentPage = 1;
+      this.loadClients();
+    });
+  }
+
   loadClients(): void {
     this.loading = true;
     this.error = '';
+    this.cdr.markForCheck();
 
     const active = this.selectedStatus === 'true' ? true : this.selectedStatus === 'false' ? false : undefined;
 
@@ -107,25 +135,28 @@ export class ClientsComponent implements OnInit {
       this.searchQuery,
       this.selectedType,
       active
-    ).subscribe({
+    ).pipe(takeUntil(this.destroy$)).subscribe({
       next: (response) => {
         this.clients = response.clients;
         this.totalClients = response.pagination.total ?? response.clients.length;
         this.totalPages = response.pagination.pages ?? Math.max(1, Math.ceil(this.totalClients / this.itemsPerPage));
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: (error) => {
         this.error = 'Erreur lors du chargement des clients';
         this.loading = false;
+        this.cdr.markForCheck();
         console.error('Error loading clients:', error);
       }
     });
   }
 
   loadDepots(): void {
-    this.depotsService.list().subscribe({
+    this.depotsService.list().pipe(takeUntil(this.destroy$)).subscribe({
       next: (depots) => {
         this.availableDepots = depots;
+        this.cdr.markForCheck();
       },
       error: (error) => {
         console.error('Error loading depots:', error);
@@ -136,6 +167,11 @@ export class ClientsComponent implements OnInit {
   applyFilters(): void {
     this.currentPage = 1;
     this.loadClients();
+  }
+
+  onSearchInput(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.searchSubject.next(target.value);
   }
 
   clearFilters(): void {
@@ -237,7 +273,13 @@ export class ClientsComponent implements OnInit {
       return;
     }
 
-    this.clientsService.createClient(this.createForm).subscribe({
+    // Validate depot selection
+    if (!this.isDepotSelectionValid(this.createForm.depotId)) {
+      this.showAlertMessage('Veuillez sélectionner un point de vente', 'error');
+      return;
+    }
+
+    this.clientsService.createClient(this.createForm).pipe(takeUntil(this.destroy$)).subscribe({
       next: (client) => {
         this.showAlertMessage('Client créé avec succès', 'success');
         this.closePopups();
@@ -256,7 +298,13 @@ export class ClientsComponent implements OnInit {
       return;
     }
 
-    this.clientsService.updateClient(this.selectedClient.id, this.editForm).subscribe({
+    // Validate depot selection
+    if (!this.isDepotSelectionValid(this.editForm.depotId)) {
+      this.showAlertMessage('Veuillez sélectionner un point de vente', 'error');
+      return;
+    }
+
+    this.clientsService.updateClient(this.selectedClient.id, this.editForm).pipe(takeUntil(this.destroy$)).subscribe({
       next: (client) => {
         this.showAlertMessage('Client mis à jour avec succès', 'success');
         this.closePopups();
@@ -272,7 +320,7 @@ export class ClientsComponent implements OnInit {
   deleteClient(): void {
     if (!this.selectedClient) return;
 
-    this.clientsService.deleteClient(this.selectedClient.id).subscribe({
+    this.clientsService.deleteClient(this.selectedClient.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.showAlertMessage('Client supprimé avec succès', 'success');
         this.closePopups();
@@ -291,7 +339,7 @@ export class ClientsComponent implements OnInit {
       return;
     }
 
-    this.clientsService.initializeSolde(this.selectedClient.id, this.initSoldeAmount, this.initSoldeNotes).subscribe({
+    this.clientsService.initializeSolde(this.selectedClient.id, this.initSoldeAmount, this.initSoldeNotes).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.showAlertMessage('Solde défini avec succès', 'success');
         this.closePopups();
@@ -346,5 +394,95 @@ export class ClientsComponent implements OnInit {
 
   hasNoDebt(client: Client): boolean {
     return !client._count?.debtTransactions || client._count.debtTransactions === 0;
+  }
+
+  getDepotTypeLabel(type: string): string {
+    switch (type) {
+      case 'MAIN': return 'Siège central';
+      case 'BRANCH': return 'Succursale';
+      case 'SHOP': return 'Point de vente';
+      case 'WAREHOUSE': return 'Entrepôt';
+      default: return 'Dépôt';
+    }
+  }
+
+
+  getDepotTypeColor(type: string): string {
+    switch (type) {
+      case 'MAIN': return 'border-purple-500 bg-purple-50 text-purple-700';
+      case 'BRANCH': return 'border-blue-500 bg-blue-50 text-blue-700';
+      case 'SHOP': return 'border-green-500 bg-green-50 text-green-700';
+      case 'WAREHOUSE': return 'border-orange-500 bg-orange-50 text-orange-700';
+      default: return 'border-gray-500 bg-gray-50 text-gray-700';
+    }
+  }
+
+  getDepotTypeBgColor(type: string): string {
+    switch (type) {
+      case 'MAIN': return 'bg-purple-500';
+      case 'BRANCH': return 'bg-blue-500';
+      case 'SHOP': return 'bg-green-500';
+      case 'WAREHOUSE': return 'bg-orange-500';
+      default: return 'bg-gray-500';
+    }
+  }
+
+  getDepotTypeHoverColor(type: string): string {
+    switch (type) {
+      case 'MAIN': return 'hover:border-purple-300';
+      case 'BRANCH': return 'hover:border-blue-300';
+      case 'SHOP': return 'hover:border-green-300';
+      case 'WAREHOUSE': return 'hover:border-orange-300';
+      default: return 'hover:border-gray-300';
+    }
+  }
+
+
+  // Helper methods for depot selection
+  isDepotSelectionValid(depotId: number | null | undefined): boolean {
+    // Valid if: -1 (Tout), null (Facturation uniquement), or a specific depot ID
+    return depotId === -1 || depotId === null || (typeof depotId === 'number' && depotId > 0);
+  }
+
+  getDepotSelectionLabel(depotId: number | null): string {
+    if (depotId === -1) return 'Tous les points de vente';
+    if (depotId === null) return 'Facturation uniquement';
+    const depot = this.availableDepots.find(d => d.id === depotId);
+    return depot ? depot.name : 'Point de vente non trouvé';
+  }
+
+  // TrackBy functions for performance
+  trackByClientId(index: number, client: Client): number {
+    return client.id;
+  }
+
+  trackByDepotId(index: number, depot: Depot): number {
+    return depot.id;
+  }
+
+  trackByCity(index: number, city: string): string {
+    return city;
+  }
+
+  trackByPage(index: number): number {
+    return index;
+  }
+
+  // Scroll optimization methods
+  onScroll(event: Event): void {
+    // Throttle scroll events for better performance
+    if (this.scrollTimeout) {
+      clearTimeout(this.scrollTimeout);
+    }
+    this.scrollTimeout = setTimeout(() => {
+      // Handle scroll-based loading if needed
+    }, 16); // ~60fps
+  }
+
+  private scrollTimeout: any;
+
+  // View mode methods
+  toggleViewMode(): void {
+    this.viewMode = this.viewMode === 'grid' ? 'table' : 'grid';
   }
 } 

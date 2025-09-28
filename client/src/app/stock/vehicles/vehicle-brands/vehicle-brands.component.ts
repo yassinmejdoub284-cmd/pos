@@ -1,14 +1,19 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild, ViewContainerRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { VehiclesService } from '../../../core/services/vehicles.service';
 import { VehicleBrand } from '../../../core/models/vehicle.model';
+import { ErrorHandlingService, ForeignKeyConstraintError } from '../../../core/services/error-handling.service';
+import { DialogService } from '../../../shared/services/dialog.service';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-vehicle-brands',
   templateUrl: './vehicle-brands.component.html',
   standalone: false
 })
-export class VehicleBrandsComponent implements OnInit {
+export class VehicleBrandsComponent implements OnInit, AfterViewInit {
+  @ViewChild('dialogContainer', { read: ViewContainerRef }) dialogContainer!: ViewContainerRef;
+
   brands: VehicleBrand[] = [];
   filteredBrands: VehicleBrand[] = [];
   loading = false;
@@ -21,11 +26,24 @@ export class VehicleBrandsComponent implements OnInit {
 
   constructor(
     private vehiclesService: VehiclesService,
-    private router: Router
+    private router: Router,
+    private errorHandlingService: ErrorHandlingService,
+    private dialogService: DialogService
   ) {}
 
   ngOnInit(): void {
     this.loadBrands();
+    // Set up dialog container
+    if (this.dialogContainer) {
+      this.dialogService.setViewContainerRef(this.dialogContainer);
+    }
+  }
+
+  ngAfterViewInit(): void {
+    // Set up dialog container after view is initialized
+    if (this.dialogContainer) {
+      this.dialogService.setViewContainerRef(this.dialogContainer);
+    }
   }
 
   loadBrands(): void {
@@ -109,15 +127,49 @@ export class VehicleBrandsComponent implements OnInit {
   }
 
   deleteBrand(brand: VehicleBrand): void {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer la marque ${brand.name} ?`)) {
-      this.vehiclesService.deleteVehicleBrand(brand.id).subscribe({
-        next: () => {
-          this.loadBrands();
+    this.dialogService.showConfirmationDialog(
+      'Confirmer la suppression',
+      `Êtes-vous sûr de vouloir supprimer la marque "${brand.name}" ?`,
+      () => {
+        this.performDeleteBrand(brand);
+      }
+    );
+  }
+
+  private performDeleteBrand(brand: VehicleBrand): void {
+    this.vehiclesService.deleteVehicleBrand(brand.id).subscribe({
+      next: () => {
+        this.loadBrands();
+        this.error = '';
+      },
+      error: (error: HttpErrorResponse) => {
+        this.handleDeleteError(error, brand);
+      }
+    });
+  }
+
+  private handleDeleteError(error: HttpErrorResponse, brand: VehicleBrand): void {
+    // Try to parse as foreign key constraint error
+    const fkError = this.errorHandlingService.parseForeignKeyError(error);
+    
+    if (fkError) {
+      // Show user-friendly foreign key constraint dialog
+      const dialogData = this.errorHandlingService.createForeignKeyErrorDialog(
+        fkError,
+        () => {
+          // Primary action - just close
         },
-        error: (error) => {
-          this.error = 'Erreur lors de la suppression de la marque';
+        () => {
+          // Secondary action - navigate to vehicles list
+          this.router.navigate(['/stock/vehicles']);
         }
-      });
+      );
+      
+      this.dialogService.showErrorDialog(dialogData);
+    } else {
+      // Show generic error dialog
+      const dialogData = this.errorHandlingService.createGenericErrorDialog(error);
+      this.dialogService.showErrorDialog(dialogData);
     }
   }
 

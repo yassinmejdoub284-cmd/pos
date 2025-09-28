@@ -7,12 +7,14 @@ import { environment } from '../../environments/environment';
 import { SupplierService } from '../core/services/supplier.service';
 import { SessionsService, SessionCaisse } from '../core/services/sessions.service';
 import { Supplier, SupplierPayment } from '../core/models/supplier.model';
+import { ErrorDialogComponent } from '../shared/components/error-dialog/error-dialog.component';
+import { ErrorDialogData } from '../core/services/error-handling.service';
 
 @Component({
   selector: 'app-supplier-payments',
   templateUrl: './supplier-payments.component.html',
   standalone: true, 
-  imports: [CommonModule, FormsModule, RouterModule]
+  imports: [CommonModule, FormsModule, RouterModule, ErrorDialogComponent]
 })
 export class SupplierPaymentsComponent implements OnInit {
   suppliers: Supplier[] = [];
@@ -22,6 +24,8 @@ export class SupplierPaymentsComponent implements OnInit {
   loading = false;
   currentSession: SessionCaisse | null = null;
   remainingCash: number | null = null;
+  showErrorDialog = false;
+  errorDialogData: ErrorDialogData | null = null;
   
   // Form data
   paymentForm = {
@@ -113,8 +117,25 @@ export class SupplierPaymentsComponent implements OnInit {
 
   submitPayment(): void {
     if (!this.paymentForm.supplierId || !this.paymentForm.amount) {
-      alert('Veuillez sélectionner un fournisseur et saisir un montant');
+      this.showError({
+        title: 'Données manquantes',
+        message: 'Veuillez sélectionner un fournisseur et saisir un montant',
+        type: 'error'
+      });
       return;
+    }
+
+    // Check if payment method is CASH and amount exceeds available cash
+    if (this.paymentForm.paymentMethod === 'CASH' && this.currentSession) {
+      const availableCash = this.currentSession.summary?.expectedCash || this.currentSession.expectedCash || 0;
+      if (this.paymentForm.amount > availableCash) {
+        this.showError({
+          title: 'Montant insuffisant',
+          message: `Montant insuffisant en caisse. Espèces disponibles: ${this.formatAmount(availableCash)}`,
+          type: 'error'
+        });
+        return;
+      }
     }
 
     this.loading = true;
@@ -128,13 +149,21 @@ export class SupplierPaymentsComponent implements OnInit {
         this.loadPayments();
         this.hidePaymentForm();
         this.loading = false;
-        alert('Règlement enregistré avec succès');
+        this.showError({
+          title: 'Succès',
+          message: 'Règlement enregistré avec succès',
+          type: 'info'
+        });
         this.sessionsService.refreshCurrentSession();
       },
       error: (error) => {
         console.error('Error creating payment:', error);
         this.loading = false;
-        alert('Erreur lors de l\'enregistrement du règlement');
+        this.showError({
+          title: 'Erreur',
+          message: 'Erreur lors de l\'enregistrement du règlement',
+          type: 'error'
+        });
       }
     });
   }
@@ -158,5 +187,15 @@ export class SupplierPaymentsComponent implements OnInit {
       style: 'currency',
       currency: 'TND'
     }).format(amount);
+  }
+
+  showError(data: ErrorDialogData): void {
+    this.errorDialogData = data;
+    this.showErrorDialog = true;
+  }
+
+  closeErrorDialog(): void {
+    this.showErrorDialog = false;
+    this.errorDialogData = null;
   }
 }

@@ -221,30 +221,78 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       }
     });
 
-    const summaries = suppliers.map(supplier => {
-      const periodExpenses = supplier.expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
-      const periodPayments = supplier.payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
-      const periodDebts = periodExpenses - periodPayments;
-      const periodBalance = periodDebts; // Positive means we owe money
+    const summaries = await Promise.all(suppliers.map(async (supplier) => {
+      // Get ALL expenses and payments for this supplier (not just period ones)
+      const allExpenses = await prisma.expense.findMany({
+        where: { supplierId: supplier.id },
+        select: { amount: true, isPaid: true, isAdvance: true }
+      });
       
-      // Calculate current debt (all unpaid expenses minus all payments)
-      const currentDebt = supplier.expenses
-        .filter(expense => !expense.isPaid)
-        .reduce((sum, expense) => sum + parseFloat(expense.amount), 0) - 
-        supplier.payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+      const allPayments = await prisma.supplierPayment.findMany({
+        where: { supplierId: supplier.id },
+        select: { amount: true, notes: true }
+      });
+
+      // Calculate totals using the same logic as the statement
+      let totalDebit = 0;
+      let totalCredit = 0;
+      let currentDebt = 0;
+      
+      // Process all expenses using the same logic as statement
+      allExpenses.forEach(expense => {
+        const amount = parseFloat(expense.amount);
+        if (expense.isAdvance || expense.isPaid) {
+          // Advance/paid expenses: show as both debit and credit (like statement)
+          totalDebit += amount;
+          totalCredit += amount;
+          currentDebt += amount - amount; // debit - credit = 0
+        } else {
+          // Unpaid expenses: show as credit only (like statement)
+          totalCredit += amount;
+          currentDebt += 0 - amount; // debit - credit = -amount
+        }
+      });
+      
+      // Process all payments using the same logic as statement
+      allPayments.forEach(payment => {
+        const amount = parseFloat(payment.amount);
+        const notes = payment.notes || '';
+        
+        // Extract bon d'entrée details from notes (same as statement logic)
+        const bonMatch = notes.match(/Bon d'entrée #(\d+)/);
+        const paidMatch = notes.match(/Payé: ([\d.]+) dt/);
+        const totalMatch = notes.match(/Total: ([\d.]+) dt/);
+        
+        if (bonMatch && paidMatch && totalMatch) {
+          // Partial payment with both paid amount and total amount (like statement)
+          const paidAmount = parseFloat(paidMatch[1]);
+          const totalAmount = parseFloat(totalMatch[1]);
+          totalDebit += paidAmount;
+          totalCredit += totalAmount;
+          currentDebt += paidAmount - totalAmount; // debit - credit
+        } else if (amount < 0) {
+          // Full credit (no payment made) - like statement
+          totalCredit += Math.abs(amount);
+          currentDebt += 0 - Math.abs(amount); // debit - credit
+        } else {
+          // Regular payment - like statement
+          totalDebit += amount;
+          currentDebt += amount - 0; // debit - credit
+        }
+      });
 
       return {
         id: supplier.id,
         name: supplier.name,
-        currentDebt: Math.max(0, currentDebt),
-        totalExpenses: supplier.expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0),
-        periodExpenses,
-        periodPayments,
-        periodDebts,
-        periodBalance,
+        currentDebt: currentDebt,
+        totalExpenses: allExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0),
+        periodExpenses: totalCredit, // Use calculated total credit
+        periodPayments: totalDebit,  // Use calculated total debit
+        periodDebts: totalCredit - totalDebit,
+        periodBalance: totalCredit - totalDebit,
         _count: supplier._count
       };
-    });
+    }));
 
     res.json(summaries);
   } catch (error) {

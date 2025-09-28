@@ -14,10 +14,10 @@ router.get('/', async (req, res) => {
     const term = (q ?? search)?.toString().trim();
     if (term && term.length >= 2) {
       where.OR = [
-        { firstName: { contains: term, mode: 'insensitive' } },
-        { lastName: { contains: term, mode: 'insensitive' } },
-        { phone: { contains: term, mode: 'insensitive' } },
-        { code: { contains: term, mode: 'insensitive' } }
+        { firstName: { contains: term } },
+        { lastName: { contains: term } },
+        { phone: { contains: term } },
+        { code: { contains: term } }
       ];
     }
 
@@ -151,8 +151,6 @@ router.post('/', async (req, res) => {
   try {
     const { firstName, lastName, phone, city, address, clientType, depotId, notes, maxDebt, allowDebt } = req.body;
 
-    const code = await generateClientCode();
-
     let defaultMax = null;
     try {
       if (prisma.appSettings && typeof prisma.appSettings.findFirst === 'function') {
@@ -161,29 +159,40 @@ router.post('/', async (req, res) => {
       }
     } catch {}
 
-    const client = await prisma.client.create({
-      data: {
-        code,
-        firstName,
-        lastName,
-        phone,
-        city,
-        address,
-        clientType: clientType || 'INDIVIDUAL',
-        depotId: depotId ? (parseInt(depotId) === -1 ? -1 : parseInt(depotId)) : null,
-        notes,
-        maxDebt: maxDebt !== undefined ? parseFloat(maxDebt) : defaultMax,
-        allowDebt: allowDebt !== undefined ? !!allowDebt : true
-      }
+    // Use transaction to ensure atomicity
+    const client = await prisma.$transaction(async (tx) => {
+      const code = await generateClientCode(tx);
+      
+      return await tx.client.create({
+        data: {
+          code,
+          firstName,
+          lastName,
+          phone,
+          city,
+          address,
+          clientType: clientType || 'INDIVIDUAL',
+          depotId: depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null,
+          notes,
+          maxDebt: maxDebt !== undefined ? parseFloat(maxDebt) : defaultMax,
+          allowDebt: allowDebt !== undefined ? !!allowDebt : true
+        }
+      });
     });
 
     res.status(201).json(client);
   } catch (error) {
     console.error('Error creating client:', error);
     if (error.code === 'P2002') {
-      return res.status(400).json({ error: 'Duplicate unique field' });
+      if (error.meta?.target?.includes('code')) {
+        return res.status(400).json({ error: 'Code client déjà utilisé. Veuillez réessayer.' });
+      }
+      return res.status(400).json({ error: 'Champ unique dupliqué' });
     }
-    res.status(500).json({ error: 'Internal server error' });
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: 'Point de vente invalide' });
+    }
+    res.status(500).json({ error: 'Erreur interne du serveur' });
   }
 });
 
@@ -202,7 +211,7 @@ router.put('/:id', async (req, res) => {
         city,
         address,
         clientType,
-        depotId: depotId ? (parseInt(depotId) === -1 ? -1 : parseInt(depotId)) : null,
+        depotId: depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null,
         loyaltyPoints: loyaltyPoints !== undefined ? parseInt(loyaltyPoints) : undefined,
         totalSpent: totalSpent !== undefined ? parseFloat(totalSpent) : undefined,
         favoriteProducts,
@@ -228,14 +237,64 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const client = await prisma.client.update({
-      where: { id: parseInt(id) },
-      data: { isActive: false }
+    
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ error: 'Invalid client ID' });
+    }
+
+    const client = await prisma.client.findUnique({
+      where: { id: parseInt(id) }
     });
 
-    res.json({ message: 'Client deactivated successfully' });
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    // Check if client has any sales
+    const clientSales = await prisma.sale.count({
+      where: { clientId: parseInt(id) }
+    });
+
+    if (clientSales > 0) {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer : ce client a des ventes associées',
+        constraint: 'sales_client_fkey',
+        dependents: [{
+          table: 'sales',
+          count: clientSales
+        }]
+      });
+    }
+
+    // Check if client has any invoices
+    const clientInvoices = await prisma.invoice.count({
+      where: { clientId: parseInt(id) }
+    });
+
+    if (clientInvoices > 0) {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer : ce client a des factures associées',
+        constraint: 'invoices_client_fkey',
+        dependents: [{
+          table: 'invoices',
+          count: clientInvoices
+        }]
+      });
+    }
+
+    await prisma.client.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.status(204).send();
   } catch (error) {
-    console.error('Error deactivating client:', error);
+    console.error('Error deleting client:', error);
+    if (error.code === 'P2003') {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer : des éléments sont liés à ce client',
+        constraint: error.meta?.field_name || 'foreign_key_constraint'
+      });
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -253,10 +312,10 @@ router.get('/search/pos', async (req, res) => {
       where: {
         isActive: true,
         OR: [
-          { firstName: { contains: q, mode: 'insensitive' } },
-          { lastName: { contains: q, mode: 'insensitive' } },
-          { phone: { contains: q, mode: 'insensitive' } },
-          { code: { contains: q, mode: 'insensitive' } }
+          { firstName: { contains: q } },
+          { lastName: { contains: q } },
+          { phone: { contains: q } },
+          { code: { contains: q } }
         ]
       },
       select: {
@@ -281,26 +340,53 @@ router.get('/search/pos', async (req, res) => {
 });
 
 // Generate unique client code
-async function generateClientCode() {
+async function generateClientCode(prismaClient = prisma) {
   const prefix = 'CLI';
-  const lastClient = await prisma.client.findFirst({
-    where: {
-      code: {
-        startsWith: prefix
+  const maxRetries = 5;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const lastClient = await prismaClient.client.findFirst({
+      where: {
+        code: {
+          startsWith: prefix
+        }
+      },
+      orderBy: {
+        code: 'desc'
       }
-    },
-    orderBy: {
-      code: 'desc'
+    });
+
+    let nextNumber = 1;
+    if (lastClient && lastClient.code) {
+      const lastNumber = parseInt(lastClient.code.replace(prefix, ''));
+      if (!isNaN(lastNumber) && lastNumber >= 0) {
+        nextNumber = lastNumber + 1;
+      }
     }
-  });
 
-  let nextNumber = 1;
-  if (lastClient) {
-    const lastNumber = parseInt(lastClient.code.replace(prefix, ''));
-    nextNumber = lastNumber + 1;
+    // Ensure we never generate CLI0000
+    if (nextNumber === 0) {
+      nextNumber = 1;
+    }
+
+    const code = `${prefix}${nextNumber.toString().padStart(4, '0')}`;
+    
+    // Check if this code already exists
+    const existingClient = await prismaClient.client.findUnique({
+      where: { code }
+    });
+    
+    if (!existingClient) {
+      return code;
+    }
+    
+    // If code exists, wait a bit and try again
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
-
-  return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
+  
+  // Fallback: use timestamp-based code
+  const timestamp = Date.now().toString().slice(-6);
+  return `${prefix}${timestamp}`;
 }
 
 router.put('/:id/max-debt/init', async (req, res) => {

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { roleRedirectGuard } from './core/guards/role-redirect.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
@@ -9,7 +10,7 @@ export const routes: Routes = [
   },
   { 
     path: 'home', 
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleRedirectGuard],
     loadChildren: () => import('./home/home.module').then(m => m.HomeModule) 
   },
   { 
@@ -111,5 +112,10 @@ export const routes: Routes = [
     path: 'enterprise', 
     canActivate: [authGuard],
     loadChildren: () => import('./enterprise/enterprise.module').then(m => m.EnterpriseModule) 
+  },
+  { 
+    path: 'billing-center', 
+    redirectTo: '/invoices',
+    pathMatch: 'full'
   }
 ];

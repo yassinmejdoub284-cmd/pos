@@ -63,7 +63,9 @@
                     <div class="flex items-center justify-between">
                       <div class="flex-1">
                         <div class="flex items-center space-x-2">
-                          <span class="font-mono text-sm font-bold text-blue-600">#{{ ticket.id }}</span>
+                          <span class="font-mono text-sm font-bold text-blue-600">
+                            #{{ getFormattedTicketNumber(ticket) }}
+                          </span>
                           <span class="text-xs px-2 py-1 rounded-full"
                                 [class]="ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 
                                          ticket.status === 'TEMPORARY' ? 'bg-yellow-100 text-yellow-700' : 
@@ -554,8 +556,8 @@
 
   <!-- Alert System -->
   <div *ngIf="showAlert"
-    class="fixed top-4 right-4 z-50 max-w-sm w-full transform transition-all duration-300 ease-in-out"
-    [class]="'animate-in slide-in-from-right-2'">
+    class="fixed bottom-4 left-4 z-50 max-w-sm w-full transform transition-all duration-300 ease-in-out"
+    [class]="'animate-in slide-in-from-left-2'">
     <div class="bg-white/95 border border-blue-200/50 rounded-xl shadow-2xl overflow-hidden">
       <!-- Alert Header -->
       <div class="flex items-center justify-between p-4 border-b border-blue-200/30">
@@ -3225,3 +3227,12 @@
   (actionSelected)="onTicketActionSelected($event)"
   (dialogClosed)="closeTicketActionDialog()">
 </app-ticket-action-dialog>
+
+<!-- Ticket Details Modal -->
+<app-ticket-details-modal 
+  *ngIf="showTicketDetailsModal"
+  [ticket]="selectedTicket"
+  (closed)="closeTicketDetailsModal()"
+  (printRequested)="onTicketDetailsPrintRequested($event)"
+  (returnExchangeRequested)="onTicketDetailsReturnExchangeRequested($event)">
+</app-ticket-details-modal>

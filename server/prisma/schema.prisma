@@ -76,11 +76,13 @@ model Depot {
   clients               Client[]
   company               Company?               @relation(fields: [companyId], references: [id])
   manager               User?                  @relation("DepotManager", fields: [managerId], references: [id])
+  drivers               Driver[]
   expenses              Expense[]
   inventory             Inventory[]
   inventorySessions     InventorySession[]
   invoices              Invoice[]
   productConservation   ProductConservation[]
+  productAssignments    ProductDepot[]
   produitDeCaisseDepots ProduitDeCaisseDepot[]
   rebutRecords          RebutRecord[]
   returnRequests        ReturnRequest[]
@@ -93,9 +95,7 @@ model Depot {
   toStockMovements      StockMovement[]        @relation("ToDepot")
   fromTransfers         StockTransfer[]        @relation("FromDepot")
   toTransfers           StockTransfer[]        @relation("ToDepot")
-  drivers               Driver[]
   users                 User[]                 @relation("DepotUsers")
-  productAssignments    ProductDepot[]
 
   @@index([companyId], map: "depots_company_id_fkey")
   @@map("depots")
@@ -153,46 +153,46 @@ model ProductFamily {
 }
 
 model Product {
-  id                                     Int                   @id @default(autoincrement())
-  name                                   String                @db.VarChar(200)
-  description                            String?               @db.Text
-  barcode                                String?               @unique @db.VarChar(50)
-  createdAt                              DateTime              @default(now()) @map("created_at")
-  updatedAt                              DateTime              @updatedAt @map("updated_at")
-  duree_conservation                     Int?                  @map("duree_conservation")
-  photo                                  String?               @db.VarChar(255)
-  prix_vente_TTC                         Decimal               @map("prix_vente_ttc") @db.Decimal(10, 2)
-  tva                                    Decimal               @default(19.00) @db.Decimal(5, 2)
-  unite                                  String                @default("pcs") @db.VarChar(20)
-  isStockable                            Boolean               @default(true) @map("is_stockable")
-  originalProductId                      Int?                  @map("original_product_id")
-  isVrac                                 Boolean               @default(false) @map("is_vrac")
-  displayIndex                           Int?                  @map("display_index")
-  bundlePrice                            Decimal?              @map("bundle_price") @db.Decimal(10, 2)
-  bundleSize                             Int?                  @map("bundle_size")
-  isWholesale                            Boolean               @default(false) @map("is_wholesale")
-  minMargin                              Decimal?              @map("min_margin") @db.Decimal(5, 2)
-  requiresApproval                       Boolean               @default(false) @map("requires_approval")
-  familleId                              Int                   @map("famille_id")
-  designation_legale                     String?               @map("designation_legale") @db.VarChar(200)
-  prix_achat                             Decimal?              @map("prix_achat") @db.Decimal(10, 3)
-  inventory                              Inventory[]
-  inventoryItems                         InventoryItem[]
-  invoiceLines                           InvoiceLine[]
-  conservation                           ProductConservation[]
-  famille                                ProductFamily         @relation(fields: [familleId], references: [id])
-  originalProduct                        Product?              @relation("VracProducts", fields: [originalProductId], references: [id])
-  vracProducts                           Product[]             @relation("VracProducts")
-  originalProduitsDeCaisse               ProduitDeCaisse[]     @relation("OriginalProduitDeCaisse")
-  subProducts                            ProduitDeCaisse[]     @relation("SubProducts")
-  rebutRecords                           RebutRecord[]
-  returnItems                            ReturnItem[]
-  saleItems                              SaleItem[]            @relation("ProductSaleItems")
-  documentItems                          StockDocumentItem[]
-  stockMovements                         StockMovement[]
-  stockTransferItems                     StockTransferItem[]
-  vracPrices                             VracPrice[]
-  depotAssignments                       ProductDepot[]
+  id                       Int                   @id @default(autoincrement())
+  name                     String                @db.VarChar(200)
+  description              String?               @db.Text
+  barcode                  String?               @unique @db.VarChar(50)
+  createdAt                DateTime              @default(now()) @map("created_at")
+  updatedAt                DateTime              @updatedAt @map("updated_at")
+  duree_conservation       Int?                  @map("duree_conservation")
+  photo                    String?               @db.VarChar(255)
+  prix_vente_TTC           Decimal               @map("prix_vente_ttc") @db.Decimal(10, 2)
+  tva                      Decimal               @default(19.00) @db.Decimal(5, 2)
+  unite                    String                @default("pcs") @db.VarChar(20)
+  isStockable              Boolean               @default(true) @map("is_stockable")
+  originalProductId        Int?                  @map("original_product_id")
+  isVrac                   Boolean               @default(false) @map("is_vrac")
+  displayIndex             Int?                  @map("display_index")
+  bundlePrice              Decimal?              @map("bundle_price") @db.Decimal(10, 2)
+  bundleSize               Int?                  @map("bundle_size")
+  isWholesale              Boolean               @default(false) @map("is_wholesale")
+  minMargin                Decimal?              @map("min_margin") @db.Decimal(5, 2)
+  requiresApproval         Boolean               @default(false) @map("requires_approval")
+  familleId                Int                   @map("famille_id")
+  designation_legale       String?               @map("designation_legale") @db.VarChar(200)
+  prix_achat               Decimal?              @map("prix_achat") @db.Decimal(10, 3)
+  inventory                Inventory[]
+  inventoryItems           InventoryItem[]
+  invoiceLines             InvoiceLine[]
+  conservation             ProductConservation[]
+  depotAssignments         ProductDepot[]
+  famille                  ProductFamily         @relation(fields: [familleId], references: [id])
+  originalProduct          Product?              @relation("VracProducts", fields: [originalProductId], references: [id])
+  vracProducts             Product[]             @relation("VracProducts")
+  originalProduitsDeCaisse ProduitDeCaisse[]     @relation("OriginalProduitDeCaisse")
+  subProducts              ProduitDeCaisse[]     @relation("SubProducts")
+  rebutRecords             RebutRecord[]
+  returnItems              ReturnItem[]
+  saleItems                SaleItem[]            @relation("ProductSaleItems")
+  documentItems            StockDocumentItem[]
+  stockMovements           StockMovement[]
+  stockTransferItems       StockTransferItem[]
+  vracPrices               VracPrice[]
 
   @@index([familleId], map: "products_famille_id_fkey")
   @@index([originalProductId], map: "products_original_product_id_fkey")
@@ -205,10 +205,9 @@ model ProductDepot {
   depotId   Int      @map("depot_id")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   depot     Depot    @relation(fields: [depotId], references: [id], onDelete: Cascade)
-  
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
   @@unique([productId, depotId])
   @@index([productId], map: "product_depots_product_id_fkey")
   @@index([depotId], map: "product_depots_depot_id_fkey")
@@ -236,38 +235,38 @@ model ProductConservation {
 }
 
 model ProduitDeCaisse {
-  id                           Int                    @id @default(autoincrement())
-  name                         String                 @db.VarChar(200)
-  productIds                   String                 @map("product_ids") @db.LongText
-  isActive                     Boolean                @default(true) @map("is_active")
-  createdAt                    DateTime               @default(now()) @map("created_at")
-  updatedAt                    DateTime               @updatedAt @map("updated_at")
-  barcode                      String?                @unique @db.VarChar(50)
-  bundlePrice                  Decimal?               @map("bundle_price") @db.Decimal(10, 2)
-  bundleSize                   Int?                   @map("bundle_size")
-  description                  String?                @db.Text
-  designation_legale           String?                @map("designation_legale") @db.VarChar(200)
-  displayIndex                 Int?                   @map("display_index")
-  duree_conservation           Int?                   @map("duree_conservation")
-  familleId                    Int                    @map("famille_id")
-  initialStock                 Decimal?               @map("initial_stock") @db.Decimal(10, 3)
-  isStockable                  Boolean                @default(true) @map("is_stockable")
-  isVrac                       Boolean                @default(false) @map("is_vrac")
-  isVraguable                  Boolean                @default(false) @map("is_vraguable")
-  isWholesale                  Boolean                @default(false) @map("is_wholesale")
-  maxStock                     Decimal?               @map("max_stock") @db.Decimal(10, 3)
-  minStock                     Decimal?               @map("min_stock") @db.Decimal(10, 3)
-  originalProductId            Int?                   @map("original_product_id")
-  photo                        String?                @db.VarChar(255)
-  prix_achat                   Decimal?               @map("prix_achat") @db.Decimal(10, 3)
-  prix_vente_TTC               Decimal                @map("prix_vente_ttc") @db.Decimal(10, 2)
-  tva                          Decimal                @default(19.00) @db.Decimal(5, 2)
-  unite                        String                 @default("pcs") @db.VarChar(20)
-  parentProductId              Int?                   @map("parent_product_id")
-  depotAssignments             ProduitDeCaisseDepot[]
-  famille                      ProductFamily          @relation(fields: [familleId], references: [id])
-  originalProduct              Product?               @relation("OriginalProduitDeCaisse", fields: [originalProductId], references: [id])
-  parentProduct                Product?               @relation("SubProducts", fields: [parentProductId], references: [id])
+  id                 Int                    @id @default(autoincrement())
+  name               String                 @db.VarChar(200)
+  productIds         String                 @map("product_ids") @db.LongText
+  isActive           Boolean                @default(true) @map("is_active")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+  barcode            String?                @unique @db.VarChar(50)
+  bundlePrice        Decimal?               @map("bundle_price") @db.Decimal(10, 2)
+  bundleSize         Int?                   @map("bundle_size")
+  description        String?                @db.Text
+  designation_legale String?                @map("designation_legale") @db.VarChar(200)
+  displayIndex       Int?                   @map("display_index")
+  duree_conservation Int?                   @map("duree_conservation")
+  familleId          Int                    @map("famille_id")
+  initialStock       Decimal?               @map("initial_stock") @db.Decimal(10, 3)
+  isStockable        Boolean                @default(true) @map("is_stockable")
+  isVrac             Boolean                @default(false) @map("is_vrac")
+  isVraguable        Boolean                @default(false) @map("is_vraguable")
+  isWholesale        Boolean                @default(false) @map("is_wholesale")
+  maxStock           Decimal?               @map("max_stock") @db.Decimal(10, 3)
+  minStock           Decimal?               @map("min_stock") @db.Decimal(10, 3)
+  originalProductId  Int?                   @map("original_product_id")
+  photo              String?                @db.VarChar(255)
+  prix_achat         Decimal?               @map("prix_achat") @db.Decimal(10, 3)
+  prix_vente_TTC     Decimal                @map("prix_vente_ttc") @db.Decimal(10, 2)
+  tva                Decimal                @default(19.00) @db.Decimal(5, 2)
+  unite              String                 @default("pcs") @db.VarChar(20)
+  parentProductId    Int?                   @map("parent_product_id")
+  depotAssignments   ProduitDeCaisseDepot[]
+  famille            ProductFamily          @relation(fields: [familleId], references: [id])
+  originalProduct    Product?               @relation("OriginalProduitDeCaisse", fields: [originalProductId], references: [id])
+  parentProduct      Product?               @relation("SubProducts", fields: [parentProductId], references: [id])
 
   @@index([familleId], map: "produits_de_caisse_famille_id_fkey")
   @@index([originalProductId], map: "produits_de_caisse_original_product_id_fkey")
@@ -435,6 +434,7 @@ model Sale {
   paymentType            SalePaymentType         @default(COMPTANT) @map("payment_type")
   sessionId              Int?                    @map("session_id")
   isWholesale            Boolean                 @default(false) @map("is_wholesale")
+  dailyTicketNumber      String?                 @map("daily_ticket_number") @db.VarChar(50)
   debtTransactions       ClientDebtTransaction[]
   invoiceRequests        InvoiceRequest[]
   invoices               Invoice[]
@@ -1170,9 +1170,9 @@ model Driver {
   depotId       Int?      @map("depot_id")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
-  
   depot         Depot?    @relation(fields: [depotId], references: [id])
 
+  @@index([depotId], map: "drivers_depot_id_fkey")
   @@map("drivers")
 }
 

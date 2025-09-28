@@ -5,20 +5,26 @@ const { logAudit } = require('../lib/audit');
 
 const router = express.Router();
 
-// Get active session for user (optionally filtered by depotId for ADMIN)
+// Get active session for user (strictly filtered by depotId for isolation)
 router.get('/active', authenticateToken, async (req, res) => {
   try {
     const { posId, depotId } = req.query;
     
+    // Always enforce depot isolation - use user's depot or provided depot
+    const userDepotId = req.user.depotId;
+    const requestedDepotId = depotId ? parseInt(depotId) : userDepotId;
+    
+    // For non-admin users, only allow access to their own depot
+    if (req.user.role !== 'ADMIN' && requestedDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
+    }
+    
     const where = {
       userId: req.user.id,
       posId: posId ? parseInt(posId) : 1,
-      status: 'OPEN'
+      status: 'OPEN',
+      depotId: requestedDepotId // Always filter by depot for isolation
     };
-    // For ADMIN, allow querying by depotId to scope per shop
-    if (depotId && req.user.role === 'ADMIN') {
-      where.depotId = parseInt(depotId);
-    }
 
     const activeSession = await prisma.sessionCaisse.findFirst({
       where,
@@ -55,17 +61,55 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
       return res.status(400).json({ error: 'Fonds de caisse requis et doit être positif ou zéro' });
     }
 
-    // Check if user already has an open session
+    // Enforce depot isolation first
+    const userDepotId = req.user.depotId;
+    let targetDepotId = userDepotId;
+    
+    if (req.user.role === 'ADMIN') {
+      // Admin can specify depot, but must be valid
+      if (depotId) {
+        const requestedDepot = await prisma.depot.findFirst({ 
+          where: { id: parseInt(depotId), isActive: true, type: 'SHOP' } 
+        });
+        if (requestedDepot) {
+          targetDepotId = requestedDepot.id;
+        } else {
+          return res.status(400).json({ error: 'Invalid or inactive depot specified' });
+        }
+      } else if (!userDepotId) {
+        // Admin without depot assignment - find first active SHOP depot
+        const defaultDepot = await prisma.depot.findFirst({ 
+          where: { isActive: true, type: 'SHOP' }, orderBy: { id: 'asc' }
+        });
+        if (defaultDepot) {
+          targetDepotId = defaultDepot.id;
+        } else {
+          return res.status(400).json({ error: 'Aucun dépôt SHOP actif disponible pour ouvrir une session.' });
+        }
+      }
+    } else {
+      // Non-admin users must use their assigned depot
+      if (!userDepotId) {
+        return res.status(400).json({ error: 'User is not assigned to any depot.' });
+      }
+      // Non-admin users cannot specify different depot
+      if (depotId && parseInt(depotId) !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot create session for different depot' });
+      }
+    }
+
+    // Check if user already has an open session FOR THIS SPECIFIC DEPOT
     const existingSession = await prisma.sessionCaisse.findFirst({
       where: {
         userId: req.user.id,
         posId: posId ? parseInt(posId) : 1,
+        depotId: targetDepotId, // CRITICAL: Filter by depot
         status: 'OPEN'
       }
     });
 
     if (existingSession) {
-      return res.status(400).json({ error: 'Une session est déjà ouverte pour cet utilisateur' });
+      return res.status(400).json({ error: 'Une session est déjà ouverte pour cet utilisateur dans ce dépôt' });
     }
 
     // Get last session's fonds as default if not provided (0 is valid)
@@ -75,6 +119,7 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
         where: {
           userId: req.user.id,
           posId: posId ? parseInt(posId) : 1,
+          depotId: targetDepotId, // CRITICAL: Filter by depot
           status: 'CLOSED'
         },
         orderBy: { closedAt: 'desc' }
@@ -96,28 +141,6 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
       }
     }
 
-    // Determine depotId: ADMIN may omit depot; fallback to user's depot or first active SHOP
-    let targetDepotId = req.user.depotId;
-    if (req.user.role === 'ADMIN') {
-      let resolvedDepot = null;
-      if (depotId) {
-        resolvedDepot = await prisma.depot.findFirst({ where: { id: parseInt(depotId), isActive: true, type: 'SHOP' } });
-      }
-      if (!resolvedDepot && targetDepotId) {
-        resolvedDepot = await prisma.depot.findFirst({ where: { id: parseInt(targetDepotId), isActive: true, type: 'SHOP' } });
-      }
-      if (!resolvedDepot) {
-        resolvedDepot = await prisma.depot.findFirst({ where: { isActive: true, type: 'SHOP' }, orderBy: { id: 'asc' } });
-      }
-      if (!resolvedDepot) {
-        return res.status(400).json({ error: 'Aucun dépôt SHOP actif disponible pour ouvrir une session.' });
-      }
-      targetDepotId = resolvedDepot.id;
-    } else {
-      if (!targetDepotId) {
-        return res.status(400).json({ error: 'User is not assigned to any depot.' });
-      }
-    }
 
     const session = await prisma.sessionCaisse.create({
       data: {
@@ -168,10 +191,17 @@ router.post('/:id/movements', authenticateToken, requireRole(['ADMIN', 'MANAGER'
       return res.status(400).json({ error: 'Type, montant et motif sont requis' });
     }
 
+    // Enforce depot isolation for session movements
+    const userDepotId = req.user.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to add session movements' });
+    }
+    
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
         userId: req.user.id,
+        depotId: userDepotId, // Ensure depot isolation
         status: { in: ['OPEN', 'REOPENED'] }
       }
     });
@@ -225,10 +255,17 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
+    // Enforce depot isolation for session summary
+    const userDepotId = req.user.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to view session summaries' });
+    }
+    
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
-        userId: req.user.id
+        userId: req.user.id,
+        depotId: userDepotId // Ensure depot isolation
       }
     });
 
@@ -254,10 +291,17 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
       return res.status(400).json({ error: 'Espèces comptées requises et doivent être positives' });
     }
 
+    // Enforce depot isolation for session closure
+    const userDepotId = req.user.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to close sessions' });
+    }
+    
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
         userId: req.user.id,
+        depotId: userDepotId, // Ensure depot isolation
         status: { in: ['OPEN', 'REOPENED'] }
       }
     });
@@ -491,9 +535,17 @@ router.get('/', authenticateToken, async (req, res) => {
     console.log('Sessions GET request - User:', req.user);
     console.log('Sessions GET request - Query params:', { startDate, endDate, userId, posId, status, hasVariance, page, limit });
 
-    const whereClause = {};
+    // Enforce depot isolation for session history
+    const userDepotId = req.user.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to view session history' });
+    }
     
-    // Admin can see all sessions, others only their own
+    const whereClause = {
+      depotId: userDepotId // Always filter by user's depot for isolation
+    };
+    
+    // Admin can see all sessions from their depot, others only their own
     if (req.user.role !== 'ADMIN') {
       whereClause.userId = req.user.id;
     } else if (userId) {
@@ -544,10 +596,16 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { type = 'Z', format = 'html' } = req.query;
 
-    // Admin and Manager can view any session; others only their own
-    const whereClause = ['ADMIN', 'MANAGER'].includes(req.user.role)
-      ? { id: parseInt(id) }
-      : { id: parseInt(id), userId: req.user.id };
+    // Enforce depot isolation - all users can only access sessions from their depot
+    const userDepotId = req.user.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to view session reports' });
+    }
+    
+    const whereClause = {
+      id: parseInt(id),
+      depotId: userDepotId // Always filter by user's depot for isolation
+    };
 
     const session = await prisma.sessionCaisse.findFirst({
       where: whereClause,
@@ -592,9 +650,16 @@ router.post('/:id/reopen', authenticateToken, requireRole(['ADMIN']), async (req
       return res.status(400).json({ error: 'Raison requise pour la réouverture' });
     }
 
+    // Enforce depot isolation for session reopen
+    const userDepotId = req.user.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to reopen sessions' });
+    }
+    
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
+        depotId: userDepotId, // Ensure depot isolation
         status: 'CLOSED'
       }
     });

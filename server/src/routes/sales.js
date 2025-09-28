@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
   try {
-    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, isWholesale, paymentType, advancePayment, advancePaymentMethod } = req.body;
+    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, isWholesale, paymentType, advancePayment, advancePaymentMethod, dailyTicketNumber } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Sale must have at least one item' });
@@ -48,7 +48,9 @@ router.post('/', async (req, res) => {
             advancePayment: advanceAmount > 0 ? advanceAmount : 0,
             advancePaymentMethodId: advanceAmount > 0 ? advanceMethodId : null,
             advancePaymentDate: advanceAmount > 0 ? new Date() : null,
-            advancePaymentNotes: null
+            advancePaymentNotes: null,
+            // Store daily ticket number for session-based numbering
+            dailyTicketNumber: dailyTicketNumber || null
           }
         });
 
@@ -683,7 +685,13 @@ router.get('/', async (req, res) => {
   try {
     const { startDate, endDate, status, paymentMethod, page = 1, limit = 50 } = req.query;
 
-    const whereClause = { depotId: req.user.depotId };
+    // Enforce depot isolation - only show sales from user's depot
+    const userDepotId = req.user.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to view sales' });
+    }
+    
+    const whereClause = { depotId: userDepotId };
 
     if (startDate && endDate) {
       whereClause.createdAt = { gte: new Date(startDate), lte: new Date(endDate) };
@@ -699,7 +707,8 @@ router.get('/', async (req, res) => {
         paymentMethod: { select: { name: true } },
         client: { select: { firstName: true, lastName: true, code: true } },
         user: { select: { firstName: true, lastName: true } },
-        items: true
+        items: true,
+        session: { select: { id: true } }
       },
       orderBy: { createdAt: 'desc' },
       skip: (parseInt(page) - 1) * parseInt(limit),
@@ -717,8 +726,14 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Enforce depot isolation for individual sale access
+    const userDepotId = req.user.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to view sales' });
+    }
+    
     const sale = await prisma.sale.findFirst({
-      where: { id: parseInt(id), depotId: req.user.depotId },
+      where: { id: parseInt(id), depotId: userDepotId },
       include: {
         paymentMethod: { select: { name: true } },
         advancePaymentMethod: { select: { name: true } },

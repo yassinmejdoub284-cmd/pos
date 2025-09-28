@@ -12,6 +12,7 @@ import { ApprovalsActionDialogComponent } from '../shared/approvals-action-dialo
 import { BillingCenterActionDialogComponent } from '../shared/billing-center-action-dialog/billing-center-action-dialog.component';
 import { SettingsActionDialogComponent } from '../shared/settings-action-dialog/settings-action-dialog.component';
 import { EnterpriseActionDialogComponent } from '../shared/enterprise-action-dialog/enterprise-action-dialog.component';
+import { ErpUnlockDialogComponent } from '../shared/erp-unlock-dialog/erp-unlock-dialog.component';
 
 @NgModule({
   declarations: [
@@ -20,15 +21,16 @@ import { EnterpriseActionDialogComponent } from '../shared/enterprise-action-dia
   ],
   imports: [
     CommonModule,
+    ExpenseActionDialogComponent,
     FormsModule,
     RouterModule,
     HomeRoutingModule,
     SharedModule,
-    ExpenseActionDialogComponent,
     ApprovalsActionDialogComponent,
     BillingCenterActionDialogComponent,
     SettingsActionDialogComponent,
-    EnterpriseActionDialogComponent
+    EnterpriseActionDialogComponent,
+    ErpUnlockDialogComponent,
   ]
 })
 export class HomeModule { } 
