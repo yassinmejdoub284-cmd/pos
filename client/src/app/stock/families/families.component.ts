@@ -67,21 +67,38 @@ export class FamiliesComponent implements OnInit {
     this.loadFamilies();
   }
 
-  onImageUploadConfirmed(file: File): void {
+  onImageUploadConfirmed(data: File | string): void {
     if (!this.selectedFamilyForImage) return;
 
-    this.familiesService.uploadFamilyPhoto(this.selectedFamilyForImage.id, file).subscribe({
-      next: (response) => {
-        const family = this.families.find(f => f.id === this.selectedFamilyForImage!.id);
-        if (family) {
-          family.photo = response.imageUrl;
+    if (typeof data === 'string') {
+      // Handle URL upload
+      this.familiesService.updateFamilyPhotoUrl(this.selectedFamilyForImage.id, data).subscribe({
+        next: (response) => {
+          const family = this.families.find(f => f.id === this.selectedFamilyForImage!.id);
+          if (family) {
+            family.photo = response.imageUrl;
+          }
+          this.closeImageUploadModal();
+        },
+        error: (error) => {
+          this.error = 'Erreur lors de la mise à jour de l\'URL de l\'image';
         }
-        this.closeImageUploadModal();
-      },
-      error: (error) => {
-        this.error = 'Erreur lors de l\'upload de l\'image';
-      }
-    });
+      });
+    } else {
+      // Handle file upload
+      this.familiesService.uploadFamilyPhoto(this.selectedFamilyForImage.id, data).subscribe({
+        next: (response) => {
+          const family = this.families.find(f => f.id === this.selectedFamilyForImage!.id);
+          if (family) {
+            family.photo = response.imageUrl;
+          }
+          this.closeImageUploadModal();
+        },
+        error: (error) => {
+          this.error = 'Erreur lors de l\'upload de l\'image';
+        }
+      });
+    }
   }
 
   deleteFamily(family: ProductFamily): void {

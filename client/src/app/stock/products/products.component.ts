@@ -227,26 +227,45 @@ export class ProductsComponent implements OnInit {
     this.selectedProductForImage = null;
   }
 
-  onImageUploadConfirmed(file: File): void {
+  onImageUploadConfirmed(data: File | string): void {
     if (!this.selectedProductForImage) return;
 
     // Store the product ID before starting upload to avoid null reference issues
     const productId = this.selectedProductForImage.id;
 
-    this.productsService.uploadProductPhoto(productId, file).subscribe({
-      next: (response) => {
-        // Update the product in the local array
-        const product = this.allProducts.find(p => p.id === productId);
-        if (product) {
-          product.photo = response.imageUrl;
-          this.applyFilters(); // Refresh the display
+    if (typeof data === 'string') {
+      // Handle URL upload
+      this.productsService.updateProductPhotoUrl(productId, data).subscribe({
+        next: (response) => {
+          // Update the product in the local array
+          const product = this.allProducts.find(p => p.id === productId);
+          if (product) {
+            product.photo = response.imageUrl;
+            this.applyFilters(); // Refresh the display
+          }
+          this.closeImageUploadModal();
+        },
+        error: (error) => {
+          this.error = 'Erreur lors de la mise à jour de l\'URL de l\'image';
         }
-        this.closeImageUploadModal();
-      },
-      error: (error) => {
-        this.error = 'Erreur lors de l\'upload de l\'image';
-      }
-    });
+      });
+    } else {
+      // Handle file upload
+      this.productsService.uploadProductPhoto(productId, data).subscribe({
+        next: (response) => {
+          // Update the product in the local array
+          const product = this.allProducts.find(p => p.id === productId);
+          if (product) {
+            product.photo = response.imageUrl;
+            this.applyFilters(); // Refresh the display
+          }
+          this.closeImageUploadModal();
+        },
+        error: (error) => {
+          this.error = 'Erreur lors de l\'upload de l\'image';
+        }
+      });
+    }
   }
 
   onWarningsUpdated(): void {

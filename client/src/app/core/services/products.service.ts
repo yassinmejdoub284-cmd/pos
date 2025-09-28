@@ -56,6 +56,10 @@ export class ProductsService {
     return this.http.post<{ imageUrl: string; product: any }>(`${this.apiUrl}/${productId}/photo`, formData);
   }
 
+  updateProductPhotoUrl(productId: number, imageUrl: string): Observable<{ imageUrl: string; product: any }> {
+    return this.http.put<{ imageUrl: string; product: any }>(`${this.apiUrl}/${productId}`, { photo: imageUrl });
+  }
+
   deleteProductPhoto(productId: number): Observable<{ product: any }> {
     return this.http.delete<{ product: any }>(`${this.apiUrl}/${productId}/photo`);
   }

@@ -171,9 +171,9 @@ export class EntryComponent implements OnInit {
       error: () => {}
     });
 
-    this.productsService.getProducts().subscribe({
+    this.productsService.getProducts(this.depotId).subscribe({
       next: (prods) => {
-        // No filtering by isStockable for entry; include all products
+        // Filter products by depot for entry; include all products from this depot
         const list = (prods || []);
         this.products.set(list);
         // Build categories

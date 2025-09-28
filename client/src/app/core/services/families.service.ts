@@ -39,6 +39,10 @@ export class FamiliesService {
     return this.http.post<{ message: string; imageUrl: string; family: ProductFamily }>(`${this.apiUrl}/${id}/photo`, formData);
   }
 
+  updateFamilyPhotoUrl(id: number, imageUrl: string): Observable<{ message: string; imageUrl: string; family: ProductFamily }> {
+    return this.http.put<{ message: string; imageUrl: string; family: ProductFamily }>(`${this.apiUrl}/${id}`, { photo: imageUrl });
+  }
+
   deleteFamilyPhoto(id: number): Observable<{ message: string; family: ProductFamily }> {
     return this.http.delete<{ message: string; family: ProductFamily }>(`${this.apiUrl}/${id}/photo`);
   }
