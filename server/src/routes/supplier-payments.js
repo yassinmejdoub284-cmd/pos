@@ -113,33 +113,37 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER'])
 
       // After computing how much was actually applied, normalize the stored supplier payment amount
       // We store supplier payments as NEGATIVE to indicate money going out
-      const normalizedApplied = appliedAmount > 0 ? appliedAmount : Math.abs(Number(amount));
+      const originalAmount = Number(amount);
+      const isCreditOnly = originalAmount < 0;
+      const normalizedApplied = appliedAmount > 0 ? appliedAmount : Math.abs(originalAmount);
       await tx.supplierPayment.update({
         where: { id: supplierPayment.id },
         data: { amount: -normalizedApplied }
       });
 
-      // If cash payment, create cash movement sortie (store positive amount; direction given by type)
-      if (method === 'CASH') {
+      // If cash payment, create cash movement sortie ONLY for positive (debit) payments
+      if (method === 'CASH' && !isCreditOnly) {
         // Only withdraw the portion that actually matches unpaid supplier expenses.
         // If none matched (no pending expenses), fallback to the requested amount.
         const amt = normalizedApplied;
-        await tx.cashMovement.create({
-          data: {
-            sessionId: activeSession.id,
-            type: 'SORTIE',
-            amount: amt,
-            reason: `Règlement fournisseur #${supplierPayment.id} (FOURN:${supplierId})`,
-            ticketId: null,
-            createdById: req.user.id
-          }
-        });
+        if (amt > 0) {
+          await tx.cashMovement.create({
+            data: {
+              sessionId: activeSession.id,
+              type: 'SORTIE',
+              amount: amt,
+              reason: `Règlement fournisseur #${supplierPayment.id} (FOURN:${supplierId})`,
+              ticketId: null,
+              createdById: req.user.id
+            }
+          });
 
-        // Keep session expected cash in sync immediately
-        await tx.sessionCaisse.update({
-          where: { id: activeSession.id },
-          data: { expectedCash: { decrement: amt } }
-        });
+          // Keep session expected cash in sync immediately
+          await tx.sessionCaisse.update({
+            where: { id: activeSession.id },
+            data: { expectedCash: { decrement: amt } }
+          });
+        }
       }
 
       return supplierPayment;

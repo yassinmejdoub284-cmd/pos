@@ -102,10 +102,8 @@
           <thead class="bg-amber-50">
             <tr>
               <th class="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">Client</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Ventes Période</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Paiements</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Créances</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Crédit Restant Autorisé</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Solde Actuel</th>
               <th class="px-6 py-3 text-center text-xs font-medium text-amber-700 uppercase tracking-wider">Actions</th>
             </tr>
@@ -116,18 +114,11 @@
                 <div class="text-sm font-medium text-amber-900">{{ getClientFullName(client) }}</div>
                 <div class="text-sm text-amber-600">{{ client.code }}</div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-blue-600 font-semibold">
-                {{ formatAmount(client.periodSales) }}
-              </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 font-semibold">
                 {{ formatAmount(client.periodPayments) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600 font-semibold">
                 {{ formatAmount(client.periodDebts) }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold" 
-                  [class]="getBalanceColor(client.periodBalance)">
-                {{ formatAmount(client.periodBalance) }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold" 
                   [class]="getBalanceColor(client.currentDebt)">

@@ -3,7 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { ShopTransferComponent } from './shop-transfer.component';
 
 const routes: Routes = [
-  { path: '', component: ShopTransferComponent }
+  { path: '', component: ShopTransferComponent },
 ];
 
 @NgModule({

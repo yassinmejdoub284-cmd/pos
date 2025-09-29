@@ -1149,6 +1149,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     phone: '',
     city: 'Tunis',
     address: '',
+    matriculeFiscal: '',
     clientType: 'INDIVIDUAL' as 'INDIVIDUAL' | 'BUSINESS' | 'WHOLESALE',
     depotId: 0, // Will be set to currentShopDepotId when form opens
     notes: '',
@@ -1415,6 +1416,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       phone: '',
       city: 'Tunis',
       address: '',
+      matriculeFiscal: '',
       clientType: 'INDIVIDUAL',
       depotId: this.currentShopDepotId, // Use current depot ID
       notes: '',
@@ -1440,6 +1442,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       phone: this.quickAddForm.phone || '',
       city: this.quickAddForm.city,
       address: this.quickAddForm.address || '',
+      matriculeFiscal: this.quickAddForm.matriculeFiscal || '',
       clientType: this.quickAddForm.clientType,
       depotId: this.quickAddForm.depotId,
       notes: this.quickAddForm.notes || '',

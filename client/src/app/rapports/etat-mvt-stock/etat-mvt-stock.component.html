@@ -1,0 +1,203 @@
+<div class="min-h-screen bg-gradient-to-br from-amber-50 via-blue-50 to-purple-50 px-4 py-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center space-x-4">
+        <button (click)="navigateToHome()" class="p-2 rounded-2xl bg-white border border-gray-200 hover:border-blue-300 transition-colors duration-300" title="Retour">
+          <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+        </button>
+        <div>
+          <h1 class="text-3xl font-bold text-gray-800 mb-2">ETAT MVT STOCK</h1>
+          <p class="text-gray-600">État des mouvements de stock avec valorisation CUMP</p>
+        </div>
+      </div>
+      
+       <!-- Controls -->
+       <div class="flex items-center space-x-4">
+         <button 
+           (click)="toggleDisplayMode()" 
+           class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-300">
+           {{ displayMode() === 'detail' ? 'Mode Clôture' : 'Mode Détail' }}
+         </button>
+        
+        
+        
+        <button 
+          (click)="exportToExcel()" 
+          class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-300">
+          Excel
+        </button>
+        
+        <button 
+          (click)="exportToPDF()" 
+          class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-300">
+          PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    @if (isLoading()) {
+      <div class="flex justify-center items-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    }
+
+    <!-- Report Table -->
+    @if (!isLoading()) {
+      <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <!-- Table Header -->
+        <div class="bg-gray-50 border-b border-gray-200">
+          <div class="grid grid-cols-13 gap-2 p-4 text-sm font-semibold text-gray-700">
+            <div class="col-span-2 text-center">DATE/PJ</div>
+            <div class="col-span-2 text-center">ARTICLE</div>
+            <div class="col-span-3 text-center">ENTREE</div>
+            <div class="col-span-3 text-center">SORTIE</div>
+            <div class="col-span-3 text-center">STOCK</div>
+          </div>
+          
+          <!-- Sub Headers -->
+          <div class="grid grid-cols-13 gap-2 px-4 pb-2 text-xs font-medium text-gray-600">
+            <div class="col-span-2"></div>
+            <div class="col-span-2"></div>
+            <div class="col-span-3">
+              <div class="grid grid-cols-3 gap-1">
+                <div class="text-center">QTE</div>
+                <div class="text-center">PU</div>
+                <div class="text-center">TOTAL</div>
+              </div>
+            </div>
+            <div class="col-span-3">
+              <div class="grid grid-cols-3 gap-1">
+                <div class="text-center">QTE</div>
+                <div class="text-center">PU</div>
+                <div class="text-center">TOTAL</div>
+              </div>
+            </div>
+            <div class="col-span-3">
+              <div class="grid grid-cols-3 gap-1">
+                <div class="text-center">QTE</div>
+                <div class="text-center">PU</div>
+                <div class="text-center">TOTAL</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Filter Row -->
+          <div class="grid grid-cols-13 gap-2 px-4 pb-4">
+            <div class="col-span-2">
+              <input 
+                type="text" 
+                placeholder="recherche" 
+                class="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                (input)="onDateFilterChange($event)">
+            </div>
+            <div class="col-span-2">
+              <input 
+                type="text" 
+                placeholder="recherche" 
+                class="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                (input)="onArticleFilterChange($event)">
+            </div>
+            <div class="col-span-9"></div>
+          </div>
+        </div>
+
+        <!-- Table Body -->
+        <div class="max-h-96 overflow-y-auto">
+          @for (row of computedFilteredRows(); track row.movementId; let i = $index) {
+            <div class="grid grid-cols-13 gap-2 p-2 text-sm border-b border-gray-100 hover:bg-gray-50"
+                 [class.bg-yellow-100]="row.isTicket"
+                 [class.font-semibold]="row.isOpening"
+                 [class.border-l-4]="row.isTicket || row.isOpening"
+                 [class.border-yellow-500]="row.isTicket"
+                 [class.border-gray-500]="row.isOpening">
+              
+              <!-- DATE/PJ -->
+              <div class="col-span-2 px-2 py-1 text-left">
+                {{ row.datePj }}
+              </div>
+              
+              <!-- ARTICLE -->
+              <div class="col-span-2 px-2 py-1 text-left cursor-pointer select-none" (click)="toggleGroup(row.productId, row.depotId)">
+                {{ row.article }}
+              </div>
+              
+              <!-- ENTREE -->
+              <div class="col-span-3" [class.hidden]="isGroupCollapsed(row.productId, row.depotId)">
+                <div class="grid grid-cols-3 gap-1">
+                  <div class="px-1 py-1 text-right numeric-cell">
+                    {{ row.entreeQte | number:'1.3-3' }}
+                  </div>
+                  <div class="px-1 py-1 text-right numeric-cell">
+                    {{ row.entreePu | number:'1.3-3' }}
+                  </div>
+                  <div class="px-1 py-1 text-right numeric-cell">
+                    {{ row.entreeTotal | number:'1.3-3' }}
+                  </div>
+                </div>
+              </div>
+              
+              <!-- SORTIE -->
+              <div class="col-span-3" [class.hidden]="isGroupCollapsed(row.productId, row.depotId)">
+                <div class="grid grid-cols-3 gap-1">
+                  <div class="px-1 py-1 text-right numeric-cell">
+                    {{ row.sortieQte | number:'1.3-3' }}
+                  </div>
+                  <div class="px-1 py-1 text-right numeric-cell">
+                    {{ row.sortiePu | number:'1.3-3' }}
+                  </div>
+                  <div class="px-1 py-1 text-right numeric-cell">
+                    {{ row.sortieTotal | number:'1.3-3' }}
+                  </div>
+                </div>
+              </div>
+              
+              <!-- STOCK header acts as group toggle: clicking ARTICLE cell toggles grouping; values remain stock -->
+              <div class="col-span-3">
+                <div class="grid grid-cols-3 gap-1">
+                  <div class="px-1 py-1 text-right font-medium numeric-cell">
+                    {{ row.stockQte | number:'1.3-3' }}
+                  </div>
+                  <div class="px-1 py-1 text-right font-medium numeric-cell">
+                    {{ row.stockPu | number:'1.3-3' }}
+                  </div>
+                  <div class="px-1 py-1 text-right font-medium numeric-cell">
+                    {{ row.stockTotal | number:'1.3-3' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Notes Section -->
+        @if (displayMode() === 'detail') {
+          <div class="bg-yellow-50 border-t border-yellow-200 p-4">
+            <div class="text-sm text-gray-700">
+              <div class="font-medium mb-2">Notes:</div>
+              <div class="space-y-1 text-xs">
+                <div>EN CAS DE CLOTURE JOURNE UN SEUL LIGNE EXTRAIT JOURNALIER {{ '{' }}dd/MM/yyyy{{ '}' }}</div>
+                <div>EN CAS D'UN SEUL CLIC DETAIL DES TICKET</div>
+              </div>
+            </div>
+          </div>
+        }
+        
+        @if (displayMode() === 'closure') {
+          <div class="bg-blue-50 border-t border-blue-200 p-4">
+            <div class="text-sm text-gray-700">
+              <div class="font-medium mb-2">Notes:</div>
+              <div class="space-y-1 text-xs">
+                <div>EN CAS DE CLOTURE JOURNE UN SEUL LIGNE EXTRAIT JOURNALIER {{ '{' }}dd/MM/yyyy{{ '}' }}</div>
+                <div>EN CAS D'UN SEUL CLIC DETAIL DES TICKET</div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

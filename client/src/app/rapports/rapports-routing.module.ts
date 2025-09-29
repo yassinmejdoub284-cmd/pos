@@ -39,6 +39,10 @@ const routes: Routes = [
   { 
     path: 'invoice-extracts', 
     loadChildren: () => import('./invoice-extracts/invoice-extracts.module').then(m => m.InvoiceExtractsModule)
+  },
+  { 
+    path: 'etat-mvt-stock', 
+    loadChildren: () => import('./etat-mvt-stock/etat-mvt-stock.module').then(m => m.EtatMvtStockModule)
   }
 ];
 

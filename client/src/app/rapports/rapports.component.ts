@@ -33,6 +33,9 @@ export class RapportsComponent {
       case 'inventory-sales-reconciliation':
         this.router.navigate(['/rapports/inventory-sales-reconciliation']);
         break;
+      case 'etat-mvt-stock':
+        this.router.navigate(['/rapports/etat-mvt-stock']);
+        break;
     }
   }
 

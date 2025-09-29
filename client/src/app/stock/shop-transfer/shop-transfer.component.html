@@ -15,7 +15,11 @@
       </div>
 
       <div *ngIf="!currentDepot" class="text-center py-8">
-        <div class="text-lg text-red-600">{{ error }}</div>
+        <div class="text-lg text-red-600">{{ error || 'Chargement du dépôt...' }}</div>
+        <div *ngIf="loading" class="mt-4">
+          <div class="inline-block w-8 h-8 border-2 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-slate-500 mt-2">Chargement...</p>
+        </div>
       </div>
 
       <div *ngIf="currentDepot" class="space-y-4">
@@ -23,6 +27,58 @@
           <h3 class="text-sm font-semibold text-blue-800 mb-1">Dépôt Actuel</h3>
           <p class="text-blue-700 text-sm">{{ currentDepot.name }} ({{ currentDepot.type }})</p>
           <p class="text-blue-600 text-xs">{{ currentDepot.address }}, {{ currentDepot.city }}</p>
+        </div>
+
+        <!-- Totals Section -->
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 mb-4">
+          <h2 class="text-lg font-semibold text-slate-800 mb-4">📈 Totaux des Entrées et Sorties</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Total Entries -->
+            <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-200">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-semibold text-emerald-800">📥 Total des Entrées</h3>
+                <button 
+                  (click)="showEntriesDetailsModal()"
+                  class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs transition-colors"
+                >
+                  Voir Détails
+                </button>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-white rounded-xl p-2 border border-emerald-200">
+                  <div class="text-xs text-emerald-600">Quantité</div>
+                  <div class="text-lg font-bold text-emerald-800">{{ getTotalEntries().totalQuantity | number:'1.0-0' }}</div>
+                </div>
+                <div class="bg-white rounded-xl p-2 border border-emerald-200">
+                  <div class="text-xs text-emerald-600">Valeur</div>
+                  <div class="text-lg font-bold text-emerald-800">{{ getTotalEntries().totalValue | number:'1.2-2' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total Exits -->
+            <div class="bg-red-50 rounded-2xl p-4 border border-red-200">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-semibold text-red-800">📤 Total des Sorties</h3>
+                <button 
+                  (click)="showExitsDetailsModal()"
+                  class="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs transition-colors"
+                >
+                  Voir Détails
+                </button>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-white rounded-xl p-2 border border-red-200">
+                  <div class="text-xs text-red-600">Quantité</div>
+                  <div class="text-lg font-bold text-red-800">{{ getTotalExits().totalQuantity | number:'1.0-0' }}</div>
+                </div>
+                <div class="bg-white rounded-xl p-2 border border-red-200">
+                  <div class="text-xs text-red-600">Valeur</div>
+                  <div class="text-lg font-bold text-red-800">{{ getTotalExits().totalValue | number:'1.2-2' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Current Inventory -->
@@ -64,9 +120,28 @@
                 </div>
                 <div class="text-right">
                   <div class="text-xl font-bold" [class]="item.quantity < 0 ? 'text-red-500' : 'text-green-400'">{{ item.quantity }}</div>
-                  <div class="text-[11px] text-slate-500">disponible</div>
+                  <div class="text-[11px] text-slate-500">actuelle</div>
                 </div>
               </div>
+              
+              <!-- Entries and Exits Totals -->
+              <div class="mt-2 grid grid-cols-2 gap-2">
+                <div class="bg-emerald-50 rounded-xl p-2 border border-emerald-200">
+                  <div class="text-[11px] text-emerald-600">Total Entrées</div>
+                  <div class="text-xs text-emerald-700">
+                    <span class="font-semibold">{{ getProductEntries(item.productId).totalQuantity }}</span>
+                    <div class="text-[10px]">{{ getProductEntries(item.productId).totalValue | number:'1.2-2' }}</div>
+                  </div>
+                </div>
+                <div class="bg-red-50 rounded-xl p-2 border border-red-200">
+                  <div class="text-[11px] text-red-600">Total Sorties</div>
+                  <div class="text-xs text-red-700">
+                    <span class="font-semibold">{{ getProductExits(item.productId).totalQuantity }}</span>
+                    <div class="text-[10px]">{{ getProductExits(item.productId).totalValue | number:'1.2-2' }}</div>
+                  </div>
+                </div>
+              </div>
+
               <div class="mt-2 grid grid-cols-2 gap-2">
                 <div class="bg-white rounded-xl p-2 border border-slate-200">
                   <div class="text-[11px] text-slate-500">Achat (U/T)</div>
@@ -98,7 +173,9 @@
               <thead class="bg-slate-50">
                 <tr>
                   <th class="px-3 py-1.5 text-left text-[11px] font-medium text-slate-500 uppercase tracking-wider">Produit</th>
-                  <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Qté</th>
+                  <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Qté Actuelle</th>
+                  <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Total Entrées</th>
+                  <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Total Sorties</th>
                   <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Achat U</th>
                   <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Achat T</th>
                   <th class="px-3 py-1.5 text-right text-[11px] font-medium text-slate-500 uppercase tracking-wider">Vente U</th>
@@ -114,6 +191,14 @@
                   </td>
                   <td class="px-3 py-1.5 text-right">
                     <span [class]="item.quantity < 0 ? 'text-red-500' : 'text-slate-800'" class="font-semibold text-sm">{{ item.quantity }}</span>
+                  </td>
+                  <td class="px-3 py-1.5 text-right">
+                    <div class="text-emerald-600 font-semibold text-sm">{{ getProductEntries(item.productId).totalQuantity }}</div>
+                    <div class="text-[10px] text-emerald-500">{{ getProductEntries(item.productId).totalValue | number:'1.2-2' }}</div>
+                  </td>
+                  <td class="px-3 py-1.5 text-right">
+                    <div class="text-red-600 font-semibold text-sm">{{ getProductExits(item.productId).totalQuantity }}</div>
+                    <div class="text-[10px] text-red-500">{{ getProductExits(item.productId).totalValue | number:'1.2-2' }}</div>
                   </td>
                   <td class="px-3 py-1.5 text-right text-sm">{{ getPurchaseUnitPrice(item) | number:'1.2-2' }}</td>
                   <td class="px-3 py-1.5 text-right text-sm">{{ getItemPurchaseTotal(item) | number:'1.2-2' }}</td>
@@ -343,6 +428,201 @@
             <span *ngIf="loading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
             {{ loading ? 'Confirmation...' : '✅ Confirmer le Transfert' }}
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entries Details Modal -->
+  <div *ngIf="showEntriesDetails" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-6 border-b border-slate-200">
+        <div>
+          <h3 class="text-2xl font-bold text-slate-800">📥 Détails des Entrées</h3>
+          <p class="text-slate-600 text-sm">Inventaire + Documents d'entrée</p>
+        </div>
+        <button 
+          type="button"
+          (click)="closeEntriesDetails()"
+          title="Fermer les détails"
+          class="text-slate-500 hover:text-slate-800 transition-colors"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Content -->
+      <div class="p-6">
+        <!-- Current Inventory -->
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold text-slate-800 mb-4">📦 Inventaire Actuel</h4>
+          <div class="overflow-auto rounded-2xl border border-slate-200">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase">Produit</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-slate-500 uppercase">Qté Actuelle</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-slate-500 uppercase">Total Entrées</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-slate-500 uppercase">Total Sorties</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-slate-500 uppercase">Prix Achat</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-slate-500 uppercase">Total</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-slate-100">
+                <tr *ngFor="let item of inventory; trackBy: trackByItem" class="odd:bg-white even:bg-slate-50">
+                  <td class="px-3 py-2">
+                    <div class="text-slate-800 font-medium text-sm">{{ getProductName(item.productId) }}</div>
+                    <div class="text-xs text-slate-500">ID: {{ item.productId }}</div>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <span class="font-semibold text-sm text-slate-800">{{ item.quantity }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <div class="text-emerald-600 font-semibold text-sm">{{ getProductEntries(item.productId).totalQuantity }}</div>
+                    <div class="text-[10px] text-emerald-500">{{ getProductEntries(item.productId).totalValue | number:'1.2-2' }}</div>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <div class="text-red-600 font-semibold text-sm">{{ getProductExits(item.productId).totalQuantity }}</div>
+                    <div class="text-[10px] text-red-500">{{ getProductExits(item.productId).totalValue | number:'1.2-2' }}</div>
+                  </td>
+                  <td class="px-3 py-2 text-right text-sm">{{ getPurchaseUnitPrice(item) | number:'1.2-2' }}</td>
+                  <td class="px-3 py-2 text-right text-sm">{{ getItemPurchaseTotal(item) | number:'1.2-2' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Entry Documents -->
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold text-slate-800 mb-4">📋 Documents d'Entrée</h4>
+          <div *ngIf="entryDocuments.length === 0" class="text-center py-8 text-slate-500">
+            Aucun document d'entrée trouvé
+          </div>
+          <div *ngIf="entryDocuments.length > 0" class="space-y-4">
+            <div *ngFor="let doc of entryDocuments" class="bg-slate-100/50 rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h5 class="font-medium text-slate-800">{{ doc.numero }}</h5>
+                <span class="text-xs text-slate-500">{{ doc.createdAt | date:'dd/MM/yyyy' }}</span>
+              </div>
+              <div class="overflow-auto rounded-xl border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-200">
+                  <thead class="bg-slate-50">
+                    <tr>
+                      <th class="px-2 py-1 text-left text-xs font-medium text-slate-500">Produit</th>
+                      <th class="px-2 py-1 text-right text-xs font-medium text-slate-500">Qté</th>
+                      <th class="px-2 py-1 text-right text-xs font-medium text-slate-500">Prix</th>
+                      <th class="px-2 py-1 text-right text-xs font-medium text-slate-500">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-slate-100">
+                    <tr *ngFor="let item of doc.items" class="odd:bg-white even:bg-slate-50">
+                      <td class="px-2 py-1 text-sm">{{ getProductName(item.productId) }}</td>
+                      <td class="px-2 py-1 text-right text-sm">{{ item.quantity }}</td>
+                      <td class="px-2 py-1 text-right text-sm">{{ item.purchasePrice | number:'1.2-2' }}</td>
+                      <td class="px-2 py-1 text-right text-sm">{{ (item.quantity * item.purchasePrice) | number:'1.2-2' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Exits Details Modal -->
+  <div *ngIf="showExitsDetails" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-6 border-b border-slate-200">
+        <div>
+          <h3 class="text-2xl font-bold text-slate-800">📤 Détails des Sorties</h3>
+          <p class="text-slate-600 text-sm">Ventes et sorties de stock</p>
+        </div>
+        <button 
+          type="button"
+          (click)="closeExitsDetails()"
+          title="Fermer les détails"
+          class="text-slate-500 hover:text-slate-800 transition-colors"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Content -->
+      <div class="p-6">
+        <!-- Per-Product Summary -->
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold text-slate-800 mb-4">📊 Résumé par Produit</h4>
+          <div class="overflow-auto rounded-2xl border border-slate-200">
+            <table class="min-w-full divide-y divide-slate-200">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase">Produit</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-slate-500 uppercase">Total Sorties</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-slate-500 uppercase">Valeur Sorties</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-slate-100">
+                <tr *ngFor="let item of inventory; trackBy: trackByItem" class="odd:bg-white even:bg-slate-50">
+                  <td class="px-3 py-2">
+                    <div class="text-slate-800 font-medium text-sm">{{ getProductName(item.productId) }}</div>
+                    <div class="text-xs text-slate-500">ID: {{ item.productId }}</div>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <div class="text-red-600 font-semibold text-sm">{{ getProductExits(item.productId).totalQuantity }}</div>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <div class="text-red-600 font-semibold text-sm">{{ getProductExits(item.productId).totalValue | number:'1.2-2' }}</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sales Details -->
+        <div *ngIf="salesData.length === 0" class="text-center py-8 text-slate-500">
+          Aucune vente trouvée
+        </div>
+        <div *ngIf="salesData.length > 0" class="space-y-4">
+          <h4 class="text-lg font-semibold text-slate-800 mb-4">📋 Détails des Ventes</h4>
+          <div *ngFor="let sale of salesData" class="bg-slate-100/50 rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h5 class="font-medium text-slate-800">Vente #{{ sale.id }}</h5>
+              <div class="text-right">
+                <div class="text-xs text-slate-500">{{ sale.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+                <div class="text-sm font-semibold text-slate-800">{{ sale.finalTotal | number:'1.2-2' }}</div>
+              </div>
+            </div>
+            <div class="overflow-auto rounded-xl border border-slate-200">
+              <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="px-2 py-1 text-left text-xs font-medium text-slate-500">Produit</th>
+                    <th class="px-2 py-1 text-right text-xs font-medium text-slate-500">Qté</th>
+                    <th class="px-2 py-1 text-right text-xs font-medium text-slate-500">Prix</th>
+                    <th class="px-2 py-1 text-right text-xs font-medium text-slate-500">Total</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-100">
+                  <tr *ngFor="let item of sale.items" class="odd:bg-white even:bg-slate-50">
+                    <td class="px-2 py-1 text-sm">{{ item.productName }}</td>
+                    <td class="px-2 py-1 text-right text-sm">{{ item.quantity }}</td>
+                    <td class="px-2 py-1 text-right text-sm">{{ item.unitPrice | number:'1.2-2' }}</td>
+                    <td class="px-2 py-1 text-right text-sm">{{ item.total | number:'1.2-2' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>

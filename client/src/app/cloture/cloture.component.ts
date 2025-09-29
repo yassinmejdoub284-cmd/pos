@@ -43,6 +43,197 @@ export class ClotureComponent implements OnInit, OnDestroy {
   sessionTickets = signal<{ id: number; amount: number }[]>([]);
   ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => sum + t.amount, 0));
 
+  // Cash sales detail state
+  cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number }[]>([]);
+  cashSalesLoading = signal(false);
+
+  // Detailed flows modal state
+  showFlowsModal = signal(false);
+  flowsDateFrom = signal<string>('');
+  flowsDateTo = signal<string>('');
+  flowsDepotId = signal<number | null>(null);
+  flowsSearch = signal('');
+
+  async flowmodal_show(): Promise<void> {
+    this.loading.set(true);
+    await Promise.all([
+      this.loadCashSalesDetails(),
+    ]).then(() => {
+      this.showFlowsModal.set(true);
+      this.loading.set(false);
+    }).catch(error => {
+      this.error.set('Erreur lors du chargement des détails: ' + (error.error?.error || error.message || 'Erreur inconnue'));      
+      this.loading.set(false);
+    });
+  }
+
+  // Derived rows for entries/sorties
+  getDetailedEntryRows(): Array<{ createdAt: string; label: string; amount: number }> {
+    const session = this.currentSession();
+    if (!session) return [];
+
+    const rows: Array<{ createdAt: string; label: string; amount: number }> = [];
+
+    // Encaissements Crédit Clients (from server details)
+    const clientPayments = ((session.summary as any)?.clientPaymentsDetails || []) as Array<any>;
+    for (const p of clientPayments) {
+      rows.push({
+        createdAt: p.createdAt,
+        label: `Encaissement client · ${p.clientName || 'Client'}`,
+        amount: parseFloat(p.amount || 0) || 0
+      });
+    }
+
+    // Acomptes sur commande (cash movements labeled with Acompte commande)
+    const movements = (session.cashMovements || []) as Array<any>;
+    for (const m of movements) {
+      const reasonLower = (m.reason || '').toLowerCase();
+      const amount = parseFloat(m.amount || 0) || 0;
+      if (m.type === 'ENTREE' && reasonLower.startsWith('acompte commande') && amount > 0) {
+        rows.push({
+          createdAt: m.createdAt,
+          label: m.reason || 'Acompte commande',
+          amount: amount
+        });
+      }
+    }
+
+    // Espèces en Caisse: list each cash-paid ticket (paidAmount)
+    for (const t of this.cashSalesDetails()) {
+      if ((t.paidAmount || 0) > 0) {
+        rows.push({
+          createdAt: new Date(this.currentSession()!.openedAt).toISOString(),
+          label: `Ticket N°${t.id}`,
+          amount: t.paidAmount
+        });
+      }
+    }
+
+    // Filter by search
+    const q = this.flowsSearch().trim().toLowerCase();
+    const filtered = q ? rows.filter(r => r.label.toLowerCase().includes(q)) : rows;
+
+    // Sort desc by createdAt
+    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  getDetailedExitRows(): Array<{ createdAt: string; label: string; amount: number }> {
+    const session = this.currentSession();
+    if (!session) return [];
+
+    const rows: Array<{ createdAt: string; label: string; amount: number }> = [];
+
+    // Dépenses (use server details first)
+    const expenses = ((session.summary as any)?.expensesDetails || []) as Array<any>;
+    for (const e of expenses) {
+      const parts: string[] = [];
+      if (e.categoryName) parts.push(e.categoryName);
+      if (e.supplierName) parts.push(`Fournisseur: ${e.supplierName}`);
+      const label = parts.length ? parts.join(' · ') : (e.reason || 'Dépense');
+      rows.push({
+        createdAt: e.createdAt,
+        label,
+        amount: parseFloat(e.amount || 0) || 0
+      });
+    }
+
+    // Règlements fournisseur (from cash movements)
+    const movements = (session.cashMovements || []) as Array<any>;
+    for (const m of movements) {
+      const reasonLower = (m.reason || '').toLowerCase();
+      const amount = parseFloat(m.amount || 0) || 0;
+      const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
+      if (m.type === 'SORTIE' && isSupplierPayment && amount > 0) {
+        rows.push({
+          createdAt: m.createdAt,
+          label: (m.reason || 'Règlement fournisseur').replace(/#\d+\s*\(FOURN:\d+\)/i, '').trim(),
+          amount: amount
+        });
+      }
+    }
+
+    // Filter by search
+    const q = this.flowsSearch().trim().toLowerCase();
+    const filtered = q ? rows.filter(r => r.label.toLowerCase().includes(q)) : rows;
+
+    // Sort desc by createdAt
+    return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  getDetailedTotals() {
+    const entries = this.getDetailedEntryRows();
+    const sorties = this.getDetailedExitRows();
+    const totalEntries = entries.reduce((s, r) => s + (parseFloat(r.amount as any) || 0), 0);
+    const totalSorties = sorties.reduce((s, r) => s + (parseFloat(r.amount as any) || 0), 0);
+    const net = totalEntries - totalSorties;
+    return { totalEntries, totalSorties, net };
+  }
+
+  exportFlowsCsv(): void {
+    const entries = this.getDetailedEntryRows();
+    const sorties = this.getDetailedExitRows();
+    const header = 'Type,Date,Designation,Montant';
+    const rows = [
+      ...entries.map(e => ['ENTREE', new Date(e.createdAt).toISOString(), e.label.replace(/,/g, ' '), (e.amount || 0).toFixed(3)].join(',')),
+      ...sorties.map(s => ['SORTIE', new Date(s.createdAt).toISOString(), s.label.replace(/,/g, ' '), (s.amount || 0).toFixed(3)].join(','))
+    ];
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `flux_caisse_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  printFlows(): void {
+    const entries = this.getDetailedEntryRows();
+    const sorties = this.getDetailedExitRows();
+    const totals = this.getDetailedTotals();
+    const popup = window.open('', '_blank');
+    if (!popup) return;
+    const html = `
+      <html><head><title>Détail des flux de caisse</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 16px; }
+        h1 { font-size: 18px; margin: 0 0 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 6px 8px; border-bottom: 1px solid #ddd; font-size: 12px; }
+        th { position: sticky; top: 0; background: #f8fafc; }
+        .right { text-align: right; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .totals { margin-top: 12px; text-align: center; font-weight: bold; }
+      </style>
+      </head><body>
+      <h1>Détail des flux de caisse — Entrées / Sorties</h1>
+      <div class="grid">
+        <div>
+          <table>
+            <thead><tr><th>Entrées</th><th class="right">Montant</th></tr></thead>
+            <tbody>
+              ${entries.map(e => `<tr><td>${e.label}</td><td class="right">${(e.amount || 0).toFixed(3)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <table>
+            <thead><tr><th>Sorties</th><th class="right">Montant</th></tr></thead>
+            <tbody>
+              ${sorties.map(s => `<tr><td>${s.label}</td><td class="right">${(s.amount || 0).toFixed(3)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="totals">Total Entrées: ${(totals.totalEntries).toFixed(3)} — Total Sorties: ${(totals.totalSorties).toFixed(3)} — Solde net: ${(totals.net).toFixed(3)}</div>
+      <script>window.print();</script>
+      </body></html>`;
+    popup.document.write(html);
+    popup.document.close();
+  }
+
   // Refresh control
   private refreshIntervalId: any;
   private isRefreshing = false;
@@ -76,6 +267,15 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Convenience filtered lists for template (avoid inline lambdas in template)
   recentClientPayments(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
+    const details = (this.currentSession()?.summary as any)?.clientPaymentsDetails as Array<any> | undefined;
+    if (details && details.length) {
+      return details.slice(0, 10).map(d => ({
+        createdAt: d.createdAt,
+        type: 'ENTREE',
+        reason: `Encaissement client · ${d.clientName || 'Client'}`,
+        amount: parseFloat(d.amount || 0) || 0
+      }));
+    }
     return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && (((m.reason || '').toLowerCase().includes('crédit')) || ((m.reason || '').toLowerCase().includes('credit'))));
   }
 
@@ -83,38 +283,113 @@ export class ClotureComponent implements OnInit, OnDestroy {
     return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && ((m.reason || '').toLowerCase().startsWith('acompte')));
   }
 
-  recentExpenses(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
+  recentExpenses(): Array<{ createdAt: string; type: string; reason: string; amount: number; categoryName?: string | null; supplierName?: string | null }> {
     // Prefer server-provided details if any
     const details = (this.currentSession()?.summary as any)?.expensesDetails as Array<any> | undefined;
     if (details && details.length) {
-      return details.slice(0, 10).map(d => ({
-        createdAt: d.createdAt,
-        type: 'SORTIE',
-        reason: d.reason,
-        amount: d.amount
-      }));
+      return details.slice(0, 10).map(d => {
+        const fullReason: string = d.reason || '';
+        let categoryName: string | null = null;
+        let supplierName: string | null = null;
+
+        // First, try split by bullet separators
+        const parts = fullReason.split(' · ').map(p => p.trim());
+        if (parts.length >= 2 && !parts[1].toLowerCase().startsWith('fournisseur')) {
+          categoryName = parts[1];
+        }
+        const supplierPart = parts.find(p => p.toLowerCase().startsWith('fournisseur'));
+        if (supplierPart) {
+          const m = supplierPart.match(/Fournisseur:\s*(.+)$/i);
+          if (m && m[1]) supplierName = m[1].trim();
+        }
+
+        // Fallback: parse after colon format, e.g., "Dépense approuvée #1: Achat Consommé"
+        if (!categoryName) {
+          const colonIdx = fullReason.indexOf(':');
+          if (colonIdx >= 0 && colonIdx < fullReason.length - 1) {
+            const afterColon = fullReason.substring(colonIdx + 1).trim();
+            if (afterColon && !/^fournisseur\s*:/i.test(afterColon)) {
+              categoryName = afterColon;
+            }
+          }
+        }
+
+        // Also search anywhere for Fournisseur: <name>
+        if (!supplierName) {
+          const m2 = fullReason.match(/Fournisseur:\s*(.+)$/i);
+          if (m2 && m2[1]) supplierName = m2[1].trim();
+        }
+
+        return ({
+          createdAt: d.createdAt,
+          type: 'SORTIE',
+          reason: fullReason,
+          amount: d.amount,
+          categoryName,
+          supplierName
+        });
+      });
     }
     // Fallback to movements with expense-like reason
     return this.getRecentMovements(10, (m: any) => m.type === 'SORTIE' && (((m.reason || '').toLowerCase().includes('dépense')) || ((m.reason || '').toLowerCase().includes('depense'))));
   }
 
   recentSupplierPayments(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
+    // Only actual debit movements recorded in caisse, enriched with supplier name when available
+    const movements = (this.currentSession()?.cashMovements || []) as any[];
     const details = (this.currentSession()?.summary as any)?.supplierPaymentsDetails as Array<any> | undefined;
-    if (details && details.length) {
-      return details.slice(0, 10).map(d => ({
-        createdAt: d.createdAt,
-        type: 'SORTIE',
-        reason: `Règlement fournisseur #${d.supplierId} (${d.supplierName})`,
-        amount: d.amount
-      }));
-    }
-    return this.getRecentMovements(10, (m: any) => m.type === 'SORTIE' && ((m.reason || '').toLowerCase().includes('règlement fournisseur')));
+
+    return movements
+      .filter(m => {
+        const reasonLower = (m.reason || '').toLowerCase();
+        const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
+        const amount = parseFloat((m as any).amount || 0) || 0;
+        return m.type === 'SORTIE' && isSupplierPayment && amount > 0;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10)
+      .map(m => {
+        const reason: string = m.reason || '';
+        let supplierName: string | null = null;
+
+        // Try to extract supplierPayment id from reason: "Règlement fournisseur #<id> (FOURN:<supplierId>)"
+        const idMatch = reason.match(/#(\d+)/);
+        const paymentId = idMatch ? parseInt(idMatch[1], 10) : null;
+
+        if (details && details.length && paymentId) {
+          const match = details.find(d => Number(d.id) === paymentId);
+          if (match && match.supplierName) {
+            supplierName = match.supplierName;
+          }
+        }
+
+        // Fallback: if reason contains a name in parentheses not just the FOURN code, try to extract
+        if (!supplierName) {
+          const paren = reason.match(/\(([^)]+)\)/);
+          if (paren && paren[1] && !/^FOURN:/i.test(paren[1])) {
+            supplierName = paren[1].trim();
+          }
+        }
+
+        const nameForDisplay = supplierName || 'Fournisseur';
+        return ({
+          createdAt: m.createdAt,
+          type: 'SORTIE',
+          reason: `Règlement fournisseur · ${nameForDisplay}`,
+          amount: parseFloat((m as any).amount || 0) || 0
+        });
+      });
   }
 
   getSupplierPaymentsTotal(): number {
     const movements = this.currentSession()?.cashMovements || [];
     return movements
-      .filter(m => m.type === 'SORTIE' && (m.reason || '').toLowerCase().includes('règlement fournisseur'))
+      .filter(m => {
+        const reasonLower = (m.reason || '').toLowerCase();
+        const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
+        const amount = parseFloat((m as any).amount || 0) || 0;
+        return m.type === 'SORTIE' && isSupplierPayment && amount > 0;
+      })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 
@@ -159,6 +434,16 @@ export class ClotureComponent implements OnInit, OnDestroy {
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 
+  getComputedExpectedCash(): number {
+    const opening = parseFloat((this.currentSession()?.openingFund as any) || 0) || 0;
+    const cashFromSales = this.getCashFromSalesNetOfCredit();
+    const clientPayments = this.getClientPaymentsTotal();
+    const orderAdvances = this.getTotalOrderAdvances();
+    const expenses = this.getExpensesTotal();
+    const supplierRegs = this.getSupplierPaymentsTotal();
+    return opening + cashFromSales + clientPayments + orderAdvances - expenses - supplierRegs;
+  }
+
   // Load and show current session tickets (id + amount)
   openTicketsModal(): void {
     const session = this.currentSession();
@@ -166,7 +451,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (report: any) => {
-        const sales = (report?.session?.sales || []) as Array<{ id: number; finalTotal: number }>
+        const sales = (report?.session?.sales || []) as Array<{ id: number; finalTotal: number }>;
         this.sessionTickets.set(sales.map(s => ({ id: s.id, amount: parseFloat((s as any).finalTotal || 0) })));
         this.loading.set(false);
         this.showTicketsModal.set(true);
@@ -174,6 +459,29 @@ export class ClotureComponent implements OnInit, OnDestroy {
       error: () => {
         this.error.set('Erreur lors du chargement des tickets');
         this.loading.set(false);
+      }
+    });
+  }
+
+  private loadCashSalesDetails(): void {
+    const session = this.currentSession();
+    if (!session || this.cashSalesLoading()) return;
+    this.cashSalesLoading.set(true);
+    this.sessionsService.getSessionReport(session.id, 'X').subscribe({
+      next: (report: any) => {
+        const sales = (report?.session?.sales || []) as Array<any>;
+        const cashSales = sales.filter(s => ((s.paymentMethod?.type || '').toUpperCase() === 'CASH') || (s.paidAmount && s.paidAmount > 0));
+        this.cashSalesDetails.set(
+          cashSales.map(s => ({
+            id: s.id,
+            paidAmount: parseFloat(s.paidAmount ?? 0) || 0,
+            totalAmount: parseFloat(s.finalTotal ?? 0) || 0
+          }))
+        );
+        this.cashSalesLoading.set(false);
+      },
+      error: () => {
+        this.cashSalesLoading.set(false);
       }
     });
   }
@@ -423,6 +731,10 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const [group, key] = path.split('.') as [keyof typeof current, string];
     updated[group][key] = !updated[group][key];
     this.showDetails.set(updated);
+
+    if (path === 'encaissement.cash' && updated.encaissement.cash) {
+      this.loadCashSalesDetails();
+    }
   }
 
   // Préparer la clôture checklist (simple heuristics)

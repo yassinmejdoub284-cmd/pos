@@ -66,6 +66,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
     phone: '',
     city: 'Tunis',
     address: '',
+    matriculeFiscal: '',
     clientType: 'INDIVIDUAL',
     depotId: -1, // Default to "Tout" (any depot)
     notes: '',
@@ -209,6 +210,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
       phone: '',
       city: 'Tunis',
       address: '',
+      matriculeFiscal: '',
       clientType: 'INDIVIDUAL',
       depotId: -1, // Default to "Tout" (any depot)
       notes: '',
@@ -221,11 +223,12 @@ export class ClientsComponent implements OnInit, OnDestroy {
   openEditPopup(client: Client): void {
     this.selectedClient = client;
     this.editForm = {
-      firstName: client.firstName,
-      lastName: client.lastName,
+      firstName: client.firstName ?? '',
+      lastName: client.lastName ?? '',
       phone: client.phone,
       city: client.city || 'Tunis',
       address: client.address || '',
+      matriculeFiscal: client.matriculeFiscal || '',
       clientType: client.clientType,
       depotId: client.depotId,
       loyaltyPoints: client.loyaltyPoints,
@@ -233,10 +236,11 @@ export class ClientsComponent implements OnInit, OnDestroy {
       favoriteProducts: client.favoriteProducts,
       notes: client.notes,
       isActive: client.isActive,
-      allowDebt: client.allowDebt ?? true,
-      maxDebt: client.maxDebt ?? NaN
+      allowDebt: (client.allowDebt ?? true),
+      maxDebt: (client.allowDebt ?? true) ? (client.maxDebt ?? undefined) : undefined
     };
     this.showEditPopup = true;
+    this.cdr.markForCheck();
   }
 
   openDeletePopup(client: Client): void {
@@ -293,7 +297,11 @@ export class ClientsComponent implements OnInit, OnDestroy {
   }
 
   updateClient(): void {
-    if (!this.selectedClient || !this.editForm.firstName || !this.editForm.lastName) {
+    if (!this.selectedClient) return;
+
+    const trimmedFirstName = (this.editForm.firstName ?? '').trim();
+    const trimmedLastName = (this.editForm.lastName ?? '').trim();
+    if (!trimmedFirstName || !trimmedLastName) {
       this.showAlertMessage('Le prénom et le nom sont obligatoires', 'error');
       return;
     }
@@ -304,7 +312,15 @@ export class ClientsComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.clientsService.updateClient(this.selectedClient.id, this.editForm).pipe(takeUntil(this.destroy$)).subscribe({
+    const payload: UpdateClientRequest = {
+      ...this.editForm,
+      firstName: trimmedFirstName,
+      lastName: trimmedLastName,
+      // if credit not allowed, omit maxDebt
+      maxDebt: (this.editForm.allowDebt ?? true) ? (this.editForm.maxDebt ?? undefined) : undefined
+    };
+
+    this.clientsService.updateClient(this.selectedClient.id, payload).pipe(takeUntil(this.destroy$)).subscribe({
       next: (client) => {
         this.showAlertMessage('Client mis à jour avec succès', 'success');
         this.closePopups();

@@ -17,7 +17,8 @@ router.get('/', async (req, res) => {
         { firstName: { contains: term } },
         { lastName: { contains: term } },
         { phone: { contains: term } },
-        { code: { contains: term } }
+        { code: { contains: term } },
+        { matriculeFiscal: { contains: term } }
       ];
     }
 
@@ -71,7 +72,8 @@ router.get('/search/pos', async (req, res) => {
           { firstName: { contains: q } },
           { lastName: { contains: q } },
           { phone: { contains: q } },
-          { code: { contains: q } }
+          { code: { contains: q } },
+          { matriculeFiscal: { contains: q } }
         ]
       },
       select: {
@@ -149,7 +151,7 @@ router.get('/:id', async (req, res) => {
 // Create new client
 router.post('/', async (req, res) => {
   try {
-    const { firstName, lastName, phone, city, address, clientType, depotId, notes, maxDebt, allowDebt } = req.body;
+    const { firstName, lastName, phone, city, address, matriculeFiscal, clientType, depotId, notes, maxDebt, allowDebt } = req.body;
 
     let defaultMax = null;
     try {
@@ -171,6 +173,7 @@ router.post('/', async (req, res) => {
           phone,
           city,
           address,
+          matriculeFiscal,
           clientType: clientType || 'INDIVIDUAL',
           depotId: depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null,
           notes,
@@ -200,7 +203,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, phone, city, address, clientType, depotId, loyaltyPoints, totalSpent, favoriteProducts, notes, isActive, currentDebt, maxDebt, allowDebt } = req.body;
+    const { firstName, lastName, phone, city, address, matriculeFiscal, clientType, depotId, loyaltyPoints, totalSpent, favoriteProducts, notes, isActive, currentDebt, maxDebt, allowDebt } = req.body;
 
     const client = await prisma.client.update({
       where: { id: parseInt(id) },
@@ -210,6 +213,7 @@ router.put('/:id', async (req, res) => {
         phone,
         city,
         address,
+        matriculeFiscal,
         clientType,
         depotId: depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null,
         loyaltyPoints: loyaltyPoints !== undefined ? parseInt(loyaltyPoints) : undefined,

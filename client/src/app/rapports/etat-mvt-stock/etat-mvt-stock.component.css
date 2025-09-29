@@ -1,0 +1,110 @@
+/* Custom styles for ETAT MVT STOCK report */
+
+.report-table {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.ticket-row {
+  background-color: #fef3c7 !important; /* yellow-100 */
+  border-left: 3px solid #f59e0b; /* yellow-500 */
+}
+
+.opening-row {
+  background-color: #f3f4f6 !important; /* gray-100 */
+  font-weight: 600;
+  border-left: 3px solid #6b7280; /* gray-500 */
+}
+
+.merged-notes-cell {
+  background-color: #dbeafe; /* blue-100 */
+  border: 1px solid #3b82f6; /* blue-500 */
+  padding: 8px;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+/* Ensure proper alignment for numeric columns */
+.numeric-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Header styling */
+.report-header {
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  color: white;
+}
+
+/* Filter input styling */
+.filter-input {
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* Export button styling */
+.export-btn {
+  transition: all 0.2s ease-in-out;
+}
+
+.export-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading spinner */
+.loading-spinner {
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .report-table {
+    font-size: 10px;
+  }
+  
+  .grid-cols-12 {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .report-table {
+    font-size: 10px;
+    color: black !important;
+  }
+  
+  .ticket-row {
+    background-color: #fef3c7 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .opening-row {
+    background-color: #f3f4f6 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+

@@ -249,4 +249,190 @@ router.get('/transfers/:id', async (req, res) => {
   }
 });
 
+// ETAT MVT STOCK endpoint
+router.get('/etat-mvt-stock', authenticateToken, async (req, res) => {
+  try {
+    console.log('ETAT MVT STOCK - Request received');
+    console.log('User:', req.user);
+    
+    const { startDate, endDate, depotId } = req.query;
+    const targetDepotId = depotId ? parseInt(depotId) : (req.user?.depotId || 1);
+    
+    console.log('Target depot ID:', targetDepotId);
+
+    // Build date filter
+    const dateFilter = {};
+    if (startDate && endDate) {
+      dateFilter.date = {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      };
+    }
+
+    // Fetch stock movements with all related data
+    const movements = await prisma.stockMovement.findMany({
+      where: {
+        depotId: targetDepotId,
+        ...dateFilter
+      },
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            famille_id: true,
+            designation_legale: true,
+            tva: true,
+            prix_achat: true,
+            prix_vente_TTC: true,
+            created_at: true,
+            updated_at: true
+          }
+        },
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            type: true
+          }
+        },
+        user: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      },
+      orderBy: [
+        { productId: 'asc' },
+        { depotId: 'asc' },
+        { date: 'asc' },
+        { reference: 'asc' },
+        { id: 'asc' }
+      ]
+    });
+
+    // Fetch stock document items for movements that have them
+    const movementIds = movements.map(m => m.id);
+    const documentItems = await prisma.stockDocumentItem.findMany({
+      where: {
+        // We need to link document items to movements somehow
+        // This might need adjustment based on your actual data structure
+      },
+      include: {
+        document: {
+          select: {
+            numero: true,
+            type: true
+          }
+        }
+      }
+    });
+
+    // Enrich movements with document item data
+    const enrichedMovements = movements.map(movement => {
+      // Find related document item (this logic might need adjustment)
+      const relatedItem = documentItems.find(item => 
+        item.productId === movement.productId && 
+        item.document?.numero === movement.reference
+      );
+
+      return {
+        id: movement.id,
+        productId: movement.productId,
+        depotId: movement.depotId,
+        quantity: parseFloat(movement.quantity),
+        type: movement.type,
+        fromDepotId: movement.fromDepotId,
+        toDepotId: movement.toDepotId,
+        reason: movement.reason,
+        reference: movement.reference,
+        userId: movement.userId,
+        date: movement.date.toISOString(),
+        product: movement.product,
+        depot: movement.depot,
+        user: movement.user,
+        documentItem: relatedItem ? {
+          id: relatedItem.id,
+          quantity: parseFloat(relatedItem.quantity),
+          prixUnitaire: relatedItem.prixUnitaire ? parseFloat(relatedItem.prixUnitaire) : null,
+          purchasePrice: relatedItem.purchasePrice ? parseFloat(relatedItem.purchasePrice) : null,
+          montantTTC: relatedItem.montantTTC ? parseFloat(relatedItem.montantTTC) : null,
+          montantHT: relatedItem.montantHT ? parseFloat(relatedItem.montantHT) : null,
+          montantTVA: relatedItem.montantTVA ? parseFloat(relatedItem.montantTVA) : null,
+          tva: relatedItem.tva ? parseFloat(relatedItem.tva) : null
+        } : null
+      };
+    });
+
+    res.json(enrichedMovements);
+  } catch (error) {
+    console.error('Error fetching ETAT MVT STOCK data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Test endpoint without authentication for debugging
+router.get('/etat-mvt-stock-test', async (req, res) => {
+  try {
+    console.log('ETAT MVT STOCK TEST - Starting...');
+    
+    // Get all stock movements without filters
+    const movements = await prisma.stockMovement.findMany({
+      take: 10, // Limit to 10 for testing
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            prix_achat: true,
+            prix_vente_TTC: true
+          }
+        },
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        }
+      },
+      orderBy: {
+        date: 'desc'
+      }
+    });
+
+    console.log('ETAT MVT STOCK TEST - Found movements:', movements.length);
+    
+    // Get inventory data
+    const inventory = await prisma.inventory.findMany({
+      take: 10,
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    console.log('ETAT MVT STOCK TEST - Found inventory:', inventory.length);
+
+    res.json({
+      movements: movements,
+      inventory: inventory,
+      message: 'Test data loaded successfully'
+    });
+  } catch (error) {
+    console.error('ETAT MVT STOCK TEST - Error:', error);
+    res.status(500).json({ 
+      error: 'Test endpoint error', 
+      details: error.message,
+      stack: error.stack 
+    });
+  }
+});
+
 module.exports = router; 

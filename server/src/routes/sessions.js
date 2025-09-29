@@ -770,7 +770,8 @@ async function calculateSessionSummary(sessionId) {
     .filter(m => ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type))
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
 
-  let expectedCash = parseFloat(session.openingFund) + cashSales + entree - sortie;
+  // Start expected cash from opening; we'll compute cash from sales as (totalSales - creditOutstanding)
+  let expectedCash = parseFloat(session.openingFund);
 
   // Group sales by payment method
   const salesByPayment = {};
@@ -838,8 +839,8 @@ async function calculateSessionSummary(sessionId) {
     };
   }
 
-  // Subtract credits from expected cash to reflect actual cash on hand
-  expectedCash = expectedCash - creditOutstanding;
+  // Removed subtraction of creditOutstanding to avoid double-counting since cashSales excludes credits
+  // expectedCash = expectedCash - creditOutstanding;
 
   // Include approved CASH expenses within the session timeframe ONLY if no explicit cash movement was created (avoid double subtraction)
   let cashExpenseTotal = 0;
@@ -880,7 +881,9 @@ async function calculateSessionSummary(sessionId) {
     const expensesWithoutMovement = approvedCashExpenses.filter(e => !expenseIdsWithMovement.has(e.id));
 
     cashExpenseTotal = expensesWithoutMovement.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-    expensesDetails = expensesWithoutMovement
+
+    // Build UI details for ALL approved cash expenses, independent of cash movement, and keep hasCashMovement flag
+    const allExpenseDetails = approvedCashExpenses
       .map(e => {
         const categoryPart = e.category?.name ? ` · ${e.category.name}` : '';
         const supplierPart = e.supplier?.name ? ` · Fournisseur: ${e.supplier.name}` : '';
@@ -888,10 +891,16 @@ async function calculateSessionSummary(sessionId) {
           id: e.id,
           amount: parseFloat(e.amount || 0),
           reason: `Dépense approuvée #${e.id}${categoryPart}${supplierPart}`,
-          createdAt: (e.approvedAt || e.createdAt || e.date)
+          createdAt: (e.approvedAt || e.createdAt || e.date),
+          categoryName: e.category?.name || null,
+          supplierName: e.supplier?.name || null,
+          hasCashMovement: expenseIdsWithMovement.has(e.id)
         });
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Provide details for UI
+    expensesDetails = allExpenseDetails;
 
     // expected cash should go down only by expenses without explicit cash movement
     expectedCash = expectedCash - cashExpenseTotal;
@@ -924,6 +933,7 @@ async function calculateSessionSummary(sessionId) {
 
   // Compute client payments (only standalone PAYMENT debt transactions, no saleId)
   let clientPaymentsTotal = 0;
+  let clientPaymentsDetails = [];
   try {
     const sessionStart = new Date(session.openedAt);
     const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
@@ -937,13 +947,28 @@ async function calculateSessionSummary(sessionId) {
           lte: sessionEnd
         }
       },
-      select: { amount: true }
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true } }
+      },
+      orderBy: { createdAt: 'desc' }
     });
     clientPaymentsTotal = standalonePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    clientPaymentsDetails = standalonePayments.map(p => ({
+      id: p.id,
+      amount: parseFloat(p.amount || 0),
+      clientId: p.client?.id || null,
+      clientName: p.client ? `${p.client.firstName} ${p.client.lastName}`.trim() : 'Client',
+      createdAt: p.createdAt
+    }));
   } catch (e) {}
 
   // Add standalone client payments (credit encashments) to expected cash
   expectedCash = expectedCash + clientPaymentsTotal;
+
+  // Compute cash from sales as totalSales - creditOutstanding and add entries then subtract sorties
+  const totalSalesAmount = session.sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
+  const cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
+  expectedCash = expectedCash + cashFromSalesNetCredit + entree - sortie;
 
   return {
     expectedCash,
@@ -956,6 +981,7 @@ async function calculateSessionSummary(sessionId) {
     creditOutstanding,
     creditAdvancePaid,
     clientPaymentsTotal,
+    clientPaymentsDetails,
     expensesTotal: cashExpenseTotal,
     expensesDetails,
     supplierPaymentsDetails
@@ -1007,60 +1033,66 @@ async function generateZReport(sessionId, closureData = {}) {
   // Group sales by families (like daily extract)
   const familyMap = new Map();
   
-  session.sales.forEach(sale => {
-    sale.items.forEach(item => {
-      const familyId = item.product.famille.id;
-      const familyName = item.product.famille.name;
-      
-      if (!familyMap.has(familyId)) {
-        familyMap.set(familyId, {
-          id: familyId,
-          name: familyName,
-          totalRevenue: 0,
-          totalDiscount: 0,
-          products: new Map()
-        });
-      }
-      
-      const family = familyMap.get(familyId);
-      family.totalRevenue += parseFloat(item.total);
-      family.totalDiscount += parseFloat(item.discount);
-      
-      const productId = item.product.id;
-      if (!family.products.has(productId)) {
-        family.products.set(productId, {
-          id: productId,
-          name: item.product.name,
-          quantity: 0,
-          revenue: 0,
-          discount: 0
-        });
-      }
-      
-      const product = family.products.get(productId);
-      product.quantity += item.quantity;
-      product.revenue += parseFloat(item.total);
-      product.discount += parseFloat(item.discount);
+  session.sales.forEach(item => {
+    item.items.forEach(i => {
+      const familyName = i.product?.famille?.name || 'Divers';
+      const family = familyMap.get(familyName) || { name: familyName, amount: 0 };
+      family.amount += parseFloat(i.total || 0);
+      familyMap.set(familyName, family);
     });
   });
 
-  // Convert maps to arrays
-  const families = Array.from(familyMap.values()).map(family => ({
-    ...family,
-    products: Array.from(family.products.values())
-  }));
-  
-  return {
-    session,
-    summary,
-    families,
-    generatedAt: new Date(),
-    reportType: 'Z',
-    closureData: {
-      withdrawalAmount: closureData.withdrawalAmount ?? computedWithdrawal ?? 0,
-      remainingBalance: closureData.remainingBalance ?? finalRemaining ?? 0,
-      countedCash: closureData.countedCash ?? finalCounted ?? 0
+  const families = Array.from(familyMap.values());
+
+  // Compute per-sale paidAmount by subtracting outstanding DEBT for that sale from finalTotal
+  try {
+    const saleIds = session.sales.map(s => s.id);
+    if (saleIds.length > 0) {
+      const debts = await prisma.clientDebtTransaction.findMany({
+        where: { type: 'DEBT', saleId: { in: saleIds } },
+        select: { saleId: true, amount: true }
+      });
+      const debtBySaleId = debts.reduce((map, t) => {
+        const sid = t.saleId;
+        const amt = parseFloat(t.amount || 0) || 0;
+        map[sid] = (map[sid] || 0) + amt;
+        return map;
+      }, {});
+
+      session.sales = session.sales.map(s => {
+        const total = parseFloat(s.finalTotal || 0) || 0;
+        const debtForSale = debtBySaleId[s.id] || 0;
+        const paidAmount = Math.max(0, total - debtForSale);
+        return { ...s, paidAmount };
+      });
+    } else {
+      session.sales = session.sales.map(s => ({ ...s, paidAmount: parseFloat(s.finalTotal || 0) || 0 }));
     }
+  } catch (e) {
+    // Fallback: mark cash sales as fully paid; others as zero paid
+    session.sales = session.sales.map(s => ({
+      ...s,
+      paidAmount: (s.paymentMethod?.type || '').toUpperCase() === 'CASH' ? (parseFloat(s.finalTotal || 0) || 0) : 0
+    }));
+  }
+
+  return {
+    session: {
+      id: session.id,
+      openedAt: session.openedAt,
+      closedAt: session.closedAt,
+      user: session.user,
+      depot: session.depot,
+      sales: session.sales,
+      cashMovements: session.cashMovements
+    },
+    summary: {
+      ...summary,
+      computedWithdrawal,
+      finalRemaining,
+      countedCash: closureData.countedCash ?? finalCounted ?? 0
+    },
+    families
   };
 }
 

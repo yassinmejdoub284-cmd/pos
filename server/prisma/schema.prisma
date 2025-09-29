@@ -327,6 +327,7 @@ model Client {
   phone            String?                 @db.VarChar(20)
   address          String?                 @db.Text
   city             String?                 @db.VarChar(50)
+  matriculeFiscal  String?                 @map("matricule_fiscal") @db.VarChar(50)
   postalCode       String?                 @map("postal_code") @db.VarChar(10)
   birthday         DateTime?               @db.Date
   clientType       ClientType              @default(INDIVIDUAL) @map("client_type")

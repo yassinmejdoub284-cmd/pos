@@ -6,6 +6,7 @@ export interface Client {
   phone?: string;
   city?: string;
   address?: string;
+  matriculeFiscal?: string;
   clientType: ClientType;
   depotId?: number | null; // null = invoicing only, -1 = any depot, >0 = specific depot
   depot?: {
@@ -40,6 +41,7 @@ export interface CreateClientRequest {
   phone?: string;
   city?: string;
   address?: string;
+  matriculeFiscal?: string;
   clientType?: ClientType;
   depotId?: number | null; // null = invoicing only, -1 = any depot, >0 = specific depot
   notes?: string;
@@ -53,6 +55,7 @@ export interface UpdateClientRequest {
   phone?: string;
   city?: string;
   address?: string;
+  matriculeFiscal?: string;
   clientType?: ClientType;
   depotId?: number | null; // null = invoicing only, -1 = any depot, >0 = specific depot
   loyaltyPoints?: number;
