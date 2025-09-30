@@ -34,12 +34,13 @@ router.post('/', async (req, res) => {
       // Compute session-based ticket number
       let sessionTicketNumber = null;
       if (activeSession && activeSession.id) {
-        const lastSessionSale = await tx.sale.findFirst({
+        const recent = await tx.sale.findMany({
           where: { sessionId: activeSession.id },
           orderBy: { createdAt: 'desc' },
-          select: { dailyTicketNumber: true }
+          select: { dailyTicketNumber: true },
+          take: 500
         });
-        const parseLast = (raw) => {
+        const parseNum = (raw) => {
           if (!raw) return 0;
           const s = String(raw);
           if (s.includes('/')) {
@@ -50,8 +51,8 @@ router.post('/', async (req, res) => {
           const n = parseInt(s, 10);
           return isNaN(n) ? 0 : n;
         };
-        const lastNum = parseLast(lastSessionSale?.dailyTicketNumber);
-        sessionTicketNumber = (lastNum || 0) + 1;
+        const maxNum = recent.reduce((mx, r) => Math.max(mx, parseNum(r.dailyTicketNumber)), 0);
+        sessionTicketNumber = (maxNum || 0) + 1;
       }
 
         const newSale = await tx.sale.create({
@@ -436,6 +437,35 @@ router.put('/temporary/:id/complete', async (req, res) => {
     const result = await prisma.$transaction(async (tx) => {
       // Stock validation removed - frontend handles warnings, backend allows all sales
 
+      // Attach sale to current open session for cloture accounting
+      const activeSession = await tx.sessionCaisse.findFirst({
+        where: { userId: req.user.id, status: 'OPEN' }
+      });
+
+      // Calculate session-based ticket number for completion
+      let sessionTicketNumber = null;
+      if (activeSession && activeSession.id) {
+        const recent = await tx.sale.findMany({
+          where: { sessionId: activeSession.id },
+          orderBy: { createdAt: 'desc' },
+          select: { dailyTicketNumber: true },
+          take: 500
+        });
+        const parseNum = (raw) => {
+          if (!raw) return 0;
+          const s = String(raw);
+          if (s.includes('/')) {
+            const part = s.split('/')[1];
+            const n = parseInt(part, 10);
+            return isNaN(n) ? 0 : n;
+          }
+          const n = parseInt(s, 10);
+          return isNaN(n) ? 0 : n;
+        };
+        const maxNum = recent.reduce((mx, r) => Math.max(mx, parseNum(r.dailyTicketNumber)), 0);
+        sessionTicketNumber = (maxNum || 0) + 1;
+      }
+
       const updatedSale = await tx.sale.update({
         where: { id: parseInt(id) },
         data: {
@@ -443,6 +473,8 @@ router.put('/temporary/:id/complete', async (req, res) => {
           paymentMethodId: paymentMethodMap[paymentType] || null,
           expectedDate: null,
           notes: null,
+          sessionId: activeSession ? activeSession.id : null,
+          dailyTicketNumber: sessionTicketNumber ? String(sessionTicketNumber).padStart(4, '0') : null,
           createdAt: new Date(),
           updatedAt: new Date()
         }
@@ -484,6 +516,21 @@ router.put('/temporary/:id/complete', async (req, res) => {
             type: 'OUT',
             reason: 'Temporary Sale Completed',
             userId: req.user.id
+          }
+        });
+      }
+
+      // Record cash movement for completion payment in cash
+      const paidNow = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : 0;
+      if (paidNow > 0 && String(paymentType).toLowerCase() === 'cash' && activeSession) {
+        await tx.cashMovement.create({
+          data: {
+            sessionId: activeSession.id,
+            type: 'ENTREE',
+            amount: paidNow,
+            reason: `Règlement commande #${updatedSale.id}`,
+            ticketId: null,
+            createdById: req.user.id
           }
         });
       }
@@ -551,6 +598,66 @@ router.put('/temporary/:id/complete', async (req, res) => {
   } catch (error) {
     console.error('Error completing temporary sale:', error);
     res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// Add or increase advance payment for an existing temporary sale
+router.put('/temporary/:id/advance', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, method, notes } = req.body;
+    const advanceAmount = amount ? parseFloat(amount) : 0;
+    if (advanceAmount <= 0) {
+      return res.status(400).json({ error: 'Advance amount must be greater than 0' });
+    }
+
+    const temporarySale = await prisma.sale.findFirst({
+      where: { id: parseInt(id), status: 'TEMPORARY', depotId: req.user.depotId }
+    });
+    if (!temporarySale) {
+      return res.status(404).json({ error: 'Temporary sale not found' });
+    }
+
+    const paymentMethodMap = { cash: 1, card: 2, check: 3, virement: 4 };
+    const methodId = method ? paymentMethodMap[String(method).toLowerCase()] : null;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Update advance fields (accumulate)
+      const newAdvance = (parseFloat(temporarySale.advancePayment || 0) || 0) + advanceAmount;
+      const updated = await tx.sale.update({
+        where: { id: parseInt(id) },
+        data: {
+          advancePayment: newAdvance,
+          advancePaymentMethodId: methodId,
+          advancePaymentDate: new Date(),
+          advancePaymentNotes: notes || null
+        }
+      });
+
+      // Record cash movement for cash advances in open session
+      if (methodId === 1) {
+        const activeSession = await tx.sessionCaisse.findFirst({ where: { userId: req.user.id, status: 'OPEN' } });
+        if (activeSession) {
+          await tx.cashMovement.create({
+            data: {
+              sessionId: activeSession.id,
+              type: 'ENTREE',
+              amount: advanceAmount,
+              reason: `Acompte commande #${updated.id}`,
+              ticketId: null,
+              createdById: req.user.id
+            }
+          });
+        }
+      }
+
+      return updated;
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error adding advance to temporary sale:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -768,7 +875,7 @@ router.get('/current-session/tickets', async (req, res) => {
       where: { sessionId: activeSession.id, depotId: userDepotId },
       include: {
         paymentMethod: { select: { name: true } },
-        client: { select: { firstName: true, lastName: true, code: true } },
+        client: { select: { firstName: true, lastName: true, code: true, address: true, matriculeFiscal: true } },
         user: { select: { firstName: true, lastName: true } },
         items: true
       },

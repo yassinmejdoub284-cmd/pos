@@ -120,6 +120,10 @@ export class SalesService {
     return this.http.put<Sale>(`${this.apiUrl}/temporary/${saleId}/complete`, paymentData);
   }
 
+  addAdvanceToTemporarySale(saleId: number, payload: { amount: number; method: 'cash' | 'card' | 'check' | 'virement'; notes?: string }): Observable<Sale> {
+    return this.http.put<Sale>(`${this.apiUrl}/temporary/${saleId}/advance`, payload);
+  }
+
   createGiftSale(saleData: CreateGiftSaleRequest): Observable<Sale> {
     return this.http.post<Sale>(`${this.apiUrl}/gift`, saleData);
   }

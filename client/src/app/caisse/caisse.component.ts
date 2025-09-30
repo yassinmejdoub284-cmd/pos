@@ -15,6 +15,8 @@ import { WholesaleRulesService, WholesaleRule } from '../core/services/wholesale
 import { AuthService } from '../core/services/auth.service';
 import { DepotsService } from '../core/services/depots.service';
 import { ReturnsService } from '../core/services/returns.service';
+import { SupplierService } from '../core/services/supplier.service';
+import { ExpenseService } from '../core/services/expense.service';
 import { ImagePreloadService } from '../core/services/image-preload.service';
 import { TicketCounterService } from '../core/services/ticket-counter.service';
 import { Product } from '../core/models/product.model';
@@ -328,11 +330,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
       action: () => this.closeShift()
     },
     {
-      id: 'invoice',
-      label: 'Demander facture',
-      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586l6.414 6.414V19a2 2 0 01-2 2z',
-      color: '#666683', // Blue-600: professional
-      action: () => this.showInvoiceMenu()
+      id: 'supplier',
+      label: 'Fournisseur',
+      icon: 'M3 7h18M3 12h18M3 17h18', // list/building icon
+      color: '#0ea5e9', // Cyan-500
+      action: () => this.openSupplierQuickActions()
     },
     {
       id: 'client',
@@ -436,6 +438,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private depotsService: DepotsService,
     private returnsService: ReturnsService,
+    private supplierService: SupplierService,
+    private expenseService: ExpenseService,
     private imagePreloadService: ImagePreloadService,
     private ticketCounterService: TicketCounterService
   ) {}
@@ -1183,10 +1187,44 @@ export class CaisseComponent implements OnInit, OnDestroy {
   showInvoiceMenuModal = false;
   approvedInvoices: any[] = [];
   unprintedInvoicesCount = 0;
+  // Fast lookup for approved invoices by saleId
+  private approvedInvoicesSet: Set<number> = new Set<number>();
   
   // Approved invoices modal
   showApprovedInvoicesModal = false;
   currentDate = new Date();
+
+  // Supplier quick actions state
+  showSupplierActionsModal = false;
+  supplierSearch = '';
+  supplierResults: any[] = [];
+  selectedSupplierForAction: any = null;
+  loadingSuppliers = false;
+  supplierAction: 'regler' | 'depense' | null = null;
+  // Payment form
+  showSupplierPaymentForm = false;
+  supplierPaymentAmount: string = '';
+  supplierPaymentMethod: 'CASH' | 'CARD' | 'CHECK' | 'BANK_TRANSFER' = 'CASH';
+  supplierPaymentNotes: string = '';
+  remainingCashAfterSupplier: number | null = null;
+  // Expense form
+  showExpenseForm = false;
+  expenseStep: 'category' | 'payment' | 'supplier' | 'notes' = 'category';
+  expensePayNow = true;
+  expenseAmount: string = '';
+  expenseDescription: string = '';
+  expensePaymentType: 'CASH' | 'CHECK' | 'BANK_TRANSFER' | 'WIRE_TRANSFER' = 'CASH';
+  expenseNotes: string = '';
+  expenseSupplierSearch = '';
+  expenseSupplierId: number | undefined = undefined;
+  expenseIsPaid = false;
+  expenseIsAdvance = false;
+  expenseCollectionDate = new Date().toISOString().split('T')[0];
+  expenseCategories: any[] = [];
+  selectedExpenseCategory: any = null;
+  filteredExpenseSuppliers: any[] = [];
+  submittingSupplierAction = false;
+  remainingCashAfterExpense: number | null = null;
 
   openClientSearch(): void {
     this.showClientSearchPopup = true;
@@ -2230,11 +2268,29 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   getAdvancePaymentRemainingAmount(): number {
+    // If we're adding an advance for a temporary sale, compute against its remaining
+    if (this.selectedTemporarySale) {
+      const finalTotal = Number(this.selectedTemporarySale.finalTotal || 0);
+      const alreadyAdvanced = Math.abs(Number(this.selectedTemporarySale.advancePayment || 0));
+      const newAdvance = Number(this.advancePaymentAmount || 0);
+      return this.roundToTenthAsThreeDecimals(Math.max(0, finalTotal - alreadyAdvanced - (isNaN(newAdvance) ? 0 : newAdvance)));
+    }
+
+    // Fallback: use active cart totals
     const activeCart = this.getActiveCart();
     if (!activeCart) return 0;
-    
-    if (!this.advancePaymentAmount) return activeCart.netTotal;
-    return Math.max(0, activeCart.netTotal - this.advancePaymentAmount);
+    const newAdvance = Number(this.advancePaymentAmount || 0);
+    return this.roundToTenthAsThreeDecimals(Math.max(0, Number(activeCart.netTotal || 0) - (isNaN(newAdvance) ? 0 : newAdvance)));
+  }
+
+  getRemainingBeforeNewAdvance(): number {
+    if (this.selectedTemporarySale) {
+      const finalTotal = Number(this.selectedTemporarySale.finalTotal || 0);
+      const alreadyAdvanced = Math.abs(Number(this.selectedTemporarySale.advancePayment || 0));
+      return this.roundToTenthAsThreeDecimals(Math.max(0, finalTotal - alreadyAdvanced));
+    }
+    const activeCart = this.getActiveCart();
+    return this.roundToTenthAsThreeDecimals(Number(activeCart?.netTotal || 0));
   }
 
   hasAdvancePayment(): boolean {
@@ -2409,6 +2465,45 @@ export class CaisseComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error completing temporary sale:', error);
         this.showAlertMessage('Erreur lors de la finalisation de la vente temporaire. Veuillez réessayer.', 'error');
+      }
+    });
+  }
+
+  // Add advance directly from payment popup without opening a separate dialog
+  addAdvanceToTemporarySale(): void {
+    if (!this.selectedTemporarySale) return;
+    const newAdvance = Number(this.amountPaid || 0);
+    if (!this.paymentType || isNaN(newAdvance) || newAdvance <= 0) {
+      this.showAlertMessage('Veuillez saisir un montant et une méthode', 'error');
+      return;
+    }
+
+    const remainingBefore = Math.max(0, Number(this.selectedTemporarySale.finalTotal || 0) - Math.abs(Number(this.selectedTemporarySale.advancePayment || 0)));
+    if (newAdvance > remainingBefore) {
+      this.showAlertMessage('Montant supérieur au reste', 'error');
+      return;
+    }
+
+    const payload = {
+      amount: this.roundToTenthAsThreeDecimals(newAdvance),
+      method: this.paymentType as any,
+      notes: this.advancePaymentNotes || ''
+    };
+
+    this.salesService.addAdvanceToTemporarySale(this.selectedTemporarySale.id, payload).subscribe({
+      next: (updated) => {
+        // Update local selected sale state
+        this.selectedTemporarySale = { ...this.selectedTemporarySale!, advancePayment: updated.advancePayment } as any;
+        this.amountPaid = undefined;
+        this.paymentType = undefined;
+        this.calculatedChange = 0;
+        this.advancePaymentNotes = '';
+        this.showAlertMessage('Avance ajoutée avec succès', 'success');
+        // Refresh pending count/list if popup open
+        this.loadPendingTemporarySalesCount();
+      },
+      error: () => {
+        this.showAlertMessage('Erreur lors de l\'ajout de l\'avance', 'error');
       }
     });
   }
@@ -4089,14 +4184,54 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadingTodaysTickets = true;
     this.salesService.getCurrentSessionTickets().subscribe({
       next: (tickets) => {
-        this.todaysTickets = tickets;
-        this.loadingTodaysTickets = false;
+        // Sort by session ticket number descending to keep sequence consistent
+        const extractNumber = (t: any): number => {
+          const raw = (t?.dailyTicketNumber || '').toString();
+          if (raw && raw.includes('/')) {
+            const part = raw.split('/')[1];
+            const n = parseInt(part, 10);
+            return isNaN(n) ? 0 : n;
+          }
+          if (raw) {
+            const n = parseInt(raw, 10);
+            if (!isNaN(n)) return n;
+          }
+          return 0;
+        };
+        this.todaysTickets = (tickets || []).slice().sort((a: any, b: any) => extractNumber(b) - extractNumber(a));
+        // Also load approved invoices to decorate tickets
+        this.http.get(`${environment.apiUrl}/invoices?status=ISSUED&limit=200`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }).subscribe({
+          next: (response: any) => {
+            this.approvedInvoices = response.invoices || [];
+            this.unprintedInvoicesCount = this.approvedInvoices.filter((inv: any) => !inv.printedAt).length;
+            this.approvedInvoicesSet = new Set<number>(
+              this.approvedInvoices
+                .map((inv: any) => inv.saleId)
+                .filter((id: any) => typeof id === 'number')
+            );
+            this.loadingTodaysTickets = false;
+          },
+          error: () => {
+            this.approvedInvoices = [];
+            this.approvedInvoicesSet.clear();
+            this.unprintedInvoicesCount = 0;
+            this.loadingTodaysTickets = false;
+          }
+        });
       },
       error: (error) => {
         console.error('Error loading session tickets:', error);
         this.loadingTodaysTickets = false;
       }
     });
+  }
+
+  isTicketInvoiceApproved(ticket: any): boolean {
+    return this.approvedInvoicesSet.has(ticket?.id);
   }
 
   onTicketSelect(ticket: Sale): void {
@@ -4124,6 +4259,25 @@ export class CaisseComponent implements OnInit, OnDestroy {
     switch (actionId) {
       case 'print-ticket':
         this.printTicket(ticket);
+        this.closeTicketActionDialog();
+        break;
+      case 'request-invoice':
+        // If approved, print invoice instead
+        if (this.isTicketInvoiceApproved(ticket)) {
+          const match = this.approvedInvoices.find(inv => inv.saleId === ticket.id);
+          if (match) {
+            this.printApprovedInvoice(match);
+            this.closeTicketActionDialog();
+            return;
+          }
+        }
+        // If pending, warn the user but still allow action
+        if (this.hasPendingInvoiceRequest(ticket)) {
+          this.showAlertMessage('Facture déjà demandée: en attente d\'approbation admin', 'warning');
+          return;
+        }
+        // Otherwise open request modal for this sale
+        this.requestInvoiceFromSale(ticket);
         this.closeTicketActionDialog();
         break;
       case 'return-exchange':
@@ -4704,6 +4858,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
     });
   }
 
+  hasPendingInvoiceRequest(ticket: any): boolean {
+    if (!ticket) return false;
+    const saleId = ticket.id;
+    return this.invoiceRequests.some(req => req.saleId === saleId && (req.status === 'PENDING' || req.status === 'REQUESTED'));
+  }
+
   hasInvoiceRequest(saleId: number): boolean {
     return this.invoiceRequests.some(request => request.saleId === saleId);
   }
@@ -4871,6 +5031,167 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.showInvoiceMenuModal = false;
   }
 
+  // Supplier quick actions
+  openSupplierQuickActions(): void {
+    this.showSupplierActionsModal = true;
+    this.supplierSearch = '';
+    this.selectedSupplierForAction = null;
+    this.supplierAction = null;
+    this.supplierPaymentAmount = '';
+    this.supplierPaymentNotes = '';
+    this.expenseAmount = '';
+    this.expenseDescription = '';
+    this.expenseNotes = '';
+    this.loadSuppliersForQuickActions();
+  }
+
+  closeSupplierQuickActions(): void {
+    this.showSupplierActionsModal = false;
+    this.supplierResults = [];
+    this.selectedSupplierForAction = null;
+  }
+
+  loadSuppliersForQuickActions(): void {
+    this.loadingSuppliers = true;
+    this.supplierService.getSuppliers().subscribe({
+      next: (suppliers: any[]) => {
+        this.supplierResults = (suppliers || []).filter((s: any) => s.isActive !== false);
+        this.loadingSuppliers = false;
+      },
+      error: () => {
+        this.supplierResults = [];
+        this.loadingSuppliers = false;
+      }
+    });
+  }
+
+  filterSuppliersQuick(): any[] {
+    const q = (this.supplierSearch || '').trim().toLowerCase();
+    if (!q) return this.supplierResults.slice(0, 20);
+    return this.supplierResults.filter(s =>
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.code || '').toLowerCase().includes(q) ||
+      (s.phone || '').toLowerCase().includes(q)
+    ).slice(0, 20);
+  }
+
+  pickSupplierForAction(s: any): void {
+    this.selectedSupplierForAction = s;
+  }
+
+  proceedSupplierAction(action: 'regler' | 'depense'): void {
+    if (!this.selectedSupplierForAction) {
+      this.showAlertMessage('Veuillez sélectionner un fournisseur', 'error');
+      return;
+    }
+
+    this.supplierAction = action;
+
+    if (action === 'regler') {
+      // Open payment form for supplier
+      this.showSupplierPaymentForm = true;
+      this.supplierPaymentAmount = '';
+      this.supplierPaymentMethod = 'CASH';
+      this.supplierPaymentNotes = `Règlement fournisseur depuis la caisse pour ${this.selectedSupplierForAction.name}`;
+      this.updateRemainingCashSupplier();
+    } else if (action === 'depense') {
+      // Open expense form for supplier
+      this.showExpenseForm = true;
+      this.expenseStep = 'category';
+      this.expenseAmount = '';
+      this.expenseDescription = `Dépense liée au fournisseur ${this.selectedSupplierForAction.name}`;
+      this.expensePaymentType = 'CASH';
+      this.expenseNotes = '';
+      this.expenseSupplierId = this.selectedSupplierForAction.id;
+      this.expensePayNow = true;
+      this.expenseIsPaid = false;
+      this.expenseIsAdvance = false;
+      this.expenseCollectionDate = new Date().toISOString().split('T')[0];
+      this.loadExpenseCategories();
+      this.updateRemainingCashExpense();
+    }
+  }
+
+  submitSupplierPayment(): void {
+    if (!this.selectedSupplierForAction) return;
+    const amount = Number(this.supplierPaymentAmount || 0);
+    if (amount <= 0) {
+      this.showAlertMessage('Montant invalide', 'error'); return;
+    }
+    this.submittingSupplierAction = true;
+    this.supplierService.createSupplierPayment({
+      supplierId: this.selectedSupplierForAction.id,
+      amount,
+      paymentMethod: this.supplierPaymentMethod,
+      notes: this.supplierPaymentNotes || 'Règlement via caisse'
+    }).subscribe({
+      next: () => {
+        this.showAlertMessage('Règlement fournisseur enregistré', 'success');
+        this.submittingSupplierAction = false;
+        this.showSupplierPaymentForm = false;
+        this.closeSupplierQuickActions();
+      },
+      error: () => {
+        this.submittingSupplierAction = false;
+        this.showAlertMessage('Erreur lors de l\'enregistrement du règlement', 'error');
+      }
+    });
+  }
+
+  private getSessionExpectedCash(): number {
+    const exp = (this.currentSession?.summary?.expectedCash ?? this.currentSession?.expectedCash ?? 0);
+    return Number(exp) || 0;
+  }
+
+  updateRemainingCashSupplier(): void {
+    if (this.supplierPaymentMethod !== 'CASH') {
+      this.remainingCashAfterSupplier = null;
+      return;
+    }
+    const base = this.getSessionExpectedCash();
+    const amt = Number(this.supplierPaymentAmount || 0);
+    this.remainingCashAfterSupplier = this.roundToTenthAsThreeDecimals(base - (isNaN(amt) ? 0 : amt));
+  }
+
+  updateRemainingCashExpense(): void {
+    if (this.expensePaymentType !== 'CASH') {
+      this.remainingCashAfterExpense = null;
+      return;
+    }
+    const base = this.getSessionExpectedCash();
+    const amt = Number(this.expenseAmount || 0);
+    this.remainingCashAfterExpense = this.roundToTenthAsThreeDecimals(base - (isNaN(amt) ? 0 : amt));
+  }
+
+  submitSupplierExpense(): void {
+    if (!this.selectedSupplierForAction) return;
+    const amount = Number(this.expenseAmount || 0);
+    if (amount <= 0) { this.showAlertMessage('Montant invalide', 'error'); return; }
+    const payload: any = {
+      amount,
+      description: this.expenseDescription || 'Dépense fournisseur (caisse)',
+      categoryId: 1, // default/misc category; adjust as needed
+      supplierId: this.selectedSupplierForAction.id,
+      depotId: this.currentShopDepotId,
+      date: new Date().toISOString(),
+      paymentType: this.expensePaymentType,
+      collectionDate: new Date().toISOString(),
+      notes: this.expenseNotes || ''
+    };
+    this.submittingSupplierAction = true;
+    this.expenseService.createExpense(payload).subscribe({
+      next: () => {
+        this.showAlertMessage('Dépense fournisseur enregistrée', 'success');
+        this.submittingSupplierAction = false;
+        this.closeSupplierQuickActions();
+      },
+      error: () => {
+        this.submittingSupplierAction = false;
+        this.showAlertMessage('Erreur lors de l\'enregistrement de la dépense', 'error');
+      }
+    });
+  }
+
   loadApprovedInvoices(): void {
     this.http.get(`${environment.apiUrl}/invoices?status=ISSUED&limit=50`, {
       headers: {
@@ -4918,9 +5239,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     }
 
     try {
-      // Convert invoice to sale format for printing
-      const sale = this.convertInvoiceToSale(invoice);
-      this.printService.printSaleReceipt(sale);
+      // Use the new invoice printing method instead of converting to sale
+      this.printService.printInvoice(invoice);
       this.showAlertMessage('Facture imprimée avec succès!', 'success');
       
       // Mark as printed
@@ -5284,5 +5604,154 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.showDepotSelection = false;
     // Redirect back to home if no depot is selected
     this.router.navigate(['/home']);
+  }
+
+  // Numpad methods for supplier payment
+  addToSupplierPaymentAmount(value: string): void {
+    if (value === '.') {
+      if (!this.supplierPaymentAmount.includes('.')) {
+        this.supplierPaymentAmount += value;
+      }
+    } else {
+      this.supplierPaymentAmount += value;
+    }
+  }
+
+  clearSupplierPaymentAmount(): void {
+    this.supplierPaymentAmount = '';
+  }
+
+  // Numpad methods for expense
+  addToExpenseAmount(value: string): void {
+    if (value === '.') {
+      if (!this.expenseAmount.includes('.')) {
+        this.expenseAmount += value;
+      }
+    } else {
+      this.expenseAmount += value;
+    }
+  }
+
+  clearExpenseAmount(): void {
+    this.expenseAmount = '';
+  }
+
+  // Expense flow methods
+  loadExpenseCategories(): void {
+    this.expenseService.getCategories().subscribe({
+      next: (categories: any[]) => {
+        this.expenseCategories = categories;
+      },
+      error: (error: any) => {
+        console.error('Error loading expense categories:', error);
+        this.showAlertMessage('Erreur lors du chargement des catégories', 'error');
+      }
+    });
+  }
+
+  selectExpenseCategory(category: any): void {
+    this.selectedExpenseCategory = category;
+    this.goToNextExpenseStep();
+  }
+
+  goToNextExpenseStep(): void {
+    switch (this.expenseStep) {
+      case 'category':
+        this.expenseStep = 'payment';
+        break;
+      case 'payment':
+        // If supplier already chosen from quick action, skip supplier step
+        if (this.expenseSupplierId !== undefined && this.expenseSupplierId !== null) {
+          this.expenseStep = 'notes';
+        } else {
+          this.expenseStep = 'supplier';
+          this.loadExpenseSuppliers();
+        }
+        break;
+      case 'supplier':
+        this.expenseStep = 'notes';
+        break;
+    }
+  }
+
+  goToPrevExpenseStep(): void {
+    switch (this.expenseStep) {
+      case 'payment':
+        this.expenseStep = 'category';
+        break;
+      case 'supplier':
+        this.expenseStep = 'payment';
+        break;
+      case 'notes':
+        this.expenseStep = 'supplier';
+        break;
+    }
+  }
+
+  loadExpenseSuppliers(): void {
+    this.supplierService.getSuppliers().subscribe({
+      next: (suppliers) => {
+        this.filteredExpenseSuppliers = suppliers.filter(s => s.isActive);
+      },
+      error: (error) => {
+        console.error('Error loading suppliers for expense:', error);
+      }
+    });
+  }
+
+  submitExpense(): void {
+    if (!this.selectedExpenseCategory) {
+      this.showAlertMessage('Veuillez sélectionner une catégorie', 'error');
+      return;
+    }
+
+    const amount = Number(this.expenseAmount || 0);
+    if (amount <= 0) {
+      this.showAlertMessage('Montant invalide', 'error');
+      return;
+    }
+
+    this.submittingSupplierAction = true;
+
+    const payload: any = {
+      amount,
+      categoryId: this.selectedExpenseCategory.id,
+      supplierId: this.expenseSupplierId,
+      paymentType: this.expensePaymentType,
+      date: new Date().toISOString().split('T')[0],
+      collectionDate: this.expensePayNow ? new Date().toISOString().split('T')[0] : this.expenseCollectionDate,
+      notes: this.expenseNotes || '',
+      isPaid: this.expenseIsPaid,
+      isAdvance: this.expenseIsAdvance
+    };
+
+    this.expenseService.createExpense(payload).subscribe({
+      next: () => {
+        this.showAlertMessage('Dépense enregistrée avec succès', 'success');
+        this.submittingSupplierAction = false;
+        this.showExpenseForm = false;
+        this.resetExpenseForm();
+      },
+      error: (error) => {
+        console.error('Error creating expense:', error);
+        this.submittingSupplierAction = false;
+        this.showAlertMessage('Erreur lors de l\'enregistrement de la dépense', 'error');
+      }
+    });
+  }
+
+  resetExpenseForm(): void {
+    this.expenseStep = 'category';
+    this.expenseAmount = '';
+    this.expenseDescription = '';
+    this.expensePaymentType = 'CASH';
+    this.expenseNotes = '';
+    this.expenseSupplierId = undefined;
+    this.expensePayNow = true;
+    this.expenseIsPaid = false;
+    this.expenseIsAdvance = false;
+    this.expenseCollectionDate = new Date().toISOString().split('T')[0];
+    this.selectedExpenseCategory = null;
+    this.expenseSupplierSearch = '';
   }
 } 

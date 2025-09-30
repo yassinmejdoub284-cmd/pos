@@ -91,6 +91,16 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
     const rows: Array<{ createdAt: string; label: string; amount: number }> = [];
 
+    // Opening fund (initial cash in drawer at session start)
+    const openingFund = parseFloat((session.openingFund as any) || 0) || 0;
+    if (openingFund > 0) {
+      rows.push({
+        createdAt: session.openedAt as any,
+        label: 'Fonds initial',
+        amount: openingFund
+      });
+    }
+
     // Encaissements Crédit Clients (from server details)
     const clientPayments = ((session.summary as any)?.clientPaymentsDetails || []) as Array<any>;
     for (const p of clientPayments) {
@@ -101,12 +111,16 @@ export class ClotureComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Acomptes sur commande (cash movements labeled with Acompte commande)
+    // Acomptes / Avances sur commande (cash movements labeled accordingly)
     const movements = (session.cashMovements || []) as Array<any>;
     for (const m of movements) {
       const reasonLower = (m.reason || '').toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
-      if (m.type === 'ENTREE' && reasonLower.startsWith('acompte commande') && amount > 0) {
+      const isAdvance = reasonLower.startsWith('acompte commande')
+        || reasonLower.includes('acompte')
+        || reasonLower.includes('avance')
+        || reasonLower.includes('advance');
+      if (m.type === 'ENTREE' && isAdvance && amount > 0) {
         rows.push({
           createdAt: m.createdAt,
           label: m.reason || 'Acompte commande',
@@ -444,7 +458,15 @@ export class ClotureComponent implements OnInit, OnDestroy {
   getTotalOrderAdvances(): number {
     const movements = this.currentSession()?.cashMovements || [];
     return movements
-      .filter(m => m.type === 'ENTREE' && (m.reason || '').toLowerCase().startsWith('acompte commande'))
+      .filter(m => {
+        const reason = (m.reason || '').toLowerCase();
+        return m.type === 'ENTREE' && (
+          reason.startsWith('acompte commande') ||
+          reason.includes('acompte') ||
+          reason.includes('avance') ||
+          reason.includes('advance')
+        );
+      })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 
@@ -475,6 +497,10 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const expenses = this.getExpensesTotal();
     const supplierRegs = this.getSupplierPaymentsTotal();
     return opening + cashFromSales + clientPayments + orderAdvances - expenses - supplierRegs;
+  }
+
+  getOpeningFund(): number {
+    return parseFloat((this.currentSession()?.openingFund as any) || 0) || 0;
   }
 
   // Load and show current session tickets (id + amount)
@@ -680,7 +706,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
           withdrawal: withdrawalAmount,
           remainingCash: (sessionReport.summary?.expectedCash || 0) - withdrawalAmount,
           closureTimestamp: new Date(),
-          alimentations: sessionReport.session?.cashMovements?.filter((movement: any) => movement.type === 'ENTREE') || []
+          alimentations: sessionReport.session?.cashMovements?.filter((movement: any) => movement.type === 'ENTREE') || [],
+          openingFund: Number(this.currentSession()?.openingFund || 0)
         };
         
         // Fetch company settings and print with real data

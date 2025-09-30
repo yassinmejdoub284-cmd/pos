@@ -63,7 +63,7 @@ export interface TicketAction {
         <!-- Actions Grid -->
         <div class="p-6">
           <div class="grid grid-cols-1 gap-4">
-            <div *ngFor="let action of ticketActions" 
+            <div *ngFor="let action of getVisibleActions()" 
                  (click)="onActionClick(action.id)"
                  class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-blue-100/50 hover:shadow-md hover:scale-98 transition-all duration-200 ring-1 ring-blue-50 relative overflow-hidden">
               
@@ -78,10 +78,10 @@ export interface TicketAction {
                 
                 <div class="flex-1">
                   <h3 class="text-lg font-semibold text-blue-800 group-hover:text-blue-600 transition-colors">
-                    {{ action.title }}
+                    {{ getActionTitle(action.id, action.title) }}
                   </h3>
                   <p class="text-sm text-blue-600/70 group-hover:text-blue-600 transition-colors">
-                    {{ action.description }}
+                    {{ getActionDescription(action.id, action.description) }}
                   </p>
                 </div>
               </div>
@@ -114,6 +114,8 @@ export interface TicketAction {
 })
 export class TicketActionDialogComponent {
   @Input() ticket: Sale | null = null;
+  @Input() isInvoiceApprovedForTicket: ((ticket: Sale | null) => boolean) | null = null;
+  @Input() hasInvoiceRequestForTicket: ((ticket: Sale | null) => boolean) | null = null;
   @Output() actionSelected = new EventEmitter<string>();
   @Output() dialogClosed = new EventEmitter<void>();
 
@@ -125,6 +127,14 @@ export class TicketActionDialogComponent {
       icon: 'M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z',
       color: 'from-emerald-500 to-green-600',
       gradient: 'from-emerald-50 to-green-100'
+    },
+    {
+      id: 'request-invoice',
+      title: 'Demander facture',
+      description: 'Créer une demande de facture pour ce ticket',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586l6.414 6.414V19a2 2 0 01-2 2z',
+      color: 'from-indigo-500 to-blue-600',
+      gradient: 'from-indigo-50 to-blue-100'
     },
     {
       id: 'return-exchange',
@@ -156,6 +166,26 @@ export class TicketActionDialogComponent {
     if (event.target === event.currentTarget) {
       this.onClose();
     }
+  }
+
+  getVisibleActions(): TicketAction[] {
+    return this.ticketActions;
+  }
+
+  getActionTitle(actionId: string, fallback: string): string {
+    if (actionId === 'request-invoice') {
+      if (this.isInvoiceApprovedForTicket && this.isInvoiceApprovedForTicket(this.ticket)) return 'Imprimer la facture';
+      if (this.hasInvoiceRequestForTicket && this.hasInvoiceRequestForTicket(this.ticket)) return 'Facture en attente d\'approbation';
+    }
+    return fallback;
+  }
+
+  getActionDescription(actionId: string, fallback: string): string {
+    if (actionId === 'request-invoice') {
+      if (this.isInvoiceApprovedForTicket && this.isInvoiceApprovedForTicket(this.ticket)) return 'Imprimer la facture approuvée';
+      if (this.hasInvoiceRequestForTicket && this.hasInvoiceRequestForTicket(this.ticket)) return 'Demande envoyée, en attente d\'approbation';
+    }
+    return fallback;
   }
 
   formatTicketNumber(t: Sale | null): string {

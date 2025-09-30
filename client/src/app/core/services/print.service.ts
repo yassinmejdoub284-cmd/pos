@@ -70,6 +70,28 @@ export class PrintService {
     });
   }
 
+  // Print invoice (different from regular receipt)
+  printInvoice(invoice: any, options?: { openPreviewOnly?: boolean }): void {
+    this.settingsService.getSettings().subscribe({
+      next: (settings) => {
+        // Check if desktop version is enabled
+        if (settings?.isDesktopVersion) {
+          // Use Tauri direct printing with text format
+          const text = this.buildInvoiceText(invoice, settings);
+          void this.printPlainText(text);
+        } else {
+          // Use browser window printing with HTML format
+          this.printInvoiceInBrowser(invoice, settings);
+        }
+      },
+      error: () => {
+        // Fallback to default settings if error
+        const text = this.buildInvoiceText(invoice, null);
+        void this.printPlainText(text);
+      }
+    });
+  }
+
   // Printers management (stubs wired to backend)
   getAvailablePrinters(): Promise<Array<{ name: string; isDefault: boolean }>> {
     return invoke('get_available_printers');
@@ -840,6 +862,251 @@ export class PrintService {
     });
   }
 
+  // Browser printing method for invoices
+  private printInvoiceInBrowser(invoice: any, settings?: AppSettings | null): void {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    
+    if (!printWindow) {
+      console.error('Could not open print window');
+      return;
+    }
 
+    // Use the existing HTML invoice builder
+    const htmlContent = this.buildInvoiceHtml(invoice, settings);
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Wait for content to load, then print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 100);
+    };
+  }
+
+  // Build HTML invoice for browser printing
+  buildInvoiceHtml(invoice: any, settings?: AppSettings | null): string {
+    const createdAt = new Date(invoice.createdAt);
+    const date = createdAt.toLocaleDateString('fr-FR');
+    const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    const lines = invoice.lines || [];
+    const itemsRows = lines.map((line: any) => {
+      const name = line.productName || line.name || 'Produit';
+      const qty = Number(line.quantity || 0).toString();
+      const unitPrice = Number(line.prixVenteTTC || line.unitPrice || 0).toFixed(3);
+      const total = Number(line.total || line.amount || 0).toFixed(3);
+      
+      return `
+        <tr>
+          <td class="name">${this.escapeHtml(name)}</td>
+          <td class="qty">${qty}</td>
+          <td class="price">${unitPrice}</td>
+          <td class="total">${total}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const totalHT = Number(invoice.totalHT || 0).toFixed(3);
+    const totalTVA = Number(invoice.totalTVA || 0).toFixed(3);
+    const totalTTC = Number(invoice.total || 0).toFixed(3);
+    
+    const clientName = invoice.client ? `${invoice.client.firstName || ''} ${invoice.client.lastName || ''}`.trim() : 'Client anonyme';
+    const clientMatricule = invoice.client?.matriculeFiscal || '';
+    const clientAddress = invoice.client?.address || '';
+
+    // Generate logo HTML if enabled
+    let logoHtml = '';
+    if (settings?.printSettings?.showLogo && settings?.logoUrl) {
+      const logoSize = settings.printSettings.logoSize || 'medium';
+      const logoUrl = this.settingsService.getAbsoluteLogoUrl(settings.logoUrl);
+      
+      let logoWidth = '60px';
+      if (logoSize === 'large') logoWidth = '80px';
+      else if (logoSize === 'small') logoWidth = '40px';
+      
+      logoHtml = `
+        <div class="center" style="margin-bottom: 10px;">
+          <img src="${logoUrl}" alt="Company Logo" style="max-width: ${logoWidth}; height: auto; max-height: 60px;" />
+        </div>
+      `;
+    }
+
+    const companyName = settings?.companyName || 'PATISSERIE MODERNE';
+    const companyAddress = settings?.companyAddress || '123 Rue de la Paix, Tunis, Tunisie';
+    const companyPhone = settings?.companyPhone || 'Tel: +216 71 123 456';
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Facture ${invoice.invoiceNumber || invoice.id}</title>
+          <style>
+            @page { margin: 0 !important; }
+            body { font-family: 'Courier New', monospace; margin: 0; padding: 8px; }
+            .ticket { width: 300px; margin: 0 auto; }
+            .center { text-align: center; }
+            .line { border-top: 1px dashed #000; margin: 8px 0; }
+            .double-line { border-top: 2px solid #000; margin: 8px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            td { font-size: 12px; padding: 2px 0; }
+            td.name { width: 48%; }
+            td.qty { width: 12%; text-align: right; }
+            td.price { width: 20%; text-align: right; }
+            td.total { width: 20%; text-align: right; }
+            .muted { color: #444; }
+            .bold { font-weight: 700; }
+            .invoice-header { background: #f0f0f0; padding: 8px; margin: 8px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="ticket">
+            ${logoHtml}
+            <div class="center bold">${this.escapeHtml(companyName)}</div>
+            <div class="center muted">${this.escapeHtml(companyAddress)}</div>
+            <div class="center muted">${this.escapeHtml(companyPhone)}</div>
+            <div class="double-line"></div>
+            
+            <div class="invoice-header center bold">FACTURE</div>
+            <div>N° Facture: ${invoice.invoiceNumber || `FAC-${invoice.id}`}</div>
+            <div>Date: ${date} &nbsp;&nbsp; Heure: ${time}</div>
+            <div class="line"></div>
+            
+            <div class="bold">CLIENT:</div>
+            <div>${this.escapeHtml(clientName)}</div>
+            ${clientMatricule ? `<div>Matricule fiscal: ${this.escapeHtml(clientMatricule)}</div>` : ''}
+            ${clientAddress ? `<div>Adresse: ${this.escapeHtml(clientAddress)}</div>` : ''}
+            <div class="line"></div>
+            
+            <table>
+              <thead>
+                <tr>
+                  <td class="bold">ARTICLE</td>
+                  <td class="bold" style="text-align:right">QTE</td>
+                  <td class="bold" style="text-align:right">P.U. TTC</td>
+                  <td class="bold" style="text-align:right">TOTAL</td>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsRows}
+              </tbody>
+            </table>
+            <div class="line"></div>
+            <table>
+              <tr><td class="bold">Total HT</td><td style="text-align:right" class="bold">${totalHT} dt</td></tr>
+              <tr><td class="bold">TVA</td><td style="text-align:right" class="bold">${totalTVA} dt</td></tr>
+              <tr><td class="bold">TOTAL TTC</td><td style="text-align:right" class="bold">${totalTTC} dt</td></tr>
+            </table>
+            <div class="line"></div>
+            <div class="center">Merci de votre confiance!</div>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  // Build thermal text invoice
+  buildInvoiceText(invoice: any, settings: AppSettings | null): string {
+    const createdAt = new Date(invoice.createdAt);
+    const date = createdAt.toLocaleDateString('fr-FR');
+    const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    let text = '';
+    
+    // ESC/POS commands for formatting
+    const ESC = '\x1B';
+    const centerAlign = ESC + '\x61\x01'; // Center alignment
+    const leftAlign = ESC + '\x61\x00';   // Left alignment
+    const boldOn = ESC + '\x45\x01';      // Bold on
+    const boldOff = ESC + '\x45\x00';     // Bold off
+    const normalSize = ESC + '\x21\x00';  // Normal size
+    const monospaceFont = ESC + '\x4D\x00'; // Select font A (monospace)
+    const resetFont = ESC + '\x40';       // Initialize printer (resets font)
+    const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
+    const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
+    
+    // Eliminate margins and set monospace font
+    text += noTopMargin + noBottomMargin + monospaceFont;
+    
+    // Header
+    text += '==================\n';
+    
+    // Company name (bold and centered)
+    const companyName = this.sanitizeForThermalPrinter(settings?.companyName || 'PATISSERIE MODERNE');
+    text += centerAlign + boldOn + companyName + boldOff + normalSize + '\n';
+    
+    // Company details (centered)
+    if (settings?.printSettings?.showCompanyDetails) {
+      if (settings?.companyAddress) {
+        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyAddress) + '\n';
+      }
+      if (settings?.companyPhone) {
+        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyPhone) + '\n';
+      }
+    }
+    
+    text += leftAlign + '==================\n\n';
+    
+    // Invoice header
+    text += centerAlign + boldOn + 'FACTURE' + boldOff + '\n';
+    text += leftAlign + 'N° Facture: ' + (invoice.invoiceNumber || `FAC-${invoice.id}`) + '\n';
+    text += 'Date: ' + date + '  Heure: ' + time + '\n';
+    text += '--------------------------------\n\n';
+    
+    // Client information
+    const clientName = invoice.client ? `${invoice.client.firstName || ''} ${invoice.client.lastName || ''}`.trim() : 'Client anonyme';
+    const clientMatricule = invoice.client?.matriculeFiscal || '';
+    const clientAddress = invoice.client?.address || '';
+    
+    text += boldOn + 'CLIENT:' + boldOff + '\n';
+    text += this.sanitizeForThermalPrinter(clientName) + '\n';
+    if (clientMatricule) {
+      text += 'Matricule fiscal: ' + this.sanitizeForThermalPrinter(clientMatricule) + '\n';
+    }
+    if (clientAddress) {
+      text += 'Adresse: ' + this.sanitizeForThermalPrinter(clientAddress) + '\n';
+    }
+    text += '--------------------------------\n\n';
+    
+    // Items
+    text += boldOn + 'ARTICLES:' + boldOff + '\n';
+    text += '--------------------------------\n';
+    
+    const lines = invoice.lines || [];
+    lines.forEach((line: any) => {
+      const name = this.sanitizeForThermalPrinter(line.productName || line.name || 'Produit');
+      const qty = Number(line.quantity || 0).toString();
+      const unitPrice = Number(line.prixVenteTTC || line.unitPrice || 0).toFixed(3);
+      const total = Number(line.total || line.amount || 0).toFixed(3);
+      
+      // Simple formatting for thermal printer
+      const nameTruncated = name.length > 20 ? name.substring(0, 17) + '...' : name;
+      text += nameTruncated.padEnd(20) + qty.padStart(3) + unitPrice.padStart(8) + total.padStart(8) + '\n';
+    });
+    
+    text += '--------------------------------\n';
+    
+    // Totals
+    const totalHT = Number(invoice.totalHT || 0).toFixed(3);
+    const totalTVA = Number(invoice.totalTVA || 0).toFixed(3);
+    const totalTTC = Number(invoice.total || 0).toFixed(3);
+    
+    text += 'Total HT'.padEnd(20) + totalHT.padStart(19) + ' dt\n';
+    text += 'TVA'.padEnd(20) + totalTVA.padStart(19) + ' dt\n';
+    text += boldOn + 'TOTAL TTC'.padEnd(20) + totalTTC.padStart(19) + ' dt' + boldOff + '\n';
+    
+    text += '--------------------------------\n';
+    text += centerAlign + 'Merci de votre confiance!' + '\n';
+    text += '==================\n\n';
+    
+    // Cut paper
+    text += '\x1D\x56\x00';
+    
+    return text;
+  }
 
 }

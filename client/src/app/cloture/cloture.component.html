@@ -61,6 +61,16 @@
         <span class="font-semibold">{{ formatCurrency(currentSession()?.summary?.totalSales || 0) }}</span>
       </div>
       <div
+        class="px-2 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs inline-flex items-center gap-1.5 cursor-pointer select-none">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v6" />
+          <path d="M6 9h12" />
+        </svg>
+        <span>Fonds initial:</span>
+        <span class="font-semibold">{{ formatCurrency(getOpeningFund()) }}</span>
+      </div>
+      <div
         class="px-2 py-1 rounded-full border border-violet-200 bg-violet-50 text-violet-700 text-xs inline-flex items-center gap-1.5 cursor-pointer select-none"
         (click)="openTicketsModal()">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
