@@ -41,9 +41,6 @@ client/out-tsc
 client/coverage
 client/tmp
 
-# Environment files (don’t commit secrets)
-client/src/environments/environment*.ts
-
 # -------------------------
 # Node.js (server)
 # -------------------------
