@@ -859,6 +859,18 @@
         <span>Clôturer la caisse</span>
       </button>
 
+      <button (click)="printDetailedReport()"
+        class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-indigo-200 bg-indigo-50 text-indigo-700 text-lg font-bold shadow-lg hover:scale-[1.02] hover:border-indigo-300 hover:bg-indigo-100 transition-all duration-200 flex items-center justify-center gap-3"
+        title="Imprimer l'extrait (test)">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3h18v6H3z" />
+          <path d="M6 13h12v8H6z" />
+          <circle cx="18" cy="10" r="1" />
+        </svg>
+        <span>Imprimer (test)</span>
+      </button>
+
       <button (click)="showFundForm.set(true)"
         class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-blue-200 bg-blue-50 text-blue-700 text-lg font-bold shadow-lg hover:scale-[1.02] hover:border-blue-300 hover:bg-blue-100 transition-all duration-200 flex items-center justify-center gap-3">
         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"

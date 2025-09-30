@@ -1,36 +1,90 @@
 import { Injectable } from '@angular/core';
 import { ZReportData } from '../models/session.model';
 import { Sale } from '../models/sale.model';
-import { invoke } from '@tauri-apps/api/core';
 import { SettingsService, AppSettings } from './settings.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PrintService {
+  private isDesktop = false;
 
-  constructor(private settingsService: SettingsService) { }
+  constructor(private settingsService: SettingsService) {
+    // Check if we're running in Tauri desktop environment
+    this.isDesktop = typeof window !== 'undefined' && (window as any).__TAURI__;
+  }
 
-  // Desktop-only printing via Tauri commands
+  // Print methods that work in both desktop and web environments
   async printPlainText(text: string): Promise<void> {
+    if (this.isDesktop) {
+      const { invoke } = await import('@tauri-apps/api/core');
     await invoke('print_text_direct', { text });
+    } else {
+      // Web fallback: open print dialog with plain text
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head><title>Print</title></head>
+            <body style="font-family: monospace; white-space: pre-wrap;">${text}</body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    }
   }
 
   async printHtml(html: string): Promise<void> {
+    if (this.isDesktop) {
+      const { invoke } = await import('@tauri-apps/api/core');
     await invoke('print_html', { html });
+    } else {
+      // Web fallback: open print dialog with HTML
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    }
   }
 
   async printPdf(pdfBase64: string): Promise<void> {
+    if (this.isDesktop) {
+      const { invoke } = await import('@tauri-apps/api/core');
     await invoke('print_pdf', { pdfBase64: pdfBase64 });
+    } else {
+      // Web fallback: download PDF
+      const link = document.createElement('a');
+      link.href = `data:application/pdf;base64,${pdfBase64}`;
+      link.download = 'document.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   }
 
   async printEscPos(escposData: string): Promise<void> {
+    if (this.isDesktop) {
+      const { invoke } = await import('@tauri-apps/api/core');
     const base64 = this.toBase64(this.stringToBytes(escposData));
     await invoke('print_raw_bytes', { data_base64: base64 });
+    } else {
+      // Web fallback: convert ESC/POS to readable format and print
+      const readableText = this.convertEscPosToReadable(escposData);
+      await this.printPlainText(readableText);
+    }
   }
 
   async openCashDrawer(): Promise<void> {
+    if (this.isDesktop) {
+      const { invoke } = await import('@tauri-apps/api/core');
     await invoke('open_cash_drawer');
+    } else {
+      // Web fallback: show message
+      alert('Ouverture du tiroir-caisse (mode web)');
+    }
   }
 
   // Receipts and reports route to Tauri print
@@ -39,8 +93,14 @@ export class PrintService {
     void this.printEscPos(escposData);
   }
 
-  printDailyExtractWithWithdrawal(dailyExtract: any, companyData?: any): void {
-    const escposData = this.generateDailyExtractESC(dailyExtract, companyData);
+  printDailyExtractWithWithdrawal(sessionReport: any, companyData?: any, withdrawalAmount: number = 0): void {
+    const escposData = this.generateDailyExtractESC(sessionReport, companyData, withdrawalAmount);
+    void this.printEscPos(escposData);
+  }
+
+  // Print detailed session report for thermal printer
+  printDetailedSessionReport(sessionReport: any, companyData?: any): void {
+    const escposData = this.generateDailyExtractESC(sessionReport, companyData, 0);
     void this.printEscPos(escposData);
   }
 
@@ -93,13 +153,25 @@ export class PrintService {
   }
 
   // Printers management (stubs wired to backend)
-  getAvailablePrinters(): Promise<Array<{ name: string; isDefault: boolean }>> {
+  async getAvailablePrinters(): Promise<Array<{ name: string; isDefault: boolean }>> {
+    if (this.isDesktop) {
+      const { invoke } = await import('@tauri-apps/api/core');
     return invoke('get_available_printers');
+    } else {
+      // Web fallback: return empty array
+      return [];
+    }
   }
 
-  setDefaultPrinter(printerName: string): Promise<boolean> {
+  async setDefaultPrinter(printerName: string): Promise<boolean> {
+    if (this.isDesktop) {
+      const { invoke } = await import('@tauri-apps/api/core');
     return invoke<{ success: boolean; message: string }>('set_default_printer', { printer_name: printerName })
-      .then(res => !!res?.success);
+        .then((res: any) => !!res?.success);
+    } else {
+      // Web fallback: return false
+      return false;
+    }
   }
 
   // Browser printing method
@@ -140,6 +212,38 @@ export class PrintService {
       binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)) as unknown as number[]);
     }
     return btoa(binary);
+  }
+
+  // Convert ESC/POS commands to readable text for web printing
+  private convertEscPosToReadable(escposData: string): string {
+    // Remove ESC/POS control sequences and keep only printable characters
+    return escposData
+      .replace(/\x1B\[[0-9;]*[A-Za-z]/g, '') // Remove ANSI escape sequences
+      .replace(/\x1B\x40/g, '') // Remove ESC @ (initialize)
+      .replace(/\x1B\x61[0-2]/g, '') // Remove ESC a (alignment) - this was causing the 'a' character
+      .replace(/\x1B\x21[0-9A-F]/g, '') // Remove ESC ! (character size)
+      .replace(/\x1D\x56[0-2]/g, '') // Remove GS V (cut paper) - this was causing the 'V' character
+      .replace(/\x1B\x4A[0-9A-F]/g, '') // Remove ESC J (line feed)
+      .replace(/\x0A/g, '\n') // Convert LF to newline
+      .replace(/\x0D/g, '') // Remove CR
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
+      .replace(/^a/, '') // Remove any remaining 'a' at the beginning
+      .replace(/V$/, '') // Remove any remaining 'V' at the end
+      .replace(/a$/, '') // Remove any remaining 'a' at the end
+      // Remove leftover single-letter alignment artifacts at line start
+      .replace(/^\s*[aA]\s*$/gm, '')
+      // Remove 'a' at the beginning of any line
+      .replace(/^a/gm, '')
+      // Specifically handle stray 'a' before footer lines like 'Merci de votre confiance!'
+      .replace(/^a(?=Merci)/gm, '')
+      // Remove stray 'a' before common headings
+      .replace(/^a(?=Session\s*:)/gm, '')
+      .replace(/^a(?=Caissier\s*:)/gm, '')
+      .replace(/^a(?=Ouvert\s*:)/gm, '')
+      .replace(/^a(?=Fermé\s*:)/gm, '')
+      // Remove 'a' before 'Extrait Journalière'
+      .replace(/^a(?=Extrait)/gm, '')
+      .trim();
   }
 
   // Helper method to get ticket number for printing
@@ -186,13 +290,9 @@ export class PrintService {
     escpos += 'Session: #' + session.id + '\n';
     escpos += 'Caissier: ' + session.user?.firstName + ' ' + session.user?.lastName + '\n';
     escpos += 'POS: ' + session.posId + '\n';
-    escpos += 'Ouvert: ' + this.formatDateTime(session.openedAt) + '\n';
-
-    if (session.closedAt) {
-      escpos += 'Fermé: ' + this.formatDateTime(session.closedAt) + '\n';
-    }
-
-    escpos += '\n';
+    const openedAtStr = this.formatDateTime(session.openedAt);
+    const closedAtStr = session.closedAt ? this.formatDateTime(session.closedAt) : '';
+    escpos += 'Ouvert: ' + openedAtStr + (closedAtStr ? '  |  Fermé: ' + closedAtStr : '') + '\n\n';
 
     // Sales summary
     escpos += 'RÉCAPITULATIF VENTES\n';
@@ -289,97 +389,274 @@ export class PrintService {
   }
 
   // Send data to printer
-  // Generate ESC/POS commands for daily extract with withdrawal
-  private generateDailyExtractESC(dailyExtract: any, companyData?: any): string {
+  // Generate comprehensive ESC/POS commands for detailed daily extract
+  private generateDailyExtractESC(sessionReport: any, companyData?: any, withdrawalAmount: number = 0): string {
     let escpos = '';
+
+    // Debug: Log the session report structure to help identify data issues (remove in production)
+    console.log('Session Report Structure:', sessionReport);
+    console.log('Session data:', sessionReport.session);
+    console.log('Session sales:', sessionReport.session?.sales);
+    console.log('Opening fund from session:', sessionReport.session?.openingFund);
+    console.log('Families data:', sessionReport.families);
+    console.log('Summary data:', sessionReport.summary);
 
     // Initialize printer
     escpos += '\x1B\x40';
+    escpos += '\x1B\x61\x01'; // Center align for header
 
-    // Left align everything
-    escpos += '\x1B\x61\x00';
+    // Minimal header removed per request
 
-    // Stylish header with emojis (grayscale)
-    escpos += '╔══════════════════════════════════╗\n';
-    escpos += '📊 EXTRait JOURNALIÈRE 📊\n';
-    escpos += '╚══════════════════════════════════╝\n\n';
+    // Show title centered and date/time right aligned
+    const closedDate = new Date();
+    const formatDateNoYearWithTime = (date: Date) => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day}/${month} ${hours}:${minutes}`;
+    };
+    const closingTime = formatDateNoYearWithTime(closedDate);
+    
+    // Add decorative top border
+    escpos += '================================\n';
+    
+    // Center both title and date on the same line
+    escpos += '\x1B\x61\x01'; // Center align
+    escpos += 'Extrait Journalière - ' + closingTime + '\n';
+    
+    // Add decorative bottom border
+    escpos += '================================\n\n';
 
-    // Company info with style - use real data
-    const companyName = companyData?.companyName || 'PATISSERIE MODERNE';
-    const depotName = companyData?.depotName || '';
-    const address = companyData?.address || '123 Rue de la Paix';
-    const city = companyData?.city || 'Tunis, Tunisie';
-    const phone = companyData?.phone || '+216 71 123 456';
+    // Session info (kept minimal or removed as requested)
+    escpos += '\x1B\x61\x00'; // Left align
+    const session = sessionReport.session;
+    const summary = sessionReport.summary;
 
-    escpos += '🏪 ' + companyName + '\n';
-    if (depotName) {
-      escpos += '🏢 ' + depotName + '\n';
-    }
-    escpos += '📍 ' + address + '\n';
-    escpos += '🌍 ' + city + '\n';
-    escpos += '📞 ' + phone + '\n\n';
+    // Opening fund - keep but do not print session/user lines above
+    const sessionOpeningFund = session.openingFund || 
+                              session.opening_fund || 
+                              session.fondsInitial || 
+                              sessionReport.openingFund ||
+                              sessionReport.fondsInitial ||
+                              0;
 
-    // Date with emojis
-    escpos += '📅 Date: ' + this.formatDate(dailyExtract.date) + '\n';
-    escpos += '🕐 Heure clôture: ' + this.formatDateTime(dailyExtract.closureTimestamp) + '\n\n';
+    // Sales by family with detailed products
 
-    // Families and Products with compact table format
-    if (dailyExtract.families && dailyExtract.families.length > 0) {
-      dailyExtract.families.forEach((family: any) => {
-        escpos += '🍰 ' + family.name.toUpperCase() + ' 🍰\n';
-        escpos += '========================\n';
-        
-        // Table header
-        escpos += 'Article      Qty P.U. Total\n';
-        escpos += '========================\n';
+    // Build products per family from session sales if needed
+    const sales: any[] = (sessionReport?.session?.sales || []) as any[];
+    const familyToProducts: Record<string, { name: string; quantity: number; revenue: number }[]> = {};
+    const normalizeFamily = (name: any): string => (name ?? '').toString().trim();
 
-        if (family.products && family.products.length > 0) {
-          family.products.forEach((product: any) => {
-            const unitPrice = product.quantity > 0 ? product.revenue / product.quantity : 0;
-            const productName = product.name.length > 12 ? product.name.substring(0, 12) : product.name.padEnd(12);
-            const qty = product.quantity.toString().padStart(2);
-            const price = this.formatCurrency(unitPrice).padStart(4);
-            const total = this.formatCurrency(product.revenue).padStart(6);
-            
-            escpos += productName + ' ' + qty + ' ' + price + ' ' + total + '\n';
-          });
+    console.log('Processing sales for product aggregation:', sales.length, 'sales');
+    
+    if (sales.length) {
+      const tempMap: Record<string, Record<string, { name: string; quantity: number; revenue: number }>> = {};
+      for (const sale of sales) {
+        const items: any[] = (sale.items || []) as any[];
+        console.log('Sale items:', items.length, 'items in sale', sale.id);
+        for (const it of items) {
+          console.log('Processing item:', it);
+          const famCandidate = it.familyName || it.categoryName || it.family || it.product?.famille?.name || it.product?.family?.name || '';
+          const fam = normalizeFamily(famCandidate);
+          const familyName = fam && fam.length ? fam : 'AUTRES';
+          const productName: string = (it.productName || it.name || 'Produit').toString();
+          const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
+          const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+          console.log('Item details:', { familyName, productName, qty, lineTotal });
+          if (!tempMap[familyName]) tempMap[familyName] = {};
+          if (!tempMap[familyName][productName]) {
+            tempMap[familyName][productName] = { name: productName, quantity: 0, revenue: 0 };
+          }
+          tempMap[familyName][productName].quantity += qty;
+          tempMap[familyName][productName].revenue += lineTotal;
         }
-
-        // Family total row
-        escpos += '========================\n';
-        const totalLabel = 'Total ' + family.name;
-        const totalValue = this.formatCurrency(family.totalRevenue);
-        escpos += totalLabel.padEnd(12) + '   ' + totalValue.padStart(6) + '\n';
-        escpos += '========================\n\n';
-      });
+      }
+      // Convert to arrays sorted by revenue desc
+      for (const famName of Object.keys(tempMap)) {
+        familyToProducts[famName] = Object.values(tempMap[famName])
+          .filter(p => p.quantity > 0 && p.revenue > 0)
+          .sort((a, b) => b.revenue - a.revenue);
+      }
+      console.log('Final familyToProducts:', familyToProducts);
     }
 
-    // Summary with compact table format
-    escpos += '📈 RÉCAPITULATIF 📈\n';
-    escpos += '========================\n';
-    escpos += 'Totale Remise     ' + this.formatCurrency(dailyExtract.totalDiscount) + '\n';
-    escpos += 'Totale Recette    ' + this.formatCurrency(dailyExtract.totalRevenue) + '\n';
-    escpos += 'Totale Caisse     ' + this.formatCurrency(dailyExtract.soldeDebit) + '\n';
-
-    // Expenses with compact format
-    if (dailyExtract.expenses && dailyExtract.expenses.length > 0) {
-      escpos += 'Dépense\n';
-      dailyExtract.expenses.forEach((expense: any) => {
-        escpos += '--- ' + expense.description + ' ' + this.formatCurrency(expense.amount) + '\n';
+    if (sessionReport.families && sessionReport.families.length > 0) {
+      sessionReport.families.forEach((family: any) => {
+        const famName: string = normalizeFamily(family.name || 'AUTRES');
+        const familyTotal = Number(family.totalRevenue || family.total || family.amount || family.amountTTC || 0)
+          || (familyToProducts[famName]?.reduce((s, p) => s + p.revenue, 0) || 0);
+        const amount = this.formatCurrency(familyTotal);
+        const totalWidth = 32; // Total line width
+        const usedSpace = famName.length + 1 + amount.length; // +1 for colon
+        const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
+        const line = famName.toUpperCase() + ':' + dots + amount;
+        escpos += line + '\n';
       });
+    } else {
+      // No families in report: synthesize from sales map
+      const famNames = Object.keys(familyToProducts);
+      if (!famNames.length) {
+        escpos += 'Aucune donnée de famille disponible\n';
+      } else {
+        for (const famName of famNames) {
+          const famTotal = familyToProducts[famName].reduce((s, x) => s + x.revenue, 0);
+          const amount = this.formatCurrency(famTotal);
+          const totalWidth = 32; // Total line width
+          const usedSpace = famName.length + 1 + amount.length; // +1 for colon
+          const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
+          const line = famName.toUpperCase() + ':' + dots + amount;
+          escpos += line + '\n';
+        }
+      }
     }
 
-    // Final summary
-    escpos += 'Totale Caisse     ' + this.formatCurrency(dailyExtract.totalCaisse) + '\n';
-    escpos += 'Retrait           ' + this.formatCurrency(dailyExtract.withdrawal) + '\n';
-    escpos += 'Totale Reste      ' + this.formatCurrency(dailyExtract.remainingCash) + '\n';
-    escpos += '========================\n\n';
+    // Add total for family products
+    const totalFamilySales = sessionReport.families && sessionReport.families.length > 0 
+      ? sessionReport.families.reduce((sum: number, family: any) => {
+          const famName = normalizeFamily(family.name || 'AUTRES');
+          const familyTotal = Number(family.totalRevenue || family.total || family.amount || family.amountTTC || 0)
+            || (familyToProducts[famName]?.reduce((s, p) => s + p.revenue, 0) || 0);
+          return sum + familyTotal;
+        }, 0)
+      : Object.values(familyToProducts).reduce((sum, products) => 
+          sum + products.reduce((s, p) => s + p.revenue, 0), 0);
+    
+    escpos += '--------------------------------\n';
+    const totalAmount = this.formatCurrency(totalFamilySales);
+    const totalWidth = 32;
+    const usedSpace = 'TOTAL:'.length + totalAmount.length;
+    const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
+    escpos += 'TOTAL:' + dots + totalAmount + '\n\n';
 
-    // Stylish footer
-    escpos += '╔══════════════════════════════════╗\n';
-    escpos += '✅ Fin de l\'extrait ✅\n';
-    escpos += 'Merci de votre confiance! 💙\n';
-    escpos += '╚══════════════════════════════════╝\n\n';
+    // Sales summary by payment method removed per request
+
+    // Cash movements section removed per request
+
+    // Financial summary
+    escpos += '################################\n';
+    escpos += '    RÉSUMÉ FINANCIER\n';
+    escpos += '################################\n';
+    
+    const expectedCash = summary.expectedCash || 0;
+    const totalSales = summary.totalSales || 0;
+    const financialOpeningFund = session.openingFund || 0;
+    
+    const financialTotalWidth = 32;
+    
+    const formatFinancialLine = (label: string, amount: number) => {
+      const amountStr = this.formatCurrency(amount);
+      const usedSpace = label.length + amountStr.length;
+      const spaces = ' '.repeat(Math.max(1, financialTotalWidth - usedSpace));
+      return label + spaces + amountStr;
+    };
+    
+    // Calculate encaissement using the same logic as cash closure component
+    const getClientPaymentsTotal = () => parseFloat(summary.clientPaymentsTotal || 0) || 0;
+    
+    const getTotalOrderAdvances = () => {
+      const movements = session.cashMovements || [];
+      return movements
+        .filter((m: any) => {
+          const reason = (m.reason || '').toLowerCase();
+          return m.type === 'ENTREE' && (
+            reason.includes('acompte') || 
+            reason.includes('avance') || 
+            reason.includes('advance')
+          );
+        })
+        .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
+    };
+    
+    const getCashFromSalesNetOfCredit = () => {
+      const totalSales = parseFloat(summary.totalSales || 0) || 0;
+      const credit = parseFloat(summary.creditOutstanding || 0) || 0;
+      return Math.max(0, totalSales - credit);
+    };
+    
+    const getFundingsTotal = () => {
+      const movements = session.cashMovements || [];
+      return movements
+        .filter((m: any) => (m?.type === 'ENTREE') && 
+          ((m?.reason || '').toLowerCase().includes('fonds de caisse') || 
+           (m?.reason || '').toLowerCase().includes('alimentation') || 
+           (m?.reason || '').toLowerCase().includes('alimenter')))
+        .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
+    };
+    
+    const actualEntries = getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit() + getFundingsTotal();
+    const actualExits = summary.sortie || 0;
+    
+    escpos += formatFinancialLine('Fonds initial:', financialOpeningFund) + '\n';
+    escpos += formatFinancialLine('Enc. client:', getClientPaymentsTotal()) + '\n';
+    escpos += formatFinancialLine('Acomptes sur Cmd.:', getTotalOrderAdvances()) + '\n';
+    escpos += formatFinancialLine('Alim. de caisse:', getFundingsTotal()) + '\n';
+    escpos += formatFinancialLine('Espèces en caisse:', getCashFromSalesNetOfCredit()) + '\n';
+    
+    // Calculate detailed décaissements
+    const getExpensesTotal = () => {
+      const movements = session.cashMovements || [];
+      return movements
+        .filter((m: any) => m.type === 'SORTIE' && 
+          !(m.reason || '').toLowerCase().includes('fournisseur') &&
+          !(m.reason || '').toLowerCase().includes('supplier'))
+        .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
+    };
+    
+    const getSupplierPayments = () => {
+      const movements = session.cashMovements || [];
+      return movements
+        .filter((m: any) => m.type === 'SORTIE' && 
+          ((m.reason || '').toLowerCase().includes('fournisseur') ||
+           (m.reason || '').toLowerCase().includes('supplier')));
+    };
+    
+    escpos += formatFinancialLine('Dépenses:', getExpensesTotal()) + '\n';
+    
+    // Show individual supplier payments
+    const supplierPayments = getSupplierPayments();
+    const supplierDetails = (summary as any)?.supplierPaymentsDetails || [];
+    
+    if (supplierPayments.length > 0) {
+      supplierPayments.forEach((payment: any) => {
+        const amount = parseFloat(payment.amount || 0) || 0;
+        const reason = payment.reason || '';
+        let supplierName = 'Fournisseur';
+        
+        // Try to extract supplierPayment id from reason: "Règlement fournisseur #<id> (FOURN:<supplierId>)"
+        const idMatch = reason.match(/#(\d+)/);
+        const paymentId = idMatch ? parseInt(idMatch[1], 10) : null;
+        
+        if (supplierDetails && supplierDetails.length && paymentId) {
+          const match = supplierDetails.find((d: any) => Number(d.id) === paymentId);
+          if (match && match.supplierName) {
+            supplierName = match.supplierName;
+          }
+        }
+        
+        // Fallback: if reason contains a name in parentheses not just the FOURN code, try to extract
+        if (supplierName === 'Fournisseur') {
+          const paren = reason.match(/\(([^)]+)\)/);
+          if (paren && paren[1] && !/^FOURN:/i.test(paren[1])) {
+            supplierName = paren[1].trim();
+          }
+        }
+        
+        const line = `${supplierName} - ${this.formatCurrency(amount)}`;
+        escpos += line + '\n';
+      });
+    } else {
+      escpos += formatFinancialLine('Règlement Fournisseurs:', 0) + '\n';
+    }
+    escpos += '--------------------------------\n';
+    escpos += formatFinancialLine('Solde attendu:', expectedCash) + '\n';
+    
+    if (withdrawalAmount > 0) {
+      escpos += formatFinancialLine('Retrait central:', withdrawalAmount) + '\n';
+      escpos += formatFinancialLine('Solde restant:', expectedCash - withdrawalAmount) + '\n';
+    }
+    
+    escpos += '================================\n\n';
 
     // Cut paper
     escpos += '\x1D\x56\x00';

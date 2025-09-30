@@ -26,6 +26,8 @@ export class SupplierPaymentsComponent implements OnInit {
   remainingCash: number | null = null;
   showErrorDialog = false;
   errorDialogData: ErrorDialogData | null = null;
+  // Keep a local, always-fresh map of supplier debts sourced from summaries
+  private supplierDebtMap: Record<number, number> = {};
   
   // Form data
   paymentForm = {
@@ -39,7 +41,8 @@ export class SupplierPaymentsComponent implements OnInit {
   filters = {
     supplierId: null as number | null,
     startDate: '',
-    endDate: ''
+    endDate: '',
+    showOnlyWithDebt: false
   };
 
   constructor(
@@ -50,6 +53,7 @@ export class SupplierPaymentsComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadSuppliers();
+    this.loadSupplierDebts();
     this.loadPayments();
     this.sessionsService.getActiveSession().subscribe(session => {
       this.currentSession = session;
@@ -64,6 +68,21 @@ export class SupplierPaymentsComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading suppliers:', error);
+      }
+    });
+  }
+
+  private loadSupplierDebts(): void {
+    this.supplierService.getSupplierSummaries('', '').subscribe({
+      next: (summaries) => {
+        const map: Record<number, number> = {};
+        for (const s of summaries) {
+          map[s.id] = s.currentDebt ?? s.closingBalance ?? 0;
+        }
+        this.supplierDebtMap = map;
+      },
+      error: (error) => {
+        console.error('Error loading supplier debts:', error);
       }
     });
   }
@@ -94,7 +113,8 @@ export class SupplierPaymentsComponent implements OnInit {
     this.filters = {
       supplierId: null,
       startDate: '',
-      endDate: ''
+      endDate: '',
+      showOnlyWithDebt: false
     };
     this.selectedSupplier = null;
     this.loadPayments();
@@ -147,6 +167,7 @@ export class SupplierPaymentsComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.loadPayments();
+        this.loadSupplierDebts();
         this.hidePaymentForm();
         this.loading = false;
         this.showError({
@@ -197,5 +218,21 @@ export class SupplierPaymentsComponent implements OnInit {
   closeErrorDialog(): void {
     this.showErrorDialog = false;
     this.errorDialogData = null;
+  }
+
+  get filteredSuppliers(): Supplier[] {
+    const source = this.suppliers;
+    if (this.filters.showOnlyWithDebt) {
+      return source.filter(supplier => this.getSupplierDebt(supplier) > 0);
+    }
+    return source;
+  }
+
+  getSupplierDebt(supplier: Supplier): number {
+    const computed = this.supplierDebtMap[supplier.id];
+    if (typeof computed === 'number') {
+      return computed;
+    }
+    return supplier.currentDebt ?? 0;
   }
 }

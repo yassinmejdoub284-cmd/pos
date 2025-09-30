@@ -696,20 +696,6 @@ export class ClotureComponent implements OnInit, OnDestroy {
     // Get session-specific extract and company settings, then print
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
-        // Map session report data to daily extract format for printing
-        const enhancedExtract = {
-          date: new Date().toISOString().split('T')[0],
-          families: sessionReport.families || [],
-          totalDiscount: 0, // Session reports don't track discounts separately
-          totalRevenue: sessionReport.summary?.totalSales || 0,
-          soldeDebit: sessionReport.summary?.expectedCash || 0,
-          withdrawal: withdrawalAmount,
-          remainingCash: (sessionReport.summary?.expectedCash || 0) - withdrawalAmount,
-          closureTimestamp: new Date(),
-          alimentations: sessionReport.session?.cashMovements?.filter((movement: any) => movement.type === 'ENTREE') || [],
-          openingFund: Number(this.currentSession()?.openingFund || 0)
-        };
-        
         // Fetch company settings and print with real data
         this.settingsService.getSettings().subscribe({
           next: (settings) => {
@@ -722,13 +708,18 @@ export class ClotureComponent implements OnInit, OnDestroy {
               phone: sessionReport.session?.depot?.phone || '+216 71 123 456'
             };
             
-            // Print the session extract with real company data
-            this.printService.printDailyExtractWithWithdrawal(enhancedExtract, companyData);
+            // Add opening fund from current session to the session report
+            if (sessionReport.session && this.currentSession()) {
+              sessionReport.session.openingFund = this.currentSession()?.openingFund || 0;
+            }
+            
+            // Print the comprehensive session extract with real company data
+            this.printService.printDailyExtractWithWithdrawal(sessionReport, companyData, withdrawalAmount);
           },
           error: (error) => {
             console.error('Error fetching settings:', error);
             // Print without company data if settings fetch fails
-            this.printService.printDailyExtractWithWithdrawal(enhancedExtract);
+            this.printService.printDailyExtractWithWithdrawal(sessionReport, undefined, withdrawalAmount);
           }
         });
         
@@ -790,6 +781,45 @@ export class ClotureComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         this.error.set('Erreur lors de l\'impression du rapport X');
+      }
+    });
+  }
+
+  printDetailedReport(): void {
+    const session = this.currentSession();
+    if (!session) return;
+
+    this.loading.set(true);
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (sessionReport) => {
+        this.settingsService.getSettings().subscribe({
+          next: (settings) => {
+            const companyData = {
+              companyName: settings.companyName,
+              depotName: sessionReport.session?.depot?.name,
+              address: sessionReport.session?.depot?.address || '123 Rue de la Paix',
+              city: sessionReport.session?.depot?.city || 'Tunis, Tunisie',
+              phone: sessionReport.session?.depot?.phone || '+216 71 123 456'
+            };
+            
+            // Add opening fund from current session to the session report
+            if (sessionReport.session && this.currentSession()) {
+              sessionReport.session.openingFund = this.currentSession()?.openingFund || 0;
+            }
+            
+            this.printService.printDetailedSessionReport(sessionReport, companyData);
+            this.loading.set(false);
+          },
+          error: (error) => {
+            console.error('Error fetching settings:', error);
+            this.printService.printDetailedSessionReport(sessionReport);
+            this.loading.set(false);
+          }
+        });
+      },
+      error: (error) => {
+        this.error.set('Erreur lors de l\'impression du rapport détaillé');
+        this.loading.set(false);
       }
     });
   }

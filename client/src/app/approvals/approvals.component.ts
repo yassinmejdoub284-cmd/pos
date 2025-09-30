@@ -75,6 +75,19 @@ export class ApprovalsComponent implements OnInit {
     private returnsService: ReturnsService
   ) {}
 
+  // Get withdrawal amount from session data
+  getTotalEncaissements(sessionData: any): number {
+    if (!sessionData) return 0;
+    
+    // Get withdrawal amount from cash movements
+    const cashMovements = sessionData.session?.cashMovements || [];
+    const withdrawalAmount = cashMovements
+      .filter((m: any) => m.type === 'RETRAIT_CENTRALE')
+      .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
+    
+    return withdrawalAmount;
+  }
+
   ngOnInit(): void {
     this.route.queryParamMap.subscribe(params => {
       const tab = params.get('tab') as any;
@@ -311,6 +324,18 @@ export class ApprovalsComponent implements OnInit {
       this.showAlertMessage("Session introuvable pour la clôture", 'error');
       return;
     }
+
+    // Get the session data to calculate the adjustment
+    const sessionData = this.clotureSummaries[sessionId];
+    if (!sessionData) {
+      this.showAlertMessage("Données de session non disponibles", 'error');
+      return;
+    }
+
+    const expectedCash = sessionData.summary?.expectedCash || 0;
+    
+    // Send the corrected amount directly to the backend
+    // The backend will calculate the proper adjustment
 
     // Reopen session for correction
     const reasonLabel = req.reason || 'Correction après rejet';

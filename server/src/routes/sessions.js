@@ -360,18 +360,27 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
         });
       }
 
+      // For admin corrections, we need to add the adjustment to the current cash register
+      // instead of setting the absolute value
+      let finalCountedCash = parseFloat(countedCash);
+      if (isAdminCorrection) {
+        // The correctedAmount represents what the cash register should contain after correction
+        // So we use it directly as the final counted cash
+        finalCountedCash = parseFloat(countedCash);
+      }
+
       // Update session
       const updatedSession = await tx.sessionCaisse.update({
         where: { id: parseInt(id) },
         data: {
           status: isAdminCorrection ? 'ADMIN_CORRECTED' : 'CLOSED',
           closedAt: new Date(),
-          countedCash: parseFloat(countedCash),
+          countedCash: finalCountedCash,
           originalCountedCash: isAdminCorrection ? (session.originalCountedCash || session.countedCash) : session.originalCountedCash, // Store original counted cash before admin correction
-          expectedCash: isAdminCorrection ? parseFloat(countedCash) : summary.expectedCash, // For admin corrections, set expected cash to counted cash
+          expectedCash: isAdminCorrection ? finalCountedCash : summary.expectedCash, // For admin corrections, set expected cash to final counted cash
           variance: finalVariance, // Show the actual variance from original expected amount
           zSeq: session.zSeq + 1,
-          note: isAdminCorrection ? `Fonds pour prochaine session: ${countedCash} (Correction admin)` : (fonds ? `Fonds pour prochaine session: ${fonds}` : session.note)
+          note: isAdminCorrection ? `Fonds pour prochaine session: ${finalCountedCash} (Correction admin)` : (fonds ? `Fonds pour prochaine session: ${fonds}` : session.note)
         }
       });
 
@@ -442,12 +451,28 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
         });
 
         if (existingOpenSession) {
+          // The corrected amount should be added to the current expected cash
+          // If you correct to 10 TND, it means add 10 TND to the current balance
+          const correctedAmount = parseFloat(countedCash);
+          
+          // Add the corrected amount as a cash movement
+          if (correctedAmount !== 0) {
+            await prisma.cashMovement.create({
+              data: {
+                sessionId: existingOpenSession.id,
+                type: 'ENTREE', // Always add the corrected amount
+                amount: correctedAmount,
+                reason: `Correction admin - Ajustement de +${correctedAmount.toFixed(3)} TND`,
+                ticketId: null,
+                createdById: req.user.id
+              }
+            });
+          }
+          
           // Update the existing open session with corrected balance
           updatedOpenSession = await prisma.sessionCaisse.update({
             where: { id: existingOpenSession.id },
             data: {
-              openingFund: parseFloat(countedCash), // Use corrected amount as opening fund
-              expectedCash: parseFloat(countedCash),
               note: 'Session mise à jour après correction admin'
             },
             include: {

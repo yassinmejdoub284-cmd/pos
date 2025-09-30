@@ -137,6 +137,11 @@
                     class="bg-amber-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-amber-600 transition-colors">
                     Voir Relevé
                   </button>
+                  <button title="Imprimer A4"
+                    (click)="filters.clientId = client.id; printStatementA4()"
+                    class="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700 transition-colors">
+                    Imprimer
+                  </button>
                 </div>
               </td>
             </tr>

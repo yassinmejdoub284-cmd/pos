@@ -201,6 +201,8 @@ export class ChargesComponent implements OnInit, AfterViewInit {
       return;
     }
     if (this.addExpenseStep === 'supplier') {
+      if (!this.newExpense.supplierId) { this.error = 'Veuillez choisir un fournisseur'; return; }
+      this.error = '';
       this.addExpenseStep = 'notes';
       return;
     }
@@ -456,7 +458,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   }
 
   async saveExpense() {
-    if (!this.newExpense.amount || !this.newExpense.categoryId) {
+    if (!this.newExpense.amount || !this.newExpense.categoryId || !this.newExpense.supplierId) {
       this.error = 'Veuillez remplir tous les champs obligatoires';
       return;
     }

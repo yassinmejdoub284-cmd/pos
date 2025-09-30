@@ -10,6 +10,7 @@ import { Subject, takeUntil, debounceTime, distinctUntilChanged } from 'rxjs';
 @Component({
   selector: 'app-clients',
   templateUrl: './clients.component.html',
+  styleUrls: ['./clients.component.css'],
   standalone: false,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
