@@ -12,6 +12,7 @@ export interface StockDocument {
   emetteur?: Depot;
   destinataire?: Depot;
   supplier?: Supplier;
+  client?: Client;
   items?: StockDocumentItem[];
   statusHistory?: DocumentStatusHistory[];
   sourceLinks?: StockDocumentLink[];
@@ -100,6 +101,29 @@ export interface Supplier {
   paymentTerms?: string;
   notes?: string;
   isActive: boolean;
+}
+
+export interface Client {
+  id: number;
+  code: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  matriculeFiscal?: string;
+  postalCode?: string;
+  birthday?: Date;
+  clientType: string;
+  loyaltyPoints: number;
+  totalSpent: number;
+  favoriteProducts?: string;
+  allergies?: string;
+  notes?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ScanResult {

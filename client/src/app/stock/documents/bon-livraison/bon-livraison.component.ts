@@ -3,6 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { StockDocumentsService } from '../../../core/services/stock-documents.service';
 import { DepotsService } from '../../../core/services/depots.service';
 import { StockDocument } from '../../../core/models/stock-document.model';
+import { buildScanLikeDocumentHtmlFromDocument, getScanPrintStyles } from '../../shared/print-templates';
 import { Depot } from '../../../core/models/stock-document.model';
 
 @Component({
@@ -99,7 +100,37 @@ export class BonLivraisonComponent implements OnInit {
 
   goToScan(): void {
     if (this.depotId) {
-      this.router.navigate(['/stock/scan', this.depotId]);
+      this.router.navigate(['/stock/scan', this.depotId], { queryParams: { type: 'livraison' } });
     }
   }
+
+  printDocument(document: StockDocument): void {
+    const printContent = buildScanLikeDocumentHtmlFromDocument(document, 'livraison');
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      this.error = 'Impossible d\'ouvrir la fenêtre d\'impression';
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Bon de Livraison - ${document.numero}</title>
+        <style>${getScanPrintStyles()}</style>
+      </head>
+      <body>
+        ${printContent}
+      </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
+  }
+
 }

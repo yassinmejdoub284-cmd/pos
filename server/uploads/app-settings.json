@@ -69,7 +69,7 @@
     "devicesConfig": {},
     "isDesktopVersion": true,
     "auditRetentionDays": 90,
-    "historyRetentionDays": 30,
+    "historyRetentionDays": 10,
     "varianceThreshold": 5,
     "defaultFonds": 50,
     "denominations": [
