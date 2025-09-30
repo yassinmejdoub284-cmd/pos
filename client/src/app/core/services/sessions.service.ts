@@ -257,7 +257,7 @@ export class SessionsService {
   // Format currency for display
   formatCurrency(amount: number | string): string {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return `${(isNaN(numAmount) ? 0 : numAmount).toFixed(3)} DT`;
+    return `${(isNaN(numAmount) ? 0 : numAmount).toFixed(3)} DT`;
   }
 
   // Calculate denominations total

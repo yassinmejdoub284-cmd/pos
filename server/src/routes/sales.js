@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
   try {
-    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, isWholesale, paymentType, advancePayment, advancePaymentMethod, dailyTicketNumber } = req.body;
+    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, isWholesale, paymentType, advancePayment, advancePaymentMethod } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Sale must have at least one item' });
@@ -31,6 +31,29 @@ router.post('/', async (req, res) => {
       const advanceAmount = advancePayment !== undefined ? parseFloat(advancePayment) : (amountPaid !== undefined ? parseFloat(amountPaid) : 0);
       const advanceMethodId = advancePaymentMethod ? paymentMethodMap[advancePaymentMethod] : (paymentMethodId ? parseInt(paymentMethodId) : null);
 
+      // Compute session-based ticket number
+      let sessionTicketNumber = null;
+      if (activeSession && activeSession.id) {
+        const lastSessionSale = await tx.sale.findFirst({
+          where: { sessionId: activeSession.id },
+          orderBy: { createdAt: 'desc' },
+          select: { dailyTicketNumber: true }
+        });
+        const parseLast = (raw) => {
+          if (!raw) return 0;
+          const s = String(raw);
+          if (s.includes('/')) {
+            const part = s.split('/')[1];
+            const n = parseInt(part, 10);
+            return isNaN(n) ? 0 : n;
+          }
+          const n = parseInt(s, 10);
+          return isNaN(n) ? 0 : n;
+        };
+        const lastNum = parseLast(lastSessionSale?.dailyTicketNumber);
+        sessionTicketNumber = (lastNum || 0) + 1;
+      }
+
         const newSale = await tx.sale.create({
           data: {
             total: parseFloat(total),
@@ -49,8 +72,8 @@ router.post('/', async (req, res) => {
             advancePaymentMethodId: advanceAmount > 0 ? advanceMethodId : null,
             advancePaymentDate: advanceAmount > 0 ? new Date() : null,
             advancePaymentNotes: null,
-            // Store daily ticket number for session-based numbering
-            dailyTicketNumber: dailyTicketNumber || null
+            // Store session-based ticket number in existing field (string)
+            dailyTicketNumber: sessionTicketNumber ? String(sessionTicketNumber).padStart(4, '0') : null
           }
         });
 
@@ -718,6 +741,43 @@ router.get('/', async (req, res) => {
     res.json(sales);
   } catch (error) {
     console.error('Error fetching sales:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Fetch current session's tickets (sales) ordered by creation time desc
+router.get('/current-session/tickets', async (req, res) => {
+  try {
+    // Enforce depot isolation
+    const userDepotId = req.user.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot' });
+    }
+
+    // Find current OPEN session for this user
+    const activeSession = await prisma.sessionCaisse.findFirst({
+      where: { userId: req.user.id, status: 'OPEN' },
+      select: { id: true }
+    });
+
+    if (!activeSession) {
+      return res.json([]);
+    }
+
+    const tickets = await prisma.sale.findMany({
+      where: { sessionId: activeSession.id, depotId: userDepotId },
+      include: {
+        paymentMethod: { select: { name: true } },
+        client: { select: { firstName: true, lastName: true, code: true } },
+        user: { select: { firstName: true, lastName: true } },
+        items: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(tickets);
+  } catch (error) {
+    console.error('Error fetching current session tickets:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

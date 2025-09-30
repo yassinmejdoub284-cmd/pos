@@ -28,7 +28,7 @@ export interface TicketAction {
               </div>
               <div>
                 <h2 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Ticket #{{ ticket?.id }}
+                  Ticket #{{ formatTicketNumber(ticket) }}
                 </h2>
                 <p class="text-sm text-blue-600/70 font-medium">Que souhaitez-vous faire ?</p>
               </div>
@@ -47,7 +47,7 @@ export interface TicketAction {
         <div class="p-4 bg-gray-50 border-b border-gray-200">
           <div class="flex items-center justify-between text-sm">
             <div class="flex items-center space-x-4">
-              <span class="font-mono text-lg font-bold text-blue-600">#{{ ticket?.id }}</span>
+              <span class="font-mono text-lg font-bold text-blue-600">#{{ formatTicketNumber(ticket) }}</span>
               <span class="px-2 py-1 rounded-full text-xs font-medium"
                     [class]="getStatusClass(ticket?.status || '')">
                 {{ getStatusText(ticket?.status || '') }}
@@ -156,6 +156,20 @@ export class TicketActionDialogComponent {
     if (event.target === event.currentTarget) {
       this.onClose();
     }
+  }
+
+  formatTicketNumber(t: Sale | null): string {
+    const raw: string | undefined = (t as any)?.dailyTicketNumber;
+    if (raw && typeof raw === 'string') {
+      if (raw.includes('/')) {
+        const part = raw.split('/')[1];
+        return part || raw;
+      }
+      return raw;
+    }
+    // Fallback to sale id if dailyTicketNumber is missing (older sales)
+    const idVal = (t as any)?.id;
+    return (idVal !== undefined && idVal !== null) ? String(idVal).padStart(4, '0') : '';
   }
 
   getStatusClass(status: string): string {

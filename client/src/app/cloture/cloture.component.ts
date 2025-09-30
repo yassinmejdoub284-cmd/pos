@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
+import { Observable } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -6,7 +7,7 @@ import { SessionsService, SessionCaisse, CashMovementRequest, CloseSessionReques
 import { AuthService } from '../core/services/auth.service';
 import { PrintService } from '../core/services/print.service';
 import { DailyExtractService } from '../core/services/daily-extract.service';
-import { SettingsService } from '../core/services/settings.service';
+import { SettingsService, AppSettings } from '../core/services/settings.service';
 import { DepotsService } from '../core/services/depots.service';
 import { TicketCounterService } from '../core/services/ticket-counter.service';
 import { Depot } from '../core/models/depot.model';
@@ -40,12 +41,17 @@ export class ClotureComponent implements OnInit, OnDestroy {
   
   // Tickets modal state
   showTicketsModal = signal(false);
-  sessionTickets = signal<{ id: number; amount: number }[]>([]);
+  sessionTickets = signal<Array<{ id: number; amount: number; totalAmount?: number; createdAt?: string | Date }>>([]);
+  ticketsMoreFlag = false;
   ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => sum + t.amount, 0));
 
   // Cash sales detail state
   cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number }[]>([]);
   cashSalesLoading = signal(false);
+  // UI local toggles for cash sales "voir plus"
+  cashMoreMainFlag = false;
+  cashMoreSchemaFlag = false;
+  cashMoreExpandedFlag = false;
 
   // Detailed flows modal state
   showFlowsModal = signal(false);
@@ -53,6 +59,17 @@ export class ClotureComponent implements OnInit, OnDestroy {
   flowsDateTo = signal<string>('');
   flowsDepotId = signal<number | null>(null);
   flowsSearch = signal('');
+  checked_schema: boolean = false;
+
+  // App settings stream for template consumption
+  settings$!: Observable<AppSettings>;
+
+  // Resolve logo URL from settings (fallback to public logo)
+  getLogoUrl(settings: AppSettings | null | undefined): string {
+    const url = settings?.logoUrl || '';
+    const abs = this.settingsService.getAbsoluteLogoUrl(url);
+    return abs && abs.length > 0 ? abs : '/logo.webp';
+  }
 
   async flowmodal_show(): Promise<void> {
     this.loading.set(true);
@@ -283,6 +300,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
     return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && ((m.reason || '').toLowerCase().startsWith('acompte')));
   }
 
+  // Funding (Alimentation de caisse)
+  recentFundings(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
+    const isFunding = (reason: string | undefined | null): boolean => {
+      const r = (reason || '').toLowerCase();
+      return r.includes('fonds de caisse') || r.includes('alimentation') || r.includes('alimenter');
+    };
+    return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && isFunding(m.reason));
+  }
+
+  getFundingsTotal(): number {
+    const movements = (this.currentSession()?.cashMovements || []) as any[];
+    return movements
+      .filter((m: any) => (m?.type === 'ENTREE') && ((m?.reason || '').toLowerCase().includes('fonds de caisse') || (m?.reason || '').toLowerCase().includes('alimentation') || (m?.reason || '').toLowerCase().includes('alimenter')))
+      .reduce((sum, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
+  }
+
   recentExpenses(): Array<{ createdAt: string; type: string; reason: string; amount: number; categoryName?: string | null; supplierName?: string | null }> {
     // Prefer server-provided details if any
     const details = (this.currentSession()?.summary as any)?.expensesDetails as Array<any> | undefined;
@@ -451,8 +484,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (report: any) => {
-        const sales = (report?.session?.sales || []) as Array<{ id: number; finalTotal: number }>;
-        this.sessionTickets.set(sales.map(s => ({ id: s.id, amount: parseFloat((s as any).finalTotal || 0) })));
+        const sales = (report?.session?.sales || []) as Array<any>;
+        this.sessionTickets.set(sales.map(s => ({
+          id: s.id,
+          amount: parseFloat((s.paidAmount ?? s.finalTotal ?? s.amount ?? 0) as any) || 0,
+          totalAmount: s.totalAmount ?? s.finalTotal,
+          createdAt: s.createdAt
+        })));
         this.loading.set(false);
         this.showTicketsModal.set(true);
       },
@@ -463,19 +501,26 @@ export class ClotureComponent implements OnInit, OnDestroy {
     });
   }
 
-  private loadCashSalesDetails(): void {
+  loadCashSalesDetails(): void {
     const session = this.currentSession();
     if (!session || this.cashSalesLoading()) return;
     this.cashSalesLoading.set(true);
     this.sessionsService.getSessionReport(session.id, 'X').subscribe({
       next: (report: any) => {
         const sales = (report?.session?.sales || []) as Array<any>;
-        const cashSales = sales.filter(s => ((s.paymentMethod?.type || '').toUpperCase() === 'CASH') || (s.paidAmount && s.paidAmount > 0));
+        const cashSales = sales.filter(s => {
+          const method = ((s.paymentMethod?.type || '') as string).toUpperCase();
+          const paid = parseFloat(s.paidAmount ?? 0) || 0;
+          const total = parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0;
+          const hasCredit = total - paid > 0;
+          return method === 'CASH' || paid > 0 || hasCredit;
+        });
         this.cashSalesDetails.set(
           cashSales.map(s => ({
             id: s.id,
             paidAmount: parseFloat(s.paidAmount ?? 0) || 0,
-            totalAmount: parseFloat(s.finalTotal ?? 0) || 0
+            totalAmount: parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0,
+            createdAt: s.createdAt
           }))
         );
         this.cashSalesLoading.set(false);
@@ -484,6 +529,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
         this.cashSalesLoading.set(false);
       }
     });
+  }
+
+  // Schema helpers: open Encaissement section and specific client payments detail
+  public openEncaissementSection(): void {
+    const section = document.getElementById('schema-left-open') as HTMLInputElement | null;
+    if (section && !section.checked) {
+      section.click();
+    }
+  }
+
+  public openEncaissementClientPayments(): void {
+    this.openEncaissementSection();
+    const detail = document.getElementById('schema-client-payments-open') as HTMLInputElement | null;
+    if (detail && !detail.checked) {
+      detail.click();
+    }
   }
   
   // Fund form
@@ -504,6 +565,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.settings$ = this.settingsService.getSettings();
     this.isAdminUser = this.authService.isAdmin();
     // Load immediately; depot scope is handled globally via header
     this.loadCurrentSession();
@@ -756,7 +818,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   goToRegister(): void {
-    this.router.navigate(['/caisse']);
+    this.router.navigate(['/home']);
   }
 
   addDigit(digit: string): void {

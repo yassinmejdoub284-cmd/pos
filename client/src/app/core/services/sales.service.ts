@@ -31,8 +31,6 @@ export interface CreateSaleRequest {
   advancePayment?: number;
   advancePaymentMethod?: 'cash' | 'card' | 'check' | 'virement';
   advancePaymentNotes?: string;
-  // Daily ticket number for session-based numbering
-  dailyTicketNumber?: string;
 }
 
 export interface CreateTemporarySaleRequest {
@@ -136,6 +134,12 @@ export class SalesService {
 
   getTodaysSales(): Observable<Sale[]> {
     return this.http.get<Sale[]>(this.apiUrl).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
+
+  getCurrentSessionTickets(): Observable<Sale[]> {
+    return this.http.get<Sale[]>(`${this.apiUrl}/current-session/tickets`).pipe(
       catchError((error) => throwError(() => error))
     );
   }

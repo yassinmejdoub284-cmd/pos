@@ -37,7 +37,7 @@
                    class="absolute top-full left-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
                 <div class="p-3 border-b border-gray-200">
                   <div class="flex items-center justify-between">
-                    <span class="text-sm font-semibold text-gray-800">Tickets d'aujourd'hui</span>
+                    <span class="text-sm font-semibold text-gray-800">Tickets de la session</span>
                     <button (click)="closeTicketMenu()" 
                             title="Fermer le menu"
                             class="text-gray-400 ">
@@ -53,7 +53,7 @@
                 </div>
                 
                 <div *ngIf="!loadingTodaysTickets && todaysTickets.length === 0" class="p-4 text-center">
-                  <div class="text-sm text-gray-500">Aucun ticket trouvé pour aujourd'hui</div>
+                  <div class="text-sm text-gray-500">Aucun ticket trouvé pour cette session</div>
                 </div>
                 
                 <div *ngIf="!loadingTodaysTickets && todaysTickets.length > 0" class="max-h-64 overflow-y-auto">

@@ -35,6 +35,36 @@ export class TicketCounterService {
     return this.ticketStateSubject.value;
   }
 
+  /**
+   * Initialize or bump the current ticket number to a provided value, but never decrease it.
+   * Useful to recover numbering from history when local storage was cleared.
+   */
+  setCurrentTicketNumberIfHigher(nextNumber: number): void {
+    const safeNext = Math.max(1, Math.floor(Number(nextNumber) || 1));
+    const currentState = this.ticketStateSubject.value;
+    if (safeNext <= currentState.currentTicketNumber) {
+      return;
+    }
+    const newState = {
+      ...currentState,
+      currentTicketNumber: safeNext
+    };
+    this.updateTicketState(newState);
+  }
+
+  /**
+   * Force-set current ticket number (never below 1). Use cautiously.
+   */
+  setCurrentTicketNumber(nextNumber: number): void {
+    const safeNext = Math.max(1, Math.floor(Number(nextNumber) || 1));
+    const currentState = this.ticketStateSubject.value;
+    const newState = {
+      ...currentState,
+      currentTicketNumber: safeNext
+    };
+    this.updateTicketState(newState);
+  }
+
   incrementTicketNumber(): void {
     const currentState = this.ticketStateSubject.value;
     const newState = {

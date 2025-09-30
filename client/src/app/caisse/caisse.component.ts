@@ -484,6 +484,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadSettings();
     
     this.loadCurrentSession();
+    // Sync ticket counter from today's history once at startup to avoid accidental resets
+    this.syncTicketCounterFromTodaySales();
     this.initializeDragDrop();
     this.setupTouchEventListeners();
     this.loadWholesaleRules();
@@ -1798,8 +1800,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       clientId: activeCart.clientId || undefined,
       amountPaid: this.amountPaid !== undefined ? Number(this.amountPaid) : Number(activeCart.netTotal),
       isWholesale: this.isWholesaleSale(),
-      paymentType: this.salePaymentType,
-      dailyTicketNumber: this.getCurrentTicketNumber()
+      paymentType: this.salePaymentType
     };
 
     this.salesService.createSale(saleData).subscribe({
@@ -3980,8 +3981,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
       client: client ? { firstName: client.firstName, lastName: client.lastName, code: client.code || '' } : undefined,
       user: undefined,
       loyaltyPointsEarned: source?.loyaltyEarned,
-      // Add daily ticket number for printing
-      dailyTicketNumber: this.getCurrentTicketNumber()
+      // Add daily ticket number for printing: prefer lastValidatedSale or ticket from server
+      dailyTicketNumber: source?.dailyTicketNumber || this.lastValidatedSale?.dailyTicketNumber || undefined
     };
 
     return sale;
@@ -4077,30 +4078,22 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.showTicketMenu = false;
       return;
     }
-    
-    this.loadTodaysTickets();
+    // Load current session tickets instead of today's
+    this.loadSessionTickets();
     this.showTicketMenu = true;
   }
 
-  loadTodaysTickets(): void {
+  loadTodaysTickets(): void { this.loadSessionTickets(); }
+
+  private loadSessionTickets(): void {
     this.loadingTodaysTickets = true;
-    this.salesService.getTodaysSales().subscribe({
+    this.salesService.getCurrentSessionTickets().subscribe({
       next: (tickets) => {
-        // Filter to only show today's sales
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        
-        this.todaysTickets = tickets.filter(ticket => {
-          const ticketDate = new Date(ticket.createdAt);
-          return ticketDate >= today && ticketDate < tomorrow;
-        });
-        
+        this.todaysTickets = tickets;
         this.loadingTodaysTickets = false;
       },
       error: (error) => {
-        console.error('Error loading today\'s tickets:', error);
+        console.error('Error loading session tickets:', error);
         this.loadingTodaysTickets = false;
       }
     });
@@ -4207,6 +4200,37 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   resetTicketNumber(): void {
     this.ticketCounterService.resetTicketCounter();
+  }
+
+  // Ensure we never go backwards on ticket numbering during this session
+  private syncTicketCounterFromTodaySales(): void {
+    // Only attempt after depot/session wiring is done; harmless if called early
+    this.salesService.getCurrentSessionTickets().subscribe({
+      next: (tickets) => {
+        if (!Array.isArray(tickets) || tickets.length === 0) return;
+        // Determine the highest ticket number among current session tickets
+        const extractNumber = (t: any): number => {
+          const raw = (t?.dailyTicketNumber || '').toString();
+          if (raw && raw.includes('/')) {
+            const part = raw.split('/')[1];
+            const n = parseInt(part, 10);
+            return isNaN(n) ? 0 : n;
+          }
+          if (raw) {
+            const n = parseInt(raw, 10);
+            if (!isNaN(n)) return n;
+          }
+          // Fallback: derive from sale id order if needed
+          return 0;
+        };
+        const maxSession = tickets.reduce((max: number, t: any) => Math.max(max, extractNumber(t)), 0);
+        if (maxSession > 0) {
+          // Next ticket to issue is max + 1 (align exactly with server session)
+          this.ticketCounterService.setCurrentTicketNumber(maxSession + 1);
+        }
+      },
+      error: () => {}
+    });
   }
 
 
