@@ -58,9 +58,6 @@ server/*.pid
 server/*.seed
 server/*.pid.lock
 
-# Environment file
-server/.env
-
 # -------------------------
 # Tauri (desktop)
 # -------------------------
