@@ -17,7 +17,7 @@
         <!-- Session Document Type Display -->
         <div *ngIf="sessionDocumentType" class="flex items-center gap-2">
           <span class="text-xs sm:text-sm text-slate-600 hidden sm:inline">Type de document:</span>
-          <div class="flex items-center gap-2 px-2 sm:px-3 py-1 rounded-lg"
+        <div class="flex items-center gap-2 px-2 sm:px-3 py-1 rounded-lg"
                [class]="sessionDocumentType === 'sortie' ? 'bg-blue-100 text-blue-800' : sessionDocumentType === 'transfert' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'">
             <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path *ngIf="sessionDocumentType === 'sortie' || sessionDocumentType === 'transfert'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
@@ -30,6 +30,11 @@
           <button (click)="showDocumentTypeSelection()" title="Changer le type de document" class="p-1 rounded transition">
             <svg class="w-3 h-3 sm:w-4 sm:h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+            </svg>
+          </button>
+          <button (click)="goBack()" title="Retour" class="p-1 rounded transition">
+            <svg class="w-3 h-3 sm:w-4 sm:h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" />
             </svg>
           </button>
         </div>
@@ -298,11 +303,18 @@
     <div class="p-6">
       <div class="flex items-center justify-between mb-6">
         <span class="text-lg font-semibold text-slate-800">Sélectionner le dépôt de destination</span>
-        <button (click)="closeDepotSelectionModal()" title="Fermer" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center  transition">
-          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
+        <div class="flex items-center gap-2">
+          <button (click)="goBack()" title="Retour" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center  transition">
+            <svg class="w-4 h-4 text-slate-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
+            </svg>
+          </button>
+          <button (click)="closeDepotSelectionModal()" title="Fermer" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center  transition">
+            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
       </div>
       
       <div class="mb-4">
@@ -394,11 +406,18 @@
     <div class="p-6">
       <div class="flex items-center justify-between mb-6">
         <span class="text-lg font-semibold text-slate-800">Sélectionner le client</span>
-        <button (click)="closeClientSelectionModal()" title="Fermer" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center  transition">
-          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
+        <div class="flex items-center gap-2">
+          <button (click)="goBack()" title="Retour" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center  transition">
+            <svg class="w-4 h-4 text-slate-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
+            </svg>
+          </button>
+          <button (click)="closeClientSelectionModal()" title="Fermer" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center  transition">
+            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
       </div>
       
       <div class="mb-4">
@@ -560,11 +579,18 @@
         <span class="text-base sm:text-lg font-semibold text-slate-800">
           {{ sessionDocumentType === 'transfert' ? 'Sélection du chauffeur' : 'Sélection du véhicule et chauffeur' }}
         </span>
-        <button (click)="closeVehicleSelectionModal()" title="Fermer" class="w-6 h-6 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center  transition">
-          <svg class="w-3 h-3 sm:w-4 sm:h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
+        <div class="flex items-center gap-2">
+          <button (click)="goBack()" title="Retour" class="w-6 h-6 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center  transition">
+            <svg class="w-3 h-3 sm:w-4 sm:h-4 text-slate-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
+            </svg>
+          </button>
+          <button (click)="closeVehicleSelectionModal()" title="Fermer" class="w-6 h-6 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center  transition">
+            <svg class="w-3 h-3 sm:w-4 sm:h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
       </div>
       
       <!-- Progress Steps -->

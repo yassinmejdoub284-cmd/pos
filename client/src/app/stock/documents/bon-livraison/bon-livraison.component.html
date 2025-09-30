@@ -93,10 +93,16 @@
           <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ doc.numero }}</h3>
           
           <div class="text-sm text-gray-600 space-y-1 mb-4">
-            <div *ngIf="doc.emetteur">
+            <div *ngIf="doc.client">
+              <span class="font-medium">Client:</span> {{ doc.client.firstName }} {{ doc.client.lastName }}
+            </div>
+            <div *ngIf="doc.client?.address">
+              <span class="font-medium">Adresse:</span> {{ doc.client?.address }}
+            </div>
+            <div *ngIf="!doc.client && doc.emetteur">
               <span class="font-medium">De:</span> {{ doc.emetteur.name }}
             </div>
-            <div *ngIf="doc.destinataire">
+            <div *ngIf="!doc.client && doc.destinataire">
               <span class="font-medium">Vers:</span> {{ doc.destinataire.name }}
             </div>
             <div>
@@ -111,10 +117,19 @@
             <span class="font-medium">Notes:</span> {{ doc.notes }}
           </div>
           
-          <button (click)="viewDocument(doc)" 
-            class="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium py-2 px-4 transition-colors duration-200">
-            Voir détails
-          </button>
+          <div class="flex gap-2">
+            <button (click)="viewDocument(doc)" 
+              class="flex-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium py-2 px-4 transition-colors duration-200">
+              Voir détails
+            </button>
+            <button (click)="printDocument(doc)" 
+              class="bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200 flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+              </svg>
+              <span class="hidden sm:inline">Imprimer</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

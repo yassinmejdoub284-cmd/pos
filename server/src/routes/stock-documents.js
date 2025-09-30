@@ -37,7 +37,7 @@ async function getNextDocumentId(type) {
 
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 20, type, status, depotId, dateFrom, dateTo } = req.query;
+    const { page = 1, limit = 20, type, status, depotId, clientId, dateFrom, dateTo } = req.query;
     const skip = (page - 1) * limit;
         
     const where = {};
@@ -56,6 +56,9 @@ router.get('/', async (req, res) => {
         { destinataireId: parseInt(depotId) }
       ];
     }
+    if (clientId) {
+      where.notes = { contains: `Client:${parseInt(clientId)}` };
+    }
     
     if (dateFrom || dateTo) {
       where.createdAt = {};
@@ -70,8 +73,8 @@ router.get('/', async (req, res) => {
         take: parseInt(limit),
         orderBy: { createdAt: 'desc' },
         include: {
-          emetteur: true,
-          destinataire: true,
+          emetteur: { include: { company: true } },
+          destinataire: { include: { company: true, clients: true } },
           items: {
             include: {
               product: true
@@ -88,8 +91,30 @@ router.get('/', async (req, res) => {
       prisma.stockDocument.count({ where })
     ]);
     
+    // Attach client objects for docs that reference a client in notes
+    const clientIdMatches = documents
+      .map(d => (typeof d.notes === 'string' ? d.notes.match(/Client:(\d+)/) : null))
+      .filter(Boolean)
+      .map(m => parseInt(m[1]))
+      .filter((v, i, a) => a.indexOf(v) === i);
+
+    let clientsById = {};
+    if (clientIdMatches.length > 0) {
+      const clients = await prisma.client.findMany({ where: { id: { in: clientIdMatches } } });
+      clientsById = clients.reduce((acc, c) => { acc[c.id] = c; return acc; }, {});
+    }
+
+    const data = documents.map(d => {
+      const match = typeof d.notes === 'string' ? d.notes.match(/Client:(\d+)/) : null;
+      if (match) {
+        const cid = parseInt(match[1]);
+        return { ...d, client: clientsById[cid] || null };
+      }
+      return d;
+    });
+
     res.json({
-      data: documents, // Changed from 'documents' to 'data' to match frontend expectation
+      data, // match frontend expectation
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -105,11 +130,11 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const document = await prisma.stockDocument.findUnique({
+  const document = await prisma.stockDocument.findUnique({
       where: { id: parseInt(req.params.id) },
       include: {
-        emetteur: true,
-        destinataire: true,
+      emetteur: { include: { company: true } },
+      destinataire: { include: { company: true } },
         items: {
           include: {
             product: true
@@ -174,10 +199,23 @@ router.get('/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    // Add supplier info to the document
+    // Attach client by parsing notes if present
+    let client = null;
+    if (document.notes && document.notes.includes('Client:')) {
+      const m = document.notes.match(/Client:(\d+)/);
+      if (m) {
+        const cid = parseInt(m[1]);
+        try {
+          client = await prisma.client.findUnique({ where: { id: cid } });
+        } catch (e) {}
+      }
+    }
+
+    // Add supplier and client info to the document
     const documentWithSupplier = {
       ...document,
-      supplier: supplierInfo
+      supplier: supplierInfo,
+      client
     };
     
     res.json(documentWithSupplier);
@@ -200,6 +238,19 @@ router.post('/expedition', authenticateToken, async (req, res) => {
     
     const numero = generateDocumentNumber('BON_EXPEDITION');
     
+    const parseQuantity = (q) => {
+      if (typeof q === 'number') return q;
+      const s = String(q || '').trim().replace(/,/g, '.');
+      const isNeg = s.startsWith('-');
+      let cleaned = s.replace(/[^0-9.]/g, '');
+      const firstDot = cleaned.indexOf('.');
+      if (firstDot !== -1) {
+        cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+      }
+      const result = parseFloat((isNeg ? '-' : '') + cleaned);
+      return Number.isFinite(result) ? result : 0;
+    };
+
     const document = await prisma.$transaction(async (tx) => {
       // Create the document
       const doc = await tx.stockDocument.create({
@@ -341,7 +392,7 @@ router.post('/entry', authenticateToken, async (req, res) => {
             create: items.map((item) => ({
               productId: item.productId,
               famille: item.famille,
-              quantity: parseFloat(item.quantity),
+              quantity: parseQuantity(item.quantity),
               purchasePrice: item.purchasePrice ? parseFloat(item.purchasePrice) : null,
               batch: item.batch || null,
               notes: item.notes || null,
@@ -366,7 +417,7 @@ router.post('/entry', authenticateToken, async (req, res) => {
       // Increase inventory for each item and create IN stock movement
       for (const item of items) {
         const productId = parseInt(item.productId);
-        const quantity = parseFloat(item.quantity);
+        const quantity = parseQuantity(item.quantity);
         const depotIdInt = parseInt(depotId);
 
         const inventory = await tx.inventory.findUnique({
@@ -1251,7 +1302,7 @@ router.post('/', authenticateToken, async (req, res) => {
           status: validatedStatus,
           emetteurId: fromDepotId || depotId,
           destinataireId: destinationDepotId || depotId,
-          notes: notes || null,
+          notes: clientId ? `Client:${clientId}${notes ? ' | ' + notes : ''}` : (notes || null),
           items: {
             create: items.map(item => ({
               productId: item.produitId,
@@ -1307,7 +1358,7 @@ router.post('/', authenticateToken, async (req, res) => {
           if (inventory) {
             await tx.inventory.update({
               where: { id: inventory.id },
-              data: { quantity: inventory.quantity + quantity }
+              data: { quantity: { increment: quantity } }
             });
           } else {
             await tx.inventory.create({
@@ -1343,7 +1394,7 @@ router.post('/', authenticateToken, async (req, res) => {
           if (inventory) {
             await tx.inventory.update({
               where: { id: inventory.id },
-              data: { quantity: inventory.quantity - quantity }
+              data: { quantity: { decrement: quantity } }
             });
           } else {
             await tx.inventory.create({

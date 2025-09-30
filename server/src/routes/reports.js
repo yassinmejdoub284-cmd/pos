@@ -423,8 +423,9 @@ router.get('/stock-movements', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']
 // Daily Extracts endpoints
 router.get('/daily-extracts', async (req, res) => {
   try {
-    // Get depot ID from query params or user, default to 3 (shop) for consistency
-    const targetDepotId = parseInt(req.query.depotId || req.user?.depotId || '3');
+    // Optional depot filter; if not provided, aggregate across all depots
+    const depotIdParam = req.query.depotId;
+    const targetDepotId = depotIdParam ? parseInt(depotIdParam) : null;
     
     // Get days parameter from query, default to 10 for backward compatibility
     const days = parseInt(req.query.days || '10');
@@ -458,19 +459,11 @@ router.get('/daily-extracts', async (req, res) => {
         // Get sessions that were active on this day
         const activeSessions = await prisma.sessionCaisse.findMany({
           where: {
-            depotId: targetDepotId,
-            openedAt: {
-              lte: endDate
-            },
+            ...(targetDepotId ? { depotId: targetDepotId } : {}),
+            openedAt: { lte: endDate },
             OR: [
-              {
-                closedAt: {
-                  gte: startDate
-                }
-              },
-              {
-                status: 'OPEN'
-              }
+              { closedAt: { gte: startDate } },
+              { status: 'OPEN' }
             ]
           },
           select: {
@@ -483,11 +476,9 @@ router.get('/daily-extracts', async (req, res) => {
         // Get sales from sessions that were active on this day
         const sales = await prisma.sale.findMany({
           where: {
-            depotId: targetDepotId,
+            ...(targetDepotId ? { depotId: targetDepotId } : {}),
             status: 'COMPLETED',
-            sessionId: {
-              in: sessionIds
-            }
+            sessionId: { in: sessionIds }
           },
           include: {
             items: {
@@ -505,16 +496,72 @@ router.get('/daily-extracts', async (req, res) => {
         // Get expenses for the day
         const expenses = await prisma.expense.findMany({
           where: {
-            depotId: targetDepotId,
+            ...(targetDepotId ? { depotId: targetDepotId } : {}),
             isApproved: true,
-            date: {
-              gte: startDate,
-              lte: endDate
+            date: { gte: startDate, lte: endDate }
+          }
+        });
+
+        // Find the most recent closed session before this day (previous closure)
+        const previousClosedSession = await prisma.sessionCaisse.findFirst({
+          where: {
+            ...(targetDepotId ? { depotId: targetDepotId } : {}),
+            status: 'CLOSED',
+            closedAt: { lt: startDate }
+          },
+          orderBy: { closedAt: 'desc' },
+          include: {
+            cashMovements: {
+              where: { type: 'RETRAIT_CENTRALE' }
             }
           }
         });
 
-        const hasData = sales.length > 0 || expenses.length > 0;
+        const previousClosure = previousClosedSession ? {
+          sessionId: previousClosedSession.id,
+          closedAt: previousClosedSession.closedAt,
+          countedCash: previousClosedSession.countedCash ?? null,
+          expectedCash: previousClosedSession.expectedCash ?? null,
+          withdrawalToCentral: previousClosedSession.cashMovements?.reduce((sum, m) => sum + parseFloat(m.amount || 0), 0) || 0
+        } : null;
+
+        // Gather all closures for this day
+        const closedSessions = await prisma.sessionCaisse.findMany({
+          where: {
+            ...(targetDepotId ? { depotId: targetDepotId } : {}),
+            status: 'CLOSED',
+            closedAt: { gte: startDate, lte: endDate }
+          },
+          include: {
+            cashMovements: true
+          },
+          orderBy: { closedAt: 'asc' }
+        });
+
+        // Compute per-closure metrics
+        const closures = await Promise.all(closedSessions.map(async (session) => {
+          const sessionSales = await prisma.sale.findMany({
+            where: { ...(targetDepotId ? { depotId: targetDepotId } : {}), status: 'COMPLETED', sessionId: session.id },
+            select: { finalTotal: true, discount: true }
+          });
+          const totalRevenue = sessionSales.reduce((sum, s) => sum + parseFloat(s.finalTotal || 0), 0);
+          const totalDiscount = sessionSales.reduce((sum, s) => sum + parseFloat(s.discount || 0), 0);
+          const withdrawalToCentral = session.cashMovements
+            .filter(m => m.type === 'RETRAIT_CENTRALE')
+            .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
+          return {
+            sessionId: session.id,
+            openedAt: session.openedAt,
+            closedAt: session.closedAt,
+            countedCash: session.countedCash ?? null,
+            expectedCash: session.expectedCash ?? null,
+            withdrawalToCentral,
+            totalRevenue,
+            totalDiscount
+          };
+        }));
+
+        const hasData = sales.length > 0 || expenses.length > 0 || !!previousClosure || closures.length > 0;
         
         if (!hasData) {
           return {
@@ -524,7 +571,9 @@ router.get('/daily-extracts', async (req, res) => {
             totalRevenue: 0,
             totalDiscount: 0,
             totalExpenses: 0,
-            families: []
+            families: [],
+            previousClosure,
+            closures
           };
         }
 
@@ -601,7 +650,9 @@ router.get('/daily-extracts', async (req, res) => {
           totalRevenue,
           totalDiscount,
           totalExpenses,
-          families
+          families,
+          previousClosure,
+          closures
         };
       })
     );
@@ -618,8 +669,9 @@ router.get('/daily-extracts', async (req, res) => {
 router.get('/daily-extracts/:date', async (req, res) => {
   try {
     const { date } = req.params;
-    // For dev environment, use depot ID 3 (shop) as default
-    const targetDepotId = parseInt(req.user?.depotId || req.query.depotId || '3');
+    // Optional depot filter; if not provided, aggregate across all depots
+    const depotIdParam = req.query.depotId;
+    const targetDepotId = depotIdParam ? parseInt(depotIdParam) : null;
     
     // Parse date properly - handle YYYY-MM-DD format using local timezone
     const [year, month, day] = date.split('-').map(Number);
@@ -631,19 +683,11 @@ router.get('/daily-extracts/:date', async (req, res) => {
     // Get sessions that were active on this day (opened before end of day, closed after start of day)
     const activeSessions = await prisma.sessionCaisse.findMany({
       where: {
-        depotId: targetDepotId,
-        openedAt: {
-          lte: endDate
-        },
+        ...(targetDepotId ? { depotId: targetDepotId } : {}),
+        openedAt: { lte: endDate },
         OR: [
-          {
-            closedAt: {
-              gte: startDate
-            }
-          },
-          {
-            status: 'OPEN'
-          }
+          { closedAt: { gte: startDate } },
+          { status: 'OPEN' }
         ]
       },
       select: {
@@ -656,11 +700,9 @@ router.get('/daily-extracts/:date', async (req, res) => {
     // Get sales from sessions that were active on this day
     const sales = await prisma.sale.findMany({
       where: {
-        depotId: targetDepotId,
+        ...(targetDepotId ? { depotId: targetDepotId } : {}),
         status: 'COMPLETED',
-        sessionId: {
-          in: sessionIds
-        }
+        sessionId: { in: sessionIds }
       },
       include: {
         items: {
@@ -696,12 +738,9 @@ router.get('/daily-extracts/:date', async (req, res) => {
     // Get expenses for the day
     const expenses = await prisma.expense.findMany({
       where: {
-        depotId: targetDepotId,
+        ...(targetDepotId ? { depotId: targetDepotId } : {}),
         isApproved: true,
-        date: {
-          gte: startDate,
-          lte: endDate
-        }
+        date: { gte: startDate, lte: endDate }
       },
       include: {
         category: true
@@ -711,12 +750,9 @@ router.get('/daily-extracts/:date', async (req, res) => {
     // Get sessions closed on this day to get real closure data
     const closedSessions = await prisma.sessionCaisse.findMany({
       where: {
-        depotId: targetDepotId,
+        ...(targetDepotId ? { depotId: targetDepotId } : {}),
         status: 'CLOSED',
-        closedAt: {
-          gte: startDate,
-          lte: endDate
-        }
+        closedAt: { gte: startDate, lte: endDate }
       },
       include: {
         cashMovements: {

@@ -5,6 +5,7 @@ import { StockDocumentsService } from '../../core/services/stock-documents.servi
 import { ProductsService } from '../../core/services/products.service';
 import { ClientsService } from '../../core/services/clients.service';
 import { PrintService } from '../../core/services/print.service';
+import { buildScanLikeDocumentHtmlFromDocument, getScanPrintStyles } from '../shared/print-templates';
 import { VehiclesService } from '../../core/services/vehicles.service';
 import { DriversService } from '../../core/services/drivers.service';
 import { ProduitsDeCaisseService } from '../../core/services/produits-de-caisse.service';
@@ -134,6 +135,27 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       const id = params.get('depotId');
       this.depotId = id ? parseInt(id, 10) : 0;
     });
+    // If a document type is provided via query params (from documents pages), use it
+    this.route.queryParamMap.subscribe((qp) => {
+      const type = qp.get('type') as ('sortie' | 'livraison' | 'transfert' | null);
+      if (type === 'sortie' || type === 'livraison' || type === 'transfert') {
+        this.sessionDocumentType = type;
+        // Refresh available destination depots when type is preset
+        this.availableDepots = this.filterAvailableDestinationDepots(this.depots());
+        // If coming with a preset type, prompt for required context
+        if (type === 'sortie' || type === 'transfert') {
+          // Require destination depot selection
+          if (!this.selectedDestinationDepot) {
+            this.showDepotSelectionModal = true;
+          }
+        } else if (type === 'livraison') {
+          // Require client selection
+          if (!this.selectedClient) {
+            this.showClientSelectionModal = true;
+          }
+        }
+      }
+    });
     this.loadDepots();
     this.loadClients();
     this.loadProducts();
@@ -144,8 +166,25 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     this.initSounds();
     queueMicrotask(() => this.initCamera());
     
-    // Show document type selection on component load
-    this.showDocumentTypeSelection();
+    // Show document type selection on component load only if not preset
+    if (!this.sessionDocumentType) {
+      this.showDocumentTypeSelection();
+    } else {
+      // If preset, ensure the dependent selection modals are opened accordingly
+      if (this.sessionDocumentType === 'sortie' || this.sessionDocumentType === 'transfert') {
+        if (!this.selectedDestinationDepot) {
+          this.showDepotSelectionModal = true;
+        }
+      } else if (this.sessionDocumentType === 'livraison') {
+        if (!this.selectedClient) {
+          this.showClientSelectionModal = true;
+        }
+      }
+    }
+  }
+
+  goBack(): void {
+    this.router.navigate(['/stock']);
   }
 
   ngOnDestroy(): void {
@@ -157,10 +196,24 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       next: (list) => {
         this.depots.set(list.filter((d: any) => d.isActive));
         // Filter out current depot from available depots for destination selection
-        this.availableDepots = list.filter((d: any) => d.isActive && d.id !== this.depotId);
+        this.availableDepots = this.filterAvailableDestinationDepots(list);
       },
       error: () => {}
     });
+  }
+
+  private filterAvailableDestinationDepots(list: any[]): Depot[] {
+    const base = list.filter((d: any) => d.isActive && d.id !== this.depotId);
+    if (this.sessionDocumentType === 'transfert') {
+      // Restrict to same company when transferring
+      // Try to infer companyId if present on depot objects
+      const currentDepot: any = list.find((d: any) => d.id === this.depotId);
+      const currentCompanyId = currentDepot?.companyId ?? currentDepot?.company_id ?? null;
+      if (currentCompanyId != null) {
+        return base.filter((d: any) => (d.companyId ?? d.company_id) === currentCompanyId);
+      }
+    }
+    return base;
   }
 
   loadClients(): void {
@@ -1059,6 +1112,8 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     this.selectedDocumentType = type;
     this.sessionDocumentType = type; // Set the session document type
     this.showDocumentTypeModal = false;
+    // Refresh available destination depots based on the chosen type
+    this.availableDepots = this.filterAvailableDestinationDepots(this.depots());
     
     if (type === 'sortie') {
       this.showDepotSelectionModal = true;
@@ -1275,14 +1330,25 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     // First save the document to database
     this.saveDocumentToDatabase().then((savedDocument) => {
       if (savedDocument) {
-        const printContent = this.generateDocumentContent(savedDocument);
+        const sessionType = this.sessionDocumentType || 'livraison';
+        // Ensure client details are present for livraison prints
+        if (sessionType === 'livraison' && this.selectedClient) {
+          (savedDocument as any).client = this.selectedClient;
+        }
+        // Ensure destination details are present for sortie prints
+        if (sessionType === 'sortie') {
+          (savedDocument as any).destination = this.destination;
+          (savedDocument as any).validationFromDate = this.validationFromDate;
+          (savedDocument as any).validationToDate = this.validationToDate;
+        }
+        const printContent = buildScanLikeDocumentHtmlFromDocument(savedDocument as any, sessionType);
         let documentTitle = 'Bon de livraison';
-        if (this.sessionDocumentType === 'sortie') {
+        if (sessionType === 'sortie') {
           documentTitle = 'Bon de sortie';
-        } else if (this.sessionDocumentType === 'transfert') {
+        } else if (sessionType === 'transfert') {
           documentTitle = 'Bon de transfert';
         }
-        
+
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
           this.error = 'Impossible d\'ouvrir la fenêtre d\'impression';
@@ -1295,7 +1361,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
           <head>
             <title>${documentTitle}</title>
             <style>
-              ${this.getPrintStyles()}
+              ${getScanPrintStyles()}
             </style>
           </head>
           <body>
@@ -1303,7 +1369,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
           </body>
           </html>
         `);
-        
+
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => {
@@ -1617,7 +1683,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       case 'transfert':
         return 'BON_TRANSFERT';
       case 'livraison':
-        return 'BON_ENTREE_DEPOT';
+        return 'BON_ENTREE_MAGASIN';
       default:
         return 'BON_ENTREE_DEPOT';
     }
