@@ -42,24 +42,79 @@ router.get('/', authenticateToken, async (req, res) => {
       orderBy: { name: 'asc' }
     });
 
-    // Calculate financial information for each supplier
-    const suppliersWithFinancials = suppliers.map(supplier => {
-      const totalExpenses = supplier.expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
-      const totalPayments = supplier.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-      const currentDebt = totalExpenses - totalPayments;
+    // Calculate financial information for each supplier using the same logic as supplier statement
+    const suppliersWithFinancials = await Promise.all(suppliers.map(async (supplier) => {
+      // Get ALL expenses and payments for this supplier (not just recent ones)
+      const allExpenses = await prisma.expense.findMany({
+        where: { supplierId: supplier.id },
+        select: { amount: true, isPaid: true, isAdvance: true }
+      });
+      
+      const allPayments = await prisma.supplierPayment.findMany({
+        where: { supplierId: supplier.id },
+        select: { amount: true, notes: true }
+      });
+
+      // Calculate totals using the same logic as the statement
+      let totalDebit = 0;
+      let totalCredit = 0;
+      let currentDebt = 0;
+      
+      // Process all expenses using the same logic as statement
+      allExpenses.forEach(expense => {
+        const amount = parseFloat(expense.amount);
+        if (expense.isAdvance || expense.isPaid) {
+          // Advance/paid expenses: show as both debit and credit (like statement)
+          totalDebit += amount;
+          totalCredit += amount;
+          currentDebt += amount - amount; // debit - credit = 0
+        } else {
+          // Unpaid expenses: show as credit only (like statement)
+          totalCredit += amount;
+          currentDebt += 0 - amount; // debit - credit = -amount
+        }
+      });
+      
+      // Process all payments using the same logic as statement
+      allPayments.forEach(payment => {
+        const amount = parseFloat(payment.amount);
+        const notes = payment.notes || '';
+        
+        // Extract bon d'entrée details from notes (same as statement logic)
+        const bonMatch = notes.match(/Bon d'entrée #(\d+)/);
+        const paidMatch = notes.match(/Payé: ([\d.]+) dt/);
+        const totalMatch = notes.match(/Total: ([\d.]+) dt/);
+        
+        if (bonMatch && paidMatch && totalMatch) {
+          // Partial payment with both paid amount and total amount (like statement)
+          const paidAmount = parseFloat(paidMatch[1]);
+          const totalAmount = parseFloat(totalMatch[1]);
+          totalDebit += paidAmount;
+          totalCredit += totalAmount;
+          currentDebt += paidAmount - totalAmount; // debit - credit
+        } else if (amount < 0) {
+          // Full credit (no payment made) - like statement
+          totalCredit += Math.abs(amount);
+          currentDebt += 0 - Math.abs(amount); // debit - credit
+        } else {
+          // Regular payment - like statement
+          totalDebit += amount;
+          currentDebt += amount - 0; // debit - credit
+        }
+      });
 
       return {
         ...supplier,
-        totalExpenses,
-        totalPayments,
-        currentDebt,
+        totalExpenses: allExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0),
+        totalPayments: allPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0),
+        currentDebt: currentDebt, // Use the calculated balance from statement logic
         recentExpenses: supplier.expenses.map(expense => ({
           ...expense,
           amount: Number(expense.amount),
           isPaid: false // For now, we'll consider expenses as unpaid if they have a debt
         }))
       };
-    });
+    }));
 
     res.json(suppliersWithFinancials);
   } catch (error) {

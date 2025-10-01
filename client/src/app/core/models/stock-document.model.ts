@@ -5,7 +5,11 @@ export interface StockDocument {
   status: 'PREPARED' | 'SENT' | 'RECEIVED' | 'CANCELLED';
   emetteurId: number;
   destinataireId: number;
+  clientId?: number;
   notes?: string;
+  destination?: string;
+  validationFromDate?: Date;
+  validationToDate?: Date;
   createdAt: Date;
   updatedAt: Date;
   
@@ -29,6 +33,7 @@ export interface StockDocumentItem {
   batch?: string;
   notes?: string;
   barcode?: string;
+  count?: number;
   
   product?: Product;
 }

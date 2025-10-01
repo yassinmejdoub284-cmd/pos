@@ -162,8 +162,10 @@ export class BonEntreeComponent implements OnInit {
           setTimeout(() => this.success = '', 3000);
         },
         error: (error) => {
-          this.error = 'Erreur lors de la mise à jour du document';
+          this.error = error.error?.error || 'Erreur lors de la mise à jour du document';
           this.loading = false;
+          // Auto-dismiss error message after 5 seconds
+          setTimeout(() => this.error = '', 5000);
         }
       });
     } else {
@@ -178,12 +180,16 @@ export class BonEntreeComponent implements OnInit {
           this.document = doc;
           this.success = 'Document créé avec succès';
           this.loading = false;
+          // Auto-dismiss success message after 3 seconds
+          setTimeout(() => this.success = '', 3000);
           // Navigate to the new document
           this.router.navigate(['/stock/documents/bon-entree', doc.id]);
         },
         error: (error) => {
-          this.error = 'Erreur lors de la création du document';
+          this.error = error.error?.error || 'Erreur lors de la création du document';
           this.loading = false;
+          // Auto-dismiss error message after 5 seconds
+          setTimeout(() => this.error = '', 5000);
         }
       });
     }
@@ -200,7 +206,20 @@ export class BonEntreeComponent implements OnInit {
   }
 
   getTotalQuantity(): number {
-    return this.items.reduce((total, item) => total + (item.quantity || 0), 0);
+    if (!this.items || this.items.length === 0) return 0;
+    const total = this.items.reduce((total, item) => {
+      const quantity = Number(item.quantity) || 0;
+      return total + quantity;
+    }, 0);
+    return Math.round(total * 1000) / 1000; // Round to 3 decimal places
+  }
+
+  getTotalCount(): number {
+    if (!this.items || this.items.length === 0) return 0;
+    return this.items.reduce((total, item) => {
+      const count = Number(item['count']) || 0;
+      return total + count;
+    }, 0);
   }
 
   getTotalValue(): number {

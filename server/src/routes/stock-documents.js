@@ -3,9 +3,90 @@ const { prisma } = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
 const { logAudit } = require('../lib/audit');
 
+// Import calculateSessionSummary from sessions route
+async function calculateSessionSummary(sessionId) {
+  const session = await prisma.sessionCaisse.findUnique({
+    where: { id: sessionId },
+    include: {
+      sales: {
+        include: {
+          paymentMethod: true
+        }
+      },
+      cashMovements: true
+    }
+  });
+
+  if (!session) return null;
+
+  // Calculate cash from sales
+  const cashSales = session.sales
+    .filter(sale => sale.paymentMethod?.type === 'CASH')
+    .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
+
+  // Calculate cash movements
+  const entree = session.cashMovements
+    .filter(m => m.type === 'ENTREE')
+    .reduce((sum, m) => sum + parseFloat(m.amount), 0);
+
+  const sortie = session.cashMovements
+    .filter(m => ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type))
+    .reduce((sum, m) => sum + parseFloat(m.amount), 0);
+
+  // Start expected cash from opening
+  let expectedCash = parseFloat(session.openingFund);
+
+  // Calculate outstanding credit from client debt transactions tied to this session's sales
+  let creditOutstanding = 0;
+  try {
+    const debtTransactions = await prisma.clientDebtTransaction.findMany({
+      where: {
+        saleId: { in: session.sales.map(s => s.id) },
+        type: 'DEBT'
+      }
+    });
+    creditOutstanding = debtTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  } catch (e) {}
+
+  // Add standalone client payments (credit encashments) to expected cash
+  let clientPaymentsTotal = 0;
+  try {
+    const standalonePayments = await prisma.clientDebtTransaction.findMany({
+      where: {
+        type: 'PAYMENT',
+        saleId: null,
+        userId: session.userId,
+        createdAt: {
+          gte: session.openedAt,
+          lte: session.closedAt || new Date()
+        }
+      }
+    });
+    clientPaymentsTotal = standalonePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  } catch (e) {}
+
+  expectedCash = expectedCash + clientPaymentsTotal;
+
+  // Compute cash from sales as totalSales - creditOutstanding and add entries then subtract sorties
+  const totalSalesAmount = session.sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
+  const cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
+  expectedCash = expectedCash + cashFromSalesNetCredit + entree - sortie;
+
+  return {
+    expectedCash,
+    cashSales,
+    entree,
+    sortie,
+    totalSales: session.sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0),
+    totalTickets: session.sales.length,
+    creditOutstanding,
+    clientPaymentsTotal
+  };
+}
+
 const router = express.Router();
 
-function generateDocumentNumber(type) {
+async function generateDocumentNumber(type) {
   const prefix = type === 'BON_EXPEDITION' ? 'BEXP' : 
                  type === 'BON_ENTREE_DEPOT' ? 'BED' :
                  type === 'BON_TRANSFERT' ? 'BT' :
@@ -14,9 +95,12 @@ function generateDocumentNumber(type) {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
-  const timestamp = Date.now().toString().slice(-4);
   
-  return `${prefix}-${year}${month}-${timestamp}`;
+  // Get the next sequential number for this document type
+  const nextId = await getNextDocumentId(type);
+  const sequenceNumber = String(nextId).padStart(4, '0');
+  
+  return `${prefix}-${year}${month}-${sequenceNumber}`;
 }
 
 async function getNextDocumentId(type) {
@@ -31,6 +115,19 @@ async function getNextDocumentId(type) {
     console.error('Error getting next document ID:', error);
     return 1;
   }
+}
+
+function parseQuantity(q) {
+  if (typeof q === 'number') return q;
+  const s = String(q || '').trim().replace(/,/g, '.');
+  const isNeg = s.startsWith('-');
+  let cleaned = s.replace(/[^0-9.]/g, '');
+  const firstDot = cleaned.indexOf('.');
+  if (firstDot !== -1) {
+    cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+  }
+  const result = parseFloat((isNeg ? '-' : '') + cleaned);
+  return Number.isFinite(result) ? result : 0;
 }
 
 
@@ -75,6 +172,7 @@ router.get('/', async (req, res) => {
         include: {
           emetteur: { include: { company: true } },
           destinataire: { include: { company: true, clients: true } },
+          client: true,
           items: {
             include: {
               product: true
@@ -135,6 +233,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       include: {
       emetteur: { include: { company: true } },
       destinataire: { include: { company: true } },
+      client: true,
         items: {
           include: {
             product: true
@@ -225,6 +324,136 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Update document
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Check if document exists
+    const existingDocument = await prisma.stockDocument.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!existingDocument) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // Prepare update data
+    const dataToUpdate = {};
+    
+    // Update basic fields
+    if (updateData.clientId !== undefined) {
+      dataToUpdate.clientId = updateData.clientId ? parseInt(updateData.clientId) : null;
+    }
+    if (updateData.destination !== undefined) dataToUpdate.destination = updateData.destination;
+    if (updateData.validationFromDate !== undefined) {
+      dataToUpdate.validationFromDate = updateData.validationFromDate ? new Date(updateData.validationFromDate) : null;
+    }
+    if (updateData.validationToDate !== undefined) {
+      dataToUpdate.validationToDate = updateData.validationToDate ? new Date(updateData.validationToDate) : null;
+    }
+    if (updateData.notes !== undefined) dataToUpdate.notes = updateData.notes;
+
+    // Update document
+    const updatedDocument = await prisma.stockDocument.update({
+      where: { id: parseInt(id) },
+      data: dataToUpdate,
+      include: {
+        emetteur: {
+          include: {
+            company: true
+          }
+        },
+        destinataire: {
+          include: {
+            company: true
+          }
+        },
+        client: true,
+        items: {
+          include: {
+            product: true
+          }
+        },
+        statusHistory: {
+          include: {
+            user: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
+      }
+    });
+
+    // Update items if provided
+    if (updateData.items && Array.isArray(updateData.items)) {
+      // Delete existing items
+      await prisma.stockDocumentItem.deleteMany({
+        where: { documentId: parseInt(id) }
+      });
+
+      // Create new items
+      for (const item of updateData.items) {
+        await prisma.stockDocumentItem.create({
+          data: {
+            documentId: parseInt(id),
+            productId: item.productId,
+            famille: item.famille,
+            quantity: parseFloat(item.quantity),
+            count: parseInt(item.count) || 1,
+            notes: item.notes || '',
+            purchasePrice: item.purchasePrice || null,
+            batch: item.batch || null,
+            barcode: item.barcode || null
+          }
+        });
+      }
+
+      // Fetch updated document with items
+      const finalDocument = await prisma.stockDocument.findUnique({
+        where: { id: parseInt(id) },
+        include: {
+          emetteur: {
+            include: {
+              company: true
+            }
+          },
+          destinataire: {
+            include: {
+              company: true
+            }
+          },
+          items: {
+            include: {
+              product: true
+            }
+          },
+          statusHistory: {
+            include: {
+              user: true
+            },
+            orderBy: {
+              createdAt: 'desc'
+            }
+          }
+        }
+      });
+
+      return res.json(finalDocument);
+    }
+
+    // Log audit
+    await logAudit(req.user.id, 'stock_documents', parseInt(id), 'UPDATE', existingDocument, updatedDocument);
+
+    res.json(updatedDocument);
+  } catch (error) {
+    console.error('Error updating document:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.post('/expedition', authenticateToken, async (req, res) => {
   try {
     const { emetteurId, destinataireId, items, notes } = req.body;
@@ -236,20 +465,8 @@ router.post('/expedition', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Données manquantes' });
     }
     
-    const numero = generateDocumentNumber('BON_EXPEDITION');
+    const numero = await generateDocumentNumber('BON_EXPEDITION');
     
-    const parseQuantity = (q) => {
-      if (typeof q === 'number') return q;
-      const s = String(q || '').trim().replace(/,/g, '.');
-      const isNeg = s.startsWith('-');
-      let cleaned = s.replace(/[^0-9.]/g, '');
-      const firstDot = cleaned.indexOf('.');
-      if (firstDot !== -1) {
-        cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
-      }
-      const result = parseFloat((isNeg ? '-' : '') + cleaned);
-      return Number.isFinite(result) ? result : 0;
-    };
 
     const document = await prisma.$transaction(async (tx) => {
       // Create the document
@@ -264,10 +481,10 @@ router.post('/expedition', authenticateToken, async (req, res) => {
           items: {
             create: items.map(item => ({
               productId: item.productId,
-              famille: item.famille,
-              quantity: parseInt(item.quantity),
+              famille: typeof item.famille === 'object' ? item.famille.name : item.famille,
+              quantity: parseFloat(item.quantity),
               batch: item.batch || null,
-              notes: item.notes || null,
+              notes: typeof item.famille === 'object' ? item.famille.name : (item.notes || null),
               barcode: null
             }))
           },
@@ -293,7 +510,7 @@ router.post('/expedition', authenticateToken, async (req, res) => {
       // Update inventory and create stock movements
       for (const item of items) {
         const productId = item.productId;
-        const quantity = parseInt(item.quantity);
+        const quantity = parseFloat(item.quantity);
         const emetteurIdInt = parseInt(emetteurId);
 
         // Check if MAIN depot has enough stock
@@ -364,7 +581,52 @@ router.post('/entry', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Données manquantes' });
     }
 
-    const numero = generateDocumentNumber('BON_ENTREE_DEPOT');
+    // Check if depot is a shop and validate cash availability
+    const depot = await prisma.depot.findUnique({
+      where: { id: parseInt(depotId) }
+    });
+
+    if (!depot) {
+      return res.status(400).json({ error: 'Dépôt introuvable' });
+    }
+
+    // If depot is a shop, check cash availability
+    if (depot.type === 'SHOP') {
+      const activeSession = await prisma.sessionCaisse.findFirst({
+        where: { 
+          userId: req.user.id, 
+          status: 'OPEN',
+          depotId: parseInt(depotId)
+        }
+      });
+
+      if (!activeSession) {
+        return res.status(400).json({ 
+          error: 'Session de caisse requise pour créer un bon d\'entrée dans un magasin' 
+        });
+      }
+
+      // Calculate total amount to pay supplier
+      const totalAmount = items.reduce((sum, item) => {
+        const quantity = parseFloat(item.quantity) || 0;
+        const price = parseFloat(item.purchasePrice) || 0;
+        return sum + (quantity * price);
+      }, 0);
+
+      if (totalAmount > 0) {
+        // Calculate current cash in session
+        const sessionSummary = await calculateSessionSummary(activeSession.id);
+        const currentCash = sessionSummary.expectedCash;
+
+        if (currentCash < totalAmount) {
+          return res.status(400).json({ 
+            error: `Fonds insuffisants. Montant requis: ${totalAmount.toFixed(3)} dt, Disponible: ${currentCash.toFixed(3)} dt` 
+          });
+        }
+      }
+    }
+
+    const numero = await generateDocumentNumber('BON_ENTREE_DEPOT');
 
     // If paying cash, we must have an open caisse session
     let activeSession = null;
@@ -391,11 +653,11 @@ router.post('/entry', authenticateToken, async (req, res) => {
           items: {
             create: items.map((item) => ({
               productId: item.productId,
-              famille: item.famille,
+              famille: typeof item.famille === 'object' ? item.famille.name : item.famille,
               quantity: parseQuantity(item.quantity),
               purchasePrice: item.purchasePrice ? parseFloat(item.purchasePrice) : null,
               batch: item.batch || null,
-              notes: item.notes || null,
+              notes: typeof item.famille === 'object' ? item.famille.name : (item.notes || null),
               barcode: null
             }))
           },
@@ -494,7 +756,7 @@ router.post('/prepare-lot', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Données manquantes' });
     }
     
-    const numero = generateDocumentNumber('BON_EXPEDITION');
+    const numero = await generateDocumentNumber('BON_EXPEDITION');
     
     const document = await prisma.stockDocument.create({
       data: {
@@ -507,10 +769,10 @@ router.post('/prepare-lot', authenticateToken, async (req, res) => {
         items: {
           create: items.map(item => ({
             productId: item.productId,
-            famille: item.famille,
-            quantity: parseInt(item.quantity),
+            famille: typeof item.famille === 'object' ? item.famille.name : item.famille,
+            quantity: parseFloat(item.quantity),
             batch: item.batch || null,
-            notes: item.notes || null,
+            notes: typeof item.famille === 'object' ? item.famille.name : (item.notes || null),
             barcode: null
           }))
         },
@@ -609,7 +871,7 @@ router.post('/scan', authenticateToken, async (req, res) => {
     // If documentType is provided, create a new document with auto-incrementing ID
     if (documentType) {
       const nextId = await getNextDocumentId(documentType);
-      const numero = generateDocumentNumber(documentType);
+      const numero = await generateDocumentNumber(documentType);
       
       // Create a new document for the scan
       const newDocument = await prisma.stockDocument.create({
@@ -817,7 +1079,7 @@ router.post('/transfer', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Données manquantes' });
     }
     
-    const numero = generateDocumentNumber('BON_TRANSFERT');
+    const numero = await generateDocumentNumber('BON_TRANSFERT');
     
     const document = await prisma.$transaction(async (tx) => {
       // Create the document
@@ -832,10 +1094,10 @@ router.post('/transfer', authenticateToken, async (req, res) => {
           items: {
             create: items.map(item => ({
               productId: item.productId,
-              famille: item.famille,
-              quantity: parseInt(item.quantity),
+              famille: typeof item.famille === 'object' ? item.famille.name : item.famille,
+              quantity: parseFloat(item.quantity),
               batch: null,
-              notes: null,
+              notes: typeof item.famille === 'object' ? item.famille.name : null,
               barcode: null
             }))
           },
@@ -861,7 +1123,7 @@ router.post('/transfer', authenticateToken, async (req, res) => {
       // Update inventory and create stock movements
       for (const item of items) {
         const productId = item.productId;
-        const quantity = parseInt(item.quantity);
+        const quantity = parseFloat(item.quantity);
         const emetteurIdInt = parseInt(emetteurId);
 
         // Check if BRANCH depot has enough stock
@@ -1062,108 +1324,6 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/transfer', authenticateToken, async (req, res) => {
-  try {
-    const { fromDepotId, toDepotId, items, notes } = req.body;
-    
-    if (!fromDepotId || !toDepotId || !items || items.length === 0) {
-      return res.status(400).json({ error: 'Données manquantes' });
-    }
-    
-    await prisma.$transaction(async (tx) => {
-      for (const item of items) {
-        const inventory = await tx.inventory.findUnique({
-          where: {
-            depotId_productId: {
-              depotId: parseInt(fromDepotId),
-              productId: item.productId
-            }
-          }
-        });
-        
-        // Stock validation removed - frontend handles warnings, backend allows all operations
-        
-        if (inventory) {
-          await tx.inventory.update({
-            where: { id: inventory.id },
-            data: {
-              quantity: inventory.quantity - item.quantity
-            }
-          });
-        } else {
-          // Create inventory record with negative quantity
-          await tx.inventory.create({
-            data: {
-              depotId: parseInt(fromDepotId),
-              productId: item.productId,
-              quantity: -item.quantity
-            }
-          });
-        }
-        
-        const targetInventory = await tx.inventory.findUnique({
-          where: {
-            depotId_productId: {
-              depotId: parseInt(toDepotId),
-              productId: item.productId
-            }
-          }
-        });
-        
-        if (targetInventory) {
-          await tx.inventory.update({
-            where: { id: targetInventory.id },
-            data: {
-              quantity: targetInventory.quantity + item.quantity
-            }
-          });
-        } else {
-          await tx.inventory.create({
-            data: {
-              depotId: parseInt(toDepotId),
-              productId: item.productId,
-              quantity: item.quantity
-            }
-          });
-        }
-      }
-      
-      const transferDoc = await tx.stockDocument.create({
-        data: {
-          numero: generateDocumentNumber('BON_TRANSFERT'),
-          type: 'BON_TRANSFERT',
-          status: 'RECEIVED',
-          emetteurId: parseInt(fromDepotId),
-          destinataireId: parseInt(toDepotId),
-          notes,
-          items: {
-            create: items.map(item => ({
-              productId: item.productId,
-              famille: item.famille,
-              quantity: parseInt(item.quantity),
-              batch: item.batch,
-              notes: item.notes
-            }))
-          },
-          statusHistory: {
-            create: {
-              status: 'RECEIVED',
-              userId: req.user.id,
-              notes: 'Transfert effectué'
-            }
-          }
-        }
-      });
-      
-      await logAudit(req.user.id, 'stock_documents', transferDoc.id, 'CREATE', null, transferDoc);
-    });
-    
-    res.json({ message: 'Transfert effectué avec succès' });
-  } catch (error) {
-    console.error('Error processing transfer:', error);
-    res.status(500).json({ error: error.message || 'Erreur lors du transfert' });
-  }
-});
 
 router.get('/:id/print-labels', authenticateToken, async (req, res) => {
   try {
@@ -1178,7 +1338,8 @@ router.get('/:id/print-labels', authenticateToken, async (req, res) => {
           }
         },
         emetteur: true,
-        destinataire: true
+        destinataire: true,
+        client: true
       }
     });
     
@@ -1218,6 +1379,7 @@ router.get('/:id/export-pdf', authenticateToken, async (req, res) => {
         },
         emetteur: true,
         destinataire: true,
+        client: true,
         statusHistory: {
           include: {
             user: true
@@ -1248,7 +1410,7 @@ router.get('/:id/export-pdf', authenticateToken, async (req, res) => {
 router.get('/next-number/:type', authenticateToken, async (req, res) => {
   try {
     const { type } = req.params;
-    const numero = generateDocumentNumber(type);
+    const numero = await generateDocumentNumber(type);
     res.json(numero);
   } catch (error) {
     console.error('Error generating next document number:', error);
@@ -1283,7 +1445,7 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Type et items requis' });
     }
 
-    const documentNumber = numero || generateDocumentNumber(type);
+    const documentNumber = numero || await generateDocumentNumber(type);
     
     // Validate and convert status to valid DocumentStatus enum value
     const validStatuses = ['PREPARED', 'SENT', 'RECEIVED', 'CANCELLED'];
@@ -1305,8 +1467,8 @@ router.post('/', authenticateToken, async (req, res) => {
           notes: clientId ? `Client:${clientId}${notes ? ' | ' + notes : ''}` : (notes || null),
           items: {
             create: items.map(item => ({
-              productId: item.produitId,
-              famille: item.famille || 'SCAN',
+              productId: item.produitId || item.productId,
+              famille: (typeof item.famille === 'object' ? item.famille.name : item.famille) || 'SCAN',
               quantity: parseFloat(item.quantity),
               count: item.count || 1,
               prixUnitaire: item.prixUnitaire || 0,
@@ -1315,7 +1477,7 @@ router.post('/', authenticateToken, async (req, res) => {
               montantTVA: item.montantTVA || 0,
               montantTTC: item.montantTTC || 0,
               batch: item.batch || null,
-              notes: item.notes || null,
+              notes: typeof item.famille === 'object' ? item.famille.name : (item.notes || null),
               barcode: item.barcode || null
             }))
           },
@@ -1340,7 +1502,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
       // Update inventory based on document type
       for (const item of items) {
-        const productId = item.produitId;
+        const productId = item.produitId || item.productId;
         const quantity = parseFloat(item.quantity);
         const depotIdInt = parseInt(depotId);
 
@@ -1428,6 +1590,70 @@ router.post('/', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error creating document:', error);
     res.status(500).json({ error: 'Erreur lors de la création du document' });
+  }
+});
+
+// Convert bon de sortie to bon de livraison
+router.post('/:id/convert-to-delivery', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get the existing document
+    const existingDocument = await prisma.stockDocument.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        emetteur: { include: { company: true } },
+        destinataire: { include: { company: true } },
+        client: true,
+        items: { include: { product: true } },
+        statusHistory: { include: { user: true }, orderBy: { createdAt: 'desc' } }
+      }
+    });
+
+    if (!existingDocument) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    if (existingDocument.type !== 'BON_EXPEDITION') {
+      return res.status(400).json({ error: 'Only bon de sortie documents can be converted to delivery notes' });
+    }
+
+    // Generate new document number for delivery note
+    const newNumber = await generateDocumentNumber('BON_ENTREE_MAGASIN');
+    
+    // Update the document type and number
+    const updatedDocument = await prisma.stockDocument.update({
+      where: { id: parseInt(id) },
+      data: {
+        type: 'BON_ENTREE_MAGASIN',
+        numero: newNumber,
+        status: 'SENT' // Mark as sent since it's being delivered
+      },
+      include: {
+        emetteur: { include: { company: true } },
+        destinataire: { include: { company: true } },
+        client: true,
+        items: { include: { product: true } },
+        statusHistory: { include: { user: true }, orderBy: { createdAt: 'desc' } }
+      }
+    });
+
+    // Add status history entry
+    await prisma.documentStatusHistory.create({
+      data: {
+        documentId: parseInt(id),
+        status: 'SENT',
+        userId: req.user.id,
+        notes: 'Document converti en bon de livraison'
+      }
+    });
+
+    await logAudit(req.user.id, 'stock_documents', parseInt(id), 'UPDATE', existingDocument, updatedDocument);
+
+    res.json(updatedDocument);
+  } catch (error) {
+    console.error('Error converting document to delivery:', error);
+    res.status(500).json({ error: 'Erreur lors de la conversion du document' });
   }
 });
 

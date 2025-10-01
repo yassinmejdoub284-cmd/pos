@@ -363,10 +363,70 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
       // For admin corrections, we need to add the adjustment to the current cash register
       // instead of setting the absolute value
       let finalCountedCash = parseFloat(countedCash);
+      let missingAmount = 0;
+      let expectedToReceive = 0;
+      let actuallyReceived = 0;
+      let originalWithdrawalAttempt = 0;
+      let expectedToRemain = 0;
+      let shouldActuallyRemain = 0;
+      let withdrawalAttempt = 0;
+      
       if (isAdminCorrection) {
         // The correctedAmount represents what the cash register should contain after correction
         // So we use it directly as the final counted cash
-        finalCountedCash = parseFloat(countedCash);
+        
+        // Calculate the missing amount that should stay in cash
+        // Rule: missing amount = attempted withdrawal - actually received
+        // Source of truth: latest reopen snapshot values
+        let reopenSnapshot = null;
+        try {
+          // Find the latest reopen change request for this session
+          const latestReopen = await tx.changeRequest.findFirst({
+            where: {
+              entityId: parseInt(id),
+              entityType: 'SESSION_CAISSE',
+              type: 'SESSION_REOPEN',
+              status: 'APPROVED'
+            },
+            orderBy: { approvedAt: 'desc' }
+          });
+          
+          if (latestReopen && latestReopen.rejectionNotes) {
+            reopenSnapshot = JSON.parse(latestReopen.rejectionNotes);
+          }
+        } catch (e) {
+          console.error('Error parsing reopen snapshot:', e);
+        }
+        
+        if (reopenSnapshot) {
+          // Use reopen snapshot values
+          withdrawalAttempt = parseFloat(reopenSnapshot.attemptedWithdrawal);
+          const soldeAfterCloture = parseFloat(reopenSnapshot.newExpectedCash);
+          actuallyReceived = parseFloat(countedCash); // What was actually received
+          // Single formula: New solde = solde (after cloture) + (cloture - correction)
+          missingAmount = withdrawalAttempt - actuallyReceived; // Can be positive or negative
+        } else {
+          // Fallback to current calculation if no reopen snapshot found
+          const originalExpectedCash = parseFloat(session.originalExpectedCash || summary.expectedCash);
+          const soldeAfterCloture = parseFloat(summary.expectedCash);
+          withdrawalAttempt = originalExpectedCash - soldeAfterCloture;
+          actuallyReceived = parseFloat(countedCash);
+          // Single formula: New solde = solde (after cloture) + (cloture - correction)
+          missingAmount = withdrawalAttempt - actuallyReceived; // Can be positive or negative
+        }
+        
+        // Debug logging
+        const soldeAfterCloture = reopenSnapshot ? parseFloat(reopenSnapshot.newExpectedCash) : parseFloat(summary.expectedCash);
+        console.log('Admin Correction Debug:', {
+          reopenSnapshot,
+          withdrawalAttempt,
+          actuallyReceived,
+          missingAmount,
+          soldeAfterCloture,
+          expectedNewBalance: soldeAfterCloture + missingAmount
+        });
+        
+        // The missing amount will be added to the current open session below
       }
 
       // Update session
@@ -417,7 +477,60 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
         });
       }
 
-      return updatedSession;
+      // For admin corrections, handle the open session update within the transaction
+      let updatedOpenSession = null;
+      if (isAdminCorrection) {
+        // Find the existing open session for this user and POS
+        const existingOpenSession = await tx.sessionCaisse.findFirst({
+          where: {
+            userId: session.userId,
+            posId: session.posId,
+            status: 'OPEN'
+          }
+        });
+
+        if (existingOpenSession && missingAmount !== 0) {
+          // Apply the correction to the current open session (actual cash balance)
+          await tx.cashMovement.create({
+            data: {
+              sessionId: existingOpenSession.id,
+              type: missingAmount > 0 ? 'ENTREE' : 'SORTIE', // Add if positive, remove if negative
+              amount: Math.abs(missingAmount), // Always positive amount
+              reason: `Correction admin ${missingAmount > 0 ? '+' : ''}${missingAmount.toFixed(3)} TND (Tentative: ${withdrawalAttempt.toFixed(3)} TND, Reçu: ${actuallyReceived.toFixed(3)} TND)`,
+              ticketId: null,
+              createdById: req.user.id
+            }
+          });
+          
+          // Also add to the closed session for print report (same amount, same reason)
+          await tx.cashMovement.create({
+            data: {
+              sessionId: parseInt(id),
+              type: missingAmount > 0 ? 'ENTREE' : 'SORTIE', // Add if positive, remove if negative
+              amount: Math.abs(missingAmount), // Always positive amount
+              reason: `Correction admin ${missingAmount > 0 ? '+' : ''}${missingAmount.toFixed(3)} TND (Tentative: ${withdrawalAttempt.toFixed(3)} TND, Reçu: ${actuallyReceived.toFixed(3)} TND)`,
+              ticketId: null,
+              createdById: req.user.id
+            }
+          });
+        }
+        
+        if (existingOpenSession) {
+          // Update the existing open session with corrected balance
+          updatedOpenSession = await tx.sessionCaisse.update({
+            where: { id: existingOpenSession.id },
+            data: {
+              note: 'Session mise à jour après correction admin'
+            },
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+              depot: { select: { name: true, code: true } }
+            }
+          });
+        }
+      }
+
+      return { session: updatedSession, updatedOpenSession };
     });
 
     await logAudit(req.user.id, 'session_caisse', parseInt(id), 'UPDATE', session, {
@@ -437,68 +550,26 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
       countedCash: parseFloat(countedCash)
     });
 
-    // For admin corrections, update the existing open session with the corrected balance
-    let updatedOpenSession = null;
-    if (isAdminCorrection) {
+    // Handle post-transaction admin correction tasks
+    if (isAdminCorrection && result.updatedOpenSession) {
       try {
-        // Find the existing open session for this user and POS
-        const existingOpenSession = await prisma.sessionCaisse.findFirst({
-          where: {
-            userId: session.userId,
-            posId: session.posId,
-            status: 'OPEN'
-          }
+        await logAudit(req.user.id, 'session_caisse', result.updatedOpenSession.id, 'UPDATE', null, {
+          posId: result.updatedOpenSession.posId,
+          openingFund: result.updatedOpenSession.openingFund,
+          note: result.updatedOpenSession.note,
+          reason: 'Updated after admin correction'
         });
 
-        if (existingOpenSession) {
-          // The corrected amount should be added to the current expected cash
-          // If you correct to 10 TND, it means add 10 TND to the current balance
-          const correctedAmount = parseFloat(countedCash);
-          
-          // Add the corrected amount as a cash movement
-          if (correctedAmount !== 0) {
-            await prisma.cashMovement.create({
-              data: {
-                sessionId: existingOpenSession.id,
-                type: 'ENTREE', // Always add the corrected amount
-                amount: correctedAmount,
-                reason: `Correction admin - Ajustement de +${correctedAmount.toFixed(3)} TND`,
-                ticketId: null,
-                createdById: req.user.id
-              }
-            });
-          }
-          
-          // Update the existing open session with corrected balance
-          updatedOpenSession = await prisma.sessionCaisse.update({
-            where: { id: existingOpenSession.id },
-            data: {
-              note: 'Session mise à jour après correction admin'
-            },
-            include: {
-              user: { select: { firstName: true, lastName: true } },
-              depot: { select: { name: true, code: true } }
-            }
-          });
-
-          await logAudit(req.user.id, 'session_caisse', updatedOpenSession.id, 'UPDATE', existingOpenSession, {
-            posId: updatedOpenSession.posId,
-            openingFund: updatedOpenSession.openingFund,
-            note: updatedOpenSession.note,
+        // Emit socket notification for updated session
+        if (req.app.get('io')) {
+          req.app.get('io').emit('session_updated', {
+            sessionId: result.updatedOpenSession.id,
+            userId: result.updatedOpenSession.userId,
+            posId: result.updatedOpenSession.posId,
+            openingFund: result.updatedOpenSession.openingFund,
+            updatedAt: result.updatedOpenSession.updatedAt,
             reason: 'Updated after admin correction'
           });
-
-          // Emit socket notification for updated session
-          if (req.app.get('io')) {
-            req.app.get('io').emit('session_updated', {
-              sessionId: updatedOpenSession.id,
-              userId: updatedOpenSession.userId,
-              posId: updatedOpenSession.posId,
-              openingFund: updatedOpenSession.openingFund,
-              updatedAt: updatedOpenSession.updatedAt,
-              reason: 'Updated after admin correction'
-            });
-          }
         }
       } catch (error) {
         console.error('Error updating open session after admin correction:', error);
@@ -518,7 +589,7 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
         withdrawalAmount,
         remainingBalance,
         isAdminCorrection,
-        updatedOpenSessionId: updatedOpenSession?.id,
+        updatedOpenSessionId: result.updatedOpenSession?.id,
         totals: {
           expectedCash: summary.expectedCash,
           countedCash: parseFloat(countedCash),
@@ -529,13 +600,13 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
     }
 
     res.json({
-      session: result,
+      session: result.session,
       zReport: zReportData,
       requiresApproval,
       variance: finalVariance,
       withdrawalAmount,
       remainingBalance,
-      updatedOpenSession
+      updatedOpenSession: result.updatedOpenSession
     });
   } catch (error) {
     console.error('Error closing session:', error);
@@ -694,7 +765,10 @@ router.post('/:id/reopen', authenticateToken, requireRole(['ADMIN']), async (req
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // Create change request
+      // Recalculate expected cash before reopening
+      const summary = await calculateSessionSummary(parseInt(id));
+      
+      // Create change request with reopen snapshot values
       const changeRequest = await tx.changeRequest.create({
         data: {
           type: 'SESSION_REOPEN',
@@ -704,12 +778,15 @@ router.post('/:id/reopen', authenticateToken, requireRole(['ADMIN']), async (req
           requestedBy: req.user.id,
           status: 'APPROVED',
           approvedBy: req.user.id,
-          approvedAt: new Date()
+          approvedAt: new Date(),
+          // Store reopen snapshot values for later correction calculations
+          rejectionNotes: JSON.stringify({
+            oldExpectedCash: session.expectedCash,
+            newExpectedCash: summary.expectedCash,
+            attemptedWithdrawal: session.expectedCash - summary.expectedCash
+          })
         }
       });
-
-      // Recalculate expected cash before reopening
-      const summary = await calculateSessionSummary(parseInt(id));
       
       console.log('Session Reopen Debug:', {
         sessionId: parseInt(id),

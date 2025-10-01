@@ -133,4 +133,10 @@ export class StockDocumentsService {
       catchError((error) => throwError(() => error))
     );
   }
+
+  convertToDelivery(documentId: number): Observable<StockDocument> {
+    return this.http.post<StockDocument>(`${this.apiUrl}/${documentId}/convert-to-delivery`, {}).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
 } 

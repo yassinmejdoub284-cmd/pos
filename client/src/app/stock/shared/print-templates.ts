@@ -1,4 +1,5 @@
 import { StockDocument } from '../../core/models/stock-document.model';
+import { AppSettings } from '../../core/services/settings.service';
 
 export type ScanDocumentType = 'sortie' | 'transfert' | 'livraison';
 
@@ -97,36 +98,115 @@ export function getScanPrintStyles(): string {
   `;
 }
 
-export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, sessionType: ScanDocumentType): string {
+// Helper function to get absolute logo URL
+function getAbsoluteLogoUrl(logoUrl: string | undefined, baseUrl: string = 'https://patisserie.solumove.net'): string {
+  if (!logoUrl) return '';
+  if (logoUrl.startsWith('http')) return logoUrl;
+  
+  // If the logo URL starts with /uploads, ensure it's properly formatted
+  if (logoUrl.startsWith('/uploads/')) {
+    return `${baseUrl}${logoUrl}`;
+  }
+  
+  // For other relative URLs, add the base URL
+  return `${baseUrl}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`;
+}
+
+export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, sessionType: ScanDocumentType, settings?: AppSettings | null): string {
   const currentDate = new Date().toLocaleDateString('fr-FR');
   const currentTime = new Date().toLocaleTimeString('fr-FR');
 
   const title = sessionType === 'sortie' ? 'Bon de sortie' : sessionType === 'transfert' ? 'Bon de transfert' : 'Bon de livraison';
 
-  const itemsRows = (document.items || []).map((item, index) => `
-    <tr>
-      <td class="text-center">${index + 1}</td>
-      <td>${item.product?.name || 'Produit #' + item.productId}</td>
-      <td class="text-center">${((Number((item as any).quantity ?? 0) || 0)).toFixed(3)} kg</td>
-      <td class="text-center">1</td>
-      ${sessionType === 'livraison' ? `
-        <td class="text-center">0.000 TND</td>
-        <td class="text-center">0.000 TND</td>
-        <td class="text-center">0.000 TND</td>
-      ` : ''}
-    </tr>
-  `).join('');
-
-  const totalsSection = sessionType === 'livraison' ? `
-    <tfoot>
-      <tr class="total-row">
-        <td colspan="4" class="text-right font-bold">TOTAL:</td>
-        <td class="text-center font-bold">0.000 TND</td>
-        <td class="text-center font-bold">0.000 TND</td>
-        <td class="text-center font-bold">0.000 TND</td>
+  // Build item rows (with grouping and pricing for livraison)
+  // Helper: normalize TVA to fraction (0.07 for 7% or 0.07)
+  const getTvaRateFraction = (raw: any): number => {
+    const n = Number(raw);
+    if (!isFinite(n) || n < 0) return 0;
+    return n <= 1 ? n : n / 100;
+  };
+  let itemsRows = '';
+  // Unified totals for livraison to reuse in both table footer and summary
+  let unifiedTotalHT = 0;
+  let unifiedTotalTVA = 0;
+  let unifiedTotalTTC = 0;
+  if (sessionType === 'livraison') {
+    const isWholesaleClient = !!(document as any).client && ((document as any).client.clientType === 'WHOLESALE');
+    const aggregates: Record<string, { qty: number; count: number; montantHT: number; montantTVA: number; montantTTC: number }>
+      = {};
+    (document.items || []).forEach((raw) => {
+      const item: any = raw as any;
+      const key = item.notes || item.product?.name || `Produit #${item.productId}`;
+      const product = item.product || {};
+      const qty = Number(item.quantity ?? 0) || 0; // kg
+      const cnt = Number(item.count ?? 1) || 0;
+      const baseUnit = Number(product.prix_vente_TTC ?? 0) || 0; // TTC
+      const bundlePrice = Number(product.bundlePrice ?? 0) || 0;
+      const bundleSize = Number(product.bundleSize ?? 0) || 0;
+      const canWholesale = !!product.isWholesale && bundleSize > 0 && bundlePrice > 0;
+      const unitPriceTTC = isWholesaleClient && canWholesale ? (bundlePrice / bundleSize) : baseUnit;
+      const tvaFrac = getTvaRateFraction(product.tva);
+      const montantTTC = unitPriceTTC * qty;
+      const montantHT = montantTTC / (1 + tvaFrac);
+      const montantTVA = montantTTC - montantHT;
+      if (!aggregates[key]) aggregates[key] = { qty: 0, count: 0, montantHT: 0, montantTVA: 0, montantTTC: 0 };
+      aggregates[key].qty += qty;
+      aggregates[key].count += cnt;
+      aggregates[key].montantHT += montantHT;
+      aggregates[key].montantTVA += montantTVA;
+      aggregates[key].montantTTC += montantTTC;
+      // accumulate unified totals
+      unifiedTotalHT += montantHT;
+      unifiedTotalTVA += montantTVA;
+      unifiedTotalTTC += montantTTC;
+    });
+    const grouped = Object.entries(aggregates).map(([name, g], idx) => ({ idx, name, ...g }));
+    itemsRows = grouped.map(g => `
+      <tr>
+        <td class="text-center">${g.idx + 1}</td>
+        <td>${g.name}</td>
+        <td class="text-center">${(g.qty || 0).toFixed(3)} kg</td>
+        <td class="text-center">${(g.montantHT || 0).toFixed(3)} TND</td>
+        <td class="text-center">${(g.montantTVA || 0).toFixed(3)} TND</td>
+        <td class="text-center">${(g.montantTTC || 0).toFixed(3)} TND</td>
       </tr>
-    </tfoot>
-  ` : '';
+    `).join('');
+  } else {
+    // Group by designation for sortie/transfert
+    const aggregates: Record<string, { qty: number; count: number }>= {};
+    (document.items || []).forEach((raw) => {
+      const item: any = raw as any;
+      const key = item.notes || item.product?.name || `Produit #${item.productId}`;
+      const qty = Number(item.quantity ?? 0) || 0;
+      const cnt = Number(item.count ?? 1) || 0;
+      if (!aggregates[key]) aggregates[key] = { qty: 0, count: 0 };
+      aggregates[key].qty += qty;
+      aggregates[key].count += cnt;
+    });
+    const grouped = Object.entries(aggregates).map(([name, g], idx) => ({ idx, name, ...g }));
+    itemsRows = grouped.map(g => `
+      <tr>
+        <td class="text-center">${g.idx + 1}</td>
+        <td>${g.name}</td>
+        <td class="text-center">${(g.qty || 0).toFixed(3)} kg</td>
+        <td class="text-center">${g.count || 0}</td>
+      </tr>
+    `).join('');
+  }
+
+  const totalsSection = (() => {
+    if (sessionType !== 'livraison') return '';
+    return `
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="3" class="text-right font-bold">TOTAL:</td>
+          <td class="text-center font-bold">${unifiedTotalHT.toFixed(3)} TND</td>
+          <td class="text-center font-bold">${unifiedTotalTVA.toFixed(3)} TND</td>
+          <td class="text-center font-bold">${unifiedTotalTTC.toFixed(3)} TND</td>
+        </tr>
+      </tfoot>
+    `;
+  })();
 
   // Build specialized header for Bon de Livraison (invoice-like)
   const em = (document as any).emetteur || {};
@@ -135,11 +215,13 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   const companyName = company.raisonSociale || company.name || 'Société';
   const companyForme = company.formeJuridique || company.forme_juridique || '';
   const companyAddress = company.adresse || company.address || '';
-  const companyCity = company.ville ? `, ${company.ville}` : (company.city ? `, ${company.city}` : '');
+  const companyCity = ''; // do not display city in addresses
   const companyPhone = company.telephone || company.phone || '';
   const companyEmail = company.email || '';
   const companyMatricule = company.matriculeFiscal || company.matricule_fiscale || '';
-  const companyLogo = company.logoUrl || company.logo || '';
+  // Use enterprise (sender company) logo only
+  const senderCompanyLogoUrl = (em && em.company && em.company.logoUrl) ? em.company.logoUrl : '';
+  const companyLogo = senderCompanyLogoUrl ? getAbsoluteLogoUrl(senderCompanyLogoUrl) : '';
 
   const client = (document as any).client || (dest && (dest.client || dest.clients?.[0])) || null;
   const clientName = client && client.firstName ? `${client.firstName} ${client.lastName || ''}`.trim() : 'Client non spécifié';
@@ -149,23 +231,23 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   const livraisonHeader = `
     <div class="header">
       <div class="company-info">
-        <div class="title">FACTURE</div>
+        ${companyLogo ? `<div style="margin-bottom:8px;"><img src="${companyLogo}" alt="logo" style="max-width:140px; max-height:80px; object-fit:contain;"></div>` : ''}
+        <div class="title">Bon de Livraison</div>
         <div class="subtitle">N° ${document.numero}</div>
         <div class="info-row"><span class="label">Date:</span><span class="value">${currentDate}</span></div>
-        <div class="info-section">
-          <span class="label">Client:</span>
-          <span class="value">${clientName}</span>
-          ${clientAddress ? `<br><span class="label">Adresse:</span><span class="value">${clientAddress}</span>` : ''}
-          ${clientMatricule ? `<br><span class="label">Matricule fiscale:</span><span class="value">${clientMatricule}</span>` : ''}
-        </div>
+        <div class="info-row"><span class="label">Société:</span><span class="value">${companyName}</span></div>
+        ${companyAddress ? `<div class="info-row"><span class="label">Adresse:</span><span class="value">${companyAddress}</span></div>` : ''}
+        ${companyPhone ? `<div class="info-row"><span class="label">Téléphone:</span><span class="value">${companyPhone}</span></div>` : ''}
+        ${companyMatricule ? `<div class="info-row"><span class="label">Matricule fiscale:</span><span class="value">${companyMatricule}</span></div>` : ''}
       </div>
       <div class="document-info">
-        ${companyLogo ? `<div style="margin-bottom:8px;"><img src="${companyLogo}" alt="logo" style="max-width:140px; max-height:80px; object-fit:contain;"></div>` : ''}
-        <div class="info-row"><span class="label">Société:</span><span class="value">${companyName}${companyForme ? ' - ' + companyForme : ''}</span></div>
-        ${companyAddress || companyCity ? `<div class="info-row"><span class="label">Adresse:</span><span class="value">${companyAddress}${companyCity}</span></div>` : ''}
-        ${companyPhone ? `<div class="info-row"><span class="label">Téléphone:</span><span class="value">${companyPhone}</span></div>` : ''}
-        ${companyEmail ? `<div class="info-row"><span class="label">Email:</span><span class="value">${companyEmail}</span></div>` : ''}
-        ${companyMatricule ? `<div class="info-row"><span class="label">Matricule fiscale:</span><span class="value">${companyMatricule}</span></div>` : ''}
+        <div class="info-row"><span class="label">Client:</span><span class="value">${clientName}</span></div>
+        
+        ${clientAddress ? `<div class=\"info-row\"><span class=\"label\">Adresse:</span><span class=\"value\">${clientAddress}</span></div>` : ''}
+        ${client?.phone ? `<div class=\"info-row\"><span class=\"label\">Téléphone:</span><span class=\"value\">${client.phone}</span></div>` : ''}
+        ${client?.email ? `<div class=\"info-row\"><span class=\"label\">Email:</span><span class=\"value\">${client.email}</span></div>` : ''}
+        ${clientMatricule ? `<div class=\"info-row\"><span class=\"label\">Matricule fiscal:</span><span class=\"value\">${clientMatricule}</span></div>` : ''}
+        ${client?.postalCode ? `<div class=\"info-row\"><span class=\"label\">Code postal:</span><span class=\"value\">${client.postalCode}</span></div>` : ''}
       </div>
     </div>
   `;
@@ -173,6 +255,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   const defaultHeader = `
     <div class="header">
       <div class="company-info">
+        ${sessionType === 'sortie' && companyLogo ? `<div style="margin-bottom:8px;"><img src="${companyLogo}" alt="logo" style="max-width:140px; max-height:80px; object-fit:contain;"></div>` : ''}
         <div class="title">${title.toUpperCase()}</div>
         <div class="subtitle">N° ${document.numero}</div>
       </div>
@@ -196,10 +279,14 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
       <div class="info-section">
         <span class="label">Validité du:</span>
         <span class="value">${(document as any).validationFromDate ? new Date((document as any).validationFromDate).toLocaleDateString('fr-FR') : 'Non spécifié'}</span>
-      </div>
-      <div class="info-section">
-        <span class="label">Validité au:</span>
+        <span class="label" style="margin-left: 20px;">Validité au:</span>
         <span class="value">${(document as any).validationToDate ? new Date((document as any).validationToDate).toLocaleDateString('fr-FR') : 'Non spécifié'}</span>
+      </div>
+    ` : sessionType === 'livraison' ? `
+      <!-- Client information is now displayed in the header -->
+      <div class="info-section">
+        <span class="label">Informations de livraison:</span>
+        <span class="value">Document de livraison pour ${(document as any).client ? `${(document as any).client.firstName} ${(document as any).client.lastName}` : 'client'}</span>
       </div>
     ` : `
       <div class="info-section">
@@ -227,7 +314,6 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
             <th>Code</th>
             <th>Désignation</th>
             <th>Qté (kg)</th>
-            <th>Colis</th>
             ${sessionType === 'livraison' ? `
               <th>Montant HT</th>
               <th>TVA</th>
@@ -241,26 +327,37 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
         ${totalsSection}
       </table>
 
-      ${sessionType === 'livraison' ? `
-        <div class="totals-summary">
-          <div class="total-breakdown">
-            <div class="total-line"><span class="label">Total HT:</span><span class="value">0.000 TND</span></div>
-            <div class="total-line"><span class="label">Total TVA:</span><span class="value">0.000 TND</span></div>
-            <div class="total-line total-final"><span class="label">Total TTC:</span><span class="value">0.000 TND</span></div>
+      ${(() => {
+        if (sessionType !== 'livraison') return '';
+        // Reuse unified totals calculated in the table section
+        return `
+          <div class="totals-summary">
+            <div class="total-breakdown">
+              <div class="total-line"><span class="label">Total HT:</span><span class="value">${unifiedTotalHT.toFixed(3)} TND</span></div>
+              <div class="total-line"><span class="label">Total TVA:</span><span class="value">${unifiedTotalTVA.toFixed(3)} TND</span></div>
+              <div class="total-line total-final"><span class="label">Total TTC:</span><span class="value">${unifiedTotalTTC.toFixed(3)} TND</span></div>
+            </div>
           </div>
-        </div>
-      ` : ''}
+        `;
+      })()}
 
       <div class="footer">
         <div class="signature-section" style="display:flex; gap:24px; justify-content:space-between;">
-          <div class="signature-box" style="flex:1;">
-            <div class="signature-label">Signature et cachet fournisseur</div>
-            <div class="signature-line"></div>
-          </div>
-          <div class="signature-box" style="flex:1;">
-            <div class="signature-label">Signature client</div>
-            <div class="signature-line"></div>
-          </div>
+          ${sessionType === 'sortie' ? `
+            <div class="signature-box" style="flex:1;">
+              <div class="signature-label">Signature & Cachet</div>
+              <div class="signature-line"></div>
+            </div>
+          ` : `
+            <div class="signature-box" style="flex:1;">
+              <div class="signature-label">Signature et cachet fournisseur</div>
+              <div class="signature-line"></div>
+            </div>
+            <div class="signature-box" style="flex:1;">
+              <div class="signature-label">Signature client</div>
+              <div class="signature-line"></div>
+            </div>
+          `}
         </div>
         ${tunisianFooter}
       </div>

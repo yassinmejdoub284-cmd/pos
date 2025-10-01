@@ -348,6 +348,7 @@ model Client {
   depot            Depot?                  @relation(fields: [depotId], references: [id])
   invoices         Invoice[]
   sales            Sale[]
+  stockDocuments   StockDocument[]
 
   @@index([depotId], map: "clients_depot_id_fkey")
   @@map("clients")
@@ -677,24 +678,30 @@ model AuditLog {
 }
 
 model StockDocument {
-  id             Int                     @id @default(autoincrement())
-  numero         String                  @unique @db.VarChar(50)
-  type           DocumentType
-  status         DocumentStatus          @default(PREPARED)
-  emetteurId     Int                     @map("emetteur_id")
-  destinataireId Int                     @map("destinataire_id")
-  notes          String?                 @db.Text
-  createdAt      DateTime                @default(now()) @map("created_at")
-  updatedAt      DateTime                @updatedAt @map("updated_at")
-  statusHistory  DocumentStatusHistory[]
-  items          StockDocumentItem[]
-  sourceLinks    StockDocumentLink[]     @relation("SourceDocument")
-  targetLinks    StockDocumentLink[]     @relation("TargetDocument")
-  destinataire   Depot                   @relation("Destinataire", fields: [destinataireId], references: [id])
-  emetteur       Depot                   @relation("Emetteur", fields: [emetteurId], references: [id])
+  id                 Int                     @id @default(autoincrement())
+  numero             String                  @unique @db.VarChar(50)
+  type               DocumentType
+  status             DocumentStatus          @default(PREPARED)
+  emetteurId         Int                     @map("emetteur_id")
+  destinataireId     Int                     @map("destinataire_id")
+  clientId           Int?                    @map("client_id")
+  notes              String?                 @db.Text
+  destination        String?                 @db.VarChar(200)
+  validationFromDate DateTime?               @map("validation_from_date")
+  validationToDate   DateTime?               @map("validation_to_date")
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+  statusHistory      DocumentStatusHistory[]
+  items              StockDocumentItem[]
+  sourceLinks        StockDocumentLink[]     @relation("SourceDocument")
+  targetLinks        StockDocumentLink[]     @relation("TargetDocument")
+  destinataire       Depot                   @relation("Destinataire", fields: [destinataireId], references: [id])
+  emetteur           Depot                   @relation("Emetteur", fields: [emetteurId], references: [id])
+  client             Client?                 @relation(fields: [clientId], references: [id])
 
   @@index([destinataireId], map: "stock_documents_destinataire_id_fkey")
   @@index([emetteurId], map: "stock_documents_emetteur_id_fkey")
+  @@index([clientId], map: "stock_documents_client_id_fkey")
   @@map("stock_documents")
 }
 

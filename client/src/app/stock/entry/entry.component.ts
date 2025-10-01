@@ -32,9 +32,28 @@ export class EntryComponent implements OnInit {
     const all = this.products();
     const q = (this.searchQuery() || '').toLowerCase();
     const selected = this.selectedCategory();
+
+    // Build family counts to support "Autres" bucket
+    const familyCounts = new Map<string, number>();
+    all.forEach((p: any) => {
+      const fam = (p.famille?.name || '').toString();
+      const key = fam.trim();
+      const prev = familyCounts.get(key) || 0;
+      familyCounts.set(key, prev + 1);
+    });
+
     let result = all;
     if (selected && selected !== 'Tous') {
-      result = result.filter((p) => (p.famille?.name || '').toLowerCase() === selected.toLowerCase());
+      if (selected === 'Autres') {
+        // Families that have 1 or fewer products OR missing family
+        result = result.filter((p: any) => {
+          const fam = (p.famille?.name || '').toString().trim();
+          const count = familyCounts.get(fam) || 0;
+          return !fam || count <= 1;
+        });
+      } else {
+        result = result.filter((p) => (p.famille?.name || '').toLowerCase() === selected.toLowerCase());
+      }
     }
     if (!q) return result;
     return result.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.barcode || '').toLowerCase().includes(q));
@@ -176,9 +195,25 @@ export class EntryComponent implements OnInit {
         // Filter products by depot for entry; include all products from this depot
         const list = (prods || []);
         this.products.set(list);
-        // Build categories
-        const cats = Array.from(new Set(list.map((p: any) => p.famille?.name).filter(Boolean)));
-        this.productCategories = ['Tous', ...cats];
+        // Build categories: only families with >1 product; add "Autres" for the rest
+        const counts = new Map<string, number>();
+        list.forEach((p: any) => {
+          const fam = (p.famille?.name || '').toString().trim();
+          const prev = counts.get(fam) || 0;
+          counts.set(fam, prev + 1);
+        });
+
+        const multiFamilies = Array.from(counts.entries())
+          .filter(([name, cnt]) => !!name && cnt > 1)
+          .map(([name]) => name);
+
+        const hasOthers = list.some((p: any) => {
+          const fam = (p.famille?.name || '').toString().trim();
+          const cnt = counts.get(fam) || 0;
+          return !fam || cnt <= 1;
+        });
+
+        this.productCategories = ['Tous', ...multiFamilies, ...(hasOthers ? ['Autres'] : [])];
         this.loading = false;
       },
       error: () => {
@@ -250,6 +285,8 @@ export class EntryComponent implements OnInit {
       error: (err) => {
         this.loading = false;
         this.error = err.error?.error || 'Erreur lors de la création du bon d\'entrée';
+        // Auto-dismiss error message after 5 seconds
+        setTimeout(() => this.error = '', 5000);
       }
     });
   }
@@ -285,6 +322,8 @@ export class EntryComponent implements OnInit {
       error: (err) => {
         this.loading = false;
         this.error = err.error?.error || 'Erreur lors de la création du bon d\'entrée';
+        // Auto-dismiss error message after 5 seconds
+        setTimeout(() => this.error = '', 5000);
       }
     });
   }
@@ -300,6 +339,8 @@ export class EntryComponent implements OnInit {
       next: (payment) => {
         this.loading = false;
         this.success = `Bon d'entrée créé et paiement de ${amount.toFixed(3)} dt effectué`;
+        // Auto-dismiss success message after 3 seconds
+        setTimeout(() => this.success = '', 3000);
         this.showPaymentDialog = false;
         this.router.navigate(['/stock/documents']);
       },
@@ -378,6 +419,8 @@ export class EntryComponent implements OnInit {
       error: (err) => {
         this.loading = false;
         this.error = err.error?.error || 'Erreur lors de la création du bon d\'entrée';
+        // Auto-dismiss error message after 5 seconds
+        setTimeout(() => this.error = '', 5000);
       }
     });
   }
@@ -408,10 +451,16 @@ export class EntryComponent implements OnInit {
     
     if (paidAmount > creditAmount) {
       this.success = `Bon d'entrée créé - Paiement: ${paidAmount.toFixed(3)} dt - Crédit: ${creditAmount.toFixed(3)} dt (Surpaiement: ${(paidAmount - creditAmount).toFixed(3)} dt)`;
+      // Auto-dismiss success message after 3 seconds
+      setTimeout(() => this.success = '', 3000);
     } else if (paidAmount === creditAmount) {
       this.success = `Bon d'entrée créé et paiement complet de ${paidAmount.toFixed(3)} dt effectué`;
+      // Auto-dismiss success message after 3 seconds
+      setTimeout(() => this.success = '', 3000);
     } else {
       this.success = `Bon d'entrée créé - Paiement: ${paidAmount.toFixed(3)} dt - Crédit: ${creditAmount.toFixed(3)} dt (Reste: ${(creditAmount - paidAmount).toFixed(3)} dt)`;
+      // Auto-dismiss success message after 3 seconds
+      setTimeout(() => this.success = '', 3000);
     }
     
     this.router.navigate(['/stock/documents']);
@@ -434,6 +483,8 @@ export class EntryComponent implements OnInit {
       next: (credit) => {
         this.loading = false;
         this.success = `Bon d'entrée créé et crédit de ${creditAmount.toFixed(3)} dt enregistré`;
+        // Auto-dismiss success message after 3 seconds
+        setTimeout(() => this.success = '', 3000);
         this.router.navigate(['/stock/documents']);
       },
       error: (err) => {

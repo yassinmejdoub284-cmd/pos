@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { StockDocumentsService } from '../../../core/services/stock-documents.service';
 import { DepotsService } from '../../../core/services/depots.service';
+import { SettingsService, AppSettings } from '../../../core/services/settings.service';
 import { StockDocument } from '../../../core/models/stock-document.model';
 import { buildScanLikeDocumentHtmlFromDocument, getScanPrintStyles } from '../../shared/print-templates';
 import { Depot } from '../../../core/models/stock-document.model';
@@ -22,20 +23,27 @@ export class BonTransfertComponent implements OnInit {
 
   // Available options
   depots: Depot[] = [];
+  settings: AppSettings | null = null;
 
   // UI state
   showDocumentDetails = false;
+  isEditMode = false;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private stockDocsService: StockDocumentsService,
-    private depotsService: DepotsService
+    private depotsService: DepotsService,
+    private settingsService: SettingsService
   ) {}
 
   ngOnInit(): void {
     this.depotId = this.route.snapshot.paramMap.get('id');
     this.loadInitialData();
+    
+    // Check if we're in edit mode
+    const url = this.router.url;
+    this.isEditMode = url.includes('/edit/');
     
     if (this.depotId) {
       this.loadDocumentsForDepot();
@@ -45,8 +53,12 @@ export class BonTransfertComponent implements OnInit {
   loadInitialData(): void {
     this.loading = true;
     
-    this.depotsService.list().toPromise().then(depots => {
+    Promise.all([
+      this.depotsService.list().toPromise(),
+      this.settingsService.getSettings().toPromise()
+    ]).then(([depots, settings]) => {
       this.depots = depots || [];
+      this.settings = settings || null;
       this.loading = false;
     }).catch(error => {
       this.error = 'Erreur lors du chargement des données';
@@ -80,6 +92,18 @@ export class BonTransfertComponent implements OnInit {
     this.selectedDocument = null;
   }
 
+  editDocument(): void {
+    if (this.selectedDocument) {
+      // Navigate to the edit page for this document
+      this.router.navigate(['/stock/documents/bon-transfert/edit', this.selectedDocument.id]);
+    }
+  }
+
+  editDocumentFromList(document: StockDocument): void {
+    // Navigate to the edit page for this document
+    this.router.navigate(['/stock/documents/bon-transfert/edit', document.id]);
+  }
+
   getDepotName(depotId: number): string {
     const depot = this.depots.find(d => d.id === depotId);
     return depot ? depot.name : `Dépôt ${depotId}`;
@@ -91,7 +115,20 @@ export class BonTransfertComponent implements OnInit {
   }
 
   getTotalQuantity(items: any[] | undefined): number {
-    return items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    if (!items || items.length === 0) return 0;
+    const total = items.reduce((sum, item) => {
+      const quantity = Number(item.quantity) || 0;
+      return sum + quantity;
+    }, 0);
+    return Math.round(total * 1000) / 1000; // Round to 3 decimal places
+  }
+
+  getTotalCount(items: any[] | undefined): number {
+    if (!items || items.length === 0) return 0;
+    return items.reduce((sum, item) => {
+      const count = Number(item['count']) || 0;
+      return sum + count;
+    }, 0);
   }
 
   goBack(): void {
@@ -105,7 +142,7 @@ export class BonTransfertComponent implements OnInit {
   }
 
   printDocument(document: StockDocument): void {
-    const printContent = buildScanLikeDocumentHtmlFromDocument(document, 'transfert');
+    const printContent = buildScanLikeDocumentHtmlFromDocument(document, 'transfert', this.settings);
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       this.error = 'Impossible d\'ouvrir la fenêtre d\'impression';

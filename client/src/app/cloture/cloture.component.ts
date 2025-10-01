@@ -32,6 +32,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   // UI state
   showCloseForm = signal(false);
   showFundForm = signal(false);
+  showAdjustForm = signal(false);
   activeTab = signal<'historique' | 'cloture'>('cloture');
   showDetails = signal({
     encaissement: { clientPayments: false, advances: false, cash: false },
@@ -578,6 +579,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
     amount: ''
   };
   
+  // Adjust balance form
+  adjustForm = {
+    newBalance: ''
+  };
+  
 
   constructor(
     private sessionsService: SessionsService,
@@ -598,7 +604,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     // Refresh session data every 5 seconds to get updated sales (pause when modal open or tab hidden)
     this.refreshIntervalId = setInterval(() => {
       if (document?.hidden) return;
-      if (this.showCloseForm() || this.showFundForm() || this.showTicketsModal()) return;
+      if (this.showCloseForm() || this.showFundForm() || this.showAdjustForm() || this.showTicketsModal()) return;
       if (this.currentSession()) {
         this.loadCurrentSession(true);
       }
@@ -956,6 +962,69 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   clearFundAmount(): void {
     this.fundForm.amount = '';
+  }
+
+  adjustBalance(): void {
+    const session = this.currentSession();
+    if (!session) {
+      this.error.set('Aucune session active trouvée');
+      return;
+    }
+
+    const currentBalance = parseFloat((session.summary?.expectedCash as any) || 0) || 0;
+    const targetBalance = parseFloat(this.adjustForm.newBalance) || 0;
+    const delta = targetBalance - currentBalance;
+
+    if (Math.abs(delta) < 0.001) {
+      // No adjustment needed
+      this.showAdjustForm.set(false);
+      this.adjustForm.newBalance = '';
+      return;
+    }
+
+    this.loading.set(true);
+    
+    // Add cash movement for balance adjustment
+    this.sessionsService.addCashMovement(session.id, {
+      type: delta > 0 ? 'ENTREE' : 'SORTIE',
+      amount: Math.abs(delta),
+      reason: `Ajustement solde : ${delta > 0 ? '+' : ''}${delta.toFixed(3)} TND (Ancien: ${currentBalance.toFixed(3)}, Nouveau: ${targetBalance.toFixed(3)})`
+    }).subscribe({
+      next: () => {
+        this.showAdjustForm.set(false);
+        this.adjustForm.newBalance = '';
+        this.loading.set(false);
+        this.error.set('');
+        // Refresh session data
+        this.loadCurrentSession();
+      },
+      error: (error) => {
+        this.error.set('Erreur lors de l\'ajustement du solde: ' + (error.error?.error || error.message || 'Erreur inconnue'));
+        this.loading.set(false);
+      }
+    });
+  }
+
+  addAdjustDigit(digit: string): void {
+    const current = this.adjustForm.newBalance.toString();
+    
+    if (digit === '.') {
+      // Only allow one decimal point
+      if (!current.includes('.')) {
+        this.adjustForm.newBalance = current + '.';
+      }
+    } else {
+      // Add digit
+      if (current === '0' || current === '') {
+        this.adjustForm.newBalance = digit;
+      } else {
+        this.adjustForm.newBalance = current + digit;
+      }
+    }
+  }
+
+  clearAdjustAmount(): void {
+    this.adjustForm.newBalance = '';
   }
 
   exportSessionData(): void {

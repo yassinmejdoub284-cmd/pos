@@ -56,7 +56,7 @@ server/uploads
 server/pids
 server/*.pid
 server/*.seed
-server/*.pid.lock
+server/*.pid.lxock
 
 # -------------------------
 # Tauri (desktop)

@@ -116,6 +116,13 @@
               class="flex-1 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium py-2 px-4 transition-colors duration-200">
               Voir détails
             </button>
+            <button (click)="editDocumentFromList(doc)" 
+              class="bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200 flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              <span class="hidden sm:inline">Modifier</span>
+            </button>
             <button (click)="printDocument(doc)" 
               class="bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200 flex items-center gap-1">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,11 +146,19 @@
             <h2 class="text-2xl font-bold">Détails du Document</h2>
             <p class="text-purple-100 mt-1">{{ selectedDocument.numero }} - Bon de Transfert</p>
           </div>
-          <button (click)="closeDocumentDetails()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
+          <div class="flex items-center gap-3">
+            <button (click)="editDocument()" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2" title="Modifier">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              Modifier
+            </button>
+            <button (click)="closeDocumentDetails()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -185,7 +200,7 @@
         <!-- Items Table -->
         <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div class="bg-gray-50 px-4 py-3 border-b">
-            <h3 class="font-semibold text-gray-800">Articles ({{ selectedDocument.items?.length || 0 }})</h3>
+            <h3 class="font-semibold text-gray-800">Articles ({{ getTotalCount(selectedDocument.items) }})</h3>
           </div>
           
           <div class="overflow-x-auto">
@@ -202,11 +217,11 @@
                 <tr *ngFor="let item of selectedDocument.items; index as i" class="hover:bg-gray-50">
                   <td class="px-4 py-3 text-sm text-gray-900">{{ i + 1 }}</td>
                   <td class="px-4 py-3 text-sm text-gray-900">
-                    <div class="font-medium">{{ item.product?.name || 'Produit #' + item.productId }}</div>
+                    <div class="font-medium">{{ item.notes || item.product?.name || 'Produit #' + item.productId }}</div>
                     <div *ngIf="item.batch" class="text-xs text-gray-500">Lot: {{ item.batch }}</div>
                   </td>
                   <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ item.quantity }} kg</td>
-                  <td class="px-4 py-3 text-sm text-gray-900 text-right">1</td>
+                  <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ item['count'] || 1 }}</td>
                 </tr>
               </tbody>
             </table>
@@ -222,7 +237,7 @@
                 </div>
                 <div class="text-sm text-gray-600">
                   <span class="font-medium">Nombre d'articles:</span> 
-                  {{ selectedDocument.items?.length || 0 }}
+                  {{ getTotalCount(selectedDocument.items) }}
                 </div>
               </div>
             </div>

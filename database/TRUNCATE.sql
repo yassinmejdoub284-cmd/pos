@@ -1,0 +1,17 @@
+TRUNCATE `attendance_days`;
+TRUNCATE `attendance_punches`;
+TRUNCATE `audit_logs`;
+TRUNCATE `cash_movements`;
+TRUNCATE `change_requests`;
+TRUNCATE `client_debt_transactions`;
+TRUNCATE `document_status_history`;
+TRUNCATE `expenses`;
+TRUNCATE `inventory`;
+TRUNCATE `invoices`;
+TRUNCATE `invoice_lines`;
+TRUNCATE `invoice_requests`;
+TRUNCATE `stock_documents`;
+TRUNCATE `stock_document_items`;
+TRUNCATE `stock_document_links`;
+TRUNCATE `stock_movements`;
+TRUNCATE `supplier_payments`;

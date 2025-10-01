@@ -119,7 +119,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Product catalog
   allProducts: Product[] = [];
   filteredProducts: Product[] = [];
-  productCategories: string[] = ['Tous'];
+  productCategories: string[] = ['Tous', 'Importés'];
   selectedCategory: string = 'Tous';
   searchQuery: string = '';
   productFamilies: any[] = [];
@@ -585,7 +585,24 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getCartItemCount(cartId: number): number {
     const cart = this.getCartById(cartId);
-    return cart ? cart.items.length : 0;
+    if (!cart || !cart.items) return 0;
+    
+    // Sum up the quantities of all items in the cart
+    return cart.items.reduce((total, item) => {
+      const quantity = Number(item.quantity) || 0;
+      return total + quantity;
+    }, 0);
+  }
+
+  getTotalItemCount(): number {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || !activeCart.items) return 0;
+    
+    // Sum up the quantities of all items in the active cart
+    return activeCart.items.reduce((total, item) => {
+      const quantity = Number(item.quantity) || 0;
+      return total + quantity;
+    }, 0);
   }
 
   clearReceipt(): void {
@@ -789,8 +806,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
           return productCount <= 1;
         });
         
-        // Build categories: "Tous", families with multiple products, and "Autres" if there are families with few products
-        const categories = ['Tous', ...familiesWithMultipleProducts.map(family => family.name)];
+        // Build categories: "Tous", special tags, families with multiple products, and "Autres" if there are families with few products
+        const categories = ['Tous', 'Import', 'Local', ...familiesWithMultipleProducts.map(family => family.name)];
         
         // Add "Autres" category if there are families with 1 or fewer products
         if (familiesWithFewProducts.length > 0) {
@@ -871,6 +888,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
         filtered = filtered.filter(product => 
           product.famille?.id && familyIdsWithFewProducts.includes(product.famille.id)
         );
+      } else if (this.selectedCategory === 'Import') {
+        // Tag category: products whose name contains "import"
+        filtered = filtered.filter(product => product.name && product.name.toLowerCase().includes('import'));
+      } else if (this.selectedCategory === 'Local') {
+        // Tag category: products whose name contains "local"
+        filtered = filtered.filter(product => product.name && product.name.toLowerCase().includes('local'));
       } else {
         // For specific family categories, show products from that family
         filtered = filtered.filter(p => p.famille?.name === this.selectedCategory);

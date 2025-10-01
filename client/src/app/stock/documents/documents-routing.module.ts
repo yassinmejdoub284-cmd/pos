@@ -9,9 +9,13 @@ import { BonLivraisonComponent } from './bon-livraison/bon-livraison.component';
 const routes: Routes = [
   { path: '', component: DocumentsComponent },
   { path: 'bon-entree/:id', component: BonEntreeComponent },
+  { path: 'bon-entree/edit/:id', component: BonEntreeComponent },
   { path: 'bon-sortie/:id', component: BonSortieComponent },
+  { path: 'bon-sortie/edit/:id', component: BonSortieComponent },
   { path: 'bon-transfert/:id', component: BonTransfertComponent },
-  { path: 'bon-livraison/:id', component: BonLivraisonComponent }
+  { path: 'bon-transfert/edit/:id', component: BonTransfertComponent },
+  { path: 'bon-livraison/:id', component: BonLivraisonComponent },
+  { path: 'bon-livraison/edit/:id', component: BonLivraisonComponent }
 ];
 
 @NgModule({

@@ -584,10 +584,41 @@ export class PrintService {
         .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
     };
     
-    const actualEntries = getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit() + getFundingsTotal();
-    const actualExits = summary.sortie || 0;
+    // Add admin correction calculation
+    const getAdminCorrections = () => {
+      const movements = session.cashMovements || [];
+      return movements
+        .filter((m: any) => m.type === 'ENTREE' && 
+          (m.reason || '').toLowerCase().includes('correction admin'))
+        .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
+    };
+    
+    // Add balance adjustment calculation
+    const getBalanceAdjustments = () => {
+      const movements = session.cashMovements || [];
+      return movements
+        .filter((m: any) => (m.reason || '').toLowerCase().includes('ajustement solde'))
+        .reduce((sum: number, m: any) => {
+          const amount = parseFloat(m.amount || 0) || 0;
+          // For SORTIE movements, subtract the amount; for ENTREE, add it
+          return sum + (m.type === 'ENTREE' ? amount : -amount);
+        }, 0);
+    };
+    
+    const adminCorrections = getAdminCorrections();
+    const balanceAdjustments = getBalanceAdjustments();
+    
+    const actualEntries = getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit() + getFundingsTotal() + adminCorrections + (balanceAdjustments > 0 ? balanceAdjustments : 0);
+    const actualExits = summary.sortie || 0 + (balanceAdjustments < 0 ? Math.abs(balanceAdjustments) : 0);
     
     escpos += formatFinancialLine('Fonds initial:', financialOpeningFund) + '\n';
+    if (adminCorrections > 0) {
+      escpos += formatFinancialLine('Correction admin:', adminCorrections) + '\n';
+    }
+    if (balanceAdjustments !== 0) {
+      escpos += formatFinancialLine('Ajustement solde:', balanceAdjustments) + '\n';
+    }
+    
     escpos += formatFinancialLine('Enc. client:', getClientPaymentsTotal()) + '\n';
     escpos += formatFinancialLine('Acomptes sur Cmd.:', getTotalOrderAdvances()) + '\n';
     escpos += formatFinancialLine('Alim. de caisse:', getFundingsTotal()) + '\n';

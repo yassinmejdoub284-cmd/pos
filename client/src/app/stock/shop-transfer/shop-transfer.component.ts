@@ -220,7 +220,7 @@ export class ShopTransferComponent implements OnInit {
 
   // Load entry documents (inventory + entry documents)
   private loadEntryDocuments(depotId: number): Promise<any[]> {
-    return this.stockDocumentsService.getDocuments(1, 1000, 'BON_ENTREE', 'COMPLETED', depotId).toPromise()
+    return this.stockDocumentsService.getDocuments(1, 1000, 'BON_ENTREE_DEPOT', 'RECEIVED', depotId).toPromise()
       .then(response => response?.data || [])
       .catch(() => []);
   }

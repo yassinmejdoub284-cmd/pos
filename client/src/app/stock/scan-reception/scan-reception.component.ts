@@ -5,6 +5,7 @@ import { StockDocumentsService } from '../../core/services/stock-documents.servi
 import { ProductsService } from '../../core/services/products.service';
 import { ClientsService } from '../../core/services/clients.service';
 import { PrintService } from '../../core/services/print.service';
+import { SettingsService, AppSettings } from '../../core/services/settings.service';
 import { buildScanLikeDocumentHtmlFromDocument, getScanPrintStyles } from '../shared/print-templates';
 import { VehiclesService } from '../../core/services/vehicles.service';
 import { DriversService } from '../../core/services/drivers.service';
@@ -28,6 +29,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
   fromDepotId: number | null = null;
   loading = false;
   error = '';
+  settings: AppSettings | null = null;
   success = '';
 
   // Products cache for fast lookup
@@ -127,7 +129,8 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private depotsService: DepotsService
+    private depotsService: DepotsService,
+    private settingsService: SettingsService
   ) {}
 
   ngOnInit(): void {
@@ -160,6 +163,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     this.loadClients();
     this.loadProducts();
     this.loadVehicles();
+    this.loadSettings();
     this.loadVehicleBrands();
     this.loadDrivers();
     this.loadProduitsDeCaisse();
@@ -199,6 +203,17 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         this.availableDepots = this.filterAvailableDestinationDepots(list);
       },
       error: () => {}
+    });
+  }
+
+  loadSettings(): void {
+    this.settingsService.getSettings().subscribe({
+      next: (settings) => {
+        this.settings = settings;
+      },
+      error: (error) => {
+        console.error('Error loading settings:', error);
+      }
     });
   }
 
@@ -940,7 +955,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     // Create a barcode from the item's articleId for consistency
     // Format: 2321 + articleId (3 digits) + quantity (5 digits) + checksum
     const articleIdStr = item.articleId.toString().padStart(3, '0');
-    const quantityStr = item.quantity.toString().padStart(5, '0');
+    const quantityStr = item.quantity.toString().slice(-5).padStart(5, '0');
     const barcode = `2321${articleIdStr}${quantityStr}4`; // Simple checksum
     
     this.currentBarcode = barcode;
@@ -960,7 +975,8 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
 
   addDigit(digit: string): void {
     const currentInput = this.currentInputType === 'quantity' ? this.quantityInput : this.colisInput;
-    if (currentInput.length < 5) { // Limit to 5 digits
+    const maxLength = this.currentInputType === 'quantity' ? 9 : 5; // Allow up to 9 digits for quantity
+    if (currentInput.length < maxLength) {
       if (this.currentInputType === 'quantity') {
         this.quantityInput += digit;
       } else {
@@ -1327,6 +1343,10 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
   }
 
   private printDocumentDirectly(): void {
+    this.loading = true;
+    this.error = '';
+    this.success = '';
+    
     // First save the document to database
     this.saveDocumentToDatabase().then((savedDocument) => {
       if (savedDocument) {
@@ -1341,7 +1361,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
           (savedDocument as any).validationFromDate = this.validationFromDate;
           (savedDocument as any).validationToDate = this.validationToDate;
         }
-        const printContent = buildScanLikeDocumentHtmlFromDocument(savedDocument as any, sessionType);
+        const printContent = buildScanLikeDocumentHtmlFromDocument(savedDocument as any, sessionType, this.settings);
         let documentTitle = 'Bon de livraison';
         if (sessionType === 'sortie') {
           documentTitle = 'Bon de sortie';
@@ -1351,6 +1371,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
 
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
+          this.loading = false;
           this.error = 'Impossible d\'ouvrir la fenêtre d\'impression';
           return;
         }
@@ -1375,11 +1396,29 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         setTimeout(() => {
           printWindow.print();
           printWindow.close();
+          
+          // Show success notification
+          this.loading = false;
+          this.success = `${documentTitle} généré avec succès!`;
+          
+          // Clear scanned items and reset session
+          this.clearScannedItems();
+          this.sessionDocumentType = null;
+          this.selectedDestinationDepot = null;
+          this.selectedClient = null;
+          this.selectedVehicle = null;
+          this.selectedDriver = null;
+          
+          // Auto-hide success message after 3 seconds
+          setTimeout(() => {
+            this.success = '';
+          }, 3000);
         }, 500);
       }
     }).catch((error) => {
       console.error('Error saving document:', error);
-      this.error = 'Erreur lors de la sauvegarde du document';
+      this.loading = false;
+      this.error = 'Erreur lors de la sauvegarde du document: ' + (error?.message || 'Erreur inconnue');
     });
   }
 
@@ -1499,51 +1538,52 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
           const parentProduct = this.productsCache.get(scannedProduit.parentProductId);
           console.log(`Parent product:`, parentProduct);
           
-          if (parentProduct) {
-            const totalQuantity = group.subProducts.reduce((sum, item) => sum + item.quantity, 0);
-            const totalCount = group.subProducts.reduce((sum, item) => sum + item.count, 0);
-            
-            // Calculate pricing for the group
-            let totalHT = 0;
-            let totalTVA = 0;
-            let totalTTC = 0;
-            
-            group.subProducts.forEach(subProduct => {
-              const produit = this.produitsDeCaisseCache.get(subProduct.articleId);
-              if (produit) {
-                const prixUnitaire = produit.prix_vente_TTC || 0;
-                const tva = produit.tva || 19;
-                const quantite = subProduct.quantity / 1000; // Convert to kg
-                
-                const montantTTC = prixUnitaire * quantite;
-                const montantHT = montantTTC / (1 + tva / 100);
-                const montantTVA = montantTTC - montantHT;
-                
-                totalHT += montantHT;
-                totalTVA += montantTVA;
-                totalTTC += montantTTC;
-              }
-            });
-            
-            console.log(`Total quantity: ${totalQuantity}, Total count: ${totalCount}`);
-            console.log(`Pricing - HT: ${totalHT}, TVA: ${totalTVA}, TTC: ${totalTTC}`);
-            
-            // Parent product row with sub-products in same designation
-            const subProductNames = group.subProducts.map(sub => sub.productName).join(', ');
-            rows += `
-              <tr class="main-product-row">
-                <td class="text-center font-semibold">${parentProduct.id}</td>
-                <td class="font-semibold">${parentProduct.name} (${subProductNames})</td>
-                <td class="text-center font-semibold">${(totalQuantity/1000).toFixed(3)} kg</td>
-                <td class="text-center font-semibold">${totalCount}</td>
-                ${this.sessionDocumentType !== 'sortie' ? `
-                  <td class="text-center font-semibold">${totalHT.toFixed(3)} TND</td>
-                  <td class="text-center font-semibold">${totalTVA.toFixed(3)} TND</td>
-                  <td class="text-center font-semibold">${totalTTC.toFixed(3)} TND</td>
-                ` : ''}
-              </tr>
-            `;
-          }
+          const totalQuantity = group.subProducts.reduce((sum, item) => sum + item.quantity, 0);
+          const totalCount = group.subProducts.reduce((sum, item) => sum + item.count, 0);
+          
+          // Calculate pricing for the group
+          let totalHT = 0;
+          let totalTVA = 0;
+          let totalTTC = 0;
+          
+          group.subProducts.forEach(subProduct => {
+            const produit = this.produitsDeCaisseCache.get(subProduct.articleId);
+            if (produit) {
+              const prixUnitaire = produit.prix_vente_TTC || 0;
+              const tva = produit.tva || 19;
+              const quantite = subProduct.quantity / 1000; // Convert to kg
+              
+              const montantTTC = prixUnitaire * quantite;
+              const montantHT = montantTTC / (1 + tva / 100);
+              const montantTVA = montantTTC - montantHT;
+              
+              totalHT += montantHT;
+              totalTVA += montantTVA;
+              totalTTC += montantTTC;
+            }
+          });
+          
+          console.log(`Total quantity: ${totalQuantity}, Total count: ${totalCount}`);
+          console.log(`Pricing - HT: ${totalHT}, TVA: ${totalTVA}, TTC: ${totalTTC}`);
+          
+          // Parent product row with sub-products in same designation
+          const subProductNames = group.subProducts.map(sub => sub.productName).join(', ');
+          const parentProductName = parentProduct ? parentProduct.name : `Produit Parent #${scannedProduit.parentProductId}`;
+          const parentProductId = parentProduct ? parentProduct.id : scannedProduit.parentProductId;
+          
+          rows += `
+            <tr class="main-product-row">
+              <td class="text-center font-semibold">${parentProductId}</td>
+              <td class="font-semibold">${parentProductName} (${subProductNames})</td>
+              <td class="text-center font-semibold">${(totalQuantity/1000).toFixed(3)} kg</td>
+              <td class="text-center font-semibold">${totalCount}</td>
+              ${this.sessionDocumentType !== 'sortie' ? `
+                <td class="text-center font-semibold">${totalHT.toFixed(3)} TND</td>
+                <td class="text-center font-semibold">${totalTVA.toFixed(3)} TND</td>
+                <td class="text-center font-semibold">${totalTTC.toFixed(3)} TND</td>
+              ` : ''}
+            </tr>
+          `;
         } else {
           // This is a standalone sous-produit (no parent)
           console.log(`Standalone sous-produit:`, group.subProducts);
@@ -1584,7 +1624,22 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
   private async saveDocumentToDatabase(): Promise<any> {
     try {
       const documentData = await this.prepareDocumentData();
-      const savedDocument = await this.stockDocs.createDocument(documentData).toPromise();
+      
+      // Use the correct API endpoint based on document type
+      let savedDocument;
+      if (this.sessionDocumentType === 'transfert' && this.selectedDestinationDepot) {
+        // Use the transfer-specific endpoint
+        savedDocument = await this.stockDocs.createTransfer(
+          this.depotId,
+          this.selectedDestinationDepot.id,
+          documentData.items,
+          documentData.notes
+        ).toPromise();
+      } else {
+        // Use the general document endpoint
+        savedDocument = await this.stockDocs.createDocument(documentData).toPromise();
+      }
+      
       console.log('Document saved:', savedDocument);
       return savedDocument;
     } catch (error) {
@@ -1630,7 +1685,8 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       items: this.scannedItems.map(item => {
         const produit = this.produitsDeCaisseCache.get(item.articleId);
         const baseItem = {
-          produitId: item.articleId,
+          productId: item.articleId, // Use productId for transfer API
+          famille: produit?.famille || 'Général',
           quantity: item.quantity / 1000, // Convert to kg
           count: item.count
         };
@@ -2259,17 +2315,16 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
     const timestamp = Date.now().toString().slice(-4);
     
-    let prefix = 'BS';
+    let prefix = 'BEXP';
     if (this.sessionDocumentType === 'transfert') {
       prefix = 'BT';
     } else if (this.sessionDocumentType === 'livraison') {
       prefix = 'BL';
     }
     
-    return `${prefix}-${year}${month}${day}-${timestamp}`;
+    return `${prefix}-${year}${month}-${timestamp}`;
   }
 
   setDefaultValidationDates(): void {

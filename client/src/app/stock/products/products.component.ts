@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ProductsService } from '../../core/services/products.service';
 import { Product, ProductFamily } from '../../core/models/product.model';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-products',
@@ -39,7 +40,7 @@ export class ProductsComponent implements OnInit {
     'bg-gradient-to-r from-cyan-100 to-sky-200 text-cyan-800 border border-cyan-200'
   ];
 
-  constructor(private productsService: ProductsService) {}
+  constructor(private productsService: ProductsService, private authService: AuthService) {}
 
   ngOnInit(): void {
     this.loadProducts();
@@ -50,7 +51,12 @@ export class ProductsComponent implements OnInit {
     this.loading = true;
     this.error = '';
 
-    this.productsService.getProducts().subscribe({
+    // Determine current depot like in caisse: visitingDepotId overrides user's depotId
+    const userDepotId = this.authService.currentUser()?.depotId || 0;
+    const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
+    const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
+
+    this.productsService.getProducts(currentDepotId || undefined).subscribe({
       next: (products) => {
         this.allProducts = products;
         this.applyFilters();
@@ -97,7 +103,8 @@ export class ProductsComponent implements OnInit {
       const matchesType = this.selectedType === 'all' || 
         (this.selectedType === 'vrac' && product.isVraguable) ||
         (this.selectedType === 'stock' && product.isStockable) ||
-        (this.selectedType === 'wholesale' && product.isWholesale);
+        (this.selectedType === 'wholesale' && product.isWholesale) ||
+        (this.selectedType === 'imported' && product.name && product.name.toLowerCase().includes('import'));
       
       return matchesSearch && matchesFamille && matchesType;
     });
