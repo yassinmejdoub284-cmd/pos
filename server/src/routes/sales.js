@@ -863,7 +863,7 @@ router.get('/current-session/tickets', async (req, res) => {
 
     // Find current OPEN session for this user
     const activeSession = await prisma.sessionCaisse.findFirst({
-      where: { userId: req.user.id, status: 'OPEN' },
+      where: { status: 'OPEN' },
       select: { id: true }
     });
 

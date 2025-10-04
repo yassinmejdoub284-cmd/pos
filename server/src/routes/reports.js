@@ -213,7 +213,6 @@ router.get('/sales', authenticateToken, async (req, res) => {
       },
       _sum: {
         finalTotal: true,
-        tax: true,
         discount: true
       },
       orderBy: {
@@ -222,11 +221,11 @@ router.get('/sales', authenticateToken, async (req, res) => {
     });
 
     const formattedSales = sales.map(sale => ({
-      date: sale.createdAt,
-      totalSales: sale._count.id,
-      totalRevenue: sale._sum.finalTotal,
-      totalTax: sale._sum.tax,
-      totalDiscount: sale._sum.discount
+      date: sale.createdAt.toISOString().split('T')[0],
+      sales: sale._sum.finalTotal || 0,
+      totalRevenue: sale._sum.finalTotal || 0,
+      totalTax: sale._sum.tax || 0,
+      totalDiscount: sale._sum.discount || 0
     }));
 
     res.json(formattedSales);
@@ -315,12 +314,15 @@ router.get('/products', authenticateToken, async (req, res) => {
     const productsWithDetails = products.map(product => {
       const details = productDetails.find(d => d.id === product.productId);
       return {
-        productId: product.productId,
+        id: product.productId,
+        name: details?.name || 'Unknown',
         productName: details?.name || 'Unknown',
         barcode: details?.barcode || 'Unknown',
-        totalSold: product._sum.quantity,
-        totalRevenue: product._sum.total,
-        avgPrice: product._avg.unitPrice
+        sales: product._sum.total || 0,
+        totalRevenue: product._sum.total || 0,
+        quantity: product._sum.quantity || 0,
+        totalSold: product._sum.quantity || 0,
+        avgPrice: product._avg.unitPrice || 0
       };
     });
 
@@ -398,7 +400,7 @@ router.get('/stock-movements', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']
         product: {
           select: {
             name: true,
-            sku: true
+            barcode: true
           }
         },
         user: {
@@ -413,7 +415,34 @@ router.get('/stock-movements', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']
       }
     });
 
-    res.json(movements);
+    // Group movements by date and type
+    const groupedMovements = {};
+    movements.forEach(movement => {
+      const date = movement.date.toISOString().split('T')[0];
+      if (!groupedMovements[date]) {
+        groupedMovements[date] = {
+          date,
+          entries: 0,
+          exits: 0,
+          quantityIn: 0,
+          quantityOut: 0
+        };
+      }
+      
+      if (movement.type === 'ENTRY') {
+        groupedMovements[date].entries += parseFloat(movement.quantity || 0);
+        groupedMovements[date].quantityIn += parseFloat(movement.quantity || 0);
+      } else if (movement.type === 'EXIT') {
+        groupedMovements[date].exits += parseFloat(movement.quantity || 0);
+        groupedMovements[date].quantityOut += parseFloat(movement.quantity || 0);
+      }
+    });
+
+    const formattedMovements = Object.values(groupedMovements).sort((a, b) => 
+      new Date(a.date) - new Date(b.date)
+    );
+
+    res.json(formattedMovements);
   } catch (error) {
     console.error('Error generating stock movements report:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1143,11 +1172,18 @@ router.get('/daily-monthly', authenticateToken, async (req, res) => {
 // Dashboard endpoint
 router.get('/dashboard', authenticateToken, async (req, res) => {
   try {
+    const { depotId, startDate, endDate } = req.query;
+    const targetDepotId = parseInt(depotId || req.user.depotId);
+    
     const today = new Date();
     const startOfDay = new Date(today);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(today);
     endOfDay.setHours(23, 59, 59, 999);
+
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - 7);
+    startOfWeek.setHours(0, 0, 0, 0);
 
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -1156,10 +1192,10 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const endOfYear = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
 
     // Get sessions for each period
-    const [dailySessions, monthlySessions, yearlySessions] = await Promise.all([
+    const [dailySessions, weeklySessions, monthlySessions, yearlySessions] = await Promise.all([
       prisma.sessionCaisse.findMany({
         where: {
-          depotId: req.user.depotId,
+          depotId: targetDepotId,
           openedAt: { lte: endOfDay },
           OR: [
             { closedAt: { gte: startOfDay } },
@@ -1170,7 +1206,18 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       }),
       prisma.sessionCaisse.findMany({
         where: {
-          depotId: req.user.depotId,
+          depotId: targetDepotId,
+          openedAt: { lte: endOfDay },
+          OR: [
+            { closedAt: { gte: startOfWeek } },
+            { status: 'OPEN' }
+          ]
+        },
+        select: { id: true }
+      }),
+      prisma.sessionCaisse.findMany({
+        where: {
+          depotId: targetDepotId,
           openedAt: { lte: endOfMonth },
           OR: [
             { closedAt: { gte: startOfMonth } },
@@ -1181,7 +1228,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       }),
       prisma.sessionCaisse.findMany({
         where: {
-          depotId: req.user.depotId,
+          depotId: targetDepotId,
           openedAt: { lte: endOfYear },
           OR: [
             { closedAt: { gte: startOfYear } },
@@ -1193,29 +1240,37 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     ]);
 
     const dailySessionIds = dailySessions.map(s => s.id);
+    const weeklySessionIds = weeklySessions.map(s => s.id);
     const monthlySessionIds = monthlySessions.map(s => s.id);
     const yearlySessionIds = yearlySessions.map(s => s.id);
 
     // Get sales data from sessions
-    const [dailySales, monthlySales, yearlySales] = await Promise.all([
+    const [dailySales, weeklySales, monthlySales, yearlySales] = await Promise.all([
       prisma.sale.findMany({
         where: {
           status: 'COMPLETED',
-          depotId: req.user.depotId,
+          depotId: targetDepotId,
           sessionId: { in: dailySessionIds }
         }
       }),
       prisma.sale.findMany({
         where: {
           status: 'COMPLETED',
-          depotId: req.user.depotId,
+          depotId: targetDepotId,
+          sessionId: { in: weeklySessionIds }
+        }
+      }),
+      prisma.sale.findMany({
+        where: {
+          status: 'COMPLETED',
+          depotId: targetDepotId,
           sessionId: { in: monthlySessionIds }
         }
       }),
       prisma.sale.findMany({
         where: {
           status: 'COMPLETED',
-          depotId: req.user.depotId,
+          depotId: targetDepotId,
           sessionId: { in: yearlySessionIds }
         }
       })
@@ -1224,69 +1279,65 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     // Calculate sales totals
     const sales = {
       daily: dailySales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0),
+      weekly: weeklySales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0),
       monthly: monthlySales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0),
       yearly: yearlySales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0)
     };
 
-    // Get purchase data (from expenses)
-    const [dailyExpenses, monthlyExpenses, yearlyExpenses] = await Promise.all([
-      prisma.expense.findMany({
+    // Get stock movements data
+    const [dailyMovements, weeklyMovements] = await Promise.all([
+      prisma.stockMovement.findMany({
         where: {
-          createdAt: { gte: startOfDay, lte: endOfDay }
+          depotId: targetDepotId,
+          date: { gte: startOfDay, lte: endOfDay }
         }
       }),
-      prisma.expense.findMany({
+      prisma.stockMovement.findMany({
         where: {
-          createdAt: { gte: startOfMonth, lte: endOfMonth }
-        }
-      }),
-      prisma.expense.findMany({
-        where: {
-          createdAt: { gte: startOfYear, lte: endOfYear }
+          depotId: targetDepotId,
+          date: { gte: startOfWeek, lte: endOfDay }
         }
       })
     ]);
 
-    // Calculate purchase totals
-    const purchases = {
-      daily: dailyExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0),
-      monthly: monthlyExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0),
-      yearly: yearlyExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0)
-    };
+    // Calculate stock movement totals
+    const totalEntries = dailyMovements
+      .filter(m => m.type === 'ENTRY')
+      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
+    
+    const totalExits = dailyMovements
+      .filter(m => m.type === 'EXIT')
+      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
 
-    // Get indicators
-    const [newClients, paymentDelays] = await Promise.all([
-      prisma.client.count({
-        where: {
-          createdAt: { gte: startOfMonth }
-        }
-      }),
-      prisma.expense.count({
-        where: {
-          isPaid: false,
-          dueDate: { lt: today }
-        }
-      })
-    ]);
+    const weeklyEntries = weeklyMovements
+      .filter(m => m.type === 'ENTRY')
+      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
+    
+    const weeklyExits = weeklyMovements
+      .filter(m => m.type === 'EXIT')
+      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
 
-    const indicators = {
-      newClients,
-      newNegotiations: 0, // Placeholder - would need negotiation tracking
-      paymentDelays
-    };
+    // Calculate turnover rate (simplified)
+    const turnoverRate = totalExits > 0 ? totalEntries / totalExits : 0;
 
-    // Calculate results
-    const results = {
-      daily: sales.daily - purchases.daily,
-      monthly: sales.monthly - purchases.monthly,
-      yearly: sales.yearly - purchases.yearly
-    };
+    // Calculate percentage changes (simplified - comparing with previous periods)
+    const todaySalesChange = 0; // Would need previous day data
+    const weekSalesChange = 0; // Would need previous week data
+    const entriesChange = 0; // Would need previous period data
+    const exitsChange = 0; // Would need previous period data
+    const turnoverChange = 0; // Would need previous period data
 
     res.json({
-      sales,
-      purchases,
-      indicators,
-      results
+      todaySales: sales.daily,
+      weekSales: sales.weekly,
+      totalEntries,
+      totalExits,
+      turnoverRate,
+      todaySalesChange,
+      weekSalesChange,
+      entriesChange,
+      exitsChange,
+      turnoverChange
     });
   } catch (error) {
     console.error('Error generating dashboard data:', error);
@@ -1608,7 +1659,18 @@ router.get('/credit-sales', authenticateToken, async (req, res) => {
     // Sort by total due amount descending
     reports.sort((a, b) => b.totalDue - a.totalDue);
 
-    res.json(reports);
+    // Format for frontend
+    const formattedReports = reports.map(client => ({
+      id: client.clientId,
+      name: client.clientName,
+      clientName: client.clientName,
+      total: client.totalAmount,
+      totalAmount: client.totalAmount,
+      orders: client.salesCount,
+      salesCount: client.salesCount
+    }));
+
+    res.json(formattedReports);
   } catch (error) {
     console.error('Error generating credit sales report:', error);
     res.status(500).json({ error: 'Internal server error' });

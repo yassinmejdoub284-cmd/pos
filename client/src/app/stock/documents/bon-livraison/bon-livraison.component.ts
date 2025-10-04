@@ -171,6 +171,36 @@ export class BonLivraisonComponent implements OnInit {
     }, 0);
   }
 
+  // Group items by family (same logic as print template)
+  getGroupedItems(items: any[] | undefined): any[] {
+    if (!items || items.length === 0) return [];
+    
+    const aggregates: Record<string, { qty: number; count: number; famille: string }> = {};
+    
+    items.forEach((raw) => {
+      const item: any = raw as any;
+      // Use famille (family) for grouping, same as print template
+      const famille = item.famille || item.product?.famille || 'Général';
+      const key = famille;
+      const qty = Number(item.quantity ?? 0) || 0;
+      const cnt = Number(item.count ?? 1) || 0;
+      
+      if (!aggregates[key]) {
+        aggregates[key] = { qty: 0, count: 0, famille: famille };
+      }
+      aggregates[key].qty += qty;
+      aggregates[key].count += cnt;
+    });
+    
+    return Object.entries(aggregates).map(([name, g], idx) => ({ 
+      idx, 
+      name, 
+      qty: g.qty, 
+      count: g.count, 
+      famille: g.famille 
+    }));
+  }
+
   goBack(): void {
     this.router.navigate(['/stock']);
   }
@@ -324,6 +354,55 @@ export class BonLivraisonComponent implements OnInit {
 
   cancelEdit(): void {
     this.router.navigate(['/stock/documents/bon-livraison', this.documentToEdit?.id]);
+  }
+
+  approveReceipt(): void {
+    if (!this.selectedDocument || !this.depotId) return;
+    
+    this.loading = true;
+    this.error = '';
+    
+    this.stockDocsService.approveReceipt(this.selectedDocument.id, parseInt(this.depotId)).subscribe({
+      next: (response: any) => {
+        // Update the document status locally
+        this.selectedDocument!.status = 'RECEIVED';
+        this.success = 'Reçu approuvé avec succès. Les produits ont été ajoutés au stock.';
+        this.loading = false;
+        
+        // Refresh the documents list to show updated status
+        this.loadDocumentsForDepot();
+        
+        setTimeout(() => this.success = '', 5000);
+      },
+      error: (error: any) => {
+        this.error = 'Erreur lors de l\'approbation du reçu';
+        this.loading = false;
+        setTimeout(() => this.error = '', 5000);
+      }
+    });
+  }
+
+  approveReceiptFromList(document: StockDocument): void {
+    if (!this.depotId) return;
+    
+    this.loading = true;
+    this.error = '';
+    
+    this.stockDocsService.approveReceipt(document.id, parseInt(this.depotId)).subscribe({
+      next: (response: any) => {
+        // Update the document status locally in the list
+        document.status = 'RECEIVED';
+        this.success = 'Reçu approuvé avec succès. Les produits ont été ajoutés au stock.';
+        this.loading = false;
+        
+        setTimeout(() => this.success = '', 5000);
+      },
+      error: (error: any) => {
+        this.error = 'Erreur lors de l\'approbation du reçu';
+        this.loading = false;
+        setTimeout(() => this.error = '', 5000);
+      }
+    });
   }
 
 }

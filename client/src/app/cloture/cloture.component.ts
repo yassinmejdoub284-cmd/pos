@@ -184,6 +184,20 @@ export class ClotureComponent implements OnInit, OnDestroy {
       }
     }
 
+    // Remboursements (from cash movements)
+    for (const m of movements) {
+      const reasonLower = (m.reason || '').toLowerCase();
+      const amount = parseFloat(m.amount || 0) || 0;
+      const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
+      if (m.type === 'SORTIE' && isRefund && amount > 0) {
+        rows.push({
+          createdAt: m.createdAt,
+          label: m.reason || 'Remboursement',
+          amount: amount
+        });
+      }
+    }
+
     // Filter by search
     const q = this.flowsSearch().trim().toLowerCase();
     const filtered = q ? rows.filter(r => r.label.toLowerCase().includes(q)) : rows;
@@ -441,6 +455,38 @@ export class ClotureComponent implements OnInit, OnDestroy {
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 
+  // Refunds (Remboursements)
+  recentRefunds(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
+    const movements = (this.currentSession()?.cashMovements || []) as any[];
+    return movements
+      .filter(m => {
+        const reasonLower = (m.reason || '').toLowerCase();
+        const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
+        const amount = parseFloat((m as any).amount || 0) || 0;
+        return m.type === 'SORTIE' && isRefund && amount > 0;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10)
+      .map(m => ({
+        createdAt: m.createdAt,
+        type: 'SORTIE',
+        reason: m.reason || 'Remboursement',
+        amount: parseFloat((m as any).amount || 0) || 0
+      }));
+  }
+
+  getRefundsTotal(): number {
+    const movements = this.currentSession()?.cashMovements || [];
+    return movements
+      .filter(m => {
+        const reasonLower = (m.reason || '').toLowerCase();
+        const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
+        const amount = parseFloat((m as any).amount || 0) || 0;
+        return m.type === 'SORTIE' && isRefund && amount > 0;
+      })
+      .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
+  }
+
   getNetAfterAdjustments(): number {
     const totalSales = parseFloat((this.currentSession()?.summary?.totalSales as any) || 0) || 0;
     const expectedCash = parseFloat((this.currentSession()?.summary?.expectedCash as any) || 0) || 0;
@@ -497,7 +543,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const orderAdvances = this.getTotalOrderAdvances();
     const expenses = this.getExpensesTotal();
     const supplierRegs = this.getSupplierPaymentsTotal();
-    return opening + cashFromSales + clientPayments + orderAdvances - expenses - supplierRegs;
+    const refunds = this.getRefundsTotal();
+    return opening + cashFromSales + clientPayments + orderAdvances - expenses - supplierRegs - refunds;
   }
 
   getOpeningFund(): number {

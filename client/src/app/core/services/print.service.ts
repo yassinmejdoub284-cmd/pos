@@ -10,82 +10,269 @@ export class PrintService {
   private isDesktop = false;
 
   constructor(private settingsService: SettingsService) {
-    // Check if we're running in Tauri desktop environment
-    this.isDesktop = typeof window !== 'undefined' && (window as any).__TAURI__;
+    // Desktop mode will be determined by settings when needed
+    this.isDesktop = false;
+  }
+
+  // Method to manually set desktop mode (for testing or override)
+  setDesktopMode(isDesktop: boolean): void {
+    this.isDesktop = isDesktop;
+    console.log('Desktop mode manually set to:', isDesktop);
+  }
+
+  // Method to get current desktop mode
+  getDesktopMode(): boolean {
+    return this.isDesktop;
+  }
+
+  // Method to check if Tauri is receiving orders
+  async checkTauriStatus(): Promise<string> {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const status = await invoke<string>('check_tauri_status');
+      console.log('Tauri Status:', status);
+      return status;
+    } catch (error) {
+      console.error('Failed to check Tauri status:', error);
+      return 'Tauri not available';
+    }
   }
 
   // Print methods that work in both desktop and web environments
   async printPlainText(text: string): Promise<void> {
-    if (this.isDesktop) {
-      const { invoke } = await import('@tauri-apps/api/core');
+    return new Promise((resolve, reject) => {
+      this.settingsService.getSettings().subscribe({
+        next: async (settings) => {
+          if (settings?.isDesktopVersion) {
+            console.log('Desktop version enabled, using Tauri print...');
+            try {
+              await this.printPlainTextDesktop(text);
+              resolve();
+            } catch (error) {
+              console.error('Tauri print failed, falling back to web print:', error);
+              this.printPlainTextWeb(text);
+              resolve();
+            }
+          } else {
+            console.log('Web version, using browser print...');
+            this.printPlainTextWeb(text);
+            resolve();
+          }
+        },
+        error: () => {
+          console.log('Settings error, falling back to web print...');
+          this.printPlainTextWeb(text);
+          resolve();
+        }
+      });
+    });
+  }
+
+  private async printPlainTextDesktop(text: string): Promise<void> {
+    const { invoke } = await import('@tauri-apps/api/core');
     await invoke('print_text_direct', { text });
-    } else {
-      // Web fallback: open print dialog with plain text
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-            <head><title>Print</title></head>
-            <body style="font-family: monospace; white-space: pre-wrap;">${text}</body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
-      }
+    console.log('Tauri print successful');
+  }
+
+  private printPlainTextWeb(text: string): void {
+    // Web fallback: open print dialog with plain text
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head><title>Print</title></head>
+          <body style="font-family: monospace; white-space: pre-wrap;">${text}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
     }
   }
 
   async printHtml(html: string): Promise<void> {
-    if (this.isDesktop) {
-      const { invoke } = await import('@tauri-apps/api/core');
+    return new Promise((resolve) => {
+      this.settingsService.getSettings().subscribe({
+        next: async (settings) => {
+          if (settings?.isDesktopVersion) {
+            try {
+              await this.printHtmlDesktop(html);
+              resolve();
+            } catch (error) {
+              console.error('Tauri HTML print failed, falling back to web print:', error);
+              this.printHtmlWeb(html);
+              resolve();
+            }
+          } else {
+            this.printHtmlWeb(html);
+            resolve();
+          }
+        },
+        error: () => {
+          this.printHtmlWeb(html);
+          resolve();
+        }
+      });
+    });
+  }
+
+  private async printHtmlDesktop(html: string): Promise<void> {
+    const { invoke } = await import('@tauri-apps/api/core');
     await invoke('print_html', { html });
-    } else {
-      // Web fallback: open print dialog with HTML
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.print();
-      }
+  }
+
+  private printHtmlWeb(html: string): void {
+    // Web fallback: open print dialog with HTML
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.print();
     }
   }
 
   async printPdf(pdfBase64: string): Promise<void> {
-    if (this.isDesktop) {
+    this.settingsService.getSettings().subscribe({
+      next: (settings) => {
+        if (settings?.isDesktopVersion) {
+          this.printPdfDesktop(pdfBase64);
+        } else {
+          this.printPdfWeb(pdfBase64);
+        }
+      },
+      error: () => {
+        this.printPdfWeb(pdfBase64);
+      }
+    });
+  }
+
+  private async printPdfDesktop(pdfBase64: string): Promise<void> {
+    try {
       const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('print_pdf', { pdfBase64: pdfBase64 });
-    } else {
-      // Web fallback: download PDF
-      const link = document.createElement('a');
-      link.href = `data:application/pdf;base64,${pdfBase64}`;
-      link.download = 'document.pdf';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await invoke('print_pdf', { pdfBase64: pdfBase64 });
+    } catch (error) {
+      console.error('Tauri PDF print failed, falling back to web print:', error);
+      this.printPdfWeb(pdfBase64);
     }
+  }
+
+  private printPdfWeb(pdfBase64: string): void {
+    // Web fallback: download PDF
+    const link = document.createElement('a');
+    link.href = `data:application/pdf;base64,${pdfBase64}`;
+    link.download = 'document.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   async printEscPos(escposData: string): Promise<void> {
-    if (this.isDesktop) {
-      const { invoke } = await import('@tauri-apps/api/core');
+    return new Promise((resolve) => {
+      this.settingsService.getSettings().subscribe({
+        next: async (settings) => {
+          if (settings?.isDesktopVersion) {
+            try {
+              await this.printEscPosDesktop(escposData);
+              resolve();
+            } catch (error) {
+              console.error('Tauri ESC/POS print failed, falling back to web print:', error);
+              await this.printEscPosWeb(escposData);
+              resolve();
+            }
+          } else {
+            await this.printEscPosWeb(escposData);
+            resolve();
+          }
+        },
+        error: async () => {
+          await this.printEscPosWeb(escposData);
+          resolve();
+        }
+      });
+    });
+  }
+
+  private async printEscPosDesktop(escposData: string): Promise<void> {
+    const { invoke } = await import('@tauri-apps/api/core');
     const base64 = this.toBase64(this.stringToBytes(escposData));
     await invoke('print_raw_bytes', { data_base64: base64 });
-    } else {
-      // Web fallback: convert ESC/POS to readable format and print
-      const readableText = this.convertEscPosToReadable(escposData);
-      await this.printPlainText(readableText);
-    }
+  }
+
+  private async printEscPosWeb(escposData: string): Promise<void> {
+    // Web fallback: convert ESC/POS to readable format and print
+    const readableText = this.convertEscPosToReadable(escposData);
+    this.printPlainTextWeb(readableText);
   }
 
   async openCashDrawer(): Promise<void> {
-    if (this.isDesktop) {
+    this.settingsService.getSettings().subscribe({
+      next: (settings) => {
+        if (settings?.isDesktopVersion) {
+          this.openCashDrawerDesktop();
+        } else {
+          this.openCashDrawerWebPrinter();
+        }
+      },
+      error: () => {
+        this.openCashDrawerWebPrinter();
+      }
+    });
+  }
+
+
+  private async openCashDrawerDesktop(): Promise<void> {
+    try {
       const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('open_cash_drawer');
-    } else {
-      // Web fallback: show message
-      alert('Ouverture du tiroir-caisse (mode web)');
+      await invoke('open_cash_drawer');
+    } catch (error) {
+      console.error('Tauri cash drawer failed:', error);
+      this.openCashDrawerWebPrinter();
     }
   }
+
+  private openCashDrawerWebPrinter(): void {
+    try {
+      // Create a hidden iframe with proper ESC/POS commands
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      
+      const doc = iframe.contentDocument;
+      if (doc) {
+        doc.open();
+        doc.write(`
+          <html>
+            <head>
+              <style>
+                @media print {
+                  body { margin: 0; }
+                  .cash-drawer-command { 
+                    font-family: monospace; 
+                    font-size: 1px; 
+                    color: transparent;
+                  }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="cash-drawer-command">${String.fromCharCode(27, 112, 0, 25, 250)}</div>
+            </body>
+          </html>
+        `);
+        doc.close();
+        
+        // Trigger print with proper timing
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Printer cash drawer failed:', error);
+    }
+  }
+
 
   // Receipts and reports route to Tauri print
   printZReport(zReportData: ZReportData): void {
@@ -111,12 +298,17 @@ export class PrintService {
 
   printSaleReceipt(sale: Sale, options?: { openPreviewOnly?: boolean }): void {
     this.settingsService.getSettings().subscribe({
-      next: (settings) => {
+      next: async (settings) => {
         // Check if desktop version is enabled
         if (settings?.isDesktopVersion) {
           // Use Tauri direct printing with text format
           const text = this.buildSaleReceiptText(sale, settings);
-          void this.printPlainText(text);
+          try {
+            await this.printPlainTextDesktop(text);
+          } catch (error) {
+            console.error('Tauri print failed, falling back to web print:', error);
+            this.printReceiptInBrowser(sale, settings);
+          }
         } else {
           // Use browser window printing with HTML format
           this.printReceiptInBrowser(sale, settings);
@@ -125,7 +317,7 @@ export class PrintService {
       error: () => {
         // Fallback to default settings if error
         const text = this.buildSaleReceiptText(sale, null);
-        void this.printPlainText(text);
+        this.printPlainTextWeb(text);
       }
     });
   }
@@ -133,12 +325,17 @@ export class PrintService {
   // Print invoice (different from regular receipt)
   printInvoice(invoice: any, options?: { openPreviewOnly?: boolean }): void {
     this.settingsService.getSettings().subscribe({
-      next: (settings) => {
+      next: async (settings) => {
         // Check if desktop version is enabled
         if (settings?.isDesktopVersion) {
           // Use Tauri direct printing with text format
           const text = this.buildInvoiceText(invoice, settings);
-          void this.printPlainText(text);
+          try {
+            await this.printPlainTextDesktop(text);
+          } catch (error) {
+            console.error('Tauri print failed, falling back to web print:', error);
+            this.printInvoiceInBrowser(invoice, settings);
+          }
         } else {
           // Use browser window printing with HTML format
           this.printInvoiceInBrowser(invoice, settings);
@@ -147,29 +344,59 @@ export class PrintService {
       error: () => {
         // Fallback to default settings if error
         const text = this.buildInvoiceText(invoice, null);
-        void this.printPlainText(text);
+        this.printPlainTextWeb(text);
       }
     });
   }
 
   // Printers management (stubs wired to backend)
   async getAvailablePrinters(): Promise<Array<{ name: string; isDefault: boolean }>> {
-    if (this.isDesktop) {
+    return new Promise((resolve) => {
+      this.settingsService.getSettings().subscribe({
+        next: (settings) => {
+          if (settings?.isDesktopVersion) {
+            this.getAvailablePrintersDesktop().then(resolve).catch(() => resolve([]));
+          } else {
+            resolve([]);
+          }
+        },
+        error: () => resolve([])
+      });
+    });
+  }
+
+  private async getAvailablePrintersDesktop(): Promise<Array<{ name: string; isDefault: boolean }>> {
+    try {
       const { invoke } = await import('@tauri-apps/api/core');
-    return invoke('get_available_printers');
-    } else {
-      // Web fallback: return empty array
+      return invoke('get_available_printers');
+    } catch (error) {
+      console.error('Tauri get printers failed:', error);
       return [];
     }
   }
 
   async setDefaultPrinter(printerName: string): Promise<boolean> {
-    if (this.isDesktop) {
+    return new Promise((resolve) => {
+      this.settingsService.getSettings().subscribe({
+        next: (settings) => {
+          if (settings?.isDesktopVersion) {
+            this.setDefaultPrinterDesktop(printerName).then(resolve).catch(() => resolve(false));
+          } else {
+            resolve(false);
+          }
+        },
+        error: () => resolve(false)
+      });
+    });
+  }
+
+  private async setDefaultPrinterDesktop(printerName: string): Promise<boolean> {
+    try {
       const { invoke } = await import('@tauri-apps/api/core');
-    return invoke<{ success: boolean; message: string }>('set_default_printer', { printer_name: printerName })
-        .then((res: any) => !!res?.success);
-    } else {
-      // Web fallback: return false
+      const res = await invoke<{ success: boolean; message: string }>('set_default_printer', { printer_name: printerName });
+      return !!res?.success;
+    } catch (error) {
+      console.error('Tauri set printer failed:', error);
       return false;
     }
   }
@@ -630,7 +857,19 @@ export class PrintService {
       return movements
         .filter((m: any) => m.type === 'SORTIE' && 
           !(m.reason || '').toLowerCase().includes('fournisseur') &&
-          !(m.reason || '').toLowerCase().includes('supplier'))
+          !(m.reason || '').toLowerCase().includes('supplier') &&
+          !(m.reason || '').toLowerCase().includes('remboursement') &&
+          !(m.reason || '').toLowerCase().includes('bon de retour'))
+        .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
+    };
+
+    // Calculate return refunds
+    const getReturnRefunds = () => {
+      const movements = session.cashMovements || [];
+      return movements
+        .filter((m: any) => m.type === 'SORTIE' && 
+          ((m.reason || '').toLowerCase().includes('remboursement') ||
+           (m.reason || '').toLowerCase().includes('bon de retour')))
         .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
     };
     
@@ -643,6 +882,12 @@ export class PrintService {
     };
     
     escpos += formatFinancialLine('Dépenses:', getExpensesTotal()) + '\n';
+    
+    // Show return refunds if any
+    const returnRefunds = getReturnRefunds();
+    if (returnRefunds > 0) {
+      escpos += formatFinancialLine('Remboursements:', returnRefunds) + '\n';
+    }
     
     // Show individual supplier payments
     const supplierPayments = getSupplierPayments();
@@ -866,12 +1111,19 @@ export class PrintService {
     text += noTopMargin + noBottomMargin + monospaceFont;
     
     // Header
-    text += '==================\n';
+    text += '================================\n';
     
+    // ASCII Art Logo "HD" - centered and smaller
+    text += centerAlign + '  _   _ _____  \n';
+    text += centerAlign + ' | | | |  __ \\ \n';
+    text += centerAlign + ' | |_| | |  | |\n';
+    text += centerAlign + ' |  _  | |  | |\n';
+    text += centerAlign + ' | | | | |__| |\n';
+    text += centerAlign + ' |_| |_|_____/ \n\n';
     
-    // Company name (bold and centered) - sanitized for thermal printer
+    // Company name (double bold and centered) - sanitized for thermal printer
     const companyName = this.sanitizeForThermalPrinter(settings?.companyName || 'PATISSERIE MODERNE');
-    text += centerAlign + boldOn + companyName + boldOff + normalSize + '\n';
+    text += centerAlign + boldOn + boldOn + companyName + boldOff + boldOff + normalSize + '\n';
     
     // Company details (centered) - sanitized for thermal printer
     if (settings?.printSettings?.showCompanyDetails) {
@@ -886,7 +1138,7 @@ export class PrintService {
       }
     }
     
-    text += leftAlign + '==================\n\n';
+    text += centerAlign + '================================\n\n';
     
     // Sale info
     text += `Date: ${date}     Heure: ${time}\n`;
@@ -918,9 +1170,9 @@ export class PrintService {
       return currencyPosition === 'before' ? `${currencySymbol} ${formatted}` : `${formatted} ${currencySymbol}`;
     };
     
-    // Items header
-    text += 'ARTICLE           QTE  P.U.    TOTAL\n';
-    text += '------------------\n';
+    // Items header (bold) - QTE before ARTICLE with more space between QTE and ARTICLE
+    text += boldOn + 'QTE    ARTICLE                 P.U.    TOTAL' + boldOff + '\n';
+    text += '--------------------------------------------\n';
     
     // Items - sanitized for thermal printer
     (sale.items || []).forEach(item => {
@@ -938,16 +1190,18 @@ export class PrintService {
         text += `GROS              ${bundleQty} fardeau${bundleQty > 1 ? 'x' : ''}  ${formatCurrency(bundlePrice)}  ${formatCurrency(total)}\n`;
         text += `                  (${qty} unités)\n`;
       } else {
-        // Format item line with proper spacing
-        const namePadded = name.padEnd(16);
+        // Format item line with QTE first, then ARTICLE with more space between QTE and ARTICLE
         const qtyPadded = qty.padStart(3);
-        const unitPadded = formatCurrency(unit).padStart(6);
-        const totalPadded = formatCurrency(total).padStart(8);
-        text += `${namePadded} ${qtyPadded} ${unitPadded} ${totalPadded}\n`;
+        const namePadded = name.padEnd(20); // Space for article name
+        const unitFormatted = unit.toFixed(3);
+        const totalFormatted = total.toFixed(3);
+        const unitPadded = unitFormatted.padStart(6); // Align P.U. prices
+        const totalPadded = totalFormatted.padStart(8); // Align TOTAL prices
+        text += `${qtyPadded}    ${namePadded}  ${unitPadded}  ${totalPadded}\n`;
       }
     });
     
-    text += '------------------\n';
+    text += '=========================================\n';
     
     // Totals
     const discount = Number(sale.discount || 0);
@@ -955,17 +1209,17 @@ export class PrintService {
     const net = Number(sale.finalTotal || subtotal - discount);
     const payment = sale.paymentMethod?.name || '—';
     
-    text += `Sous-total                    ${formatCurrency(subtotal)}\n`;
+    text += boldOn + `Sous-total                    ${subtotal.toFixed(3)} dt` + boldOff + '\n';
     if (discount > 0 && settings?.printSettings?.showDiscountDetails) {
-      text += `Remise                        -${formatCurrency(discount)}\n`;
+      text += `Remise                        -${discount.toFixed(3)} dt\n`;
     }
-    text += `TOTAL A PAYER                 ${formatCurrency(net)}\n`;
+    text += boldOn + `TOTAL A PAYER                 ${net.toFixed(3)} dt` + boldOff + '\n';
     // Payment method (if enabled in settings) - sanitized for thermal printer
     if (settings?.printSettings?.showPaymentMethod) {
       text += `Paiement                      ${this.sanitizeForThermalPrinter(payment)}\n`;
     }
     
-    text += '==================\n';
+    text += '=========================================\n';
     
     // Custom thank you message from settings - sanitized for thermal printer
     const thankYouMessage = this.sanitizeForThermalPrinter(settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!');
@@ -1343,9 +1597,9 @@ export class PrintService {
     // Header
     text += '==================\n';
     
-    // Company name (bold and centered)
+    // Company name (double bold and centered)
     const companyName = this.sanitizeForThermalPrinter(settings?.companyName || 'PATISSERIE MODERNE');
-    text += centerAlign + boldOn + companyName + boldOff + normalSize + '\n';
+    text += centerAlign + boldOn + boldOn + companyName + boldOff + boldOff + normalSize + '\n';
     
     // Company details (centered)
     if (settings?.printSettings?.showCompanyDetails) {

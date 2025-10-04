@@ -139,4 +139,10 @@ export class StockDocumentsService {
       catchError((error) => throwError(() => error))
     );
   }
+
+  approveReceipt(documentId: number, depotId: number): Observable<StockDocument> {
+    return this.http.post<StockDocument>(`${this.apiUrl}/${documentId}/approve-receipt`, { depotId }).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
 } 

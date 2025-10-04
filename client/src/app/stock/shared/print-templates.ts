@@ -132,12 +132,14 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   let unifiedTotalTTC = 0;
   if (sessionType === 'livraison') {
     const isWholesaleClient = !!(document as any).client && ((document as any).client.clientType === 'WHOLESALE');
-    const aggregates: Record<string, { qty: number; count: number; montantHT: number; montantTVA: number; montantTTC: number }>
+    const aggregates: Record<string, { qty: number; count: number; montantHT: number; montantTVA: number; montantTTC: number; famille: string }>
       = {};
     (document.items || []).forEach((raw) => {
       const item: any = raw as any;
-      const key = item.notes || item.product?.name || `Produit #${item.productId}`;
       const product = item.product || {};
+      const famille = item.famille || product.famille || 'Général';
+      // Group by family instead of product name
+      const key = famille;
       const qty = Number(item.quantity ?? 0) || 0; // kg
       const cnt = Number(item.count ?? 1) || 0;
       const baseUnit = Number(product.prix_vente_TTC ?? 0) || 0; // TTC
@@ -149,7 +151,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
       const montantTTC = unitPriceTTC * qty;
       const montantHT = montantTTC / (1 + tvaFrac);
       const montantTVA = montantTTC - montantHT;
-      if (!aggregates[key]) aggregates[key] = { qty: 0, count: 0, montantHT: 0, montantTVA: 0, montantTTC: 0 };
+      if (!aggregates[key]) aggregates[key] = { qty: 0, count: 0, montantHT: 0, montantTVA: 0, montantTTC: 0, famille: famille };
       aggregates[key].qty += qty;
       aggregates[key].count += cnt;
       aggregates[key].montantHT += montantHT;
@@ -172,14 +174,16 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
       </tr>
     `).join('');
   } else {
-    // Group by designation for sortie/transfert
-    const aggregates: Record<string, { qty: number; count: number }>= {};
+    // Group by family for sortie/transfert
+    const aggregates: Record<string, { qty: number; count: number; famille: string }>= {};
     (document.items || []).forEach((raw) => {
       const item: any = raw as any;
-      const key = item.notes || item.product?.name || `Produit #${item.productId}`;
+      const famille = item.famille || item.product?.famille || 'Général';
+      // Group by family instead of product name
+      const key = famille;
       const qty = Number(item.quantity ?? 0) || 0;
       const cnt = Number(item.count ?? 1) || 0;
-      if (!aggregates[key]) aggregates[key] = { qty: 0, count: 0 };
+      if (!aggregates[key]) aggregates[key] = { qty: 0, count: 0, famille: famille };
       aggregates[key].qty += qty;
       aggregates[key].count += cnt;
     });
@@ -318,7 +322,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
               <th>Montant HT</th>
               <th>TVA</th>
               <th>Montant TTC</th>
-            ` : ''}
+            ` : '<th>Colis</th>'}
           </tr>
         </thead>
         <tbody>

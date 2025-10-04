@@ -31,7 +31,7 @@ fn read_app_config(app_handle: &tauri::AppHandle) -> AppConfig {
     }
   }
 
-  AppConfig{ target_url: "http://patisserie.solumove.net".into() }
+  AppConfig{ target_url: "https://patisserie.solumove.net".into() }
 }
 
 #[tauri::command]
@@ -50,12 +50,23 @@ fn reload_site(app_handle: tauri::AppHandle) {
 
 #[tauri::command]
 fn print_text_direct(_app_handle: tauri::AppHandle, text: String) -> Result<(), String> {
+  println!("=== PRINT ORDER RECEIVED ===");
+  println!("Timestamp: {}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"));
+  println!("Text length: {} characters", text.len());
+  println!("First 100 chars: {}", &text.chars().take(100).collect::<String>());
+  println!("=============================");
+  
   // Use the exact same logic as the test print - direct raw printing
   send_raw_to_printer(Some("POS-80C"), text.as_bytes())
 }
 
 #[tauri::command]
 fn print_html(_app_handle: tauri::AppHandle, html: String) -> Result<(), String> {
+  println!("=== HTML PRINT ORDER RECEIVED ===");
+  println!("Timestamp: {}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"));
+  println!("HTML length: {} characters", html.len());
+  println!("================================");
+  
   // Convert HTML to plain text and use the same raw printing logic
   let text = html_to_text(&html);
   send_raw_to_printer(Some("POS-80C"), text.as_bytes())
@@ -150,6 +161,12 @@ fn send_raw_to_printer(printer_name: Option<&str>, data: &[u8]) -> Result<(), St
 
 #[tauri::command]
 fn print_raw_bytes(_app_handle: tauri::AppHandle, data_base64: String, printer_name: Option<String>) -> Result<(), String> {
+  println!("=== RAW BYTES PRINT ORDER RECEIVED ===");
+  println!("Timestamp: {}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"));
+  println!("Base64 data length: {} characters", data_base64.len());
+  println!("Printer: {:?}", printer_name);
+  println!("=====================================");
+  
   use base64::Engine as _;
   let bytes = base64::engine::general_purpose::STANDARD
     .decode(data_base64)
@@ -178,6 +195,18 @@ fn get_available_printers() -> Result<Vec<PrinterInfo>, String> {
 #[tauri::command]
 fn set_default_printer(printer_name: String) -> Result<OperationResult, String> {
   Ok(OperationResult { success: false, message: format!("Not implemented: {}", printer_name) })
+}
+
+#[tauri::command]
+fn check_tauri_status() -> Result<String, String> {
+  let status = format!(
+    "Tauri Status: ACTIVE\nTimestamp: {}\nAvailable commands: print_text_direct, print_html, print_raw_bytes\n",
+    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
+  );
+  println!("=== TAURI STATUS CHECK ===");
+  println!("{}", status);
+  println!("=========================");
+  Ok(status)
 }
 
 #[derive(serde::Serialize)]
@@ -234,20 +263,7 @@ fn main() {
         .visible(true)
         .build()?;
       
-      // Test print on app initialization
-      let _app_handle = app.app_handle().clone();
-      std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(2000)); // Wait 2 seconds for app to fully load
-        let test_text = "=== Tauri App Test Print ===\n\nThis is a test print from the PoS Patisserie desktop app.\n\nApp initialized successfully!\n\nTimestamp: ".to_string() + 
-          &chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string() + "\n\n=== End Test ===";
-        
-        // Use direct raw printing for instant print without dialog
-        if let Err(e) = send_raw_to_printer(Some("POS-80C"), test_text.as_bytes()) {
-          eprintln!("Test print failed: {}", e);
-        } else {
-          println!("Test print sent successfully!");
-        }
-      });
+      // App initialization complete - no automatic test print
       
       Ok(())
     })
@@ -267,7 +283,8 @@ fn main() {
       print_raw_bytes,
       open_cash_drawer,
       get_available_printers,
-      set_default_printer
+      set_default_printer,
+      check_tauri_status
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

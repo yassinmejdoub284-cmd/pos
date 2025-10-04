@@ -26,7 +26,6 @@ import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 })
 export class ScanReceptionComponent implements OnInit, OnDestroy {
   depotId = 0;
-  fromDepotId: number | null = null;
   loading = false;
   error = '';
   settings: AppSettings | null = null;
@@ -77,6 +76,17 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
   quantityInput = '';
   colisInput = '';
   currentInputType: 'quantity' | 'colis' = 'quantity';
+
+  // Manual product selection state
+  showManualProductModal = false;
+  showManualQuantityModal = false;
+  productSearchQuery = '';
+  filteredProducts: ProduitDeCaisse[] = [];
+  selectedManualProduct: ProduitDeCaisse | null = null;
+  manualQuantityInput = '';
+  manualColisInput = '';
+  manualCurrentInputType: 'quantity' | 'colis' = 'quantity';
+  isManualProductLoading = false;
 
   // Document type selection state
   showDocumentTypeModal = false;
@@ -647,8 +657,12 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         return;
       }
       
+      // Use parent product ID if available, otherwise use the produit de caisse ID
+      const produitDeCaisse = this.produitsDeCaisseCache.get(articleId);
+      const productId = produitDeCaisse?.parentProductId || articleId;
+      
       // Find existing item or create new one
-      const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
+      const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === productId);
       
       if (existingItemIndex >= 0) {
         // Update existing item - add quantity and increment count
@@ -659,7 +673,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       } else {
         // Add new item
         this.scannedItems.push({
-          articleId,
+          articleId: productId,
           productName: productName,
           quantity,
           count: 1,
@@ -715,8 +729,6 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = '';
     this.success = '';
-
-    const fromDepotId = this.fromDepotId ?? 0;
     
     // Map session document type to backend document type
     let documentType: string | undefined;
@@ -734,9 +746,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       }
     }
 
-    const call$ = fromDepotId
-      ? this.stockDocs.scanTransfer(fromDepotId, this.depotId, code)
-      : this.stockDocs.scanBarcode(code, this.depotId, documentType);
+    const call$ = this.stockDocs.scanBarcode(code, this.depotId, documentType);
 
     call$.subscribe({
       next: (result) => {
@@ -1059,8 +1069,12 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         return;
       }
       
+      // Use parent product ID if available, otherwise use the produit de caisse ID
+      const produitDeCaisse = this.produitsDeCaisseCache.get(articleId);
+      const productId = produitDeCaisse?.parentProductId || articleId;
+      
       // Find existing item or create new one
-      const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
+      const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === productId);
       
       if (existingItemIndex >= 0) {
         // Update existing item - set exact quantity and colis
@@ -1071,7 +1085,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       } else {
         // Add new item with custom quantity and colis
         this.scannedItems.push({
-          articleId,
+          articleId: productId,
           productName: productName,
           quantity: customQuantity,
           count: customColis,
@@ -1105,6 +1119,29 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
   // Helper method for template
   parseInt(value: string): number {
     return parseInt(value, 10);
+  }
+
+  // Helper method to get product family name
+  getProductFamilyName(product: ProduitDeCaisse | null): string {
+    if (!product) return 'Général';
+    
+    // Debug: Log the product and famille structure
+    console.log('getProductFamilyName - Product:', product.name, 'Famille:', product.famille, 'Type:', typeof product.famille);
+    
+    // If famille is a string, return it directly
+    if (typeof product.famille === 'string') {
+      return product.famille;
+    }
+    
+    // If famille is an object with a name property, return the name
+    if (product.famille && typeof product.famille === 'object' && 'name' in product.famille) {
+      console.log('Famille object name:', product.famille.name);
+      return product.famille.name || 'Général';
+    }
+    
+    // Fallback
+    console.log('Using fallback for famille');
+    return 'Général';
   }
 
   // Document type selection methods
@@ -1680,7 +1717,6 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       type: documentType,
       numero: documentNumber,
       depotId: this.depotId,
-      fromDepotId: this.fromDepotId,
       status: 'COMPLETED',
       items: this.scannedItems.map(item => {
         const produit = this.produitsDeCaisseCache.get(item.articleId);
@@ -2382,6 +2418,152 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     }
     
     return result;
+  }
+
+  // Manual product selection methods
+  showManualProductSelection(): void {
+    this.isManualProductLoading = true;
+    this.showManualProductModal = true;
+    this.productSearchQuery = '';
+    this.filteredProducts = Array.from(this.produitsDeCaisseCache.values());
+    
+    // Simulate loading for better UX
+    setTimeout(() => {
+      this.isManualProductLoading = false;
+    }, 300);
+  }
+
+  closeManualProductModal(): void {
+    this.showManualProductModal = false;
+    this.productSearchQuery = '';
+    this.filteredProducts = [];
+  }
+
+  filterProducts(): void {
+    if (!this.productSearchQuery.trim()) {
+      this.filteredProducts = Array.from(this.produitsDeCaisseCache.values());
+      return;
+    }
+    
+    const query = this.productSearchQuery.toLowerCase();
+    this.filteredProducts = Array.from(this.produitsDeCaisseCache.values()).filter(product => 
+      product.name.toLowerCase().includes(query) ||
+      this.getProductFamilyName(product).toLowerCase().includes(query) ||
+      product.id.toString().includes(query)
+    );
+  }
+
+  selectManualProduct(product: ProduitDeCaisse): void {
+    this.selectedManualProduct = product;
+    this.showManualProductModal = false;
+    this.showManualQuantityModal = true;
+    this.manualQuantityInput = '';
+    this.manualColisInput = '';
+    this.manualCurrentInputType = 'quantity';
+  }
+
+  closeManualQuantityModal(): void {
+    this.showManualQuantityModal = false;
+    this.selectedManualProduct = null;
+    this.manualQuantityInput = '';
+    this.manualColisInput = '';
+    this.manualCurrentInputType = 'quantity';
+  }
+
+  addManualDigit(digit: string): void {
+    const currentInput = this.manualCurrentInputType === 'quantity' ? this.manualQuantityInput : this.manualColisInput;
+    const maxLength = this.manualCurrentInputType === 'quantity' ? 9 : 5;
+    
+    if (currentInput.length < maxLength) {
+      if (this.manualCurrentInputType === 'quantity') {
+        this.manualQuantityInput += digit;
+      } else {
+        this.manualColisInput += digit;
+      }
+    }
+  }
+
+  switchToManualColisInput(): void {
+    if (this.manualQuantityInput && parseInt(this.manualQuantityInput, 10) > 0) {
+      this.manualCurrentInputType = 'colis';
+    }
+  }
+
+  clearManualInput(): void {
+    if (this.manualCurrentInputType === 'quantity') {
+      this.manualQuantityInput = '';
+    } else {
+      this.manualColisInput = '';
+    }
+  }
+
+  backspaceManualInput(): void {
+    if (this.manualCurrentInputType === 'quantity') {
+      if (this.manualQuantityInput.length > 0) {
+        this.manualQuantityInput = this.manualQuantityInput.slice(0, -1);
+      }
+    } else {
+      if (this.manualColisInput.length > 0) {
+        this.manualColisInput = this.manualColisInput.slice(0, -1);
+      }
+    }
+  }
+
+  confirmManualProduct(): void {
+    if (this.manualCurrentInputType === 'quantity') {
+      const quantity = parseInt(this.manualQuantityInput, 10);
+      if (quantity > 0) {
+        this.switchToManualColisInput();
+      }
+    } else {
+      if (!this.selectedManualProduct || !this.manualQuantityInput || !this.manualColisInput) {
+        return;
+      }
+
+      const quantity = parseInt(this.manualQuantityInput, 10);
+      const colis = parseInt(this.manualColisInput, 10);
+      
+      if (quantity <= 0 || colis <= 0) {
+        return;
+      }
+
+      // Convert quantity from kg to grams (to match barcode format)
+      const quantityInGrams = quantity * 1000;
+
+      // Use parent product ID if available, otherwise use the produit de caisse ID
+      const productId = this.selectedManualProduct.parentProductId || this.selectedManualProduct.id;
+      
+      // Find existing item or create new one
+      const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === productId);
+      
+      if (existingItemIndex >= 0) {
+        // Update existing item - set exact quantity and colis
+        this.scannedItems[existingItemIndex].quantity = quantityInGrams;
+        this.scannedItems[existingItemIndex].count = colis;
+        this.scannedItems[existingItemIndex].lastScanned = new Date();
+        this.success = `${this.selectedManualProduct.name} mis à jour (Colis: ${colis}, Qty: ${quantity}kg)`;
+      } else {
+        // Add new item with custom quantity and colis
+        this.scannedItems.push({
+          articleId: productId,
+          productName: this.selectedManualProduct.name,
+          quantity: quantityInGrams,
+          count: colis,
+          lastScanned: new Date()
+        });
+        this.success = `Nouveau ${this.selectedManualProduct.name} ajouté (Colis: ${colis}, Qty: ${quantity}kg)`;
+      }
+
+      // Play success sound
+      this.playSuccessSound();
+
+      // Clear success message after 3 seconds
+      setTimeout(() => { this.success = ''; }, 3000);
+      this.error = '';
+
+      // Close modal and reset
+      this.closeManualQuantityModal();
+    }
   }
 }
 

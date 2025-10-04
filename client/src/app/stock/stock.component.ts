@@ -29,13 +29,6 @@ export class StockComponent implements OnInit {
       color: 'from-emerald-500 to-green-600'
     },
     {
-      id: 'stock',
-      title: 'Gestion de Stock',
-      description: 'Gérer les produits et inventaires',
-      icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
-      color: 'from-blue-500 to-indigo-600'
-    },
-    {
       id: 'bon-sortie',
       title: 'Bon de sortie',
       description: 'Documents de sortie de stock',
@@ -57,6 +50,13 @@ export class StockComponent implements OnInit {
       color: 'from-green-500 to-teal-600'
     },
     {
+      id: 'stock',
+      title: 'Gestion de Stock',
+      description: 'Gérer les produits et inventaires',
+      icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+      color: 'from-blue-500 to-indigo-600'
+    },
+    {
       id: 'inventory',
       title: 'Inventaire',
       description: 'Faire l\'inventaire du dépôt',
@@ -64,10 +64,10 @@ export class StockComponent implements OnInit {
       color: 'from-purple-500 to-violet-600'
     },
     {
-      id: 'scan',
-      title: 'Scanner un code-barres',
-      description: 'Rechercher un produit par code-barres',
-      icon: 'M3 7h4M17 7h4M3 17h4M17 17h4M6 7v10M10 7v10M14 7v10',
+      id: 'stock-history',
+      title: 'Historique du stock',
+      description: 'Archives et analyses des transactions de stock',
+      icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
       color: 'from-cyan-500 to-blue-600'
     },
     {
@@ -153,8 +153,8 @@ export class StockComponent implements OnInit {
   }
 
   getAvailableDepots(): Depot[] {
-    if (this.selectedAction === 'scan' || this.selectedAction === 'drivers') {
-      // Exclude SHOP type depots for scan and drivers actions
+    if (this.selectedAction === 'stock-history' || this.selectedAction === 'drivers') {
+      // Exclude SHOP type depots for stock-history and drivers actions
       return this.depots.filter(depot => depot.type !== 'SHOP');
     }
     return this.depots;
@@ -177,8 +177,8 @@ export class StockComponent implements OnInit {
       case 'inventory':
         this.router.navigate(['/inventory', depot.id]);
         break;
-      case 'scan':
-        this.router.navigate(['/stock/scan', depot.id]);
+      case 'stock-history':
+        this.router.navigate(['/stock/stock-history', depot.id]);
         break;
       case 'drivers':
         this.router.navigate(['/stock/drivers', depot.id]);
@@ -203,8 +203,8 @@ export class StockComponent implements OnInit {
         return 'Bon d\'entrée';
       case 'inventory':
         return 'Inventaire';
-      case 'scan':
-        return 'Scanner un code-barres';
+      case 'stock-history':
+        return 'Historique du stock';
       case 'drivers':
         return 'Gestion des Chauffeurs';
       case 'bon-sortie':
@@ -226,8 +226,8 @@ export class StockComponent implements OnInit {
         return 'M12 4v16m8-8H4';
       case 'inventory':
         return 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01';
-      case 'scan':
-        return 'M3 7h4M17 7h4M3 17h4M17 17h4M6 7v10M10 7v10M14 7v10';
+      case 'stock-history':
+        return 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z';
       case 'drivers':
         return 'M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z';
       case 'bon-sortie':
@@ -249,8 +249,8 @@ export class StockComponent implements OnInit {
         return 'bg-gradient-to-br from-emerald-500 to-green-600';
       case 'inventory':
         return 'bg-gradient-to-br from-emerald-500 to-teal-600';
-      case 'scan':
-        return 'bg-gradient-to-br from-fuchsia-500 to-pink-600';
+      case 'stock-history':
+        return 'bg-gradient-to-br from-cyan-500 to-blue-600';
       case 'drivers':
         return 'bg-gradient-to-br from-blue-500 to-indigo-600';
       case 'bon-sortie':

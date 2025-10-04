@@ -319,6 +319,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
   alertMessage = '';
   alertType: 'success' | 'error' | 'info' | 'warning' = 'info';
 
+  // Input warning modal
+  showInputWarningModal = false;
+
+  // Instant refund modal
+  showInstantRefundModal = false;
+  instantRefundTicket: Sale | null = null;
+
 
   // Action buttons configuration
   actionButtons = [
@@ -389,11 +396,18 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   commandButtons = [
     {
-      id: 'validate-esp',
-      label: 'Espèces',
-      icon: 'M5 13l4 4L19 7', // checkmark
+      id: 'validate-esp-print',
+      label: 'ESPÈCE',
+      icon: 'M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z', // actual printer icon
       color: '#22c55e', // Green-500: cash OK
-      action: () => this.validateESP()
+      action: () => this.validateESPWithPrint()
+    },
+    {
+      id: 'validate-esp-no-print',
+      label: 'ESPÈCE',
+      icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6', // dollar sign
+      color: '#16a34a', // Green-600: cash OK without print
+      action: () => this.validateESPWithoutPrint()
     },
     
     {
@@ -485,6 +499,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadPendingTemporarySalesCount();
     this.loadPendingGiftSalesCount();
     this.loadInvoiceRequests(); // Load existing invoice requests
+    this.loadPendingReturnRequests(); // Load pending return requests
     this.loadSettings();
     
     this.loadCurrentSession();
@@ -1010,10 +1025,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const existingItem = activeCart.items.find(item => item.product.id === product.id && !item.isWholesale);
     
     if (existingItem) {
-      existingItem.quantity += 1;
+      existingItem.quantity = this.roundQuantity(Number(existingItem.quantity) + 1);
       existingItem.total = Number(existingItem.quantity) * Number(existingItem.unitPrice);
       // Ensure all values are numbers
-      existingItem.quantity = Number(existingItem.quantity);
       existingItem.unitPrice = Number(existingItem.unitPrice);
       
       // Select the existing item
@@ -1023,7 +1037,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       const isWholesaleContext = this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE';
       const newItem = {
         product,
-        quantity: isWholesaleContext && product.isWholesale && product.bundleSize ? product.bundleSize : 1,
+        quantity: this.roundQuantity(isWholesaleContext && product.isWholesale && product.bundleSize ? product.bundleSize : 1),
         unitPrice: this.getEffectiveUnitPrice(product),
         total: this.getEffectiveUnitPrice(product),
         isGift: false,
@@ -1051,7 +1065,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     if (existingItem) {
       existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + Number(bundleCount || 0);
-      existingItem.quantity = existingItem.bundleQuantity * (product.bundleSize || 1);
+      existingItem.quantity = this.roundQuantity(existingItem.bundleQuantity * (product.bundleSize || 1));
       existingItem.total = Number(existingItem.bundleQuantity) * Number(product.bundlePrice);
       // Ensure designation shows fradeau info
       const label = `${product.name} (fradeau x${product.bundleSize || 1})`;
@@ -1064,7 +1078,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     } else {
       const newItem = {
         product,
-        quantity: (product.bundleSize || 1) * Number(bundleCount || 1),
+        quantity: this.roundQuantity((product.bundleSize || 1) * Number(bundleCount || 1)),
         unitPrice: Number(product.bundlePrice),
         total: Number(product.bundlePrice) * Number(bundleCount || 1),
         isGift: false,
@@ -1212,6 +1226,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
   unprintedInvoicesCount = 0;
   // Fast lookup for approved invoices by saleId
   private approvedInvoicesSet: Set<number> = new Set<number>();
+
+  // Return requests for pending refunds
+  pendingReturnRequests: any[] = [];
+  // Fast lookup for pending return requests by saleId
+  private pendingReturnRequestsSet: Set<number> = new Set<number>();
   
   // Approved invoices modal
   showApprovedInvoicesModal = false;
@@ -1814,14 +1833,14 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.showPaymentConfirmation = false;
     this.isWholesaleMode = false;
     this.filterProducts();
-    this.processPayment(false);
+    this.processPayment(false, true); // Pass true to indicate no alert should be shown
     
     // Open cash drawer after completing sale without printing
     this.printService.openCashDrawer();
   }
 
   // Main payment processing method
-  private processPayment(shouldPrintReceipt: boolean): void {
+  private processPayment(shouldPrintReceipt: boolean, suppressAlert: boolean = false): void {
     const paymentMethodMap: { [key: string]: number } = {
       'cash': 1,
       'card': 2,
@@ -1914,7 +1933,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
         this.currentCustomer = 'PASSAGER';
         this.invoiceMode = false;
         
-        this.showAlertMessage('Vente validée avec succès!', 'success');
+        // Only show success alert if not suppressed
+        if (!suppressAlert) {
+          this.showAlertMessage('Vente validée avec succès!', 'success');
+        }
 
         // If an invoice request from cart was pending, create it now from the saved sale
         this.maybeCreateInvoiceForSale(savedSale?.id);
@@ -3067,7 +3089,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       
       // Update total price and calculate quantity based on unit price
       this.selectedReceiptItem.total = value;
-      this.selectedReceiptItem.quantity = Math.round((value / Number(this.selectedReceiptItem.unitPrice)) * 1000) / 1000;
+      this.selectedReceiptItem.quantity = this.roundQuantity(value / Number(this.selectedReceiptItem.unitPrice));
       this.selectedReceiptItem.hasCustomTotal = true; // Mark as custom price
       this.calculateTotals();
       
@@ -3268,6 +3290,42 @@ export class CaisseComponent implements OnInit, OnDestroy {
   hideAlert(): void {
     this.showAlert = false;
     this.alertMessage = '';
+  }
+
+  // Input warning modal methods
+  closeInputWarningModal(): void {
+    this.showInputWarningModal = false;
+  }
+
+  proceedWithInput(): void {
+    // Close the warning modal
+    this.showInputWarningModal = false;
+    
+    // Show confirmation message
+    this.showAlertMessage('Procéder avec la saisie en cours', 'info');
+    
+    // Process the current input first, then proceed with the sale
+    this.enterValue();
+    // Small delay to ensure input is processed before proceeding
+    setTimeout(() => {
+      this.validateESP();
+    }, 100);
+  }
+
+  confirmInputWarningAndProceed(): void {
+    // Clear the pending input
+    this.currentInput = '';
+    this.lastEnteredValue = '';
+    this.pendingProduct = null;
+    
+    // Close the warning modal
+    this.showInputWarningModal = false;
+    
+    // Show confirmation message
+    this.showAlertMessage('Saisie effacée - Procéder à la vente', 'info');
+    
+    // Proceed with the sale
+    this.validateESP();
   }
 
   loadPendingTemporarySalesCount(): void {
@@ -3472,9 +3530,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const existingItem = activeCart.items.find(item => item.product.id === product.id);
     
     if (existingItem) {
-      existingItem.quantity += 1;
+      existingItem.quantity = this.roundQuantity(Number(existingItem.quantity) + 1);
       existingItem.total = customTotal; // Use the custom total directly
-      existingItem.quantity = Number(existingItem.quantity);
       existingItem.unitPrice = customTotal; // Set unit price to the total (since quantity is 1)
       
       // Select the existing item
@@ -3483,7 +3540,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     } else {
       const newItem = {
         product,
-        quantity: 1,
+        quantity: this.roundQuantity(1),
         unitPrice: customTotal, // Set unit price to the total
         total: customTotal, // Use the custom total directly
         isGift: false
@@ -3529,7 +3586,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Calculate quantity: montant / unit_price and round to 3 decimal places
     const originalPrice = this.getEffectiveUnitPrice(product);
     const calculatedQuantity = originalPrice > 0 ? 
-      Math.round((roundedTotalAmount / originalPrice) * 1000) / 1000 : 1;
+      this.roundQuantity(roundedTotalAmount / originalPrice) : 1;
     
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
@@ -3538,7 +3595,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     if (existingItem) {
       // Replace the existing item with new calculated values
-      existingItem.quantity = calculatedQuantity;
+      existingItem.quantity = this.roundQuantity(calculatedQuantity);
       existingItem.unitPrice = originalPrice;
       existingItem.total = roundedTotalAmount;
       existingItem.hasCustomTotal = true;
@@ -3550,7 +3607,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // Add new item with calculated quantity and custom total amount
       const newItem = {
         product,
-        quantity: calculatedQuantity, // Calculated: montant / unit_price
+        quantity: this.roundQuantity(calculatedQuantity), // Calculated: montant / unit_price
         unitPrice: originalPrice, // Keep original unit price
         total: roundedTotalAmount, // Use the custom total amount
         isGift: false,
@@ -3574,7 +3631,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     if (existingItem) {
       // Update existing item with new total price and calculate quantity
       existingItem.total = customTotalPrice;
-      existingItem.quantity = Math.round((customTotalPrice / Number(existingItem.unitPrice)) * 1000) / 1000;
+      existingItem.quantity = this.roundQuantity(customTotalPrice / Number(existingItem.unitPrice));
       existingItem.hasCustomTotal = true;
       
       // Select the existing item
@@ -3583,11 +3640,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
     } else {
       // Add new item with custom total price and calculate quantity
       const unitPrice = this.getEffectiveUnitPrice(product);
-      const calculatedQuantity = Math.round((customTotalPrice / unitPrice) * 1000) / 1000;
+      const calculatedQuantity = this.roundQuantity(customTotalPrice / unitPrice);
       
       const newItem = {
         product,
-        quantity: calculatedQuantity,
+        quantity: this.roundQuantity(calculatedQuantity),
         unitPrice: unitPrice,
         total: customTotalPrice,
         isGift: false,
@@ -3621,6 +3678,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   validateESP(): void {
+    // Check if there's pending input that needs to be handled first
+    if (this.currentInput && this.currentInput !== '0' && !this.lastEnteredValue) {
+      this.showInputWarningModal = true;
+      return;
+    }
+
     const activeCart = this.getActiveCart();
     if (!activeCart || activeCart.items.length === 0) {
       this.showAlertMessage('Aucun article dans le panier', 'error');
@@ -3631,6 +3694,44 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.paymentType = 'cash';
     this.amountPaid = activeCart.netTotal;
     this.confirmPayment();
+  }
+
+  validateESPWithPrint(): void {
+    // Check if there's pending input that needs to be handled first
+    if (this.currentInput && this.currentInput !== '0' && !this.lastEnteredValue) {
+      this.showInputWarningModal = true;
+      return;
+    }
+
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
+      this.showAlertMessage('Aucun article dans le panier', 'error');
+      return;
+    }
+    
+    // Auto-submit the sale with ESP payment method and exact pricing, with print
+    this.paymentType = 'cash';
+    this.amountPaid = activeCart.netTotal;
+    this.processPaymentWithReceipt();
+  }
+
+  validateESPWithoutPrint(): void {
+    // Check if there's pending input that needs to be handled first
+    if (this.currentInput && this.currentInput !== '0' && !this.lastEnteredValue) {
+      this.showInputWarningModal = true;
+      return;
+    }
+
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
+      this.showAlertMessage('Aucun article dans le panier', 'error');
+      return;
+    }
+    
+    // Auto-submit the sale with ESP payment method and exact pricing, without print
+    this.paymentType = 'cash';
+    this.amountPaid = activeCart.netTotal;
+    this.processPaymentWithoutReceipt();
   }
 
   validateCredit(): void {
@@ -3804,11 +3905,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
         if (isWholesaleContext && product.isWholesale && product.bundleSize) {
           // For wholesale items, increment bundle quantity
           existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + 1;
-          existingItem.quantity = existingItem.bundleQuantity * product.bundleSize;
+          existingItem.quantity = this.roundQuantity(existingItem.bundleQuantity * product.bundleSize);
           existingItem.total = existingItem.bundleQuantity * (product.bundlePrice || 0);
         } else {
           // For regular items, increment quantity directly
-          existingItem.quantity = Number(existingItem.quantity) + 1;
+          existingItem.quantity = this.roundQuantity(Number(existingItem.quantity) + 1);
           const unitPrice = this.getEffectiveUnitPrice(product);
           existingItem.unitPrice = unitPrice;
           existingItem.total = Number(existingItem.quantity) * unitPrice;
@@ -3906,11 +4007,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Refresh shop inventory
-  refreshShopInventory(): void {
-    this.loadShopInventory();
-    this.loadShopName();
-  }
 
   // Load shop name from backend
   loadShopName(): void {
@@ -4311,6 +4407,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
         this.showTicketDetails(ticket);
         this.closeTicketActionDialog();
         break;
+      case 'instant-refund':
+        this.openInstantRefundModal(ticket);
+        this.closeTicketActionDialog();
+        break;
     }
   }
 
@@ -4384,7 +4484,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Only attempt after depot/session wiring is done; harmless if called early
     this.salesService.getCurrentSessionTickets().subscribe({
       next: (tickets) => {
-        if (!Array.isArray(tickets) || tickets.length === 0) return;
+        if (!Array.isArray(tickets) || tickets.length === 0) {
+          // No tickets found for this session, reset to 1
+          this.ticketCounterService.setCurrentTicketNumber(1);
+          return;
+        }
         // Determine the highest ticket number among current session tickets
         const extractNumber = (t: any): number => {
           const raw = (t?.dailyTicketNumber || '').toString();
@@ -4404,9 +4508,15 @@ export class CaisseComponent implements OnInit, OnDestroy {
         if (maxSession > 0) {
           // Next ticket to issue is max + 1 (align exactly with server session)
           this.ticketCounterService.setCurrentTicketNumber(maxSession + 1);
+        } else {
+          // No valid ticket numbers found, reset to 1
+          this.ticketCounterService.setCurrentTicketNumber(1);
         }
       },
-      error: () => {}
+      error: () => {
+        // On error, reset to 1 to be safe
+        this.ticketCounterService.setCurrentTicketNumber(1);
+      }
     });
   }
 
@@ -4881,10 +4991,40 @@ export class CaisseComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadPendingReturnRequests(): void {
+    this.returnsService.listReturnRequests('PENDING').subscribe({
+      next: (requests) => {
+        this.pendingReturnRequests = requests;
+        // Update the fast lookup set
+        this.pendingReturnRequestsSet.clear();
+        requests.forEach(request => {
+          if (request.originalSaleId) {
+            this.pendingReturnRequestsSet.add(request.originalSaleId);
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Error loading pending return requests:', error);
+        this.pendingReturnRequests = [];
+        this.pendingReturnRequestsSet.clear();
+      }
+    });
+  }
+
   hasPendingInvoiceRequest(ticket: any): boolean {
     if (!ticket) return false;
     const saleId = ticket.id;
     return this.invoiceRequests.some(req => req.saleId === saleId && (req.status === 'PENDING' || req.status === 'REQUESTED'));
+  }
+
+  hasPendingRefundRequest(ticket: any): boolean {
+    if (!ticket) return false;
+    return this.pendingReturnRequestsSet.has(ticket.id);
+  }
+
+  isTicketPendingRefund(ticket: any): boolean {
+    if (!ticket) return false;
+    return (ticket as any).isPendingRefund || this.hasPendingRefundRequest(ticket);
   }
 
   hasInvoiceRequest(saleId: number): boolean {
@@ -5776,5 +5916,106 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.expenseCollectionDate = new Date().toISOString().split('T')[0];
     this.selectedExpenseCategory = null;
     this.expenseSupplierSearch = '';
+  }
+
+  // Instant refund methods
+  openInstantRefundModal(ticket: Sale): void {
+    this.instantRefundTicket = ticket;
+    this.showInstantRefundModal = true;
+  }
+
+  closeInstantRefundModal(): void {
+    this.showInstantRefundModal = false;
+    this.instantRefundTicket = null;
+  }
+
+  confirmInstantRefund(): void {
+    console.log('confirmInstantRefund called');
+    
+    if (!this.instantRefundTicket) {
+      console.log('No instantRefundTicket found');
+      this.showAlertMessage('Erreur: Aucun ticket sélectionné', 'error');
+      return;
+    }
+
+    const ticket = this.instantRefundTicket;
+    const refundAmount = Number(ticket.finalTotal) || 0;
+    const productsToReturn = ticket.items || [];
+
+    console.log('Processing refund for ticket:', ticket.id, 'Amount:', refundAmount);
+
+    // Immediately update the UI to show "Annulation en cours"
+    this.updateTicketStatusInstantly(ticket.id, 'PENDING_REFUND');
+    
+    // Close modal immediately
+    this.closeInstantRefundModal();
+    
+    // Show pending confirmation message
+    this.showAlertMessage(
+      `Demande de remboursement créée (${refundAmount.toFixed(2)} dt). En attente de confirmation admin.`,
+      'info'
+    );
+
+    // Create return request payload
+    const returnPayload = {
+      depotId: this.currentShopDepotId,
+      items: productsToReturn.map((item: any) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        reason: 'Remboursement immédiat'
+      })),
+      notes: `Remboursement immédiat du ticket #${this.getFormattedTicketNumber(ticket)}`,
+      originalSaleId: ticket.id,
+      originalSaleTotal: ticket.finalTotal
+    };
+
+    console.log('Return payload:', returnPayload);
+
+    // Create return request in background
+    this.returnsService.createReturnRequest(returnPayload).subscribe({
+      next: (returnRequest) => {
+        console.log('Return request created successfully:', returnRequest);
+        
+        // Refresh data to get the actual server state
+        this.loadTodaysTickets();
+        this.loadPendingReturnRequests();
+      },
+      error: (error) => {
+        console.error('Error creating return request:', error);
+        
+        // Revert the status change on error
+        this.revertTicketPendingRefund(ticket.id);
+        
+        // Show error message
+        this.showAlertMessage('Erreur lors de la création de la demande de remboursement', 'error');
+      }
+    });
+  }
+
+
+  getInstantRefundProducts(): any[] {
+    return this.instantRefundTicket?.items || [];
+  }
+
+  getInstantRefundAmount(): number {
+    return this.instantRefundTicket?.finalTotal || 0;
+  }
+
+  private updateTicketStatusInstantly(ticketId: number, newStatus: string): void {
+    // Find and update the ticket in the todaysTickets array
+    const ticketIndex = this.todaysTickets.findIndex(ticket => ticket.id === ticketId);
+    if (ticketIndex !== -1) {
+      // Add a custom property to track pending refund state
+      (this.todaysTickets[ticketIndex] as any).isPendingRefund = true;
+    }
+  }
+
+  private revertTicketPendingRefund(ticketId: number): void {
+    // Find and revert the ticket in the todaysTickets array
+    const ticketIndex = this.todaysTickets.findIndex(ticket => ticket.id === ticketId);
+    if (ticketIndex !== -1) {
+      // Remove the custom property
+      (this.todaysTickets[ticketIndex] as any).isPendingRefund = false;
+    }
   }
 } 

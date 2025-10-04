@@ -73,13 +73,17 @@
                             #{{ getFormattedTicketNumber(ticket) }}
                           </span>
                           <span class="text-xs px-2 py-1 rounded-full"
-                                [class]="ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 
+                                [class]="(isTicketPendingRefund(ticket) ? 'bg-orange-100 text-orange-700' :
+                                         ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 
                                          ticket.status === 'TEMPORARY' ? 'bg-yellow-100 text-yellow-700' : 
                                          ticket.status === 'PENDING' ? 'bg-orange-100 text-orange-700' : 
-                                         'bg-gray-100 text-gray-700'">
-                            {{ ticket.status === 'COMPLETED' ? 'Terminé' : 
+                                         ticket.status === 'REFUNDED' ? 'bg-red-100 text-red-700' : 
+                                         'bg-gray-100 text-gray-700')">
+                            {{ (isTicketPendingRefund(ticket) ? 'Annulation en cours' :
+                               ticket.status === 'COMPLETED' ? 'Terminé' : 
                                ticket.status === 'TEMPORARY' ? 'Temporaire' : 
-                               ticket.status === 'PENDING' ? 'En attente' : ticket.status }}
+                               ticket.status === 'PENDING' ? 'En attente' : 
+                               ticket.status === 'REFUNDED' ? 'Retourné' : ticket.status) }}
                           </span>
                         </div>
                         <div class="text-xs text-gray-600 mt-1">
@@ -107,7 +111,7 @@
               class="bg-gradient-to-r from-amber-400 to-amber-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md">
               TEMP
             </div>
-            <div *ngIf="isWholesaleMode"
+            <div *ngIf="isWholesaleMode && !lastValidatedSale"
               class="bg-gradient-to-r from-red-400 to-red-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md">
               GROS
             </div>
@@ -116,11 +120,12 @@
               title="Shop Depot ID: {{ currentShopDepotId }}">
               {{ currentShopName }}
             </div>
-            <button (click)="refreshShopInventory()" 
-              class="bg-orange-400 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md "
-              title="Refresh Shop Inventory">
-              🔄
-            </button>
+            <div *ngIf="lastValidatedSale" 
+              class="bg-green-100 text-green-800 px-2 py-1 rounded-lg text-xs font-bold shadow-md border border-green-200"
+              title="Dernière vente validée">
+              <span class="text-green-600">Dernière vente:</span>
+              <span class="font-mono"> <span class="font-extrabold">{{ lastValidatedSale.netTotal | number:'1.0-3' }}</span><span class="text-[0.5rem]">dt</span></span>
+            </div>
           </div>
 
           <!-- Center: Client -->
@@ -175,7 +180,7 @@
             </button>
 
             <!-- Products Grid -->
-            <div #productGrid class="flex flex-wrap gap-[11px] justify-start items-start w-full product-grid"
+            <div #productGrid class="flex flex-wrap justify-start items-start w-full product-grid"
                  [class.dragging]="isDragMode"
                  (mousemove)="onProductMouseMove($event)"
                  (touchmove)="onProductTouchMove($event)">
@@ -240,8 +245,8 @@
                 </div>
 
                 <!-- Product Name -->
-                <div class="font-medium text-xs mb-2 text-gray-800 leading-tight break-words hyphens-auto">{{
-                  truncate(product.name, 20) }}</div>
+                <div class="font-black text-xs mb-2 text-gray-800 leading-tight break-words hyphens-auto">{{
+                  truncate(product.name, 21) }}</div>
 
                 <!-- Price Tag - Bottom Right Corner with 45° Rotation -->
                 <div
@@ -398,7 +403,8 @@
             [ngClass]="{
               'bg-green-100 border-green-200': inputMode === 'price', 
               'bg-purple-100 border-purple-200': inputMode === 'quantity',
-              'bg-amber-100 border-amber-200': selectedClient && !selectedReceiptItem && !pendingProduct && currentInput.trim()
+              'bg-amber-100 border-amber-200': selectedClient && !selectedReceiptItem && !pendingProduct && currentInput.trim(),
+              'animate-pulse': currentInput && currentInput !== '0' && !lastEnteredValue
             }">
             <div class="text-xs text-gray-500 mb-1">
               <span *ngIf="selectedClient && !selectedReceiptItem && !pendingProduct && currentInput.trim()" class="text-amber-600 font-semibold">
@@ -489,7 +495,11 @@
             ⌫
           </button>
           <button (click)="enterValue()" title="Valider la valeur"
-            class="bg-emerald-500 text-white rounded-lg  transition-all text-sm font-medium border border-emerald-400 flex items-center justify-center">
+            [ngClass]="{
+              'bg-emerald-500 border-emerald-400 animate-pulse': currentInput && currentInput !== '0' && !lastEnteredValue,
+              'bg-gray-400 border-gray-300': !currentInput || currentInput === '0' || lastEnteredValue
+            }"
+            class="text-white rounded-lg transition-all text-sm font-medium flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
               class="feather feather-arrow-right">
@@ -536,19 +546,46 @@
       <div class="flex-1">
         <h3 class="text-lg font-bold text-gray-800 mb-4">Commandes</h3>
         <div class="grid grid-cols-6 gap-3">
-          <button (click)="commandButtons[0].action()" [ngClass]="{'col-span-6' : !selectedClient, 'col-span-3' : selectedClient}"
-            class="text-white rounded-xl transition-all text-sm font-medium flex flex-col items-center justify-center py-8 relative  transform shadow-lg"
-            [style.background-color]="commandButtons[0].color">
+          <!-- ESPECE + Button (with print) -->
+          <button (click)="commandButtons[0].action()" 
+            [ngClass]="{
+              'animate-pulse': currentInput && currentInput !== '0' && !lastEnteredValue
+            }"
+            class="col-span-3 text-white rounded-xl transition-all text-sm font-medium flex flex-col items-center justify-center py-10 px-6   relative transform shadow-lg"
+            [style.background-color]="(currentInput && currentInput !== '0' && !lastEnteredValue) ? '#9ca3af' : commandButtons[0].color">
             <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="commandButtons[0].icon">
               </path>
             </svg>
             <span class="text-center text-xs">{{ commandButtons[0].label }}</span>
           </button>
+
+          <button (click)="commandButtons[1].action()" 
+            [ngClass]="{
+              'animate-pulse': currentInput && currentInput !== '0' && !lastEnteredValue
+            }"
+            class="col-span-3 text-white rounded-xl transition-all text-sm font-medium flex flex-col items-center justify-center py-8 relative transform shadow-lg"
+            [style.background-color]="(currentInput && currentInput !== '0' && !lastEnteredValue) ? '#9ca3af' : commandButtons[1].color">
+            <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="commandButtons[1].icon">
+              </path>
+            </svg>
+            <span class="text-center text-xs">{{ commandButtons[1].label }}</span>
+          </button>
           
+          
+          <button *ngFor="let button of (selectedClient ? commandButtons.slice(3, 4) : commandButtons.slice(2))" (click)="button.action()"
+            class="text-white rounded-xl transition-all text-sm font-medium flex col-span-3 flex-col items-center justify-center py-4 relative  transform shadow-lg"
+            [style.background-color]="button.color">
+            <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="button.icon"></path>
+            </svg>
+            <span class="text-center text-xs">{{ button.label }}</span>
+          </button>
+
           <!-- Credit Button - Only show when client is selected -->
           <button *ngIf="selectedClient" (click)="creditButton.action()" aria-label="Créditer"
-            class="text-white rounded-xl transition-all text-sm font-medium flex flex-col items-center justify-center py-8 relative  transform shadow-lg col-span-3"
+            class="text-white rounded-xl transition-all text-sm font-medium flex flex-col items-center justify-center py-7 relative  transform shadow-lg col-span-3"
             [style.background-color]="creditButton.color">
             <!-- Rotated remaining solde badge -->
             <div class="absolute -top-1 -right-1 z-10 transform rotate-12 text-[10px] px-2 py-0.5 rounded-full border shadow"
@@ -559,15 +596,6 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="creditButton.icon"></path>
             </svg>
             <span class="text-center text-xs">Créditer</span>
-          </button>
-          
-          <button *ngFor="let button of commandButtons.slice(1)" (click)="button.action()"
-            class="text-white rounded-xl transition-all text-sm font-medium flex col-span-3 flex-col items-center justify-center py-4 relative  transform shadow-lg"
-            [style.background-color]="button.color">
-            <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="button.icon"></path>
-            </svg>
-            <span class="text-center text-xs">{{ button.label }}</span>
           </button>
         </div>
       </div>
@@ -611,6 +639,65 @@
         <div class="h-full transition-all duration-5000 ease-linear" [class]="'bg-gradient-to-r ' + 
            (alertType === 'success' ? 'from-em  erald-400 to-emerald-500' : 
             alertType === 'error' ? 'from-red-400 to-red-500' : 'from-blue-400 to-blue-500')">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Warning Modal -->
+  <div *ngIf="showInputWarningModal" class="fixed inset-0 bg-gradient-to-br from-orange-900/20 via-red-900/20 to-pink-900/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white/95 backdrop-blur-md rounded-2xl border border-white/20 max-w-md w-full overflow-hidden shadow-2xl transform transition-all duration-300 scale-100">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 p-6 text-white">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center space-x-3">
+            <div class="p-2 bg-white/20 rounded-lg">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+            </div>
+            <h2 class="text-xl font-bold">Saisie en cours</h2>
+          </div>
+          <button (click)="closeInputWarningModal()" 
+            class="text-white/80 hover:text-white transition-colors p-1"
+            title="Fermer">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+            <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-800 mb-2">Saisie en cours détectée</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">
+            Vous avez une valeur en cours de saisie (<span class="font-mono bg-gray-100 px-2 py-1 rounded text-orange-600 font-semibold">{{ currentInput }}</span>). Choisissez comment procéder :
+          </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex space-x-3">
+          <button (click)="proceedWithInput()" 
+            class="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Procéder avec la saisie</span>
+          </button>
+          <button (click)="confirmInputWarningAndProceed()" 
+            class="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+            <span>Effacer et continuer</span>
+          </button>
         </div>
       </div>
     </div>
@@ -832,8 +919,12 @@
           <label class="block text-sm text-slate-600 mb-2">Méthode de paiement</label>
           <div class="grid grid-cols-1 gap-2">
             <button (click)="selectPaymentType('cash')"
-              [class]="'flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all ' + 
-                     (paymentType === 'cash' ? 'bg-emerald-500/20 border-green-500 text-emerald-600' : 'bg-white/60 border-gray-600 text-slate-800 ')">
+              [ngClass]="{
+                'bg-emerald-500/20 border-green-500 text-emerald-600': paymentType === 'cash',
+                'bg-white/60 border-gray-600 text-slate-800': paymentType !== 'cash',
+                'animate-pulse': currentInput && currentInput !== '0' && !lastEnteredValue && paymentType !== 'cash'
+              }"
+              class="flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
@@ -1593,8 +1684,12 @@
           <label class="block text-sm text-slate-600 mb-2">Type de paiement</label>
           <div class="grid grid-cols-1 gap-2">
             <button (click)="selectPaymentType('cash')"
-              [class]="'flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all ' + 
-                     (paymentType === 'cash' ? 'bg-emerald-500/20 border-green-500 text-emerald-600' : 'bg-white/60 border-gray-600 text-slate-800 ')">
+              [ngClass]="{
+                'bg-emerald-500/20 border-green-500 text-emerald-600': paymentType === 'cash',
+                'bg-white/60 border-gray-600 text-slate-800': paymentType !== 'cash',
+                'animate-pulse': currentInput && currentInput !== '0' && !lastEnteredValue && paymentType !== 'cash'
+              }"
+              class="flex items-center justify-center space-x-3 p-3 rounded-lg border transition-all">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
@@ -3292,6 +3387,7 @@
   [ticket]="selectedTicket"
   [isInvoiceApprovedForTicket]="isTicketInvoiceApproved.bind(this)"
   [hasInvoiceRequestForTicket]="hasPendingInvoiceRequest.bind(this)"
+  [hasPendingRefundRequestForTicket]="hasPendingRefundRequest.bind(this)"
   (actionSelected)="onTicketActionSelected($event)"
   (dialogClosed)="closeTicketActionDialog()">
 </app-ticket-action-dialog>
@@ -3304,6 +3400,96 @@
   (printRequested)="onTicketDetailsPrintRequested($event)"
   (returnExchangeRequested)="onTicketDetailsReturnExchangeRequested($event)">
 </app-ticket-details-modal>
+
+<!-- Instant Refund Modal -->
+<div *ngIf="showInstantRefundModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl border border-red-100/50 max-w-lg w-full shadow-2xl ring-1 ring-red-50">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-red-50 to-red-100 p-6 border-b border-red-200/60 rounded-t-2xl">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-red-100">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+              Remboursement Immédiat
+            </h2>
+            <p class="text-sm text-red-600/70 font-medium">Confirmer le remboursement et le retour en stock</p>
+          </div>
+        </div>
+        <button (click)="closeInstantRefundModal()" 
+          title="Fermer"
+          class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-95">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Warning Message -->
+    <div class="p-6">
+      <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <div class="flex items-start space-x-3">
+          <svg class="w-6 h-6 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+          <div>
+            <h3 class="text-lg font-semibold text-red-800 mb-2">Attention !</h3>
+            <p class="text-red-700 text-sm">
+              Vous êtes sur le point de rembourser le client avec <span class="font-bold">{{ getInstantRefundAmount() | number:'1.2-2' }} dt</span> 
+              et de retourner les produits suivants en stock :
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Products Cards -->
+      <div class="mb-6">
+        <h4 class="text-sm font-semibold text-gray-800 mb-3">Produits à retourner :</h4>
+        <div class="grid grid-cols-2 gap-3 max-h-40 overflow-y-auto">
+          <div *ngFor="let item of getInstantRefundProducts()" 
+               class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+            <div class="text-xs font-medium text-gray-800 mb-1 truncate" title="{{ item.productName }}">
+              {{ item.productName }}
+            </div>
+            <div class="text-xs text-gray-500 mb-2">
+              Qty: {{ item.quantity }}
+            </div>
+            <div class="text-sm font-bold text-red-600">
+              {{ item.total | number:'1.2-2' }} dt
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total Refund Amount -->
+      <div class="bg-gray-50 rounded-lg p-4 mb-6">
+        <div class="flex items-center justify-between">
+          <span class="text-lg font-semibold text-gray-800">Montant du remboursement :</span>
+          <span class="text-2xl font-bold text-red-600">{{ getInstantRefundAmount() | number:'1.2-2' }} dt</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="bg-gradient-to-r from-red-50/50 to-red-100/50 p-4 border-t border-red-200/60 rounded-b-2xl">
+      <div class="flex gap-3">
+        <button (click)="closeInstantRefundModal()" 
+          class="flex-1 px-4 py-2 bg-white/80 hover:bg-white text-gray-700 rounded-lg transition-all duration-200 hover:scale-95 shadow-sm border border-gray-200/50">
+          Annuler
+        </button>
+        <button (click)="confirmInstantRefund()" 
+          class="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg transition-all duration-200 hover:scale-95 shadow-sm">
+          Confirmer le remboursement
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Supplier Quick Actions Modal -->
 <div *ngIf="showSupplierActionsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

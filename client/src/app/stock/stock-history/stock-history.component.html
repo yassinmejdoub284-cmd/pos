@@ -1,0 +1,653 @@
+<div class="min-h-screen bg-gray-50">
+  <!-- Header -->
+  <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center space-x-4">
+          <button 
+            (click)="goBack()"
+            title="Retour"
+            class="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div>
+            <h1 class="text-xl font-semibold text-gray-900">Historique du stock</h1>
+            <p class="text-sm text-gray-500" *ngIf="selectedDepot">
+              {{ selectedDepot.name }} - {{ getDocumentTypeLabel(selectedDepot.type) }}
+            </p>
+          </div>
+        </div>
+        
+        <!-- Debug buttons (remove in production) -->
+        <div class="flex items-center space-x-2">
+          <button 
+            (click)="forceDesktopMode()"
+            class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer"
+            title="Force Desktop Mode">
+            Desktop
+          </button>
+          <button 
+            (click)="forceWebMode()"
+            class="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 cursor-pointer"
+            title="Force Web Mode">
+            Web
+          </button>
+          <button 
+            (click)="testPrint()"
+            class="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 cursor-pointer"
+            title="Test Print">
+            Test Print
+          </button>
+          <button 
+            (click)="checkTauriStatus()"
+            class="px-3 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 cursor-pointer"
+            title="Check Tauri Status">
+            Check Tauri
+          </button>
+          <button 
+            (click)="testSimpleClick()"
+            class="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 cursor-pointer"
+            title="Simple Test">
+            Test Click
+          </button>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+          <!-- Depot selector for admin -->
+          <div *ngIf="isAdmin && !selectedDepot" class="flex items-center space-x-2">
+            <span class="text-sm text-gray-600">Choisir un dépôt:</span>
+            <select 
+              (change)="selectDepot($any($event.target).value)"
+              title="Sélectionner un dépôt"
+              class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Sélectionner...</option>
+              <option *ngFor="let depot of availableDepots" [value]="depot.id">
+                {{ depot.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Depot Selection Modal for Admin -->
+  <div *ngIf="showDepotSelector" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+      <div class="p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Choisir un dépôt</h3>
+        <p class="text-sm text-gray-600 mb-6">Sélectionnez le dépôt pour lequel vous souhaitez consulter l'historique des transactions.</p>
+        
+        <div class="space-y-3">
+          <button
+            *ngFor="let depot of availableDepots"
+            (click)="selectDepot(depot)"
+            class="w-full p-4 text-left border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <div>
+                <div class="font-medium text-gray-900">{{ depot.name }}</div>
+                <div class="text-sm text-gray-500">{{ getDocumentTypeLabel(depot.type) }}</div>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="selectedDepot" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    
+    <!-- Filters Bar -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <div class="flex flex-wrap items-center gap-4">
+        <div class="flex items-center space-x-2">
+          <label class="text-sm font-medium text-gray-700">Période:</label>
+          <input 
+            type="date" 
+            [(ngModel)]="filters.dateFrom"
+            (change)="updateFilters({dateFrom: filters.dateFrom})"
+            title="Date de début"
+            class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <span class="text-gray-500">à</span>
+          <input 
+            type="date" 
+            [(ngModel)]="filters.dateTo"
+            (change)="updateFilters({dateTo: filters.dateTo})"
+            title="Date de fin"
+            class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        
+        <div class="flex items-center space-x-2">
+          <label class="text-sm font-medium text-gray-700">Type de document:</label>
+          <select 
+            [(ngModel)]="filters.documentType"
+            (change)="updateFilters({documentType: filters.documentType})"
+            title="Type de document"
+            class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="">Tous</option>
+            <option value="entry">Bon d'entrée</option>
+            <option value="sortie">Bon de sortie</option>
+            <option value="transfert">Bon de transfert</option>
+            <option value="livraison">Bon de livraison</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+      <div class="border-b border-gray-200">
+        <nav class="flex space-x-8 px-6">
+          <button
+            (click)="setActiveTab('dashboard')"
+            [class]="activeTab === 'dashboard' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Tableau de bord
+          </button>
+          <button
+            (click)="setActiveTab('archives')"
+            [class]="activeTab === 'archives' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            Archives
+          </button>
+          <button
+            (click)="setActiveTab('analytics')"
+            [class]="activeTab === 'analytics' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Analyse par produit
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div *ngIf="activeTab === 'dashboard'">
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div *ngFor="let card of kpiCards" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">{{ card.title }}</p>
+              <p class="text-2xl font-bold text-gray-900 mt-1">{{ card.value }}</p>
+              <div class="flex items-center mt-2">
+                <span [class]="card.changeType === 'increase' ? 'text-green-600' : card.changeType === 'decrease' ? 'text-red-600' : 'text-gray-600'">
+                  <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path *ngIf="card.changeType === 'increase'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17l9.2-9.2M17 17V7H7" />
+                    <path *ngIf="card.changeType === 'decrease'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 7l-9.2 9.2M7 7v10h10" />
+                  </svg>
+                  {{ getAbsoluteValue(card.change) }}%
+                </span>
+                <span class="text-xs text-gray-500 ml-1">vs période précédente</span>
+              </div>
+            </div>
+            <div [class]="'w-12 h-12 rounded-lg bg-gradient-to-br ' + card.color + ' flex items-center justify-center'">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path [attr.d]="card.icon" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Sales Chart -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Ventes par jour</h3>
+            <div class="flex space-x-2">
+              <button class="px-3 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700" title="Graphique en ligne">
+                Ligne
+              </button>
+              <button class="px-3 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200" title="Graphique en barres">
+                Barres
+              </button>
+            </div>
+          </div>
+          <div class="h-64 bg-gray-50 rounded-lg p-4">
+            <div *ngIf="loading" class="flex items-center justify-center h-full">
+              <div class="text-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p class="text-sm text-gray-500">Chargement des données...</p>
+              </div>
+            </div>
+            <div *ngIf="!loading && salesChartData.length > 0" class="h-full">
+              <!-- Simple bar chart representation -->
+              <div class="flex items-end justify-between h-full space-x-1 px-2">
+                <div *ngFor="let data of salesChartData; let i = index" class="flex-1 flex flex-col items-center min-w-0">
+                  <div class="text-xs text-gray-500 mb-1 text-center">{{ data.date | date:'dd/MM' }}</div>
+                  <div class="flex-1 flex items-end w-full justify-center">
+                    <div 
+                      class="bg-blue-500 rounded-t w-full max-w-8 transition-all duration-300 hover:bg-blue-600 cursor-pointer"
+                      [style.height.px]="getMaxValue(((data.sales || 0) / 1600) * 180, 10)"
+                      [title]="'Ventes: ' + data.sales + ' DT'">
+                    </div>
+                  </div>
+                  <div class="text-xs text-gray-600 mt-1 text-center">{{ data.sales }} DT</div>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="!loading && salesChartData.length === 0" class="flex items-center justify-center h-full">
+              <div class="text-center">
+                <div class="text-gray-400 mb-2">
+                  <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                </div>
+                <p class="text-sm text-gray-500">Aucune donnée de vente disponible</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Movements Chart -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Sorties vs Entrées</h3>
+            <div class="flex space-x-2">
+              <button class="px-3 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700" title="Graphique en barres">
+                Barres
+              </button>
+              <button class="px-3 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200" title="Graphique en ligne">
+                Ligne
+              </button>
+            </div>
+          </div>
+          <div class="h-64 bg-gray-50 rounded-lg p-4">
+            <div *ngIf="loading" class="flex items-center justify-center h-full">
+              <div class="text-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p class="text-sm text-gray-500">Chargement des données...</p>
+              </div>
+            </div>
+            <div *ngIf="!loading && movementsChartData.length > 0" class="h-full">
+              <!-- Simple bar chart representation for movements -->
+              <div class="flex items-end justify-between h-full space-x-1 px-2">
+                <div *ngFor="let data of movementsChartData; let i = index" class="flex-1 flex flex-col items-center min-w-0">
+                  <div class="text-xs text-gray-500 mb-1 text-center">{{ data.date | date:'dd/MM' }}</div>
+                  <div class="flex-1 flex items-end w-full justify-center space-x-1">
+                    <!-- Entries bar -->
+                    <div 
+                      class="bg-green-500 rounded-t transition-all duration-300 hover:bg-green-600 cursor-pointer"
+                      [style.height.px]="getMaxValue(((data.entries || 0) / 61) * 180, 5)"
+                      [style.width.%]="45"
+                      [title]="'Entrées: ' + data.entries + ' unités'">
+                    </div>
+                    <!-- Exits bar -->
+                    <div 
+                      class="bg-red-500 rounded-t transition-all duration-300 hover:bg-red-600 cursor-pointer"
+                      [style.height.px]="getMaxValue(((data.exits || 0) / 48) * 180, 5)"
+                      [style.width.%]="45"
+                      [title]="'Sorties: ' + data.exits + ' unités'">
+                    </div>
+                  </div>
+                  <div class="text-xs text-gray-600 mt-1 text-center">
+                    <span class="text-green-600">+{{ data.entries }}</span> / 
+                    <span class="text-red-600">-{{ data.exits }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="!loading && movementsChartData.length === 0" class="flex items-center justify-center h-full">
+              <div class="text-center">
+                <div class="text-gray-400 mb-2">
+                  <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                </div>
+                <p class="text-sm text-gray-500">Aucune donnée de mouvement disponible</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Products and Clients -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Top Products -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Top 10 produits par ventes</h3>
+          <div class="space-y-3">
+            <div *ngFor="let product of topProductsData; let i = index" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div class="flex items-center space-x-3">
+                <span class="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
+                  {{ i + 1 }}
+                </span>
+                <span class="font-medium text-gray-900">{{ product.name }}</span>
+              </div>
+              <div class="text-right">
+                <div class="font-semibold text-gray-900">{{ formatCurrency(product.sales) }}</div>
+                <div class="text-sm text-gray-500">{{ product.quantity }} unités</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Clients -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Top clients</h3>
+          <div class="space-y-3">
+            <div *ngFor="let client of topClientsData; let i = index" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div class="flex items-center space-x-3">
+                <span class="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium">
+                  {{ i + 1 }}
+                </span>
+                <span class="font-medium text-gray-900">{{ client.name }}</span>
+              </div>
+              <div class="text-right">
+                <div class="font-semibold text-gray-900">{{ formatCurrency(client.total) }}</div>
+                <div class="text-sm text-gray-500">{{ client.orders }} commandes</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Archives Tab -->
+    <div *ngIf="activeTab === 'archives'">
+      <!-- Archive Type Tabs -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+        <div class="border-b border-gray-200">
+          <nav class="flex space-x-8 px-6">
+            <button
+              (click)="setActiveArchiveTab('entry')"
+              [class]="activeArchiveTab === 'entry' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Bon d'entrée
+            </button>
+            <button
+              (click)="setActiveArchiveTab('sortie')"
+              [class]="activeArchiveTab === 'sortie' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4m16 0l-4-4m4 4l-4 4" />
+              </svg>
+              Bon de sortie
+            </button>
+            <button
+              (click)="setActiveArchiveTab('transfert')"
+              [class]="activeArchiveTab === 'transfert' ? 'border-amber-500 text-amber-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              Bon de transfert
+            </button>
+            <button
+              (click)="setActiveArchiveTab('livraison')"
+              [class]="activeArchiveTab === 'livraison' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+              <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+              Bon de livraison
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      <!-- Archive List -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900">{{ getDocumentTypeLabel(activeArchiveTab) }}</h3>
+          <p class="text-sm text-gray-500 mt-1">Archives et consultation des documents</p>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Numéro</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fournisseur/Client</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilisateur</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr *ngFor="let document of archiveData" class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {{ document.number }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ formatDate(document.date) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ document.supplier || document.client || 'N/A' }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {{ formatCurrency(document.total) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span [class]="'inline-flex px-2 py-1 text-xs font-semibold rounded-full ' + getStatusColor(document.status)">
+                    {{ getStatusLabel(document.status) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ document.user || 'N/A' }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <div class="flex space-x-2">
+                    <button
+                      (click)="viewDocument(document)"
+                      class="text-blue-600 hover:text-blue-900">
+                      Voir
+                    </button>
+                    <button
+                      (click)="printDocument(document)"
+                      class="text-gray-600 hover:text-gray-900">
+                      Imprimer
+                    </button>
+                    <button
+                      (click)="exportDocument(document, 'pdf')"
+                      class="text-green-600 hover:text-green-900">
+                      Exporter
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div *ngIf="activeTab === 'analytics'">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Product List -->
+        <div class="lg:col-span-1">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Produits</h3>
+            <div class="space-y-3">
+              <div *ngFor="let product of productAnalytics" class="p-3 border border-gray-200 rounded-lg hover:border-blue-300 cursor-pointer">
+                <div class="flex items-center justify-between">
+                  <div>
+                <div class="font-medium text-gray-900">{{ product.name }}</div>
+                <div class="text-sm text-gray-500">{{ formatCurrency(product.sales) }}</div>
+                  </div>
+                  <button
+                    (click)="selectProductForComparison(product)"
+                    [disabled]="selectedProducts.length >= maxSelectedProducts"
+                    class="px-3 py-1 text-xs bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Comparer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparison View -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-900">Comparaison des produits</h3>
+              <div class="flex space-x-2">
+                <span *ngFor="let product of selectedProducts" class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                  {{ product.name }}
+                  <button
+                    (click)="removeProductFromComparison(product)"
+                    class="ml-2 text-blue-600 hover:text-blue-800">
+                    ×
+                  </button>
+                </span>
+              </div>
+            </div>
+            
+            <div *ngIf="selectedProducts.length === 0" class="text-center py-12 text-gray-500">
+              <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <p>Sélectionnez jusqu'à 3 produits pour les comparer</p>
+            </div>
+            
+            <div *ngIf="selectedProducts.length > 0" class="space-y-6">
+              <!-- Comparison chart -->
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h4 class="text-lg font-semibold text-gray-900 mb-4">Comparaison des produits</h4>
+                <div class="h-64 bg-gray-50 rounded-lg p-4">
+                  <div *ngIf="loading" class="flex items-center justify-center h-full">
+                    <div class="text-center">
+                      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                      <p class="text-sm text-gray-500">Chargement des données...</p>
+                    </div>
+                  </div>
+                  <div *ngIf="!loading && selectedProducts.length > 0" class="h-full">
+                    <!-- Simple comparison chart -->
+                    <div class="flex items-end justify-between h-full space-x-2 px-2">
+                      <div *ngFor="let product of selectedProducts; let i = index" class="flex-1 flex flex-col items-center min-w-0">
+                        <div class="text-xs text-gray-500 mb-2 text-center">{{ product.name }}</div>
+                        <div class="flex-1 flex items-end w-full justify-center space-x-1">
+                          <!-- Sales bar -->
+                          <div 
+                            class="bg-blue-500 rounded-t transition-all duration-300 hover:bg-blue-600 cursor-pointer"
+                            [style.height.px]="getMaxValue((product.sales / 1250) * 180, 5)"
+                            [style.width.%]="45"
+                            [title]="'Ventes: ' + product.sales + ' DT'">
+                          </div>
+                          <!-- Quantity bar -->
+                          <div 
+                            class="bg-green-500 rounded-t transition-all duration-300 hover:bg-green-600 cursor-pointer"
+                            [style.height.px]="getMaxValue((product.quantityIn / 85) * 180, 5)"
+                            [style.width.%]="45"
+                            [title]="'Quantité: ' + product.quantityIn + ' unités'">
+                          </div>
+                        </div>
+                        <div class="text-xs text-gray-600 mt-2 text-center">
+                          <div>{{ product.sales }} DT</div>
+                          <div>{{ product.quantityIn }} unités</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div *ngIf="!loading && selectedProducts.length === 0" class="flex items-center justify-center h-full">
+                    <div class="text-center">
+                      <div class="text-gray-400 mb-2">
+                        <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                      </div>
+                      <p class="text-sm text-gray-500">Sélectionnez des produits pour les comparer</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Details Modal -->
+  <div *ngIf="showDocumentDetails" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-lg font-semibold text-gray-900">Détails du document</h3>
+          <button
+            (click)="closeDocumentDetails()"
+            title="Fermer"
+            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div *ngIf="selectedDocument" class="space-y-6">
+          <!-- Document header -->
+          <div class="grid grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Numéro</label>
+              <p class="mt-1 text-sm text-gray-900">{{ selectedDocument.number }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Date</label>
+              <p class="mt-1 text-sm text-gray-900">{{ formatDate(selectedDocument.date) }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Fournisseur/Client</label>
+              <p class="mt-1 text-sm text-gray-900">{{ selectedDocument.supplier || selectedDocument.client }}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Total</label>
+              <p class="mt-1 text-sm text-gray-900">{{ formatCurrency(selectedDocument.total) }}</p>
+            </div>
+          </div>
+          
+          <!-- Document lines would go here -->
+          <div class="border-t border-gray-200 pt-6">
+            <h4 class="text-md font-medium text-gray-900 mb-4">Lignes du document</h4>
+            <div class="text-sm text-gray-500">Détails des lignes (à implémenter)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg">
+    <div class="flex items-center">
+      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      {{ error }}
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div *ngIf="loading" class="fixed inset-0 bg-black/25 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 flex items-center space-x-3">
+      <svg class="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <span class="text-gray-700">Chargement...</span>
+    </div>
+  </div>
+</div>

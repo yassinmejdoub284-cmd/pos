@@ -62,25 +62,26 @@ export interface TicketAction {
 
         <!-- Actions Grid -->
         <div class="p-6">
-          <div class="grid grid-cols-1 gap-4">
-            <div *ngFor="let action of getVisibleActions()" 
+          <!-- First Row: 3 Actions -->
+          <div class="grid grid-cols-3 gap-3 mb-4">
+            <div *ngFor="let action of getFirstRowActions()" 
                  (click)="onActionClick(action.id)"
                  class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-blue-100/50 hover:shadow-md hover:scale-98 transition-all duration-200 ring-1 ring-blue-50 relative overflow-hidden">
               
               <!-- Icon and Content -->
-              <div class="flex items-center space-x-4">
-                <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-sm ring-2 ring-white/50" 
+              <div class="flex flex-col items-center text-center space-y-3">
+                <div class="w-10 h-10 bg-gradient-to-br rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-sm ring-2 ring-white/50" 
                      [ngClass]="action.color">
-                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="action.icon"></path>
                   </svg>
                 </div>
                 
                 <div class="flex-1">
-                  <h3 class="text-lg font-semibold text-blue-800 group-hover:text-blue-600 transition-colors">
+                  <h3 class="text-sm font-semibold text-blue-800 group-hover:text-blue-600 transition-colors leading-tight">
                     {{ getActionTitle(action.id, action.title) }}
                   </h3>
-                  <p class="text-sm text-blue-600/70 group-hover:text-blue-600 transition-colors">
+                  <p class="text-xs text-blue-600/70 group-hover:text-blue-600 transition-colors mt-1 leading-tight">
                     {{ getActionDescription(action.id, action.description) }}
                   </p>
                 </div>
@@ -89,6 +90,42 @@ export interface TicketAction {
               <!-- Hover Effect -->
               <div class="absolute inset-0 rounded-xl bg-gradient-to-br opacity-0 group-hover:opacity-5 transition-opacity duration-200" 
                    [ngClass]="action.gradient"></div>
+            </div>
+          </div>
+
+          <!-- Second Row: 2 Actions (Centered) -->
+          <div class="flex justify-center">
+            <div class="grid grid-cols-2 gap-3 w-2/3">
+            <div *ngFor="let action of getSecondRowActions()" 
+                 (click)="isActionDisabled(action.id) ? null : onActionClick(action.id)"
+                 [class]="'group rounded-xl p-4 shadow-sm border ring-1 relative overflow-hidden transition-all duration-200 ' +
+                          (isActionDisabled(action.id) 
+                            ? 'cursor-not-allowed bg-gray-100 border-gray-200 ring-gray-100 opacity-60' 
+                            : 'cursor-pointer bg-white border-blue-100/50 hover:shadow-md hover:scale-98 ring-blue-50')">
+                
+                <!-- Icon and Content -->
+                <div class="flex flex-col items-center text-center space-y-3">
+                  <div class="w-10 h-10 bg-gradient-to-br rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-sm ring-2 ring-white/50" 
+                       [ngClass]="action.color">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="action.icon"></path>
+                    </svg>
+                  </div>
+                  
+                  <div class="flex-1">
+                    <h3 class="text-sm font-semibold text-blue-800 group-hover:text-blue-600 transition-colors leading-tight">
+                      {{ getActionTitle(action.id, action.title) }}
+                    </h3>
+                    <p class="text-xs text-blue-600/70 group-hover:text-blue-600 transition-colors mt-1 leading-tight">
+                      {{ getActionDescription(action.id, action.description) }}
+                    </p>
+                  </div>
+                </div>
+                
+                <!-- Hover Effect -->
+                <div class="absolute inset-0 rounded-xl bg-gradient-to-br opacity-0 group-hover:opacity-5 transition-opacity duration-200" 
+                     [ngClass]="action.gradient"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -116,6 +153,7 @@ export class TicketActionDialogComponent {
   @Input() ticket: Sale | null = null;
   @Input() isInvoiceApprovedForTicket: ((ticket: Sale | null) => boolean) | null = null;
   @Input() hasInvoiceRequestForTicket: ((ticket: Sale | null) => boolean) | null = null;
+  @Input() hasPendingRefundRequestForTicket: ((ticket: Sale | null) => boolean) | null = null;
   @Output() actionSelected = new EventEmitter<string>();
   @Output() dialogClosed = new EventEmitter<void>();
 
@@ -151,6 +189,14 @@ export class TicketActionDialogComponent {
       icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
       color: 'from-blue-500 to-indigo-600',
       gradient: 'from-blue-50 to-indigo-100'
+    },
+    {
+      id: 'instant-refund',
+      title: 'Annuler',
+      description: 'Remboursement immédiat et retour des produits en stock',
+      icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z',
+      color: 'from-red-500 to-red-600',
+      gradient: 'from-red-50 to-red-100'
     }
   ];
 
@@ -172,10 +218,37 @@ export class TicketActionDialogComponent {
     return this.ticketActions;
   }
 
+  getFirstRowActions(): TicketAction[] {
+    // First row: Print, Invoice, Details
+    return this.ticketActions.filter(action => 
+      action.id === 'print-ticket' || 
+      action.id === 'request-invoice' || 
+      action.id === 'check-details'
+    );
+  }
+
+  getSecondRowActions(): TicketAction[] {
+    // Second row: Return/Exchange, Cancel (Instant Refund)
+    return this.ticketActions.filter(action => 
+      action.id === 'return-exchange' || 
+      action.id === 'instant-refund'
+    );
+  }
+
+  isActionDisabled(actionId: string): boolean {
+    if (actionId === 'instant-refund') {
+      return this.hasPendingRefundRequestForTicket ? this.hasPendingRefundRequestForTicket(this.ticket) : false;
+    }
+    return false;
+  }
+
   getActionTitle(actionId: string, fallback: string): string {
     if (actionId === 'request-invoice') {
       if (this.isInvoiceApprovedForTicket && this.isInvoiceApprovedForTicket(this.ticket)) return 'Imprimer la facture';
       if (this.hasInvoiceRequestForTicket && this.hasInvoiceRequestForTicket(this.ticket)) return 'Facture en attente d\'approbation';
+    }
+    if (actionId === 'instant-refund') {
+      if (this.hasPendingRefundRequestForTicket && this.hasPendingRefundRequestForTicket(this.ticket)) return 'Annulation en cours';
     }
     return fallback;
   }
@@ -184,6 +257,9 @@ export class TicketActionDialogComponent {
     if (actionId === 'request-invoice') {
       if (this.isInvoiceApprovedForTicket && this.isInvoiceApprovedForTicket(this.ticket)) return 'Imprimer la facture approuvée';
       if (this.hasInvoiceRequestForTicket && this.hasInvoiceRequestForTicket(this.ticket)) return 'Demande envoyée, en attente d\'approbation';
+    }
+    if (actionId === 'instant-refund') {
+      if (this.hasPendingRefundRequestForTicket && this.hasPendingRefundRequestForTicket(this.ticket)) return 'Demande de remboursement en attente d\'approbation admin';
     }
     return fallback;
   }

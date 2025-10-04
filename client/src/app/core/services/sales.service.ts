@@ -147,4 +147,10 @@ export class SalesService {
       catchError((error) => throwError(() => error))
     );
   }
+
+  updateSaleStatus(saleId: number, status: string): Observable<Sale> {
+    return this.http.put<Sale>(`${this.apiUrl}/${saleId}/status`, { status }).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
 } 

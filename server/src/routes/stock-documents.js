@@ -105,12 +105,40 @@ async function generateDocumentNumber(type) {
 
 async function getNextDocumentId(type) {
   try {
-    const lastDocument = await prisma.stockDocument.findFirst({
-      where: { type },
-      orderBy: { id: 'desc' }
+    // Get the highest sequence number from existing document numbers of this type
+    const prefix = type === 'BON_EXPEDITION' ? 'BEXP' : 
+                   type === 'BON_ENTREE_DEPOT' ? 'BED' :
+                   type === 'BON_TRANSFERT' ? 'BT' :
+                   type === 'BON_ENTREE_MAGASIN' ? 'BEM' : 'DOC';
+    
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const yearMonth = `${year}${month}`;
+    
+    // Find documents with the same prefix and year-month
+    const documents = await prisma.stockDocument.findMany({
+      where: {
+        numero: {
+          startsWith: `${prefix}-${yearMonth}-`
+        }
+      },
+      select: { numero: true }
     });
     
-    return lastDocument ? lastDocument.id + 1 : 1;
+    // Extract sequence numbers and find the highest
+    let maxSequence = 0;
+    documents.forEach(doc => {
+      const parts = doc.numero.split('-');
+      if (parts.length === 3) {
+        const sequence = parseInt(parts[2]);
+        if (!isNaN(sequence) && sequence > maxSequence) {
+          maxSequence = sequence;
+        }
+      }
+    });
+    
+    return maxSequence + 1;
   } catch (error) {
     console.error('Error getting next document ID:', error);
     return 1;
@@ -140,7 +168,14 @@ router.get('/', async (req, res) => {
     const where = {};
     
     if (type) {
-      where.type = type;
+      // Map frontend type values to DocumentType enum values
+      const typeMapping = {
+        'entry': 'BON_ENTREE_DEPOT',
+        'sortie': 'BON_EXPEDITION', 
+        'transfert': 'BON_TRANSFERT',
+        'livraison': 'BON_ENTREE_MAGASIN'
+      };
+      where.type = typeMapping[type] || type;
     }
     
     if (status) {
@@ -885,7 +920,7 @@ router.post('/scan', authenticateToken, async (req, res) => {
           notes: `Document créé par scan - ${barcode}`,
           items: {
             create: [{
-              productId: 1, // Default product, should be updated based on barcode lookup
+              productId: 1, // Default product, will be updated based on barcode lookup
               famille: 'SCAN',
               quantity: 1,
               batch: null,
@@ -1235,6 +1270,52 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
       for (const item of document.items) {
         console.log('Processing item:', { productId: item.productId, quantity: item.quantity });
         
+        // Check if the product exists with this ID
+        let product = await tx.product.findUnique({
+          where: { id: item.productId }
+        });
+        console.log('Product found by ID:', product ? { id: product.id, name: product.name } : 'NOT FOUND');
+        
+        // If product not found by ID, try to find by name (famille or notes)
+        if (!product && (item.famille || item.notes)) {
+          const searchTerm = item.famille || item.notes;
+          console.log('Searching for product by name:', searchTerm);
+          
+          // Try exact match first
+          product = await tx.product.findFirst({
+            where: {
+              name: {
+                equals: searchTerm,
+                mode: 'insensitive'
+              }
+            }
+          });
+          
+          // If no exact match, try contains
+          if (!product) {
+            product = await tx.product.findFirst({
+              where: {
+                name: {
+                  contains: searchTerm,
+                  mode: 'insensitive'
+                }
+              }
+            });
+          }
+          
+          console.log('Product found by name:', product ? { id: product.id, name: product.name } : 'NOT FOUND');
+          
+          // If we found the correct product, update the item's productId
+          if (product) {
+            await tx.stockDocumentItem.update({
+              where: { id: item.id },
+              data: { productId: product.id }
+            });
+            console.log('Updated item productId from', item.productId, 'to', product.id);
+            item.productId = product.id; // Update for inventory operations
+          }
+        }
+        
         const inventory = await tx.inventory.findUnique({
           where: {
             depotId_productId: {
@@ -1321,6 +1402,192 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error receiving document:', error);
     res.status(500).json({ error: 'Erreur lors de la réception' });
+  }
+});
+
+// Approve receipt - similar to receive but for delivery documents
+router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
+  try {
+    const documentId = parseInt(req.params.id);
+    const { depotId } = req.body;
+    
+    console.log('Approve receipt request:', { documentId, depotId, userId: req.user.id });
+    
+    const document = await prisma.stockDocument.findUnique({
+      where: { id: documentId },
+      include: {
+        items: {
+          include: {
+            product: true
+          }
+        },
+        emetteur: true,
+        destinataire: true
+      }
+    });
+    
+    if (!document) {
+      console.log('Document not found:', documentId);
+      return res.status(404).json({ error: 'Document non trouvé' });
+    }
+    
+    console.log('Document found:', { 
+      id: document.id, 
+      status: document.status, 
+      type: document.type,
+      destinataireId: document.destinataireId,
+      itemsCount: document.items?.length 
+    });
+    
+    if (document.status !== 'SENT') {
+      console.log('Document not ready for approval:', { status: document.status });
+      return res.status(400).json({ error: 'Document non prêt pour approbation' });
+    }
+    
+    if (document.type !== 'BON_ENTREE_MAGASIN') {
+      console.log('Document type not suitable for receipt approval:', { type: document.type });
+      return res.status(400).json({ error: 'Type de document non approprié pour l\'approbation de réception' });
+    }
+    
+    await prisma.$transaction(async (tx) => {
+      console.log('Starting stock addition transaction for', document.items.length, 'items');
+      
+      for (const item of document.items) {
+        console.log('Processing item - full object:', JSON.stringify(item, null, 2));
+        console.log('Processing item:', { productId: item.productId, quantity: item.quantity });
+        
+        // Find the parent product by famille (since product_id stores individual produit_de_caisse)
+        let parentProduct = null;
+        let targetProductId = item.productId;
+        
+        if (item.famille) {
+          console.log('Searching for parent product by famille:', item.famille);
+          
+          // Try exact match first
+          parentProduct = await tx.product.findFirst({
+            where: {
+              name: item.famille
+            }
+          });
+          
+          // If no exact match, try contains
+          if (!parentProduct) {
+            parentProduct = await tx.product.findFirst({
+              where: {
+                name: {
+                  contains: item.famille
+                }
+              }
+            });
+          }
+          
+          if (parentProduct) {
+            console.log('Found parent product by famille:', { id: parentProduct.id, name: parentProduct.name });
+            targetProductId = parentProduct.id;
+          } else {
+            console.log('No parent product found for famille:', item.famille, 'using original productId:', item.productId);
+          }
+        }
+        
+        // If no famille or no parent found, use the original product
+        if (!parentProduct) {
+          parentProduct = await tx.product.findUnique({
+            where: { id: item.productId }
+          });
+          console.log('Using original product:', parentProduct ? { id: parentProduct.id, name: parentProduct.name } : 'NOT FOUND');
+        }
+        
+        const inventory = await tx.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: parseInt(depotId),
+              productId: targetProductId
+            }
+          }
+        });
+        
+        if (inventory) {
+          const currentQuantity = parseFloat(inventory.quantity) || 0;
+          const addingQuantity = parseFloat(item.quantity) || 0;
+          const newQuantity = currentQuantity + addingQuantity;
+          
+          console.log('Updating existing inventory:', { 
+            currentQuantity: currentQuantity, 
+            adding: addingQuantity, 
+            newQuantity: newQuantity 
+          });
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: {
+              quantity: newQuantity
+            }
+          });
+        } else {
+          const quantity = parseFloat(item.quantity) || 0;
+          console.log('Creating new inventory entry:', { 
+            depotId: parseInt(depotId), 
+            productId: targetProductId, 
+            quantity: quantity 
+          });
+          await tx.inventory.create({
+            data: {
+              depotId: parseInt(depotId),
+              productId: targetProductId,
+              quantity: quantity
+            }
+          });
+        }
+
+        // Create stock movement record
+        await tx.stockMovement.create({
+          data: {
+            productId: targetProductId,
+            depotId: parseInt(depotId),
+            quantity: parseFloat(item.quantity) || 0, // Positive for incoming
+            type: 'IN',
+            fromDepotId: document.emetteurId,
+            toDepotId: parseInt(depotId),
+            reason: 'RECEPTION_LIVRAISON',
+            reference: document.numero,
+            userId: req.user.id
+          }
+        });
+      }
+      
+      await tx.stockDocument.update({
+        where: { id: documentId },
+        data: {
+          status: 'RECEIVED',
+          statusHistory: {
+            create: {
+              status: 'RECEIVED',
+              userId: req.user.id,
+              notes: 'Reçu approuvé - produits ajoutés au stock'
+            }
+          }
+        }
+      });
+    });
+    
+    const updatedDocument = await prisma.stockDocument.findUnique({
+      where: { id: documentId },
+      include: {
+        emetteur: true,
+        destinataire: true,
+        items: {
+          include: {
+            product: true
+          }
+        }
+      }
+    });
+    
+    await logAudit(req.user.id, 'stock_documents', documentId, 'UPDATE', { status: document.status }, { status: 'RECEIVED' });
+    
+    res.json(updatedDocument);
+  } catch (error) {
+    console.error('Error approving receipt:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'approbation du reçu' });
   }
 });
 
