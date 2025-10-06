@@ -6,6 +6,7 @@ import { CaisseRoutingModule } from './caisse-routing.module';
 import { CaisseComponent } from './caisse.component';
 import { TicketActionDialogComponent } from '../shared/ticket-action-dialog/ticket-action-dialog.component';
 import { TicketDetailsModalComponent } from '../shared/ticket-details-modal/ticket-details-modal.component';
+import { GiftActionDialogComponent } from '../shared/gift-action-dialog/gift-action-dialog.component';
 import { LazyImageDirective } from '../shared/directives/lazy-image.directive';
 
 @NgModule({
@@ -16,6 +17,7 @@ import { LazyImageDirective } from '../shared/directives/lazy-image.directive';
     CaisseRoutingModule,
     TicketActionDialogComponent,
     TicketDetailsModalComponent,
+    GiftActionDialogComponent,
     LazyImageDirective
   ]
 })

@@ -70,18 +70,22 @@ export class DailyExtractService {
   }
 
   getLast10DaysExtracts(): Observable<DailyExtract[]> {
-    // Add cache-busting parameter to ensure fresh data
+    // Switch to session-based extracts by default, keep same return type
     const timestamp = new Date().getTime();
-    return this.http.get<DailyExtract[]>(`${this.apiUrl}/daily-extracts?t=${timestamp}`, this.getRequestOptions());
+    return this.http.get<DailyExtract[]>(`${this.apiUrl}/session-extracts?t=${timestamp}`, this.getRequestOptions());
   }
 
   getLastNDaysExtracts(days: number): Observable<DailyExtract[]> {
-    // Add cache-busting parameter to ensure fresh data
+    // For sessions, interpret days as limit of sessions
     const timestamp = new Date().getTime();
-    return this.http.get<DailyExtract[]>(`${this.apiUrl}/daily-extracts?days=${days}&t=${timestamp}`, this.getRequestOptions());
+    return this.http.get<DailyExtract[]>(`${this.apiUrl}/session-extracts?limit=${days}&t=${timestamp}`, this.getRequestOptions());
   }
 
   getExtractDetail(date: string): Observable<DailyExtractDetail> {
+    // For detail, allow both date or session id; assume numeric means session id
+    if (/^\d+$/.test(date)) {
+      return this.http.get<DailyExtractDetail>(`${this.apiUrl}/session-extracts/${date}`, this.getRequestOptions());
+    }
     return this.http.get<DailyExtractDetail>(`${this.apiUrl}/daily-extracts/${date}`, this.getRequestOptions());
   }
 

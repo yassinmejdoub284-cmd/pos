@@ -143,9 +143,38 @@ export class SessionsService {
     );
   }
 
+  // Get active session by depot only (no user linkage)
+  getActiveSessionByDepot(posId?: number, depotId?: number): Observable<SessionCaisse | null> {
+    const params: any = {};
+    if (posId) params.posId = posId.toString();
+    if (depotId) params.depotId = depotId.toString();
+    
+    return this.http.get<SessionCaisse | null>(`${this.API_URL}/active-by-depot`, { 
+      params,
+      ...this.getRequestOptions()
+    }).pipe(
+      tap(session => {
+        this.currentSessionSubject.next(session);
+        this.currentSession.set(session);
+        this.isSessionOpen.set(!!session);
+      })
+    );
+  }
+
   // Open new session
   openSession(request: OpenSessionRequest): Observable<SessionCaisse> {
     return this.http.post<SessionCaisse>(`${this.API_URL}/open`, request, this.getRequestOptions()).pipe(
+      tap(session => {
+        this.currentSessionSubject.next(session);
+        this.currentSession.set(session);
+        this.isSessionOpen.set(true);
+      })
+    );
+  }
+
+  // Open new session by depot only (no user linkage)
+  openSessionByDepot(request: OpenSessionRequest): Observable<SessionCaisse> {
+    return this.http.post<SessionCaisse>(`${this.API_URL}/open-by-depot`, request, this.getRequestOptions()).pipe(
       tap(session => {
         this.currentSessionSubject.next(session);
         this.currentSession.set(session);

@@ -551,6 +551,35 @@ export class ClotureComponent implements OnInit, OnDestroy {
     return parseFloat((this.currentSession()?.openingFund as any) || 0) || 0;
   }
 
+  // Get user sales summary for display under solde de caisse
+  getUserSalesSummary(): Array<{ userName: string; totalSales: number }> {
+    const session = this.currentSession();
+    if (!session) return [];
+
+    // Get sales data from session report if available
+    const sales = (session as any).sales || [];
+    if (!sales.length) return [];
+
+    // Group sales by user
+    const userSalesMap = new Map<string, number>();
+    
+    sales.forEach((sale: any) => {
+      const userName = sale.user ? `${sale.user.firstName} ${sale.user.lastName}` : 'Utilisateur inconnu';
+      const saleAmount = parseFloat(sale.finalTotal || sale.total || 0) || 0;
+      
+      if (userSalesMap.has(userName)) {
+        userSalesMap.set(userName, userSalesMap.get(userName)! + saleAmount);
+      } else {
+        userSalesMap.set(userName, saleAmount);
+      }
+    });
+
+    // Convert to array and sort by sales amount (descending)
+    return Array.from(userSalesMap.entries())
+      .map(([userName, totalSales]) => ({ userName, totalSales }))
+      .sort((a, b) => b.totalSales - a.totalSales);
+  }
+
   // Load and show current session tickets (id + amount)
   openTicketsModal(): void {
     const session = this.currentSession();
@@ -670,14 +699,20 @@ export class ClotureComponent implements OnInit, OnDestroy {
     this.isRefreshing = true;
     if (!silent) this.loading.set(true);
     
-    // Get user's depot ID for isolation
+    // Get depot ID for isolation (no user linkage)
     const userDepotId = this.authService.currentUser()?.depotId;
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
     
-    this.sessionsService.getActiveSession(1, currentDepotId).subscribe({
+    this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({
       next: (session) => {
         this.currentSession.set(session);
+        
+        // Load sales data for user summary if session exists
+        if (session) {
+          this.loadSessionSalesData(session.id);
+        }
+        
         if (!silent) this.loading.set(false);
         this.isRefreshing = false;
         
@@ -699,10 +734,31 @@ export class ClotureComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Load session sales data for user summary
+  private loadSessionSalesData(sessionId: number): void {
+    this.sessionsService.getSessionReport(sessionId, 'X').subscribe({
+      next: (report: any) => {
+        const currentSession = this.currentSession();
+        if (currentSession && report?.session?.sales) {
+          // Add sales data to current session
+          const updatedSession = {
+            ...currentSession,
+            sales: report.session.sales
+          };
+          this.currentSession.set(updatedSession);
+        }
+      },
+      error: (error) => {
+        // Silently fail - user summary is not critical
+        console.debug('Failed to load sales data for user summary:', error);
+      }
+    });
+  }
+
   autoOpenSession(openingFund: number = 0): void {
     this.loading.set(true);
     
-    // Get user's depot ID for isolation
+    // Get depot ID for isolation (no user linkage)
     const userDepotId = this.authService.currentUser()?.depotId;
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
@@ -710,12 +766,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const defaultSession: OpenSessionRequest = {
       openingFund: openingFund,
       posId: 1,
-      depotId: currentDepotId, // Ensure depot isolation
+      depotId: currentDepotId, // Only depot isolation, no user linkage
       note: 'Session automatique'
     };
     try { console.debug('[Cloture] Opening session payload', defaultSession); } catch {}
     
-    this.sessionsService.openSession(defaultSession).subscribe({
+    this.sessionsService.openSessionByDepot(defaultSession).subscribe({
       next: (session) => {
         this.currentSession.set(session);
         this.loading.set(false);

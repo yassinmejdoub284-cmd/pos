@@ -94,14 +94,24 @@ export class SalesService {
     return this.http.post<Sale>(`${this.apiUrl}/wholesale`, saleData);
   }
 
-  getSales(): Observable<Sale[]> {
-    return this.http.get<Sale[]>(this.apiUrl).pipe(
+  getSales(params?: { startDate?: string; endDate?: string; status?: string; paymentMethod?: string; page?: number; limit?: number }): Observable<Sale[]> {
+    const options = params ? { params: Object.entries(params).reduce((acc: any, [k, v]) => {
+      if (v !== undefined && v !== null && v !== '') acc[k] = String(v);
+      return acc;
+    }, {}) } : {};
+    return this.http.get<Sale[]>(this.apiUrl, options).pipe(
       catchError((error) => throwError(() => error))
     );
   }
 
   getSale(id: number): Observable<Sale> {
     return this.http.get<Sale>(`${this.apiUrl}/${id}`).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
+
+  markPrinted(saleId: number): Observable<{ success: boolean; isPrinted: boolean }> {
+    return this.http.post<{ success: boolean; isPrinted: boolean }>(`${this.apiUrl}/${saleId}/printed`, {}).pipe(
       catchError((error) => throwError(() => error))
     );
   }

@@ -63,9 +63,11 @@ router.post('/adjust', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async
         }
       });
 
-      let newQuantity = quantity;
+      let newQuantity = parseFloat(quantity) || 0;
       if (inventory) {
-        newQuantity = inventory.quantity + (type === 'IN' ? quantity : -quantity);
+        const currentQuantity = parseFloat(inventory.quantity) || 0;
+        const changeQuantity = parseFloat(quantity) || 0;
+        newQuantity = currentQuantity + (type === 'IN' ? changeQuantity : -changeQuantity);
         await tx.inventory.update({
           where: { id: inventory.id },
           data: { quantity: newQuantity }

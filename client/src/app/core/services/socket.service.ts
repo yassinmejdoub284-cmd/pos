@@ -86,6 +86,10 @@ export class SocketService {
     return this.on('sale_created');
   }
 
+  onTicketCreated(): Observable<any> {
+    return this.on('ticket_created');
+  }
+
   onTransferRequest(): Observable<any> {
     return this.on('transfer_request');
   }

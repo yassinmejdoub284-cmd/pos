@@ -4,6 +4,8 @@ import { FormBuilder, Validators, FormArray, FormGroup, FormControl, AbstractCon
 import { SupplierService } from '../../core/services/supplier.service';
 import { ProductsService } from '../../core/services/products.service';
 import { StockDocumentsService } from '../../core/services/stock-documents.service';
+import { SessionsService } from '../../core/services/sessions.service';
+import { CreateSupplierRequest } from '../../core/models/supplier.model';
 
 interface EntryItemForm {
   productId: number;
@@ -64,13 +66,23 @@ export class NewEntryComponent implements OnInit {
   selectedSupplierPhone = '';
   selectedSupplierEmail = '';
 
+  // Payment dialog state
+  showPaymentChoiceDialog = false;
+  showPaymentDialog = false;
+  paymentAmount = 0;
+  partialPaymentAmount = 0;
+  remainingAmount = 0;
+  paymentMethod = 'cash';
+  paymentNotes = '';
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private fb: FormBuilder,
     private supplierService: SupplierService,
     private productsService: ProductsService,
-    private stockDocs: StockDocumentsService
+    private stockDocs: StockDocumentsService,
+    private sessionsService: SessionsService
   ) {}
 
   ngOnInit(): void {
@@ -158,9 +170,10 @@ export class NewEntryComponent implements OnInit {
       error: () => {}
     });
 
-    this.productsService.getProducts().subscribe({
+    // Load products filtered by depot_id
+    this.productsService.getProducts(this.depotId).subscribe({
       next: (prods) => {
-        // No filtering by isStockable for entry; include all products
+        // No filtering by isStockable for entry; include all products for this depot
         const list = (prods || []);
         this.products.set(list);
         // Build categories
@@ -191,8 +204,218 @@ export class NewEntryComponent implements OnInit {
       return;
     }
 
-    // Create entry directly without any payment processing
+    // Calculate total amount for payment
+    this.paymentAmount = this.totalPurchaseAmount;
+    
+    // Close supplier dialog and show payment choice
+    this.showSupplierDialog = false;
+    this.showPaymentChoiceDialog = true;
+    this.error = '';
+  }
+
+  proceedWithPayment(): void {
+    this.showPaymentChoiceDialog = false;
+    this.partialPaymentAmount = this.totalPurchaseAmount;
+    this.remainingAmount = 0;
+    this.showPaymentDialog = true;
+  }
+
+  proceedAsCredit(): void {
+    this.showPaymentChoiceDialog = false;
     this.createStandaloneEntry();
+  }
+
+  processPayment(): void {
+    if (!this.partialPaymentAmount || this.partialPaymentAmount <= 0) {
+      this.error = 'Le montant du paiement doit être supérieur à 0';
+      return;
+    }
+
+    if (this.partialPaymentAmount > this.totalPurchaseAmount) {
+      this.error = 'Le montant du paiement ne peut pas dépasser le montant total';
+      return;
+    }
+
+    // Verify cash availability for cash payments
+    if (this.paymentMethod === 'cash') {
+      this.verifyCashAvailability();
+    } else {
+      this.processPaymentWithVerification();
+    }
+  }
+
+  verifyCashAvailability(): void {
+    const currentSession = this.sessionsService.currentSession();
+    if (!currentSession) {
+      this.error = 'Aucune session de caisse ouverte';
+      return;
+    }
+
+    // Get session summary to check available cash
+    this.sessionsService.getSessionSummary(currentSession.id).subscribe({
+      next: (summary) => {
+        const availableCash = summary.expectedCash;
+        if (this.partialPaymentAmount > availableCash) {
+          this.error = `Fonds insuffisants. Disponible: ${availableCash.toFixed(3)} dt, Demandé: ${this.partialPaymentAmount.toFixed(3)} dt`;
+          return;
+        }
+        
+        // Cash is available, proceed with payment
+        this.processPaymentWithVerification();
+      },
+      error: (err) => {
+        this.error = 'Erreur lors de la vérification des fonds disponibles';
+      }
+    });
+  }
+
+  processPaymentWithVerification(): void {
+    this.loading = true;
+    this.error = '';
+    this.success = '';
+
+    const payloadItems: EntryItemForm[] = this.itemsArray.controls.map((ctrl) => ({
+      productId: ctrl.get('productId')?.value || 0,
+      famille: ctrl.get('famille')?.value || 'Divers',
+      quantity: ctrl.get('quantity')?.value || 0,
+      purchasePrice: ctrl.get('unitPrice')?.value || null,
+      batch: ctrl.get('batch')?.value || null,
+      notes: ctrl.get('notes')?.value || null
+    }));
+
+    // Create entry with supplier info as text (not linked to suppliers table)
+    const supplierInfo = this.showCreateSupplier 
+      ? `${this.newSupplierName}${this.newSupplierPhone ? ` - ${this.newSupplierPhone}` : ''}${this.newSupplierEmail ? ` - ${this.newSupplierEmail}` : ''}`
+      : this.selectedSupplierName;
+    
+    const notes = `${this.notes || ''}\nFournisseur: ${supplierInfo}\nPaiement partiel: ${this.partialPaymentAmount.toFixed(3)} dt (${this.paymentMethod.toUpperCase()}) - ${this.paymentNotes || 'Paiement bon d\'entrée'}`.trim();
+
+    this.stockDocs.createEntry(this.depotId, null, payloadItems, notes).subscribe({
+      next: (doc) => {
+        // Create payment record for the partial amount
+        this.createPartialPaymentRecord(supplierInfo, this.partialPaymentAmount, this.paymentMethod, this.paymentNotes, doc.id);
+      },
+      error: (err) => {
+        this.loading = false;
+        this.error = err.error?.error || 'Erreur lors de la création du bon d\'entrée';
+      }
+    });
+  }
+
+  createPartialPaymentRecord(supplierInfo: string, amount: number, method: string, notes: string, documentId?: number): void {
+    const remainingAmount = this.totalPurchaseAmount - amount;
+    
+    // First, ensure we have a proper supplier record
+    this.ensureSupplierExists(supplierInfo).then(supplierId => {
+      if (supplierId) {
+        // Create a single combined record that represents both payment and credit
+        this.createCombinedPaymentRecord(supplierId, amount, method, notes, documentId);
+        
+        // Add cash movement to closure system for cash payments
+        if (method === 'cash') {
+          this.addCashMovementToClosure(amount, supplierInfo, documentId);
+        } else {
+          this.finalizePayment(supplierInfo, amount, remainingAmount);
+        }
+      } else {
+        this.error = 'Erreur lors de la création du fournisseur';
+        this.loading = false;
+      }
+    });
+  }
+
+  addCashMovementToClosure(amount: number, supplierInfo: string, documentId?: number): void {
+    const currentSession = this.sessionsService.currentSession();
+    if (!currentSession) {
+      this.error = 'Aucune session de caisse ouverte';
+      this.loading = false;
+      return;
+    }
+
+    const movementData = {
+      type: 'SORTIE' as const,
+      amount: amount,
+      reason: `Paiement fournisseur - ${supplierInfo}${documentId ? ` (Bon #${documentId})` : ''}`
+    };
+
+    this.sessionsService.addCashMovement(currentSession.id, movementData).subscribe({
+      next: (movement) => {
+        this.finalizePayment(supplierInfo, amount, this.totalPurchaseAmount - amount);
+      },
+      error: (err) => {
+        this.loading = false;
+        this.error = 'Erreur lors de l\'enregistrement du mouvement de caisse';
+      }
+    });
+  }
+
+  ensureSupplierExists(supplierInfo: string): Promise<number | null> {
+    return new Promise((resolve) => {
+      // If we have a selected supplier from the list, use its ID
+      if (this.selectedSupplierName && !this.showCreateSupplier) {
+        const existingSupplier = this.suppliers().find(s => s.name === this.selectedSupplierName);
+        if (existingSupplier) {
+          resolve(existingSupplier.id);
+          return;
+        }
+      }
+      
+      // If creating a new supplier, create it first
+      if (this.showCreateSupplier && this.newSupplierName) {
+        const newSupplierData: CreateSupplierRequest = {
+          name: this.newSupplierName,
+          phone: this.newSupplierPhone || undefined,
+          email: this.newSupplierEmail || undefined,
+          address: undefined,
+          notes: 'Créé via bon d\'entrée'
+        };
+        
+        this.supplierService.createSupplier(newSupplierData).subscribe({
+          next: (supplier) => {
+            resolve(supplier.id);
+          },
+          error: (err) => {
+            console.error('Error creating supplier:', err);
+            resolve(null);
+          }
+        });
+      } else {
+        // For standalone entries, we can't create proper supplier records
+        // This is a limitation of the current implementation
+        resolve(null);
+      }
+    });
+  }
+
+  createCombinedPaymentRecord(supplierId: number, paidAmount: number, method: string, notes: string, documentId?: number): void {
+    // Create a single record that the supplier statement system will recognize as a partial payment
+    // The backend looks for specific patterns: "Payé: X dt" and "Total: Y dt"
+    const reference = `Bon d'entrée${documentId ? ` #${documentId}` : ''}`;
+    
+    const combinedData = {
+      supplierId: supplierId,
+      amount: -this.totalPurchaseAmount, // Negative amount for the full credit
+      notes: `Crédit - ${reference} - Payé: ${paidAmount.toFixed(3)} dt - Total: ${this.totalPurchaseAmount.toFixed(3)} dt (${method.toUpperCase()})${notes ? ` - ${notes}` : ''}`,
+      paymentMethod: method.toUpperCase() as 'CASH' | 'CARD' | 'CHECK' | 'BANK_TRANSFER'
+    };
+
+    this.supplierService.createSupplierPayment(combinedData).subscribe({
+      next: (payment) => {
+        console.log('Combined payment record created:', payment);
+      },
+      error: (err) => {
+        console.error('Error creating combined payment record:', err);
+      }
+    });
+  }
+
+  finalizePayment(supplierInfo: string, amount: number, remainingAmount: number): void {
+    this.loading = false;
+    this.success = `Bon d'entrée créé avec paiement partiel de ${amount.toFixed(3)} dt. Reste dû: ${remainingAmount.toFixed(3)} dt`;
+    this.showPaymentDialog = false;
+    setTimeout(() => {
+      this.router.navigate(['/stock-management']);
+    }, 3000);
   }
 
   createStandaloneEntry(): void {
@@ -214,16 +437,36 @@ export class NewEntryComponent implements OnInit {
       ? `${this.newSupplierName}${this.newSupplierPhone ? ` - ${this.newSupplierPhone}` : ''}${this.newSupplierEmail ? ` - ${this.newSupplierEmail}` : ''}`
       : this.selectedSupplierName;
     
-    const notes = `${this.notes || ''}\nFournisseur: ${supplierInfo}`.trim();
+    const notes = `${this.notes || ''}\nFournisseur: ${supplierInfo}\nStatut: En crédit`.trim();
 
     this.stockDocs.createEntry(this.depotId, null, payloadItems, notes).subscribe({
       next: (doc) => {
-        this.loading = false;
-        this.success = `Bon d'entrée créé avec succès`;
-        this.showSupplierDialog = false;
-        setTimeout(() => {
-          this.router.navigate(['/stock-management']);
-        }, 2000);
+        // Create credit record for the full amount
+        this.ensureSupplierExists(supplierInfo).then(supplierId => {
+          if (supplierId) {
+            // For full credit entries, create a simple credit record
+            const creditData = {
+              supplierId: supplierId,
+              amount: -this.totalPurchaseAmount, // Negative amount for credit/debt
+              notes: `Crédit - Bon d'entrée${doc.id ? ` #${doc.id}` : ''}`
+            };
+
+            this.supplierService.createSupplierPayment(creditData).subscribe({
+              next: (credit) => {
+                console.log('Credit record created:', credit);
+              },
+              error: (err) => {
+                console.error('Error creating credit record:', err);
+              }
+            });
+          }
+          this.loading = false;
+          this.success = `Bon d'entrée créé en crédit avec succès`;
+          this.showPaymentChoiceDialog = false;
+          setTimeout(() => {
+            this.router.navigate(['/stock-management']);
+          }, 2000);
+        });
       },
       error: (err) => {
         this.loading = false;
@@ -245,6 +488,19 @@ export class NewEntryComponent implements OnInit {
     this.newSupplierName = '';
     this.newSupplierPhone = '';
     this.newSupplierEmail = '';
+  }
+
+  // Payment dialog methods
+  closePaymentChoiceDialog(): void {
+    this.showPaymentChoiceDialog = false;
+  }
+
+  closePaymentDialog(): void {
+    this.showPaymentDialog = false;
+    this.paymentMethod = 'cash';
+    this.paymentNotes = '';
+    this.partialPaymentAmount = 0;
+    this.remainingAmount = 0;
   }
 
   toggleCreateSupplier(): void {

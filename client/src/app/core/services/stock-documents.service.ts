@@ -46,12 +46,13 @@ export class StockDocumentsService {
     });
   }
 
-  createEntry(depotId: number, supplierId: number | null, items: any[], notes?: string): Observable<StockDocument> {
+  createEntry(depotId: number, supplierId: number | null, items: any[], notes?: string, isReturn: boolean = false): Observable<StockDocument> {
     return this.http.post<StockDocument>(`${this.apiUrl}/entry`, {
       depotId,
       supplierId,
       items,
-      notes
+      notes,
+      isReturn
     });
   }
 

@@ -38,6 +38,7 @@ const routes: Routes = [
   { path: 'stock-history/:depotId', loadChildren: () => import('./stock-history/stock-history.module').then(m => m.StockHistoryModule) },
   { path: 'scan/:depotId', loadChildren: () => import('./scan-reception/scan-reception.module').then(m => m.ScanReceptionModule) },
   { path: 'produits-de-caisse', loadChildren: () => import('./produits-de-caisse/produits-de-caisse.module').then(m => m.ProduitsDeCaisseModule) },
+  { path: 'transport', loadChildren: () => import('./transport/transport.module').then(m => m.TransportModule) },
   { path: 'vehicles', loadChildren: () => import('./vehicles/vehicles.module').then(m => m.VehiclesModule) },
   { path: 'drivers', loadChildren: () => import('./drivers/drivers.module').then(m => m.DriversModule) }
 ];

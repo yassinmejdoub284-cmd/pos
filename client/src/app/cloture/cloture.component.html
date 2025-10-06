@@ -311,7 +311,20 @@
             </svg>
             <span>Magasin — {{ currentSession()?.depot?.name || '—' }}</span>
           </span>
-      </div>
+        </div>
+
+        <!-- User sales summary -->
+        @if (getUserSalesSummary().length > 0) {
+        <div class="mt-2 text-center">
+          <div class="flex flex-wrap justify-center gap-1 text-[9px] text-slate-600">
+            @for (user of getUserSalesSummary(); track user.userName) {
+            <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+              {{ user.userName }}: <span class="font-black">{{ formatCurrency(user.totalSales) }}</span>
+            </span>
+            }
+          </div>
+        </div>
+        }
     </div>
 
       <!-- Right: Décaissement -->
@@ -645,6 +658,20 @@
             <span>Magasin — {{ currentSession()?.depot?.name || '—' }}</span>
           </span>
         </div>
+
+        <!-- User sales summary in expanded view -->
+        @if (getUserSalesSummary().length > 0) {
+        <div class="mt-2 text-center">
+          <div class="text-[10px] text-slate-500 mb-1">Ventes par utilisateur</div>
+          <div class="flex flex-wrap justify-center gap-1 text-[9px] text-slate-600">
+            @for (user of getUserSalesSummary(); track user.userName) {
+            <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+              {{ user.userName }}: {{ formatCurrency(user.totalSales) }}
+            </span>
+            }
+          </div>
+        </div>
+        }
         </div>
 
       <!-- Right: Décaissement (always open) -->
@@ -949,7 +976,7 @@
           <path d="M6 13h12v8H6z" />
           <circle cx="18" cy="10" r="1" />
         </svg>
-        <span>Imprimer (test)</span>
+        <span>Imprimer</span>
       </button>
 
       <button (click)="showFundForm.set(true)"

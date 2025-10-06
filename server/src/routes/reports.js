@@ -695,6 +695,216 @@ router.get('/daily-extracts', async (req, res) => {
   }
 });
 
+// Session-based Extracts endpoints (group by session_id)
+router.get('/session-extracts', async (req, res) => {
+  try {
+    const depotIdParam = req.query.depotId;
+    const targetDepotId = depotIdParam ? parseInt(depotIdParam) : null;
+    const limitParam = req.query.limit ? parseInt(req.query.limit) : 20;
+
+    // Fetch recent sessions (most recent closed first, then open)
+    const sessions = await prisma.sessionCaisse.findMany({
+      where: {
+        ...(targetDepotId ? { depotId: targetDepotId } : {})
+      },
+      include: {
+        cashMovements: true
+      },
+      orderBy: [
+        { closedAt: 'desc' },
+        { openedAt: 'desc' }
+      ],
+      take: limitParam
+    });
+
+    const sessionIds = sessions.map(s => s.id);
+
+    // Fetch sales per session
+    const salesBySession = await prisma.sale.findMany({
+      where: {
+        status: 'COMPLETED',
+        sessionId: { in: sessionIds },
+        ...(targetDepotId ? { depotId: targetDepotId } : {})
+      },
+      include: {
+        items: {
+          include: {
+            product: { include: { famille: true } }
+          }
+        }
+      }
+    });
+
+    const salesMap = new Map();
+    salesBySession.forEach(sale => {
+      const list = salesMap.get(sale.sessionId) || [];
+      list.push(sale);
+      salesMap.set(sale.sessionId, list);
+    });
+
+    const extracts = sessions.map(session => {
+      const sales = salesMap.get(session.id) || [];
+
+      const totalSales = sales.length;
+      const totalRevenue = sales.reduce((sum, s) => sum + parseFloat(s.finalTotal || 0), 0);
+      const totalDiscount = sales.reduce((sum, s) => sum + parseFloat(s.discount || 0), 0);
+
+      // Group by families
+      const familyMap = new Map();
+      sales.forEach(sale => {
+        sale.items.forEach(item => {
+          const famId = item.product.famille.id;
+          const famName = item.product.famille.name;
+          if (!familyMap.has(famId)) {
+            familyMap.set(famId, {
+              id: famId,
+              name: famName,
+              totalRevenue: 0,
+              totalDiscount: 0,
+              products: new Map()
+            });
+          }
+          const fam = familyMap.get(famId);
+          fam.totalRevenue += parseFloat(item.total);
+          fam.totalDiscount += parseFloat(item.discount);
+
+          const pid = item.product.id;
+          if (!fam.products.has(pid)) {
+            fam.products.set(pid, {
+              id: pid,
+              name: item.product.name,
+              quantity: 0,
+              revenue: 0,
+              discount: 0
+            });
+          }
+          const p = fam.products.get(pid);
+          p.quantity += parseFloat(item.quantity);
+          p.revenue += parseFloat(item.total);
+          p.discount += parseFloat(item.discount);
+        });
+      });
+
+      const families = Array.from(familyMap.values()).map(f => ({
+        ...f,
+        products: Array.from(f.products.values())
+      }));
+
+      // Cash movements per session (entries/exits)
+      const totalExpenses = 0; // keep 0 to match existing shape; expenses tracked via cash movements
+
+      const dateStr = (session.closedAt || session.openedAt).toISOString().split('T')[0];
+
+      return {
+        // keep existing shape for frontend compatibility
+        date: dateStr,
+        hasData: totalSales > 0 || (session.cashMovements || []).length > 0,
+        totalSales,
+        totalRevenue,
+        totalDiscount,
+        totalExpenses,
+        families,
+        // Extra fields for future use (non-breaking to clients that ignore unknowns)
+        sessionId: session.id,
+        openedAt: session.openedAt,
+        closedAt: session.closedAt,
+        status: session.status,
+        expectedCash: session.expectedCash,
+        countedCash: session.countedCash
+      };
+    });
+
+    res.json(extracts);
+  } catch (error) {
+    console.error('Error generating session extracts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/session-extracts/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const session = await prisma.sessionCaisse.findUnique({
+      where: { id },
+      include: { cashMovements: true }
+    });
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const sales = await prisma.sale.findMany({
+      where: { status: 'COMPLETED', sessionId: id },
+      include: {
+        items: { include: { product: { include: { famille: true } } } }
+      }
+    });
+
+    const totalRevenue = sales.reduce((sum, s) => sum + parseFloat(s.finalTotal || 0), 0);
+    const totalDiscount = sales.reduce((sum, s) => sum + parseFloat(s.discount || 0), 0);
+
+    const familyMap = new Map();
+    sales.forEach(sale => {
+      sale.items.forEach(item => {
+        const famId = item.product.famille.id;
+        const famName = item.product.famille.name;
+        if (!familyMap.has(famId)) {
+          familyMap.set(famId, {
+            id: famId,
+            name: famName,
+            totalRevenue: 0,
+            totalDiscount: 0,
+            products: new Map()
+          });
+        }
+        const fam = familyMap.get(famId);
+        fam.totalRevenue += parseFloat(item.total);
+        fam.totalDiscount += parseFloat(item.discount);
+        const pid = item.product.id;
+        if (!fam.products.has(pid)) {
+          fam.products.set(pid, {
+            id: pid,
+            name: item.product.name,
+            designation_legale: item.product.designation_legale || undefined,
+            quantity: 0,
+            revenue: 0,
+            discount: 0
+          });
+        }
+        const p = fam.products.get(pid);
+        p.quantity += parseFloat(item.quantity);
+        p.revenue += parseFloat(item.total);
+        p.discount += parseFloat(item.discount);
+      });
+    });
+
+    const families = Array.from(familyMap.values()).map(f => ({
+      ...f,
+      products: Array.from(f.products.values())
+    }));
+
+    // Map to existing DailyExtractDetail shape for compatibility
+    const detail = {
+      date: (session.closedAt || session.openedAt).toISOString().split('T')[0],
+      families,
+      totalDiscount,
+      totalRevenue,
+      soldeDebit: 0,
+      expenses: [],
+      totalExpenses: 0,
+      totalCaisse: session.expectedCash || 0,
+      withdrawal: (session.cashMovements || [])
+        .filter(m => m.type === 'RETRAIT_CENTRALE')
+        .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0),
+      remainingCash: (session.countedCash ?? 0)
+    };
+
+    res.json(detail);
+  } catch (error) {
+    console.error('Error generating session extract detail:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/daily-extracts/:date', async (req, res) => {
   try {
     const { date } = req.params;

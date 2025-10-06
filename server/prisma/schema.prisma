@@ -437,6 +437,7 @@ model Sale {
   sessionId              Int?                    @map("session_id")
   isWholesale            Boolean                 @default(false) @map("is_wholesale")
   dailyTicketNumber      String?                 @map("daily_ticket_number") @db.VarChar(50)
+  isPrinted              Boolean                 @default(false) @map("is_printed")
   debtTransactions       ClientDebtTransaction[]
   invoiceRequests        InvoiceRequest[]
   invoices               Invoice[]

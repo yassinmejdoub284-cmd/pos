@@ -5,6 +5,7 @@ import { DepotsService } from '../../../core/services/depots.service';
 import { ProductsService } from '../../../core/services/products.service';
 import { SuppliersService } from '../../../core/services/suppliers.service';
 import { StockDocument, StockDocumentItem } from '../../../core/models/stock-document.model';
+import { buildScanLikeDocumentHtmlFromDocument, getScanPrintStyles } from '../../shared/print-templates';
 import { Depot } from '../../../core/models/stock-document.model';
 import { Product } from '../../../core/models/product.model';
 import { Supplier } from '../../../core/models/stock-document.model';
@@ -16,11 +17,17 @@ import { Supplier } from '../../../core/models/stock-document.model';
   standalone: false
 })
 export class BonEntreeComponent implements OnInit {
+  depotId: string | null = null;
   documentId: string | null = null;
   document: StockDocument | null = null;
+  documents: StockDocument[] = [];
+  selectedDocument: StockDocument | null = null;
   loading = false;
   error = '';
   success = '';
+  isEditMode = false;
+  showDocumentDetails = false;
+  isReturnsMode = false;
 
   // Form data
   selectedDepot: Depot | null = null;
@@ -48,21 +55,33 @@ export class BonEntreeComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.documentId = this.route.snapshot.paramMap.get('id');
+    // Distinguish params based on route configuration
+    this.depotId = this.route.snapshot.paramMap.get('depotId');
+    this.documentId = this.route.snapshot.paramMap.get('documentId');
+    // Returns mode: when navigating via /stock/documents/bon-retour/:depotId
+    const path = this.router.url;
+    const showReturnsOnly = path.includes('/stock/documents/bon-retour/');
+    this.isReturnsMode = showReturnsOnly;
     this.loadInitialData();
-    
-    if (this.documentId && this.documentId !== 'new') {
+
+    const url = this.router.url;
+    this.isEditMode = url.includes('/edit/');
+
+    if (this.isEditMode && this.documentId) {
       this.loadDocument();
+    } else if (this.depotId) {
+      this.loadDocumentsForDepot(showReturnsOnly);
     }
   }
 
   loadInitialData(): void {
     this.loading = true;
     
+    const depotFilter = this.depotId ? parseInt(this.depotId, 10) : undefined as any;
     Promise.all([
       this.depotsService.list().toPromise(),
       this.suppliersService.list().toPromise(),
-      this.productsService.getProducts().toPromise()
+      this.productsService.getProducts(depotFilter).toPromise()
     ]).then(([depots, suppliers, products]) => {
       this.depots = depots || [];
       this.suppliers = suppliers || [];
@@ -92,6 +111,56 @@ export class BonEntreeComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  loadDocumentsForDepot(returnsOnly: boolean = false): void {
+    if (!this.depotId) return;
+    this.loading = true;
+    this.stockDocsService.getDocuments(1, 50, 'BON_ENTREE_DEPOT', undefined, parseInt(this.depotId)).subscribe({
+      next: (response) => {
+        const docs = (response.data || []).filter((d: StockDocument) => (d as any).type === 'BON_ENTREE_DEPOT');
+        this.documents = returnsOnly
+          ? docs.filter((d: StockDocument) => this.isReturnDocument(d))
+          : docs.filter((d: StockDocument) => !this.isReturnDocument(d));
+        this.loading = false;
+      },
+      error: () => {
+        this.error = 'Erreur lors du chargement des documents';
+        this.loading = false;
+      }
+    });
+  }
+
+  editDocumentFromList(document: StockDocument): void {
+    this.router.navigate(['/stock/documents/bon-entree/edit', document.id]);
+  }
+
+  viewDocument(document: StockDocument): void {
+    this.selectedDocument = document;
+    this.showDocumentDetails = true;
+  }
+
+  closeDocumentDetails(): void {
+    this.showDocumentDetails = false;
+    this.selectedDocument = null;
+  }
+
+  startCreate(): void {
+    this.isEditMode = true;
+    this.documentId = 'new';
+    this.document = null;
+    this.selectedDepot = null;
+    this.selectedSupplier = null;
+    this.items = [];
+    this.notes = '';
+    this.error = '';
+    this.success = '';
+  }
+
+  cancelCreate(): void {
+    this.isEditMode = false;
+    this.error = '';
+    this.success = '';
   }
 
   addItem(): void {
@@ -182,8 +251,8 @@ export class BonEntreeComponent implements OnInit {
           this.loading = false;
           // Auto-dismiss success message after 3 seconds
           setTimeout(() => this.success = '', 3000);
-          // Navigate to the new document
-          this.router.navigate(['/stock/documents/bon-entree', doc.id]);
+          // Navigate to the new document edit view to avoid param confusion
+          this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
         },
         error: (error) => {
           this.error = error.error?.error || 'Erreur lors de la création du document';
@@ -195,30 +264,55 @@ export class BonEntreeComponent implements OnInit {
     }
   }
 
-  printDocument(): void {
-    if (!this.document) return;
-    // Implement print functionality
-    window.print();
+  printDocument(doc?: StockDocument): void {
+    const target = doc || this.document;
+    if (!target) return;
+    const printContent = buildScanLikeDocumentHtmlFromDocument(target, 'transfert', null);
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      this.error = 'Impossible d\'ouvrir la fenêtre d\'impression';
+      return;
+    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Bon d'Entrée - ${target.numero}</title>
+        <style>${getScanPrintStyles()}</style>
+      </head>
+      <body>
+        ${printContent}
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
   }
 
   goBack(): void {
     this.router.navigate(['/stock']);
   }
 
-  getTotalQuantity(): number {
-    if (!this.items || this.items.length === 0) return 0;
-    const total = this.items.reduce((total, item) => {
+  getTotalQuantity(items?: any[] | undefined): number {
+    const source = items ?? this.items;
+    if (!source || source.length === 0) return 0;
+    const total = source.reduce((sum, item: any) => {
       const quantity = Number(item.quantity) || 0;
-      return total + quantity;
+      return sum + quantity;
     }, 0);
-    return Math.round(total * 1000) / 1000; // Round to 3 decimal places
+    return Math.round(total * 1000) / 1000;
   }
 
-  getTotalCount(): number {
-    if (!this.items || this.items.length === 0) return 0;
-    return this.items.reduce((total, item) => {
+  getTotalCount(items?: any[] | undefined): number {
+    const source = items ?? this.items;
+    if (!source || source.length === 0) return 0;
+    return source.reduce((sum, item: any) => {
       const count = Number(item['count']) || 0;
-      return total + count;
+      return sum + count;
     }, 0);
   }
 
@@ -232,5 +326,32 @@ export class BonEntreeComponent implements OnInit {
 
   getProductFamille(product: Product): string {
     return typeof product.famille === 'string' ? product.famille : product.famille?.name || 'N/A';
+  }
+
+  formatDate(date: string | Date): string {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('fr-FR');
+  }
+
+  // Helpers to distinguish returns vs entries (when saved via negative quantities)
+  isReturnDocument(doc: StockDocument): boolean {
+    const items: any[] = (doc as any).items || [];
+    return Array.isArray(items) && items.some((i: any) => Number(i.quantity) < 0);
+  }
+
+  getDocumentTypeLabel(doc: StockDocument): string {
+    if (this.isReturnDocument(doc)) return 'Bon de Retour';
+    switch (doc.type) {
+      case 'BON_ENTREE_DEPOT':
+        return 'Bon d\'Entrée';
+      case 'BON_ENTREE_MAGASIN':
+        return 'Bon d\'Entrée magasin';
+      case 'BON_EXPEDITION':
+        return 'Bon d\'expédition';
+      case 'BON_TRANSFERT':
+        return 'Bon de transfert';
+      default:
+        return doc.type as any;
+    }
   }
 }

@@ -31,6 +31,8 @@ export interface Sale {
   // Session information
   sessionId?: number;
   session?: { id: number };
+  // Printed flag
+  isPrinted?: boolean;
 }
 
 export interface SaleItem {

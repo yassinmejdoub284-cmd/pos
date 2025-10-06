@@ -52,6 +52,52 @@ router.get('/active', authenticateToken, async (req, res) => {
   }
 });
 
+// Get active session by depot only (no user linkage)
+router.get('/active-by-depot', authenticateToken, async (req, res) => {
+  try {
+    const { posId, depotId } = req.query;
+    
+    // Always enforce depot isolation - use user's depot or provided depot
+    const userDepotId = req.user.depotId;
+    const requestedDepotId = depotId ? parseInt(depotId) : userDepotId;
+    
+    // For non-admin users, only allow access to their own depot
+    if (req.user.role !== 'ADMIN' && requestedDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
+    }
+    
+    const where = {
+      posId: posId ? parseInt(posId) : 1,
+      status: 'OPEN',
+      depotId: requestedDepotId // Only filter by depot, no user linkage
+    };
+
+    const activeSession = await prisma.sessionCaisse.findFirst({
+      where,
+      include: {
+        user: { select: { firstName: true, lastName: true } },
+        depot: { select: { name: true, code: true } },
+        cashMovements: {
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+
+    if (!activeSession) {
+      return res.json(null);
+    }
+
+    // Calculate expected cash from sales and movements
+    const sessionSummary = await calculateSessionSummary(activeSession.id);
+    activeSession.summary = sessionSummary;
+
+    res.json(activeSession);
+  } catch (error) {
+    console.error('Error fetching active session by depot:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Open new session
 router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
   try {
@@ -177,6 +223,132 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
     res.status(201).json(session);
   } catch (error) {
     console.error('Error opening session:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Open new session by depot only (no user linkage)
+router.post('/open-by-depot', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+  try {
+    const { openingFund, posId, note, depotId } = req.body;
+
+    if (openingFund === undefined || openingFund === null || openingFund < 0) {
+      return res.status(400).json({ error: 'Fonds de caisse requis et doit être positif ou zéro' });
+    }
+
+    // Enforce depot isolation first
+    const userDepotId = req.user.depotId;
+    let targetDepotId = userDepotId;
+    
+    if (req.user.role === 'ADMIN') {
+      // Admin can specify depot, but must be valid
+      if (depotId) {
+        const requestedDepot = await prisma.depot.findFirst({ 
+          where: { id: parseInt(depotId), isActive: true, type: 'SHOP' } 
+        });
+        if (requestedDepot) {
+          targetDepotId = requestedDepot.id;
+        } else {
+          return res.status(400).json({ error: 'Invalid or inactive depot specified' });
+        }
+      } else if (!userDepotId) {
+        // Admin without depot assignment - find first active SHOP depot
+        const defaultDepot = await prisma.depot.findFirst({ 
+          where: { isActive: true, type: 'SHOP' }, orderBy: { id: 'asc' }
+        });
+        if (defaultDepot) {
+          targetDepotId = defaultDepot.id;
+        } else {
+          return res.status(400).json({ error: 'Aucun dépôt SHOP actif disponible pour ouvrir une session.' });
+        }
+      }
+    } else {
+      // Non-admin users must use their assigned depot
+      if (!userDepotId) {
+        return res.status(400).json({ error: 'User is not assigned to any depot.' });
+      }
+      // Non-admin users cannot specify different depot
+      if (depotId && parseInt(depotId) !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot create session for different depot' });
+      }
+    }
+
+    // Check if there's already an open session FOR THIS SPECIFIC DEPOT (no user linkage)
+    const existingSession = await prisma.sessionCaisse.findFirst({
+      where: {
+        posId: posId ? parseInt(posId) : 1,
+        depotId: targetDepotId, // CRITICAL: Filter by depot only
+        status: 'OPEN'
+      }
+    });
+
+    if (existingSession) {
+      return res.status(400).json({ error: 'Une session est déjà ouverte pour ce dépôt' });
+    }
+
+    // Get last session's fonds as default if not provided (0 is valid)
+    let defaultFonds = parseFloat(openingFund);
+    if (openingFund === undefined || openingFund === null) {
+      const lastSession = await prisma.sessionCaisse.findFirst({
+        where: {
+          posId: posId ? parseInt(posId) : 1,
+          depotId: targetDepotId, // CRITICAL: Filter by depot only
+          status: 'CLOSED'
+        },
+        orderBy: { closedAt: 'desc' }
+      });
+      
+      if (lastSession) {
+        // Try to extract fonds from the last session's note
+        let fondsFromNote = 0;
+        if (lastSession.note && lastSession.note.includes('Fonds pour prochaine session:')) {
+          const match = lastSession.note.match(/Fonds pour prochaine session: ([\d.]+)/);
+          if (match) {
+            fondsFromNote = parseFloat(match[1]);
+          }
+        }
+        defaultFonds = fondsFromNote || 0;
+      } else {
+        // No previous session, use 0 as default
+        defaultFonds = 0;
+      }
+    }
+
+    const session = await prisma.sessionCaisse.create({
+      data: {
+        posId: posId ? parseInt(posId) : 1,
+        userId: req.user.id, // Still track who opened it for audit purposes
+        depotId: targetDepotId,
+        openingFund: defaultFonds,
+        expectedCash: defaultFonds,
+        note: note || null
+      },
+      include: {
+        user: { select: { firstName: true, lastName: true } },
+        depot: { select: { name: true, code: true } }
+      }
+    });
+
+    await logAudit(req.user.id, 'session_caisse', session.id, 'CREATE', null, {
+      posId: session.posId,
+      openingFund: session.openingFund,
+      note: session.note
+    });
+
+    // Emit socket notification
+    if (req.app.get('io')) {
+      req.app.get('io').emit('session_opened', {
+        sessionId: session.id,
+        userId: session.userId,
+        posId: session.posId,
+        openingFund: session.openingFund,
+        openedAt: session.openedAt
+      });
+    }
+
+    res.status(201).json(session);
+  } catch (error) {
+    console.error('Error opening session by depot:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1109,6 +1281,7 @@ async function generateZReport(sessionId, closureData = {}) {
       sales: {
         include: {
           paymentMethod: true,
+          user: { select: { firstName: true, lastName: true } },
           items: {
             include: {
               product: {

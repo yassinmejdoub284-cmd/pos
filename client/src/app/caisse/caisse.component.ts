@@ -19,6 +19,7 @@ import { SupplierService } from '../core/services/supplier.service';
 import { ExpenseService } from '../core/services/expense.service';
 import { ImagePreloadService } from '../core/services/image-preload.service';
 import { TicketCounterService } from '../core/services/ticket-counter.service';
+import { SocketService } from '../core/services/socket.service';
 import { Product } from '../core/models/product.model';
 import { Sale } from '../core/models/sale.model';
 import { Client } from '../core/models/client.model';
@@ -112,6 +113,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Ticket action dialog
   showTicketActionDialog = false;
   selectedTicket: Sale | null = null;
+
+  // Gift action dialog
+  showGiftActionDialog = false;
 
   // Ticket details modal
   showTicketDetailsModal = false;
@@ -216,6 +220,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   dragDetectionStarted: boolean = false;
 
   @ViewChild('productGrid') productGrid!: ElementRef;
+  @ViewChild('mainContainer') mainContainer!: ElementRef;
 
   // Session management
   currentSession: any = null;
@@ -301,14 +306,14 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Quick gift reason options
   quickGiftReasons = [
-    'Anniversaire',
-    'Mariage',
-    'Événement spécial',
-    'Client fidèle',
-    'Promotion',
-    'Test produit',
-    'Dégustation',
-    'Autre'
+    '🎂 Anniversaire',
+    '💒 Mariage',
+    '🎉 Événement spécial',
+    '⭐ Client fidèle',
+    '🎯 Promotion',
+    '👔 Visite officielle',
+    '🍰 Dégustation',
+    '📝 Autre'
   ];
 
   // Quick amount buttons for cash payments
@@ -369,7 +374,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       label: 'Cadeau',
       icon: 'M12 8v13m0-13V6a2 2 0 112 2h-2zM5 12h14M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7',
       color: '#84cc16', // Lime-500: joyful
-      action: () => this.markAsGift()
+      action: () => this.showGiftActionDialog = true
     },
     {
       id: 'discount',
@@ -455,7 +460,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private supplierService: SupplierService,
     private expenseService: ExpenseService,
     private imagePreloadService: ImagePreloadService,
-    private ticketCounterService: TicketCounterService
+    private ticketCounterService: TicketCounterService,
+    private socketService: SocketService
   ) {}
 
   ngOnInit(): void {
@@ -471,6 +477,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Set depot ID in ticket counter service for isolation
     if (this.currentShopDepotId) {
       this.ticketCounterService.setDepotId(this.currentShopDepotId);
+      // Join depot room for real-time synchronization
+      this.socketService.connect();
+      this.socketService.joinDepot(this.currentShopDepotId);
     }
     
     // If user is admin and has no depot ID, show depot selection
@@ -502,6 +511,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadPendingReturnRequests(); // Load pending return requests
     this.loadSettings();
     
+    // Only load session state; do not auto-open if none exists
     this.loadCurrentSession();
     // Sync ticket counter from today's history once at startup to avoid accidental resets
     this.syncTicketCounterFromTodaySales();
@@ -1200,6 +1210,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
     maxDebt: null
   };
 
+  // Quick add supplier functionality
+  showQuickAddSupplierPopup = false;
+  quickAddSupplierForm = {
+    name: '',
+    contactName: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: 'Tunis',
+    postalCode: '',
+    taxNumber: '',
+    paymentTerms: '',
+    notes: ''
+  };
+
   // Tunisian governorates (24)
   tunisianCities: string[] = [
     'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan', 'Bizerte', 'Beja', 'Jendouba',
@@ -1555,7 +1580,61 @@ export class CaisseComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Quick add supplier methods
+  openQuickAddSupplier(): void {
+    this.quickAddSupplierForm = {
+      name: '',
+      contactName: '',
+      email: '',
+      phone: '',
+      address: '',
+      city: 'Tunis',
+      postalCode: '',
+      taxNumber: '',
+      paymentTerms: '',
+      notes: ''
+    };
+    this.showQuickAddSupplierPopup = true;
+  }
 
+  closeQuickAddSupplier(): void {
+    this.showQuickAddSupplierPopup = false;
+  }
+
+  createQuickSupplier(): void {
+    if (!this.quickAddSupplierForm.name.trim()) {
+      this.showAlertMessage('Le nom du fournisseur est obligatoire', 'error');
+      return;
+    }
+
+    const createRequest = {
+      name: this.quickAddSupplierForm.name.trim(),
+      contactName: this.quickAddSupplierForm.contactName.trim() || undefined,
+      email: this.quickAddSupplierForm.email.trim() || undefined,
+      phone: this.quickAddSupplierForm.phone.trim() || undefined,
+      address: this.quickAddSupplierForm.address.trim() || undefined,
+      city: this.quickAddSupplierForm.city,
+      postalCode: this.quickAddSupplierForm.postalCode.trim() || undefined,
+      taxNumber: this.quickAddSupplierForm.taxNumber.trim() || undefined,
+      paymentTerms: this.quickAddSupplierForm.paymentTerms.trim() || undefined,
+      notes: this.quickAddSupplierForm.notes.trim() || undefined
+    };
+
+    this.supplierService.createSupplier(createRequest).subscribe({
+      next: (newSupplier) => {
+        this.showAlertMessage(`Fournisseur ${newSupplier.name} créé avec succès`, 'success');
+        this.closeQuickAddSupplier();
+        
+        // Refresh the supplier cache and search results
+        this.loadSuppliersForQuickActions();
+        this.loadExpenseSuppliers();
+      },
+      error: (error) => {
+        this.showAlertMessage('Erreur lors de la création du fournisseur', 'error');
+        console.error('Error creating supplier:', error);
+      }
+    });
+  }
 
   trackByCity(index: number, city: string): string {
     return city;
@@ -1826,6 +1905,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.isWholesaleMode = false;
     this.filterProducts();
     this.processPayment(true);
+    
+    // Set focus back to the main container for keyboard input
+    this.setFocusAfterPayment();
   }
 
   // Process payment without receipt printing
@@ -1837,6 +1919,23 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     // Open cash drawer after completing sale without printing
     this.printService.openCashDrawer();
+    
+    // Set focus back to the main container for keyboard input
+    this.setFocusAfterPayment();
+  }
+
+  // Set focus after payment completion
+  private setFocusAfterPayment(): void {
+    // Use setTimeout to ensure the DOM has been updated
+    setTimeout(() => {
+      if (this.productGrid && this.productGrid.nativeElement) {
+        // Focus on the product grid container which has tabindex="0"
+        const container = this.productGrid.nativeElement.closest('[tabindex="0"]');
+        if (container) {
+          container.focus();
+        }
+      }
+    }, 100);
   }
 
   // Main payment processing method
@@ -1907,14 +2006,35 @@ export class CaisseComponent implements OnInit, OnDestroy {
           this.printReceipt();
         }
         
-        // Increment ticket number after successful sale
-        this.incrementTicketNumber();
+        // Update ticket counter with actual ticket number from server
+        this.updateTicketCounterFromSale(savedSale);
         
         // Refresh shop inventory to show updated stock quantities
         this.loadShopInventory();
         
-        // Refresh session data to update sales totals
-        this.sessionsService.getActiveSession().subscribe();
+        // Open a session only after sale if none is currently open; otherwise just refresh session data
+        if (!this.currentSession) {
+          const defaultSession = {
+            openingFund: 0,
+            posId: 1,
+            depotId: this.currentShopDepotId,
+            note: 'Session ouverte après vente'
+          };
+          this.sessionsService.openSession(defaultSession).subscribe({
+            next: (session) => {
+              this.currentSession = session;
+              this.isShiftOpen = true;
+              this.ticketCounterService.setSessionId(session.id);
+              this.ticketCounterService.setDepotId(session.depotId || this.currentShopDepotId);
+            },
+            error: () => {
+              // If opening session fails, continue without blocking the sale flow
+            }
+          });
+        } else {
+          // Refresh session data to update sales totals
+          this.sessionsService.getActiveSession().subscribe();
+        }
         
         // Refresh clients list to update debt information
         this.fetchAllClients();
@@ -1989,6 +2109,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Use unified receipt printing (same as Historique)
     const sale = this.buildSaleForPrinting();
     this.printService.printSaleReceipt(sale);
+    // Mark printed if sale has id
+    if (sale && (sale as any).id) {
+      this.salesService.markPrinted((sale as any).id).subscribe({
+        next: () => {},
+        error: () => {}
+      });
+    }
     this.showAlertMessage('Reçu imprimé avec succès!', 'success');
   }
 
@@ -2344,12 +2471,23 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getTemporarySaleBadge(): string {
     if (!this.isTemporarySale) return '';
+    return this.getCartBadge();
+  }
+
+  getCartBadge(): string {
     const activeCart = this.getActiveCart();
-    if (!activeCart) return '';
+    if (!activeCart || activeCart.items.length === 0) return 'Aucun article';
     
     const itemCount = activeCart.items.length;
     const totalQuantity = activeCart.items.reduce((sum, item) => sum + item.quantity, 0);
-    return `${itemCount} article${itemCount > 1 ? 's' : ''} (${totalQuantity} unités)`;
+    
+    // Show individual products with quantities
+    const productList = activeCart.items.map(item => {
+      const productName = item.product?.name || `Produit #${item.product?.id || 'N/A'}`;
+      return `${productName} (x${item.quantity})`;
+    }).join(', ');
+    
+    return `${itemCount} article${itemCount > 1 ? 's' : ''} (${totalQuantity} unités): ${productList}`;
   }
 
   getTodayDate(): string {
@@ -2491,8 +2629,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
       next: (completedSale) => {
         this.showAlertMessage('Vente temporaire finalisée avec succès!', 'success');
         
-        // Increment ticket number after successful temporary sale completion
-        this.incrementTicketNumber();
+        // Update ticket counter with actual ticket number from server
+        this.updateTicketCounterFromSale(completedSale);
         
         // Refresh shop inventory to show updated stock quantities
         this.loadShopInventory();
@@ -2568,9 +2706,23 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.giftReason = reason;
   }
 
+  isQuickReasonSelected(reason: string): boolean {
+    return this.giftReason.trim() == reason.trim();
+  }
+
+  isOtherReasonSelected(): boolean {
+    return this.giftReason.trim().toLowerCase().includes('autre');
+  }
+
   confirmGift(): void {
     if (!this.giftReason.trim()) {
-      this.showAlertMessage('Veuillez spécifier la raison du cadeau', 'error');
+      this.showAlertMessage('Veuillez sélectionner une raison du cadeau', 'error');
+      return;
+    }
+    
+    // If "Autre" is selected, require detailed reason (more than just "Autre")
+    if (this.giftReason.trim() === 'Autre') {
+      this.showAlertMessage('Veuillez spécifier la raison détaillée du cadeau', 'error');
       return;
     }
     
@@ -2629,6 +2781,32 @@ export class CaisseComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error loading gift sales:', error);
         this.showAlertMessage('Erreur lors du chargement des cadeaux', 'error');
+      }
+    });
+  }
+
+  loadApprovedGiftSales(): void {
+    this.salesService.getSales().subscribe({
+      next: (sales) => {
+        this.existingGiftSales = sales.filter(sale => sale.status === 'CADEAU');
+        this.showExistingGiftSalesPopup = true;
+      },
+      error: (error) => {
+        console.error('Error loading approved gift sales:', error);
+        this.showAlertMessage('Erreur lors du chargement des cadeaux approuvés', 'error');
+      }
+    });
+  }
+
+  loadPendingGiftSales(): void {
+    this.salesService.getSales().subscribe({
+      next: (sales) => {
+        this.existingGiftSales = sales.filter(sale => sale.status === 'PENDING_ADMIN');
+        this.showExistingGiftSalesPopup = true;
+      },
+      error: (error) => {
+        console.error('Error loading pending gift sales:', error);
+        this.showAlertMessage('Erreur lors du chargement des cadeaux en attente', 'error');
       }
     });
   }
@@ -2703,15 +2881,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
           // No session found, ensure depot ID is set for new session
           this.ticketCounterService.setDepotId(this.currentShopDepotId);
         }
-        if (!session) {
-          this.autoOpenSession();
-        }
       },
       error: (error) => {
         console.error('Error loading current session:', error);
         // Ensure depot ID is set even on error
         this.ticketCounterService.setDepotId(this.currentShopDepotId);
-        this.autoOpenSession();
       }
     });
   }
@@ -4044,6 +4218,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   printLastReceipt(): void {
     const sale = this.buildSaleForPrinting(true);
     this.printService.printSaleReceipt(sale);
+    if (sale && (sale as any).id) {
+      this.salesService.markPrinted((sale as any).id).subscribe({ next: () => {}, error: () => {} });
+    }
     this.showAlertMessage('Reçu imprimé avec succès!', 'success');
   }
 
@@ -4422,21 +4599,66 @@ export class CaisseComponent implements OnInit, OnDestroy {
     }
   }
 
-  printTicket(ticket: Sale): void {
-    // Use the existing print service to print the ticket
-    try {
-      this.printService.printSaleReceipt(ticket);
-      this.showAlertMessage('Ticket imprimé avec succès', 'success');
-    } catch (error) {
-      console.error('Error printing ticket:', error);
-      this.showAlertMessage('Erreur lors de l\'impression du ticket', 'error');
+  // Gift action dialog methods
+  onGiftActionSelected(actionId: string): void {
+    switch (actionId) {
+      case 'consult-approved':
+        this.loadApprovedGiftSales();
+        this.closeGiftActionDialog();
+        break;
+      case 'consult-pending':
+        this.loadPendingGiftSales();
+        this.closeGiftActionDialog();
+        break;
+      case 'add-from-cart':
+        this.markAsGift();
+        this.closeGiftActionDialog();
+        break;
     }
   }
 
+  closeGiftActionDialog(): void {
+    this.showGiftActionDialog = false;
+  }
+
+  private loadFullSaleIfNeeded(ticket: Sale): Promise<Sale> {
+    if (ticket && Array.isArray(ticket.items) && ticket.items.length > 0 && ticket.items[0]?.productName) {
+      return Promise.resolve(ticket);
+    }
+    return new Promise((resolve, reject) => {
+      if (!ticket?.id) {
+        resolve(ticket);
+        return;
+      }
+      this.salesService.getSale(ticket.id).subscribe({
+        next: (full) => resolve(full),
+        error: () => reject(new Error('Failed to load full sale'))
+      });
+    });
+  }
+
+  printTicket(ticket: Sale): void {
+    // Ensure we have full items before printing
+    this.loadFullSaleIfNeeded(ticket)
+      .then((full) => {
+        try {
+          this.printService.printSaleReceipt(full);
+          this.showAlertMessage('Ticket imprimé avec succès', 'success');
+        } catch (error) {
+          this.showAlertMessage('Erreur lors de l\'impression du ticket', 'error');
+        }
+      })
+      .catch(() => this.showAlertMessage('Impossible de charger les articles du ticket', 'error'));
+  }
+
   showTicketDetails(ticket: Sale): void {
-    // Show ticket details inline instead of redirecting
-    this.selectedTicket = ticket;
-    this.showTicketDetailsModal = true;
+    // Load full sale if needed, then show details
+    this.loadFullSaleIfNeeded(ticket)
+      .then((full) => {
+        this.selectedTicket = full;
+        this.showTicketDetailsModal = true;
+      })
+      .catch(() => this.showAlertMessage('Impossible de charger les détails du ticket', 'error'));
   }
 
   closeTicketMenu(): void {
@@ -4458,6 +4680,17 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.closeTicketDetailsModal();
   }
 
+  // Open ticket action dialog for the last validated sale from the top bar shortcut
+  openLastSaleMenu(): void {
+    if (!this.lastValidatedSale) return;
+    // lastValidatedSale is built for printing; ensure we at least have an id
+    const ticket = (this.lastValidatedSale as any).id ? (this.lastValidatedSale as any) : null;
+    if (ticket) {
+      this.selectedTicket = ticket as Sale;
+      this.showTicketActionDialog = true;
+    }
+  }
+
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: Event): void {
     const target = event.target as HTMLElement;
@@ -4477,6 +4710,36 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   resetTicketNumber(): void {
     this.ticketCounterService.resetTicketCounter();
+  }
+
+  updateTicketCounterFromSale(sale: any): void {
+    if (sale && sale.dailyTicketNumber) {
+      // Extract ticket number from the dailyTicketNumber field
+      const extractNumber = (ticketNumber: string): number => {
+        if (!ticketNumber) return 0;
+        const s = String(ticketNumber);
+        if (s.includes('/')) {
+          const part = s.split('/')[1];
+          const n = parseInt(part, 10);
+          return isNaN(n) ? 0 : n;
+        }
+        const n = parseInt(s, 10);
+        return isNaN(n) ? 0 : n;
+      };
+
+      const ticketNumber = extractNumber(sale.dailyTicketNumber);
+      
+      // Update ticket counter to be the next number after this sale
+      if (ticketNumber > 0) {
+        this.ticketCounterService.setCurrentTicketNumberIfHigher(ticketNumber + 1);
+      } else {
+        // Fallback to increment if we can't extract the number
+        this.ticketCounterService.incrementTicketNumber();
+      }
+    } else {
+      // Fallback to increment if no ticket number is available
+      this.ticketCounterService.incrementTicketNumber();
+    }
   }
 
   // Ensure we never go backwards on ticket numbering during this session
@@ -4525,6 +4788,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.removeTouchEventListeners();
+    
+    // Leave depot room and disconnect socket
+    if (this.currentShopDepotId) {
+      this.socketService.leaveDepot(this.currentShopDepotId);
+    }
+    this.socketService.disconnect();
   }
 
   // Drag and Drop Methods
@@ -5743,6 +6012,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   confirmDepotSelection(): void {
     if (this.selectedDepot) {
+      // Leave previous depot room if any
+      if (this.currentShopDepotId) {
+        this.socketService.leaveDepot(this.currentShopDepotId);
+      }
+      
       this.currentShopDepotId = this.selectedDepot.id;
       this.currentShopName = this.selectedDepot.name;
       this.showDepotSelection = false;
@@ -5750,6 +6024,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // Set depot ID in ticket counter service for isolation
       // This will automatically load the depot-specific ticket state
       this.ticketCounterService.setDepotId(this.currentShopDepotId);
+      
+      // Join new depot room for real-time synchronization
+      this.socketService.joinDepot(this.currentShopDepotId);
       
       // Clear current session since we're switching depots
       this.currentSession = null;

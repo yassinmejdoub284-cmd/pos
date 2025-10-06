@@ -8,8 +8,11 @@ import { BonLivraisonComponent } from './bon-livraison/bon-livraison.component';
 
 const routes: Routes = [
   { path: '', component: DocumentsComponent },
-  { path: 'bon-entree/:id', component: BonEntreeComponent },
-  { path: 'bon-entree/edit/:id', component: BonEntreeComponent },
+  // Use distinct param names to avoid confusion between depotId and documentId
+  { path: 'bon-entree/:depotId', component: BonEntreeComponent },
+  { path: 'bon-entree/edit/:documentId', component: BonEntreeComponent },
+  // Bon de retour list shares component with filtered mode
+  { path: 'bon-retour/:depotId', component: BonEntreeComponent },
   { path: 'bon-sortie/:id', component: BonSortieComponent },
   { path: 'bon-sortie/edit/:id', component: BonSortieComponent },
   { path: 'bon-transfert/:id', component: BonTransfertComponent },

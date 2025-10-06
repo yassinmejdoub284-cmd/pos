@@ -18,6 +18,7 @@ export class StockComponent implements OnInit {
   // Modal properties
   showActionDepotModal = false;
   selectedAction: string | null = null;
+  showTransportModal = false;
 
   // Action cards configuration
   actionCards = [
@@ -27,6 +28,13 @@ export class StockComponent implements OnInit {
       description: 'Ajouter des produits depuis un fournisseur',
       icon: 'M12 4v16m8-8H4',
       color: 'from-emerald-500 to-green-600'
+    },
+    {
+      id: 'bon-retour',
+      title: 'Bon de retour',
+      description: 'Retour de produits au fournisseur',
+      icon: 'M19 14l-7 7m0 0l-7-7m7 7V3',
+      color: 'from-rose-500 to-red-600'
     },
     {
       id: 'bon-sortie',
@@ -69,13 +77,6 @@ export class StockComponent implements OnInit {
       description: 'Archives et analyses des transactions de stock',
       icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
       color: 'from-cyan-500 to-blue-600'
-    },
-    {
-      id: 'drivers',
-      title: 'Gestion des Chauffeurs',
-      description: 'Nom, prénom et CIN',
-      icon: 'M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z',
-      color: 'from-slate-500 to-gray-600'
     }
   ];
 
@@ -134,6 +135,12 @@ export class StockComponent implements OnInit {
     
     const currentUser = this.authService.currentUser();
     console.log('Opening action:', action, 'for user:', currentUser?.role, 'depotId:', currentUser?.depotId);
+
+    // Actions that do NOT require depot selection
+    if (action === 'drivers') {
+      this.router.navigate(['/stock/transport']);
+      return;
+    }
     
     // For non-admin users, auto-route to their assigned depot
     if (!this.isAdmin()) {
@@ -145,6 +152,25 @@ export class StockComponent implements OnInit {
     // For admin users, show depot selection dialog
     console.log('Admin user, showing depot selection dialog');
     this.showActionDepotModal = true;
+  }
+
+  // Transport selection modal controls
+  openTransportModal(): void {
+    this.showTransportModal = true;
+  }
+
+  closeTransportModal(): void {
+    this.showTransportModal = false;
+  }
+
+  goToVehicles(): void {
+    this.showTransportModal = false;
+    this.router.navigate(['/stock/vehicles']);
+  }
+
+  goToDrivers(): void {
+    this.showTransportModal = false;
+    this.router.navigate(['/stock/drivers']);
   }
 
   closeActionDepotModal(): void {
@@ -172,7 +198,11 @@ export class StockComponent implements OnInit {
         this.openWorkspace(depot);
         break;
       case 'entry':
-        this.router.navigate(['/stock/entry', depot.id]);
+        this.router.navigate(['/stock/documents/bon-entree', depot.id]);
+        break;
+      case 'bon-retour':
+        // Navigate to dedicated returns list route
+        this.router.navigate(['/stock/documents/bon-retour', depot.id]);
         break;
       case 'inventory':
         this.router.navigate(['/inventory', depot.id]);
@@ -181,7 +211,7 @@ export class StockComponent implements OnInit {
         this.router.navigate(['/stock/stock-history', depot.id]);
         break;
       case 'drivers':
-        this.router.navigate(['/stock/drivers', depot.id]);
+        this.router.navigate(['/stock/transport']);
         break;
       case 'bon-sortie':
         this.router.navigate(['/stock/documents/bon-sortie', depot.id]);
@@ -201,6 +231,8 @@ export class StockComponent implements OnInit {
         return 'Gestion de Stock';
       case 'entry':
         return 'Bon d\'entrée';
+      case 'bon-retour':
+        return 'Bon de retour';
       case 'inventory':
         return 'Inventaire';
       case 'stock-history':
@@ -224,6 +256,8 @@ export class StockComponent implements OnInit {
         return 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4';
       case 'entry':
         return 'M12 4v16m8-8H4';
+      case 'bon-retour':
+        return 'M19 14l-7 7m0 0l-7-7m7 7V3';
       case 'inventory':
         return 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01';
       case 'stock-history':
@@ -247,6 +281,8 @@ export class StockComponent implements OnInit {
         return 'bg-gradient-to-br from-blue-500 to-cyan-600';
       case 'entry':
         return 'bg-gradient-to-br from-emerald-500 to-green-600';
+      case 'bon-retour':
+        return 'bg-gradient-to-br from-rose-500 to-red-600';
       case 'inventory':
         return 'bg-gradient-to-br from-emerald-500 to-teal-600';
       case 'stock-history':

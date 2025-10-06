@@ -12,16 +12,17 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Sale must have at least one item' });
     }
 
+        // Use user's assigned depot for stock operations
+        const userDepotId = req.user.depotId;
+        
         const sale = await prisma.$transaction(async (tx) => {
-          // Use user's assigned depot for stock operations
-          const userDepotId = req.user.depotId;
       
       // Stock validation removed - frontend handles warnings, backend allows all sales
 
-      // Get the current active session for the user
+      // Get the current active session for the depot (no user linkage)
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
-          userId: req.user.id,
+          depotId: userDepotId,
           status: 'OPEN'
         }
       });
@@ -284,6 +285,17 @@ router.post('/', async (req, res) => {
       }
     });
 
+    // Emit socket notification for real-time ticket synchronization
+    if (req.app.get('io')) {
+      req.app.get('io').to(`depot_${userDepotId}`).emit('ticket_created', {
+        depotId: userDepotId,
+        ticketNumber: sale.newSale.dailyTicketNumber,
+        sessionId: sale.newSale.sessionId,
+        saleId: sale.newSale.id,
+        createdBy: req.user.username
+      });
+    }
+
     res.status(201).json({ ...saleWithDetails, loyaltyPointsEarned: sale.loyaltyPointsEarned });
   } catch (error) {
     console.error('Error creating sale:', error);
@@ -345,7 +357,7 @@ router.post('/temporary', async (req, res) => {
       // Find active caisse session for cash movements
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
-          userId: req.user.id,
+          depotId: userDepotId,
           status: 'OPEN'
         }
       });
@@ -439,7 +451,7 @@ router.put('/temporary/:id/complete', async (req, res) => {
 
       // Attach sale to current open session for cloture accounting
       const activeSession = await tx.sessionCaisse.findFirst({
-        where: { userId: req.user.id, status: 'OPEN' }
+        where: { depotId: userDepotId, status: 'OPEN' }
       });
 
       // Calculate session-based ticket number for completion
@@ -636,7 +648,7 @@ router.put('/temporary/:id/advance', async (req, res) => {
 
       // Record cash movement for cash advances in open session
       if (methodId === 1) {
-        const activeSession = await tx.sessionCaisse.findFirst({ where: { userId: req.user.id, status: 'OPEN' } });
+        const activeSession = await tx.sessionCaisse.findFirst({ where: { depotId: userDepotId, status: 'OPEN' } });
         if (activeSession) {
           await tx.cashMovement.create({
             data: {
@@ -852,6 +864,27 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Mark sale as printed
+router.post('/:id/printed', async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Enforce depot isolation
+    const userDepotId = req.user.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to mark printed' });
+    }
+
+    const updated = await prisma.sale.update({
+      where: { id: parseInt(id) },
+      data: { isPrinted: true }
+    });
+    res.json({ success: true, isPrinted: updated.isPrinted });
+  } catch (error) {
+    console.error('Error marking sale as printed:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Fetch current session's tickets (sales) ordered by creation time desc
 router.get('/current-session/tickets', async (req, res) => {
   try {
@@ -861,9 +894,12 @@ router.get('/current-session/tickets', async (req, res) => {
       return res.status(400).json({ error: 'User must be assigned to a depot' });
     }
 
-    // Find current OPEN session for this user
+    // Find current OPEN session for this depot (no user linkage)
     const activeSession = await prisma.sessionCaisse.findFirst({
-      where: { status: 'OPEN' },
+      where: { 
+        status: 'OPEN',
+        depotId: userDepotId // Filter by depot only, not user
+      },
       select: { id: true }
     });
 
@@ -979,10 +1015,10 @@ router.post('/wholesale', async (req, res) => {
     const sale = await prisma.$transaction(async (tx) => {
       // Stock validation removed - frontend handles warnings, backend allows all sales
 
-      // Get the current active session for the user
+      // Get the current active session for the depot (no user linkage)
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
-          userId: req.user.id,
+          depotId: userDepotId,
           status: 'OPEN'
         }
       });

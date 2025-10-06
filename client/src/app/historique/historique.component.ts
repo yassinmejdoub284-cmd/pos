@@ -79,6 +79,9 @@ export class HistoriqueComponent implements OnInit {
   showReturnPicker = false;
   showAddItemPicker = false;
 
+  // Collapsible session groups state
+  private collapsedSessionKeys = new Set<string>();
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -97,11 +100,12 @@ export class HistoriqueComponent implements OnInit {
     this.filteredSales = [];
     this.totalItems = 0;
     
-    // Load data in proper order to avoid race conditions
-    this.loadSales();
+    // Load settings first to get retention days, then load sales within that window
+    this.loadSettings(() => {
+      this.loadSales();
+    });
     this.loadPaymentMethods();
     this.loadInvoiceRequests();
-    this.loadSettings();
     this.loadProducts();
     
     // Check for query parameters to open return dialog
@@ -147,7 +151,15 @@ export class HistoriqueComponent implements OnInit {
     this.loading = true;
     this.error = '';
 
-    this.salesService.getSales()
+    // Limit by settings retention days if present
+    const params: any = {};
+    if (this.startDate && this.endDate) {
+      // Ensure full-day coverage for the selected range
+      params.startDate = `${this.startDate}T00:00:00.000`;
+      params.endDate = `${this.endDate}T23:59:59.999`;
+    }
+
+    this.salesService.getSales(params)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (sales: any) => {
@@ -186,7 +198,7 @@ export class HistoriqueComponent implements OnInit {
       });
   }
 
-  loadSettings(): void {
+  loadSettings(after?: () => void): void {
     this.settingsService.getSettings()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -202,15 +214,14 @@ export class HistoriqueComponent implements OnInit {
             const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             this.startDate = toIso(start);
             this.endDate = toIso(end);
-            // Only apply filters if we have sales data
-            if (this.sales && this.sales.length > 0) {
-              this.applyFilters();
-            }
+            // Continue flow if callback provided
+            if (after) after();
           }
         },
         error: (error) => {
           console.error('Error loading settings:', error);
           // Keep default values
+          if (after) after();
         }
       });
   }
@@ -331,26 +342,83 @@ export class HistoriqueComponent implements OnInit {
     return this.filteredSales.slice(startIndex, endIndex);
   }
 
-  // Group by date (YYYY-MM-DD) for multigrid sections
-  get groupedSalesByDate(): { dateKey: string; dateLabel: string; sales: Sale[] }[] {
-    const map = new Map<string, Sale[]>();
+  // Group by session for multigrid sections (fallback to 'Sans session')
+  get groupedSalesBySession(): { sessionKey: string; sessionLabel: string; sessionDateLabel?: string; sessionSuffix?: string; sales: Sale[] }[] {
+    // Build groups by session id
+    const bySession = new Map<string, Sale[]>();
     for (const sale of this.paginatedSales) {
-      const d = new Date(sale.createdAt);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
-      map.get(key)!.push(sale);
+      const sessionId = (sale as any)?.session?.id ?? null;
+      const key = sessionId ? String(sessionId) : 'none';
+      if (!bySession.has(key)) bySession.set(key, []);
+      bySession.get(key)!.push(sale);
     }
-    // Sort groups desc by date
-    const groups = Array.from(map.entries())
-      .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0))
-      .map(([key, sales]) => ({
-        dateKey: key,
-        dateLabel: new Date(key).toLocaleDateString('fr-FR', { year: 'numeric', month: '2-digit', day: '2-digit' }),
-        sales
-      }));
+
+    // Derive a date/time label per session based on the last sale's date (closure time)
+    const sessionDateLabel = new Map<string, string>();
+    const sessionTimeLabel = new Map<string, string>();
+    const dateCounts = new Map<string, number>();
+    for (const [key, sales] of bySession.entries()) {
+      if (key === 'none') {
+        sessionDateLabel.set(key, 'Sans session');
+        sessionTimeLabel.set(key, '');
+        continue;
+      }
+      // Use last sale date/time in the group as closure time
+      const lastTimestamp = Math.max(
+        ...sales.map(s => new Date((s as any).createdAt as any).getTime())
+      );
+      const lastDate = new Date(lastTimestamp);
+      const dateLabel = lastDate.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      const timeLabel = lastDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      sessionDateLabel.set(key, dateLabel);
+      sessionTimeLabel.set(key, timeLabel);
+      dateCounts.set(dateLabel, (dateCounts.get(dateLabel) || 0) + 1);
+    }
+
+    // Sort groups: by date desc (using the first sale date), then by session id desc, with 'none' last
+    const groups = Array.from(bySession.entries())
+      .sort((a, b) => {
+        const [aKey, aSales] = a;
+        const [bKey, bSales] = b;
+        if (aKey === 'none' && bKey !== 'none') return 1;
+        if (bKey === 'none' && aKey !== 'none') return -1;
+        const aDate = new Date(aSales[0].createdAt as any).getTime();
+        const bDate = new Date(bSales[0].createdAt as any).getTime();
+        if (bDate !== aDate) return bDate - aDate; // desc by date
+        const aNum = aKey === 'none' ? -Infinity : parseInt(aKey, 10);
+        const bNum = bKey === 'none' ? -Infinity : parseInt(bKey, 10);
+        return bNum - aNum; // desc by session id
+      })
+      .map(([key, sales]) => {
+        if (key === 'none') {
+          return { sessionKey: key, sessionLabel: 'Sans session', sales };
+        }
+        const dateLabel = sessionDateLabel.get(key) || '';
+        const timeLabel = sessionTimeLabel.get(key) || '';
+        const countForDate = dateCounts.get(dateLabel) || 0;
+        const suffix = countForDate > 1 ? `(#${key})` : '';
+        return {
+          sessionKey: key,
+          sessionLabel: `Clotûre Caisse ${dateLabel} ${timeLabel}`,
+          sessionDateLabel: dateLabel,
+          sessionSuffix: suffix,
+          sales
+        };
+      });
     return groups;
+  }
+
+  // Collapsible helpers
+  isGroupCollapsed(key: string): boolean {
+    return this.collapsedSessionKeys.has(key);
+  }
+
+  toggleGroup(key: string): void {
+    if (this.collapsedSessionKeys.has(key)) {
+      this.collapsedSessionKeys.delete(key);
+    } else {
+      this.collapsedSessionKeys.add(key);
+    }
   }
 
   trackBySaleId(_index: number, sale: Sale): number { return sale.id; }
@@ -531,7 +599,16 @@ export class HistoriqueComponent implements OnInit {
 
   printReceipt(sale: Sale): void {
     this.printService.printSaleReceipt(sale);
-    this.showAlertMessage('Reçu envoyé à l\'imprimante', 'success');
+    this.salesService.markPrinted(sale.id).subscribe({
+      next: () => {
+        (sale as any).isPrinted = true;
+        this.showAlertMessage('Reçu envoyé à l\'imprimante', 'success');
+      },
+      error: () => {
+        // Even if marking fails, don't block UI
+        this.showAlertMessage('Reçu envoyé. Statut imprimé non mis à jour.', 'error');
+      }
+    });
   }
 
   // Invoice request methods

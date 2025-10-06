@@ -1,17 +1,17 @@
-<div class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-6">
+<div class="min-h-screen bg-gradient-to-br from-sky-50 via-white to-rose-50 p-6">
   <!-- Header -->
   <div class="mb-6">
     <div class="flex justify-between items-center mb-4">
-      <h1 class="text-3xl font-bold text-slate-800">Historique des Ventes</h1>
+      <h1 class="text-3xl font-bold text-slate-700">Historique des Ventes</h1>
       <div class="flex items-center gap-2">
-        <button (click)="loadSales()" class="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50" title="Actualiser" aria-label="Actualiser">
+        <button (click)="loadSales()" class="px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 text-slate-700 hover:bg-sky-100" title="Actualiser" aria-label="Actualiser">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
           </svg>
         </button>
-        <button (click)="toggleView()" class="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50" title="Basculer vue" aria-label="Basculer vue">{{ showGridView ? 'Vue tableau' : 'Vue grille' }}</button>
+        <button (click)="toggleView()" class="px-3 py-1.5 rounded-xl border border-violet-200 bg-violet-50 text-slate-700 hover:bg-violet-100" title="Basculer vue" aria-label="Basculer vue">{{ showGridView ? 'Vue tableau' : 'Vue grille' }}</button>
         <a routerLink="/caisse" 
-           class="bg-gradient-to-r from-indigo-600 to-pink-500 hover:from-indigo-500 hover:to-pink-400 text-white px-4 py-2 rounded-2xl transition-colors flex items-center space-x-2 shadow">
+           class="bg-gradient-to-r from-sky-200 to-violet-200 hover:from-sky-300 hover:to-violet-300 text-slate-800 px-4 py-2 rounded-2xl transition-colors flex items-center space-x-2 border border-sky-300">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
           </svg>
@@ -22,7 +22,7 @@
   </div>
 
   <!-- Filters Section -->
-  <div class="bg-white rounded-2xl border border-indigo-100/50 p-3 mb-4 shadow-sm">
+  <div class="bg-white rounded-2xl border border-slate-200 p-3 mb-4 shadow-sm">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
         <input 
@@ -30,13 +30,13 @@
           [(ngModel)]="searchQuery"
           (input)="applyFilters()"
           placeholder="Recherche: ticket, produit, paiement..."
-          class="w-72 bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 placeholder-gray-400 focus:outline-none focus:border-indigo-600 transition-colors shadow-inner">
-        <button (click)="clearFilters()" class="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">Effacer</button>
-        <button (click)="forceReload()" class="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">Recharger</button>
+          class="w-72 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 placeholder-gray-400 focus:outline-none focus:border-sky-400 transition-colors shadow-inner">
+        <button (click)="clearFilters()" class="px-2.5 py-1.5 text-xs rounded-lg border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100">Effacer</button>
+        <button (click)="forceReload()" class="px-2.5 py-1.5 text-xs rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100">Recharger</button>
       </div>
       <div class="flex items-center gap-2 text-xs text-slate-600">
         <span>{{ totalItems }} vente{{ totalItems !== 1 ? 's' : '' }}</span>
-        <button (click)="toggleFilters()" class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
+        <button (click)="toggleFilters()" class="px-2.5 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-slate-700 hover:bg-indigo-100">
           Filtres avancés
         </button>
       </div>
@@ -47,7 +47,7 @@
       <div>
         <label class="block text-[11px] text-slate-600 mb-1">Statut</label>
         <select [(ngModel)]="selectedStatus" (change)="applyFilters()" 
-          class="w-full bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
+          class="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-sky-400 shadow-sm"
           aria-label="Filtrer par statut" title="Filtrer par statut">
           <option value="">Tous</option>
           <option value="COMPLETED">Terminé</option>
@@ -62,7 +62,7 @@
       <div>
         <label class="block text-[11px] text-slate-600 mb-1">Type de vente</label>
         <select [(ngModel)]="selectedSaleType" (change)="applyFilters()" 
-          class="w-full bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
+          class="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-sky-400 shadow-sm"
           aria-label="Filtrer par type de vente" title="Filtrer par type de vente">
           <option value="">Tous</option>
           <option value="retail">Détail</option>
@@ -74,7 +74,7 @@
       <div>
         <label class="block text-[11px] text-slate-600 mb-1">Paiement</label>
         <select [(ngModel)]="selectedPaymentMethod" (change)="applyFilters()" 
-          class="w-full bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
+          class="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-sky-400 shadow-sm"
           aria-label="Filtrer par méthode de paiement" title="Filtrer par méthode de paiement">
           <option value="">Toutes</option>
           <option *ngFor="let method of paymentMethods" [value]="method.id">{{ method.name }}</option>
@@ -89,13 +89,13 @@
             type="date" 
             [(ngModel)]="startDate"
             (change)="applyFilters()"
-            class="bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
+            class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-sky-400 shadow-sm"
             aria-label="Date début" title="Date début" placeholder="Date début">
           <input 
             type="date" 
             [(ngModel)]="endDate"
             (change)="applyFilters()"
-            class="bg-slate-100/50 border border-slate-200/50 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-600 shadow-inner"
+            class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-sky-400 shadow-sm"
             aria-label="Date fin" title="Date fin" placeholder="Date fin">
         </div>
       </div>
@@ -118,24 +118,29 @@
     </div>
   </div>
 
-  <!-- Date-grouped multigrid -->
+  <!-- Session-grouped multigrid -->
   <div *ngIf="!loading && !error" class="space-y-8">
-    <div *ngFor="let group of groupedSalesByDate" class="bg-white rounded-2xl border border-indigo-100/50 shadow-sm">
-      <!-- Date header -->
-      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200/40 bg-gradient-to-r from-slate-50 to-indigo-50">
+    <div *ngFor="let group of groupedSalesBySession" class="bg-white rounded-2xl border border-indigo-100/50 shadow-sm">
+      <!-- Session header -->
+    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 bg-gradient-to-r from-sky-50 to-violet-50">
         <div class="flex items-center gap-3">
-          <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <h3 class="text-lg font-semibold text-slate-800">{{ group.dateLabel }}</h3>
+          <button (click)="toggleGroup(group.sessionKey)" class="p-1 rounded hover:bg-slate-100/60 border border-slate-200 bg-white" aria-label="Basculer l'affichage du groupe" title="Basculer">
+            <svg class="w-5 h-5 text-indigo-500 transition-transform" [style.transform]="isGroupCollapsed(group.sessionKey) ? 'rotate(-90deg)' : 'rotate(0deg)'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8m-4-4h8M4 6h16v12H4z" />
+            </svg>
+          </button>
+          <h3 class="text-lg font-semibold text-slate-700">
+            {{ group.sessionLabel }}
+            <span *ngIf="group.sessionSuffix" class="text-[11px] font-normal text-slate-500 ml-2 align-middle">{{ group.sessionSuffix }}</span>
+          </h3>
           <span class="text-xs text-slate-500">{{ group.sales.length }} ticket{{ group.sales.length > 1 ? 's' : '' }}</span>
         </div>
       </div>
 
       <!-- Grid of tickets -->
-      <div *ngIf="!showGridView" class="p-0 overflow-x-auto">
+      <div *ngIf="!showGridView && !isGroupCollapsed(group.sessionKey)" class="p-0 overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-slate-50 border-b border-slate-200 text-slate-600">
+          <thead class="bg-sky-50 border-b border-sky-200 text-slate-600">
             <tr>
               <th class="text-left px-3 py-2">Ticket</th>
               <th class="text-left px-3 py-2">Date</th>
@@ -170,18 +175,18 @@
               </td>
               <td class="px-3 py-2 text-right">
                 <div class="inline-flex flex-wrap gap-1.5">
-                  <button (click)="openReceiptPreview(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-pink-500/90 hover:bg-pink-500 text-white">Aperçu</button>
-                  <button (click)="printReceipt(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-indigo-600 hover:bg-indigo-500 text-white">Imprimer</button>
-                  <button *ngIf="sale.status === 'COMPLETED' && !hasInvoiceRequest(sale.id)" (click)="requestInvoice(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-emerald-600 hover:bg-emerald-500 text-white">Facture</button>
-                  <button *ngIf="sale.status === 'COMPLETED'" (click)="openReturnRequestModal(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-amber-600 hover:bg-amber-500 text-white">Retour/Échange</button>
-                  <button (click)="showSaleDetails(sale)" class="px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 text-slate-700 hover:bg-slate-50">Détails</button>
+                  <button (click)="openReceiptPreview(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-pink-200 hover:bg-pink-300 text-pink-800 border border-pink-300">Aperçu</button>
+                  <button (click)="printReceipt(sale)" [class]="'px-2.5 py-1.5 rounded-lg text-xs border ' + (sale.isPrinted ? 'bg-emerald-200 hover:bg-emerald-300 text-emerald-800 border-emerald-300' : 'bg-rose-200 hover:bg-rose-300 text-rose-800 border-rose-300')">Imprimer</button>
+                  <button *ngIf="sale.status === 'COMPLETED' && !hasInvoiceRequest(sale.id)" (click)="requestInvoice(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-sky-200 hover:bg-sky-300 text-sky-800 border border-sky-300">Facture</button>
+                  <button *ngIf="sale.status === 'COMPLETED'" (click)="openReturnRequestModal(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-amber-200 hover:bg-amber-300 text-amber-800 border border-amber-300">Retour/Échange</button>
+                  <button (click)="showSaleDetails(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-200 hover:bg-slate-300 text-slate-800 border border-slate-300">Détails</button>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div *ngIf="showGridView" class="p-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+      <div *ngIf="showGridView && !isGroupCollapsed(group.sessionKey)" class="p-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
         <div *ngFor="let sale of group.sales; trackBy: trackBySaleId" class="w-full mx-auto rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow transition-shadow">
           <div class="px-3 py-2 border-b border-slate-200/70 bg-slate-50 rounded-t-xl flex items-center justify-between">
             <div class="flex items-center gap-1.5">
@@ -219,11 +224,11 @@
           </div>
           <div class="px-3 pb-2">
             <div class="flex flex-wrap gap-2">
-              <button (click)="openReceiptPreview(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-pink-500/90 hover:bg-pink-500 text-white">Aperçu</button>
-              <button (click)="printReceipt(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-indigo-600 hover:bg-indigo-500 text-white">Imprimer</button>
-              <button *ngIf="sale.status === 'COMPLETED' && !hasInvoiceRequest(sale.id)" (click)="requestInvoice(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-emerald-600 hover:bg-emerald-500 text-white">Facture</button>
-              <button *ngIf="sale.status === 'COMPLETED'" (click)="openReturnRequestModal(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-amber-600 hover:bg-amber-500 text-white">Retour/Échange</button>
-              <button (click)="showSaleDetails(sale)" class="px-3.5 py-3 rounded-lg text-sm border border-slate-200 text-slate-700 hover:bg-slate-50">Détails</button>
+              <button (click)="openReceiptPreview(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-pink-200 hover:bg-pink-300 text-pink-800 border border-pink-300">Aperçu</button>
+              <button (click)="printReceipt(sale)" [class]="'px-3.5 py-3 rounded-lg text-sm border ' + (sale.isPrinted ? 'bg-emerald-200 hover:bg-emerald-300 text-emerald-800 border-emerald-300' : 'bg-rose-200 hover:bg-rose-300 text-rose-800 border-rose-300')">Imprimer</button>
+              <button *ngIf="sale.status === 'COMPLETED' && !hasInvoiceRequest(sale.id)" (click)="requestInvoice(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-sky-200 hover:bg-sky-300 text-sky-800 border border-sky-300">Facture</button>
+              <button *ngIf="sale.status === 'COMPLETED'" (click)="openReturnRequestModal(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-amber-200 hover:bg-amber-300 text-amber-800 border border-amber-300">Retour/Échange</button>
+              <button (click)="showSaleDetails(sale)" class="px-3.5 py-3 rounded-lg text-sm bg-slate-200 hover:bg-slate-300 text-slate-800 border border-slate-300">Détails</button>
             </div>
           </div>
         </div>

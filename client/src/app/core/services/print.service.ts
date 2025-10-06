@@ -230,47 +230,47 @@ export class PrintService {
   }
 
   private openCashDrawerWebPrinter(): void {
-    try {
-      // Create a hidden iframe with proper ESC/POS commands
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
+    // try {
+    //   // Create a hidden iframe with proper ESC/POS commands
+    //   const iframe = document.createElement('iframe');
+    //   iframe.style.display = 'none';
+    //   document.body.appendChild(iframe);
       
-      const doc = iframe.contentDocument;
-      if (doc) {
-        doc.open();
-        doc.write(`
-          <html>
-            <head>
-              <style>
-                @media print {
-                  body { margin: 0; }
-                  .cash-drawer-command { 
-                    font-family: monospace; 
-                    font-size: 1px; 
-                    color: transparent;
-                  }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="cash-drawer-command">${String.fromCharCode(27, 112, 0, 25, 250)}</div>
-            </body>
-          </html>
-        `);
-        doc.close();
+    //   const doc = iframe.contentDocument;
+    //   if (doc) {
+    //     doc.open();
+    //     doc.write(`
+    //       <html>
+    //         <head>
+    //           <style>
+    //             @media print {
+    //               body { margin: 0; }
+    //               .cash-drawer-command { 
+    //                 font-family: monospace; 
+    //                 font-size: 1px; 
+    //                 color: transparent;
+    //               }
+    //             }
+    //           </style>
+    //         </head>
+    //         <body>
+    //           <div class="cash-drawer-command">${String.fromCharCode(27, 112, 0, 25, 250)}</div>
+    //         </body>
+    //       </html>
+    //     `);
+    //     doc.close();
         
-        // Trigger print with proper timing
-        setTimeout(() => {
-          iframe.contentWindow?.print();
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        }, 100);
-      }
-    } catch (error) {
-      console.error('Printer cash drawer failed:', error);
-    }
+    //     // Trigger print with proper timing
+    //     setTimeout(() => {
+    //       iframe.contentWindow?.print();
+    //       setTimeout(() => {
+    //         document.body.removeChild(iframe);
+    //       }, 1000);
+    //     }, 100);
+    //   }
+    // } catch (error) {
+    //   console.error('Printer cash drawer failed:', error);
+    // }
   }
 
 

@@ -249,4 +249,134 @@
     </div>
   </div>
 
+  <!-- Payment Choice Dialog -->
+  <div *ngIf="showPaymentChoiceDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-600 to-emerald-600 text-white p-6 rounded-t-2xl">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold">Règlement</h2>
+            <p class="text-blue-100 mt-1">Comment souhaitez-vous régler cette commande ?</p>
+          </div>
+          <button (click)="closePaymentChoiceDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6">
+        <div class="text-center mb-6">
+          <div class="text-3xl font-bold text-emerald-600 mb-2">{{ paymentAmount.toFixed(3) }} dt</div>
+          <p class="text-gray-600">Montant total à régler</p>
+        </div>
+
+        <div class="space-y-4">
+          <button (click)="proceedWithPayment()" 
+                  class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl p-4 hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
+            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+              </svg>
+            </div>
+            <div class="text-left">
+              <h4 class="font-semibold text-lg">Payer maintenant</h4>
+              <p class="text-sm opacity-90">Effectuer le règlement immédiatement</p>
+            </div>
+          </button>
+
+          <button (click)="proceedAsCredit()" 
+                  class="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl p-4 hover:from-orange-600 hover:to-red-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
+            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div class="text-left">
+              <h4 class="font-semibold text-lg">Enregistrer en crédit</h4>
+              <p class="text-sm opacity-90">Régler plus tard</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Dialog -->
+  <div *ngIf="showPaymentDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-6 rounded-t-2xl">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold">Paiement Partiel</h2>
+            <p class="text-blue-100 mt-1">Effectuer le règlement</p>
+          </div>
+          <button (click)="closePaymentDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 space-y-6">
+        <!-- Total Amount Display -->
+        <div class="text-center">
+          <div class="text-3xl font-bold text-blue-600 mb-2">{{ paymentAmount.toFixed(3) }} dt</div>
+          <p class="text-gray-600">Montant total à régler</p>
+        </div>
+
+        <!-- Partial Payment Amount -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Montant à payer maintenant</label>
+          <input type="number" 
+                 [(ngModel)]="partialPaymentAmount" 
+                 [max]="paymentAmount"
+                 step="0.001"
+                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                 placeholder="0.000">
+          <p class="text-xs text-gray-500 mt-1">Maximum: {{ paymentAmount.toFixed(3) }} dt</p>
+        </div>
+
+        <!-- Payment Method -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Mode de paiement</label>
+          <select [(ngModel)]="paymentMethod" title="Mode de paiement" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <option value="cash">Espèces</option>
+            <option value="card">Carte bancaire</option>
+            <option value="check">Chèque</option>
+            <option value="transfer">Virement</option>
+          </select>
+        </div>
+
+        <!-- Payment Notes -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Notes (optionnel)</label>
+          <textarea [(ngModel)]="paymentNotes" 
+                    placeholder="Notes sur le paiement..." 
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    rows="3"></textarea>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3 rounded-b-2xl">
+        <button (click)="closePaymentDialog()" 
+                class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200">
+          Annuler
+        </button>
+        <button (click)="processPayment()" 
+                [disabled]="loading || !partialPaymentAmount || partialPaymentAmount <= 0"
+                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg transition-colors duration-200 font-medium">
+          {{ loading ? 'Traitement...' : 'Confirmer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div>

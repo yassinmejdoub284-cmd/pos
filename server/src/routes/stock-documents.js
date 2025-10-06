@@ -89,6 +89,7 @@ const router = express.Router();
 async function generateDocumentNumber(type) {
   const prefix = type === 'BON_EXPEDITION' ? 'BEXP' : 
                  type === 'BON_ENTREE_DEPOT' ? 'BED' :
+                 type === 'BON_RETOUR_DEPOT' ? 'BDR' :
                  type === 'BON_TRANSFERT' ? 'BT' :
                  type === 'BON_ENTREE_MAGASIN' ? 'BEM' : 'DOC';
   
@@ -108,6 +109,7 @@ async function getNextDocumentId(type) {
     // Get the highest sequence number from existing document numbers of this type
     const prefix = type === 'BON_EXPEDITION' ? 'BEXP' : 
                    type === 'BON_ENTREE_DEPOT' ? 'BED' :
+                   type === 'BON_RETOUR_DEPOT' ? 'BDR' :
                    type === 'BON_TRANSFERT' ? 'BT' :
                    type === 'BON_ENTREE_MAGASIN' ? 'BEM' : 'DOC';
     
@@ -562,19 +564,24 @@ router.post('/expedition', authenticateToken, async (req, res) => {
 
         // Reduce stock from MAIN depot or create inventory record if it doesn't exist
         if (inventory) {
+          const currentQuantity = parseFloat(inventory.quantity) || 0;
+          const reduceQuantity = parseFloat(quantity) || 0;
+          const newQuantity = currentQuantity - reduceQuantity;
+          
           await tx.inventory.update({
             where: { id: inventory.id },
             data: {
-              quantity: inventory.quantity - quantity
+              quantity: newQuantity
             }
           });
         } else {
           // Create inventory record with negative quantity
+          const negativeQuantity = -(parseFloat(quantity) || 0);
           await tx.inventory.create({
             data: {
               depotId: emetteurIdInt,
               productId: productId,
-              quantity: -quantity
+              quantity: negativeQuantity
             }
           });
         }
@@ -610,7 +617,7 @@ router.post('/expedition', authenticateToken, async (req, res) => {
 // Create supplier entry (Bon d'entrée)
 router.post('/entry', authenticateToken, async (req, res) => {
   try {
-    const { depotId, supplierId, items, notes, payCash } = req.body;
+    const { depotId, supplierId, items, notes, payCash, isReturn } = req.body;
 
     if (!depotId || !items || items.length === 0) {
       return res.status(400).json({ error: 'Données manquantes' });
@@ -625,7 +632,7 @@ router.post('/entry', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Dépôt introuvable' });
     }
 
-    // If depot is a shop, check cash availability
+    // If depot is a shop, check if session exists (but don't validate cash availability)
     if (depot.type === 'SHOP') {
       const activeSession = await prisma.sessionCaisse.findFirst({
         where: { 
@@ -641,27 +648,15 @@ router.post('/entry', authenticateToken, async (req, res) => {
         });
       }
 
-      // Calculate total amount to pay supplier
-      const totalAmount = items.reduce((sum, item) => {
-        const quantity = parseFloat(item.quantity) || 0;
-        const price = parseFloat(item.purchasePrice) || 0;
-        return sum + (quantity * price);
-      }, 0);
-
-      if (totalAmount > 0) {
-        // Calculate current cash in session
-        const sessionSummary = await calculateSessionSummary(activeSession.id);
-        const currentCash = sessionSummary.expectedCash;
-
-        if (currentCash < totalAmount) {
-          return res.status(400).json({ 
-            error: `Fonds insuffisants. Montant requis: ${totalAmount.toFixed(3)} dt, Disponible: ${currentCash.toFixed(3)} dt` 
-          });
-        }
-      }
+      // Note: We don't validate cash availability here because:
+      // 1. The payment can be made via credit/deferred payment
+      // 2. The payment is handled separately via the payment dialog
+      // 3. The purchase price entered may be different from the product's selling price
     }
 
-    const numero = await generateDocumentNumber('BON_ENTREE_DEPOT');
+    // We only persist prisma type as BON_ENTREE_DEPOT (enum-limited), but use a separate numbering prefix for returns
+    const numberType = isReturn ? 'BON_RETOUR_DEPOT' : 'BON_ENTREE_DEPOT';
+    const numero = await generateDocumentNumber(numberType);
 
     // If paying cash, we must have an open caisse session
     let activeSession = null;
@@ -700,7 +695,7 @@ router.post('/entry', authenticateToken, async (req, res) => {
             create: {
               status: 'RECEIVED',
               userId: req.user.id,
-              notes: 'Bon d\'entrée fournisseur'
+              notes: isReturn ? 'Bon de retour fournisseur' : 'Bon d\'entrée fournisseur'
             }
           }
         },
@@ -711,7 +706,7 @@ router.post('/entry', authenticateToken, async (req, res) => {
         }
       });
 
-      // Increase inventory for each item and create IN stock movement
+      // Adjust inventory and create movement (IN for entries, OUT for returns)
       for (const item of items) {
         const productId = parseInt(item.productId);
         const quantity = parseQuantity(item.quantity);
@@ -737,10 +732,10 @@ router.post('/entry', authenticateToken, async (req, res) => {
             productId,
             depotId: depotIdInt,
             quantity,
-            type: 'IN',
-            fromDepotId: null,
-            toDepotId: depotIdInt,
-            reason: 'ENTRY_SUPPLIER',
+            type: isReturn ? 'OUT' : 'IN',
+            fromDepotId: isReturn ? depotIdInt : null,
+            toDepotId: isReturn ? null : depotIdInt,
+            reason: isReturn ? 'RETURN_SUPPLIER' : 'ENTRY_SUPPLIER',
             reference: numero,
             userId: req.user.id
           }
@@ -1175,19 +1170,24 @@ router.post('/transfer', authenticateToken, async (req, res) => {
 
         // Reduce stock from BRANCH depot or create inventory record if it doesn't exist
         if (inventory) {
+          const currentQuantity = parseFloat(inventory.quantity) || 0;
+          const reduceQuantity = parseFloat(quantity) || 0;
+          const newQuantity = currentQuantity - reduceQuantity;
+          
           await tx.inventory.update({
             where: { id: inventory.id },
             data: {
-              quantity: inventory.quantity - quantity
+              quantity: newQuantity
             }
           });
         } else {
           // Create inventory record with negative quantity
+          const negativeQuantity = -(parseFloat(quantity) || 0);
           await tx.inventory.create({
             data: {
               depotId: emetteurIdInt,
               productId: productId,
-              quantity: -quantity
+              quantity: negativeQuantity
             }
           });
         }
@@ -1326,28 +1326,33 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
         });
         
         if (inventory) {
+          const currentQuantity = parseFloat(inventory.quantity) || 0;
+          const addingQuantity = parseFloat(item.quantity) || 0;
+          const newQuantity = currentQuantity + addingQuantity;
+          
           console.log('Updating existing inventory:', { 
-            currentQuantity: inventory.quantity, 
-            adding: item.quantity, 
-            newQuantity: inventory.quantity + item.quantity 
+            currentQuantity: currentQuantity, 
+            adding: addingQuantity, 
+            newQuantity: newQuantity 
           });
           await tx.inventory.update({
             where: { id: inventory.id },
             data: {
-              quantity: inventory.quantity + item.quantity
+              quantity: newQuantity
             }
           });
         } else {
+          const newQuantity = parseFloat(item.quantity) || 0;
           console.log('Creating new inventory entry:', { 
             depotId: parseInt(depotId), 
             productId: item.productId, 
-            quantity: item.quantity 
+            quantity: newQuantity 
           });
           await tx.inventory.create({
             data: {
               depotId: parseInt(depotId),
               productId: item.productId,
-              quantity: item.quantity
+              quantity: newQuantity
             }
           });
         }

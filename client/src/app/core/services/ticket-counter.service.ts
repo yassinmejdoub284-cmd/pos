@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, takeUntil } from 'rxjs';
+import { SocketService } from './socket.service';
 
 export interface TicketState {
   currentTicketNumber: number;
@@ -23,8 +24,9 @@ export class TicketCounterService {
   
   public ticketState$ = this.ticketStateSubject.asObservable();
 
-  constructor() {
+  constructor(private socketService: SocketService) {
     this.loadTicketState();
+    this.setupRealTimeSync();
   }
 
   getCurrentTicketNumber(): number {
@@ -132,6 +134,13 @@ export class TicketCounterService {
   private updateTicketState(newState: TicketState): void {
     this.ticketStateSubject.next(newState);
     this.saveTicketState(newState);
+    
+    // Log the update for debugging
+    console.debug('[TicketCounter] Updated ticket state:', {
+      currentTicketNumber: newState.currentTicketNumber,
+      depotId: newState.depotId,
+      sessionId: newState.sessionId
+    });
   }
 
   private saveTicketState(state: TicketState): void {
@@ -188,5 +197,54 @@ export class TicketCounterService {
         depotId: depotId
       });
     }
+  }
+
+  private setupRealTimeSync(): void {
+    // Listen for ticket creation events from other users
+    this.socketService.onTicketCreated().subscribe((data) => {
+      const currentState = this.ticketStateSubject.value;
+      
+      console.debug('[TicketCounter] Received ticket_created event:', {
+        data,
+        currentState
+      });
+      
+      // Only sync if it's for the same depot
+      if (data.depotId === currentState.depotId) {
+        // Extract ticket number from the ticket number string
+        const extractNumber = (ticketNumber: string): number => {
+          if (!ticketNumber) return 0;
+          const s = String(ticketNumber);
+          if (s.includes('/')) {
+            const part = s.split('/')[1];
+            const n = parseInt(part, 10);
+            return isNaN(n) ? 0 : n;
+          }
+          const n = parseInt(s, 10);
+          return isNaN(n) ? 0 : n;
+        };
+
+        const newTicketNumber = extractNumber(data.ticketNumber);
+        
+        console.debug('[TicketCounter] Extracted ticket number:', {
+          ticketNumber: data.ticketNumber,
+          extractedNumber: newTicketNumber,
+          currentTicketNumber: currentState.currentTicketNumber
+        });
+        
+        // Update ticket counter to be higher than the new ticket
+        if (newTicketNumber > 0 && newTicketNumber >= currentState.currentTicketNumber) {
+          console.debug('[TicketCounter] Updating ticket counter to:', newTicketNumber + 1);
+          this.setCurrentTicketNumberIfHigher(newTicketNumber + 1);
+        } else {
+          console.debug('[TicketCounter] No update needed - ticket number not higher');
+        }
+      } else {
+        console.debug('[TicketCounter] Ignoring ticket from different depot:', {
+          eventDepotId: data.depotId,
+          currentDepotId: currentState.depotId
+        });
+      }
+    });
   }
 }
