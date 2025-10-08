@@ -477,9 +477,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Set depot ID in ticket counter service for isolation
     if (this.currentShopDepotId) {
       this.ticketCounterService.setDepotId(this.currentShopDepotId);
-      // Join depot room for real-time synchronization
-      this.socketService.connect();
-      this.socketService.joinDepot(this.currentShopDepotId);
+      // Join depot room for real-time synchronization (guarded by env flag)
+      if (environment.enableRealtime) {
+        this.socketService.connect();
+        this.socketService.joinDepot(this.currentShopDepotId);
+      }
     }
     
     // If user is admin and has no depot ID, show depot selection
@@ -511,7 +513,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadPendingReturnRequests(); // Load pending return requests
     this.loadSettings();
     
-    // Only load session state; do not auto-open if none exists
+    // Load session state and auto-open if none exists
     this.loadCurrentSession();
     // Sync ticket counter from today's history once at startup to avoid accidental resets
     this.syncTicketCounterFromTodaySales();
@@ -2012,29 +2014,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
         // Refresh shop inventory to show updated stock quantities
         this.loadShopInventory();
         
-        // Open a session only after sale if none is currently open; otherwise just refresh session data
-        if (!this.currentSession) {
-          const defaultSession = {
-            openingFund: 0,
-            posId: 1,
-            depotId: this.currentShopDepotId,
-            note: 'Session ouverte après vente'
-          };
-          this.sessionsService.openSession(defaultSession).subscribe({
-            next: (session) => {
-              this.currentSession = session;
-              this.isShiftOpen = true;
-              this.ticketCounterService.setSessionId(session.id);
-              this.ticketCounterService.setDepotId(session.depotId || this.currentShopDepotId);
-            },
-            error: () => {
-              // If opening session fails, continue without blocking the sale flow
-            }
-          });
-        } else {
-          // Refresh session data to update sales totals
-          this.sessionsService.getActiveSession().subscribe();
-        }
+        // Refresh session data to update sales totals
+        this.sessionsService.getActiveSessionByDepot().subscribe();
         
         // Refresh clients list to update debt information
         this.fetchAllClients();
@@ -2869,7 +2850,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   loadCurrentSession(): void {
     // Always pass the current depot ID to ensure isolation
-    this.sessionsService.getActiveSession(1, this.currentShopDepotId).subscribe({
+    this.sessionsService.getActiveSessionByDepot(1, this.currentShopDepotId).subscribe({
       next: (session) => {
         this.currentSession = session;
         this.isShiftOpen = !!session;
@@ -2878,14 +2859,15 @@ export class CaisseComponent implements OnInit, OnDestroy {
           this.ticketCounterService.setDepotId(session.depotId || this.currentShopDepotId);
           this.ticketCounterService.setSessionId(session.id);
         } else {
-          // No session found, ensure depot ID is set for new session
-          this.ticketCounterService.setDepotId(this.currentShopDepotId);
+          // No session found, automatically open one
+          this.autoOpenSession();
         }
       },
       error: (error) => {
         console.error('Error loading current session:', error);
-        // Ensure depot ID is set even on error
+        // Ensure depot ID is set even on error and try to open session
         this.ticketCounterService.setDepotId(this.currentShopDepotId);
+        this.autoOpenSession();
       }
     });
   }
@@ -2897,7 +2879,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       depotId: this.currentShopDepotId, // Ensure depot isolation
       note: 'Session automatique'
     };
-    this.sessionsService.openSession(defaultSession).subscribe({
+    this.sessionsService.openSessionByDepot(defaultSession).subscribe({
       next: (session) => {
         this.currentSession = session;
         this.isShiftOpen = true;
@@ -4791,9 +4773,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     // Leave depot room and disconnect socket
     if (this.currentShopDepotId) {
-      this.socketService.leaveDepot(this.currentShopDepotId);
+      if (environment.enableRealtime) {
+        this.socketService.leaveDepot(this.currentShopDepotId);
+      }
     }
-    this.socketService.disconnect();
+    if (environment.enableRealtime) {
+      this.socketService.disconnect();
+    }
   }
 
   // Drag and Drop Methods
@@ -6013,7 +5999,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   confirmDepotSelection(): void {
     if (this.selectedDepot) {
       // Leave previous depot room if any
-      if (this.currentShopDepotId) {
+      if (this.currentShopDepotId && environment.enableRealtime) {
         this.socketService.leaveDepot(this.currentShopDepotId);
       }
       
@@ -6026,7 +6012,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.ticketCounterService.setDepotId(this.currentShopDepotId);
       
       // Join new depot room for real-time synchronization
-      this.socketService.joinDepot(this.currentShopDepotId);
+      if (environment.enableRealtime) {
+        this.socketService.joinDepot(this.currentShopDepotId);
+      }
       
       // Clear current session since we're switching depots
       this.currentSession = null;

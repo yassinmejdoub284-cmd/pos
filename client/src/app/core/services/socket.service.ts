@@ -16,6 +16,8 @@ export interface SocketEvent {
 export class SocketService {
   private socket: Socket | null = null;
   private readonly SOCKET_URL = environment.socketUrl;
+  private isConnecting = false;
+  private lastErrorLogTs = 0;
   
   public isConnected = signal(false);
   public connectionStatus = new BehaviorSubject<'connected' | 'disconnected' | 'connecting'>('disconnected');
@@ -23,33 +25,48 @@ export class SocketService {
   constructor(private authService: AuthService) {}
 
   connect(): void {
-    if (this.socket?.connected) return;
+    if (!environment.enableRealtime) return;
+    if (this.socket?.connected || this.isConnecting) return;
 
     const token = this.authService.getToken();
     if (!token) return;
 
     this.connectionStatus.next('connecting');
+    this.isConnecting = true;
     
     this.socket = io(this.SOCKET_URL, {
       auth: {
         token
       },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 6,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
+      timeout: 8000
     });
 
     this.socket.on('connect', () => {
       this.isConnected.set(true);
       this.connectionStatus.next('connected');
+      this.isConnecting = false;
     });
 
     this.socket.on('disconnect', () => {
       this.isConnected.set(false);
       this.connectionStatus.next('disconnected');
+      this.isConnecting = false;
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+      // Throttle noisy error logging (max once per 5s)
+      const now = Date.now();
+      if (now - this.lastErrorLogTs > 5000) {
+        try { console.warn('Socket connection error:', error?.message || error); } catch {}
+        this.lastErrorLogTs = now;
+      }
       this.connectionStatus.next('disconnected');
+      this.isConnecting = false;
     });
   }
 

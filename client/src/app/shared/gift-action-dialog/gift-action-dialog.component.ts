@@ -121,3 +121,4 @@ export class GiftActionDialogComponent {
     this.dialogClosed.emit();
   }
 }
+

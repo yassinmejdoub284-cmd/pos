@@ -112,7 +112,7 @@ export class SessionsService {
   public isSessionOpen = signal(false);
 
   constructor(private http: HttpClient, private authService: AuthService) {
-    this.loadCurrentSession();
+    this.loadCurrentSessionByDepot();
   }
 
   private getRequestOptions() {
@@ -125,22 +125,10 @@ export class SessionsService {
     };
   }
 
-  // Get active session for current user (optionally for a specific depot)
+  // Get active session for current user (DEPRECATED - use getActiveSessionByDepot instead)
   getActiveSession(posId?: number, depotId?: number): Observable<SessionCaisse | null> {
-    const params: any = {};
-    if (posId) params.posId = posId.toString();
-    if (depotId) params.depotId = depotId.toString();
-    
-    return this.http.get<SessionCaisse | null>(`${this.API_URL}/active`, { 
-      params,
-      ...this.getRequestOptions()
-    }).pipe(
-      tap(session => {
-        this.currentSessionSubject.next(session);
-        this.currentSession.set(session);
-        this.isSessionOpen.set(!!session);
-      })
-    );
+    console.warn('getActiveSession is deprecated. Use getActiveSessionByDepot instead for depot-only sessions.');
+    return this.getActiveSessionByDepot(posId, depotId);
   }
 
   // Get active session by depot only (no user linkage)
@@ -161,15 +149,10 @@ export class SessionsService {
     );
   }
 
-  // Open new session
+  // Open new session (DEPRECATED - use openSessionByDepot instead)
   openSession(request: OpenSessionRequest): Observable<SessionCaisse> {
-    return this.http.post<SessionCaisse>(`${this.API_URL}/open`, request, this.getRequestOptions()).pipe(
-      tap(session => {
-        this.currentSessionSubject.next(session);
-        this.currentSession.set(session);
-        this.isSessionOpen.set(true);
-      })
-    );
+    console.warn('openSession is deprecated. Use openSessionByDepot instead for depot-only sessions.');
+    return this.openSessionByDepot(request);
   }
 
   // Open new session by depot only (no user linkage)
@@ -250,14 +233,20 @@ export class SessionsService {
     return this.getSessionReport(sessionId, type, 'escpos');
   }
 
-  // Load current session on service initialization
+  // Load current session on service initialization (DEPRECATED)
   private loadCurrentSession(): void {
-    this.getActiveSession().subscribe();
+    console.warn('loadCurrentSession is deprecated. Use loadCurrentSessionByDepot instead.');
+    this.loadCurrentSessionByDepot();
+  }
+
+  // Load current session by depot on service initialization
+  private loadCurrentSessionByDepot(): void {
+    this.getActiveSessionByDepot().subscribe();
   }
 
   // Refresh current session
   refreshCurrentSession(): void {
-    this.loadCurrentSession();
+    this.loadCurrentSessionByDepot();
   }
 
   // Get cash movement type label in French

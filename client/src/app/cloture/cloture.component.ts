@@ -283,7 +283,6 @@ export class ClotureComponent implements OnInit, OnDestroy {
   // Refresh control
   private refreshIntervalId: any;
   private isRefreshing = false;
-  private triedAutoOpen = false;
   isAdminUser = false;
 
   // Crédit and supplier payments helpers
@@ -715,21 +714,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
         
         if (!silent) this.loading.set(false);
         this.isRefreshing = false;
-        
-        // If no active session, automatically open one
-        if (!session && !this.triedAutoOpen) {
-          this.triedAutoOpen = true;
-          this.autoOpenSession(0);
-        }
       },
       error: (error) => {
         this.error.set('Erreur lors du chargement de la session');
         if (!silent) this.loading.set(false);
         this.isRefreshing = false;
-        if (!this.triedAutoOpen) {
-          this.triedAutoOpen = true;
-          this.autoOpenSession(0);
-        }
       }
     });
   }
