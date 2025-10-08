@@ -1,9 +1,9 @@
-// export const environment = {
-//   production: false,
-//   apiUrl: 'https://localhost:3255/api',
-//   socketUrl: 'https://localhost:3255',
-//   enableRealtime: false
-// };
+export const environment = {
+  production: false,
+  apiUrl: 'https://localhost:3255/api',
+  socketUrl: 'https://localhost:3255',
+  enableRealtime: false
+};
 
 // export const environment = {
 //   production: false,
@@ -11,12 +11,12 @@
 //   socketUrl: 'https://192.168.169.108:3255'
 // };
 
-export const environment = {
-  production: false,
-  apiUrl: 'https://api.solumove.net/port3255/api',
-  socketUrl: 'https://api.solumove.net/port3255',
-  enableRealtime: false
-};
+// export const environment = {
+//   production: false,
+//   apiUrl: 'https://api.solumove.net/port3255/api',
+//   socketUrl: 'https://api.solumove.net/port3255',
+//   enableRealtime: false
+// };
 
 // export const environment = {
 //   production: false,

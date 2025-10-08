@@ -752,24 +752,61 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
     
-    const defaultSession: OpenSessionRequest = {
-      openingFund: openingFund,
-      posId: 1,
-      depotId: currentDepotId, // Only depot isolation, no user linkage
-      note: 'Session automatique'
-    };
-    try { console.debug('[Cloture] Opening session payload', defaultSession); } catch {}
-    
-    this.sessionsService.openSessionByDepot(defaultSession).subscribe({
-      next: (session) => {
-        this.currentSession.set(session);
-        this.loading.set(false);
-        this.error.set('');
+    // If a session is already open for this depot, do not attempt to auto-open
+    this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({
+      next: (active) => {
+        if (active) {
+          this.currentSession.set(active);
+          this.loading.set(false);
+          this.error.set('');
+          return;
+        }
+        
+        // Build payload: include openingFund only if it is a meaningful positive value
+        const payload: any = {
+          posId: 1,
+          depotId: currentDepotId,
+          note: 'Session automatique'
+        };
+        if (Number.isFinite(openingFund) && openingFund > 0) {
+          payload.openingFund = openingFund;
+        }
+        
+        this.sessionsService.openSessionByDepot(payload).subscribe({
+          next: (session) => {
+            this.currentSession.set(session);
+            this.loading.set(false);
+            this.error.set('');
+          },
+          error: (error) => {
+            const msg = error?.error?.error || 'Erreur lors de l\'ouverture automatique de la session';
+            this.error.set(msg);
+            this.loading.set(false);
+          }
+        });
       },
-      error: (error) => {
-        const msg = error?.error?.error || 'Erreur lors de l\'ouverture automatique de la session';
-        this.error.set(msg);
-        this.loading.set(false);
+      error: () => {
+        // If we fail to check, fallback to attempting open with guarded payload
+        const payload: any = {
+          posId: 1,
+          depotId: currentDepotId,
+          note: 'Session automatique'
+        };
+        if (Number.isFinite(openingFund) && openingFund > 0) {
+          payload.openingFund = openingFund;
+        }
+        this.sessionsService.openSessionByDepot(payload).subscribe({
+          next: (session) => {
+            this.currentSession.set(session);
+            this.loading.set(false);
+            this.error.set('');
+          },
+          error: (error) => {
+            const msg = error?.error?.error || 'Erreur lors de l\'ouverture automatique de la session';
+            this.error.set(msg);
+            this.loading.set(false);
+          }
+        });
       }
     });
   }
