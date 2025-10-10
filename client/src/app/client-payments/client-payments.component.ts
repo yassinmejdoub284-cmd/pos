@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../environments/environment';
+import { RouterModule } from '@angular/router';
 
 interface Client {
   id: number;
@@ -36,7 +37,7 @@ interface ClientPayment {
   selector: 'app-client-payments',
   templateUrl: './client-payments.component.html',
   standalone: true, 
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, FormsModule, RouterModule]
 })
 export class ClientPaymentsComponent implements OnInit {
   clients: Client[] = [];

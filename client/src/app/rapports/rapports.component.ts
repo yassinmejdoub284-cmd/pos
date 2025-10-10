@@ -12,6 +12,9 @@ export class RapportsComponent {
 
   navigateToReport(reportType: string) {
     switch (reportType) {
+      case 'sessions-history':
+        this.router.navigate(['/rapports/sessions-history']);
+        break;
       case 'daily-monthly':
         this.router.navigate(['/rapports/daily-monthly']);
         break;

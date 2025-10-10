@@ -70,7 +70,46 @@ export class ParametresComponent implements OnInit {
       autoCut: true,
       printLogo: true
     },
-    isDesktopVersion: true
+    isDesktopVersion: true,
+    // Document type defaults
+    documentTypeDefaults: {
+      livraison: {
+        client: true,
+        depot: false,
+        vehicle: true,
+        driver: true,
+        manualDestination: false,
+        autoInvoice: false,
+        tvaAndPrix: true
+      },
+      sortie: {
+        client: false,
+        depot: true,
+        vehicle: false,
+        driver: false,
+        manualDestination: false,
+        autoInvoice: false,
+        tvaAndPrix: true
+      },
+      transfert: {
+        client: false,
+        depot: true,
+        vehicle: true,
+        driver: true,
+        manualDestination: false,
+        autoInvoice: false,
+        tvaAndPrix: true
+      },
+      retour: {
+        client: true,
+        depot: false,
+        vehicle: false,
+        driver: false,
+        manualDestination: false,
+        autoInvoice: false,
+        tvaAndPrix: true
+      }
+    }
   };
 
   constructor(
@@ -103,6 +142,48 @@ export class ParametresComponent implements OnInit {
             enableDrawer: true,
             autoCut: true,
             printLogo: true
+          };
+        }
+        
+        // Ensure documentTypeDefaults exists with default values
+        if (!this.settings.documentTypeDefaults) {
+          this.settings.documentTypeDefaults = {
+            livraison: {
+              client: true,
+              depot: false,
+              vehicle: true,
+              driver: true,
+              manualDestination: false,
+              autoInvoice: false,
+              tvaAndPrix: true
+            },
+            sortie: {
+              client: false,
+              depot: true,
+              vehicle: false,
+              driver: false,
+              manualDestination: false,
+              autoInvoice: false,
+              tvaAndPrix: true
+            },
+            transfert: {
+              client: false,
+              depot: true,
+              vehicle: true,
+              driver: true,
+              manualDestination: false,
+              autoInvoice: false,
+              tvaAndPrix: true
+            },
+            retour: {
+              client: true,
+              depot: false,
+              vehicle: false,
+              driver: false,
+              manualDestination: false,
+              autoInvoice: false,
+              tvaAndPrix: true
+            }
           };
         }
         
@@ -158,7 +239,8 @@ export class ParametresComponent implements OnInit {
       impression: "Impression",
       depenses: "Dépenses",
       cloture: "Clôture",
-      logs: "Logs & Audit"
+      logs: "Logs & Audit",
+      documents: "Documents"
     };
     return this.currentSection ? (map[this.currentSection] || this.currentSection) : 'Paramètres';
   }

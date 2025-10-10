@@ -14,7 +14,8 @@ const routes: Routes = [
   { path: 'impression', component: ParametresComponent },
   { path: 'depenses', component: ParametresComponent },
   { path: 'cloture', component: ParametresComponent },
-  { path: 'logs', component: ParametresComponent }
+  { path: 'logs', component: ParametresComponent },
+  { path: 'documents', component: ParametresComponent }
 ];
 
 @NgModule({

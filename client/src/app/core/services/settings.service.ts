@@ -53,6 +53,45 @@ export interface AppSettings {
     showPaymentMethod: boolean;
     showDiscountDetails: boolean;
   };
+  // Document type defaults
+  documentTypeDefaults: {
+    livraison: {
+      client: boolean;
+      depot: boolean;
+      vehicle: boolean;
+      driver: boolean;
+      manualDestination: boolean;
+      autoInvoice: boolean;
+      tvaAndPrix: boolean;
+    };
+    sortie: {
+      client: boolean;
+      depot: boolean;
+      vehicle: boolean;
+      driver: boolean;
+      manualDestination: boolean;
+      autoInvoice: boolean;
+      tvaAndPrix: boolean;
+    };
+    transfert: {
+      client: boolean;
+      depot: boolean;
+      vehicle: boolean;
+      driver: boolean;
+      manualDestination: boolean;
+      autoInvoice: boolean;
+      tvaAndPrix: boolean;
+    };
+    retour: {
+      client: boolean;
+      depot: boolean;
+      vehicle: boolean;
+      driver: boolean;
+      manualDestination: boolean;
+      autoInvoice: boolean;
+      tvaAndPrix: boolean;
+    };
+  };
 }
 
 @Injectable({

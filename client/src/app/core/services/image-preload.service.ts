@@ -6,6 +6,7 @@ import { Injectable } from '@angular/core';
 export class ImagePreloadService {
   private imageCache = new Map<string, Promise<boolean>>();
   private preloadedImages = new Set<string>();
+  private maxCacheSize = 200; // Limit cache size to prevent memory issues
 
   constructor() {}
 
@@ -19,6 +20,11 @@ export class ImagePreloadService {
 
     if (this.imageCache.has(src)) {
       return this.imageCache.get(src)!;
+    }
+
+    // Check cache size and clear if needed
+    if (this.imageCache.size >= this.maxCacheSize) {
+      this.clearOldestCache();
     }
 
     const promise = new Promise<boolean>((resolve) => {
@@ -98,6 +104,20 @@ export class ImagePreloadService {
   clearCache(): void {
     this.imageCache.clear();
     this.preloadedImages.clear();
+  }
+
+  /**
+   * Clear oldest cache entries to prevent memory issues
+   */
+  private clearOldestCache(): void {
+    const entriesToRemove = Math.floor(this.maxCacheSize * 0.3); // Remove 30% of cache
+    const entries = Array.from(this.imageCache.entries());
+    
+    for (let i = 0; i < entriesToRemove && i < entries.length; i++) {
+      const [key] = entries[i];
+      this.imageCache.delete(key);
+      this.preloadedImages.delete(key);
+    }
   }
 
   /**

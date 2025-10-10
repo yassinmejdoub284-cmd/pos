@@ -1044,13 +1044,13 @@ async function calculateSessionSummary(sessionId) {
     .filter(sale => sale.paymentMethod?.type === 'CASH')
     .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
 
-  // Calculate cash movements
+  // Calculate cash movements (exclude rejected movements)
   const entree = session.cashMovements
-    .filter(m => m.type === 'ENTREE')
+    .filter(m => m.type === 'ENTREE' && !m.reason?.includes('[REJETÉ]'))
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
 
   const sortie = session.cashMovements
-    .filter(m => ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type))
+    .filter(m => ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !m.reason?.includes('[REJETÉ]'))
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
 
   // Start expected cash from opening; we'll compute cash from sales as (totalSales - creditOutstanding)
@@ -1153,6 +1153,9 @@ async function calculateSessionSummary(sessionId) {
     const expenseRegex = /Dépense(?: approuvée)? #(\d+)/i;
     (session.cashMovements || []).forEach(m => {
       const reason = String(m.reason || '');
+      // Skip rejected movements
+      if (reason.includes('[REJETÉ]')) return;
+      
       const match = reason.match(expenseRegex);
       if (match && match[1]) {
         const idParsed = parseInt(match[1]);
@@ -1170,13 +1173,15 @@ async function calculateSessionSummary(sessionId) {
       .map(e => {
         const categoryPart = e.category?.name ? ` · ${e.category.name}` : '';
         const supplierPart = e.supplier?.name ? ` · Fournisseur: ${e.supplier.name}` : '';
+        const notesPart = e.notes ? ` · ${e.notes}` : '';
         return ({
           id: e.id,
           amount: parseFloat(e.amount || 0),
-          reason: `Dépense approuvée #${e.id}${categoryPart}${supplierPart}`,
+          reason: `Dépense approuvée #${e.id}${categoryPart}${supplierPart}${notesPart}`,
           createdAt: (e.approvedAt || e.createdAt || e.date),
           categoryName: e.category?.name || null,
           supplierName: e.supplier?.name || null,
+          notes: e.notes || null,
           hasCashMovement: expenseIdsWithMovement.has(e.id)
         });
       })
@@ -1307,9 +1312,9 @@ async function generateZReport(sessionId, closureData = {}) {
   });
 
   const summary = await calculateSessionSummary(sessionId);
-  // Derive closure amounts from cash movements if not provided
+  // Derive closure amounts from cash movements if not provided (exclude rejected movements)
   const computedWithdrawal = session.cashMovements
-    .filter(m => m.type === 'RETRAIT_CENTRALE')
+    .filter(m => m.type === 'RETRAIT_CENTRALE' && !m.reason?.includes('[REJETÉ]'))
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
   const finalCounted = session.countedCash != null ? parseFloat(session.countedCash) : undefined;
   const finalRemaining = finalCounted != null ? (finalCounted - computedWithdrawal) : undefined;
@@ -1413,10 +1418,12 @@ function generateESCReport(reportData, type) {
   
   escpos += 'MOUVEMENTS CAISSE\n';
   escpos += '=================\n';
-  session.cashMovements.forEach(movement => {
-    escpos += `${movement.type}: ${movement.amount.toFixed(3)} TND\n`;
-    escpos += `  ${movement.reason}\n`;
-  });
+  session.cashMovements
+    .filter(m => !m.reason?.includes('[REJETÉ]')) // Exclude rejected movements from print
+    .forEach(movement => {
+      escpos += `${movement.type}: ${movement.amount.toFixed(3)} TND\n`;
+      escpos += `  ${movement.reason}\n`;
+    });
   escpos += '\n';
   
   escpos += 'COMPTAGE ESPÈCES\n';

@@ -1,4 +1,4 @@
-import { Directive, ElementRef, Input, OnInit, OnDestroy, inject } from '@angular/core';
+import { Directive, ElementRef, Input, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
 import { NgOptimizedImage } from '@angular/common';
 
 @Directive({
@@ -12,8 +12,10 @@ export class LazyImageDirective implements OnInit, OnDestroy {
   @Input() loadingSrc: string = '/assets/images/loading-placeholder.svg';
 
   private elementRef = inject(ElementRef);
+  private cdr = inject(ChangeDetectorRef);
   private observer?: IntersectionObserver;
   private isLoaded = false;
+  private isIntersecting = false;
 
   ngOnInit(): void {
     this.setupIntersectionObserver();
@@ -32,14 +34,15 @@ export class LazyImageDirective implements OnInit, OnDestroy {
     this.observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
+          this.isIntersecting = entry.isIntersecting;
           if (entry.isIntersecting && !this.isLoaded) {
             this.loadImage();
           }
         });
       },
       {
-        rootMargin: '50px', // Start loading 50px before the image comes into view
-        threshold: 0.1
+        rootMargin: '100px', // Start loading earlier for better UX
+        threshold: 0.01 // Lower threshold for faster triggering
       }
     );
 
@@ -68,6 +71,7 @@ export class LazyImageDirective implements OnInit, OnDestroy {
       // Disconnect observer since image is loaded
       if (this.observer) {
         this.observer.disconnect();
+        this.observer = undefined;
       }
     };
 
@@ -81,6 +85,7 @@ export class LazyImageDirective implements OnInit, OnDestroy {
       // Disconnect observer
       if (this.observer) {
         this.observer.disconnect();
+        this.observer = undefined;
       }
     };
 

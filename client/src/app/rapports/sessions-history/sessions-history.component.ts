@@ -1,35 +1,41 @@
-import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { SessionsService, SessionCaisse, SessionFilters, CashMovementRequest, CloseSessionRequest, OpenSessionRequest } from '../../core/services/sessions.service';
+import { AuthService } from '../../core/services/auth.service';
+import { PrintService } from '../../core/services/print.service';
+import { DailyExtractService } from '../../core/services/daily-extract.service';
+import { SettingsService, AppSettings } from '../../core/services/settings.service';
+import { DepotsService } from '../../core/services/depots.service';
+import { TicketCounterService } from '../../core/services/ticket-counter.service';
+import { Depot } from '../../core/models/depot.model';
 import { Router } from '@angular/router';
-import { SessionsService, SessionCaisse, CashMovementRequest, CloseSessionRequest, OpenSessionRequest } from '../core/services/sessions.service';
-import { AuthService } from '../core/services/auth.service';
-import { PrintService } from '../core/services/print.service';
-import { DailyExtractService } from '../core/services/daily-extract.service';
-import { SettingsService, AppSettings } from '../core/services/settings.service';
-import { DepotsService } from '../core/services/depots.service';
-import { TicketCounterService } from '../core/services/ticket-counter.service';
-import { Depot } from '../core/models/depot.model';
 
 @Component({
-  selector: 'app-cloture',
-  templateUrl: './cloture.component.html',
-  standalone: true,
-  imports: [CommonModule, FormsModule]
+  selector: 'app-sessions-history',
+  standalone: false,
+  templateUrl: './sessions-history.component.html',
+  styleUrls: ['./sessions-history.component.css']
 })
-export class ClotureComponent implements OnInit, OnDestroy {
-  currentSession = signal<SessionCaisse | null>(null);
+export class SessionsHistoryComponent implements OnInit, OnDestroy {
+  private readonly sessionsService = inject(SessionsService);
+  private readonly authService = inject(AuthService);
+  private readonly printService = inject(PrintService);
+  private readonly dailyExtractService = inject(DailyExtractService);
+  private readonly settingsService = inject(SettingsService);
+  private readonly depotsService = inject(DepotsService);
+  private readonly ticketCounterService = inject(TicketCounterService);
+
   loading = signal(false);
+  loadingDetails = signal(false);
   error = signal('');
-  // Depot selection removed; rely on visiting depot chosen at login
-  
-  // Close session form - only withdrawal
-  closeSessionForm = {
-    retraitCentrale: ''
-  };
-  
-  // UI state
+
+
+
+  sessions = signal<SessionCaisse[]>([]);
+  selectedSession = signal<SessionCaisse | null>(null);
+  settings: AppSettings | null = null;
+
+  // UI state (copied from ClotureComponent)
   showCloseForm = signal(false);
   showFundForm = signal(false);
   showAdjustForm = signal(false);
@@ -53,6 +59,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
   cashMoreMainFlag = false;
   cashMoreSchemaFlag = false;
   cashMoreExpandedFlag = false;
+  // Ticket items expansion state
+  expandedTicketId = signal<number | null>(null);
+  private ticketItemsById = signal<Record<number, Array<{ name: string; quantity: number; unitPrice: number; total: number }>>>({});
 
   // Detailed flows modal state
   showFlowsModal = signal(false);
@@ -64,6 +73,148 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // App settings stream for template consumption
   settings$!: Observable<AppSettings>;
+
+  // Close session form - only withdrawal
+  closeSessionForm = {
+    retraitCentrale: ''
+  };
+  
+  // Fund form
+  fundForm = {
+    amount: ''
+  };
+  
+  // Adjust balance form
+  adjustForm = {
+    newBalance: ''
+  };
+
+  // Refresh control
+  private refreshIntervalId: any;
+  private isRefreshing = false;
+  isAdminUser = false;
+
+  ngOnInit(): void {
+    this.settings$ = this.settingsService.getSettings();
+    this.isAdminUser = this.authService.isAdmin();
+    this.loadSessions();
+  }
+
+  ngOnDestroy(): void {
+    if (this.refreshIntervalId) {
+      clearInterval(this.refreshIntervalId);
+      this.refreshIntervalId = null;
+    }
+  }
+
+
+  loadSettings(after?: () => void): void {
+    this.settingsService.getSettings().subscribe({
+      next: (settings: any) => {
+        // Load sessions based on historyRetentionDays setting
+        const sessionLimit = Number((settings as any).historyRetentionDays || 10);
+        this.loadRecentSessions(sessionLimit, after);
+      },
+      error: (error) => {
+        console.error('Error loading settings:', error);
+        // Fallback to default session limit
+        this.loadRecentSessions(10, after);
+      }
+    });
+  }
+
+  loadRecentSessions(limit: number, after?: () => void): void {
+    console.log('Loading recent sessions with limit:', limit);
+    this.sessionsService.getSessions({ 
+      limit: limit
+    }).subscribe({
+      next: (sessions: any) => {
+        console.log('Sessions received:', sessions);
+        // Sort sessions by openedAt/createdAt (newest first) and keep only last N
+        const sorted = (sessions || [])
+          .slice()
+          .sort((a: any, b: any) => {
+            const aTime = new Date(a.openedAt ?? a.createdAt).getTime();
+            const bTime = new Date(b.openedAt ?? b.createdAt).getTime();
+            return bTime - aTime;
+          })
+          .slice(0, limit);
+
+         console.log('Sorted sessions:', sorted);
+         this.sessions.set(sorted);
+         // Auto-select first session if none selected and sessions exist
+         if (sorted.length > 0 && !this.selectedSession()) {
+           this.selectSession(sorted[0]);
+         }
+         this.loading.set(false);
+         if (after) after();
+      },
+      error: (error) => {
+        console.error('Error loading recent sessions:', error);
+        this.error.set('Erreur lors du chargement des sessions');
+        this.loading.set(false);
+        if (after) after();
+      }
+    });
+  }
+
+  loadSessions(): void {
+    this.loading.set(true);
+    this.error.set('');
+    this.loadSettings();
+  }
+
+  refreshSessions(): void {
+    this.loadSessions();
+  }
+
+  selectSession(s: SessionCaisse): void {
+    this.selectedSession.set(s);
+    this.error.set(''); // Clear any previous errors
+    // Automatically load detailed data when session is selected
+    this.refreshDetails(s);
+  }
+
+  refreshDetails(session: SessionCaisse): void {
+    this.loadingDetails.set(true);
+    // fetch Z to enrich details and allow print/export
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (report) => {
+        console.log('Session report loaded:', report);
+        const enriched: SessionCaisse = {
+          ...session,
+          cashMovements: report.session?.cashMovements || session.cashMovements,
+          summary: report.summary || session.summary
+        };
+        console.log('Enriched session:', enriched);
+        this.selectedSession.set(enriched);
+        // Ensure cash sales list is populated using X/Z report sales
+        this.loadCashSalesDetails();
+        this.loadingDetails.set(false);
+      },
+      error: (err) => {
+        console.error('Error loading session report:', err);
+        this.error.set('Erreur lors du chargement des détails de la session');
+        this.loadingDetails.set(false);
+      }
+    });
+  }
+
+  printX(session: SessionCaisse): void {
+    this.sessionsService.getSessionReport(session.id, 'X', 'html').subscribe({
+      next: (data) => this.printService.printXReport(data),
+      error: () => {}
+    });
+  }
+
+  printZ(session: SessionCaisse): void {
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (data) => this.printService.printZReport(data),
+      error: () => {}
+    });
+  }
+
+  // ===== COPIED FROM CLOTURECOMPONENT =====
 
   // Resolve logo URL from settings (fallback to public logo)
   getLogoUrl(settings: AppSettings | null | undefined): string {
@@ -87,7 +238,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Derived rows for entries/sorties
   getDetailedEntryRows(): Array<{ createdAt: string; label: string; amount: number }> {
-    const session = this.currentSession();
+    const session = this.selectedSession();
     if (!session) return [];
 
     const rows: Array<{ createdAt: string; label: string; amount: number }> = [];
@@ -134,7 +285,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     for (const t of this.cashSalesDetails()) {
       if ((t.paidAmount || 0) > 0) {
         rows.push({
-          createdAt: new Date(this.currentSession()!.openedAt).toISOString(),
+          createdAt: new Date(this.selectedSession()!.openedAt).toISOString(),
           label: `Ticket N°${t.id}`,
           amount: t.paidAmount
         });
@@ -150,7 +301,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   getDetailedExitRows(): Array<{ createdAt: string; label: string; amount: number }> {
-    const session = this.currentSession();
+    const session = this.selectedSession();
     if (!session) return [];
 
     const rows: Array<{ createdAt: string; label: string; amount: number }> = [];
@@ -280,14 +431,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
     popup.document.close();
   }
 
-  // Refresh control
-  private refreshIntervalId: any;
-  private isRefreshing = false;
-  isAdminUser = false;
-
   // Crédit and supplier payments helpers
   getCreditAmount(): number {
-    const session = this.currentSession();
+    const session = this.selectedSession();
     const summary: any = session?.summary || {};
     const direct = parseFloat(summary.creditOutstanding || 0) || 0;
     if (direct > 0) return direct;
@@ -297,7 +443,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Recent movements helper (pure)
   getRecentMovements(limit: number, predicate: (m: any) => boolean): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
-    const movements = (this.currentSession()?.cashMovements || []) as any[];
+    const movements = (this.selectedSession()?.cashMovements || []) as any[];
     return movements
       .filter(predicate)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -312,7 +458,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Convenience filtered lists for template (avoid inline lambdas in template)
   recentClientPayments(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
-    const details = (this.currentSession()?.summary as any)?.clientPaymentsDetails as Array<any> | undefined;
+    const details = (this.selectedSession()?.summary as any)?.clientPaymentsDetails as Array<any> | undefined;
     if (details && details.length) {
       return details.slice(0, 10).map(d => ({
         createdAt: d.createdAt,
@@ -338,7 +484,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   getFundingsTotal(): number {
-    const movements = (this.currentSession()?.cashMovements || []) as any[];
+    const movements = (this.selectedSession()?.cashMovements || []) as any[];
     return movements
       .filter((m: any) => (m?.type === 'ENTREE') && ((m?.reason || '').toLowerCase().includes('fonds de caisse') || (m?.reason || '').toLowerCase().includes('alimentation') || (m?.reason || '').toLowerCase().includes('alimenter')))
       .reduce((sum, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
@@ -346,7 +492,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   recentExpenses(): Array<{ createdAt: string; type: string; reason: string; amount: number; categoryName?: string | null; supplierName?: string | null; notes?: string | null }> {
     // Prefer server-provided details if any
-    const details = (this.currentSession()?.summary as any)?.expensesDetails as Array<any> | undefined;
+    const details = (this.selectedSession()?.summary as any)?.expensesDetails as Array<any> | undefined;
     if (details && details.length) {
       return details.slice(0, 10).map(d => {
         const fullReason: string = d.reason || '';
@@ -398,8 +544,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   recentSupplierPayments(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
     // Only actual debit movements recorded in caisse, enriched with supplier name when available
-    const movements = (this.currentSession()?.cashMovements || []) as any[];
-    const details = (this.currentSession()?.summary as any)?.supplierPaymentsDetails as Array<any> | undefined;
+    const movements = (this.selectedSession()?.cashMovements || []) as any[];
+    const details = (this.selectedSession()?.summary as any)?.supplierPaymentsDetails as Array<any> | undefined;
 
     return movements
       .filter(m => {
@@ -444,7 +590,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   getSupplierPaymentsTotal(): number {
-    const movements = this.currentSession()?.cashMovements || [];
+    const movements = this.selectedSession()?.cashMovements || [];
     return movements
       .filter(m => {
         const reasonLower = (m.reason || '').toLowerCase();
@@ -457,7 +603,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Refunds (Remboursements)
   recentRefunds(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
-    const movements = (this.currentSession()?.cashMovements || []) as any[];
+    const movements = (this.selectedSession()?.cashMovements || []) as any[];
     return movements
       .filter(m => {
         const reasonLower = (m.reason || '').toLowerCase();
@@ -476,7 +622,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   getRefundsTotal(): number {
-    const movements = this.currentSession()?.cashMovements || [];
+    const movements = this.selectedSession()?.cashMovements || [];
     return movements
       .filter(m => {
         const reasonLower = (m.reason || '').toLowerCase();
@@ -488,8 +634,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   getNetAfterAdjustments(): number {
-    const totalSales = parseFloat((this.currentSession()?.summary?.totalSales as any) || 0) || 0;
-    const expectedCash = parseFloat((this.currentSession()?.summary?.expectedCash as any) || 0) || 0;
+    const totalSales = parseFloat((this.selectedSession()?.summary?.totalSales as any) || 0) || 0;
+    const expectedCash = parseFloat((this.selectedSession()?.summary?.expectedCash as any) || 0) || 0;
     const credit = this.getCreditAmount();
     const supplierRegs = this.getSupplierPaymentsTotal();
     return totalSales + expectedCash - credit - supplierRegs;
@@ -497,13 +643,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // New computed helpers
   getClientPaymentsTotal(): number {
-    const summary: any = this.currentSession()?.summary || {};
+    const summary: any = this.selectedSession()?.summary || {};
     // Only use server-provided client payments total (standalone payments without saleId)
     return parseFloat(summary.clientPaymentsTotal || 0) || 0;
   }
 
   getTotalOrderAdvances(): number {
-    const movements = this.currentSession()?.cashMovements || [];
+    const movements = this.selectedSession()?.cashMovements || [];
     return movements
       .filter(m => {
         const reason = (m.reason || '').toLowerCase();
@@ -518,7 +664,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   getCashFromSalesNetOfCredit(): number {
-    const summary: any = this.currentSession()?.summary || {};
+    const summary: any = this.selectedSession()?.summary || {};
     const totalSales = parseFloat(summary.totalSales || 0) || 0;
     const credit = this.getCreditAmount();
     return Math.max(0, totalSales - credit);
@@ -526,18 +672,18 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   getExpensesTotal(): number {
     // Prefer server-provided total if available
-    const summary: any = this.currentSession()?.summary || {};
+    const summary: any = this.selectedSession()?.summary || {};
     const fromSummary = parseFloat(summary.expensesTotal || 0) || 0;
     if (fromSummary > 0) return fromSummary;
     // Fallback to movements tagged as expenses
-    const movements = this.currentSession()?.cashMovements || [];
+    const movements = this.selectedSession()?.cashMovements || [];
     return movements
       .filter(m => m.type === 'SORTIE' && ((m.reason || '').toLowerCase().includes('dépense') || (m.reason || '').toLowerCase().includes('depense')))
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 
   getComputedExpectedCash(): number {
-    const opening = parseFloat((this.currentSession()?.openingFund as any) || 0) || 0;
+    const opening = parseFloat((this.selectedSession()?.openingFund as any) || 0) || 0;
     const cashFromSales = this.getCashFromSalesNetOfCredit();
     const clientPayments = this.getClientPaymentsTotal();
     const orderAdvances = this.getTotalOrderAdvances();
@@ -548,12 +694,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   getOpeningFund(): number {
-    return parseFloat((this.currentSession()?.openingFund as any) || 0) || 0;
+    return parseFloat((this.selectedSession()?.openingFund as any) || 0) || 0;
   }
 
   // Get user sales summary for display under solde de caisse
   getUserSalesSummary(): Array<{ userName: string; totalSales: number }> {
-    const session = this.currentSession();
+    const session = this.selectedSession();
     if (!session) return [];
 
     // Get sales data from session report if available
@@ -582,7 +728,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Load and show current session tickets (id + amount)
   openTicketsModal(): void {
-    const session = this.currentSession();
+    const session = this.selectedSession();
     if (!session) return;
     this.loading.set(true);
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
@@ -605,33 +751,159 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   loadCashSalesDetails(): void {
-    const session = this.currentSession();
+    const session = this.selectedSession();
     if (!session || this.cashSalesLoading()) return;
     this.cashSalesLoading.set(true);
     this.sessionsService.getSessionReport(session.id, 'X').subscribe({
       next: (report: any) => {
         const sales = (report?.session?.sales || []) as Array<any>;
-        const cashSales = sales.filter(s => {
-          const method = ((s.paymentMethod?.type || '') as string).toUpperCase();
-          const paid = parseFloat(s.paidAmount ?? 0) || 0;
-          const total = parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0;
-          const hasCredit = total - paid > 0;
-          return method === 'CASH' || paid > 0 || hasCredit;
+
+        // Build items map for detail expansion
+        const itemsMap: Record<number, Array<{ name: string; quantity: number; unitPrice: number; total: number }>> = {};
+
+        const enriched = sales.map(sale => {
+          const finalTotal = parseFloat((sale.finalTotal ?? sale.totalAmount ?? 0) as any) || 0;
+          const explicitPaid = sale.paidAmount != null ? (parseFloat(sale.paidAmount as any) || 0) : undefined;
+          let paidAmount = explicitPaid ?? 0;
+
+          if (explicitPaid == null) {
+            const method = String(sale.paymentMethod?.type || '').toUpperCase();
+            paidAmount = method === 'CASH' ? finalTotal : 0;
+          }
+
+          // Normalize items for this sale
+          const items = Array.isArray(sale.items) ? sale.items : [];
+          itemsMap[sale.id] = items.map((it: any) => {
+            const qty = parseFloat((it.quantity ?? it.qty ?? 0) as any) || 0;
+            const total = parseFloat((it.total ?? it.lineTotal ?? it.subtotal ?? 0) as any) || 0;
+            const unit = qty !== 0 ? total / qty : parseFloat((it.unitPrice ?? it.price ?? 0) as any) || 0;
+            const name = (it.product?.name ?? it.name ?? 'Article') as string;
+            return { name, quantity: qty, unitPrice: unit, total };
+          });
+
+          return {
+            id: sale.id,
+            paidAmount,
+            totalAmount: finalTotal,
+            createdAt: sale.createdAt
+          };
         });
-        this.cashSalesDetails.set(
-          cashSales.map(s => ({
-            id: s.id,
-            paidAmount: parseFloat(s.paidAmount ?? 0) || 0,
-            totalAmount: parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0,
-            createdAt: s.createdAt
-          }))
-        );
+
+        const cashSales = enriched.filter(s => (s.paidAmount || 0) > 0);
+
+        this.ticketItemsById.set(itemsMap);
+        this.cashSalesDetails.set(cashSales);
         this.cashSalesLoading.set(false);
       },
       error: () => {
         this.cashSalesLoading.set(false);
       }
     });
+  }
+
+  toggleTicketDetails(ticketId: number): void {
+    this.expandedTicketId.set(this.expandedTicketId() === ticketId ? null : ticketId);
+  }
+
+  getTicketItems(ticketId: number): Array<{ name: string; quantity: number; unitPrice: number; total: number }> {
+    const map = this.ticketItemsById();
+    return map[ticketId] || [];
+  }
+
+  getUniqueUsers(): number {
+    const sessions = this.sessions();
+    const uniqueUserIds = new Set(sessions.map(s => `${s.user?.firstName}-${s.user?.lastName}`).filter(name => name !== 'undefined-undefined'));
+    return uniqueUserIds.size;
+  }
+
+  // New print methods for family and article grouping
+  printWithFamily(session: SessionCaisse): void {
+    if (!session) return;
+    
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (sessionReport) => {
+        this.settingsService.getSettings().subscribe({
+          next: (companyData) => {
+            this.printService.printDetailedSessionReportWithFamilyGrouping(sessionReport, companyData);
+          },
+          error: (error) => {
+            console.error('Error fetching settings:', error);
+            this.printService.printDetailedSessionReportWithFamilyGrouping(sessionReport);
+          }
+        });
+      },
+      error: (error) => {
+        this.error.set('Erreur lors de l\'impression du rapport avec famille');
+      }
+    });
+  }
+
+  printByArticle(session: SessionCaisse): void {
+    if (!session) return;
+    
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (sessionReport) => {
+        this.settingsService.getSettings().subscribe({
+          next: (companyData) => {
+            this.printService.printDetailedSessionReportWithArticleGrouping(sessionReport, companyData);
+          },
+          error: (error) => {
+            console.error('Error fetching settings:', error);
+            this.printService.printDetailedSessionReportWithArticleGrouping(sessionReport);
+          }
+        });
+      },
+      error: (error) => {
+        this.error.set('Erreur lors de l\'impression du rapport par article');
+      }
+    });
+  }
+
+  getActiveSessionsCount(): number {
+    return this.sessions().filter(s => s.status === 'OPEN').length;
+  }
+
+  getClosedSessionsCount(): number {
+    return this.sessions().filter(s => s.status === 'CLOSED').length;
+  }
+
+  // Navigation methods
+  canNavigatePrevious(): boolean {
+    const currentSession = this.selectedSession();
+    if (!currentSession) return false;
+    const currentIndex = this.sessions().findIndex(s => s.id === currentSession.id);
+    return currentIndex > 0;
+  }
+
+  canNavigateNext(): boolean {
+    const currentSession = this.selectedSession();
+    if (!currentSession) return false;
+    const currentIndex = this.sessions().findIndex(s => s.id === currentSession.id);
+    return currentIndex < this.sessions().length - 1;
+  }
+
+  navigateToPreviousSession(): void {
+    if (!this.canNavigatePrevious()) return;
+    const currentSession = this.selectedSession();
+    if (!currentSession) return;
+    const currentIndex = this.sessions().findIndex(s => s.id === currentSession.id);
+    const previousSession = this.sessions()[currentIndex - 1];
+    this.selectSession(previousSession);
+  }
+
+  navigateToNextSession(): void {
+    if (!this.canNavigateNext()) return;
+    const currentSession = this.selectedSession();
+    if (!currentSession) return;
+    const currentIndex = this.sessions().findIndex(s => s.id === currentSession.id);
+    const nextSession = this.sessions()[currentIndex + 1];
+    this.selectSession(nextSession);
+  }
+
+  router = inject(Router);
+
+  goBackToReports(): void {
+    this.router.navigate(['/rapports']);
   }
 
   // Schema helpers: open Encaissement section and specific client payments detail
@@ -648,316 +920,6 @@ export class ClotureComponent implements OnInit, OnDestroy {
     if (detail && !detail.checked) {
       detail.click();
     }
-  }
-  
-  // Fund form
-  fundForm = {
-    amount: ''
-  };
-  
-  // Adjust balance form
-  adjustForm = {
-    newBalance: ''
-  };
-  
-
-  constructor(
-    private sessionsService: SessionsService,
-    private authService: AuthService,
-    private router: Router,
-    private printService: PrintService,
-    private dailyExtractService: DailyExtractService,
-    private settingsService: SettingsService,
-    private depotsService: DepotsService,
-    private ticketCounterService: TicketCounterService
-  ) {}
-
-  ngOnInit(): void {
-    this.settings$ = this.settingsService.getSettings();
-    this.isAdminUser = this.authService.isAdmin();
-    // Load immediately; depot scope is handled globally via header
-    this.loadCurrentSession();
-    // Refresh session data every 5 seconds to get updated sales (pause when modal open or tab hidden)
-    this.refreshIntervalId = setInterval(() => {
-      if (document?.hidden) return;
-      if (this.showCloseForm() || this.showFundForm() || this.showAdjustForm() || this.showTicketsModal()) return;
-      if (this.currentSession()) {
-        this.loadCurrentSession(true);
-      }
-    }, 5000);
-  }
-
-  ngOnDestroy(): void {
-    if (this.refreshIntervalId) {
-      clearInterval(this.refreshIntervalId);
-      this.refreshIntervalId = null;
-    }
-  }
-
-  loadCurrentSession(silent: boolean = false): void {
-    if (this.isRefreshing) return;
-    this.isRefreshing = true;
-    if (!silent) this.loading.set(true);
-    
-    // Get depot ID for isolation (no user linkage)
-    const userDepotId = this.authService.currentUser()?.depotId;
-    const visitingDepotId = sessionStorage.getItem('visitingDepotId');
-    const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
-    
-    this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({
-      next: (session) => {
-        this.currentSession.set(session);
-        
-        // Load sales data for user summary if session exists
-        if (session) {
-          this.loadSessionSalesData(session.id);
-        }
-        
-        if (!silent) this.loading.set(false);
-        this.isRefreshing = false;
-      },
-      error: (error) => {
-        this.error.set('Erreur lors du chargement de la session');
-        if (!silent) this.loading.set(false);
-        this.isRefreshing = false;
-      }
-    });
-  }
-
-  // Load session sales data for user summary
-  private loadSessionSalesData(sessionId: number): void {
-    this.sessionsService.getSessionReport(sessionId, 'X').subscribe({
-      next: (report: any) => {
-        const currentSession = this.currentSession();
-        if (currentSession && report?.session?.sales) {
-          // Add sales data to current session
-          const updatedSession = {
-            ...currentSession,
-            sales: report.session.sales
-          };
-          this.currentSession.set(updatedSession);
-        }
-      },
-      error: (error) => {
-        // Silently fail - user summary is not critical
-        console.debug('Failed to load sales data for user summary:', error);
-      }
-    });
-  }
-
-  autoOpenSession(openingFund: number = 0): void {
-    this.loading.set(true);
-    
-    // Get depot ID for isolation (no user linkage)
-    const userDepotId = this.authService.currentUser()?.depotId;
-    const visitingDepotId = sessionStorage.getItem('visitingDepotId');
-    const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
-    
-    // If a session is already open for this depot, do not attempt to auto-open
-    this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({
-      next: (active) => {
-        if (active) {
-          this.currentSession.set(active);
-          this.loading.set(false);
-          this.error.set('');
-          return;
-        }
-        
-        // Build payload: include openingFund only if it is a meaningful positive value
-        const payload: any = {
-          posId: 1,
-          depotId: currentDepotId,
-          note: 'Session automatique'
-        };
-        if (Number.isFinite(openingFund) && openingFund > 0) {
-          payload.openingFund = openingFund;
-        }
-        
-        this.sessionsService.openSessionByDepot(payload).subscribe({
-          next: (session) => {
-            this.currentSession.set(session);
-            this.loading.set(false);
-            this.error.set('');
-          },
-          error: (error) => {
-            const msg = error?.error?.error || 'Erreur lors de l\'ouverture automatique de la session';
-            this.error.set(msg);
-            this.loading.set(false);
-          }
-        });
-      },
-      error: () => {
-        // If we fail to check, fallback to attempting open with guarded payload
-        const payload: any = {
-          posId: 1,
-          depotId: currentDepotId,
-          note: 'Session automatique'
-        };
-        if (Number.isFinite(openingFund) && openingFund > 0) {
-          payload.openingFund = openingFund;
-        }
-        this.sessionsService.openSessionByDepot(payload).subscribe({
-          next: (session) => {
-            this.currentSession.set(session);
-            this.loading.set(false);
-            this.error.set('');
-          },
-          error: (error) => {
-            const msg = error?.error?.error || 'Erreur lors de l\'ouverture automatique de la session';
-            this.error.set(msg);
-            this.loading.set(false);
-          }
-        });
-      }
-    });
-  }
-
-  // Depot choosing removed
-
-  
-
-
-  closeSession(): void {
-    const session = this.currentSession();
-    if (!session) {
-      this.error.set('Aucune session active trouvée');
-      return;
-    }
-
-    // Simple closure - just log withdrawal and print daily extract
-    const withdrawalAmount = parseFloat(this.closeSessionForm.retraitCentrale) || 0;
-    
-    this.loading.set(true);
-    
-    // Get session-specific extract and company settings, then print
-    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
-      next: (sessionReport) => {
-        // Fetch company settings and print with real data
-        this.settingsService.getSettings().subscribe({
-          next: (settings) => {
-            // Prepare company data for printing
-            const companyData = {
-              companyName: settings.companyName,
-              depotName: sessionReport.session?.depot?.name,
-              address: sessionReport.session?.depot?.address || '123 Rue de la Paix',
-              city: sessionReport.session?.depot?.city || 'Tunis, Tunisie',
-              phone: sessionReport.session?.depot?.phone || '+216 71 123 456'
-            };
-            
-            // Add opening fund from current session to the session report
-            if (sessionReport.session && this.currentSession()) {
-              sessionReport.session.openingFund = this.currentSession()?.openingFund || 0;
-            }
-            
-            // Print the comprehensive session extract with real company data
-            this.printService.printDailyExtractWithWithdrawal(sessionReport, companyData, withdrawalAmount);
-          },
-          error: (error) => {
-            console.error('Error fetching settings:', error);
-            // Print without company data if settings fetch fails
-            this.printService.printDailyExtractWithWithdrawal(sessionReport, undefined, withdrawalAmount);
-          }
-        });
-        
-        // Ensure we have valid countedCash value
-        const countedCash = sessionReport.summary?.expectedCash || 0;
-        
-        // Close the session (simple closure)
-        // Calculate remaining balance for next session's opening fund
-        const remainingBalance = countedCash - withdrawalAmount;
-        
-        this.sessionsService.closeSession(session.id, {
-          countedCash: countedCash,
-          fonds: remainingBalance, // Use remaining balance as opening fund for next session
-          retraitCentrale: withdrawalAmount > 0 ? withdrawalAmount : undefined,
-          denominations: {}
-        }).subscribe({
-          next: (resp) => {
-            this.showCloseForm.set(false);
-            this.loading.set(false);
-            this.error.set('');
-            
-            // Reset ticket counter after successful session closure
-            this.ticketCounterService.resetTicketCounter();
-            
-            // Automatically open new session with the remaining balance
-            this.autoOpenSession(resp.remainingBalance || 0);
-            
-            // Always return to caisse after closure
-            setTimeout(() => {
-              this.goToRegister();
-            }, 1000);
-          },
-          error: (error) => {
-            console.error('Session closure error:', error);
-            this.error.set('Erreur lors de la fermeture de la session: ' + (error.error?.error || error.message || 'Erreur inconnue'));
-            this.loading.set(false);
-          }
-        });
-      },
-      error: (error) => {
-        console.error('Error fetching daily extract:', error);
-        this.error.set('Erreur lors de l\'impression de l\'extrait journalier');
-        this.loading.set(false);
-      }
-    });
-  }
-
-  printXReport(): void {
-    const session = this.currentSession();
-    if (!session) return;
-
-    this.sessionsService.getSessionReport(session.id, 'X', 'html').subscribe({
-      next: (data) => {
-        this.printService.printXReport(data);
-      },
-      error: (error) => {
-        this.error.set('Erreur lors de l\'impression du rapport X');
-      }
-    });
-  }
-
-  printDetailedReport(): void {
-    const session = this.currentSession();
-    if (!session) return;
-
-    this.loading.set(true);
-    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
-      next: (sessionReport) => {
-        this.settingsService.getSettings().subscribe({
-          next: (settings) => {
-            const companyData = {
-              companyName: settings.companyName,
-              depotName: sessionReport.session?.depot?.name,
-              address: sessionReport.session?.depot?.address || '123 Rue de la Paix',
-              city: sessionReport.session?.depot?.city || 'Tunis, Tunisie',
-              phone: sessionReport.session?.depot?.phone || '+216 71 123 456'
-            };
-            
-            // Add opening fund from current session to the session report
-            if (sessionReport.session && this.currentSession()) {
-              sessionReport.session.openingFund = this.currentSession()?.openingFund || 0;
-            }
-            
-            this.printService.printDetailedSessionReport(sessionReport, companyData);
-            this.loading.set(false);
-          },
-          error: (error) => {
-            console.error('Error fetching settings:', error);
-            this.printService.printDetailedSessionReport(sessionReport);
-            this.loading.set(false);
-          }
-        });
-      },
-      error: (error) => {
-        this.error.set('Erreur lors de l\'impression du rapport détaillé');
-        this.loading.set(false);
-      }
-    });
-  }
-
-  printZReport(zReport: any): void {
-    this.printService.printZReport(zReport);
   }
 
   formatCurrency(amount: number): string {
@@ -990,8 +952,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Préparer la clôture checklist (simple heuristics)
   getPreparationChecklist(): Array<{ label: string; ok: boolean }> {
-    const expectedCash = parseFloat((this.currentSession()?.summary?.expectedCash as any) || 0) || 0;
-    const sales = parseFloat((this.currentSession()?.summary?.totalSales as any) || 0) || 0;
+    const expectedCash = parseFloat((this.selectedSession()?.summary?.expectedCash as any) || 0) || 0;
+    const sales = parseFloat((this.selectedSession()?.summary?.totalSales as any) || 0) || 0;
     const credit = this.getCreditAmount();
     const computedCashFromSales = Math.max(0, sales - credit);
     const cashOk = Math.abs(expectedCash - (computedCashFromSales + this.getClientPaymentsTotal() + this.getTotalOrderAdvances() - this.getExpensesTotal() - this.getSupplierPaymentsTotal())) < 0.01;
@@ -1000,14 +962,6 @@ export class ClotureComponent implements OnInit, OnDestroy {
       { label: 'Doublons potentiels', ok: true },
       { label: 'Pièces manquantes', ok: true }
     ];
-  }
-
-  goToHistory(): void {
-    this.router.navigate(['/cloture/historique']);
-  }
-
-  goToRegister(): void {
-    this.router.navigate(['/home']);
   }
 
   addDigit(digit: string): void {
@@ -1033,7 +987,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   fundCashRegister(): void {
-    const session = this.currentSession();
+    const session = this.selectedSession();
     if (!session) {
       this.error.set('Aucune session active trouvée');
       return;
@@ -1059,7 +1013,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
         this.loading.set(false);
         this.error.set('');
         // Refresh session data
-        this.loadCurrentSession();
+        this.refreshDetails(session);
       },
       error: (error) => {
         this.error.set('Erreur lors de l\'ajout des fonds: ' + (error.error?.error || error.message || 'Erreur inconnue'));
@@ -1091,7 +1045,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   adjustBalance(): void {
-    const session = this.currentSession();
+    const session = this.selectedSession();
     if (!session) {
       this.error.set('Aucune session active trouvée');
       return;
@@ -1122,7 +1076,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
         this.loading.set(false);
         this.error.set('');
         // Refresh session data
-        this.loadCurrentSession();
+        this.refreshDetails(session);
       },
       error: (error) => {
         this.error.set('Erreur lors de l\'ajustement du solde: ' + (error.error?.error || error.message || 'Erreur inconnue'));
@@ -1154,7 +1108,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   exportSessionData(): void {
-    const session = this.currentSession();
+    const session = this.selectedSession();
     if (!session) {
       this.error.set('Aucune session active trouvée');
       return;
@@ -1214,6 +1168,6 @@ export class ClotureComponent implements OnInit, OnDestroy {
       }
     });
   }
+}
 
-  // Depot search removed
-} 
+

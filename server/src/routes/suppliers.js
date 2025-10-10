@@ -47,7 +47,7 @@ router.get('/', authenticateToken, async (req, res) => {
       // Get ALL expenses and payments for this supplier (not just recent ones)
       const allExpenses = await prisma.expense.findMany({
         where: { supplierId: supplier.id },
-        select: { amount: true, isPaid: true, isAdvance: true }
+        select: { amount: true, isPaid: true, isAdvance: true, notes: true }
       });
       
       const allPayments = await prisma.supplierPayment.findMany({
@@ -62,16 +62,29 @@ router.get('/', authenticateToken, async (req, res) => {
       
       // Process all expenses using the same logic as statement
       allExpenses.forEach(expense => {
-        const amount = parseFloat(expense.amount);
-        if (expense.isAdvance || expense.isPaid) {
-          // Advance/paid expenses: show as both debit and credit (like statement)
-          totalDebit += amount;
-          totalCredit += amount;
-          currentDebt += amount - amount; // debit - credit = 0
+        const totalAmount = parseFloat(expense.amount);
+        
+        if (expense.isAdvance) {
+          // Advance expenses: extract paid amount from notes
+          let paidAmount = 0;
+          if (expense.notes && expense.notes.includes('Paiement partiel:')) {
+            const match = expense.notes.match(/Paiement partiel:\s*(\d+(?:\.\d+)?)dt payé/);
+            if (match) {
+              paidAmount = parseFloat(match[1]);
+            }
+          }
+          totalDebit += paidAmount; // Advance amount paid
+          totalCredit += totalAmount; // Full expense amount
+          currentDebt += paidAmount - totalAmount; // debit - credit
+        } else if (expense.isPaid) {
+          // Paid expenses: show as both debit and credit
+          totalDebit += totalAmount;
+          totalCredit += totalAmount;
+          currentDebt += totalAmount - totalAmount; // debit - credit = 0
         } else {
-          // Unpaid expenses: show as credit only (like statement)
-          totalCredit += amount;
-          currentDebt += 0 - amount; // debit - credit = -amount
+          // Unpaid expenses: show as credit only
+          totalCredit += totalAmount;
+          currentDebt += 0 - totalAmount; // debit - credit = -amount
         }
       });
       
@@ -280,7 +293,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       // Get ALL expenses and payments for this supplier (not just period ones)
       const allExpenses = await prisma.expense.findMany({
         where: { supplierId: supplier.id },
-        select: { amount: true, isPaid: true, isAdvance: true }
+        select: { amount: true, isPaid: true, isAdvance: true, notes: true }
       });
       
       const allPayments = await prisma.supplierPayment.findMany({
@@ -295,16 +308,29 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       
       // Process all expenses using the same logic as statement
       allExpenses.forEach(expense => {
-        const amount = parseFloat(expense.amount);
-        if (expense.isAdvance || expense.isPaid) {
-          // Advance/paid expenses: show as both debit and credit (like statement)
-          totalDebit += amount;
-          totalCredit += amount;
-          currentDebt += amount - amount; // debit - credit = 0
+        const totalAmount = parseFloat(expense.amount);
+        
+        if (expense.isAdvance) {
+          // Advance expenses: extract paid amount from notes
+          let paidAmount = 0;
+          if (expense.notes && expense.notes.includes('Paiement partiel:')) {
+            const match = expense.notes.match(/Paiement partiel:\s*(\d+(?:\.\d+)?)dt payé/);
+            if (match) {
+              paidAmount = parseFloat(match[1]);
+            }
+          }
+          totalDebit += paidAmount; // Advance amount paid
+          totalCredit += totalAmount; // Full expense amount
+          currentDebt += paidAmount - totalAmount; // debit - credit
+        } else if (expense.isPaid) {
+          // Paid expenses: show as both debit and credit
+          totalDebit += totalAmount;
+          totalCredit += totalAmount;
+          currentDebt += totalAmount - totalAmount; // debit - credit = 0
         } else {
-          // Unpaid expenses: show as credit only (like statement)
-          totalCredit += amount;
-          currentDebt += 0 - amount; // debit - credit = -amount
+          // Unpaid expenses: show as credit only
+          totalCredit += totalAmount;
+          currentDebt += 0 - totalAmount; // debit - credit = -amount
         }
       });
       
@@ -444,13 +470,21 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         const totalAmount = parseFloat(expense.amount);
         
         if (expense.isAdvance) {
-          // Advance expenses: show as both debit and credit (like cash sales in client)
+          // Advance expenses: extract paid amount from notes
+          let paidAmount = 0;
+          if (expense.notes && expense.notes.includes('Paiement partiel:')) {
+            const match = expense.notes.match(/Paiement partiel:\s*(\d+(?:\.\d+)?)dt payé/);
+            if (match) {
+              paidAmount = parseFloat(match[1]);
+            }
+          }
+          
           return {
             type: 'advance',
             date: expense.date,
             reference: `EXPENSE-${expense.id}`,
-            debit: totalAmount, // Full amount as debit (what we owe)
-            credit: totalAmount, // Full amount as credit (advance payment)
+            debit: paidAmount, // Advance amount paid (reduces debt)
+            credit: totalAmount, // Full expense amount (increases debt)
             id: expense.id,
             clickable: true,
             expenseId: expense.id,

@@ -1358,7 +1358,7 @@ router.get('/daily-monthly', authenticateToken, async (req, res) => {
       
       // Calculate Prix Achat (sum of product costs)
       sale.items.forEach(item => {
-        const cost = parseFloat(item.product?.prix_achat_HT || 0) * parseFloat(item.quantity);
+        const cost = parseFloat(item.product?.prix_achat || 0) * parseFloat(item.quantity);
         groupedData[key].prixAchat += cost;
       });
     });
@@ -1643,8 +1643,8 @@ router.get('/sales-by-category', authenticateToken, async (req, res) => {
         group.quantity += parseFloat(item.quantity);
         group.totalTTC += parseFloat(item.total);
         
-        // Calculate purchase price (assuming we have prix_achat_HT in product)
-        const purchasePrice = parseFloat(item.product.prix_achat_HT || 0) * parseFloat(item.quantity);
+        // Calculate purchase price (using prix_achat from product)
+        const purchasePrice = parseFloat(item.product.prix_achat || 0) * parseFloat(item.quantity);
         group.prixAchat += purchasePrice;
       });
     });

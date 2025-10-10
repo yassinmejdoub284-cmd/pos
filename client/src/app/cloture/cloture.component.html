@@ -382,6 +382,11 @@
                         } @else {
                         <span>{{ m.reason }}</span>
                         }
+                        @if (m.notes && m.notes.includes('Paiement partiel')) {
+                        <div class="text-xs text-orange-600 mt-1">
+                          {{ m.notes }}
+                        </div>
+                        }
                       </div>
                       <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
                     </div>
@@ -711,21 +716,26 @@
           @if (recentExpenses().length) {
                 <div class="max-h-32 overflow-y-auto divide-y">
             @for (m of recentExpenses(); track m.createdAt) {
-            <div class="py-1 text-sm">
-              <div class="flex items-center justify-between">
-                <div class="text-slate-600">
-                  {{ m.createdAt | date:'dd/MM HH:mm' }} ·
-                  @if (m.categoryName || m.supplierName) {
-                  <span>
-                    {{ m.categoryName || 'Dépense' }}
-                    @if (m.supplierName) {<span> · Fournisseur: {{ m.supplierName }}</span>}
-                  </span>
-                  } @else {
-                  <span>{{ m.reason }}</span>
-                  }
-                </div>
-                <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
-              </div>
+                <div class="py-1 text-sm">
+                  <div class="flex items-center justify-between">
+                    <div class="text-slate-600">
+                      {{ m.createdAt | date:'dd/MM HH:mm' }} ·
+                      @if (m.categoryName || m.supplierName) {
+                      <span>
+                        {{ m.categoryName || 'Dépense' }}
+                        @if (m.supplierName) {<span> · Fournisseur: {{ m.supplierName }}</span>}
+          </span>
+                      } @else {
+                      <span>{{ m.reason }}</span>
+                      }
+                      @if (m.notes && m.notes.includes('Paiement partiel')) {
+                      <div class="text-xs text-orange-600 mt-1">
+                        {{ m.notes }}
+                      </div>
+                      }
+          </div>
+                    <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+        </div>
             </div>
             }
           </div>

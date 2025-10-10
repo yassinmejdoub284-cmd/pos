@@ -968,8 +968,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.imagePreloadService.preloadImages(currentPageImageSrcs);
     }
     
-    // Preload images for next page
-    this.imagePreloadService.preloadNextPageImages(this.filteredProducts, this.currentPage, this.productsPerPage);
+    // Preload images for next page (only if not already preloaded)
+    if (this.currentPage < this.totalPages - 1) {
+      this.imagePreloadService.preloadNextPageImages(this.filteredProducts, this.currentPage, this.productsPerPage);
+    }
   }
 
   // Pagination methods
@@ -986,19 +988,27 @@ export class CaisseComponent implements OnInit, OnDestroy {
     return this.filteredProducts.slice(startIndex, endIndex);
   }
 
+  trackByProduct(index: number, product: Product): number {
+    return product.id;
+  }
+
   goToNextPage(): void {
     if (this.currentPage < this.totalPages - 1) {
       this.currentPage++;
-      // Preload images for the next page
-      this.imagePreloadService.preloadNextPageImages(this.filteredProducts, this.currentPage, this.productsPerPage);
+      // Preload images for the next page (only if there's a next page)
+      if (this.currentPage < this.totalPages - 1) {
+        this.imagePreloadService.preloadNextPageImages(this.filteredProducts, this.currentPage, this.productsPerPage);
+      }
     }
   }
 
   goToPreviousPage(): void {
     if (this.currentPage > 0) {
       this.currentPage--;
-      // Preload images for the previous page
-      this.imagePreloadService.preloadPreviousPageImages(this.filteredProducts, this.currentPage, this.productsPerPage);
+      // Preload images for the previous page (only if there's a previous page)
+      if (this.currentPage > 0) {
+        this.imagePreloadService.preloadPreviousPageImages(this.filteredProducts, this.currentPage, this.productsPerPage);
+      }
     }
   }
 
@@ -1281,14 +1291,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
   showExpenseForm = false;
   expenseStep: 'category' | 'payment' | 'supplier' | 'notes' = 'category';
   expensePayNow = true;
-  expenseAmount: string = '';
+  expenseTotalAmount: string = '';
+  expensePaidAmount: string = '';
   expenseDescription: string = '';
   expensePaymentType: 'CASH' | 'CHECK' | 'BANK_TRANSFER' | 'WIRE_TRANSFER' = 'CASH';
   expenseNotes: string = '';
   expenseSupplierSearch = '';
   expenseSupplierId: number | undefined = undefined;
-  expenseIsPaid = false;
-  expenseIsAdvance = false;
   expenseCollectionDate = new Date().toISOString().split('T')[0];
   expenseCategories: any[] = [];
   selectedExpenseCategory: any = null;
@@ -4778,6 +4787,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
     this.removeTouchEventListeners();
     
+    // Clear image cache to prevent memory leaks
+    this.imagePreloadService.clearCache();
+    
     // Leave depot room and disconnect socket
     if (this.currentShopDepotId) {
       if (environment.enableRealtime) {
@@ -5464,7 +5476,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.supplierAction = null;
     this.supplierPaymentAmount = '';
     this.supplierPaymentNotes = '';
-    this.expenseAmount = '';
+    this.expenseTotalAmount = '';
+    this.expensePaidAmount = '';
     this.expenseDescription = '';
     this.expenseNotes = '';
     this.loadSuppliersForQuickActions();
@@ -5523,14 +5536,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // Open expense form for supplier
       this.showExpenseForm = true;
       this.expenseStep = 'category';
-      this.expenseAmount = '';
+      this.expenseTotalAmount = '';
+      this.expensePaidAmount = '';
       this.expenseDescription = `Dépense liée au fournisseur ${this.selectedSupplierForAction.name}`;
       this.expensePaymentType = 'CASH';
       this.expenseNotes = '';
       this.expenseSupplierId = this.selectedSupplierForAction.id;
       this.expensePayNow = true;
-      this.expenseIsPaid = false;
-      this.expenseIsAdvance = false;
       this.expenseCollectionDate = new Date().toISOString().split('T')[0];
       this.loadExpenseCategories();
       this.updateRemainingCashExpense();
@@ -5584,13 +5596,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
       return;
     }
     const base = this.getSessionExpectedCash();
-    const amt = Number(this.expenseAmount || 0);
+    const amt = Number(this.expenseTotalAmount || 0);
     this.remainingCashAfterExpense = this.roundToTenthAsThreeDecimals(base - (isNaN(amt) ? 0 : amt));
   }
 
   submitSupplierExpense(): void {
     if (!this.selectedSupplierForAction) return;
-    const amount = Number(this.expenseAmount || 0);
+    const amount = Number(this.expenseTotalAmount || 0);
     if (amount <= 0) { this.showAlertMessage('Montant invalide', 'error'); return; }
     const payload: any = {
       amount,
@@ -6058,17 +6070,40 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Numpad methods for expense
   addToExpenseAmount(value: string): void {
+    // Determine which field we're editing based on currentInput
+    const isEditingTotal = this.currentInput === this.expenseTotalAmount;
+    const currentAmount = isEditingTotal ? this.expenseTotalAmount : this.expensePaidAmount;
+    
     if (value === '.') {
-      if (!this.expenseAmount.includes('.')) {
-        this.expenseAmount += value;
+      if (!currentAmount.includes('.')) {
+        if (isEditingTotal) {
+          this.expenseTotalAmount += value;
+          this.currentInput = this.expenseTotalAmount;
+        } else {
+          this.expensePaidAmount += value;
+          this.currentInput = this.expensePaidAmount;
+        }
       }
     } else {
-      this.expenseAmount += value;
+      if (isEditingTotal) {
+        this.expenseTotalAmount += value;
+        this.currentInput = this.expenseTotalAmount;
+      } else {
+        this.expensePaidAmount += value;
+        this.currentInput = this.expensePaidAmount;
+      }
     }
   }
 
   clearExpenseAmount(): void {
-    this.expenseAmount = '';
+    const isEditingTotal = this.currentInput === this.expenseTotalAmount;
+    if (isEditingTotal) {
+      this.expenseTotalAmount = '';
+      this.currentInput = this.expenseTotalAmount;
+    } else {
+      this.expensePaidAmount = '';
+      this.currentInput = this.expensePaidAmount;
+    }
   }
 
   // Expense flow methods
@@ -6140,24 +6175,45 @@ export class CaisseComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const amount = Number(this.expenseAmount || 0);
-    if (amount <= 0) {
-      this.showAlertMessage('Montant invalide', 'error');
+    const totalAmount = Number(this.expenseTotalAmount || 0);
+    const paidAmount = Number(this.expensePaidAmount || 0);
+    
+    if (totalAmount <= 0) {
+      this.showAlertMessage('Montant total invalide', 'error');
+      return;
+    }
+
+    if (paidAmount < 0 || paidAmount > totalAmount) {
+      this.showAlertMessage('Montant payé invalide', 'error');
       return;
     }
 
     this.submittingSupplierAction = true;
 
+    // Determine payment status based on amounts
+    const isFullyPaid = paidAmount >= totalAmount;
+    const isPartiallyPaid = paidAmount > 0 && paidAmount < totalAmount;
+    const isNotPaid = paidAmount === 0;
+
+    // Store payment information in notes if it's a partial payment
+    let notes = this.expenseNotes || '';
+    if (isPartiallyPaid) {
+      const remainingAmount = totalAmount - paidAmount;
+      notes = `${notes}${notes ? ' | ' : ''}Paiement partiel: ${paidAmount}dt payé, reste ${remainingAmount}dt`;
+    }
+
     const payload: any = {
-      amount,
+      amount: totalAmount,
       categoryId: this.selectedExpenseCategory.id,
       supplierId: this.expenseSupplierId,
       paymentType: this.expensePaymentType,
       date: new Date().toISOString().split('T')[0],
       collectionDate: this.expensePayNow ? new Date().toISOString().split('T')[0] : this.expenseCollectionDate,
-      notes: this.expenseNotes || '',
-      isPaid: this.expenseIsPaid,
-      isAdvance: this.expenseIsAdvance
+      notes: notes,
+      isPaid: isFullyPaid,
+      isAdvance: isPartiallyPaid, // Partial payment is treated as advance
+      payNow: this.expensePayNow && (isFullyPaid || isPartiallyPaid), // Only create cash movement if paying now and amount > 0
+      paidAmount: paidAmount // Pass the actual paid amount for cash movement calculation
     };
 
     this.expenseService.createExpense(payload).subscribe({
@@ -6177,17 +6233,36 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   resetExpenseForm(): void {
     this.expenseStep = 'category';
-    this.expenseAmount = '';
+    this.expenseTotalAmount = '';
+    this.expensePaidAmount = '';
     this.expenseDescription = '';
     this.expensePaymentType = 'CASH';
     this.expenseNotes = '';
     this.expenseSupplierId = undefined;
     this.expensePayNow = true;
-    this.expenseIsPaid = false;
-    this.expenseIsAdvance = false;
     this.expenseCollectionDate = new Date().toISOString().split('T')[0];
     this.selectedExpenseCategory = null;
     this.expenseSupplierSearch = '';
+  }
+
+  getExpenseRemainingAmount(): number {
+    const total = parseFloat(this.expenseTotalAmount || '0');
+    const paid = parseFloat(this.expensePaidAmount || '0');
+    return Math.max(0, total - paid);
+  }
+
+  openAmountInput(type: 'total' | 'paid'): void {
+    // Set the current input field for the numpad
+    this.currentInput = type === 'total' ? this.expenseTotalAmount : this.expensePaidAmount;
+    this.pendingProduct = null;
+    this.inputMode = 'price'; // Use 'price' mode for amount input
+    
+    // Clear the current input to start fresh
+    if (type === 'total') {
+      this.expenseTotalAmount = '';
+    } else {
+      this.expensePaidAmount = '';
+    }
   }
 
   // Instant refund methods

@@ -649,7 +649,7 @@ router.put('/temporary/:id/advance', async (req, res) => {
 
       // Record cash movement for cash advances in open session
       if (methodId === 1) {
-        const activeSession = await tx.sessionCaisse.findFirst({ where: { depotId: userDepotId, status: 'OPEN' } });
+        const activeSession = await tx.sessionCaisse.findFirst({ where: { depotId: req.user.depotId, status: 'OPEN' } });
         if (activeSession) {
           await tx.cashMovement.create({
             data: {

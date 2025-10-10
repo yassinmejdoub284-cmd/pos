@@ -291,6 +291,16 @@ export class PrintService {
     void this.printEscPos(escposData);
   }
 
+  printDetailedSessionReportWithFamilyGrouping(sessionReport: any, companyData?: any): void {
+    const escposData = this.generateDailyExtractESCWithFamilyGrouping(sessionReport, companyData, 0);
+    void this.printEscPos(escposData);
+  }
+
+  printDetailedSessionReportWithArticleGrouping(sessionReport: any, companyData?: any): void {
+    const escposData = this.generateDailyExtractESCWithArticleGrouping(sessionReport, companyData, 0);
+    void this.printEscPos(escposData);
+  }
+
   printXReport(xReportData: ZReportData): void {
     const escposData = this.generateESCReport(xReportData, 'X');
     void this.printEscPos(escposData);
@@ -1669,6 +1679,240 @@ export class PrintService {
     text += '\x1D\x56\x00';
     
     return text;
+  }
+
+  // New methods for family and article grouping
+  private generateDailyExtractESCWithFamilyGrouping(sessionReport: any, companyData?: any, withdrawalAmount: number = 0): string {
+    let escpos = '';
+
+    // Initialize printer
+    escpos += '\x1B\x40';
+    escpos += '\x1B\x61\x01'; // Center align for header
+
+    // Show title centered and date/time right aligned
+    const closedDate = new Date();
+    const formatDateNoYearWithTime = (date: Date) => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day}/${month} ${hours}:${minutes}`;
+    };
+    const closingTime = formatDateNoYearWithTime(closedDate);
+    
+    // Add decorative top border
+    escpos += '================================\n';
+    
+    // Center both title and date on the same line
+    escpos += '\x1B\x61\x01'; // Center align
+    escpos += 'Extrait Journalière - ' + closingTime + '\n';
+    
+    // Add decorative bottom border
+    escpos += '================================\n\n';
+
+    // Session info
+    escpos += '\x1B\x61\x00'; // Left align
+    const session = sessionReport.session;
+    const summary = sessionReport.summary;
+
+    // Build family grouping from session sales
+    const sales: any[] = (sessionReport?.session?.sales || []) as any[];
+    const familyTotals: Record<string, number> = {};
+    const normalizeFamily = (name: any): string => (name ?? '').toString().trim();
+
+    console.log('Processing sales for family grouping:', sales.length, 'sales');
+    
+    if (sales.length) {
+      for (const sale of sales) {
+        const items: any[] = (sale.items || []) as any[];
+        for (const it of items) {
+          const famCandidate = it.familyName || it.categoryName || it.family || it.product?.famille?.name || it.product?.family?.name || '';
+          const fam = normalizeFamily(famCandidate);
+          const familyName = fam && fam.length ? fam : 'AUTRES';
+          const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+          
+          if (!familyTotals[familyName]) {
+            familyTotals[familyName] = 0;
+          }
+          familyTotals[familyName] += lineTotal;
+        }
+      }
+    }
+
+    // Print family totals
+    escpos += 'VENTES PAR FAMILLE:\n';
+    escpos += '--------------------------------\n';
+    
+    const sortedFamilies = Object.entries(familyTotals)
+      .filter(([_, total]) => total > 0)
+      .sort(([, a], [, b]) => b - a);
+
+    for (const [familyName, total] of sortedFamilies) {
+      const amount = this.formatCurrency(total);
+      const totalWidth = 32;
+      const usedSpace = familyName.length + amount.length;
+      const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
+      const line = familyName.toUpperCase() + dots + amount;
+      escpos += line + '\n';
+    }
+
+    // Add total
+    const totalFamilySales = Object.values(familyTotals).reduce((sum, total) => sum + total, 0);
+    escpos += '--------------------------------\n';
+    const totalAmount = this.formatCurrency(totalFamilySales);
+    const totalWidth = 32;
+    const usedSpace = 'TOTAL:'.length + totalAmount.length;
+    const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
+    escpos += 'TOTAL:' + dots + totalAmount + '\n\n';
+
+    // Financial summary (same as original)
+    escpos += '################################\n';
+    escpos += '    RÉSUMÉ FINANCIER\n';
+    escpos += '################################\n';
+    
+    const expectedCash = summary.expectedCash || 0;
+    const totalSales = summary.totalSales || 0;
+    const financialOpeningFund = session.openingFund || 0;
+    
+    const financialTotalWidth = 32;
+    
+    const formatFinancialLine = (label: string, amount: number) => {
+      const amountStr = this.formatCurrency(amount);
+      const usedSpace = label.length + amountStr.length;
+      const spaces = ' '.repeat(Math.max(1, financialTotalWidth - usedSpace));
+      return label + spaces + amountStr;
+    };
+    
+    escpos += formatFinancialLine('Fonds initial:', financialOpeningFund) + '\n';
+    escpos += formatFinancialLine('Espèces attendues:', expectedCash) + '\n';
+    escpos += formatFinancialLine('Total ventes:', totalSales) + '\n';
+    
+    escpos += '\n';
+    escpos += '================================\n';
+    escpos += '\x1B\x61\x01'; // Center align
+    escpos += 'Fin du rapport\n';
+    escpos += '================================\n';
+    
+    // Cut paper
+    escpos += '\x1D\x56\x00'; // Full cut
+    
+    return escpos;
+  }
+
+  private generateDailyExtractESCWithArticleGrouping(sessionReport: any, companyData?: any, withdrawalAmount: number = 0): string {
+    let escpos = '';
+
+    // Initialize printer
+    escpos += '\x1B\x40';
+    escpos += '\x1B\x61\x01'; // Center align for header
+
+    // Show title centered and date/time right aligned
+    const closedDate = new Date();
+    const formatDateNoYearWithTime = (date: Date) => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day}/${month} ${hours}:${minutes}`;
+    };
+    const closingTime = formatDateNoYearWithTime(closedDate);
+    
+    // Add decorative top border
+    escpos += '================================\n';
+    
+    // Center both title and date on the same line
+    escpos += '\x1B\x61\x01'; // Center align
+    escpos += 'Extrait Journalière - ' + closingTime + '\n';
+    
+    // Add decorative bottom border
+    escpos += '================================\n\n';
+
+    // Session info
+    escpos += '\x1B\x61\x00'; // Left align
+    const session = sessionReport.session;
+    const summary = sessionReport.summary;
+
+    // Build article grouping from session sales
+    const sales: any[] = (sessionReport?.session?.sales || []) as any[];
+    const articleTotals: Record<string, { quantity: number; total: number }> = {};
+
+    console.log('Processing sales for article grouping:', sales.length, 'sales');
+    
+    if (sales.length) {
+      for (const sale of sales) {
+        const items: any[] = (sale.items || []) as any[];
+        for (const it of items) {
+          const productName: string = (it.productName || it.name || 'Produit').toString();
+          const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
+          const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+          
+          if (!articleTotals[productName]) {
+            articleTotals[productName] = { quantity: 0, total: 0 };
+          }
+          articleTotals[productName].quantity += qty;
+          articleTotals[productName].total += lineTotal;
+        }
+      }
+    }
+
+    // Print article totals
+    escpos += 'VENTES PAR ARTICLE:\n';
+    escpos += '--------------------------------\n';
+    
+    const sortedArticles = Object.entries(articleTotals)
+      .filter(([_, data]) => data.quantity > 0 && data.total > 0)
+      .sort(([, a], [, b]) => b.total - a.total);
+
+    for (const [productName, data] of sortedArticles) {
+      const amount = this.formatCurrency(data.total);
+      const totalWidth = 32;
+      const usedSpace = `${data.quantity} ${productName}`.length + amount.length;
+      const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
+      const line = `${data.quantity} ${productName}` + dots + amount;
+      escpos += line + '\n';
+    }
+
+    // Add total
+    const totalArticleSales = Object.values(articleTotals).reduce((sum, data) => sum + data.total, 0);
+    escpos += '--------------------------------\n';
+    const totalAmount = this.formatCurrency(totalArticleSales);
+    const totalWidth = 32;
+    const usedSpace = 'TOTAL:'.length + totalAmount.length;
+    const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
+    escpos += 'TOTAL:' + dots + totalAmount + '\n\n';
+
+    // Financial summary (same as original)
+    escpos += '################################\n';
+    escpos += '    RÉSUMÉ FINANCIER\n';
+    escpos += '################################\n';
+    
+    const expectedCash = summary.expectedCash || 0;
+    const totalSales = summary.totalSales || 0;
+    const financialOpeningFund = session.openingFund || 0;
+    
+    const financialTotalWidth = 32;
+    
+    const formatFinancialLine = (label: string, amount: number) => {
+      const amountStr = this.formatCurrency(amount);
+      const usedSpace = label.length + amountStr.length;
+      const spaces = ' '.repeat(Math.max(1, financialTotalWidth - usedSpace));
+      return label + spaces + amountStr;
+    };
+    
+    escpos += formatFinancialLine('Fonds initial:', financialOpeningFund) + '\n';
+    escpos += formatFinancialLine('Espèces attendues:', expectedCash) + '\n';
+    escpos += formatFinancialLine('Total ventes:', totalSales) + '\n';
+    
+    escpos += '\n';
+    escpos += '================================\n';
+    escpos += '\x1B\x61\x01'; // Center align
+    escpos += 'Fin du rapport\n';
+    escpos += '================================\n';
+    
+    // Cut paper
+    escpos += '\x1D\x56\x00'; // Full cut
+    
+    return escpos;
   }
 
 }

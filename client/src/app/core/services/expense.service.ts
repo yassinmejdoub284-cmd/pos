@@ -32,6 +32,7 @@ export interface Expense {
   isApproved: boolean;
   isPaid: boolean;
   isAdvance: boolean;
+  paidAmount?: number;
   approvedBy?: number;
   approvedAt?: string;
   createdAt: string;

@@ -307,7 +307,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new expense
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { amount, categoryId, depotId, notes, receiptUrl, paymentType, date, collectionDate, supplierId, isPaid, isAdvance } = req.body;
+    const { amount, categoryId, depotId, notes, receiptUrl, paymentType, date, collectionDate, supplierId, isPaid, isAdvance, paidAmount } = req.body;
 
     if (!amount || !categoryId) {
       return res.status(400).json({ 
@@ -363,37 +363,44 @@ router.post('/', authenticateToken, async (req, res) => {
         }
       });
 
-      // If expense is marked as advance and linked to a supplier, automatically create a supplier payment
-      if (isAdvance && supplierId && parseInt(supplierId)) {
-        const supplierPayment = await tx.supplierPayment.create({
-          data: {
-            supplierId: parseInt(supplierId),
-            amount: isNaN(numericAmount) ? 0 : numericAmount,
-            notes: `Acompte automatique - Dépense: ${newExpense.category?.name || 'N/A'}${notes ? ` - ${notes}` : ''}`,
-            userId: req.user.id,
-            paymentDate: new Date()
-          }
-        });
-        console.log('[expenses.create] Auto-created supplier payment for advance:', supplierPayment.id, 'for supplier:', supplierId, 'amount:', numericAmount);
-      }
+      // Note: Advance payments are now handled directly in the expense statement logic
+      // No need to create separate supplier payment entries for advances
 
-      // If CASH expense is auto-approved, create a linked cash movement in the creator's active session
+      // Create cash movement immediately if payment is made now (payNow = true) and payment type is CASH
       try {
-        if (isAutoApproved && (paymentType || 'CASH').toUpperCase() === 'CASH') {
+        const shouldCreateCashMovement = (paymentType || 'CASH').toUpperCase() === 'CASH' && 
+                                       (req.body.payNow !== false); // Default to true if not specified
+        
+        if (shouldCreateCashMovement) {
           const activeSession = await tx.sessionCaisse.findFirst({
             where: { userId: req.user.id, status: 'OPEN' },
             orderBy: { openedAt: 'desc' }
           });
           if (activeSession) {
-            await tx.cashMovement.create({
-              data: {
-                sessionId: activeSession.id,
-                type: 'SORTIE',
-                amount: isNaN(numericAmount) ? 0 : numericAmount,
-                reason: `Dépense #${newExpense.id} (auto): ${newExpense.category?.name || 'Divers'}`,
-                createdById: req.user.id
-              }
-            });
+            // For partial payments (advance), we need to calculate the actual amount to deduct
+            // If it's an advance payment, we'll use the paidAmount from the request
+            // Otherwise, use the full amount
+            let cashMovementAmount = isNaN(numericAmount) ? 0 : numericAmount;
+            
+            // If it's an advance payment and we have a paidAmount, use that instead
+            if (isAdvance && paidAmount) {
+              cashMovementAmount = parseFloat(paidAmount);
+            }
+            
+            if (cashMovementAmount > 0) {
+              await tx.cashMovement.create({
+                data: {
+                  sessionId: activeSession.id,
+                  type: 'SORTIE',
+                  amount: cashMovementAmount,
+                  reason: `Dépense #${newExpense.id}: ${newExpense.category?.name || 'Divers'}${isAdvance && paidAmount ? ` (Acompte: ${paidAmount}dt)` : ''}`,
+                  createdById: req.user.id
+                }
+              });
+              console.log('[expenses.create] Cash movement created immediately for expense:', newExpense.id, 'amount:', cashMovementAmount);
+            }
+          } else {
+            console.warn('[expenses.create] No active session found for cash movement');
           }
         }
       } catch (e) {
@@ -549,27 +556,34 @@ router.patch('/:id/approve', authenticateToken, async (req, res) => {
 
     await AuditLogger.logUpdate('expenses', expense.id, existingExpense, expense, req.user.id, req);
 
-    // If approving a CASH expense, create a cash movement in the creator's active session
-    try {
-      if (isApproved && (existingExpense.paymentType || 'CASH').toUpperCase() === 'CASH') {
-        const activeSession = await prisma.sessionCaisse.findFirst({
-          where: { userId: existingExpense.userId, status: 'OPEN' },
-          orderBy: { openedAt: 'desc' }
+    // Handle cash movements for rejected expenses
+    if (!isApproved && (existingExpense.paymentType || 'CASH').toUpperCase() === 'CASH') {
+      try {
+        // Find and mark cash movements from this expense as invalid
+        const expenseRegex = new RegExp(`Dépense(?: approuvée)? #${existingExpense.id}(?::|$)`, 'i');
+        const cashMovements = await prisma.cashMovement.findMany({
+          where: {
+            reason: {
+              contains: `Dépense #${existingExpense.id}`
+            }
+          }
         });
-        if (activeSession) {
-          await prisma.cashMovement.create({
+
+        // Mark cash movements as invalid by updating the reason
+        for (const movement of cashMovements) {
+          await prisma.cashMovement.update({
+            where: { id: movement.id },
             data: {
-              sessionId: activeSession.id,
-              type: 'SORTIE',
-              amount: parseFloat(existingExpense.amount),
-              reason: `Dépense approuvée #${existingExpense.id}: ${expense.category?.name || 'Divers'}`,
-              createdById: req.user.id
+              reason: `[REJETÉ] ${movement.reason}`,
+              // Add a flag to indicate this movement should be excluded from calculations
+              amount: 0 // Set amount to 0 to effectively exclude it from calculations
             }
           });
         }
+        console.log(`[expenses.reject] Marked ${cashMovements.length} cash movements as invalid for rejected expense ${existingExpense.id}`);
+      } catch (e) {
+        console.warn('[expenses.reject] Failed to handle cash movements for rejected expense', e);
       }
-    } catch (e) {
-      console.warn('[expenses.approve] Failed to create cash movement for approved expense', e);
     }
 
     res.json(expense);

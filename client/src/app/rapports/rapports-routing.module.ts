@@ -5,10 +5,6 @@ import { RapportsComponent } from './rapports.component';
 const routes: Routes = [
   { path: '', component: RapportsComponent },
   { 
-    path: 'daily-extract', 
-    loadChildren: () => import('./daily-extract/daily-extract.module').then(m => m.DailyExtractModule)
-  },
-  { 
     path: 'daily-monthly', 
     loadChildren: () => import('./daily-monthly/daily-monthly.module').then(m => m.DailyMonthlyModule)
   },
@@ -43,6 +39,10 @@ const routes: Routes = [
   { 
     path: 'etat-mvt-stock', 
     loadChildren: () => import('./etat-mvt-stock/etat-mvt-stock.module').then(m => m.EtatMvtStockModule)
+  },
+  { 
+    path: 'sessions-history', 
+    loadChildren: () => import('./sessions-history/sessions-history.module').then(m => m.SessionsHistoryModule)
   }
 ];
 

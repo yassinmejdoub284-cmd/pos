@@ -2,17 +2,6 @@
   <div class="max-w-6xl mx-auto">
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
-      <div class="fixed top-6 right-6 z-40">
-        <a routerLink="/home"
-          class="w-12 h-12 bg-blue-400 text-white rounded-full shadow-2xl transition-all duration-300 transform flex items-center justify-center"
-          title="Accueil">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-            </path>
-          </svg>
-        </a>
-      </div>
       <div class="flex items-center space-x-4">
         <button (click)="navigateToHome()" class="p-2 rounded-2xl bg-white border border-gray-200 transition-colors duration-300" title="Accueil">
           <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,7 +18,7 @@
     <!-- Report Type Selection Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-8xl mx-auto">
       <!-- 0. Extrait Journalière -->
-      <div class="group cursor-pointer" (click)="navigateToDailyExtract()">
+      <div class="group cursor-pointer" (click)="navigateToReport('sessions-history')">
         <div class="bg-white/90 rounded-xl border border-gray-200 transition-all duration-300 transform p-6 text-center h-full flex flex-col justify-center relative overflow-hidden min-h-[200px] shadow-lg">
           <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-teal-500/5 opacity-0 transition-opacity duration-300"></div>
           <div class="relative z-10">

@@ -1,0 +1,527 @@
+<!-- Modern Analytics Dashboard -->
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+  <!-- Header Section -->
+  <div class="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-50">
+    <div class="mx-auto px-4 sm:px-6 py-4 sm:py-6">
+        <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 flex-1 min-w-0">
+          <button (click)="goBackToReports()" 
+                  class="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 text-slate-600 transition-all duration-200 hover:bg-slate-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+            </svg>
+          </button>
+          <div class="flex-1 min-w-0">
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-1 sm:mb-2 truncate">Historique des Sessions</h1>
+            <p class="text-sm sm:text-base text-slate-600 hidden sm:block">Historique complet des sessions et analyses de performance</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button (click)="refreshSessions()" 
+                  class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500 text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:bg-blue-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+          </button>
+          <button (click)="exportSessionData()" 
+                  class="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 transition-all duration-200 hover:bg-emerald-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+
+
+    <!-- Session Navigation and Details -->
+    <div *ngIf="selectedSession(); else emptyState">
+      <div class="bg-white rounded-xl sm:rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100">
+        <!-- Session Navigation Header -->
+        <div class="p-4 sm:p-6 border-b border-slate-100">
+          <div class="flex items-center justify-between mb-4">
+            <!-- Navigation Arrows -->
+            <div class="flex items-center gap-2">
+              <button (click)="navigateToPreviousSession()" 
+                      [disabled]="!canNavigatePrevious()"
+                      class="flex items-center justify-center w-10 h-10 rounded-lg border-2 transition-all duration-200"
+                      [class.border-slate-300]="canNavigatePrevious()"
+                      [class.text-slate-600]="canNavigatePrevious()"
+                      [class.border-slate-200]="!canNavigatePrevious()"
+                      [class.text-slate-400]="!canNavigatePrevious()"
+                      [class.cursor-not-allowed]="!canNavigatePrevious()"
+                      [class.cursor-pointer]="canNavigatePrevious()">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+              </button>
+                <div class="text-center px-4">
+                  <h3 class="text-lg sm:text-xl font-bold text-slate-800">Session #{{selectedSession()?.id}}</h3>
+                  <p class="text-xs sm:text-sm text-slate-600">{{selectedSession()?.openedAt | date:'dd/MM/yyyy HH:mm'}}</p>
+                  <div *ngIf="selectedSession()?.status === 'CLOSED' && selectedSession()?.closedAt" class="mt-1">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
+                      {{selectedSession()?.closedAt | date:'dd/MM/YY HH:mm'}}
+                    </span>
+                  </div>
+                </div>
+              <button (click)="navigateToNextSession()" 
+                      [disabled]="!canNavigateNext()"
+                      class="flex items-center justify-center w-10 h-10 rounded-lg border-2 transition-all duration-200"
+                      [class.border-slate-300]="canNavigateNext()"
+                      [class.text-slate-600]="canNavigateNext()"
+                      [class.border-slate-200]="!canNavigateNext()"
+                      [class.text-slate-400]="!canNavigateNext()"
+                      [class.cursor-not-allowed]="!canNavigateNext()"
+                      [class.cursor-pointer]="canNavigateNext()">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+              </button>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap items-center gap-2">
+              <button (click)="refreshDetails(selectedSession()!)" 
+                      class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 bg-slate-100 text-slate-700 rounded-md sm:rounded-lg transition-all duration-200 text-xs sm:text-sm">
+                <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <span class="hidden sm:inline">Actualiser</span>
+              </button>
+              <button (click)="printWithFamily(selectedSession()!)" 
+                      class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 bg-blue-100 text-blue-700 rounded-md sm:rounded-lg transition-all duration-200 text-xs sm:text-sm">
+                <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+                <span class="hidden sm:inline">Imprimer avec famille</span>
+                <span class="sm:hidden">Fam.</span>
+              </button>
+              <button (click)="printByArticle(selectedSession()!)" 
+                      class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 bg-emerald-100 text-emerald-700 rounded-md sm:rounded-lg transition-all duration-200 text-xs sm:text-sm">
+                <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+                <span class="hidden sm:inline">Imprimer par article</span>
+                <span class="sm:hidden">Art.</span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Quick Stats Row -->
+          <div class="grid grid-cols-3 gap-4">
+            <div class="text-center p-3 bg-blue-50 rounded-lg">
+              <p class="text-xs text-blue-600 font-medium">Total Ventes</p>
+              <p class="text-sm sm:text-base font-bold text-blue-800">{{formatCurrency(selectedSession()?.summary?.totalSales || 0)}}</p>
+            </div>
+            <div class="text-center p-3 bg-emerald-50 rounded-lg">
+              <p class="text-xs text-emerald-600 font-medium">Fonds Initial</p>
+              <p class="text-sm sm:text-base font-bold text-emerald-800">{{formatCurrency(getOpeningFund())}}</p>
+            </div>
+            <div class="text-center p-3 bg-violet-50 rounded-lg">
+              <p class="text-xs text-violet-600 font-medium">Ventes à Crédit</p>
+              <p class="text-sm sm:text-base font-bold text-violet-800">{{formatCurrency(getCreditAmount())}}</p>
+            </div>
+          </div>
+        </div>
+
+          <!-- Error Display -->
+          <div *ngIf="error()" class="mx-4 sm:mx-6 mt-4 p-3 sm:p-4 bg-rose-50 border border-rose-200 rounded-lg sm:rounded-xl">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span class="text-rose-700 font-medium text-sm sm:text-base">{{error()}}</span>
+            </div>
+          </div>
+
+        <!-- Content -->
+        <div class="p-4 sm:p-6">
+
+            <!-- Financial Breakdown with Expandable Details -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <!-- Left: Encaissement -->
+              <div class="relative">
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 md:p-4">
+                  <!-- local toggle -->
+                  <input id="schema-left-open" type="checkbox" class="sr-only peer" />
+                  <label for="schema-left-open" class="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg transition-colors">
+                    <span class="text-sm font-semibold text-emerald-800 inline-flex items-center gap-2">
+                      <svg class="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M7 17L17 7"></path>
+                        <path d="M7 7h10v10"></path>
+                      </svg>
+                      Encaissement
+                    </span>
+                    <span class="text-right text-base md:text-lg font-bold text-emerald-700">{{
+                      formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit() + getFundingsTotal())
+                      }}</span>
+                  </label>
+
+                  <!-- Children with vertical connector (toggleable) -->
+                  <div class="mt-3 relative pl-6 hidden peer-checked:block section-children max-h-72 md:max-h-[30rem] overflow-y-auto pr-2">
+                    <div class="absolute left-3 top-0 bottom-0 border-l border-emerald-200"></div>
+                    <div
+                      class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
+                      <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
+                      <input id="schema-client-payments-open" type="checkbox" class="sr-only peer" />
+                      <div class="flex items-center justify-between gap-2">
+                        <label for="schema-client-payments-open"
+                          class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
+                          <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 7l-8 8-4-4"></path>
+                            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                          </svg>
+                          Encaissements Crédit Clients
+                        </label>
+                        <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getClientPaymentsTotal())
+                          }}</span>
+                      </div>
+                      <div class="mt-2 hidden peer-checked:block schema-detail">
+                        @if (recentClientPayments().length) {
+                        <div class="max-h-32 overflow-y-auto divide-y">
+                          @for (m of recentClientPayments(); track m.createdAt) {
+                          <div class="flex items-center justify-between py-1 text-sm">
+                            <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+                            <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
+                          </div>
+                          }
+                        </div>
+                        } @else {
+                        <div class="text-xs text-slate-500">Aucun détail disponible pour les encaissements de crédit.</div>
+                        }
+                      </div>
+                    </div>
+
+                    <div
+                      class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
+                      <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
+                      <input id="schema-advances-open" type="checkbox" class="sr-only peer" />
+                      <div class="flex items-center justify-between gap-2">
+                        <label for="schema-advances-open"
+                          class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
+                          <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 7H8"></path>
+                            <path d="M14 17H4"></path>
+                            <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                          </svg>
+                          Total acompte sur commande
+                        </label>
+                        <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getTotalOrderAdvances())
+                          }}</span>
+                      </div>
+                      <div class="mt-2 hidden peer-checked:block schema-detail">
+                        @if (recentOrderAdvances().length) {
+                        <div class="max-h-32 overflow-y-auto divide-y">
+                          @for (m of recentOrderAdvances(); track m.createdAt) {
+                          <div class="flex items-center justify-between py-1 text-sm">
+                            <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+                            <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
+                          </div>
+                          }
+                        </div>
+                        } @else {
+                        <div class="text-xs text-slate-500">Aucun acompte enregistré.</div>
+                        }
+                      </div>
+                    </div>
+
+                    <!-- Alimentation de caisse -->
+                    <div
+                      class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
+                      <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
+                      <input id="schema-fundings-open" type="checkbox" class="sr-only peer" />
+                      <div class="flex items-center justify-between gap-2">
+                        <label for="schema-fundings-open"
+                          class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
+                          <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 3v6"></path>
+                            <path d="M6 9h12"></path>
+                            <rect x="4" y="12" width="16" height="8" rx="2"></rect>
+                          </svg>
+                          Alimentation de caisse
+                        </label>
+                        <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getFundingsTotal()) }}</span>
+                      </div>
+                      <div class="mt-2 hidden peer-checked:block schema-detail">
+                        @if (recentFundings().length) {
+                        <div class="max-h-32 overflow-y-auto divide-y">
+                          @for (m of recentFundings(); track m.createdAt) {
+                          <div class="flex items-center justify-between py-1 text-sm">
+                            <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+                            <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
+                          </div>
+                          }
+                        </div>
+                        } @else {
+                        <div class="text-xs text-slate-500">Aucune alimentation enregistrée.</div>
+                        }
+                      </div>
+                    </div>
+
+                    <div
+                      class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 transition">
+                      <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
+                      <input id="schema-cash-open" type="checkbox" class="sr-only peer"
+                        (change)="$any($event.target)?.checked && loadCashSalesDetails()" />
+                      <div class="flex items-center justify-between gap-2">
+                        <label for="schema-cash-open"
+                          class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
+                          <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 7H8a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h8"></path>
+                            <path d="M16 7v10"></path>
+                          </svg>
+                          Espèces en Caisse
+                        </label>
+                        <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getCashFromSalesNetOfCredit())
+                          }}</span>
+                      </div>
+                      <div class="mt-2 hidden peer-checked:block schema-detail">
+                        <div class="text-xs text-slate-600">Calcul: Ventes TTC - Ventes en crédits</div>
+                        @if (cashSalesDetails().length) {
+                        <input id="cash-more-schema" type="checkbox" class="sr-only" [ngModel]="cashMoreSchemaFlag" (ngModelChange)="cashMoreSchemaFlag = $event" />
+                        <div class="mt-2 max-h-32 overflow-y-auto divide-y">
+                          @for (s of cashSalesDetails(); track s.id; let i = $index) {
+                          @if (i < 2 || cashMoreSchemaFlag) {
+                          <div class="py-1 text-sm">
+                            <div class="flex items-center justify-between">
+                              <button (click)="toggleTicketDetails(s.id)" 
+                                      class="flex items-center gap-2 text-slate-600 hover:text-slate-800 transition-colors cursor-pointer">
+                                <svg class="w-3 h-3 transition-transform duration-200 flex-shrink-0" 
+                                     [class.rotate-90]="expandedTicketId() === s.id"
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                                <span>{{ ($any(s).createdAt || selectedSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ s.id }}</span>
+                                @if (s.totalAmount !== s.paidAmount) {
+                                <span
+                                  class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">{{
+                                  formatCurrency(s.totalAmount - s.paidAmount) }} (crédit)</span>
+                                }
+                              </button>
+                              <div class="flex items-center gap-2">
+                                <div class="font-medium text-emerald-700">+{{ formatCurrency(s.paidAmount) }}</div>
+                              </div>
+                            </div>
+                            <!-- Ticket Details -->
+                            <div *ngIf="expandedTicketId() === s.id" class="mt-2 pt-2 border-t border-slate-200">
+                              <div class="space-y-1">
+                                <div *ngFor="let item of getTicketItems(s.id)" class="flex justify-between items-center text-xs">
+                                  <span class="text-slate-600 truncate">{{item.quantity}} {{item.name}}</span>
+                                  <span class="font-medium text-slate-800 truncate ml-2">{{formatCurrency(item.total)}}</span>
+                                </div>
+                                @if (getTicketItems(s.id).length === 0) {
+                                <div class="text-xs text-slate-500">Aucun détail d'article disponible</div>
+                                }
+                              </div>
+                            </div>
+                          </div>
+                          }
+                          }
+                        </div>
+                        @if (cashSalesDetails().length > 2) {
+                        <div class="mt-1 text-right">
+                          <label for="cash-more-schema"
+                            class="text-xs text-indigo-600 cursor-pointer select-none">{{ cashMoreSchemaFlag ?
+                            'Voir moins' : 'Voir plus' }}</label>
+                        </div>
+                        }
+                        } @else {
+                        <div class="mt-2 text-xs text-slate-500">Détails non chargés.</div>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Décaissement -->
+              <div class="relative">
+                <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 md:p-4">
+                  <!-- local toggle -->
+                  <input id="schema-right-open" type="checkbox" class="sr-only peer" />
+                  <label for="schema-right-open" class="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg transition-colors">
+                    <span class="text-sm font-semibold text-rose-800 inline-flex items-center gap-2">
+                      <svg class="w-5 h-5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M7 7l10 10"></path>
+                        <path d="M17 7H7v10"></path>
+                      </svg>
+                      Décaissement
+                    </span>
+                    <span class="text-right text-base md:text-lg font-bold text-rose-700">{{
+                      formatCurrency(getExpensesTotal() + getSupplierPaymentsTotal() + getRefundsTotal())
+                      }}</span>
+                  </label>
+
+                  <!-- Children with vertical connector (toggleable) -->
+                  <div class="mt-3 relative pl-6 hidden peer-checked:block section-children max-h-72 md:max-h-96 overflow-y-auto pr-2">
+                    <div class="absolute left-3 top-0 bottom-0 border-l border-rose-200"></div>
+
+                    <div
+                      class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 mb-2 transition">
+                      <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
+                      <input id="schema-expenses-open" type="checkbox" class="sr-only peer" />
+                      <div class="flex items-center justify-between gap-2">
+                        <label for="schema-expenses-open"
+                          class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
+                          <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 6h12v12H6z"></path>
+                            <path d="M9 9h6M9 13h6"></path>
+                          </svg>
+                          Dépenses
+                        </label>
+                        <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getExpensesTotal()) }}</span>
+                      </div>
+                      <div class="mt-2 hidden peer-checked:block schema-detail">
+                        @if (recentExpenses().length) {
+                        <div class="max-h-32 overflow-y-auto divide-y">
+                          @for (m of recentExpenses(); track m.createdAt) {
+                          <div class="py-1 text-sm">
+                            <div class="flex items-center justify-between">
+                              <div class="text-slate-600">
+                                {{ m.createdAt | date:'dd/MM HH:mm' }} ·
+                                @if (m.categoryName || m.supplierName) {
+                                <span>
+                                  {{ m.categoryName || 'Dépense' }}
+                                  @if (m.supplierName) {<span> · Fournisseur: {{ m.supplierName }}</span>}
+                                </span>
+                                } @else {
+                                <span>{{ m.reason }}</span>
+                                }
+                                @if (m.notes && m.notes.includes('Paiement partiel')) {
+                                <div class="text-xs text-orange-600 mt-1">
+                                  {{ m.notes }}
+                                </div>
+                                }
+                              </div>
+                              <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+                            </div>
+                          </div>
+                          }
+                        </div>
+                        } @else {
+                        <div class="text-xs text-slate-500">Aucune ligne de dépense trouvée dans cette session.</div>
+                        }
+                      </div>
+                    </div>
+
+                    <div
+                      class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 transition">
+                      <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
+                      <input id="schema-suppliers-open" type="checkbox" class="sr-only peer" />
+                      <div class="flex items-center justify-between gap-2">
+                        <label for="schema-suppliers-open"
+                          class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
+                          <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 21V8l9-5 9 5v13"></path>
+                            <path d="M9 21v-6h6v6"></path>
+                          </svg>
+                          Règlements fournisseur
+                        </label>
+                        <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getSupplierPaymentsTotal())
+                          }}</span>
+                      </div>
+                      <div class="mt-2 hidden peer-checked:block schema-detail">
+                        @if (recentSupplierPayments().length) {
+                        <div class="max-h-32 overflow-y-auto divide-y">
+                          @for (m of recentSupplierPayments(); track m.createdAt) {
+                          <div class="flex items-center justify-between py-1 text-sm">
+                            <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+                            <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+                          </div>
+                          }
+                        </div>
+                        } @else {
+                        <div class="text-xs text-slate-500">Aucun règlement fournisseur trouvé.</div>
+                        }
+                      </div>
+                    </div>
+
+                    <div
+                      class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 transition">
+                      <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
+                      <input id="schema-refunds-open" type="checkbox" class="sr-only peer" />
+                      <div class="flex items-center justify-between gap-2">
+                        <label for="schema-refunds-open"
+                          class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
+                          <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18" />
+                            <path d="M19 9l-6 6-4-4" />
+                            <path d="M9 9h6v6H9z" />
+                          </svg>
+                          Remboursements
+                        </label>
+                        <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getRefundsTotal())
+                          }}</span>
+                      </div>
+                      <div class="mt-2 hidden peer-checked:block schema-detail">
+                        @if (recentRefunds().length) {
+                        <div class="max-h-32 overflow-y-auto divide-y">
+                          @for (m of recentRefunds(); track m.createdAt) {
+                          <div class="flex items-center justify-between py-1 text-sm">
+                            <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+                            <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+                          </div>
+                          }
+                        </div>
+                        } @else {
+                        <div class="text-xs text-slate-500">Aucun remboursement trouvé.</div>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <ng-template #emptyState>
+        <div class="bg-white rounded-xl sm:rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 p-8 sm:p-12 text-center">
+          <div *ngIf="loading()" class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <span class="ml-3 text-slate-600">Chargement des sessions...</span>
+          </div>
+          <div *ngIf="!loading() && sessions().length === 0" class="py-8">
+            <svg class="w-12 h-12 sm:w-16 sm:h-16 text-slate-300 mx-auto mb-4 sm:mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <h3 class="text-lg sm:text-xl font-semibold text-slate-800 mb-2">Aucune Session Trouvée</h3>
+            <p class="text-sm sm:text-base text-slate-600">Aucune session avec des ventes n'a été trouvée</p>
+          </div>
+          <div *ngIf="!loading() && sessions().length > 0" class="py-8">
+            <svg class="w-12 h-12 sm:w-16 sm:h-16 text-slate-300 mx-auto mb-4 sm:mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <h3 class="text-lg sm:text-xl font-semibold text-slate-800 mb-2">Sélectionnez une Session</h3>
+            <p class="text-sm sm:text-base text-slate-600 mb-4">Choisissez une session pour voir les détails</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-4xl mx-auto">
+              <div *ngFor="let session of sessions().slice(0, 6)" 
+                   (click)="selectSession(session)"
+                   class="p-3 rounded-lg border-2 border-slate-200 bg-white cursor-pointer transition-all duration-200 hover:border-blue-300 hover:bg-blue-50">
+                <div class="text-center">
+                  <div class="text-lg font-bold text-slate-800 mb-1">#{{session.id}}</div>
+                  <div class="text-xs text-slate-600 mb-1">{{session.openedAt | date:'dd/MM HH:mm'}}</div>
+                  <div class="text-xs text-slate-500 truncate">{{session.user?.firstName}} {{session.user?.lastName}}</div>
+                  <div class="text-xs font-medium text-emerald-600 mt-1">{{formatCurrency(session.summary?.totalSales || 0)}}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-template>
+    </div>
+  </div>

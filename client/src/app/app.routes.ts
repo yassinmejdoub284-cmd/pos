@@ -117,5 +117,10 @@ export const routes: Routes = [
     path: 'billing-center', 
     redirectTo: '/invoices',
     pathMatch: 'full'
+  },
+  { 
+    path: 'scanning', 
+    canActivate: [authGuard],
+    loadChildren: () => import('./scanning/scanning.module').then(m => m.ScanningModule) 
   }
 ];

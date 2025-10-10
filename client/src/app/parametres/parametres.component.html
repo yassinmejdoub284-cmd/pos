@@ -364,6 +364,151 @@
             </div>
           </div>
         </div>
+
+        <!-- Document Type Defaults -->
+        <div *ngIf="showSection('documents')" class="bg-gradient-to-br from-white to-violet-50 rounded-xl border border-violet-200 p-4 shadow-sm">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4">Configuration par défaut des documents</h3>
+          
+          <!-- Bon de Livraison -->
+          <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
+            <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Livraison</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.client" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Client</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.depot" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Dépôt</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.vehicle" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Véhicule</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.driver" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Chauffeur</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.manualDestination" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Destination</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.autoInvoice" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Auto Facture</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.tvaAndPrix" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">TVA & Prix</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Bon de Sortie -->
+          <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
+            <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Sortie</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.client" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Client</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.depot" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Dépôt</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.vehicle" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Véhicule</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.driver" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Chauffeur</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.manualDestination" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Destination</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.autoInvoice" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Auto Facture</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.tvaAndPrix" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">TVA & Prix</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Bon de Transfert -->
+          <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
+            <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Transfert</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.client" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Client</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.depot" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Dépôt</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.vehicle" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Véhicule</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.driver" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Chauffeur</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.manualDestination" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Destination</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.autoInvoice" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Auto Facture</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.tvaAndPrix" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">TVA & Prix</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Bon de Retour -->
+          <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
+            <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Retour</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.retour.client" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Client</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.retour.depot" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Dépôt</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.retour.vehicle" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Véhicule</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.retour.driver" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Chauffeur</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.retour.manualDestination" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Destination</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.retour.autoInvoice" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Auto Facture</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.retour.tvaAndPrix" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">TVA & Prix</span>
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
