@@ -1,6 +1,7 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { sendPushToAll } = require('../lib/push');
 
 const router = express.Router();
 
@@ -48,6 +49,17 @@ router.post('/requests', authenticateToken, async (req, res) => {
 
       return request;
     });
+
+    // Send push notification for new return request
+    try {
+      await sendPushToAll({
+        title: 'Nouveau Bon de Retour',
+        body: `Bon de retour ${created.numero} - ${items.length} articles par ${req.user.firstName} ${req.user.lastName}`,
+        data: { type: 'RETURN', id: created.id, depotId: created.depotId }
+      });
+    } catch (e) {
+      console.warn('[returns.create] Failed to send push notification:', e);
+    }
 
     res.status(201).json(created);
   } catch (error) {
@@ -262,6 +274,22 @@ router.post('/requests/:id/approve', authenticateToken, requireRole(['ADMIN', 'M
       where: { id },
       include: { items: true }
     });
+
+    // Send push notification for new rebut records
+    try {
+      const rebutRecords = await prisma.rebutRecord.findMany({
+        where: { requestId: id, status: 'PENDING_AUTHORITY' }
+      });
+      if (rebutRecords.length > 0) {
+        await sendPushToAll({
+          title: 'Nouveaux Rebuts',
+          body: `${rebutRecords.length} rebut(s) en attente d'autorité - Bon ${updated.numero}`,
+          data: { type: 'REBUT', id: updated.id, depotId: updated.depotId }
+        });
+      }
+    } catch (e) {
+      console.warn('[returns.approve] Failed to send push notification:', e);
+    }
 
     res.json(updated);
   } catch (error) {

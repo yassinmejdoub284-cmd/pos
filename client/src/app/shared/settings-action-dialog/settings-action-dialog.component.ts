@@ -37,11 +37,11 @@ export interface SettingsAction {
           <button 
             *ngFor="let action of actions" 
             (click)="selectAction(action.id)"
-            class="w-full group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden">
+            class="w-full group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden">
             
             <div class="flex items-center space-x-4">
               <!-- Icon Container -->
-              <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg ring-2 ring-white/50" 
+              <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center transition-transform duration-300 shadow-lg ring-2 ring-white/50" 
                    [ngClass]="action.color">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="action.icon"></path>
@@ -50,24 +50,24 @@ export interface SettingsAction {
               
               <!-- Content -->
               <div class="flex-1 text-left">
-                <h3 class="font-bold text-amber-800 group-hover:text-amber-900 transition-colors duration-300">
+                <h3 class="font-bold text-amber-800 group- transition-colors duration-300">
                   {{ action.title }}
                 </h3>
-                <p class="text-sm text-amber-600/70 group-hover:text-amber-700/80 transition-colors duration-300">
+                <p class="text-sm text-amber-600/70 group- transition-colors duration-300">
                   {{ action.description }}
                 </p>
               </div>
               
               <!-- Arrow -->
-              <div class="w-8 h-8 bg-gradient-to-br from-amber-100 to-yellow-100 rounded-lg flex items-center justify-center group-hover:from-amber-200 group-hover:to-yellow-200 transition-all duration-300">
-                <svg class="w-4 h-4 text-amber-600 group-hover:text-amber-700 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-8 h-8 bg-gradient-to-br from-amber-100 to-yellow-100 rounded-lg flex items-center justify-center transition-all duration-300">
+                <svg class="w-4 h-4 text-amber-600 group- transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
               </div>
             </div>
             
             <!-- Hover Effect -->
-            <div class="absolute inset-0 bg-gradient-to-r from-amber-50/50 to-yellow-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+            <div class="absolute inset-0 bg-gradient-to-r from-amber-50/50 to-yellow-50/50 opacity-0 transition-opacity duration-300 rounded-xl"></div>
           </button>
         </div>
 
@@ -75,7 +75,7 @@ export interface SettingsAction {
         <div class="p-6 border-t border-amber-100/50">
           <button 
             (click)="closeDialog()"
-            class="w-full bg-gradient-to-r from-amber-100 to-yellow-100 hover:from-amber-200 hover:to-yellow-200 text-amber-700 hover:text-amber-800 font-semibold py-3 px-4 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md">
+            class="w-full bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 font-semibold py-3 px-4 rounded-xl transition-all duration-300 shadow-sm">
             Annuler
           </button>
         </div>

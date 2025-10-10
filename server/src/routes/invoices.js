@@ -1,6 +1,7 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
+const { sendPushToAll } = require('../lib/push');
 // PDF service removed - using HTML print instead
 
 const router = express.Router();
@@ -342,6 +343,17 @@ router.post('/', authenticateToken, async (req, res) => {
     // Add additional fields that the frontend expects
     invoice.numero = invoice.invoiceNumber;
     invoice.createdAt = invoice.issueDate;
+    
+    // Send push notification for new invoice
+    try {
+      await sendPushToAll({
+        title: 'Nouvelle Facture',
+        body: `Facture ${invoice.invoiceNumber} - ${invoice.totalAmount} TND par ${req.user.firstName} ${req.user.lastName}`,
+        data: { type: 'INVOICE', id: invoice.id, depotId: invoice.depotId }
+      });
+    } catch (e) {
+      console.warn('[invoices.create] Failed to send push notification:', e);
+    }
     
     res.status(201).json(invoice);
   } catch (error) {

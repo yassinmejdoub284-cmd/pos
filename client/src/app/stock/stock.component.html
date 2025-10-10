@@ -25,7 +25,7 @@
       </div>
       <div class="flex items-center gap-3">
         <a *ngIf="!isStockOnlyUser()" routerLink="/home"
-          class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold hover:from-slate-200 hover:to-slate-300 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+          class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2"
           title="Accueil">
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
@@ -34,7 +34,7 @@
         </a>
         
         <button *ngIf="isStockOnlyUser()" (click)="logout()"
-          class="bg-gradient-to-r from-red-100 to-red-200 text-red-700 px-6 py-3 rounded-xl font-semibold hover:from-red-200 hover:to-red-300 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+          class="bg-gradient-to-r from-red-100 to-red-200 text-red-700 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2"
           title="Déconnexion">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
@@ -137,7 +137,7 @@
     </div>
     <div class="p-5">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <button (click)="goToVehicles()" class="group w-full bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-emerald-300 hover:bg-emerald-50/30 transition-all">
+        <button (click)="goToVehicles()" class="group w-full bg-white border border-slate-200 rounded-2xl p-5 text-left transition-all">
           <div class="flex items-center gap-4">
             <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md">
               <svg xmlns="http://www.w3.org/2000/svg" width="28" class="bi bi-truck text-white" viewBox="0 0 16 16">
@@ -148,13 +148,13 @@
               <div class="text-lg font-semibold text-slate-800">Gestion des Véhicules</div>
               <div class="text-sm text-slate-500">Matricules et modèles</div>
             </div>
-            <svg class="w-5 h-5 text-slate-400 group-hover:text-emerald-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-slate-400 group- transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
             </svg>
           </div>
         </button>
 
-        <button (click)="goToDrivers()" class="group w-full bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-slate-400 hover:bg-slate-50 transition-all">
+        <button (click)="goToDrivers()" class="group w-full bg-white border border-slate-200 rounded-2xl p-5 text-left transition-all">
           <div class="flex items-center gap-4">
             <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center shadow-md">
               <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +165,7 @@
               <div class="text-lg font-semibold text-slate-800">Gestion des Chauffeurs</div>
               <div class="text-sm text-slate-500">Nom, prénom et CIN</div>
             </div>
-            <svg class="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-slate-400 group- transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
             </svg>
           </div>
@@ -173,7 +173,7 @@
       </div>
 
       <div class="mt-5">
-        <button (click)="closeTransportModal()" class="w-full bg-gray-200 hover:bg-gray-300 text-slate-800 font-semibold py-3 px-4 rounded-xl transition-colors">Annuler</button>
+        <button (click)="closeTransportModal()" class="w-full bg-gray-200 text-slate-800 font-semibold py-3 px-4 rounded-xl transition-colors">Annuler</button>
       </div>
     </div>
   </div>

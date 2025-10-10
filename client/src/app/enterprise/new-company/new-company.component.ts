@@ -13,7 +13,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
         <div class="flex items-center space-x-4 mb-4">
           <button 
             (click)="goBack()"
-            class="p-2 bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+            class="p-2 bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 text-gray-600 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
@@ -346,13 +346,13 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
           <button 
             type="button"
             (click)="goBack()"
-            class="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">
+            class="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium transition-colors">
             Annuler
           </button>
           <button 
             type="submit"
             [disabled]="companyForm.invalid"
-            class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            class="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-medium shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
             Créer
           </button>
         </div>

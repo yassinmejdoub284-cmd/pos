@@ -43,14 +43,8 @@
 
 /* Performance-optimized button effects */
 .action-button {
-  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
   will-change: transform, box-shadow;
   contain: layout style paint;
-}
-
-.action-button:hover {
-  transform: translate3d(0, -2px, 0);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .action-button:active {

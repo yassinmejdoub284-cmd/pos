@@ -43,6 +43,8 @@ export class ParametresComponent implements OnInit {
     droitDeTimbre: false,
     autoApproveExpenseBelow: 0,
     historyRetentionDays: 30,
+    // Stock
+    allowNegativeStock: false,
     printSettings: {
       showLogo: true,
       logoSize: 'medium',

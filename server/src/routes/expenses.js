@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { AuditLogger } = require('../lib/audit');
+const { sendPushToAll } = require('../lib/push');
 
 const router = express.Router();
 
@@ -403,6 +404,18 @@ router.post('/', authenticateToken, async (req, res) => {
     });
 
     await AuditLogger.logCreate('expenses', expense.id, expense, req.user.id, req);
+
+    // Send push notification for all expenses
+    try {
+      await sendPushToAll({
+        title: 'Nouvelle Dépense',
+        body: `Dépense de ${expense.amount} TND - ${expense.category?.name || 'Divers'} par ${req.user.firstName} ${req.user.lastName}`,
+        data: { type: 'EXPENSE', id: expense.id, depotId: expense.depotId }
+      });
+      console.log('[expenses.create] Push notification sent for expense:', expense.id);
+    } catch (e) {
+      console.warn('[expenses.create] Failed to send push notification:', e);
+    }
 
     res.status(201).json(expense);
   } catch (error) {

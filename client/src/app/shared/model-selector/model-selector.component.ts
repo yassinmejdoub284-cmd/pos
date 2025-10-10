@@ -35,7 +35,7 @@ import { FormsModule } from '@angular/forms';
           <button 
             type="button"
             (click)="showModelSelection = true"
-            class="px-3 py-1 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
+            class="px-3 py-1 text-sm bg-slate-100 text-slate-700 rounded-lg transition-colors">
             Changer
           </button>
         </div>
@@ -47,7 +47,7 @@ import { FormsModule } from '@angular/forms';
         type="button"
         (click)="showModelSelection = true"
         [disabled]="!availableModels.length"
-        class="w-full p-4 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 text-center disabled:opacity-50 disabled:cursor-not-allowed">
+        class="w-full p-4 border-2 border-dashed border-slate-300 rounded-xl transition-all duration-200 text-center disabled:opacity-50 disabled:cursor-not-allowed">
         <div class="flex flex-col items-center gap-2">
           <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -69,7 +69,7 @@ import { FormsModule } from '@angular/forms';
             <button 
               type="button"
               (click)="closeModelSelection()"
-              class="p-3 hover:bg-slate-100 rounded-xl transition-colors"
+              class="p-3 rounded-xl transition-colors"
               title="Fermer">
               <svg class="w-6 h-6 text-slate-600" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
@@ -100,7 +100,7 @@ import { FormsModule } from '@angular/forms';
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div *ngFor="let model of filteredModels" 
                  (click)="selectModel(model)"
-                 class="cursor-pointer p-6 border border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all duration-200"
+                 class="cursor-pointer p-6 border border-slate-200 rounded-xl transition-all duration-200"
                  [class]="getModelCardClasses(model)">
               
               <!-- Model Icon -->
@@ -183,6 +183,6 @@ export class ModelSelectorComponent {
     const isSelected = this.selectedModel() === model;
     return isSelected 
       ? 'border-blue-500 bg-blue-50' 
-      : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50';
+      : 'border-slate-200';
   }
 }

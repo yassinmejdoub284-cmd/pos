@@ -9,6 +9,7 @@ import { HttpClient } from '@angular/common/http';
 import { ReturnsService, ReturnRequestCreatePayload } from '../core/services/returns.service';
 import { AuthService } from '../core/services/auth.service';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
+import { SessionsService } from '../core/services/sessions.service';
 import { environment } from '../../environments/environment';
 
 type ReturnTypeOption = 'RETURN' | 'EXCHANGE_CASH' | 'EXCHANGE_PRODUCTS' | 'EXCHANGE_NOTHING';
@@ -32,9 +33,10 @@ export class HistoriqueComponent implements OnInit {
   startDate = '';
   endDate = '';
 
-  // Pagination
-  currentPage = 1;
-  itemsPerPage = 20;
+  // Session-based pagination
+  currentSessionPage = 1;
+  sessionsPerPage = 1; // Show one session per page
+  totalSessions = 0;
   totalItems = 0;
 
   // Payment methods for filter
@@ -56,6 +58,10 @@ export class HistoriqueComponent implements OnInit {
 
   // Settings
   appSettings: AppSettings | null = null;
+  
+  // Session-based filtering
+  sessionIds: number[] = [];
+  allSessions: any[] = []; // Store all sessions for pagination
 
   // Invoice request modal
   showInvoiceRequestModal = false;
@@ -91,6 +97,7 @@ export class HistoriqueComponent implements OnInit {
     private returnsService: ReturnsService,
     private authService: AuthService,
     private settingsService: SettingsService,
+    private sessionsService: SessionsService,
     private route: ActivatedRoute
   ) {}
 
@@ -144,17 +151,31 @@ export class HistoriqueComponent implements OnInit {
     this.filteredSales = [];
     this.totalItems = 0;
     this.error = '';
-    this.loadSales();
+    this.sessionIds = [];
+    this.allSessions = [];
+    this.totalSessions = 0;
+    this.currentSessionPage = 1;
+    // Reload settings and sessions first, then sales
+    this.loadSettings(() => {
+      this.loadSales();
+    });
   }
 
   loadSales(): void {
     this.loading = true;
     this.error = '';
 
-    // Limit by settings retention days if present
+    // Use session-based filtering if we have sessions, otherwise fallback to date filtering
     const params: any = {};
-    if (this.startDate && this.endDate) {
-      // Ensure full-day coverage for the selected range
+    
+    if (this.allSessions.length > 0) {
+      // Get current session's ID for pagination
+      const currentSession = this.allSessions[this.currentSessionPage - 1];
+      if (currentSession) {
+        params.sessionIds = [currentSession.id];
+      }
+    } else if (this.startDate && this.endDate) {
+      // Fallback to date filtering
       params.startDate = `${this.startDate}T00:00:00.000`;
       params.endDate = `${this.endDate}T23:59:59.999`;
     }
@@ -204,23 +225,58 @@ export class HistoriqueComponent implements OnInit {
       .subscribe({
         next: (settings: any) => {
           this.appSettings = settings;
-          // Apply default date filter based on historyRetentionDays
-          const days = Number((settings as any).historyRetentionDays || 30);
-          if (days > 0) {
-            const end = new Date();
-            const start = new Date();
-            start.setDate(end.getDate() - (days - 1));
-            // Format as yyyy-mm-dd for input[type=date]
-            const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            this.startDate = toIso(start);
-            this.endDate = toIso(end);
-            // Continue flow if callback provided
-            if (after) after();
-          }
+          // Load sessions based on historyRetentionDays setting
+          const sessionLimit = Number((settings as any).historyRetentionDays || 10);
+          this.loadRecentSessions(sessionLimit, after);
         },
         error: (error) => {
           console.error('Error loading settings:', error);
-          // Keep default values
+          // Fallback to default session limit
+          this.loadRecentSessions(10, after);
+        }
+      });
+  }
+
+  loadRecentSessions(limit: number, after?: () => void): void {
+    this.sessionsService.getSessions({ 
+      limit: limit
+    })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (sessions: any) => {
+          // Sort sessions by openedAt/createdAt (newest first) and keep only last N
+          const sorted = (sessions || [])
+            .slice()
+            .sort((a: any, b: any) => {
+              const aTime = new Date(a.openedAt ?? a.createdAt).getTime();
+              const bTime = new Date(b.openedAt ?? b.createdAt).getTime();
+              return bTime - aTime;
+            })
+            .slice(0, limit);
+
+          this.allSessions = sorted;
+          this.sessionIds = sorted.map((s: any) => s.id);
+          this.totalSessions = this.allSessions.length;
+          this.currentSessionPage = 1; // Page 1 = most recent session
+          if (after) after();
+        },
+        error: (error) => {
+          console.error('Error loading recent sessions:', error);
+          // Fallback to date-based filtering
+          const days = limit;
+          const end = new Date();
+          const start = new Date();
+          start.setDate(end.getDate() - (days - 1));
+          const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          this.startDate = toIso(start);
+          this.endDate = toIso(end);
+          
+          // Reset session-based pagination
+          this.allSessions = [];
+          this.sessionIds = [];
+          this.totalSessions = 0;
+          this.currentSessionPage = 1;
+          
           if (after) after();
         }
       });
@@ -311,7 +367,7 @@ export class HistoriqueComponent implements OnInit {
     });
 
     this.totalItems = this.filteredSales.length;
-    this.currentPage = 1;
+    this.currentSessionPage = 1;
     
     console.log('Filter result:', {
       originalCount: this.sales.length,
@@ -327,19 +383,34 @@ export class HistoriqueComponent implements OnInit {
     this.selectedSaleType = '';
     this.startDate = '';
     this.endDate = '';
+    this.sessionIds = []; // Clear session-based filtering
+    this.allSessions = [];
+    this.totalSessions = 0;
+    this.currentSessionPage = 1;
     this.filteredSales = this.sales;
     this.totalItems = this.sales.length;
-    this.currentPage = 1;
   }
 
   isWholesaleSale(sale: Sale): boolean {
     return sale.items && sale.items.some(item => item.isWholesale);
   }
 
+  // Current session helper
+  private getCurrentSessionId(): number | null {
+    const current = this.allSessions[this.currentSessionPage - 1];
+    return current ? Number(current.id) : null;
+  }
+
   get paginatedSales(): Sale[] {
-    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-    const endIndex = startIndex + this.itemsPerPage;
-    return this.filteredSales.slice(startIndex, endIndex);
+    // Ensure we only show sales belonging to the currently selected session
+    const currentSessionId = this.getCurrentSessionId();
+    if (currentSessionId == null) {
+      return this.filteredSales;
+    }
+    return this.filteredSales.filter((sale: any) => {
+      const sid = (sale?.session?.id ?? null);
+      return sid === currentSessionId;
+    });
   }
 
   // Group by session for multigrid sections (fallback to 'Sans session')
@@ -441,12 +512,14 @@ export class HistoriqueComponent implements OnInit {
   }
 
   get totalPages(): number {
-    return Math.ceil(this.totalItems / this.itemsPerPage);
+    return this.totalSessions;
   }
 
   changePage(page: number): void {
-    if (page >= 1 && page <= this.totalPages) {
-      this.currentPage = page;
+    if (page >= 1 && page <= this.totalSessions) {
+      this.currentSessionPage = page;
+      // Reload sales for the new session
+      this.loadSales();
     }
   }
 

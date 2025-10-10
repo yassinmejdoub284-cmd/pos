@@ -28,7 +28,7 @@ import { environment } from '../../../environments/environment';
             </div>
           </div>
           <a routerLink="/stock"
-            class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold hover:from-slate-200 hover:to-slate-300 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+            class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2"
             title="Retour Stock">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
@@ -94,7 +94,7 @@ import { environment } from '../../../environments/environment';
           </div>
 
           <div *ngIf="documents().length > 0" class="space-y-4">
-            <div *ngFor="let doc of documents()" [id]="'document-' + doc.id" class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
+            <div *ngFor="let doc of documents()" [id]="'document-' + doc.id" class="border border-gray-200 rounded-lg p-4 transition-shadow duration-200">
               <div class="flex justify-between items-start">
                 <div class="flex-1">
                   <div class="flex items-center gap-3 mb-2">
@@ -129,10 +129,10 @@ import { environment } from '../../../environments/environment';
                 </div>
                 
                 <div class="flex flex-col gap-2 ml-4">
-                  <button (click)="viewDocument(doc)" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors duration-200">
+                  <button (click)="viewDocument(doc)" class="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors duration-200">
                     Voir détails
                   </button>
-                  <button *ngIf="canValidate(doc)" (click)="validateDocument(doc)" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors duration-200">
+                  <button *ngIf="canValidate(doc)" (click)="validateDocument(doc)" class="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium transition-colors duration-200">
                     Valider
                   </button>
                 </div>
@@ -144,14 +144,14 @@ import { environment } from '../../../environments/environment';
           <div *ngIf="totalPages() > 1" class="mt-6 flex justify-center">
             <div class="flex gap-2">
               <button (click)="previousPage()" [disabled]="currentPage() === 1" 
-                      class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                 Précédent
               </button>
               <span class="px-3 py-2 text-sm text-gray-600">
                 Page {{ currentPage() }} sur {{ totalPages() }}
               </span>
               <button (click)="nextPage()" [disabled]="currentPage() === totalPages()" 
-                      class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                 Suivant
               </button>
             </div>
@@ -172,13 +172,13 @@ import { environment } from '../../../environments/environment';
             </div>
             <div class="flex gap-2">
               <button (click)="printDocument()" 
-                      class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                      class="bg-white/20 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
                 </svg>
                 Imprimer
               </button>
-              <button (click)="closeDocumentDetails()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+              <button (click)="closeDocumentDetails()" class="text-white transition-colors" title="Fermer">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -245,7 +245,7 @@ import { environment } from '../../../environments/environment';
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
-                  <tr *ngFor="let item of selectedDocument()?.items; index as i" class="hover:bg-gray-50">
+                  <tr *ngFor="let item of selectedDocument()?.items; index as i">
                     <td class="px-4 py-3 text-sm text-gray-900">{{ i + 1 }}</td>
                     <td class="px-4 py-3 text-sm text-gray-900">
                       <div class="font-medium">{{ item.product?.name || 'Produit #' + item.productId }}</div>

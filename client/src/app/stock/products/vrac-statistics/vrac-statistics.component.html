@@ -1,7 +1,7 @@
 <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-4">
   <div class="fixed top-6 right-6 z-40">
     <a routerLink="/stock/produits"
-      class="w-12 h-12 bg-white text-indigo-600 rounded-full shadow-vibrant hover:bg-slate-100 transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+      class="w-12 h-12 bg-white text-indigo-600 rounded-full shadow-vibrant transition-all duration-300 transform flex items-center justify-center"
       title="Retour aux produits">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
@@ -78,7 +78,7 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-700/50">
-                  <tr *ngFor="let price of stat.prices" class="hover:bg-slate-100/30">
+                  <tr *ngFor="let price of stat.prices">
                     <td class="px-4 py-2 text-slate-800 font-semibold">{{ formatPrice(price.price) }}</td>
                     <td class="px-4 py-2 text-slate-600">{{ formatDate(price.startDate) }}</td>
                     <td class="px-4 py-2 text-slate-600">{{ price.endDate ? formatDate(price.endDate) : 'En cours' }}</td>

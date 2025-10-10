@@ -1,5 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
+const { sendPushToAll } = require('../lib/push');
 // Role checks removed - frontend handles access control
 
 const router = express.Router();
@@ -725,6 +726,17 @@ router.post('/gift', async (req, res) => {
       include: { items: true, client: { select: { firstName: true, lastName: true, code: true } } }
     });
 
+    // Send push notification for new gift
+    try {
+      await sendPushToAll({
+        title: 'Nouveau Cadeau',
+        body: `Cadeau de ${finalTotal} TND - ${items.length} articles par ${req.user.firstName} ${req.user.lastName}`,
+        data: { type: 'GIFT', id: saleWithDetails.id, depotId: saleWithDetails.depotId }
+      });
+    } catch (e) {
+      console.warn('[sales.gift] Failed to send push notification:', e);
+    }
+
     res.status(201).json(saleWithDetails);
   } catch (error) {
     console.error('Error creating gift sale:', error);
@@ -825,7 +837,7 @@ router.put('/gift/:id/reject', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { startDate, endDate, status, paymentMethod, page = 1, limit = 50 } = req.query;
+    const { startDate, endDate, status, paymentMethod, page = 1, limit = 1000, sessionIds } = req.query;
 
     // Enforce depot isolation - only show sales from user's depot
     const userDepotId = req.user.depotId;
@@ -835,7 +847,14 @@ router.get('/', async (req, res) => {
     
     const whereClause = { depotId: userDepotId };
 
-    if (startDate && endDate) {
+    // Handle session-based filtering (priority over date filtering)
+    if (sessionIds) {
+      const sessionIdArray = sessionIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      if (sessionIdArray.length > 0) {
+        whereClause.sessionId = { in: sessionIdArray };
+      }
+    } else if (startDate && endDate) {
+      // Fallback to date filtering if no sessionIds provided
       whereClause.createdAt = { gte: new Date(startDate), lte: new Date(endDate) };
     }
 

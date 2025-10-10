@@ -4,7 +4,7 @@
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-3xl font-bold text-slate-800">Gestion des Ventes en Gros</h1>
       <a routerLink="/stock" 
-         class="bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400 text-white px-4 py-2 rounded-2xl transition-colors flex items-center space-x-2 shadow">
+         class="bg-gradient-to-r from-violet-600 to-purple-500 text-white px-4 py-2 rounded-2xl transition-colors flex items-center space-x-2 shadow">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
         </svg>
@@ -99,7 +99,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-violet-50">
-            <tr *ngFor="let product of wholesaleProducts" class="hover:bg-violet-50/30 transition-colors">
+            <tr *ngFor="let product of wholesaleProducts">
               <td class="px-6 py-4">
                 <div class="flex items-center space-x-3">
                   <img title="Image du produit" *ngIf="product.photo" [src]="product.photo" [alt]="product.name" 
@@ -163,7 +163,7 @@
         <h3 class="text-lg font-medium text-slate-800 mb-2">Aucun produit de gros</h3>
         <p class="text-slate-500 mb-4">Configurez des produits pour la vente en gros pour commencer.</p>
         <a routerLink="/stock/produits" 
-           class="inline-flex items-center px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors">
+           class="inline-flex items-center px-4 py-2 bg-violet-600 text-white rounded-lg transition-colors">
           <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
           </svg>

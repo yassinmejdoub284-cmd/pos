@@ -882,13 +882,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
             // Automatically open new session with the remaining balance
             this.autoOpenSession(resp.remainingBalance || 0);
             
-            // If approval is required, redirect to approvals center, else back to caisse
+            // Always return to caisse after closure
             setTimeout(() => {
-              if (resp?.requiresApproval) {
-                this.router.navigate(['/approvals']);
-              } else {
-                this.goToRegister();
-              }
+              this.goToRegister();
             }, 1000);
           },
           error: (error) => {

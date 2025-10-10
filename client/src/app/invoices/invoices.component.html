@@ -6,7 +6,7 @@
         {{ showClientSelection ? 'Sélection du Client' : showProductSelection ? 'Sélection des Produits' : 'Gestion des Factures' }}
       </h1>
       <a routerLink="/home" 
-         class="bg-gradient-to-r from-indigo-600 to-pink-500 hover:from-indigo-500 hover:to-pink-400 text-white px-4 py-2 rounded-2xl transition-colors flex items-center space-x-2 shadow">
+         class="bg-gradient-to-r from-indigo-600 to-pink-500 text-white px-4 py-2 rounded-2xl transition-colors flex items-center space-x-2 shadow">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
         </svg>
@@ -42,7 +42,7 @@
     </div>
 
     <div *ngIf="!loadingCompanies" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div *ngFor="let company of filteredCompanies" (click)="selectCompany(company)" class="group cursor-pointer bg-white rounded-2xl p-4 shadow-lg border border-emerald-100/50 hover:shadow-xl hover:scale-95 transition-all duration-300 ring-1 ring-emerald-50 relative overflow-hidden">
+      <div *ngFor="let company of filteredCompanies" (click)="selectCompany(company)" class="group cursor-pointer bg-white rounded-2xl p-4 shadow-lg border border-emerald-100/50 transition-all duration-300 ring-1 ring-emerald-50 relative overflow-hidden">
         <div class="flex items-start gap-3 mb-3">
           <div class="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white/70" [style.background]="(company.brandColor || '#10b981') + '33'">
             <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,7 +50,7 @@
             </svg>
           </div>
           <div class="flex-1 min-w-0">
-            <span class="text-lg font-semibold text-slate-800 group-hover:text-emerald-600 transition-colors truncate block">{{ company.raisonSociale }}</span>
+            <span class="text-lg font-semibold text-slate-800 group- transition-colors truncate block">{{ company.raisonSociale }}</span>
             <span class="text-xs text-slate-600 font-medium block">MF: {{ company.matriculeFiscal || 'N/A' }}</span>
           </div>
         </div>
@@ -58,7 +58,7 @@
           <span>Ville: <span class="font-medium">{{ company.ville || '—' }}</span></span>
           <span class="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">{{ company.statut === 'ACTIF' ? 'Actif' : 'Archivé' }}</span>
         </div>
-        <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-300 from-emerald-50 to-green-100"></div>
+        <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 transition-opacity duration-300 from-emerald-50 to-green-100"></div>
       </div>
     </div>
 
@@ -71,7 +71,7 @@
     </div>
 
     <div class="flex justify-between items-center mt-6 pt-6 border-t border-emerald-200/60">
-      <button (click)="cancelCompanySelection()" class="bg-gradient-to-r from-slate-200 to-slate-100 hover:from-slate-300 hover:to-slate-200 text-slate-800 px-6 py-2 rounded-2xl transition-colors shadow">Annuler</button>
+      <button (click)="cancelCompanySelection()" class="bg-gradient-to-r from-slate-200 to-slate-100 text-slate-800 px-6 py-2 rounded-2xl transition-colors shadow">Annuler</button>
       <span class="text-slate-600 text-sm">{{ filteredCompanies.length }} société{{ filteredCompanies.length !== 1 ? 's' : '' }} trouvée{{ filteredCompanies.length !== 1 ? 's' : '' }}</span>
     </div>
   </div>
@@ -128,7 +128,7 @@
     <div *ngIf="!loadingClients" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <div *ngFor="let client of filteredClients" 
            (click)="selectClient(client)"
-           class="group cursor-pointer bg-white rounded-2xl p-4 shadow-lg border border-cyan-100/50 hover:shadow-xl hover:scale-95 transition-all duration-300 ring-1 ring-cyan-50 relative overflow-hidden">
+           class="group cursor-pointer bg-white rounded-2xl p-4 shadow-lg border border-cyan-100/50 transition-all duration-300 ring-1 ring-cyan-50 relative overflow-hidden">
         
         <!-- Client Info -->
         <div class="flex items-start space-x-3 mb-3">
@@ -138,7 +138,7 @@
             </svg>
           </div>
           <div class="flex-1 min-w-0">
-            <h3 class="text-lg font-semibold text-slate-800 group-hover:text-cyan-600 transition-colors truncate">
+            <h3 class="text-lg font-semibold text-slate-800 group- transition-colors truncate">
               {{ client.firstName }} {{ client.lastName }}
             </h3>
             <p class="text-sm text-slate-600 font-medium">Code: {{ client.code }}</p>
@@ -166,7 +166,7 @@
         </div>
 
         <!-- Hover Effect -->
-        <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-300 from-cyan-50 to-blue-100"></div>
+        <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 transition-opacity duration-300 from-cyan-50 to-blue-100"></div>
       </div>
     </div>
 
@@ -182,7 +182,7 @@
     <!-- Action Buttons -->
     <div class="flex justify-between items-center mt-6 pt-6 border-t border-cyan-200/60">
       <button (click)="cancelClientSelection()" 
-        class="bg-gradient-to-r from-slate-200 to-slate-100 hover:from-slate-300 hover:to-slate-200 text-slate-800 px-6 py-2 rounded-2xl transition-colors shadow">
+        class="bg-gradient-to-r from-slate-200 to-slate-100 text-slate-800 px-6 py-2 rounded-2xl transition-colors shadow">
         Annuler
       </button>
       <div class="text-slate-600 text-sm">
@@ -354,7 +354,7 @@
                 </thead>
                 <tbody>
                   <tr *ngFor="let item of invoiceItems; let i = index"
-                    class="border-b border-gray-200 text-gray-800 cursor-pointer hover:bg-cyan-50 transition-colors"
+                    class="border-b border-gray-200 text-gray-800 cursor-pointer transition-colors"
                     [class]="selectedInvoiceItemIndex === i ? 'bg-cyan-100 border-cyan-300' : 'bg-blue-50'"
                     (click)="selectInvoiceItem(item)">
                     <td class="px-2 py-2 text-xs font-medium">
@@ -377,7 +377,7 @@
                     </td>
                     <td class="px-2 py-2 text-center">
                       <button (click)="removeInvoiceItem(i)"
-                        class="w-6 h-6 bg-gradient-to-br from-pink-400 to-rose-500 hover:from-pink-500 hover:to-rose-600 text-white rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-lg hover:shadow-xl transform hover:scale-110 active:scale-95">
+                        class="w-6 h-6 bg-gradient-to-br from-pink-400 to-rose-500 text-white rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-lg transform active:scale-95">
                         ×
                       </button>
                     </td>
@@ -400,7 +400,7 @@
               <div class="text-gray-800 text-2xl font-mono">{{ currentInput || '0' }}</div>
             </div>
             <button (click)="clearInput()" title="Effacer"
-              class="bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all text-sm font-medium border border-red-400 flex items-center justify-center px-3">
+              class="bg-red-500 text-white rounded-lg transition-all text-sm font-medium border border-red-400 flex items-center justify-center px-3">
               C
             </button>
           </div>
@@ -409,35 +409,35 @@
           <div class="grid grid-cols-3 gap-1.5">
             <!-- Row 1: 7 8 9 -->
             <button *ngFor="let num of [7,8,9]" (click)="addToInput(num.toString())"
-              class="bg-white/60 text-gray-800 py-2 rounded-lg hover:bg-cyan-100 transition-all text-lg font-medium border border-cyan-200">
+              class="bg-white/60 text-gray-800 py-2 rounded-lg transition-all text-lg font-medium border border-cyan-200">
               {{ num }}
             </button>
 
             <!-- Row 2: 4 5 6 -->
             <button *ngFor="let num of [4,5,6]" (click)="addToInput(num.toString())"
-              class="bg-white/60 text-gray-800 py-2 rounded-lg hover:bg-cyan-100 transition-all text-lg font-medium border border-cyan-200">
+              class="bg-white/60 text-gray-800 py-2 rounded-lg transition-all text-lg font-medium border border-cyan-200">
               {{ num }}
             </button>
 
             <!-- Row 3: 1 2 3 -->
             <button *ngFor="let num of [1,2,3]" (click)="addToInput(num.toString())"
-              class="bg-white/60 text-gray-800 py-2 rounded-lg hover:bg-cyan-100 transition-all text-lg font-medium border border-cyan-200">
+              class="bg-white/60 text-gray-800 py-2 rounded-lg transition-all text-lg font-medium border border-cyan-200">
               {{ num }}
             </button>
 
             <button (click)="addDecimal()"
-              class="bg-white/60 text-gray-800 py-2 rounded-lg hover:bg-cyan-100 transition-all text-lg font-medium border border-cyan-200">
+              class="bg-white/60 text-gray-800 py-2 rounded-lg transition-all text-lg font-medium border border-cyan-200">
               .
             </button>
 
             <!-- Row 4: 0 . -> -->
             <button (click)="addToInput('0')"
-              class="bg-white/60 text-gray-800 py-2 rounded-lg hover:bg-cyan-100 transition-all text-lg font-medium border border-cyan-200">
+              class="bg-white/60 text-gray-800 py-2 rounded-lg transition-all text-lg font-medium border border-cyan-200">
               0
             </button>
 
             <button (click)="enterValue()" title="Valider la valeur"
-              class="bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-all text-sm font-medium border border-cyan-400 flex items-center justify-center">
+              class="bg-cyan-500 text-white rounded-lg transition-all text-sm font-medium border border-cyan-400 flex items-center justify-center">
               OK
             </button>
           </div>
@@ -448,7 +448,7 @@
           <!-- Action Buttons -->
           <div class="space-y-1">
             <button (click)="generateInvoice()" [disabled]="invoiceItems.length === 0 || generatingInvoice"
-              class="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-lg transition-all text-xs font-medium flex items-center justify-center py-1.5 relative hover:scale-95 transform shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+              class="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-lg transition-all text-xs font-medium flex items-center justify-center py-1.5 relative transform shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
               <svg *ngIf="!generatingInvoice" class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
               </svg>
@@ -459,7 +459,7 @@
             </button>
 
             <button (click)="goBackToClientSelection()"
-              class="w-full bg-gradient-to-r from-slate-500 to-slate-600 text-white rounded-lg transition-all text-xs font-medium flex items-center justify-center py-1.5 relative hover:scale-95 transform shadow-lg">
+              class="w-full bg-gradient-to-r from-slate-500 to-slate-600 text-white rounded-lg transition-all text-xs font-medium flex items-center justify-center py-1.5 relative transform shadow-lg">
               <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
               </svg>
@@ -467,7 +467,7 @@
             </button>
 
             <button (click)="cancelProductSelection()"
-              class="w-full bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg transition-all text-xs font-medium flex items-center justify-center py-1.5 relative hover:scale-95 transform shadow-lg">
+              class="w-full bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg transition-all text-xs font-medium flex items-center justify-center py-1.5 relative transform shadow-lg">
               <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -545,7 +545,7 @@
     <!-- Action Buttons -->
     <div class="flex justify-between items-center">
       <button (click)="clearFilters()" 
-        class="bg-gradient-to-r from-slate-200 to-slate-100 hover:from-indigo-500 hover:to-pink-400 text-slate-800 px-4 py-2 rounded-2xl transition-colors shadow">
+        class="bg-gradient-to-r from-slate-200 to-slate-100 text-slate-800 px-4 py-2 rounded-2xl transition-colors shadow">
         Effacer les filtres
       </button>
       <div class="text-slate-600 text-sm">
@@ -583,7 +583,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let invoice of invoices" class="border-b border-slate-200/20 hover:bg-indigo-50 transition-colors">
+          <tr *ngFor="let invoice of invoices" class="border-b border-slate-200/20 transition-colors">
             <td class="p-4 text-slate-800 font-medium">{{ invoice.invoiceNumber }}</td>
             <td class="p-4 text-slate-600">{{ formatDate(invoice.issueDate) }}</td>
             <td class="p-4">
@@ -605,10 +605,10 @@
             </td>
             <td class="p-4">
               <div class="flex items-center gap-2">
-                <button (click)="viewInvoice(invoice)" class="px-3 py-1 rounded-xl text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition-colors" title="Voir détails">
+                <button (click)="viewInvoice(invoice)" class="px-3 py-1 rounded-xl text-xs bg-indigo-600 text-white transition-colors" title="Voir détails">
                   Voir
                 </button>
-                <button (click)="printInvoice()" class="px-3 py-1 rounded-xl text-xs bg-cyan-600 hover:bg-cyan-500 text-white transition-colors" title="Imprimer la facture">
+                <button (click)="printInvoice()" class="px-3 py-1 rounded-xl text-xs bg-cyan-600 text-white transition-colors" title="Imprimer la facture">
                   Imprimer
                 </button>
               </div>
@@ -632,7 +632,7 @@
     <button 
       (click)="changePage(currentPage - 1)"
       [disabled]="currentPage === 1"
-      class="px-3 py-2 bg-slate-100/50 text-slate-800 rounded-2xl hover:bg-slate-100/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+      class="px-3 py-2 bg-slate-100/50 text-slate-800 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
       Précédent
     </button>
     
@@ -641,7 +641,7 @@
         *ngFor="let page of [].constructor(totalPages); let i = index"
         (click)="changePage(i + 1)"
         [class]="'px-3 py-2 rounded-2xl transition-colors ' + 
-          (currentPage === i + 1 ? 'bg-indigo-600 text-white' : 'bg-slate-100/50 text-slate-800 hover:bg-slate-100')">
+          (currentPage === i + 1 ? 'bg-indigo-600 text-white' : 'bg-slate-100/50 text-slate-800')">
         {{ i + 1 }}
       </button>
     </div>
@@ -649,7 +649,7 @@
     <button 
       (click)="changePage(currentPage + 1)"
       [disabled]="currentPage === totalPages"
-      class="px-3 py-2 bg-slate-100/50 text-slate-800 rounded-2xl hover:bg-slate-100/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+      class="px-3 py-2 bg-slate-100/50 text-slate-800 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
       Suivant
     </button>
   </div>
@@ -668,7 +668,7 @@
           </p>
         </div>
         <button (click)="closeInvoicePreviewModal()" 
-                class="text-white hover:text-indigo-200 transition-colors"
+                class="text-white transition-colors"
                 title="Fermer">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -688,11 +688,11 @@
     <!-- Footer -->
     <div class="bg-slate-50 px-6 py-4 flex justify-end space-x-3">
       <button (click)="closeInvoicePreviewModal()" 
-              class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors">
+              class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg transition-colors">
         Fermer
       </button>
       <button (click)="printInvoice()" 
-              class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2">
+              class="px-4 py-2 bg-indigo-600 text-white rounded-lg transition-colors flex items-center space-x-2">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
         </svg>
@@ -721,7 +721,7 @@
         </svg>
         <span class="font-medium">{{ alertMessage }}</span>
       </div>
-      <button (click)="showAlert = false" class="ml-4 text-current opacity-70 hover:opacity-100" title="Fermer">
+      <button (click)="showAlert = false" class="ml-4 text-current opacity-70" title="Fermer">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>

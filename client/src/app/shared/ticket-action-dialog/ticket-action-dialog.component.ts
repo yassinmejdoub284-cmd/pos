@@ -35,7 +35,7 @@ export interface TicketAction {
             </div>
             <button (click)="onClose()" 
               title="Fermer"
-              class="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-95">
+              class="p-2 text-blue-500  rounded-xl transition-all duration-200">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -66,11 +66,11 @@ export interface TicketAction {
           <div class="grid grid-cols-3 gap-3 mb-4">
             <div *ngFor="let action of getFirstRowActions()" 
                  (click)="onActionClick(action.id)"
-                 class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-blue-100/50 hover:shadow-md hover:scale-98 transition-all duration-200 ring-1 ring-blue-50 relative overflow-hidden">
+                 class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-blue-100/50 transition-all duration-200 ring-1 ring-blue-50 relative overflow-hidden">
               
               <!-- Icon and Content -->
               <div class="flex flex-col items-center text-center space-y-3">
-                <div class="w-10 h-10 bg-gradient-to-br rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-sm ring-2 ring-white/50" 
+                <div class="w-10 h-10 bg-gradient-to-br rounded-xl flex items-center justify-center transition-transform duration-200 shadow-sm ring-2 ring-white/50" 
                      [ngClass]="action.color">
                   <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="action.icon"></path>
@@ -78,17 +78,17 @@ export interface TicketAction {
                 </div>
                 
                 <div class="flex-1">
-                  <h3 class="text-sm font-semibold text-blue-800 group-hover:text-blue-600 transition-colors leading-tight">
+                  <h3 class="text-sm font-semibold text-blue-800 group- transition-colors leading-tight">
                     {{ getActionTitle(action.id, action.title) }}
                   </h3>
-                  <p class="text-xs text-blue-600/70 group-hover:text-blue-600 transition-colors mt-1 leading-tight">
+                  <p class="text-xs text-blue-600/70 group- transition-colors mt-1 leading-tight">
                     {{ getActionDescription(action.id, action.description) }}
                   </p>
                 </div>
               </div>
               
               <!-- Hover Effect -->
-              <div class="absolute inset-0 rounded-xl bg-gradient-to-br opacity-0 group-hover:opacity-5 transition-opacity duration-200" 
+              <div class="absolute inset-0 rounded-xl bg-gradient-to-br opacity-0 transition-opacity duration-200" 
                    [ngClass]="action.gradient"></div>
             </div>
           </div>
@@ -101,11 +101,11 @@ export interface TicketAction {
                  [class]="'group rounded-xl p-4 shadow-sm border ring-1 relative overflow-hidden transition-all duration-200 ' +
                           (isActionDisabled(action.id) 
                             ? 'cursor-not-allowed bg-gray-100 border-gray-200 ring-gray-100 opacity-60' 
-                            : 'cursor-pointer bg-white border-blue-100/50 hover:shadow-md hover:scale-98 ring-blue-50')">
+                            : 'cursor-pointer bg-white border-blue-100/50 ring-blue-50')">
                 
                 <!-- Icon and Content -->
                 <div class="flex flex-col items-center text-center space-y-3">
-                  <div class="w-10 h-10 bg-gradient-to-br rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 shadow-sm ring-2 ring-white/50" 
+                  <div class="w-10 h-10 bg-gradient-to-br rounded-xl flex items-center justify-center transition-transform duration-200 shadow-sm ring-2 ring-white/50" 
                        [ngClass]="action.color">
                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="action.icon"></path>
@@ -113,17 +113,17 @@ export interface TicketAction {
                   </div>
                   
                   <div class="flex-1">
-                    <h3 class="text-sm font-semibold text-blue-800 group-hover:text-blue-600 transition-colors leading-tight">
+                    <h3 class="text-sm font-semibold text-blue-800 group- transition-colors leading-tight">
                       {{ getActionTitle(action.id, action.title) }}
                     </h3>
-                    <p class="text-xs text-blue-600/70 group-hover:text-blue-600 transition-colors mt-1 leading-tight">
+                    <p class="text-xs text-blue-600/70 group- transition-colors mt-1 leading-tight">
                       {{ getActionDescription(action.id, action.description) }}
                     </p>
                   </div>
                 </div>
                 
                 <!-- Hover Effect -->
-                <div class="absolute inset-0 rounded-xl bg-gradient-to-br opacity-0 group-hover:opacity-5 transition-opacity duration-200" 
+                <div class="absolute inset-0 rounded-xl bg-gradient-to-br opacity-0 transition-opacity duration-200" 
                      [ngClass]="action.gradient"></div>
               </div>
             </div>
@@ -134,7 +134,7 @@ export interface TicketAction {
         <div class="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 p-4 border-t border-blue-200/60 rounded-b-2xl">
           <div class="flex justify-center">
             <button (click)="onClose()" 
-              class="px-6 py-2 bg-white/80 hover:bg-white text-blue-700 rounded-lg transition-all duration-200 hover:scale-95 shadow-sm border border-blue-200/50">
+              class="px-6 py-2 bg-white/80 text-blue-700 rounded-lg transition-all duration-200 shadow-sm border border-blue-200/50">
               Annuler
             </button>
           </div>

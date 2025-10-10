@@ -745,7 +745,7 @@ export class InvoiceExtractsComponent implements OnInit {
               <h1 class="text-2xl font-bold">FACTURE</h1>
               <p class="text-blue-100 text-sm">${draft.invoiceNumber}</p>
             </div>
-            <button class="text-white/80 hover:text-white transition-colors" onclick="this.closest('.fixed').remove()">
+            <button class="text-white/80  transition-colors" onclick="this.closest('.fixed').remove()">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -798,7 +798,7 @@ export class InvoiceExtractsComponent implements OnInit {
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                   ${draft.lines.map(line => `
-                    <tr class="hover:bg-gray-50">
+                    <tr>
                       <td class="px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
                         <div>
                           <div class="font-medium">${line.productName}</div>
@@ -869,13 +869,13 @@ export class InvoiceExtractsComponent implements OnInit {
         <!-- Action Buttons -->
         <div class="border-t border-gray-200 bg-gray-50 p-4">
           <div class="flex items-center justify-end space-x-3">
-            <button class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" onclick="this.closest('.fixed').remove()">
+            <button class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" onclick="this.closest('.fixed').remove()">
               Fermer
             </button>
-            <button class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" onclick="handleEditDraft('${draft.id}')">
+            <button class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" onclick="handleEditDraft('${draft.id}')">
               Modifier
             </button>
-            <button class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors" onclick="handleFinalizeDraft('${draft.id}')">
+            <button class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors" onclick="handleFinalizeDraft('${draft.id}')">
               Finaliser
             </button>
           </div>
@@ -912,7 +912,7 @@ export class InvoiceExtractsComponent implements OnInit {
       <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
         <div class="flex items-center justify-between p-6 border-b border-gray-200">
           <h3 class="text-lg font-semibold text-gray-900">Modifier le brouillon: ${draft.invoiceNumber}</h3>
-          <button class="text-gray-400 hover:text-gray-600" onclick="this.closest('.fixed').remove()">
+          <button class="text-gray-400" onclick="this.closest('.fixed').remove()">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -946,10 +946,10 @@ export class InvoiceExtractsComponent implements OnInit {
         </div>
         
         <div class="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
-          <button class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" onclick="this.closest('.fixed').remove()">
+          <button class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" onclick="this.closest('.fixed').remove()">
             Annuler
           </button>
-          <button class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" onclick="alert('Sauvegarde des modifications...'); this.closest('.fixed').remove();">
+          <button class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" onclick="alert('Sauvegarde des modifications...'); this.closest('.fixed').remove();">
             Sauvegarder
           </button>
         </div>

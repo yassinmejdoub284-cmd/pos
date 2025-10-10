@@ -34,7 +34,7 @@ export interface BillingCenterAction {
             </div>
             <button (click)="onClose()" 
               title="Fermer"
-              class="p-2 text-cyan-500 hover:text-cyan-700 hover:bg-cyan-50 rounded-xl transition-all duration-200 hover:scale-95">
+              class="p-2 text-cyan-500  rounded-xl transition-all duration-200">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -47,10 +47,10 @@ export interface BillingCenterAction {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div *ngFor="let action of billingCenterActions" 
                  (click)="onActionClick(action.id)"
-                 class="group cursor-pointer bg-white rounded-2xl p-6 shadow-lg border border-cyan-100/50 hover:shadow-xl hover:scale-95 transition-all duration-300 ring-1 ring-cyan-50 relative overflow-hidden">
+                 class="group cursor-pointer bg-white rounded-2xl p-6 shadow-lg border border-cyan-100/50 transition-all duration-300 ring-1 ring-cyan-50 relative overflow-hidden">
               
               <!-- Icon Container -->
-              <div class="w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg ring-2 ring-white/50" 
+              <div class="w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center mx-auto mb-4 transition-transform duration-300 shadow-lg ring-2 ring-white/50" 
                    [ngClass]="action.color">
                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="action.icon"></path>
@@ -58,15 +58,15 @@ export interface BillingCenterAction {
               </div>
               
               <!-- Title and Description -->
-              <h3 class="text-lg font-semibold text-cyan-800 mb-2 text-center group-hover:text-cyan-600 transition-colors">
+              <h3 class="text-lg font-semibold text-cyan-800 mb-2 text-center group- transition-colors">
                 {{ action.title }}
               </h3>
-              <p class="text-sm text-cyan-600/70 text-center group-hover:text-cyan-600 transition-colors font-medium">
+              <p class="text-sm text-cyan-600/70 text-center group- transition-colors font-medium">
                 {{ action.description }}
               </p>
               
               <!-- Hover Effect -->
-              <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-300" 
+              <div class="absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 transition-opacity duration-300" 
                    [ngClass]="action.gradient"></div>
             </div>
           </div>
@@ -76,7 +76,7 @@ export interface BillingCenterAction {
         <div class="bg-gradient-to-r from-cyan-50/50 to-blue-50/50 p-4 border-t border-cyan-200/60 rounded-b-2xl">
           <div class="flex justify-center">
             <button (click)="onClose()" 
-              class="px-6 py-2 bg-white/80 hover:bg-white text-cyan-700 rounded-lg transition-all duration-200 hover:scale-95 shadow-sm border border-cyan-200/50">
+              class="px-6 py-2 bg-white/80 text-cyan-700 rounded-lg transition-all duration-200 shadow-sm border border-cyan-200/50">
               Annuler
             </button>
           </div>

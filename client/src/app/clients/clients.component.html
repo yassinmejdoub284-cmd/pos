@@ -362,7 +362,7 @@
         <h3 class="text-xl font-semibold text-gray-700 mb-2">Aucun client trouvé</h3>
         <p class="text-gray-500 mb-6">Commencez par ajouter votre premier client</p>
         <button (click)="openCreatePopup()"
-          class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-2xl transition-all duration-300 flex items-center gap-3 mx-auto shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+          class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-2xl transition-all duration-300 flex items-center gap-3 mx-auto shadow-lg transform">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
           </svg>
@@ -408,7 +408,7 @@
       <h3 class="text-lg font-semibold text-slate-800">
         Nouveau Client
       </h3>
-      <button (click)="closePopups()" class="text-slate-500 hover:text-slate-800" title="Fermer">
+      <button (click)="closePopups()" class="text-slate-500" title="Fermer">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
@@ -516,11 +516,11 @@
 
     <div class="flex space-x-3 p-4 border-t border-indigo-100/50 bg-white">
       <button (click)="closePopups()" type="button"
-        class="flex-1 bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-2xl hover:bg-slate-100 transition-all">
+        class="flex-1 bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-2xl transition-all">
         Annuler
       </button>
       <button (click)="createClient()" type="submit"
-        class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-slate-800 font-semibold py-3 px-4 rounded-2xl hover:from-pink-600 hover:to-purple-700 transition-all">
+        class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-slate-800 font-semibold py-3 px-4 rounded-2xl transition-all">
         Créer
       </button>
     </div>
@@ -535,7 +535,7 @@
       <h3 class="text-lg font-semibold text-slate-800">
         Modifier le Client - {{ selectedClient.code }}
       </h3>
-      <button (click)="closePopups()" class="text-slate-500 hover:text-slate-800" title="Fermer">
+      <button (click)="closePopups()" class="text-slate-500" title="Fermer">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
@@ -643,11 +643,11 @@
 
     <div class="flex space-x-3 p-4 border-t border-indigo-100/50 bg-white">
       <button (click)="closePopups()" type="button"
-        class="flex-1 bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-2xl hover:bg-slate-100 transition-all">
+        class="flex-1 bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-2xl transition-all">
         Annuler
       </button>
       <button (click)="updateClient()" type="submit"
-        class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-slate-800 font-semibold py-3 px-4 rounded-2xl hover:from-pink-600 hover:to-purple-700 transition-all">
+        class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-slate-800 font-semibold py-3 px-4 rounded-2xl transition-all">
         Modifier
       </button>
     </div>
@@ -717,8 +717,8 @@
         <h2 class="text-xl font-bold text-white">Définir le Solde</h2>
       </div>
       <button (click)="closePopups()" title="Fermer"
-        class="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-2xl flex items-center justify-center transition-all duration-300 group">
-        <svg class="w-6 h-6 text-white group-hover:scale-110 transition-transform duration-300" fill="none"
+        class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center transition-all duration-300 group">
+        <svg class="w-6 h-6 text-white transition-transform duration-300" fill="none"
           stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
@@ -788,8 +788,8 @@
         <h2 class="text-2xl font-bold text-white">Détails Client - {{ selectedClient.code }}</h2>
       </div>
       <button (click)="closePopups()" title="Fermer"
-        class="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-2xl flex items-center justify-center transition-all duration-300 group">
-        <svg class="w-6 h-6 text-white group-hover:scale-110 transition-transform duration-300" fill="none"
+        class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center transition-all duration-300 group">
+        <svg class="w-6 h-6 text-white transition-transform duration-300" fill="none"
           stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
@@ -913,7 +913,7 @@
 
       <div class="flex justify-end mt-6">
         <button (click)="closePopups()"
-          class="px-4 py-2 bg-white/700/60 rounded-md text-slate-800 hover:bg-white/700 transition-colors">
+          class="px-4 py-2 bg-white/700/60 rounded-md text-slate-800 transition-colors">
           Fermer
         </button>
       </div>
@@ -951,8 +951,8 @@
         </div>
       </div>
       <button (click)="showAlert = false" title="Fermer l'alerte"
-        class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all duration-300 group">
-        <svg class="w-4 h-4 text-gray-600 group-hover:scale-110 transition-transform duration-300" fill="none"
+        class="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center transition-all duration-300 group">
+        <svg class="w-4 h-4 text-gray-600 transition-transform duration-300" fill="none"
           stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>

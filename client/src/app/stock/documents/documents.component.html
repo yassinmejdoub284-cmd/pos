@@ -75,7 +75,7 @@
                 title="Effacer les filtres"
                 type="button"
                 (click)="clearFilters()"
-                class="w-full px-4 py-2 bg-slate-200 hover:bg-indigo-500 text-slate-800 rounded-2xl transition-colors"
+                class="w-full px-4 py-2 bg-slate-200 text-slate-800 rounded-2xl transition-colors"
               >
                 Effacer les filtres
               </button>
@@ -98,7 +98,7 @@
               <div 
                 *ngFor="let doc of documents"
                 (click)="onDocumentClick(doc)"
-                class="bg-slate-200/50 hover:bg-slate-100 rounded-2xl p-4 cursor-pointer transition-colors border border-gray-500/50"
+                class="bg-slate-200/50 rounded-2xl p-4 cursor-pointer transition-colors border border-gray-500/50"
               >
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
@@ -138,7 +138,7 @@
               <button 
                 *ngFor="let page of getPageArray()"
                 (click)="onPageChange(page)"
-                [class]="page === currentPage ? 'bg-cyan-600 text-slate-800' : 'bg-slate-200 text-slate-600 hover:bg-indigo-500'"
+                [class]="page === currentPage ? 'bg-cyan-600 text-slate-800' : 'bg-slate-200 text-slate-600'"
                 class="px-3 py-2 rounded-2xl transition-colors"
               >
                 {{ page }}
@@ -157,7 +157,7 @@
         <button 
           title="Fermer"
           (click)="onCloseDetail()"
-          class="text-slate-500 hover:text-slate-800"
+          class="text-slate-500"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -188,7 +188,7 @@
             <button 
               *ngIf="selectedDocument.status === 'PREPARED'"
               (click)="onStatusChange(selectedDocument, 'SENT')"
-              class="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-800 rounded-2xl transition-colors"
+              class="w-full px-4 py-2 bg-cyan-600 text-slate-800 rounded-2xl transition-colors"
             >
               Valider l'envoi
             </button>
@@ -196,7 +196,7 @@
             <button 
               *ngIf="selectedDocument.status === 'SENT'"
               (click)="onStatusChange(selectedDocument, 'RECEIVED')"
-              class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-800 rounded-2xl transition-colors"
+              class="w-full px-4 py-2 bg-emerald-600 text-slate-800 rounded-2xl transition-colors"
             >
               Marquer comme reçu
             </button>
@@ -204,21 +204,21 @@
             <button 
               *ngIf="selectedDocument.status !== 'CANCELLED'"
               (click)="onStatusChange(selectedDocument, 'CANCELLED')"
-              class="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-slate-800 rounded-2xl transition-colors"
+              class="w-full px-4 py-2 bg-red-600 text-slate-800 rounded-2xl transition-colors"
             >
               Annuler
             </button>
             
             <button 
               (click)="onPrintLabels(selectedDocument)"
-              class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 text-slate-800 rounded-2xl transition-colors"
+              class="w-full px-4 py-2 bg-purple-600 text-slate-800 rounded-2xl transition-colors"
             >
               Imprimer étiquettes
             </button>
             
             <button 
               (click)="onExportPdf(selectedDocument)"
-              class="w-full px-4 py-2 bg-slate-200 hover:bg-indigo-500 text-slate-800 rounded-2xl transition-colors"
+              class="w-full px-4 py-2 bg-slate-200 text-slate-800 rounded-2xl transition-colors"
             >
               Exporter PDF
             </button>
@@ -240,7 +240,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-600">
-              <tr *ngFor="let item of selectedDocument.items" class="hover:bg-slate-100/50">
+              <tr *ngFor="let item of selectedDocument.items">
                 <td class="px-4 py-3 text-sm text-slate-800">{{ item.product?.name }}</td>
                 <td class="px-4 py-3 text-sm text-slate-600">{{ item.famille }}</td>
                 <td class="px-4 py-3 text-sm text-slate-600">{{ item.quantity }}</td>

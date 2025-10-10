@@ -1284,14 +1284,14 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     const isSelected = this.selectedDestinationDepot?.id === depot.id;
     return isSelected 
       ? 'p-4 bg-blue-50 border-2 border-blue-500 rounded-xl'
-      : 'p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-300';
+      : 'p-4 bg-white border border-slate-200 rounded-xl';
   }
 
   getClientCardClasses(client: Client): string {
     const isSelected = this.selectedClient?.id === client.id;
     return isSelected 
       ? 'bg-green-50 border-green-500'
-      : 'bg-white border-slate-200 hover:border-green-300';
+      : 'bg-white border-slate-200';
   }
 
   getTypeBadgeClasses(type: string): string {
@@ -2321,14 +2321,14 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     const isSelected = this.selectedVehicle?.id === vehicle.id;
     return isSelected 
       ? 'p-4 bg-blue-50 border-2 border-blue-500 rounded-xl'
-      : 'p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-300';
+      : 'p-4 bg-white border border-slate-200 rounded-xl';
   }
 
   getDriverCardClasses(driver: Driver): string {
     const isSelected = this.selectedDriver?.id === driver.id;
     return isSelected 
       ? 'bg-green-50 border-green-500'
-      : 'bg-white border-slate-200 hover:border-green-300';
+      : 'bg-white border-slate-200';
   }
 
   getDriverInitials(driver: Driver): string {

@@ -94,9 +94,15 @@ export class SalesService {
     return this.http.post<Sale>(`${this.apiUrl}/wholesale`, saleData);
   }
 
-  getSales(params?: { startDate?: string; endDate?: string; status?: string; paymentMethod?: string; page?: number; limit?: number }): Observable<Sale[]> {
+  getSales(params?: { startDate?: string; endDate?: string; status?: string; paymentMethod?: string; page?: number; limit?: number; sessionIds?: number[] }): Observable<Sale[]> {
     const options = params ? { params: Object.entries(params).reduce((acc: any, [k, v]) => {
-      if (v !== undefined && v !== null && v !== '') acc[k] = String(v);
+      if (v !== undefined && v !== null && v !== '') {
+        if (k === 'sessionIds' && Array.isArray(v)) {
+          acc[k] = v.join(',');
+        } else {
+          acc[k] = String(v);
+        }
+      }
       return acc;
     }, {}) } : {};
     return this.http.get<Sale[]>(this.apiUrl, options).pipe(

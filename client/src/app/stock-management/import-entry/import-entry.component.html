@@ -4,7 +4,7 @@
     <div class="mb-4">
       <button 
         (click)="goBack()"
-        class="inline-flex items-center px-3 py-1 text-slate-600 hover:text-slate-900 hover:bg-white/50 rounded-lg transition-all duration-200 mb-3 font-medium">
+        class="inline-flex items-center px-3 py-1 text-slate-600  rounded-lg transition-all duration-200 mb-3 font-medium">
         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
         </svg>
@@ -72,7 +72,7 @@
           <div 
             *ngFor="let entry of availableEntries()" 
             (click)="selectEntry(entry)"
-            class="group bg-white/90 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl cursor-pointer transition-all duration-300 hover:scale-105 border border-white/20 overflow-hidden">
+            class="group bg-white/90 backdrop-blur-sm rounded-xl shadow-lg cursor-pointer transition-all duration-300 border border-white/20 overflow-hidden">
             
             <!-- Card Header -->
             <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 text-white">
@@ -93,7 +93,7 @@
             <div class="p-4">
               <!-- Document Number -->
               <div class="text-center mb-3">
-                <div class="text-lg font-bold text-slate-800 group-hover:text-blue-600 transition-colors">#{{ entry.numero }}</div>
+                <div class="text-lg font-bold text-slate-800 group- transition-colors">#{{ entry.numero }}</div>
               </div>
               
               <!-- Document Details -->
@@ -122,7 +122,7 @@
               
               <!-- Action Button -->
               <div class="mt-4">
-                <div class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-center py-1.5 rounded-lg text-xs font-medium group-hover:from-blue-600 group-hover:to-indigo-700 transition-all duration-200">
+                <div class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-center py-1.5 rounded-lg text-xs font-medium transition-all duration-200">
                   Importer
                 </div>
               </div>
@@ -156,7 +156,7 @@
           </div>
           <button 
             (click)="resetSelection()"
-            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-lg">
+            class="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-all duration-200">
             Changer
           </button>
         </div>
@@ -186,7 +186,7 @@
               
               <div 
                 *ngFor="let item of editableItems(); let i = index" 
-                class="grid grid-cols-12 gap-3 py-3 bg-white/70 backdrop-blur-sm rounded-xl px-3 hover:bg-white/90 transition-all duration-200 border border-white/50">
+                class="grid grid-cols-12 gap-3 py-3 bg-white/70 backdrop-blur-sm rounded-xl px-3 transition-all duration-200 border border-white/50">
                 
                 <!-- Product Info -->
                 <div class="col-span-4">
@@ -234,7 +234,7 @@
                   <button 
                     (click)="removeItem(i)"
                     title="Supprimer ce produit"
-                    class="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-all duration-200 flex items-center justify-center">
+                    class="w-6 h-6 bg-red-100 text-red-600 rounded-lg transition-all duration-200 flex items-center justify-center">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                     </svg>
@@ -274,26 +274,26 @@
             <div class="grid grid-cols-3 gap-2 mb-4">
               <button *ngFor="let digit of ['1', '2', '3', '4', '5', '6', '7', '8', '9']" 
                       (click)="addDigit(digit)"
-                      class="bg-white hover:bg-blue-50 text-slate-700 font-bold py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md text-sm">
+                      class="bg-white text-slate-700 font-bold py-2 rounded-lg border border-slate-200 transition-all duration-200 shadow-sm text-sm">
                 {{ digit }}
               </button>
               <button (click)="clearDisplay()"
-                      class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2 rounded-lg border border-red-200 hover:border-red-300 transition-all duration-200 shadow-sm hover:shadow-md text-sm">
+                      class="bg-red-50 text-red-600 font-bold py-2 rounded-lg border border-red-200 transition-all duration-200 shadow-sm text-sm">
                 C
               </button>
               <button (click)="addDigit('0')"
-                      class="bg-white hover:bg-blue-50 text-slate-700 font-bold py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md text-sm">
+                      class="bg-white text-slate-700 font-bold py-2 rounded-lg border border-slate-200 transition-all duration-200 shadow-sm text-sm">
                 0
               </button>
               <button (click)="addDigit('.')"
-                      class="bg-white hover:bg-blue-50 text-slate-700 font-bold py-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md text-sm">
+                      class="bg-white text-slate-700 font-bold py-2 rounded-lg border border-slate-200 transition-all duration-200 shadow-sm text-sm">
                 .
               </button>
             </div>
 
             <button 
               (click)="enterValue()"
-              class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl text-sm">
+              class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold py-2 rounded-xl transition-all duration-200 shadow-lg text-sm">
               Entrer
             </button>
           </div>
@@ -339,7 +339,7 @@
               <button 
                 (click)="submitImport()"
                 [disabled]="loading || editableItems().length === 0"
-                class="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none text-sm">
+                class="w-full bg-gradient-to-r from-green-500 to-emerald-600 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all duration-200 shadow-lg transform disabled:transform-none text-sm">
                 <span *ngIf="loading" class="flex items-center justify-center">
                   <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -359,7 +359,7 @@
               <button 
                 (click)="importFromFile()"
                 [disabled]="loading"
-                class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white font-bold py-2 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none text-sm">
+                class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white font-bold py-2 rounded-xl transition-all duration-200 shadow-lg transform disabled:transform-none text-sm">
                 <span class="flex items-center justify-center">
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>

@@ -26,7 +26,7 @@ import { FormsModule } from '@angular/forms';
             </div>
             <button (click)="onClose()" 
               title="Fermer"
-              class="p-2 text-cyan-500 hover:text-cyan-700 hover:bg-cyan-50 rounded-xl transition-all duration-200 hover:scale-95">
+              class="p-2 text-cyan-500  rounded-xl transition-all duration-200">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -71,13 +71,13 @@ import { FormsModule } from '@angular/forms';
           <div class="flex space-x-3">
             <button 
               (click)="onClose()"
-              class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium">
+              class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg transition-colors font-medium">
               Annuler
             </button>
             <button 
               (click)="onUnlock()"
               [disabled]="!token || loading()"
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+              class="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed">
               <span *ngIf="!loading()">Débloquer</span>
               <span *ngIf="loading()" class="flex items-center justify-center">
                 <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

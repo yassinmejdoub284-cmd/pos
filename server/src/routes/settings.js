@@ -69,6 +69,8 @@ function ensureDefaults(data = {}) {
     droitDeTimbre: typeof data.droitDeTimbre === 'boolean' ? data.droitDeTimbre : false,
     // Expenses
     autoApproveExpenseBelow: data.autoApproveExpenseBelow !== undefined ? Number(data.autoApproveExpenseBelow) : 0,
+    // Stock
+    allowNegativeStock: typeof data.allowNegativeStock === 'boolean' ? data.allowNegativeStock : false,
     // Print settings
     printSettings: {
       showLogo: typeof data.printSettings?.showLogo === 'boolean' ? data.printSettings.showLogo : true,

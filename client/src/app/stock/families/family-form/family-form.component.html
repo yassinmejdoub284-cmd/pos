@@ -48,11 +48,11 @@
       <!-- Form Actions -->
       <div class="flex space-x-3 mt-6">
         <button type="button" (click)="onCancel()"
-          class="flex-1 px-4 py-2 bg-slate-100/50 hover:bg-slate-100 text-slate-600 rounded-2xl transition-all">
+          class="flex-1 px-4 py-2 bg-slate-100/50 text-slate-600 rounded-2xl transition-all">
           Annuler
         </button>
         <button type="submit" [disabled]="familyForm.invalid || loading"
-          class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-600 text-slate-800 rounded-2xl hover:from-rose-600 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-600 text-slate-800 rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
           <span *ngIf="!loading">{{ family ? 'Mettre à jour' : 'Créer' }}</span>
           <span *ngIf="loading" class="flex items-center justify-center">
             <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-slate-800" fill="none" viewBox="0 0 24 24">

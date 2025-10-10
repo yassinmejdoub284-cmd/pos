@@ -26,7 +26,7 @@ import { Sale } from '../../core/models/sale.model';
             </div>
             <button (click)="onClose()" 
               title="Fermer"
-              class="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-95">
+              class="p-2 text-blue-500  rounded-xl transition-all duration-200">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -189,21 +189,21 @@ import { Sale } from '../../core/models/sale.model';
         <div class="sticky bottom-0 bg-gradient-to-r from-blue-50/95 to-indigo-50/95 backdrop-blur-sm p-4 border-t border-blue-200/60 shadow-lg">
           <div class="flex justify-center space-x-3">
             <button (click)="onPrint()" 
-              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 hover:scale-95 shadow-sm text-sm">
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg transition-all duration-200 shadow-sm text-sm">
               <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
               </svg>
               Imprimer
             </button>
             <button (click)="onReturnExchange()" 
-              class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-all duration-200 hover:scale-95 shadow-sm text-sm">
+              class="px-4 py-2 bg-orange-600 text-white rounded-lg transition-all duration-200 shadow-sm text-sm">
               <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
               </svg>
               Retour / Échange
             </button>
             <button (click)="onClose()" 
-              class="px-4 py-2 bg-white/90 hover:bg-white text-blue-700 rounded-lg transition-all duration-200 hover:scale-95 shadow-sm border border-blue-200/50 text-sm">
+              class="px-4 py-2 bg-white/90 text-blue-700 rounded-lg transition-all duration-200 shadow-sm border border-blue-200/50 text-sm">
               Fermer
             </button>
           </div>

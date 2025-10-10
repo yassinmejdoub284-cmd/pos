@@ -444,16 +444,6 @@ export class ClientsComponent implements OnInit, OnDestroy {
     }
   }
 
-  getDepotTypeHoverColor(type: string): string {
-    switch (type) {
-      case 'MAIN': return 'hover:border-purple-300';
-      case 'BRANCH': return 'hover:border-blue-300';
-      case 'SHOP': return 'hover:border-green-300';
-      case 'WAREHOUSE': return 'hover:border-orange-300';
-      default: return 'hover:border-gray-300';
-    }
-  }
-
 
   // Helper methods for depot selection
   isDepotSelectionValid(depotId: number | null | undefined): boolean {

@@ -209,6 +209,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Settings
   maxDiscountPercent: number = 50; // Default value
+  allowNegativeStock: boolean = false;
 
   // Drag and Drop
   private destroy$ = new Subject<void>();
@@ -657,7 +658,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getCartButtonClass(cartId: number): string {
     const status = this.getCartStatus(cartId);
-    const baseClass = 'relative px-2 py-1 rounded border transition-all duration-200 hover:scale-95 min-w-0 flex-shrink-0';
+    const baseClass = 'relative px-2 py-1 rounded border transition-all duration-200 min-w-0 flex-shrink-0';
     
     switch (status) {
       case 'active':
@@ -2649,7 +2650,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     }
 
     const payload = {
-      amount: this.roundToTenthAsThreeDecimals(newAdvance),
+      amount: this.roundToFiftyMillimes(newAdvance),
       method: this.paymentType as any,
       notes: this.advancePaymentNotes || ''
     };
@@ -2841,6 +2842,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
         if (settings?.maxDiscountPercent) {
           this.maxDiscountPercent = settings.maxDiscountPercent;
         }
+        this.allowNegativeStock = !!settings?.allowNegativeStock;
       },
       error: (error) => {
         console.error('Error loading settings:', error);
@@ -4085,8 +4087,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     // Check if adding this product would result in negative stock
     if (currentStock < requestedQuantity && !product.name.toLowerCase().includes('vrac')) {
-      this.showStockWarning(product, requestedQuantity, currentStock);
-      return; // Don't add the product yet - wait for user confirmation
+      if (!this.allowNegativeStock) {
+        this.showStockWarning(product, requestedQuantity, currentStock);
+        return; // Don't add the product yet - wait for user confirmation
+      }
+      // If negative stock is allowed, continue without showing the dialog
     }
     
     if (this.inputMode === 'quantity') {
@@ -4146,8 +4151,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
       
       // Check if adding this quantity would result in negative stock
       if (currentStock < this.productModalQuantity) {
-        this.showStockWarning(this.selectedProduct, this.productModalQuantity, currentStock);
-        // Don't return - allow the user to proceed after seeing the warning
+        if (!this.allowNegativeStock) {
+          this.showStockWarning(this.selectedProduct, this.productModalQuantity, currentStock);
+          // Don't return - allow the user to proceed after seeing the warning
+        }
       }
       
       this.addProductToReceiptWithQuantity(this.selectedProduct, this.productModalQuantity);

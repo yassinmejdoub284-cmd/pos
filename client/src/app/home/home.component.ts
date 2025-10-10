@@ -127,7 +127,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
       color: 'from-orange-500 to-amber-600',
       gradient: 'from-orange-50 to-amber-100',
-      roles: ['ADMIN', 'MANAGER', 'STOCK_MANAGER','CASHIER']
+      roles: ['ADMIN', 'MANAGER', 'STOCK_MANAGER']
     },
     {
       id: 'bon-entree',

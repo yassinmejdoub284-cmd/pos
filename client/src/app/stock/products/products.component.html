@@ -2,7 +2,7 @@
   <!-- Home Button -->
   <div class="fixed top-6 right-6 z-40">
     <a routerLink="/home"
-      class="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+      class="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg transition-all duration-300 transform flex items-center justify-center"
       title="Accueil">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -43,7 +43,7 @@
         
         <div class="flex flex-wrap gap-3">
           <button (click)="openAddModal()"
-            class="bg-white text-indigo-700 px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2 font-medium">
+            class="bg-white text-indigo-700 px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center space-x-2 font-medium">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
             </svg>
@@ -51,7 +51,7 @@
           </button>
 
           <a routerLink="/stock/families"
-            class="bg-white text-blue-600 px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center space-x-2 font-medium">
+            class="bg-white text-blue-600 px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center space-x-2 font-medium">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"></path>
             </svg>
@@ -61,7 +61,7 @@
           <!-- View Toggle -->
           <div class="bg-white rounded-xl shadow-md flex">
             <button (click)="viewMode = 'table'" 
-              [class]="viewMode === 'table' ? 'bg-indigo-600 text-white' : 'text-indigo-700 hover:bg-indigo-50'"
+              [class]="viewMode === 'table' ? 'bg-indigo-600 text-white' : 'text-indigo-700'"
               class="px-4 py-2.5 rounded-l-xl transition-all flex items-center space-x-2 font-medium">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0V6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
@@ -69,7 +69,7 @@
               <span>Tableau</span>
             </button>
             <button (click)="viewMode = 'grid'" 
-              [class]="viewMode === 'grid' ? 'bg-indigo-600 text-white' : 'text-indigo-700 hover:bg-indigo-50'"
+              [class]="viewMode === 'grid' ? 'bg-indigo-600 text-white' : 'text-indigo-700'"
               class="px-4 py-2.5 rounded-r-xl transition-all flex items-center space-x-2 font-medium">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
@@ -99,7 +99,7 @@
           <!-- Family chips under search -->
           <div class="mt-3 flex flex-wrap gap-2">
             <button (click)="setFamilyFilter(0)"
-              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedFamille === 0 ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-transparent shadow-sm' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50')">
+              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedFamille === 0 ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-transparent shadow-sm' : 'bg-white text-indigo-700 border-indigo-200')">
               Toutes
             </button>
             <button *ngFor="let family of families; let i = index" (click)="setFamilyFilter(family.id)"
@@ -112,23 +112,23 @@
           <!-- Product Type filters -->
           <div class="mt-3 flex flex-wrap gap-2">
             <button (click)="setTypeFilter('all')"
-              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedType === 'all' ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white border-transparent shadow-sm' : 'bg-white text-violet-700 border-violet-200 hover:bg-violet-50')">
+              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedType === 'all' ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white border-transparent shadow-sm' : 'bg-white text-violet-700 border-violet-200')">
               Tous Types
             </button>
             <button (click)="setTypeFilter('vrac')"
-              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedType === 'vrac' ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white border-transparent shadow-sm' : 'bg-white text-orange-700 border-orange-200 hover:bg-orange-50')">
+              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedType === 'vrac' ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white border-transparent shadow-sm' : 'bg-white text-orange-700 border-orange-200')">
               Vrac
             </button>
             <button (click)="setTypeFilter('stock')"
-              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedType === 'stock' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-transparent shadow-sm' : 'bg-white text-green-700 border-green-200 hover:bg-green-50')">
+              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedType === 'stock' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-transparent shadow-sm' : 'bg-white text-green-700 border-green-200')">
               Stock
             </button>
             <button (click)="setTypeFilter('wholesale')"
-              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedType === 'wholesale' ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white border-transparent shadow-sm' : 'bg-white text-violet-700 border-violet-200 hover:bg-violet-50')">
+              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedType === 'wholesale' ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white border-transparent shadow-sm' : 'bg-white text-violet-700 border-violet-200')">
               Gros
             </button>
             <button (click)="setTypeFilter('imported')"
-              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedType === 'imported' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-transparent shadow-sm' : 'bg-white text-sky-700 border-sky-200 hover:bg-sky-50')">
+              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedType === 'imported' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-transparent shadow-sm' : 'bg-white text-sky-700 border-sky-200')">
               Importés
             </button>
           </div>
@@ -138,7 +138,7 @@
         
         <div class="flex items-end">
           <button (click)="onSearch()"
-            class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-3 rounded-xl hover:shadow-lg transition-all font-medium">
+            class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-3 rounded-xl transition-all font-medium">
             <span class="flex items-center justify-center">
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -171,12 +171,12 @@
           </thead>
           <tbody class="divide-y divide-indigo-50">
             <tr *ngFor="let product of displayedProducts; let i = index" 
-                class="hover:bg-indigo-50/30 transition-colors">
+                class="transition-colors">
               <td class="px-5 py-4">
                 <div class="cursor-pointer" (click)="openImageUploadModal(product)">
                   <img *ngIf="product.photo" [src]="product.photo" [alt]="product.name" title="Photo"
-                    class="w-14 h-14 object-cover rounded-xl shadow-sm hover:shadow-md transition-all">
-                  <div *ngIf="!product.photo" class="w-14 h-14 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center hover:from-indigo-100 hover:to-purple-100 transition-all shadow-sm">
+                    class="w-14 h-14 object-cover rounded-xl shadow-sm transition-all">
+                  <div *ngIf="!product.photo" class="w-14 h-14 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center transition-all shadow-sm">
                     <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
@@ -229,28 +229,28 @@
               <td class="px-5 py-4">
                 <div class="flex space-x-3">
                   <button (click)="openEditModal(product)" 
-                    class="p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors" title="Modifier">
+                    class="p-2 bg-blue-50 text-blue-700 rounded-lg transition-colors" title="Modifier">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                     </svg>
                   </button>
                   
                   <button (click)="duplicateProduct(product)" 
-                    class="p-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors" title="Dupliquer">
+                    class="p-2 bg-purple-50 text-purple-700 rounded-lg transition-colors" title="Dupliquer">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                     </svg>
                   </button>
                   
                   <button *ngIf="product.isVraguable && !product.isVrac" (click)="openVracModal(product)" 
-                    class="p-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors" title="Convertir en Vrac">
+                    class="p-2 bg-amber-50 text-amber-700 rounded-lg transition-colors" title="Convertir en Vrac">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
                     </svg>
                   </button>
                   
                   <button (click)="deleteProduct(product)" 
-                    class="p-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors" title="Supprimer">
+                    class="p-2 bg-red-50 text-red-700 rounded-lg transition-colors" title="Supprimer">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                     </svg>
@@ -266,7 +266,7 @@
       <div *ngIf="viewMode === 'grid'" class="p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <div *ngFor="let product of displayedProducts" 
-               class="bg-white border border-indigo-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+               class="bg-white border border-indigo-100 rounded-2xl shadow-sm transition-all duration-200 overflow-hidden">
             
             <!-- Product Image -->
             <div class="relative h-48 bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -343,15 +343,15 @@
               <!-- Actions -->
               <div class="flex space-x-2">
                 <button (click)="openEditModal(product)" 
-                  class="flex-1 bg-blue-50 text-blue-700 py-2 px-3 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">
+                  class="flex-1 bg-blue-50 text-blue-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium">
                   Modifier
                 </button>
                 <button (click)="duplicateProduct(product)" 
-                  class="flex-1 bg-purple-50 text-purple-700 py-2 px-3 rounded-lg hover:bg-purple-100 transition-colors text-sm font-medium">
+                  class="flex-1 bg-purple-50 text-purple-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium">
                   Dupliquer
                 </button>
                 <button (click)="deleteProduct(product)" 
-                  class="bg-red-50 text-red-700 py-2 px-3 rounded-lg hover:bg-red-100 transition-colors"
+                  class="bg-red-50 text-red-700 py-2 px-3 rounded-lg transition-colors"
                   title="Supprimer">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -372,7 +372,7 @@
         </div>
         <h3 class="text-xl font-bold text-indigo-800 mb-2">Aucun produit trouvé</h3>
         <p class="text-indigo-600 mb-6">Essayez de modifier vos critères de recherche ou ajoutez un nouveau produit</p>
-        <button (click)="openAddModal()" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all">
+        <button (click)="openAddModal()" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-2.5 rounded-xl shadow-md transition-all">
           <span class="flex items-center">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -391,7 +391,7 @@
           [class]="'w-10 h-10 flex items-center justify-center rounded-xl transition-all ' + 
             (currentPage === i + 1 ? 
             'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md' : 
-            'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50')">
+            'bg-white text-indigo-700 border border-indigo-200')">
           {{ i + 1 }}
         </button>
       </div>
@@ -431,7 +431,7 @@
         </svg>
         Convertir en Vrac
       </h3>
-      <button title="Fermer" (click)="closeVracModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+      <button title="Fermer" (click)="closeVracModal()" class="text-gray-400 transition-colors">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>

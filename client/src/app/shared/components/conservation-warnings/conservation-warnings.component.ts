@@ -16,7 +16,7 @@ import { ProductConservation } from '../../../core/models/product.model';
           </svg>
           Avertissements de Conservation
         </h3>
-        <button (click)="dismissAll()" class="text-yellow-400 hover:text-yellow-300 text-sm">
+        <button (click)="dismissAll()" class="text-yellow-400 text-sm">
           Ignorer tout
         </button>
       </div>
@@ -42,7 +42,7 @@ import { ProductConservation } from '../../../core/models/product.model';
               </div>
             </div>
             <button (click)="dismissWarning(warning.id)" 
-              class="text-yellow-400 hover:text-yellow-300 ml-2">
+              class="text-yellow-400 ml-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>

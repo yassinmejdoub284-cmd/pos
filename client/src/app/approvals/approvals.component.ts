@@ -26,13 +26,18 @@ export class ApprovalsComponent implements OnInit {
   varianceRequests: ChangeRequest[] = [];
   historyRequests: ChangeRequest[] = [];
   clotureSummaries: { [sessionId: number]: any } = {};
-  selectedTab: 'ALL' | 'PENDING_ADMIN' | 'CADEAU' | 'EXPENSES' | 'CLOTURE' | 'INVOICES' | 'HISTORY' | 'RETURNS' | 'REButs' | 'RETURN_HISTORY' = 'ALL';
-  searchQuery = '';
-  startDate = '';
-  endDate = '';
+  selectedTab: 'ALL' | 'PENDING_ADMIN' | 'CADEAU' | 'EXPENSES' | 'CLOTURE' | 'INVOICES' | 'HISTORY' | 'HISTORY_CLOTURE' | 'RETURNS' | 'REButs' | 'RETURN_HISTORY' = 'ALL';
+  // Filters removed
   showAlert = false;
   alertMessage = '';
   alertType: 'success' | 'error' | 'info' = 'info';
+  // UI: show extra filters beyond primary tabs
+  showMoreFilters = false;
+  // UI: primary context selection for plus menu positioning
+  mainContext: 'ALL' | 'HISTORY' = 'ALL';
+  today: Date = new Date();
+  // Notifications
+  isNotificationsSubscribed = false;
   // Reject modal state
   showRejectModal = false;
   rejectTarget?: ChangeRequest;
@@ -56,6 +61,8 @@ export class ApprovalsComponent implements OnInit {
   invoiceApprovalData = {
     invoiceNumber: ''
   };
+  // UI state: expanded invoice details per request id
+  invoiceDetailsExpanded: { [id: number]: boolean } = {};
 
   // Returns
   pendingReturns: ReturnRequest[] = [];
@@ -89,6 +96,12 @@ export class ApprovalsComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Detect notifications subscription on load/refresh
+    try {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        this.isNotificationsSubscribed = Notification.permission === 'granted';
+      }
+    } catch {}
     this.route.queryParamMap.subscribe(params => {
       const tab = params.get('tab') as any;
       if (tab === 'PENDING_ADMIN' || tab === 'CADEAU' || tab === 'EXPENSES' || tab === 'CLOTURE' || tab === 'INVOICES' || tab === 'ALL' || tab === 'HISTORY' || tab === 'RETURNS') {
@@ -106,6 +119,52 @@ export class ApprovalsComponent implements OnInit {
     this.loadReturnHistory();
   }
 
+  async subscribeToNotifications(): Promise<void> {
+    try {
+      if (!('Notification' in window)) {
+        this.showAlertMessage('Notifications non prises en charge', 'error');
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        // Register push subscription and send to backend
+        const reg = await navigator.serviceWorker.ready;
+        // Replace with your real VAPID public key (Base64 URL-safe)
+        const VAPID_PUBLIC_KEY = (window as any).VAPID_PUBLIC_KEY || '';
+        if (!VAPID_PUBLIC_KEY) {
+          console.warn('VAPID public key not set. Set window.VAPID_PUBLIC_KEY.');
+        }
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: this.urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as unknown as ArrayBuffer
+        });
+        await fetch(`${(window as any).API_URL || ''}/api/push/subscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : '' },
+          body: JSON.stringify({ subscription: sub })
+        });
+        this.isNotificationsSubscribed = true;
+        this.showAlertMessage('Abonné aux notifications', 'success');
+      } else if (permission === 'denied') {
+        this.isNotificationsSubscribed = false;
+        this.showAlertMessage('Notifications refusées', 'error');
+      }
+    } catch {
+      this.showAlertMessage('Erreur abonnement notifications', 'error');
+    }
+  }
+
+  private urlBase64ToUint8Array(base64: string): Uint8Array {
+    const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+    const base64Safe = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64Safe);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
   loadGifts(): void {
     this.loading = true;
     this.error = '';
@@ -113,7 +172,9 @@ export class ApprovalsComponent implements OnInit {
       next: (sales) => {
         const gifts = sales.filter(s => s.status === 'PENDING_ADMIN' || s.status === 'CADEAU');
         this.allGifts = gifts;
-        this.applyFilters();
+        // derive lists directly
+        this.pendingGifts = this.allGifts.filter(s => s.status === 'PENDING_ADMIN');
+        this.approvedGifts = this.allGifts.filter(s => s.status === 'CADEAU');
         this.loading = false;
       },
       error: () => {
@@ -127,7 +188,7 @@ export class ApprovalsComponent implements OnInit {
     this.expenseService.getExpenses().subscribe({
       next: (expenses) => {
         this.allExpenses = expenses;
-        this.applyFilters();
+        this.pendingExpenses = this.allExpenses.filter(e => !e.isApproved);
       },
       error: () => {
         this.error = "Erreur lors du chargement des dépenses";
@@ -197,43 +258,9 @@ export class ApprovalsComponent implements OnInit {
     });
   }
 
-  applyFilters(): void {
-    let gifts = this.allGifts;
-    let expenses = this.allExpenses;
-    
-    if (this.searchQuery.trim()) {
-      const q = this.searchQuery.toLowerCase();
-      gifts = gifts.filter(s => (s.notes || '').toLowerCase().includes(q) || `${s.id}`.includes(q));
-      expenses = expenses.filter(e => 
-        `${e.id}`.includes(q) ||
-        (e.notes || '').toLowerCase().includes(q)
-      );
-    }
-    
-    if (this.startDate && this.endDate) {
-      const start = new Date(this.startDate);
-      const end = new Date(this.endDate);
-      gifts = gifts.filter(s => {
-        const d = new Date(s.createdAt as unknown as string);
-        return d >= start && d <= end;
-      });
-      expenses = expenses.filter(e => {
-        const d = new Date(e.date);
-        return d >= start && d <= end;
-      });
-    }
-    
-    this.pendingGifts = gifts.filter(s => s.status === 'PENDING_ADMIN');
-    this.approvedGifts = gifts.filter(s => s.status === 'CADEAU');
-    this.pendingExpenses = expenses.filter(e => !e.isApproved);
-  }
+  // applyFilters removed
 
-  clearFilters(): void {
-    this.searchQuery = '';
-    this.startDate = '';
-    this.endDate = '';
-    this.applyFilters();
-  }
+  // clearFilters removed
 
   approveCloture(req: ChangeRequest): void {
     this.approvalsService.approveChangeRequest(req.id).subscribe({
@@ -584,6 +611,12 @@ export class ApprovalsComponent implements OnInit {
     });
   }
 
+  toggleInvoiceDetails(request: any): void {
+    const id = request?.id;
+    if (!id) { return; }
+    this.invoiceDetailsExpanded[id] = !this.invoiceDetailsExpanded[id];
+  }
+
   submitInvoiceApproval(): void {
     if (!this.selectedInvoiceRequest) return;
 
@@ -613,15 +646,13 @@ export class ApprovalsComponent implements OnInit {
   // Returns
   loadPendingReturns(): void {
     this.loadingReturns = true;
-    console.log('Loading pending returns...');
     this.returnsService.listReturnRequests('PENDING').subscribe({
       next: (reqs) => {
-        console.log('Return requests loaded:', reqs);
         this.pendingReturns = reqs;
         this.loadingReturns = false;
       },
       error: (error) => {
-        console.error('Error loading return requests:', error);
+        
         this.loadingReturns = false;
         this.showAlertMessage('Erreur lors du chargement des bons de retour', 'error');
       }
@@ -651,7 +682,7 @@ export class ApprovalsComponent implements OnInit {
         this.loadReturnHistory();
       },
       error: (e) => {
-        console.error(e);
+        
         this.showAlertMessage("Erreur lors de l'approbation du bon de retour", 'error');
       }
     });
@@ -668,7 +699,7 @@ export class ApprovalsComponent implements OnInit {
           this.loadReturnHistory();
         },
         error: (error) => {
-          console.error('Error rejecting return request:', error);
+        
           this.showAlertMessage("Erreur lors du rejet du bon de retour", 'error');
         }
       });

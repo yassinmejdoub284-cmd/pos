@@ -15,7 +15,7 @@
       </div>
       <div class="flex gap-3">
         <button 
-          class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           (click)="startInventory()" 
           [disabled]="loading || !depot">
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -24,7 +24,7 @@
           Démarrer Inventaire
         </button>
         <button 
-          class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold hover:from-slate-200 hover:to-slate-300 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+          class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2"
           (click)="goHome()">
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
@@ -37,7 +37,7 @@
 
   <!-- Modern Stats Cards -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl transition-all duration-300">
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 transition-all duration-300">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-slate-600 mb-1">Produits Total</p>
@@ -51,7 +51,7 @@
       </div>
     </div>
     
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl transition-all duration-300">
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 transition-all duration-300">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-slate-600 mb-1">En cours</p>
@@ -65,7 +65,7 @@
       </div>
     </div>
     
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl transition-all duration-300">
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 transition-all duration-300">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-slate-600 mb-1">Terminés</p>
@@ -79,7 +79,7 @@
       </div>
     </div>
     
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 hover:shadow-xl transition-all duration-300">
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-slate-200/50 transition-all duration-300">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-medium text-slate-600 mb-1">Cette semaine</p>
@@ -111,7 +111,7 @@
         </select>
       </div>
       <button 
-        class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-4 py-3 rounded-xl font-semibold hover:from-slate-200 hover:to-slate-300 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+        class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-4 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2"
         (click)="clearFilters()">
         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
@@ -146,7 +146,7 @@
       <div *ngIf="sessions.length > 0" class="divide-y divide-slate-200/50">
         <div 
           *ngFor="let session of sessions" 
-          class="p-6 hover:bg-slate-50/50 cursor-pointer transition-all duration-200 hover:shadow-sm"
+          class="p-6/50 cursor-pointer transition-all duration-200"
           (click)="viewSession(session)">
           
           <div class="flex justify-between items-start mb-4">
@@ -196,7 +196,7 @@
 
           <div class="flex justify-end items-center mt-4 gap-2">
             <button 
-              class="bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-semibold hover:from-blue-100 hover:to-blue-200 transition-all duration-200 flex items-center gap-2"
+              class="bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2"
               (click)="viewSession(session); $event.stopPropagation()">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
@@ -206,7 +206,7 @@
             </button>
             <button 
               *ngIf="canDelete(session)"
-              class="bg-gradient-to-r from-red-50 to-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:from-red-100 hover:to-red-200 transition-all duration-200 flex items-center gap-2"
+              class="bg-gradient-to-r from-red-50 to-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2"
               (click)="deleteSession(session); $event.stopPropagation()">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"></path>
@@ -227,7 +227,7 @@
       </div>
         <p class="text-sm mb-3">Aucune session</p>
         <button 
-          class="bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-600 flex items-center gap-2"
+          class="bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium flex items-center gap-2"
           (click)="startInventory()" 
           [disabled]="loading || !depot">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">

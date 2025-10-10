@@ -68,7 +68,7 @@ interface Company {
           <!-- Bouton Nouvelle Société -->
           <button 
             routerLink="/enterprise/companies/new"
-            class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-2 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95">
+            class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-2 rounded-xl font-medium shadow-lg transition-all duration-200 active:scale-95">
             <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
             </svg>
@@ -82,7 +82,7 @@ interface Company {
         <!-- Carte Nouvelle Société -->
         <div 
           routerLink="/enterprise/companies/new"
-          class="bg-white/60 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-200 active:scale-95 min-h-[280px]">
+          class="bg-white/60 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 active:scale-95 min-h-[280px]">
           <div class="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center mb-4">
             <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -95,7 +95,7 @@ interface Company {
           <!-- Cartes Société -->
         <div 
           *ngFor="let company of filteredCompanies" 
-          class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-200 active:scale-95 cursor-pointer"
+          class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden transition-all duration-200 active:scale-95 cursor-pointer"
           (click)="viewCompany(company.id)">
           
           <!-- En-tête Société -->
@@ -176,7 +176,7 @@ interface Company {
         <p class="text-gray-500 mb-4">Essayez d'ajuster vos termes de recherche</p>
         <button 
           (click)="searchTerm = ''"
-          class="text-blue-600 hover:text-blue-700 font-medium">
+          class="text-blue-600  font-medium">
           Effacer la recherche
         </button>
       </div>
@@ -189,10 +189,10 @@ interface Company {
             <p class="text-sm text-gray-500">Choisissez une action</p>
           </div>
           <div class="p-6 space-y-3">
-            <button (click)="archiveSelected()" class="w-full bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 rounded-xl px-4 py-3 text-left font-medium">
+            <button (click)="archiveSelected()" class="w-full bg-amber-50 text-amber-800 border border-amber-200 rounded-xl px-4 py-3 text-left font-medium">
               Archiver la société
             </button>
-            <button (click)="deleteSelected()" class="w-full bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-xl px-4 py-3 text-left font-medium">
+            <button (click)="deleteSelected()" class="w-full bg-red-50 text-red-700 border border-red-200 rounded-xl px-4 py-3 text-left font-medium">
               Supprimer définitivement
             </button>
           </div>

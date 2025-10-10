@@ -7,7 +7,7 @@
         <div class="flex items-center space-x-6">
           <button (click)="onClose()" 
             title="Retour"
-            class="p-3 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-xl transition-colors duration-200">
+            class="p-3 bg-gray-100 text-gray-600 rounded-xl transition-colors duration-200">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
             </svg>
@@ -72,10 +72,10 @@
       <div *ngIf="!loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <div *ngFor="let customer of filteredCustomers" 
              (click)="selectCustomer(customer)"
-             [class]="'cursor-pointer rounded-lg p-4 border transition-colors duration-200 shadow-sm hover:shadow-md ' + 
+             [class]="'cursor-pointer rounded-lg p-4 border transition-colors duration-200 shadow-sm ' + 
                       (selectedCustomer?.id === customer.id ? 
                         'border-purple-500 bg-purple-50' : 
-                        'border-gray-200 bg-white hover:border-purple-300')">
+                        'border-gray-200 bg-white')">
           
           <!-- Customer Avatar -->
           <div class="flex items-center gap-4 mb-4">
@@ -152,7 +152,7 @@
         </div>
         <div class="flex gap-4">
           <button (click)="onClose()" 
-            class="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-800 rounded-lg transition-colors duration-200 flex items-center gap-2">
+            class="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg transition-colors duration-200 flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -160,7 +160,7 @@
           </button>
           <button (click)="confirmSelection()" 
             [disabled]="!selectedCustomer"
-            class="px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            class="px-6 py-2 bg-purple-500 text-white rounded-lg transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>

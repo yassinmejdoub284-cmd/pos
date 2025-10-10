@@ -43,7 +43,7 @@ interface PaymentDetails {
               </div>
             </div>
             <button (click)="close.emit()" 
-                    class="p-2 hover:bg-white/50 rounded-lg transition-colors">
+                    class="p-2 rounded-lg transition-colors">
               <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -64,7 +64,7 @@ interface PaymentDetails {
           </svg>
           <p class="text-red-600 mb-4">Erreur lors du chargement des détails</p>
           <button (click)="loadPaymentDetails()" 
-                  class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                  class="px-4 py-2 bg-red-500 text-white rounded-lg transition-colors">
             Réessayer
           </button>
         </div>
@@ -123,7 +123,7 @@ interface PaymentDetails {
         <div class="p-6 border-t border-amber-100 bg-gray-50">
           <div class="flex justify-end space-x-3">
             <button (click)="close.emit()" 
-                    class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                    class="px-6 py-2 bg-gray-500 text-white rounded-lg transition-colors">
               Fermer
             </button>
           </div>

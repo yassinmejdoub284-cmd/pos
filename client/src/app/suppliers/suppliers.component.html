@@ -34,9 +34,9 @@
 
         <div class="flex flex-col sm:flex-row gap-3">
           <button (click)="openCreatePopup()"
-            class="group bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 hover:from-purple-600 hover:via-pink-600 hover:to-rose-600 text-white px-6 py-3 rounded-2xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-xl hover:shadow-2xl transform hover:-translate-y-1">
+            class="group bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white px-6 py-3 rounded-2xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-xl transform">
             <div
-              class="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              class="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center transition-transform duration-300">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
                 </path>
@@ -46,9 +46,9 @@
           </button>
 
           <a routerLink="/home"
-            class="group bg-white/80 backdrop-blur-sm border border-gray-200/50 hover:bg-white hover:border-purple-300 text-gray-700 hover:text-purple-700 px-6 py-3 rounded-2xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+            class="group bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700  px-6 py-3 rounded-2xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-lg transform">
             <div
-              class="w-8 h-8 bg-gray-100 group-hover:bg-purple-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-all duration-300">
+              class="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center transition-all duration-300">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
                 </path>
@@ -61,7 +61,7 @@
 
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-600 text-sm font-medium">Total Fournisseurs</p>
@@ -77,7 +77,7 @@
           </div>
         </div>
 
-        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-600 text-sm font-medium">Fournisseurs Actifs</p>
@@ -92,7 +92,7 @@
           </div>
         </div>
 
-        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-600 text-sm font-medium">Fournisseurs Inactifs</p>
@@ -107,7 +107,7 @@
           </div>
         </div>
 
-        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300">
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-lg transition-all duration-300">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-600 text-sm font-medium">Total Dette</p>
@@ -177,7 +177,7 @@
         </div>
         <p class="text-red-600 font-medium mb-4">{{ error }}</p>
         <button (click)="loadSuppliers()"
-          class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl transition-colors duration-300">
+          class="bg-red-500 text-white px-6 py-3 rounded-xl transition-colors duration-300">
           Réessayer
         </button>
       </div>
@@ -209,7 +209,7 @@
             </tr>
           </thead>
           <tbody class="bg-white/50 divide-y divide-gray-200/50">
-            <tr *ngFor="let supplier of paginatedSuppliers" class="hover:bg-white/80 transition-colors duration-200">
+            <tr *ngFor="let supplier of paginatedSuppliers" class="transition-colors duration-200">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                   <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4">
@@ -250,7 +250,7 @@
               <td class="px-6 py-4 whitespace-nowrap text-center">
                 <div class="flex items-center justify-center space-x-2">
                   <button (click)="openDetailsPopup(supplier)"
-                    class="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+                    class="text-blue-600 p-2 rounded-lg transition-colors duration-200"
                     title="Voir détails">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
@@ -258,7 +258,7 @@
                     </svg>
                   </button>
                   <button (click)="openEditPopup(supplier)"
-                    class="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50 transition-colors duration-200"
+                    class="text-green-600 p-2 rounded-lg transition-colors duration-200"
                     title="Modifier">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -267,11 +267,11 @@
                     </svg>
                   </button>
                   <button *ngIf="hasNoDebt(supplier)" (click)="openInitSoldePopup(supplier)" title="Définir le solde"
-                    class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-xl text-sm transition">
+                    class="bg-blue-500 text-white px-3 py-2 rounded-xl text-sm transition">
                     Définir Solde
                   </button>
                   <button (click)="toggleSupplierStatus(supplier)"
-                    [class]="supplier.isActive ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50' : 'text-green-600 hover:text-green-800 hover:bg-green-50'"
+                    [class]="supplier.isActive ? 'text-orange-600' : 'text-green-600'"
                     class="p-2 rounded-lg transition-colors duration-200"
                     title="Changer le statut"
                     [attr.aria-label]="supplier.isActive ? 'Désactiver' : 'Activer'">
@@ -286,7 +286,7 @@
                     </svg>
                   </button>
                   <button (click)="openDeletePopup(supplier)"
-                    class="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors duration-200"
+                    class="text-red-600 p-2 rounded-lg transition-colors duration-200"
                     title="Supprimer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -312,17 +312,17 @@
           </div>
           <div class="flex items-center space-x-2">
             <button (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1"
-              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
+              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
               Précédent
             </button>
             <span *ngFor="let page of [].constructor(totalPages); let i = index"
               (click)="goToPage(i + 1)"
               class="px-3 py-2 text-sm font-medium cursor-pointer transition-colors duration-200"
-              [class]="currentPage === i + 1 ? 'text-white bg-purple-600 rounded-lg' : 'text-gray-700 hover:bg-gray-100 rounded-lg'">
+              [class]="currentPage === i + 1 ? 'text-white bg-purple-600 rounded-lg' : 'text-gray-700 rounded-lg'">
               {{ i + 1 }}
             </span>
             <button (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages"
-              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
+              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200">
               Suivant
             </button>
           </div>
@@ -338,7 +338,7 @@
     <div class="p-6 border-b border-gray-200">
       <div class="flex items-center justify-between">
         <h3 class="text-xl font-semibold text-gray-800">Nouveau Fournisseur</h3>
-        <button (click)="closePopups()" title="Fermer" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+        <button (click)="closePopups()" title="Fermer" class="text-gray-400 transition-colors duration-200">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -406,11 +406,11 @@
     
     <div class="p-6 border-t border-gray-200 flex justify-end space-x-3">
       <button (click)="closePopups()" title="Annuler la création"
-        class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-colors duration-300">
+        class="px-6 py-3 bg-gray-500 text-white rounded-xl transition-colors duration-300">
         Annuler
       </button>
       <button (click)="createSupplier()" title="Créer le fournisseur"
-        class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl transition-all duration-300">
+        class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl transition-all duration-300">
         Créer
       </button>
     </div>
@@ -423,7 +423,7 @@
     <div class="p-6 border-b border-gray-200">
       <div class="flex items-center justify-between">
         <h3 class="text-xl font-semibold text-gray-800">Modifier le Fournisseur</h3>
-        <button (click)="closePopups()" title="Fermer" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+        <button (click)="closePopups()" title="Fermer" class="text-gray-400 transition-colors duration-200">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -498,11 +498,11 @@
     
     <div class="p-6 border-t border-gray-200 flex justify-end space-x-3">
       <button (click)="closePopups()" title="Annuler la modification"
-        class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-colors duration-300">
+        class="px-6 py-3 bg-gray-500 text-white rounded-xl transition-colors duration-300">
         Annuler
       </button>
       <button (click)="updateSupplier()" title="Mettre à jour le fournisseur"
-        class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl transition-all duration-300">
+        class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl transition-all duration-300">
         Mettre à jour
       </button>
     </div>
@@ -527,11 +527,11 @@
       </p>
       <div class="flex justify-center space-x-3">
         <button (click)="closePopups()" title="Annuler la suppression"
-          class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-colors duration-300">
+          class="px-6 py-3 bg-gray-500 text-white rounded-xl transition-colors duration-300">
           Annuler
         </button>
         <button (click)="deleteSupplier()" title="Confirmer la suppression"
-          class="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors duration-300">
+          class="px-6 py-3 bg-red-500 text-white rounded-xl transition-colors duration-300">
           Supprimer
         </button>
       </div>
@@ -545,7 +545,7 @@
     <div class="p-6 border-b border-gray-200">
       <div class="flex items-center justify-between">
         <h3 class="text-xl font-semibold text-gray-800">Détails du Fournisseur</h3>
-        <button (click)="closePopups()" title="Fermer" class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+        <button (click)="closePopups()" title="Fermer" class="text-gray-400 transition-colors duration-200">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -659,7 +659,7 @@
     
     <div class="p-6 border-t border-gray-200 flex justify-end">
       <button (click)="closePopups()" title="Fermer les détails"
-        class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-colors duration-300">
+        class="px-6 py-3 bg-gray-500 text-white rounded-xl transition-colors duration-300">
         Fermer
       </button>
     </div>
@@ -683,8 +683,8 @@
         <h2 class="text-xl font-bold text-white">Définir le Solde</h2>
       </div>
       <button (click)="closePopups()" title="Fermer"
-        class="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-2xl flex items-center justify-center transition-all duration-300 group">
-        <svg class="w-6 h-6 text-white group-hover:scale-110 transition-transform duration-300" fill="none"
+        class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center transition-all duration-300 group">
+        <svg class="w-6 h-6 text-white transition-transform duration-300" fill="none"
           stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
@@ -722,11 +722,11 @@
 
       <div class="flex justify-end gap-3">
         <button (click)="closePopups()"
-          class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+          class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg transition-colors">
           Annuler
         </button>
         <button (click)="initializeSolde()" [disabled]="initSoldeAmount === null || initSoldeAmount === undefined"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           Définir
         </button>
       </div>

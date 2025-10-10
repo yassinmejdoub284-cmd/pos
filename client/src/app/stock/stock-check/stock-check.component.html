@@ -16,7 +16,7 @@
         <button 
           *ngFor="let category of productCategories"
           (click)="selectCategory(category)"
-          [class]="selectedCategory() === category ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+          [class]="selectedCategory() === category ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'"
           class="px-3 py-2 rounded-lg text-sm font-medium transition-colors">
           {{ category }}
         </button>
@@ -126,7 +126,7 @@
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr *ngFor="let item of filteredStockItems()" class="hover:bg-gray-50">
+          <tr *ngFor="let item of filteredStockItems()">
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="flex items-center">
                 <div>
@@ -148,7 +148,7 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-center">
               <button (click)="showDetails(item)" 
-                      class="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-blue-700 transition-colors">
+                      class="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs transition-colors">
                 Détails
               </button>
             </td>
@@ -172,7 +172,7 @@
 
   <!-- Stock Items - Grid View -->
   <div *ngIf="!loading && !error && viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-    <div *ngFor="let item of filteredStockItems()" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+    <div *ngFor="let item of filteredStockItems()" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 transition-shadow">
       <div class="flex items-start justify-between mb-3">
         <div class="flex-1">
           <h3 class="text-sm font-medium text-gray-900 mb-1">{{ item.productName }}</h3>
@@ -229,7 +229,7 @@
             <p class="text-blue-100 mt-1">{{ selectedItem.productName }}</p>
             <p class="text-blue-100 text-sm">{{ selectedItem.famille }}</p>
           </div>
-          <button (click)="closeDetailsDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+          <button (click)="closeDetailsDialog()" class="text-white transition-colors" title="Fermer">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -320,7 +320,7 @@
       <!-- Footer -->
       <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3">
         <button (click)="closeDetailsDialog()"
-                class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200">
+                class="px-4 py-2 text-gray-600 transition-colors duration-200">
           Fermer
         </button>
       </div>

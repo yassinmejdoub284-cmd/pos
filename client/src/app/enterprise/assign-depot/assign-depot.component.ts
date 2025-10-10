@@ -32,7 +32,7 @@ interface Depot {
             </div>
             <button 
               (click)="closeDialog()"
-              class="p-2 bg-gray-100 rounded-xl text-gray-600 hover:bg-gray-200 transition-colors">
+              class="p-2 bg-gray-100 rounded-xl text-gray-600 transition-colors">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -76,7 +76,7 @@ interface Depot {
           <div *ngIf="filteredDepots.length > 0" class="space-y-3">
             <div 
               *ngFor="let depot of filteredDepots" 
-              class="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 transition-colors cursor-pointer"
+              class="bg-white border border-gray-200 rounded-xl p-4 transition-colors cursor-pointer"
               [class.border-blue-500]="selectedDepots.includes(depot.id)"
               (click)="toggleDepot(depot.id)">
               
@@ -127,13 +127,13 @@ interface Depot {
             <div class="flex items-center space-x-3">
               <button 
                 (click)="closeDialog()"
-                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">
+                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium transition-colors">
                 Annuler
               </button>
               <button 
                 (click)="assignSelectedDepots()"
                 [disabled]="selectedDepots.length === 0"
-                class="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                class="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-medium shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
                 Assigner {{ selectedDepots.length }} entrepôt(s)
               </button>
             </div>

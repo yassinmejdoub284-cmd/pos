@@ -7,7 +7,7 @@ import { Component, Output, EventEmitter } from '@angular/core';
       <div class="bg-white rounded-xl border border-gray-200 w-full max-w-md shadow-2xl">
         <div class="flex justify-between items-center p-4 border-b border-gray-200">
           <h3 class="text-lg font-semibold text-gray-800">Import CSV</h3>
-          <button (click)="onCancel()" class="text-gray-500 hover:text-gray-800">
+          <button (click)="onCancel()" class="text-gray-500">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -19,7 +19,7 @@ import { Component, Output, EventEmitter } from '@angular/core';
         </div>
         
         <div class="flex space-x-3 p-4 border-t border-gray-200 bg-gray-50">
-          <button (click)="onCancel()" class="flex-1 bg-gray-200 text-gray-800 font-semibold py-3 px-4 rounded-xl hover:bg-gray-300 transition-all">
+          <button (click)="onCancel()" class="flex-1 bg-gray-200 text-gray-800 font-semibold py-3 px-4 rounded-xl transition-all">
             Fermer
           </button>
         </div>

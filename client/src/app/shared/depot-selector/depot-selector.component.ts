@@ -20,7 +20,7 @@ import { Depot } from '../../core/models/depot.model';
           *ngFor="let depot of depots" 
           (click)="selectDepot(depot)"
           [class]="getDepotCardClasses(depot)"
-          class="cursor-pointer transition-all duration-200 hover:scale-105">
+          class="cursor-pointer transition-all duration-200">
           
           <!-- Depot Logo -->
           <div class="w-12 h-12 mx-auto mb-3 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
@@ -159,7 +159,7 @@ export class DepotSelectorComponent implements OnInit {
       return `${baseClasses} border-fuchsia-500 bg-fuchsia-50 shadow-md`;
     }
     
-    return `${baseClasses} border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm`;
+    return `${baseClasses} border-slate-200 bg-white`;
   }
 
   getTypeBadgeClasses(type: string): string {

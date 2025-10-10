@@ -363,48 +363,18 @@ export class StockComponent implements OnInit {
     }
   }
 
-  getDepotHoverBorder(depot: Depot): string {
-    switch (depot.type) {
-      case 'MAIN':
-        return 'hover:border-emerald-400/50';
-      case 'BRANCH':
-        return 'hover:border-blue-400/50';
-      case 'SHOP':
-        return 'hover:border-orange-400/50';
-      case 'WAREHOUSE':
-        return 'hover:border-purple-400/50';
-      default:
-        return 'hover:border-gray-400/50';
-    }
-  }
-
   getDepotHoverText(depot: Depot): string {
     switch (depot.type) {
       case 'MAIN':
-        return 'group-hover:text-emerald-400';
+        return 'group-';
       case 'BRANCH':
-        return 'group-hover:text-blue-400';
+        return 'group-';
       case 'SHOP':
-        return 'group-hover:text-orange-400';
+        return 'group-';
       case 'WAREHOUSE':
-        return 'group-hover:text-purple-400';
+        return 'group-';
       default:
-        return 'group-hover:text-gray-400';
-    }
-  }
-
-  getDepotHoverBorderRing(depot: Depot): string {
-    switch (depot.type) {
-      case 'MAIN':
-        return 'group-hover:border-emerald-400/20';
-      case 'BRANCH':
-        return 'group-hover:border-blue-400/20';
-      case 'SHOP':
-        return 'group-hover:border-orange-400/20';
-      case 'WAREHOUSE':
-        return 'group-hover:border-purple-400/20';
-      default:
-        return 'group-hover:border-gray-400/20';
+        return 'group-';
     }
   }
 

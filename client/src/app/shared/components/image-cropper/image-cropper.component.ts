@@ -19,12 +19,12 @@ import { CommonModule } from '@angular/common';
       <div class="mt-4 flex justify-center space-x-4">
         <button 
           (click)="crop()"
-          class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all">
+          class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg transition-all">
           Recadrer
         </button>
         <button 
           (click)="reset()"
-          class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-all">
+          class="bg-gray-600 text-white px-4 py-2 rounded-lg transition-all">
           Réinitialiser
         </button>
       </div>

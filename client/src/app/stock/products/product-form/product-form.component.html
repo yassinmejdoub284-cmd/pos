@@ -4,7 +4,7 @@
       <h3 class="text-lg font-semibold text-slate-800">
         {{ product ? 'Modifier le Produit' : 'Nouveau Produit' }}
       </h3>
-      <button (click)="onCancel()" class="text-slate-500 hover:text-slate-800" title="Fermer">
+      <button (click)="onCancel()" class="text-slate-500" title="Fermer">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
@@ -54,7 +54,7 @@
               class="flex-1 px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
               placeholder="Code-barres">
             <button type="button" (click)="generateBarcode()"
-              class="px-4 py-2 bg-cyan-600 text-slate-800 rounded-2xl hover:bg-blue-700 transition-all">
+              class="px-4 py-2 bg-cyan-600 text-slate-800 rounded-2xl transition-all">
               Générer
             </button>
           </div>
@@ -188,13 +188,13 @@
             <div class="flex space-x-1 bg-slate-100 rounded-lg p-1">
               <button type="button" 
                 (click)="setImageInputType('file')"
-                [class]="imageInputType === 'file' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:text-slate-800'"
+                [class]="imageInputType === 'file' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600'"
                 class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-all">
                 Télécharger
               </button>
               <button type="button" 
                 (click)="setImageInputType('url')"
-                [class]="imageInputType === 'url' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:text-slate-800'"
+                [class]="imageInputType === 'url' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600'"
                 class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-all">
                 URL
               </button>
@@ -204,7 +204,7 @@
           <!-- File Upload Input -->
           <div *ngIf="imageInputType === 'file'" class="flex items-center space-x-4">
             <input type="file" (change)="onFileSelected($event)" accept="image/*" title="Sélectionner une photo"
-              class="flex-1 px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 file:mr-4 file:py-2 file:px-4 file:rounded-2xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-slate-800 hover:file:bg-pink-700">
+              class="flex-1 px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 file:mr-4 file:py-2 file:px-4 file:rounded-2xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-slate-800">
           </div>
 
           <!-- URL Input -->
@@ -213,7 +213,7 @@
               class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
               placeholder="https://example.com/image.jpg">
             <button type="button" (click)="loadImageFromUrl()" 
-              class="px-4 py-2 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all text-sm">
+              class="px-4 py-2 bg-indigo-600 text-white rounded-2xl transition-all text-sm">
               Charger l'image
             </button>
           </div>
@@ -224,7 +224,7 @@
               <img [src]="imagePreview" alt="Aperçu" class="w-full h-full object-cover rounded-2xl">
             </div>
             <button type="button" (click)="clearImage()" 
-              class="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all text-sm">
+              class="px-3 py-1 bg-red-100 text-red-700 rounded-lg transition-all text-sm">
               Supprimer
             </button>
           </div>
@@ -234,11 +234,11 @@
 
     <div class="flex space-x-3 p-4 border-t border-indigo-100/50 bg-white">
       <button (click)="onCancel()" type="button"
-        class="flex-1 bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-2xl hover:bg-slate-100 transition-all">
+        class="flex-1 bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-2xl transition-all">
         Annuler
       </button>
       <button (click)="onSubmit()" type="submit" [disabled]="!productForm.valid || loading() || selectedDepotIds().length === 0"
-        class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-slate-800 font-semibold py-3 px-4 rounded-2xl hover:from-pink-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+        class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-slate-800 font-semibold py-3 px-4 rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
         <span *ngIf="loading()" class="flex items-center justify-center">
           <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-slate-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

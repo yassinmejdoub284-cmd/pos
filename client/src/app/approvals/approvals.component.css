@@ -70,10 +70,6 @@
   transition: left 0.5s;
 }
 
-.tab-button:hover::before {
-  left: 100%;
-}
-
 /* Button hover effects */
 .action-button {
   position: relative;
@@ -92,11 +88,6 @@
   border-radius: 50%;
   transform: translate(-50%, -50%);
   transition: width 0.6s, height 0.6s;
-}
-
-.action-button:hover::before {
-  width: 300px;
-  height: 300px;
 }
 
 /* Loading spinner */
@@ -154,4 +145,5 @@ input:focus-visible {
     backdrop-filter: blur(8px);
   }
 }
+
 

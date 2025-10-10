@@ -526,7 +526,7 @@ export class NewEntryComponent implements OnInit {
   }
 
   getProductCardClass(productId: number): string {
-    const baseClass = 'product-button bg-white border border-gray-200 rounded-lg p-2 text-center transition-colors duration-150 cursor-pointer shadow-sm hover:shadow-md relative select-none';
+    const baseClass = 'product-button bg-white border border-gray-200 rounded-lg p-2 text-center transition-colors duration-150 cursor-pointer shadow-sm relative select-none';
     const isSelected = this.itemsArray.controls.some((c) => c.get('productId')?.value === productId);
     return isSelected ? baseClass + ' border-blue-500 bg-blue-50' : baseClass;
   }
@@ -602,7 +602,7 @@ export class NewEntryComponent implements OnInit {
     if (isSelected) {
       return `${baseClass} bg-blue-100 border-blue-400 shadow-md ring-2 ring-blue-300`;
     } else {
-      return `${baseClass} bg-white border-gray-300 hover:bg-gray-50 hover:border-gray-400`;
+      return `${baseClass} bg-white border-gray-300`;
     }
   }
 
@@ -673,23 +673,23 @@ export class NewEntryComponent implements OnInit {
       // Unselected state - lighter colors
       switch (category) {
         case 'Tous':
-          return `${baseClass} bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100`;
+          return `${baseClass} bg-blue-50 text-blue-700 border-blue-200`;
         case 'Pâtisserie':
-          return `${baseClass} bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100`;
+          return `${baseClass} bg-pink-50 text-pink-700 border-pink-200`;
         case 'Viennoiserie':
-          return `${baseClass} bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100`;
+          return `${baseClass} bg-amber-50 text-amber-700 border-amber-200`;
         case 'Boulangerie':
-          return `${baseClass} bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100`;
+          return `${baseClass} bg-orange-50 text-orange-700 border-orange-200`;
         case 'Boissons':
-          return `${baseClass} bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100`;
+          return `${baseClass} bg-cyan-50 text-cyan-700 border-cyan-200`;
         case 'Vrac':
-          return `${baseClass} bg-green-50 text-green-700 border-green-200 hover:bg-green-100`;
+          return `${baseClass} bg-green-50 text-green-700 border-green-200`;
         case 'Pâtisserie Tunisienne':
-          return `${baseClass} bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100`;
+          return `${baseClass} bg-purple-50 text-purple-700 border-purple-200`;
         case 'Jus et Smoothies':
-          return `${baseClass} bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100`;
+          return `${baseClass} bg-emerald-50 text-emerald-700 border-emerald-200`;
         default:
-          return `${baseClass} bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100`;
+          return `${baseClass} bg-gray-50 text-gray-700 border-gray-200`;
       }
     }
   }

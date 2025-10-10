@@ -20,7 +20,7 @@ import { Depot, DepotType } from '../../core/models/depot.model';
           *ngFor="let depot of filteredDepots" 
           (click)="toggleDepot(depot)"
           [class]="getDepotCardClasses(depot)"
-          class="cursor-pointer transition-all duration-200 hover:scale-105">
+          class="cursor-pointer transition-all duration-200">
           
           <!-- Depot Logo -->
           <div class="w-12 h-12 mx-auto mb-3 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
@@ -62,7 +62,7 @@ import { Depot, DepotType } from '../../core/models/depot.model';
       <div *ngIf="selectedDepots.length > 0" class="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
         <div class="flex items-center justify-between mb-2">
           <span class="text-sm font-medium text-slate-700">Dépôts sélectionnés ({{ selectedDepots.length }})</span>
-          <button type="button" (click)="clearAll()" class="text-xs text-red-600 hover:text-red-800">
+          <button type="button" (click)="clearAll()" class="text-xs text-red-600">
             Tout désélectionner
           </button>
         </div>
@@ -84,7 +84,7 @@ import { Depot, DepotType } from '../../core/models/depot.model';
               </div>
             </div>
             <span class="text-sm text-slate-800">{{ depot.name }}</span>
-            <button type="button" (click)="removeDepot(depot)" class="text-red-500 hover:text-red-700">
+            <button type="button" (click)="removeDepot(depot)" class="text-red-500 ">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -214,7 +214,7 @@ export class MultiDepotSelectorComponent implements OnInit {
     const baseClasses = 'relative p-4 rounded-xl border-2 transition-all duration-200';
     const selectedClasses = this.isDepotSelected(depot) 
       ? 'border-green-500 bg-green-50 shadow-lg' 
-      : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md';
+      : 'border-slate-200 bg-white';
     
     return `${baseClasses} ${selectedClasses}`;
   }

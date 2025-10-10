@@ -17,7 +17,7 @@
           </div>
         </div>
         <button (click)="showAddPaymentForm()" 
-                class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center space-x-2">
+                class="px-4 py-2 bg-green-500 text-white rounded-lg transition-colors flex items-center space-x-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
           </svg>
@@ -59,11 +59,11 @@
         </div>
         <div class="flex items-end space-x-2">
           <button (click)="loadPayments()" 
-                  class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors">
+                  class="px-4 py-2 bg-amber-500 text-white rounded-lg transition-colors">
             Filtrer
           </button>
           <button (click)="clearFilters()" 
-                  class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                  class="px-4 py-2 bg-gray-500 text-white rounded-lg transition-colors">
             Effacer
           </button>
         </div>
@@ -100,7 +100,7 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-amber-100">
-            <tr *ngFor="let payment of payments" class="hover:bg-amber-50/50">
+            <tr *ngFor="let payment of payments">
               <td class="px-6 py-4 whitespace-nowrap text-sm text-amber-800">
                 {{ formatDate(payment.createdAt) }}
               </td>
@@ -161,11 +161,11 @@
     
     <div class="p-6 border-t border-amber-100 flex justify-end space-x-3">
       <button (click)="hidePaymentForm()" 
-              class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+              class="px-4 py-2 bg-gray-500 text-white rounded-lg transition-colors">
         Annuler
       </button>
       <button (click)="submitPayment()" 
-              class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+              class="px-4 py-2 bg-green-500 text-white rounded-lg transition-colors">
         Enregistrer
       </button>
     </div>

@@ -124,13 +124,13 @@
         <button 
           type="button"
           (click)="onCancel()"
-          class="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition font-semibold">
+          class="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl transition font-semibold">
           Annuler
         </button>
         <button 
           type="submit"
           [disabled]="loading()"
-          class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+          class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
           {{ isEditMode() ? 'Mettre à jour' : 'Créer le chauffeur' }}
         </button>
       </div>

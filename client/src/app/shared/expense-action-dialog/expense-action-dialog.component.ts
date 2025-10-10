@@ -36,11 +36,11 @@ export interface ExpenseAction {
           <button 
             *ngFor="let action of actions" 
             (click)="selectAction(action.id)"
-            class="w-full group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 hover:shadow-lg hover:scale-[1.02] transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden">
+            class="w-full group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden">
             
             <div class="flex items-center space-x-4">
               <!-- Icon Container -->
-              <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg ring-2 ring-white/50" 
+              <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center transition-transform duration-300 shadow-lg ring-2 ring-white/50" 
                    [ngClass]="action.color">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="action.icon"></path>
@@ -49,17 +49,17 @@ export interface ExpenseAction {
               
               <!-- Content -->
               <div class="flex-1 text-left">
-                <h3 class="text-lg font-semibold text-amber-800 group-hover:text-amber-600 transition-colors">
+                <h3 class="text-lg font-semibold text-amber-800 group- transition-colors">
                   {{ action.title }}
                 </h3>
-                <p class="text-sm text-amber-600/70 group-hover:text-amber-600 transition-colors font-medium">
+                <p class="text-sm text-amber-600/70 group- transition-colors font-medium">
                   {{ action.description }}
                 </p>
               </div>
             </div>
             
             <!-- Hover Effect -->
-            <div class="absolute inset-0 rounded-xl bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-300" 
+            <div class="absolute inset-0 rounded-xl bg-gradient-to-br opacity-0 transition-opacity duration-300" 
                  [ngClass]="action.gradient"></div>
           </button>
         </div>
@@ -68,7 +68,7 @@ export interface ExpenseAction {
         <div class="p-6 border-t border-amber-100/50 bg-amber-50/30">
           <button 
             (click)="closeDialog()"
-            class="w-full bg-amber-100 text-amber-800 font-semibold py-3 px-4 rounded-xl hover:bg-amber-200 transition-all duration-200">
+            class="w-full bg-amber-100 text-amber-800 font-semibold py-3 px-4 rounded-xl transition-all duration-200">
             Annuler
           </button>
         </div>

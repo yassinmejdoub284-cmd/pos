@@ -17,7 +17,7 @@
           <div class="flex items-center space-x-3">
             <button (click)="goBack()" 
               title="Retour"
-              class="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors duration-200">
+              class="p-2 bg-gray-100 text-gray-600 rounded-lg transition-colors duration-200">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
               </svg>
@@ -148,7 +148,7 @@
           <div *ngIf="!loading && filteredProducts.length > itemsPerPage" class="flex justify-center items-center gap-4 mt-6">
             <button (click)="previousPage()" 
               [disabled]="currentPage === 1"
-              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+              class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
               Précédent
             </button>
             <span class="text-sm text-gray-600">
@@ -156,7 +156,7 @@
             </span>
             <button (click)="nextPage()" 
               [disabled]="currentPage === getTotalPages()"
-              class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+              class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
               Suivant
             </button>
           </div>
@@ -193,14 +193,14 @@
               <h3 class="text-sm font-semibold text-gray-700">Règles</h3>
               <button (click)="toggleArchivedRules()" 
                 [class]="'text-xs px-2 py-1 rounded transition-colors duration-200 ' + 
-                         (showArchivedRules ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')"
+                         (showArchivedRules ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-600')"
                 title="Afficher les règles archivées">
                 {{ showArchivedRules ? 'Actives' : 'Archivées' }}
               </button>
             </div>
             <button (click)="openNewRuleDialog()" 
               title="Ajouter une nouvelle règle"
-              class="w-6 h-6 bg-purple-500 hover:bg-purple-600 text-white rounded flex items-center justify-center">
+              class="w-6 h-6 bg-purple-500 text-white rounded flex items-center justify-center">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
               </svg>
@@ -213,10 +213,10 @@
                     (click)="applyRuleToSelectedProducts(rule)" 
                     [disabled]="getSelectedProducts().length === 0"
                     [class]="'p-2 text-xs rounded-lg border transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed relative ' + 
-                             (rule.ruleType === 'percentage' ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' : 
-                              rule.ruleType === 'fixed' ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' :
-                              rule.ruleType === 'discount' ? 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100' :
-                              'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100')">
+                             (rule.ruleType === 'percentage' ? 'bg-blue-50 border-blue-200 text-blue-700' : 
+                              rule.ruleType === 'fixed' ? 'bg-green-50 border-green-200 text-green-700' :
+                              rule.ruleType === 'discount' ? 'bg-orange-50 border-orange-200 text-orange-700' :
+                              'bg-gray-50 border-gray-200 text-gray-700')">
               <div class="text-xs opacity-75">
                 {{ rule.ruleType === 'percentage' ? rule.value + '%' : 
                    rule.ruleType === 'discount' ? '-' + rule.value + 'dt' : 
@@ -226,7 +226,7 @@
               <div class="absolute -top-1 -right-1 flex gap-1">
                 <button (click)="archiveRule(rule.id); $event.stopPropagation()"
                   title="Archiver cette règle"
-                  class="w-4 h-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full flex items-center justify-center">
+                  class="w-4 h-4 bg-yellow-500 text-white rounded-full flex items-center justify-center">
                   <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8l4 4-4 4m5-4h6"></path>
                   </svg>
@@ -234,7 +234,7 @@
                 <!-- Delete button for all rules -->
                 <button (click)="removeCustomRule(rule.id); $event.stopPropagation()"
                   title="Supprimer définitivement"
-                  class="w-4 h-4 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center">
+                  class="w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center">
                   <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                   </svg>
@@ -256,7 +256,7 @@
               <!-- Unarchive button for all rules -->
               <button (click)="unarchiveRule(rule.id)"
                 title="Restaurer cette règle"
-                class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center">
+                class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white rounded-full flex items-center justify-center">
                 <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                 </svg>
@@ -280,7 +280,7 @@
                 </span>
                 <button (click)="removeAppliedRule(i)" 
                   title="Supprimer"
-                  class="w-5 h-5 bg-red-100 hover:bg-red-200 text-red-600 rounded flex items-center justify-center">
+                  class="w-5 h-5 bg-red-100 text-red-600 rounded flex items-center justify-center">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                   </svg>
@@ -312,7 +312,7 @@
           </div>
           <button (click)="confirmAndSave()" 
             [disabled]="appliedRules.length === 0"
-            class="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            class="w-full bg-green-500 text-white py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
             Confirmer & Sauvegarder
           </button>
         </div>
@@ -370,11 +370,11 @@
       <div class="bg-gray-50 p-4 border-t border-gray-200 rounded-b-lg">
         <div class="flex gap-3">
           <button (click)="showNewRuleDialog = false" 
-            class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors duration-200">
+            class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200">
             Annuler
           </button>
           <button (click)="addNewRule()" 
-            class="flex-1 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200">
+            class="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg transition-colors duration-200">
             Ajouter
           </button>
         </div>

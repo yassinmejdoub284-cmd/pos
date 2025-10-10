@@ -21,7 +21,7 @@
               *ngFor="let category of productCategories" 
               (click)="selectCategory(category)"
               [class]="getCategoryButtonClass(category)"
-              class="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105 active:scale-95">
+              class="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 active:scale-95">
               {{ category }}
             </button>
           </div>
@@ -72,7 +72,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let ctrl of itemsArray.controls; index as i" class="border-b hover:bg-blue-50 cursor-pointer" (click)="selectExisting(i)">
+            <tr *ngFor="let ctrl of itemsArray.controls; index as i" class="border-b cursor-pointer" (click)="selectExisting(i)">
               <td class="px-2 py-1 text-xs">{{ i + 1 }}</td>
               <td class="px-2 py-1 text-xs">
                 <div class="font-medium">{{ getProductName(ctrl.get('productId')!.value) }}</div>
@@ -150,7 +150,7 @@
             <h2 class="text-2xl font-bold">Finaliser le bon d'entrée</h2>
             <p class="text-blue-100 mt-1">Sélectionnez un fournisseur pour continuer</p>
           </div>
-          <button (click)="closeSupplierDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+          <button (click)="closeSupplierDialog()" class="text-white transition-colors" title="Fermer">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -177,7 +177,7 @@
           <div *ngIf="!showCreateSupplier" class="space-y-2">
             <div *ngFor="let supplier of suppliers()" 
                  (click)="selectSupplier(supplier)" 
-                 [class]="selectedSupplierName === supplier.name ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                 [class]="selectedSupplierName === supplier.name ? 'border-blue-500 bg-blue-50' : 'border-gray-200'"
                  class="border-2 rounded-lg p-4 cursor-pointer transition-all duration-200">
               <div class="flex items-center justify-between">
                 <div>
@@ -226,7 +226,7 @@
           <!-- Toggle Buttons -->
           <div class="flex gap-2 mt-4">
             <button (click)="toggleCreateSupplier()" 
-                    [class]="showCreateSupplier ? 'bg-gray-500 hover:bg-gray-600' : 'bg-emerald-500 hover:bg-emerald-600'"
+                    [class]="showCreateSupplier ? 'bg-gray-500' : 'bg-emerald-500'"
                     class="px-4 py-2 text-white rounded-lg transition-colors duration-200 text-sm font-medium">
               {{ showCreateSupplier ? 'Sélectionner existant' : 'Créer nouveau' }}
             </button>
@@ -237,12 +237,12 @@
       <!-- Footer -->
       <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3">
         <button (click)="closeSupplierDialog()" 
-                class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200">
+                class="px-4 py-2 text-gray-600 transition-colors duration-200">
           Annuler
         </button>
         <button (click)="confirmEntry()" 
                 [disabled]="(!selectedSupplierName && !showCreateSupplier) || loading"
-                class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-lg transition-colors duration-200 font-medium">
+                class="px-6 py-2 bg-emerald-600 disabled:bg-gray-300 text-white rounded-lg transition-colors duration-200 font-medium">
           {{ loading ? 'Création...' : 'Confirmer' }}
         </button>
       </div>
@@ -259,7 +259,7 @@
             <h2 class="text-xl font-bold">Règlement</h2>
             <p class="text-blue-100 mt-1">Comment souhaitez-vous régler cette commande ?</p>
           </div>
-          <button (click)="closePaymentChoiceDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+          <button (click)="closePaymentChoiceDialog()" class="text-white transition-colors" title="Fermer">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -276,7 +276,7 @@
 
         <div class="space-y-4">
           <button (click)="proceedWithPayment()" 
-                  class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl p-4 hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
+                  class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl p-4 transition-all duration-300 transform flex items-center space-x-4">
             <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
@@ -289,7 +289,7 @@
           </button>
 
           <button (click)="proceedAsCredit()" 
-                  class="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl p-4 hover:from-orange-600 hover:to-red-700 transition-all duration-300 transform hover:scale-95 flex items-center space-x-4">
+                  class="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl p-4 transition-all duration-300 transform flex items-center space-x-4">
             <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -315,7 +315,7 @@
             <h2 class="text-xl font-bold">Paiement Partiel</h2>
             <p class="text-blue-100 mt-1">Effectuer le règlement</p>
           </div>
-          <button (click)="closePaymentDialog()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+          <button (click)="closePaymentDialog()" class="text-white transition-colors" title="Fermer">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -367,12 +367,12 @@
       <!-- Footer -->
       <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3 rounded-b-2xl">
         <button (click)="closePaymentDialog()" 
-                class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200">
+                class="px-4 py-2 text-gray-600 transition-colors duration-200">
           Annuler
         </button>
         <button (click)="processPayment()" 
                 [disabled]="loading || !partialPaymentAmount || partialPaymentAmount <= 0"
-                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg transition-colors duration-200 font-medium">
+                class="px-6 py-2 bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors duration-200 font-medium">
           {{ loading ? 'Traitement...' : 'Confirmer' }}
         </button>
       </div>

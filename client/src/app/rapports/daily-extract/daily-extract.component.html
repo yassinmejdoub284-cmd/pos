@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center space-x-4">
-        <button (click)="goBack()" class="p-2 rounded-2xl bg-white border border-indigo-100/50 hover:border-cyan-300 transition-colors duration-300" title="Retour">
+        <button (click)="goBack()" class="p-2 rounded-2xl bg-white border border-indigo-100/50 transition-colors duration-300" title="Retour">
           <svg class="w-6 h-6 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
           </svg>
@@ -43,15 +43,15 @@
         [class.opacity-50]="!extract.hasData"
         [class.cursor-not-allowed]="!extract.hasData"
       >
-        <div class="bg-white rounded-2xl border border-indigo-100/50 hover:border-cyan-300 transition-all duration-300 transform hover:scale-95 p-4 text-center relative overflow-hidden min-h-[120px]">
+        <div class="bg-white rounded-2xl border border-indigo-100/50 transition-all duration-300 transform p-4 text-center relative overflow-hidden min-h-[120px]">
           <!-- Background Gradient Effect -->
-          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-cyan-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-cyan-50 opacity-0 transition-opacity duration-300"></div>
           
           <div class="relative z-10">
             <div class="text-sm text-slate-500 mb-2">{{ formatDate(extract.date) }}</div>
             
             <div *ngIf="extract.hasData" class="space-y-1">
-              <div class="text-lg font-semibold text-slate-800 group-hover:text-cyan-600 transition-colors duration-300">
+              <div class="text-lg font-semibold text-slate-800 group- transition-colors duration-300">
                 {{ formatCurrency(extract.totalRevenue) }}
               </div>
               <div class="text-xs text-slate-500">
@@ -68,7 +68,7 @@
           </div>
           
           <!-- Hover Border Effect -->
-          <div class="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-cyan-200 transition-all duration-300"></div>
+          <div class="absolute inset-0 rounded-2xl border-2 border-transparent transition-all duration-300"></div>
         </div>
       </div>
     </div>
@@ -78,7 +78,7 @@
       <button 
         (click)="showMoreArchives()"
         [disabled]="loadingArchives"
-        class="px-6 py-3 bg-white border border-indigo-100/50 rounded-2xl text-slate-800 hover:border-cyan-300 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="px-6 py-3 bg-white border border-indigo-100/50 rounded-2xl text-slate-800 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span *ngIf="!loadingArchives">Voir plus d'archives (+5 jours)</span>
         <span *ngIf="loadingArchives" class="flex items-center gap-2">
@@ -105,35 +105,35 @@
           <div class="flex items-center space-x-3">
             <button 
               (click)="generateInvoice()"
-              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl transition-colors duration-300"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-2xl transition-colors duration-300"
               title="Générer une facture"
             >
               📋 Générer une facture
             </button>
             <button 
               (click)="exportToPDF()"
-              class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-2xl transition-colors duration-300"
+              class="px-4 py-2 bg-red-600 text-white rounded-2xl transition-colors duration-300"
               title="Exporter en PDF pour import"
             >
               📤 Exporter PDF
             </button>
             <button 
               (click)="printExtract('A4')"
-              class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-800 rounded-2xl transition-colors duration-300"
+              class="px-4 py-2 bg-cyan-600 text-slate-800 rounded-2xl transition-colors duration-300"
               title="Imprimer A4"
             >
               📄 A4
             </button>
             <button 
               (click)="printExtract('80mm')"
-              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-800 rounded-2xl transition-colors duration-300"
+              class="px-4 py-2 bg-emerald-600 text-slate-800 rounded-2xl transition-colors duration-300"
               title="Imprimer 80mm"
             >
               🧾 80mm
             </button>
             <button 
               (click)="selectedExtract = null"
-              class="p-2 rounded-2xl bg-slate-100/50 hover:bg-slate-100/50 transition-colors duration-300"
+              class="p-2 rounded-2xl bg-slate-100/50 transition-colors duration-300"
               title="Fermer"
             >
               <svg class="w-5 h-5 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,7 +159,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let product of family.products" class="hover:bg-slate-50">
+              <tr *ngFor="let product of family.products">
                 <td class="border border-slate-300 px-2 py-1 text-slate-800 text-xs">{{ product.name }}</td>
                 <td class="border border-slate-300 px-2 py-1 text-center text-slate-800 text-xs">{{ product.quantity }}</td>
                 <td class="border border-slate-300 px-2 py-1 text-right text-slate-800 text-xs">
@@ -246,7 +246,7 @@
           <h3 class="text-2xl font-bold text-slate-800">Générer une facture</h3>
           <button 
             (click)="closeInvoiceModal()"
-            class="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 transition-colors duration-300"
+            class="p-2 rounded-2xl bg-slate-100 transition-colors duration-300"
           >
             <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -272,7 +272,7 @@
                 <button 
                   type="button"
                   (click)="getNextInvoiceNumber()"
-                  class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors duration-300"
+                  class="px-3 py-2 bg-indigo-600 text-white rounded-lg transition-colors duration-300"
                 >
                   Utiliser le dernier
                 </button>
@@ -388,14 +388,14 @@
             <button 
               type="button"
               (click)="closeInvoiceModal()"
-              class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors duration-300"
+              class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg transition-colors duration-300"
             >
               Annuler
             </button>
             <button 
               type="submit"
               [disabled]="!invoiceForm.valid || creatingInvoice"
-              class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
+              class="px-6 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
             >
               <span *ngIf="!creatingInvoice">Créer la facture</span>
               <span *ngIf="creatingInvoice">Création...</span>

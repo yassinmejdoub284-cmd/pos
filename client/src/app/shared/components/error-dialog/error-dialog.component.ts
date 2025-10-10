@@ -26,7 +26,7 @@ import { ErrorDialogData } from '../../../core/services/error-handling.service';
             <h2 class="text-xl font-bold text-white">{{ data.title }}</h2>
           </div>
           <button (click)="closeDialog()" title="Fermer"
-            class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center hover:bg-white/30 transition-colors">
+            class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center transition-colors">
             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -58,7 +58,7 @@ import { ErrorDialogData } from '../../../core/services/error-handling.service';
                 </div>
                 <button *ngIf="dependent.link" 
                         (click)="navigateToDependent(dependent.link)"
-                        class="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
+                        class="text-blue-600 text-sm font-medium transition-colors">
                   Voir
                 </button>
               </div>
@@ -69,11 +69,11 @@ import { ErrorDialogData } from '../../../core/services/error-handling.service';
           <div class="flex justify-end gap-3">
             <button *ngIf="data.secondaryAction" 
                     (click)="data.secondaryAction.action()"
-                    class="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 transition-colors">
+                    class="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg transition-colors">
               {{ data.secondaryAction.label }}
             </button>
             <button (click)="closeDialog()"
-                    class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors">
+                    class="px-4 py-2 bg-slate-800 text-white rounded-lg transition-colors">
               {{ data.primaryAction?.label || 'Fermer' }}
             </button>
           </div>

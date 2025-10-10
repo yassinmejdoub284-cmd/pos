@@ -5,7 +5,7 @@
         <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">Utilisateurs</h2>
         <p class="text-slate-500">Gérez les comptes, rôles, et accès</p>
       </div>
-      <a routerLink="/parametres" class="px-4 py-2 rounded-xl bg-gradient-to-r from-slate-700 to-slate-800 text-white shadow hover:from-slate-800 hover:to-black">Paramètres</a>
+      <a routerLink="/parametres" class="px-4 py-2 rounded-xl bg-gradient-to-r from-slate-700 to-slate-800 text-white shadow">Paramètres</a>
     </div>
 
     <div *ngIf="error" class="mb-3 p-3 bg-red-100 border border-red-200 rounded-xl text-red-700">{{ error }}</div>
@@ -19,13 +19,13 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
-        <button (click)="openAdd()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow hover:from-indigo-600 hover:to-purple-600">Ajouter</button>
+        <button (click)="openAdd()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow">Ajouter</button>
       </div>
 
       <div *ngIf="loading" class="text-gray-500">Chargement...</div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        <div *ngFor="let u of filteredUsers" class="rounded-2xl border border-indigo-100 p-5 bg-gradient-to-br from-white via-indigo-50 to-purple-50 shadow hover:shadow-2xl transition-shadow">
+        <div *ngFor="let u of filteredUsers" class="rounded-2xl border border-indigo-100 p-5 bg-gradient-to-br from-white via-indigo-50 to-purple-50 shadow transition-shadow">
           <div class="flex items-start justify-between mb-3">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 text-white flex items-center justify-center font-bold">
@@ -49,7 +49,7 @@
             <div class="bg-white/60 rounded-lg px-2 py-1 flex items-center justify-between">
               <span>PIN:</span>
               <button (click)="togglePinVisibility(u.id)" 
-                      class="flex items-center gap-1 text-slate-700 hover:text-slate-900 transition-colors">
+                      class="flex items-center gap-1 text-slate-700  transition-colors">
                 <span class="font-mono font-bold">{{ getDisplayedPin(u) }}</span>
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path *ngIf="!isPinVisible(u.id)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -60,10 +60,10 @@
             </div>
           </div>
           <div class="mt-4 flex flex-wrap gap-2">
-            <button (click)="openEdit(u)" class="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700">Modifier</button>
-            <button (click)="confirmDelete(u)" class="px-3 py-1.5 text-xs rounded-lg bg-red-600 text-white hover:bg-red-700">Supprimer</button>
+            <button (click)="openEdit(u)" class="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white">Modifier</button>
+            <button (click)="confirmDelete(u)" class="px-3 py-1.5 text-xs rounded-lg bg-red-600 text-white">Supprimer</button>
             <div class="ml-auto flex items-center gap-2">
-              <button (click)="openNumpad('updatePin', u)" class="px-3 py-1.5 text-xs rounded-lg bg-amber-500 text-white hover:bg-amber-600">Maj PIN</button>
+              <button (click)="openNumpad('updatePin', u)" class="px-3 py-1.5 text-xs rounded-lg bg-amber-500 text-white">Maj PIN</button>
             </div>
           </div>
         </div>
@@ -89,18 +89,18 @@
           <option value="STOCK_MANAGER">Gestionnaire Stock</option>
         </select>
         <button type="button" (click)="openDepotSelection(false)" 
-                class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left hover:bg-white/90 transition-colors">
+                class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left transition-colors">
           <span class="text-gray-500">{{ getDepotName(newUser.depotId) }}</span>
         </button>
       </div>
       <button type="button" (click)="openNumpad('newPin')" 
-              class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left hover:bg-white/90 transition-colors">
+              class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left transition-colors">
         <span class="text-gray-500">{{ newUser.pin || 'Cliquer pour définir le PIN' }}</span>
       </button>
     </div>
     <div class="mt-4 flex justify-end gap-2">
-      <button (click)="closeAdd()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Annuler</button>
-      <button (click)="create()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow hover:from-indigo-600 hover:to-purple-600">Créer</button>
+      <button (click)="closeAdd()" class="px-4 py-2 rounded-xl bg-slate-100">Annuler</button>
+      <button (click)="create()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow">Créer</button>
     </div>
   </div>
 </div>
@@ -122,7 +122,7 @@
           <option value="STOCK_MANAGER">Gestionnaire Stock</option>
         </select>
         <button type="button" (click)="openDepotSelection(true)" 
-                class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left hover:bg-white/90 transition-colors">
+                class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left transition-colors">
           <span class="text-gray-500">{{ getDepotName(selectedUser.depotId) }}</span>
         </button>
       </div>
@@ -132,8 +132,8 @@
       </label>
     </div>
     <div class="mt-4 flex justify-end gap-2">
-      <button (click)="closeEdit()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Annuler</button>
-      <button (click)="save()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow hover:from-indigo-600 hover:to-purple-600">Enregistrer</button>
+      <button (click)="closeEdit()" class="px-4 py-2 rounded-xl bg-slate-100">Annuler</button>
+      <button (click)="save()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -144,8 +144,8 @@
     <h3 class="text-lg font-semibold mb-3">Supprimer l'utilisateur</h3>
     <p class="text-sm text-slate-700">Êtes-vous sûr de vouloir supprimer {{ selectedUser.firstName }} {{ selectedUser.lastName }} ({{ '@' + selectedUser.username }}) ?</p>
     <div class="mt-4 flex justify-end gap-2">
-      <button (click)="cancelDelete()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">Annuler</button>
-      <button (click)="remove()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white shadow hover:from-rose-600 hover:to-red-700">Supprimer</button>
+      <button (click)="cancelDelete()" class="px-4 py-2 rounded-xl bg-slate-100">Annuler</button>
+      <button (click)="remove()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white shadow">Supprimer</button>
     </div>
   </div>
 </div>
@@ -155,7 +155,7 @@
   <div class="bg-white/95 rounded-2xl border border-indigo-100 w-full max-w-2xl max-h-[80vh] p-5 shadow-xl overflow-hidden">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold">Sélectionner un entrepôt</h3>
-      <button (click)="closeDepotSelection()" title="Fermer" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+      <button (click)="closeDepotSelection()" title="Fermer" class="p-2 rounded-lg transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
@@ -168,7 +168,7 @@
               *ngFor="let depot of depots"
               (click)="selectDepot(depot)"
               [class]="selectedDepot?.id === depot.id ? 'border-[#569797] ring-2 ring-[#569797]/30' : 'border-gray-200'"
-              class="text-left bg-white rounded-xl border p-4 hover:shadow-md transition-shadow">
+              class="text-left bg-white rounded-xl border p-4 transition-shadow">
         <div class="flex items-start gap-3">
           <div class="text-2xl" aria-hidden="true">{{ getDepotIcon(depot.type) }}</div>
           <div class="flex-1 min-w-0">
@@ -234,23 +234,23 @@
       <button *ngFor="let num of [1,2,3,4,5,6,7,8,9]"
               type="button"
               (click)="addToNumpad(num.toString())"
-              class="bg-[#569797] text-white font-semibold rounded-xl py-3 shadow-sm hover:bg-[#4a7d7d] transition-colors">
+              class="bg-[#569797] text-white font-semibold rounded-xl py-3 shadow-sm transition-colors">
         {{ num }}
       </button>
-      <button type="button" (click)="clearNumpad()" class="bg-gray-100 text-gray-700 font-semibold rounded-xl py-3 shadow-sm border border-gray-200 hover:bg-gray-200">C</button>
-      <button type="button" (click)="addToNumpad('0')" class="bg-[#569797] text-white font-semibold rounded-xl py-3 shadow-sm hover:bg-[#4a7d7d] transition-colors">0</button>
-      <button type="button" (click)="backspaceNumpad()" class="bg-gray-100 text-gray-700 font-semibold rounded-xl py-3 shadow-sm border border-gray-200 hover:bg-gray-200">←</button>
+      <button type="button" (click)="clearNumpad()" class="bg-gray-100 text-gray-700 font-semibold rounded-xl py-3 shadow-sm border border-gray-200">C</button>
+      <button type="button" (click)="addToNumpad('0')" class="bg-[#569797] text-white font-semibold rounded-xl py-3 shadow-sm transition-colors">0</button>
+      <button type="button" (click)="backspaceNumpad()" class="bg-gray-100 text-gray-700 font-semibold rounded-xl py-3 shadow-sm border border-gray-200">←</button>
     </div>
 
     <!-- Actions -->
     <div class="flex gap-3">
       <button (click)="closeNumpad()" 
-              class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">
+              class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium transition-colors">
         Annuler
       </button>
       <button (click)="confirmNumpad()" 
               [disabled]="numpadLoading || numpadData.pin.length < 4"
-              class="flex-1 px-4 py-2 bg-[#569797] text-white rounded-xl font-medium shadow-lg hover:bg-[#4a7d7d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              class="flex-1 px-4 py-2 bg-[#569797] text-white rounded-xl font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
         <span *ngIf="!numpadLoading">Confirmer</span>
         <span *ngIf="numpadLoading" class="flex items-center justify-center">
           <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

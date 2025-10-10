@@ -17,7 +17,7 @@
       </div>
       <div class="flex gap-2">
         <button 
-          class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+          class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 shadow-md flex items-center gap-2"
           (click)="printReport()" 
           [disabled]="loading">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -26,7 +26,7 @@
           Imprimer
         </button>
         <button 
-          class="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-all duration-200 flex items-center gap-2"
+          class="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2"
           (click)="goBack()">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
@@ -34,7 +34,7 @@
           Retour
         </button>
         <button 
-          class="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+          class="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 shadow-md flex items-center gap-2"
           (click)="goHome()">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
@@ -47,7 +47,7 @@
 
   <!-- Modern Metrics Cards -->
   <div class="grid grid-cols-4 gap-3 mb-4" *ngIf="summary">
-    <div class="bg-white rounded-xl p-4 shadow-lg border border-slate-200 hover:shadow-xl transition-all duration-200">
+    <div class="bg-white rounded-xl p-4 shadow-lg border border-slate-200 transition-all duration-200">
       <div class="flex items-center justify-between">
         <div>
           <div class="text-2xl font-bold text-slate-800">{{ summary.statistics.totalItems || 0 }}</div>
@@ -61,7 +61,7 @@
       </div>
     </div>
     
-    <div class="bg-white rounded-xl p-4 shadow-lg border border-slate-200 hover:shadow-xl transition-all duration-200">
+    <div class="bg-white rounded-xl p-4 shadow-lg border border-slate-200 transition-all duration-200">
       <div class="flex items-center justify-between">
         <div>
           <div class="text-2xl font-bold text-emerald-600">{{ summary.statistics.countedItems || 0 }}</div>
@@ -75,7 +75,7 @@
       </div>
     </div>
     
-    <div class="bg-white rounded-xl p-4 shadow-lg border border-slate-200 hover:shadow-xl transition-all duration-200">
+    <div class="bg-white rounded-xl p-4 shadow-lg border border-slate-200 transition-all duration-200">
       <div class="flex items-center justify-between">
         <div>
           <div class="text-2xl font-bold text-amber-600">{{ summary.statistics.itemsWithEcart || 0 }}</div>
@@ -89,7 +89,7 @@
     </div>
       </div>
     
-    <div class="bg-white rounded-xl p-4 shadow-lg border border-slate-200 hover:shadow-xl transition-all duration-200">
+    <div class="bg-white rounded-xl p-4 shadow-lg border border-slate-200 transition-all duration-200">
       <div class="flex items-center justify-between">
         <div>
           <div class="text-2xl font-bold" [ngClass]="getValueClass()">
@@ -132,7 +132,7 @@
       <div class="divide-y divide-slate-100">
         <div 
           *ngFor="let ecart of summary.ecarts; trackBy: trackByProductId" 
-          class="p-4 hover:bg-slate-50 transition-colors duration-150"
+          class="p-4 transition-colors duration-150"
           [ngClass]="{
             'bg-emerald-50 border-l-4 border-emerald-400': getEcartRowClass(ecart) === 'positive',
             'bg-red-50 border-l-4 border-red-400': getEcartRowClass(ecart) === 'negative'

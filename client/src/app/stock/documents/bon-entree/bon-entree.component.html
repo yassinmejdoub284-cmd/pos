@@ -12,7 +12,7 @@
         <p class="text-sm font-medium">{{ error }}</p>
       </div>
       <div class="flex-shrink-0">
-        <button (click)="error = ''" class="text-red-200 hover:text-white transition-colors" title="Fermer l'alerte d'erreur">
+        <button (click)="error = ''" class="text-red-200  transition-colors" title="Fermer l'alerte d'erreur">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -34,7 +34,7 @@
         <p class="text-sm font-medium">{{ success }}</p>
       </div>
       <div class="flex-shrink-0">
-        <button (click)="success = ''" class="text-green-200 hover:text-white transition-colors" title="Fermer l'alerte de succès">
+        <button (click)="success = ''" class="text-green-200  transition-colors" title="Fermer l'alerte de succès">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -56,10 +56,10 @@
             <p class="text-emerald-100 mt-1">{{ selectedDocument.numero }} - {{ getDocumentTypeLabel(selectedDocument) }}</p>
           </div>
           <div class="flex items-center gap-3">
-            <button (click)="editDocumentFromList(selectedDocument)" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors" title="Modifier">
+            <button (click)="editDocumentFromList(selectedDocument)" class="bg-white/20 text-white px-4 py-2 rounded-lg transition-colors" title="Modifier">
               Modifier
             </button>
-            <button (click)="closeDocumentDetails(); $event.stopPropagation()" class="text-white hover:text-gray-200 transition-colors" title="Fermer">
+            <button (click)="closeDocumentDetails(); $event.stopPropagation()" class="text-white transition-colors" title="Fermer">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -118,7 +118,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
-                <tr *ngFor="let item of selectedDocument.items; index as i" class="hover:bg-gray-50">
+                <tr *ngFor="let item of selectedDocument.items; index as i">
                   <td class="px-4 py-3 text-sm text-gray-900">{{ i + 1 }}</td>
                   <td class="px-4 py-3 text-sm text-gray-900">
                     <div class="font-medium">{{ item.product?.name || 'Produit #' + item.productId }}</div>
@@ -163,8 +163,8 @@
       <div class="flex gap-3">
         <a [routerLink]="[isReturnsMode ? '/stock-management/new-return' : '/stock-management/new-entry', depotId]"
           *ngIf="!isEditMode && depotId"
-          class="bg-gradient-to-r text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
-          [ngClass]="isReturnsMode ? 'from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700' : 'from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700'">
+          class="bg-gradient-to-r text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2"
+          [ngClass]="isReturnsMode ? 'from-rose-500 to-rose-600' : 'from-emerald-500 to-emerald-600'">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
           </svg>
@@ -215,7 +215,7 @@
           <!-- Documents Grid (copied behavior from bon-sortie) -->
           <div *ngIf="documents.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div *ngFor="let doc of documents" 
-                 class="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow duration-200">
+                 class="bg-white border border-gray-200 rounded-xl p-6 transition-shadow duration-200">
               <div class="flex justify-between items-start mb-4">
                 <div class="flex items-center gap-2">
                   <span [ngClass]="isReturnDocument(doc) ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'" class="px-3 py-1 rounded-full text-xs font-medium">
@@ -251,15 +251,15 @@
               
               <div class="flex gap-2">
                 <button (click)="viewDocument(doc)" 
-                  class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium py-2 px-4 transition-colors duration-200">
+                  class="flex-1 bg-emerald-500 text-white rounded-lg text-sm font-medium py-2 px-4 transition-colors duration-200">
                   Voir détails
                 </button>
                 <button (click)="editDocumentFromList(doc)" 
-                  class="bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200">
+                  class="bg-orange-500 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200">
                   Modifier
                 </button>
                 <button (click)="printDocument(doc)" 
-                  class="bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200">
+                  class="bg-green-500 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200">
                   Imprimer
                 </button>
               </div>
@@ -428,7 +428,7 @@
         <div class="space-y-2">
           <button *ngFor="let depot of depots" 
             (click)="selectDepot(depot)"
-            class="w-full text-left p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+            class="w-full text-left p-3 rounded-lg border border-slate-200 transition-colors">
             <div class="font-semibold text-slate-800">{{ depot.name }}</div>
             <div class="text-sm text-slate-500">{{ depot.code }} - {{ depot.type }}</div>
           </button>
@@ -452,12 +452,12 @@
       <div class="p-6 max-h-96 overflow-y-auto">
         <div class="space-y-2">
           <button (click)="selectedSupplier = null; showSupplierModal = false" 
-            class="w-full text-left p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+            class="w-full text-left p-3 rounded-lg border border-slate-200 transition-colors">
             <div class="font-semibold text-slate-800">Aucun fournisseur</div>
           </button>
           <button *ngFor="let supplier of suppliers" 
             (click)="selectSupplier(supplier)"
-            class="w-full text-left p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+            class="w-full text-left p-3 rounded-lg border border-slate-200 transition-colors">
             <div class="font-semibold text-slate-800">{{ supplier.name }}</div>
             <div class="text-sm text-slate-500">{{ supplier.contactName }}</div>
           </button>
@@ -482,7 +482,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button *ngFor="let product of products" 
             (click)="selectProduct(items[items.length - 1], product)"
-            class="text-left p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+            class="text-left p-3 rounded-lg border border-slate-200 transition-colors">
             <div class="font-semibold text-slate-800">{{ product.name }}</div>
             <div class="text-sm text-slate-500">{{ product.barcode || 'N/A' }} - {{ getProductFamille(product) }}</div>
           </button>

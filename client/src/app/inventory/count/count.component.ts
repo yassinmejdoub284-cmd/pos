@@ -587,7 +587,7 @@ export class CountComponent implements OnInit, OnDestroy {
   }
 
   getProductCardClass(productId: number): string {
-    const baseClass = 'product-button bg-white border border-gray-200 rounded-lg p-2 text-center transition-colors duration-150 cursor-pointer shadow-sm hover:shadow-md relative select-none';
+    const baseClass = 'product-button bg-white border border-gray-200 rounded-lg p-2 text-center transition-colors duration-150 cursor-pointer shadow-sm relative select-none';
     const isSelected = this.countItems.some(item => item.product.id === productId);
     
     if (isSelected) {

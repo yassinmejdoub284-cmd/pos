@@ -8,7 +8,7 @@
         </div>
         <button 
           (click)="goBack()"
-          class="px-3 py-1.5 bg-slate-200 hover:bg-indigo-500 text-slate-800 rounded-xl text-sm transition-colors"
+          class="px-3 py-1.5 bg-slate-200 text-slate-800 rounded-xl text-sm transition-colors"
         >
           Retour
         </button>
@@ -39,7 +39,7 @@
                 <h3 class="text-base font-semibold text-emerald-800">📥 Total des Entrées</h3>
                 <button 
                   (click)="showEntriesDetailsModal()"
-                  class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs transition-colors"
+                  class="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs transition-colors"
                 >
                   Voir Détails
                 </button>
@@ -62,7 +62,7 @@
                 <h3 class="text-base font-semibold text-red-800">📤 Total des Sorties</h3>
                 <button 
                   (click)="showExitsDetailsModal()"
-                  class="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs transition-colors"
+                  class="px-3 py-1.5 bg-red-600 text-white rounded-xl text-xs transition-colors"
                 >
                   Voir Détails
                 </button>
@@ -252,14 +252,14 @@
                 <div class="flex space-x-2">
                   <button 
                     (click)="viewTransferDetails(transfer)"
-                    class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-800 rounded-2xl transition-colors"
+                    class="px-4 py-2 bg-cyan-600 text-slate-800 rounded-2xl transition-colors"
                   >
                     👁️ Voir Plus
                   </button>
                   <button 
                     (click)="confirmTransfer(transfer)"
                     [disabled]="loading"
-                    class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 text-slate-800 font-semibold rounded-2xl transition-colors"
+                    class="px-6 py-3 bg-emerald-600 disabled:bg-slate-200 text-slate-800 font-semibold rounded-2xl transition-colors"
                   >
                     <span *ngIf="loading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
                     Confirmer Transfert
@@ -304,7 +304,7 @@
           type="button"
           (click)="closeTransferDetails()"
           title="Fermer les détails"
-          class="text-slate-500 hover:text-slate-800 transition-colors"
+          class="text-slate-500 transition-colors"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -423,7 +423,7 @@
             type="button"
             (click)="confirmTransfer(selectedTransfer); closeTransferDetails()"
             [disabled]="loading"
-            class="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-slate-800 font-semibold rounded-2xl transition-all duration-300 transform hover:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-lg"
+            class="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-slate-800 font-semibold rounded-2xl transition-all duration-300 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-lg"
           >
             <span *ngIf="loading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
             {{ loading ? 'Confirmation...' : '✅ Confirmer le Transfert' }}
@@ -446,7 +446,7 @@
           type="button"
           (click)="closeEntriesDetails()"
           title="Fermer les détails"
-          class="text-slate-500 hover:text-slate-800 transition-colors"
+          class="text-slate-500 transition-colors"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -548,7 +548,7 @@
           type="button"
           (click)="closeExitsDetails()"
           title="Fermer les détails"
-          class="text-slate-500 hover:text-slate-800 transition-colors"
+          class="text-slate-500 transition-colors"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>

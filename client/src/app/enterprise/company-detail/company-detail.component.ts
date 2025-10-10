@@ -33,7 +33,7 @@ interface Depot {
           <div class="flex items-center space-x-4">
             <button 
               (click)="goBack()"
-              class="p-2 bg-gray-100 rounded-xl text-gray-600 hover:bg-gray-200 transition-colors">
+              class="p-2 bg-gray-100 rounded-xl text-gray-600 transition-colors">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
               </svg>
@@ -55,7 +55,7 @@ interface Depot {
           <div class="flex items-center space-x-3">
             <button 
               (click)="editCompany()"
-              class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">
+              class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium transition-colors">
               Modifier la Société
             </button>
           </div>
@@ -81,7 +81,7 @@ interface Depot {
           <h2 class="text-xl font-semibold text-gray-800">Entrepôts</h2>
           <button 
             (click)="assignDepot()"
-            class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95">
+            class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl font-medium shadow-lg transition-all duration-200 active:scale-95">
             <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
             </svg>
@@ -130,7 +130,7 @@ interface Depot {
           <p class="text-gray-500 mb-6">Assignez des entrepôts existants à cette société pour commencer</p>
           <button 
             (click)="assignDepot()"
-            class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95">
+            class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-medium shadow-lg transition-all duration-200 active:scale-95">
             <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
             </svg>

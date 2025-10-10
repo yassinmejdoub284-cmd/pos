@@ -10,7 +10,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
     <div class="space-y-6">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <a routerLink="/home" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm flex items-center gap-2">
+          <a routerLink="/home" class="px-3 py-2 rounded-lg bg-gray-100 text-sm flex items-center gap-2">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12l9-9 9 9"/><path d="M9 21V9h6v12"/></svg>
             Accueil
           </a>
@@ -18,7 +18,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
         </div>
         <div class="space-x-2">
           <button routerLink="/enterprise/depots/new"
-                  class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Ajouter</button>
+                  class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Ajouter</button>
         </div>
       </div>
 
@@ -37,7 +37,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
           </div>
           <div></div>
           <div class="flex items-end">
-            <button (click)="refresh()" [disabled]="loading" class="w-full px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200">Rafraîchir</button>
+            <button (click)="refresh()" [disabled]="loading" class="w-full px-4 py-2 rounded-lg bg-gray-100">Rafraîchir</button>
           </div>
         </div>
         <div class="p-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-6 gap-3">
@@ -96,11 +96,11 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
             </div>
             <div class="mt-auto flex items-center justify-between">
               <div class="flex gap-2">
-                <button (click)="toggleActive(depot)" class="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs">Basculer</button>
+                <button (click)="toggleActive(depot)" class="px-3 py-1 rounded-lg bg-gray-100 text-xs">Basculer</button>
               </div>
               <div class="flex gap-2">
-                <a [routerLink]="['/enterprise/depots', depot.id, 'edit']" class="px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs">Modifier</a>
-                <button (click)="delete(depot)" class="px-3 py-1 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs">Supprimer</button>
+                <a [routerLink]="['/enterprise/depots', depot.id, 'edit']" class="px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs">Modifier</a>
+                <button (click)="delete(depot)" class="px-3 py-1 rounded-lg bg-rose-50 text-rose-700 text-xs">Supprimer</button>
               </div>
             </div>
           </div>

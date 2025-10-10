@@ -1,16 +1,20 @@
-  <div class="min-h-screen bg-gradient-to-br from-amber-50 via-violet-50 to-amber-100 relative">
+<div class="h-screen bg-gradient-to-br from-amber-50 via-violet-50 to-amber-100 relative">
   <!-- Simplified Background -->
-  <div class="absolute inset-0 overflow-hidden">
+  <div class="absolute inset-0 overflow-hidden h-full">
     <!-- Static Background Orbs - No Animation -->
-    <div class="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-amber-300/20 via-pink-300/20 to-violet-300/20 rounded-full blur-3xl"></div>
-    <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-violet-300/20 via-amber-300/20 to-cyan-300/20 rounded-full blur-3xl"></div>
+    <div
+      class="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-amber-300/20 via-pink-300/20 to-violet-300/20 rounded-full blur-3xl">
+    </div>
+    <div
+      class="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-violet-300/20 via-amber-300/20 to-cyan-300/20 rounded-full blur-3xl">
+    </div>
   </div>
 
   <!-- COMPACT MOBILE-OPTIMIZED HEADER -->
   <div class="z-10 bg-gradient-to-b from-white/95 to-transparent sticky top-0 sticky-header">
     <!-- Subtle gradient overlay -->
     <div class="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-pink-500/5"></div>
-    
+
     <div class="relative mx-auto px-3 sm:px-6 py-2 sm:py-3">
       <div class="flex items-center justify-between">
         <!-- COMPACT LOGO SECTION -->
@@ -19,24 +23,21 @@
           <div class="relative">
             <div class="w-auto h-8 sm:h-14 flex items-center justify-center overflow-hidden">
               <!-- Company Logo Image -->
-              <img *ngIf="companyLogo() && !logoLoadError()" 
-                   title="Logo de la société"
-                   [src]="companyLogo()" 
-                   [alt]="companyName() + ' Logo'"
-                   class="w-full h-full object-contain rounded-lg sm:rounded-xl"
-                   (error)="onLogoError()">
-               <!-- Fallback SVG Icon -->
-               <svg *ngIf="!companyLogo() || logoLoadError()" 
-                    class="w-full h-full text-amber-600" 
-                    fill="currentColor" 
-                    viewBox="0 0 24 24">
-                 <path d="M12 2L2 7L12 12L22 7L12 2ZM2 17L12 22L22 17M2 12L12 17L22 12"/>
-               </svg>
+              <img *ngIf="companyLogo() && !logoLoadError()" title="Logo de la société" [src]="companyLogo()"
+                [alt]="companyName() + ' Logo'" class="w-full h-full object-contain rounded-lg sm:rounded-xl"
+                (error)="onLogoError()">
+              <!-- Fallback SVG Icon -->
+              <svg *ngIf="!companyLogo() || logoLoadError()" class="w-full h-full text-amber-600" fill="currentColor"
+                viewBox="0 0 24 24">
+                <path d="M12 2L2 7L12 12L22 7L12 2ZM2 17L12 22L22 17M2 12L12 17L22 12" />
+              </svg>
             </div>
             <!-- Subtle glow -->
-            <div class="absolute inset-0 bg-gradient-to-br from-amber-600 to-pink-600 rounded-lg sm:rounded-xl opacity-5 blur-sm"></div>
+            <div
+              class="absolute inset-0 bg-gradient-to-br from-amber-600 to-pink-600 rounded-lg sm:rounded-xl opacity-5">
+            </div>
           </div>
-          
+
           <!-- Compact Typography -->
           <div class="hidden sm:block">
             <h1 class="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
@@ -53,12 +54,14 @@
         <!-- COMPACT USER SECTION -->
         <div class="flex items-center space-x-2 sm:space-x-3">
           <!-- User Info Card - Responsive -->
-          <div class="flex items-center space-x-2 sm:space-x-3 rounded-lg sm:rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 border border-gray-200/50">
+          <div
+            class="flex items-center space-x-2 sm:space-x-3 rounded-lg sm:rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 border border-gray-200/50">
             <!-- User Avatar -->
-            <div class="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-amber-500 to-pink-500 rounded-md sm:rounded-lg flex items-center justify-center">
+            <div
+              class="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-amber-500 to-pink-500 rounded-md sm:rounded-lg flex items-center justify-center">
               <span class="text-white text-xs sm:text-sm font-bold">{{ currentUser()?.firstName?.charAt(0) }}</span>
             </div>
-            
+
             <!-- User Details - Hidden on mobile -->
             <div class="hidden sm:block text-left">
               <p class="text-sm font-semibold text-gray-900">{{ greeting() }}, {{ currentUser()?.firstName }}</p>
@@ -69,15 +72,14 @@
               <p class="text-xs font-semibold text-gray-900">{{ currentUser()?.firstName }}</p>
             </div>
           </div>
-          
+
           <!-- Compact Logout Button -->
-          <button type="button" title="Déconnexion" (click)="logout()" 
-            class="relative p-1.5 sm:p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg sm:rounded-xl transition-all duration-200 active:scale-95 group">
-              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-              </svg>
-            <!-- Hover indicator -->
-            <div class="absolute inset-0 rounded-lg sm:rounded-xl bg-gray-100 opacity-0 group-hover:opacity-40 transition-opacity duration-200"></div>
+          <button type="button" title="Déconnexion" (click)="logout()"
+            class="relative p-1.5 sm:p-2.5 text-gray-600 rounded-lg sm:rounded-xl active:scale-95 group">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
           </button>
         </div>
       </div>
@@ -85,119 +87,122 @@
   </div>
 
   <!-- Main Content -->
-  <div class="relative z-10 w-full p-4">
-    
+  <div class="relative z-10 w-full p-4 h-full">
+
 
     <!-- INSANE MORPHING ACTION GRID -->
+    <div class="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-pink-500/5 to-violet-500/5 rounded-3xl h-full w-full"></div>
     <div class="relative h-[calc(100vh-120px)] w-full">
       <!-- Static Organic Background -->
-      <div class="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-pink-500/5 to-violet-500/5 rounded-3xl"></div>
-      
+
       <!-- Action Grid - FULL SCREEN RESPONSIVE -->
       <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 relative z-10 h-full w-full action-grid">
         <!-- SPECIAL CAISSE BUTTON - SPANS 2x2 -->
-        <div *ngIf="getFilteredActions()[0]?.id === 'caisse'" 
-             (click)="navigateTo(getFilteredActions()[0].route)"
-             class="relative group col-span-2 row-span-2 cursor-pointer">
-          
+        <div *ngIf="getFilteredActions()[0]?.id === 'caisse'" (click)="navigateTo(getFilteredActions()[0].route)"
+          class="md:relative md:group md:col-span-2 md:row-span-2 md:cursor-pointer">
+
           <!-- SPECIAL CAISSE BUTTON WITH SESSION BACKGROUND -->
           <div class="relative">
             <!-- Session Status Background -->
-            <div class="absolute inset-0 rounded-2xl p-1" 
-                 [class]="dashboardStats().activeSession ? 'bg-gradient-to-br from-emerald-500/20 to-green-500/20' : 'bg-gradient-to-br from-rose-500/20 to-pink-500/20'">
+            <div class="absolute inset-0 rounded-2xl p-1"
+              [class]="dashboardStats().activeSession ? 'bg-gradient-to-br from-emerald-500/20 to-green-500/20' : 'bg-gradient-to-br from-rose-500/20 to-pink-500/20'">
               <!-- Session Status Indicator -->
               <div class="absolute top-10 right-5 z-30">
-                <div class="flex items-center space-x-2 bg-white/90 rounded-xl px-3 py-1 border" 
-                     [class]="dashboardStats().activeSession ? 'border-emerald-300/50' : 'border-rose-300/50'">
+                <div class="flex items-center space-x-2 bg-white/90 rounded-xl px-3 py-1 border"
+                  [class]="dashboardStats().activeSession ? 'border-emerald-300/50' : 'border-rose-300/50'">
                   <!-- Animated Status Dot -->
                   <div class="relative">
-                    <div class="w-3 h-3 rounded-full" 
-                         [class]="dashboardStats().activeSession ? 'bg-emerald-500' : 'bg-rose-500'">
+                    <div class="w-3 h-3 rounded-full"
+                      [class]="dashboardStats().activeSession ? 'bg-emerald-500' : 'bg-rose-500'">
                       <div class="w-1.5 h-1.5 rounded-full bg-white status-pulse absolute top-0.5 left-0.5"></div>
                     </div>
                     <!-- Pulsing Ring -->
-                    <div class="absolute inset-0 rounded-full status-ping opacity-30" 
-                         [class]="dashboardStats().activeSession ? 'bg-emerald-400' : 'bg-rose-400'"></div>
+                    <div class="absolute inset-0 rounded-full status-ping opacity-30"
+                      [class]="dashboardStats().activeSession ? 'bg-emerald-400' : 'bg-rose-400'"></div>
                   </div>
-                  <span class="text-xs font-bold uppercase tracking-wider" 
-                        [class]="dashboardStats().activeSession ? 'text-emerald-600' : 'text-rose-600'">
+                  <span class="text-xs font-bold uppercase tracking-wider"
+                    [class]="dashboardStats().activeSession ? 'text-emerald-600' : 'text-rose-600'">
                     Session
                   </span>
                 </div>
               </div>
-              
+
               <!-- Rotated Sales Display -->
               <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
                 <div class="bg-white/90 rounded-xl px-4 py-2 border-2 border-gray-300">
                   <div class="text-xs font-black text-gray-600 whitespace-nowrap">
                     Vente du jour:
-                    <span class="font-black text-emerald-600"> {{ dashboardStats().todaySales | number:'1.3-3' }} dt</span>
+                    <span class="font-black text-emerald-600"> {{ dashboardStats().todaySales | number:'1.3-3' }}
+                      dt</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          
+
           <!-- LARGE CAISSE ACTION BUTTON -->
-          <div class="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-amber-300/30 shadow-lg active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center relative action-button">
-            
+          <div
+            class="bg-white/20 rounded-2xl md:p-6 border border-amber-300/30 active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center relative action-button">
+
             <!-- LARGE ICON CONTAINER -->
-            <div class="relative w-20 h-20 bg-gradient-to-br rounded-2xl flex items-center justify-center mb-6 shadow-lg" 
-                 [ngClass]="getFilteredActions()[0].color">
-              
+            <div
+              class="relative md:w-20 md:h-20 w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center md:mb-6 mb-4 "
+              [ngClass]="getFilteredActions()[0].color">
+
               <!-- ICON -->
-              <svg class="w-10 h-10 text-white" 
-                   [attr.fill]="getFilteredActions()[0].id === 'caisse' ? 'currentColor' : 'none'" 
-                   [attr.stroke]="getFilteredActions()[0].id === 'caisse' ? 'none' : 'currentColor'" 
-                   [attr.viewBox]="getFilteredActions()[0].id === 'caisse' ? '0 0 496 496' : '0 0 24 24'" 
-                   [attr.stroke-width]="getFilteredActions()[0].id === 'caisse' ? '0' : '2'">
+              <svg class="md:w-10 md:h-10 w-6 h-6 text-white"
+                [attr.fill]="getFilteredActions()[0].id === 'caisse' ? 'currentColor' : 'none'"
+                [attr.stroke]="getFilteredActions()[0].id === 'caisse' ? 'none' : 'currentColor'"
+                [attr.viewBox]="getFilteredActions()[0].id === 'caisse' ? '0 0 496 496' : '0 0 24 24'"
+                [attr.stroke-width]="getFilteredActions()[0].id === 'caisse' ? '0' : '2'">
                 <path [attr.d]="getFilteredActions()[0].icon"></path>
               </svg>
             </div>
-            
-            <span class="text-2xl font-black text-gray-800 text-center leading-tight mb-2 tracking-wide">
+
+            <span class="md:text-2xl text-lg font-black text-gray-800 text-center leading-tight mb-2 tracking-wide">
               {{ getFilteredActions()[0].title }}
             </span>
-            
+
             <p class="text-xs text-gray-400 text-center font-bold uppercase tracking-widest">
               {{ getFilteredActions()[0].description }}
             </p>
           </div>
         </div>
-        
+
         <!-- REGULAR ACTION BUTTONS -->
-        <div *ngFor="let action of getFilteredActions().slice(1); let i = index" 
-             (click)="navigateTo(action.route)"
-             class="relative group h-full w-full cursor-pointer"
-             [title]="'Click to navigate to: ' + action.route">
-          
+        <div *ngFor="let action of getFilteredActions().slice(1); let i = index" (click)="navigateTo(action.route)"
+          class="relative group h-full w-full cursor-pointer" [title]="'Click to navigate to: ' + action.route">
+
           <!-- ACTION BUTTON -->
-          <div class="relative bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-amber-300/30 shadow-lg active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center action-button">
+          <div
+            class="relative bg-white/20 rounded-2xl p-4 border border-amber-300/30  active:scale-95 transition-transform duration-200 h-full w-full flex flex-col items-center justify-center action-button">
             <!-- Pending Approvals Badge -->
-            <div *ngIf="action.id === 'approvals' && (dashboardStats()?.pendingApprovals ?? 0) > 0" class="absolute top-2 right-2 z-30">
-              <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold text-white bg-rose-500 shadow-md ring-2 ring-white">
+            <div *ngIf="action.id === 'approvals' && (dashboardStats()?.pendingApprovals ?? 0) > 0"
+              class="absolute top-2 right-2 z-30">
+              <span
+                class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold text-white bg-rose-500 shadow-md ring-2 ring-white">
                 {{ dashboardStats().pendingApprovals }}
               </span>
             </div>
-            
+
             <!-- ICON CONTAINER -->
-            <div class="relative w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center mb-4 shadow-lg" 
-                 [ngClass]="action.color">
-              
+            <div
+              class="relative w-16 h-16 bg-gradient-to-br rounded-2xl flex items-center justify-center mb-4 shadow-lg"
+              [ngClass]="action.color">
+
               <!-- ICON -->
-              <svg class="w-8 h-8 text-white" 
-                   [attr.fill]="action.id === 'caisse' ? 'currentColor' : 'none'" 
-                   [attr.stroke]="action.id === 'caisse' ? 'none' : 'currentColor'" 
-                   [attr.viewBox]="action.id === 'caisse' ? '0 0 496 496' : '0 0 24 24'" 
-                   [attr.stroke-width]="action.id === 'caisse' ? '0' : '2'">
+              <svg class="w-8 h-8 text-white" [attr.fill]="action.id === 'caisse' ? 'currentColor' : 'none'"
+                [attr.stroke]="action.id === 'caisse' ? 'none' : 'currentColor'"
+                [attr.viewBox]="action.id === 'caisse' ? '0 0 496 496' : '0 0 24 24'"
+                [attr.stroke-width]="action.id === 'caisse' ? '0' : '2'">
                 <path [attr.d]="action.icon"></path>
               </svg>
             </div>
-            
+
             <span class="text-lg font-black text-gray-800 text-center leading-tight mb-1 tracking-wide">
               {{ action.title }}
             </span>
-            
+
             <p class="text-[10px] text-gray-400 text-center font-bold uppercase tracking-widest">
               {{ action.description }}
             </p>
@@ -221,426 +226,464 @@
 
   <!-- Lazy-loaded Dialogs -->
   @if (showExpenseActionDialog()) {
-    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="onExpenseDialogClosed()">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-amber-100/50" (click)="$event.stopPropagation()">
-        <!-- Header -->
-        <div class="p-4 border-b border-amber-100/50">
-          <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-rose-600 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-red-100">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-            </div>
-            <div>
-              <h2 class="text-lg font-bold text-gray-800">Dépenses</h2>
-              <p class="text-xs text-gray-600">Que souhaitez-vous faire ?</p>
-            </div>
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="onExpenseDialogClosed()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-amber-100/50"
+      (click)="$event.stopPropagation()">
+      <!-- Header -->
+      <div class="p-4 border-b border-amber-100/50">
+        <div class="flex items-center space-x-3">
+          <div
+            class="w-10 h-10 bg-gradient-to-br from-red-500 to-rose-600 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-red-100">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+              </path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-gray-800">Dépenses</h2>
+            <p class="text-xs text-gray-600">Que souhaitez-vous faire ?</p>
           </div>
         </div>
+      </div>
 
-        <!-- Actions -->
-        <div class="p-4">
-          <div class="grid grid-cols-2 gap-4">
-            <button (click)="onExpenseActionSelected('consult')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-red-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
-              <div class="flex flex-col items-center space-y-3">
-                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                  </svg>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-800 text-base">Consulter</div>
-                  <div class="text-sm text-gray-600">Voir toutes</div>
-                </div>
+      <!-- Actions -->
+      <div class="p-4">
+        <div class="grid grid-cols-2 gap-4">
+          <button (click)="onExpenseActionSelected('consult')"
+            class="group text-center rounded-xl border border-gray-200 p-6 bg-gradient-to-br from-gray-50 to-white">
+            <div class="flex flex-col items-center space-y-3">
+              <div
+                class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                  </path>
+                </svg>
               </div>
-            </button>
-
-            <button (click)="onExpenseActionSelected('add')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-red-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
-              <div class="flex flex-col items-center space-y-3">
-                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                  </svg>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-800 text-base">Ajouter</div>
-                  <div class="text-sm text-gray-600">Nouvelle</div>
-                </div>
+              <div class="text-center">
+                <div class="font-semibold text-gray-800 text-base">Consulter</div>
+                <div class="text-sm text-gray-600">Voir toutes</div>
               </div>
-            </button>
+            </div>
+          </button>
 
-            <button (click)="onExpenseActionSelected('add-category')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-red-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
-              <div class="flex flex-col items-center space-y-3">
-                <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
-                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                  </svg>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-800 text-base">Catégorie</div>
-                  <div class="text-sm text-gray-600">Nouvelle</div>
-                </div>
+          <button (click)="onExpenseActionSelected('add')"
+            class="group text-center rounded-xl border border-gray-200 p-6 bg-gradient-to-br from-gray-50 to-white">
+            <div class="flex flex-col items-center space-y-3">
+              <div
+                class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                  </path>
+                </svg>
               </div>
-            </button>
-
-            <button (click)="onExpenseActionSelected('statistics')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-red-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
-              <div class="flex flex-col items-center space-y-3">
-                <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
-                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                  </svg>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-800 text-base">Statistiques</div>
-                  <div class="text-sm text-gray-600">Rapports</div>
-                </div>
+              <div class="text-center">
+                <div class="font-semibold text-gray-800 text-base">Ajouter</div>
+                <div class="text-sm text-gray-600">Nouvelle</div>
               </div>
-            </button>
-          </div>
-        </div>
+            </div>
+          </button>
 
-        <!-- Footer -->
-        <div class="p-4 border-t border-gray-100">
-          <button (click)="onExpenseDialogClosed()" class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
-            Annuler
+          <button (click)="onExpenseActionSelected('add-category')"
+            class="group text-center rounded-xl border border-gray-200 p-6 bg-gradient-to-br from-gray-50 to-white">
+            <div class="flex flex-col items-center space-y-3">
+              <div
+                class="w-16 h-16 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z">
+                  </path>
+                </svg>
+              </div>
+              <div class="text-center">
+                <div class="font-semibold text-gray-800 text-base">Catégorie</div>
+                <div class="text-sm text-gray-600">Nouvelle</div>
+              </div>
+            </div>
+          </button>
+
+          <button (click)="onExpenseActionSelected('statistics')"
+            class="group text-center rounded-xl border border-gray-200 p-6 bg-gradient-to-br from-gray-50 to-white">
+            <div class="flex flex-col items-center space-y-3">
+              <div
+                class="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                  </path>
+                </svg>
+              </div>
+              <div class="text-center">
+                <div class="font-semibold text-gray-800 text-base">Statistiques</div>
+                <div class="text-sm text-gray-600">Rapports</div>
+              </div>
+            </div>
           </button>
         </div>
       </div>
+
+      <!-- Footer -->
+      <div class="p-4 border-t border-gray-100">
+        <button (click)="onExpenseDialogClosed()"
+          class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg">
+          Annuler
+        </button>
+      </div>
     </div>
+  </div>
   }
 
   @if (showClientActionDialog()) {
-    <app-client-action-dialog 
-      (actionSelected)="onClientActionSelected($event)"
-      (dialogClosed)="onClientDialogClosed()">
-    </app-client-action-dialog>
+  <app-client-action-dialog (actionSelected)="onClientActionSelected($event)" (dialogClosed)="onClientDialogClosed()">
+  </app-client-action-dialog>
   }
 
   @if (showApprovalsActionDialog()) {
-    <app-approvals-action-dialog 
-      [pendingCount]="dashboardStats().pendingApprovals"
-      (actionSelected)="onApprovalsActionSelected($event)"
-      (dialogClosed)="onApprovalsDialogClosed()">
-    </app-approvals-action-dialog>
+  <app-approvals-action-dialog [pendingCount]="dashboardStats().pendingApprovals"
+    (actionSelected)="onApprovalsActionSelected($event)" (dialogClosed)="onApprovalsDialogClosed()">
+  </app-approvals-action-dialog>
   }
 
   @if (showSupplierActionDialog()) {
-    <app-supplier-action-dialog 
-      (actionSelected)="onSupplierActionSelected($event)"
-      (dialogClosed)="onSupplierDialogClosed()">
-    </app-supplier-action-dialog>
+  <app-supplier-action-dialog (actionSelected)="onSupplierActionSelected($event)"
+    (dialogClosed)="onSupplierDialogClosed()">
+  </app-supplier-action-dialog>
   }
 
   @if (showBillingCenterActionDialog()) {
-    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="onBillingCenterDialogClosed()">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-amber-100/50" (click)="$event.stopPropagation()">
-        <!-- Header -->
-        <div class="p-4 border-b border-amber-100/50">
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    (click)="onBillingCenterDialogClosed()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-amber-100/50"
+      (click)="$event.stopPropagation()">
+      <!-- Header -->
+      <div class="p-4 border-b border-amber-100/50">
+        <div class="flex items-center space-x-3">
+          <div
+            class="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-cyan-100">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+              </path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-gray-800">ERP de Gestion</h2>
+            <p class="text-xs text-gray-600">Que souhaitez-vous faire ?</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="p-4">
+        <div class="grid grid-cols-2 gap-4">
+          <button (click)="onBillingCenterActionSelected('add-invoice')"
+            class="group text-center rounded-xl border border-gray-200 p-6 bg-gradient-to-br from-gray-50 to-white">
+            <div class="flex flex-col items-center space-y-3">
+              <div
+                class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                  </path>
+                </svg>
+              </div>
+              <div class="text-center">
+                <div class="font-semibold text-gray-800 text-base">Ajouter nouvelle facture</div>
+                <div class="text-sm text-gray-600">Créer une nouvelle facture</div>
+              </div>
+            </div>
+          </button>
+
+          <button (click)="onBillingCenterActionSelected('manage-invoices')"
+            class="group text-center rounded-xl border border-gray-200 p-6 bg-gradient-to-br from-gray-50 to-white">
+            <div class="flex flex-col items-center space-y-3">
+              <div
+                class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                  </path>
+                </svg>
+              </div>
+              <div class="text-center">
+                <div class="font-semibold text-gray-800 text-base">Gérer les factures</div>
+                <div class="text-sm text-gray-600">Consulter et gérer</div>
+              </div>
+            </div>
+          </button>
+
+          <button (click)="onBillingCenterActionSelected('invoice-extracts')"
+            class="group text-center rounded-xl border border-gray-200 p-6 bg-gradient-to-br from-gray-50 to-white">
+            <div class="flex flex-col items-center space-y-3">
+              <div
+                class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                  </path>
+                </svg>
+              </div>
+              <div class="text-center">
+                <div class="font-semibold text-gray-800 text-base">Extraits facturés</div>
+                <div class="text-sm text-gray-600">Journaliers avec quantités</div>
+              </div>
+            </div>
+          </button>
+
+          <button (click)="onBillingCenterActionSelected('stock-management')"
+            class="group text-center rounded-xl border border-gray-200 p-6 bg-gradient-to-br from-gray-50 to-white">
+            <div class="flex flex-col items-center space-y-3">
+              <div
+                class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+              </div>
+              <div class="text-center">
+                <div class="font-semibold text-gray-800 text-base">Gestion de Stock</div>
+                <div class="text-sm text-gray-600">Entrées pour tous dépôts</div>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-4 border-t border-gray-100">
+        <button (click)="onBillingCenterDialogClosed()"
+          class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (showSettingsActionDialog()) {
+  <app-settings-action-dialog (actionSelected)="onSettingsActionSelected($event)"
+    (dialogClosed)="onSettingsDialogClosed()">
+  </app-settings-action-dialog>
+  }
+
+  @if (showEnterpriseActionDialog()) {
+  <app-enterprise-action-dialog (actionSelected)="onEnterpriseActionSelected($event)"
+    (dialogClosed)="onEnterpriseDialogClosed()">
+  </app-enterprise-action-dialog>
+  }
+
+  @if (showErpUnlockDialog()) {
+  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="onErpDialogClosed()">
+    <div class="bg-white rounded-2xl border border-amber-100/50 max-w-lg w-full shadow-2xl ring-1 ring-amber-50"
+      (click)="$event.stopPropagation()">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-cyan-50 to-blue-50 p-4 border-b border-cyan-200/60 rounded-t-2xl">
+        <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-cyan-100">
+            <div
+              class="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-cyan-100">
               <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                </path>
               </svg>
             </div>
             <div>
-              <h2 class="text-lg font-bold text-gray-800">ERP de Gestion</h2>
-              <p class="text-xs text-gray-600">Que souhaitez-vous faire ?</p>
+              <h2 class="text-lg font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+                Accès ERP de Gestion
+              </h2>
+              <p class="text-xs text-cyan-600/70 font-medium">Authentification requise</p>
             </div>
+          </div>
+          <button (click)="onErpDialogClosed()" title="Fermer"
+            class="p-2 text-cyan-500 rounded-xl">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-4">
+        <div class="mb-4">
+          <!-- Premium Module Info -->
+          <div class="mb-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-lg">
+            <div class="flex items-start space-x-3">
+              <div
+                class="w-8 h-8 bg-gradient-to-br from-red-500 to-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                  </path>
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-semibold text-red-800 mb-1">🔒 Module Premium ERP - Accès Restreint</h3>
+                <p class="text-xs text-red-700 mb-2">Ce module est <strong>payant</strong> et nécessite un achat pour
+                  être débloqué.</p>
+                <div class="text-xs text-red-600">
+                  <span class="font-medium">❌ Accès non autorisé sans achat</span>
+                  <ul class="mt-1 space-y-1">
+                    <li>• Module verrouillé</li>
+                    <li>• Achat requis</li>
+                    <li>• Jeton d'activation nécessaire</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-gray-700 text-center mb-3 text-sm">
+            <strong>Vous devez acheter ce module pour y accéder.</strong><br>
+            Si vous avez déjà acheté, entrez votre jeton d'activation.
+          </p>
+
+          <!-- Error Message -->
+          <div *ngIf="erpErrorMessage" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div class="flex items-center space-x-2">
+              <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span class="text-red-700 text-sm font-medium">{{ erpErrorMessage }}</span>
+            </div>
+          </div>
+
+          <!-- Token Input -->
+          <div class="space-y-2">
+            <label for="token" class="block text-sm font-medium text-gray-700">🔑 Jeton d'activation (Achat
+              requis)</label>
+            <input id="token" type="password" [(ngModel)]="erpToken" (keyup.enter)="validateErpToken()"
+              placeholder="Entrez votre jeton d'activation..."
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
+              [class.border-red-300]="erpErrorMessage" [class.focus:ring-red-500]="erpErrorMessage"
+              [class.focus:border-red-500]="erpErrorMessage">
           </div>
         </div>
 
         <!-- Actions -->
-        <div class="p-4">
-          <div class="grid grid-cols-2 gap-4">
-            <button (click)="onBillingCenterActionSelected('add-invoice')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-cyan-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
-              <div class="flex flex-col items-center space-y-3">
-                <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
-                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                  </svg>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-800 text-base">Ajouter nouvelle facture</div>
-                  <div class="text-sm text-gray-600">Créer une nouvelle facture</div>
-                </div>
-              </div>
-            </button>
-
-            <button (click)="onBillingCenterActionSelected('manage-invoices')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-cyan-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
-              <div class="flex flex-col items-center space-y-3">
-                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                  </svg>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-800 text-base">Gérer les factures</div>
-                  <div class="text-sm text-gray-600">Consulter et gérer</div>
-                </div>
-              </div>
-            </button>
-
-            <button (click)="onBillingCenterActionSelected('invoice-extracts')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-cyan-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
-              <div class="flex flex-col items-center space-y-3">
-                <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                  </svg>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-800 text-base">Extraits facturés</div>
-                  <div class="text-sm text-gray-600">Journaliers avec quantités</div>
-                </div>
-              </div>
-            </button>
-
-            <button (click)="onBillingCenterActionSelected('stock-management')" class="group text-center rounded-xl border border-gray-200 p-6 hover:border-cyan-300 hover:shadow transition bg-gradient-to-br from-gray-50 to-white">
-              <div class="flex flex-col items-center space-y-3">
-                <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                  </svg>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-800 text-base">Gestion de Stock</div>
-                  <div class="text-sm text-gray-600">Entrées pour tous dépôts</div>
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="p-4 border-t border-gray-100">
-          <button (click)="onBillingCenterDialogClosed()" class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+        <div class="flex space-x-3">
+          <button (click)="onErpDialogClosed()"
+            class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium">
             Annuler
+          </button>
+          <button (click)="validateErpToken()" [disabled]="!erpToken || erpLoading"
+            class="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+            <span *ngIf="!erpLoading">Activer le module</span>
+            <span *ngIf="erpLoading" class="flex items-center justify-center">
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+              </svg>
+              Vérification...
+            </span>
           </button>
         </div>
       </div>
     </div>
-  }
-
-  @if (showSettingsActionDialog()) {
-    <app-settings-action-dialog 
-      (actionSelected)="onSettingsActionSelected($event)"
-      (dialogClosed)="onSettingsDialogClosed()">
-    </app-settings-action-dialog>
-  }
-
-  @if (showEnterpriseActionDialog()) {
-    <app-enterprise-action-dialog
-      (actionSelected)="onEnterpriseActionSelected($event)"
-      (dialogClosed)="onEnterpriseDialogClosed()">
-    </app-enterprise-action-dialog>
-  }
-
-  @if (showErpUnlockDialog()) {
-    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="onErpDialogClosed()">
-      <div class="bg-white rounded-2xl border border-amber-100/50 max-w-lg w-full shadow-2xl ring-1 ring-amber-50" (click)="$event.stopPropagation()">
-        <!-- Header -->
-        <div class="bg-gradient-to-r from-cyan-50 to-blue-50 p-4 border-b border-cyan-200/60 rounded-t-2xl">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-cyan-100">
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                </svg>
-              </div>
-              <div>
-                <h2 class="text-lg font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
-                  Accès ERP de Gestion
-                </h2>
-                <p class="text-xs text-cyan-600/70 font-medium">Authentification requise</p>
-              </div>
-            </div>
-            <button (click)="onErpDialogClosed()" 
-              title="Fermer"
-              class="p-2 text-cyan-500 hover:text-cyan-700 hover:bg-cyan-50 rounded-xl transition-all duration-200 hover:scale-95">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Content -->
-        <div class="p-4">
-          <div class="mb-4">
-            <!-- Premium Module Info -->
-            <div class="mb-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-lg">
-              <div class="flex items-start space-x-3">
-                <div class="w-8 h-8 bg-gradient-to-br from-red-500 to-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                  </svg>
-                </div>
-                <div>
-                  <h3 class="text-sm font-semibold text-red-800 mb-1">🔒 Module Premium ERP - Accès Restreint</h3>
-                  <p class="text-xs text-red-700 mb-2">Ce module est <strong>payant</strong> et nécessite un achat pour être débloqué.</p>
-                  <div class="text-xs text-red-600">
-                    <span class="font-medium">❌ Accès non autorisé sans achat</span>
-                    <ul class="mt-1 space-y-1">
-                      <li>• Module verrouillé</li>
-                      <li>• Achat requis</li>
-                      <li>• Jeton d'activation nécessaire</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <p class="text-gray-700 text-center mb-3 text-sm">
-              <strong>Vous devez acheter ce module pour y accéder.</strong><br>
-              Si vous avez déjà acheté, entrez votre jeton d'activation.
-            </p>
-            
-            <!-- Error Message -->
-            <div *ngIf="erpErrorMessage" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <div class="flex items-center space-x-2">
-                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span class="text-red-700 text-sm font-medium">{{ erpErrorMessage }}</span>
-              </div>
-            </div>
-
-            <!-- Token Input -->
-            <div class="space-y-2">
-              <label for="token" class="block text-sm font-medium text-gray-700">🔑 Jeton d'activation (Achat requis)</label>
-              <input 
-                id="token"
-                type="password" 
-                [(ngModel)]="erpToken"
-                (keyup.enter)="validateErpToken()"
-                placeholder="Entrez votre jeton d'activation..."
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-                [class.border-red-300]="erpErrorMessage"
-                [class.focus:ring-red-500]="erpErrorMessage"
-                [class.focus:border-red-500]="erpErrorMessage">
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex space-x-3">
-            <button 
-              (click)="onErpDialogClosed()"
-              class="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium">
-              Annuler
-            </button>
-            <button 
-              (click)="validateErpToken()"
-              [disabled]="!erpToken || erpLoading"
-              class="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-              <span *ngIf="!erpLoading">Activer le module</span>
-              <span *ngIf="erpLoading" class="flex items-center justify-center">
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Vérification...
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+  </div>
   }
 
   <!-- Historique Choice Dialog -->
   @if (showHistoriqueChoiceDialog()) {
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm dialog-backdrop" (click)="onHistoriqueChoiceClosed()"></div>
-      <div class="relative bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-4xl dialog-content">
-        <!-- Header -->
-        <div class="bg-gradient-to-r from-violet-50 to-pink-50 p-6 border-b border-gray-100 rounded-t-3xl">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <div class="w-12 h-12 bg-gradient-to-br from-violet-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-violet-100">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-              </div>
-              <div>
-                <h2 class="text-2xl font-bold bg-gradient-to-r from-violet-600 to-pink-600 bg-clip-text text-transparent">
-                  Choisir un historique
-                </h2>
-                <p class="text-sm text-gray-600 font-medium">Sélectionnez le type d'historique à consulter</p>
-              </div>
-            </div>
-            <button (click)="onHistoriqueChoiceClosed()" 
-              title="Fermer"
-              class="p-2 text-gray-500 hover:text-gray-700 hover:bg-white/50 rounded-xl transition-all duration-200 hover:scale-95">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40 dialog-backdrop" (click)="onHistoriqueChoiceClosed()"></div>
+    <div class="relative bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-4xl dialog-content">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-violet-50 to-pink-50 p-6 border-b border-gray-100 rounded-t-3xl">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div
+              class="w-12 h-12 bg-gradient-to-br from-violet-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-violet-100">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
-            </button>
+            </div>
+            <div>
+              <h2 class="text-2xl font-bold bg-gradient-to-r from-violet-600 to-pink-600 bg-clip-text text-transparent">
+                Choisir un historique
+              </h2>
+              <p class="text-sm text-gray-600 font-medium">Sélectionnez le type d'historique à consulter</p>
+            </div>
           </div>
-        </div>
-
-        <!-- Content -->
-        <div class="p-6">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-            <!-- Historique des Ventes -->
-            <button (click)="onHistoriqueChoiceSelected('VENTES')" 
-              class="group relative bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-8 border border-emerald-200/50 hover:border-emerald-300 hover:shadow-lg transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
-              <div class="flex flex-col items-center text-center space-y-4">
-                <!-- Icon -->
-                <div class="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                  <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                  </svg>
-                </div>
-                <!-- Content -->
-                <div class="space-y-2">
-                  <h3 class="text-xl font-bold text-emerald-800 group-hover:text-emerald-900 transition-colors">
-                    Historique des Ventes
-                  </h3>
-                  <p class="text-sm text-emerald-600 font-medium">Tickets & Paiements</p>
-                  <p class="text-xs text-emerald-500 leading-relaxed">
-                    Consulter les ventes passées avec filtres et détails complets
-                  </p>
-                </div>
-              </div>
-              <!-- Hover effect -->
-              <div class="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </button>
-
-            <!-- Historique Pointage -->
-            <button (click)="onHistoriqueChoiceSelected('POINTAGE')" 
-              class="group relative bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-200/50 hover:border-blue-300 hover:shadow-lg transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-              <div class="flex flex-col items-center text-center space-y-4">
-                <!-- Icon -->
-                <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                  <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </div>
-                <!-- Content -->
-                <div class="space-y-2">
-                  <h3 class="text-xl font-bold text-blue-800 group-hover:text-blue-900 transition-colors">
-                    Historique Pointage
-                  </h3>
-                  <p class="text-sm text-blue-600 font-medium">Entrée/Sortie</p>
-                  <p class="text-xs text-blue-500 leading-relaxed">
-                    Suivre les pointages employés et les corrections
-                  </p>
-                </div>
-              </div>
-              <!-- Hover effect -->
-              <div class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="p-6 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl">
-          <button (click)="onHistoriqueChoiceClosed()" 
-            class="w-full px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors font-medium">
-            Annuler
+          <button (click)="onHistoriqueChoiceClosed()" title="Fermer"
+            class="p-2 text-gray-500 rounded-xl">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
           </button>
         </div>
       </div>
+
+      <!-- Content -->
+      <div class="p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+          <!-- Historique des Ventes -->
+          <button (click)="onHistoriqueChoiceSelected('VENTES')"
+            class="group relative bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-8 border border-emerald-200/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+            <div class="flex flex-col items-center text-center space-y-4">
+              <!-- Icon -->
+              <div
+                class="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                  </path>
+                </svg>
+              </div>
+              <!-- Content -->
+              <div class="space-y-2">
+                <h3 class="text-xl font-bold text-emerald-800">
+                  Historique des Ventes
+                </h3>
+                <p class="text-sm text-emerald-600 font-medium">Tickets & Paiements</p>
+                <p class="text-xs text-emerald-500 leading-relaxed">
+                  Consulter les ventes passées avec filtres et détails complets
+                </p>
+              </div>
+            </div>
+          </button>
+
+          <!-- Historique Pointage -->
+          <button (click)="onHistoriqueChoiceSelected('POINTAGE')"
+            class="group relative bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-200/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+            <div class="flex flex-col items-center text-center space-y-4">
+              <!-- Icon -->
+              <div
+                class="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <!-- Content -->
+              <div class="space-y-2">
+                <h3 class="text-xl font-bold text-blue-800">
+                  Historique Pointage
+                </h3>
+                <p class="text-sm text-blue-600 font-medium">Entrée/Sortie</p>
+                <p class="text-xs text-blue-500 leading-relaxed">
+                  Suivre les pointages employés et les corrections
+                </p>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-6 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl">
+        <button (click)="onHistoriqueChoiceClosed()"
+          class="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium">
+          Annuler
+        </button>
+      </div>
     </div>
+  </div>
   }
 
 </div>

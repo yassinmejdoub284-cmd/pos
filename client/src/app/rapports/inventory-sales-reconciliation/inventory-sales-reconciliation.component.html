@@ -3,7 +3,7 @@
     <!-- Configuration Panel -->
     <div class="fixed top-6 right-6 z-40">
       <a routerLink="/home"
-        class="w-12 h-12 bg-blue-400 text-white rounded-full shadow-2xl hover:bg-blue-500 transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+        class="w-12 h-12 bg-blue-400 text-white rounded-full shadow-2xl transition-all duration-300 transform flex items-center justify-center"
         title="Accueil">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -27,11 +27,11 @@
           <div class="flex flex-col space-y-2">
             <button type="button" 
                     (click)="rangeMode = 'DATE'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-[1.02] ' + 
-                             (rangeMode === 'DATE' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:shadow-md')">
+                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+                             (rangeMode === 'DATE' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
-                              (rangeMode === 'DATE' ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200')">
+                              (rangeMode === 'DATE' ? 'bg-white/20' : 'bg-blue-100')">
                   <svg class="w-3 h-3" [class]="rangeMode === 'DATE' ? 'text-white' : 'text-blue-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3"></path>
@@ -40,16 +40,16 @@
                 <span class="font-medium text-sm">Date → Date</span>
               </div>
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
-                            (rangeMode === 'DATE' ? 'bg-white' : 'bg-transparent group-hover:bg-blue-300')"></div>
+                            (rangeMode === 'DATE' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
             
             <button type="button" 
                     (click)="rangeMode = 'INVENTORY'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-[1.02] ' + 
-                             (rangeMode === 'INVENTORY' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:shadow-md')">
+                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+                             (rangeMode === 'INVENTORY' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
-                              (rangeMode === 'INVENTORY' ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200')">
+                              (rangeMode === 'INVENTORY' ? 'bg-white/20' : 'bg-blue-100')">
                   <svg class="w-3 h-3" [class]="rangeMode === 'INVENTORY' ? 'text-white' : 'text-blue-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
                   </svg>
@@ -57,16 +57,16 @@
                 <span class="font-medium text-sm">Inventaire → Inventaire</span>
               </div>
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
-                            (rangeMode === 'INVENTORY' ? 'bg-white' : 'bg-transparent group-hover:bg-blue-300')"></div>
+                            (rangeMode === 'INVENTORY' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
             
             <button type="button" 
                     (click)="rangeMode = 'LAST_INVENTORY'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-[1.02] ' + 
-                             (rangeMode === 'LAST_INVENTORY' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:shadow-md')">
+                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+                             (rangeMode === 'LAST_INVENTORY' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
-                              (rangeMode === 'LAST_INVENTORY' ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200')">
+                              (rangeMode === 'LAST_INVENTORY' ? 'bg-white/20' : 'bg-blue-100')">
                   <svg class="w-3 h-3" [class]="rangeMode === 'LAST_INVENTORY' ? 'text-white' : 'text-blue-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
@@ -74,7 +74,7 @@
                 <span class="font-medium text-sm">Dernier → Avant Dernier</span>
               </div>
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
-                            (rangeMode === 'LAST_INVENTORY' ? 'bg-white' : 'bg-transparent group-hover:bg-blue-300')"></div>
+                            (rangeMode === 'LAST_INVENTORY' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
           </div>
         </div>
@@ -92,11 +92,11 @@
           <div class="flex flex-col space-y-2">
             <button type="button" 
                     (click)="scope = 'ONE_PRODUCT'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-[1.02] ' + 
-                             (scope === 'ONE_PRODUCT' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-500 shadow-lg shadow-green-200' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:shadow-md')">
+                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+                             (scope === 'ONE_PRODUCT' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-500 shadow-lg shadow-green-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
-                              (scope === 'ONE_PRODUCT' ? 'bg-white/20' : 'bg-green-100 group-hover:bg-green-200')">
+                              (scope === 'ONE_PRODUCT' ? 'bg-white/20' : 'bg-green-100')">
                   <svg class="w-3 h-3" [class]="scope === 'ONE_PRODUCT' ? 'text-white' : 'text-green-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                   </svg>
@@ -104,16 +104,16 @@
                 <span class="font-medium text-sm">Un Produit</span>
               </div>
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
-                            (scope === 'ONE_PRODUCT' ? 'bg-white' : 'bg-transparent group-hover:bg-green-300')"></div>
+                            (scope === 'ONE_PRODUCT' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
             
             <button type="button" 
                     (click)="scope = 'ONE_CATEGORY'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-[1.02] ' + 
-                             (scope === 'ONE_CATEGORY' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-500 shadow-lg shadow-green-200' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:shadow-md')">
+                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+                             (scope === 'ONE_CATEGORY' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-500 shadow-lg shadow-green-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
-                              (scope === 'ONE_CATEGORY' ? 'bg-white/20' : 'bg-green-100 group-hover:bg-green-200')">
+                              (scope === 'ONE_CATEGORY' ? 'bg-white/20' : 'bg-green-100')">
                   <svg class="w-3 h-3" [class]="scope === 'ONE_CATEGORY' ? 'text-white' : 'text-green-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
                   </svg>
@@ -121,16 +121,16 @@
                 <span class="font-medium text-sm">Une Catégorie</span>
               </div>
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
-                            (scope === 'ONE_CATEGORY' ? 'bg-white' : 'bg-transparent group-hover:bg-green-300')"></div>
+                            (scope === 'ONE_CATEGORY' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
             
             <button type="button" 
                     (click)="scope = 'ALL_PRODUCTS'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-[1.02] ' + 
-                             (scope === 'ALL_PRODUCTS' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-500 shadow-lg shadow-green-200' : 'bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:shadow-md')">
+                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+                             (scope === 'ALL_PRODUCTS' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-500 shadow-lg shadow-green-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
-                              (scope === 'ALL_PRODUCTS' ? 'bg-white/20' : 'bg-green-100 group-hover:bg-green-200')">
+                              (scope === 'ALL_PRODUCTS' ? 'bg-white/20' : 'bg-green-100')">
                   <svg class="w-3 h-3" [class]="scope === 'ALL_PRODUCTS' ? 'text-white' : 'text-green-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                   </svg>
@@ -138,7 +138,7 @@
                 <span class="font-medium text-sm">Tous les Produits</span>
               </div>
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
-                            (scope === 'ALL_PRODUCTS' ? 'bg-white' : 'bg-transparent group-hover:bg-green-300')"></div>
+                            (scope === 'ALL_PRODUCTS' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
           </div>
         </div>
@@ -156,11 +156,11 @@
           <div class="flex items-center w-full gap-2">
             <button type="button" 
                     (click)="valuationMode = 'CUMP'"
-                    [class]="'grow group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-[1.02] ' + 
-                             (valuationMode === 'CUMP' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-500 shadow-lg shadow-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:shadow-md')">
+                    [class]="'grow group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+                             (valuationMode === 'CUMP' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-500 shadow-lg shadow-purple-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
-                              (valuationMode === 'CUMP' ? 'bg-white/20' : 'bg-purple-100 group-hover:bg-purple-200')">
+                              (valuationMode === 'CUMP' ? 'bg-white/20' : 'bg-purple-100')">
                   <svg class="w-3 h-3" [class]="valuationMode === 'CUMP' ? 'text-white' : 'text-purple-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
                   </svg>
@@ -168,16 +168,16 @@
                 <span class="font-medium text-sm">CUMP</span>
               </div>
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
-                            (valuationMode === 'CUMP' ? 'bg-white' : 'bg-transparent group-hover:bg-purple-300')"></div>
+                            (valuationMode === 'CUMP' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
             
             <button type="button" 
                     (click)="valuationMode = 'FIFO'"
-                    [class]="'grow group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform hover:scale-[1.02] ' + 
-                             (valuationMode === 'FIFO' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-500 shadow-lg shadow-purple-200' : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:shadow-md')">
+                    [class]="'grow group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+                             (valuationMode === 'FIFO' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-500 shadow-lg shadow-purple-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
-                              (valuationMode === 'FIFO' ? 'bg-white/20' : 'bg-purple-100 group-hover:bg-purple-200')">
+                              (valuationMode === 'FIFO' ? 'bg-white/20' : 'bg-purple-100')">
                   <svg class="w-3 h-3" [class]="valuationMode === 'FIFO' ? 'text-white' : 'text-purple-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path>
                   </svg>
@@ -185,7 +185,7 @@
                 <span class="font-medium text-sm">FIFO</span>
               </div>
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
-                            (valuationMode === 'FIFO' ? 'bg-white' : 'bg-transparent group-hover:bg-purple-300')"></div>
+                            (valuationMode === 'FIFO' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
           </div>
           <div class=" mt-6">
@@ -203,7 +203,7 @@
                     type="date" 
                     [(ngModel)]="startDate" 
                     title="Date de début"
-                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300">
+                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200">
                 </div>
               </div>
               <div>
@@ -218,7 +218,7 @@
                     type="date" 
                     [(ngModel)]="endDate" 
                     title="Date de fin"
-                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300">
+                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200">
                 </div>
               </div>
             </div>
@@ -236,7 +236,7 @@
                   <select 
                     [(ngModel)]="startInventoryId" 
                     title="Inventaire de début"
-                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300 appearance-none bg-white">
+                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 appearance-none bg-white">
                     <option value="">Sélectionner...</option>
                     <option *ngFor="let session of inventorySessions" [value]="session.id">
                       {{ session.numero }} - {{ formatDate(session.createdAt) }}
@@ -261,7 +261,7 @@
                   <select 
                     [(ngModel)]="endInventoryId" 
                     title="Inventaire de fin"
-                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300 appearance-none bg-white">
+                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 appearance-none bg-white">
                     <option value="">Sélectionner...</option>
                     <option *ngFor="let session of inventorySessions" [value]="session.id">
                       {{ session.numero }} - {{ formatDate(session.createdAt) }}
@@ -290,7 +290,7 @@
                   <select 
                     [(ngModel)]="selectedProductId" 
                     title="Sélectionner un produit"
-                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-gray-300 appearance-none bg-white">
+                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 appearance-none bg-white">
                     <option value="">Sélectionner un produit...</option>
                     <option *ngFor="let product of products" [value]="product.id">
                       {{ product.name }}
@@ -319,7 +319,7 @@
                   <select 
                     [(ngModel)]="selectedCategoryId" 
                     title="Sélectionner une catégorie"
-                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-gray-300 appearance-none bg-white">
+                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 appearance-none bg-white">
                     <option value="">Sélectionner une catégorie...</option>
                     <option *ngFor="let category of categories" [value]="category.id">
                       {{ category.name }}
@@ -349,7 +349,7 @@
           <button 
             (click)="generateReport()" 
             [disabled]="loading"
-            class="bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none flex items-center">
+            class="bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg transform disabled:transform-none flex items-center">
             <svg class="w-4 h-4 mr-2" [class.animate-spin]="loading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
             </svg>
@@ -429,7 +429,7 @@
             </thead>
             <tbody>
               <tr *ngFor="let row of data.rows; let i = index" 
-                  class="border-b border-gray-200 hover:bg-gray-50"
+                  class="border-b border-gray-200"
                   [class.bg-white]="i % 2 === 0"
                   [class.bg-gray-50]="i % 2 === 1">
                 <td class="px-4 py-3 text-left border-r border-gray-200">{{ formatDate(row.date) }}</td>
@@ -534,14 +534,14 @@
           <div class="flex space-x-3">
             <button 
               (click)="exportToExcel()" 
-              class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+              class="bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
               </svg>Excel
             </button>
             <button 
               (click)="exportToCSV()" 
-              class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+              class="bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
               </svg>CSV

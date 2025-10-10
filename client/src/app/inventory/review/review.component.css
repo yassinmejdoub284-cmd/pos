@@ -73,11 +73,6 @@
   color: white;
 }
 
-.btn-print:hover:not(:disabled) {
-  background: #2563eb;
-  transform: translateY(-1px);
-}
-
 .btn-print:disabled {
   opacity: 0.6;
   cursor: not-allowed;

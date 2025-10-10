@@ -183,7 +183,7 @@
     "devicesConfig": {},
     "isDesktopVersion": true,
     "auditRetentionDays": 90,
-    "historyRetentionDays": 30,
+    "historyRetentionDays": 3,
     "varianceThreshold": 5,
     "defaultFonds": 50,
     "denominations": [
@@ -202,6 +202,7 @@
     "ticketWidth": 58,
     "droitDeTimbre": false,
     "autoApproveExpenseBelow": 0,
+    "allowNegativeStock": true,
     "printSettings": {
       "showLogo": true,
       "logoSize": "medium",
@@ -280,5 +281,15 @@
       "showPaymentMethod": true,
       "showDiscountDetails": true
     }
-  }
+  },
+  "pushSubscriptions": [
+    {
+      "endpoint": "https://wns2-par02p.notify.windows.com/w/?token=BQYAAAC4FVMftKvzEULeA5kzHlwxWtfw1dtQrLxzvw1yJqYECJb0BnOOhRqCxM8N3H9TZBqBBWZqqZcofZep7Zk%2fsDWy2kTVwBXR6qOg334fukDjeA9V5p30YAO%2bSh%2b2Br0zaozrM7H2OUNkCbGx6n3Hl0KWJLMTKpC%2f9MEdJ1K4T66zS7tX%2frCF8Um4H6%2bn8wj81YYVlQJQOj2R3e8lIjK10uWEmHO6Yd4FNbpyHD%2blNd4SKL6W5I%2bKDI6OmTb%2fwfabk67S0NtopacerRwIWdsC1mnIuldj8aVWC5Rf1yP%2fSNLei93mGQCrbudEafzILTqkOoQ%3d",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BCh-Ur_VSdx6GKvIgxAIQrOCwU40TtnXEwhiV6K9B3OEkE9x2uyQ-a6F1enpZ5wVypbsvYmGNnqXla4gKICmBLw",
+        "auth": "WBS3qMyvv5NJHqBptFy5Rg"
+      }
+    }
+  ]
 }

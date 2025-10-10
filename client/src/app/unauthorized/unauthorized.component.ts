@@ -33,13 +33,13 @@ import { AuthService } from '../core/services/auth.service';
         <div class="space-y-3">
           <button 
             (click)="goToHome()"
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+            class="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
             Retour à l'accueil
           </button>
           
           <button 
             (click)="logout()"
-            class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-lg transition-colors">
+            class="w-full bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-lg transition-colors">
             Se déconnecter
           </button>
         </div>

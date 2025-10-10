@@ -32,6 +32,8 @@ export interface AppSettings {
   autoApproveExpenseBelow: number;
   // Historique
   historyRetentionDays?: number;
+  // Stock
+  allowNegativeStock?: boolean;
   // Print settings
   printSettings: {
     showLogo: boolean;

@@ -14,7 +14,7 @@
     <div class="flex items-center gap-2">
       <!-- Master expand/collapse all -->
       <label for="schema-all-open"
-        class="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-700 text-xs md:text-sm font-semibold shadow hover:scale-[1.02] hover:border-slate-300 transition-transform cursor-pointer select-none">
+        class="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-700 text-xs md:text-sm font-semibold shadow transition-transform cursor-pointer select-none">
         <span class="inline-flex items-center gap-1.5" (click)="checked_schema = !checked_schema">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
@@ -25,7 +25,7 @@
         </span>
       </label>
       <button (click)="goToRegister()"
-      class="bg-blue-400 p-2 text-white rounded-full shadow-2xl hover:bg-blue-500 transition-all duration-300 transform hover:scale-95 flex items-center justify-center"
+      class="bg-blue-400 p-2 text-white rounded-full shadow-2xl transition-all duration-300 transform flex items-center justify-center"
       title="Accueil">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -103,7 +103,7 @@
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 md:p-4">
           <!-- local toggle -->
           <input id="schema-left-open" type="checkbox" class="sr-only peer" />
-          <label for="schema-left-open" class="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg hover:bg-emerald-100/50 transition-colors">
+          <label for="schema-left-open" class="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg transition-colors">
             <span class="text-sm font-semibold text-emerald-800 inline-flex items-center gap-2">
               <svg class="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -121,12 +121,12 @@
           <div class="mt-3 relative pl-6 hidden peer-checked:block section-children max-h-72 md:max-h-[30rem] overflow-y-auto pr-2">
             <div class="absolute left-3 top-0 bottom-0 border-l border-emerald-200"></div>
             <div
-              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 hover:scale-[1.01] hover:border-emerald-300 transition">
+              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
               <input id="schema-client-payments-open" type="checkbox" class="sr-only peer" />
               <div class="flex items-center justify-between gap-2">
                 <label for="schema-client-payments-open"
-                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg hover:bg-emerald-100/30 transition-colors">
+                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
                   <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 7l-8 8-4-4"></path>
@@ -154,12 +154,12 @@
             </div>
 
             <div
-              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 hover:scale-[1.01] hover:border-emerald-300 transition">
+              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
               <input id="schema-advances-open" type="checkbox" class="sr-only peer" />
               <div class="flex items-center justify-between gap-2">
                 <label for="schema-advances-open"
-                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg hover:bg-emerald-100/30 transition-colors">
+                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
                   <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 7H8"></path>
@@ -189,12 +189,12 @@
 
             <!-- Alimentation de caisse -->
             <div
-              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 hover:scale-[1.01] hover:border-emerald-300 transition">
+              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
               <input id="schema-fundings-open" type="checkbox" class="sr-only peer" />
               <div class="flex items-center justify-between gap-2">
                 <label for="schema-fundings-open"
-                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg hover:bg-emerald-100/30 transition-colors">
+                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
                   <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 3v6"></path>
@@ -222,13 +222,13 @@
         </div>
 
             <div
-              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 hover:scale-[1.01] hover:border-emerald-300 transition">
+              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
               <input id="schema-cash-open" type="checkbox" class="sr-only peer"
                 (change)="$any($event.target)?.checked && loadCashSalesDetails()" />
               <div class="flex items-center justify-between gap-2">
                 <label for="schema-cash-open"
-                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg hover:bg-emerald-100/30 transition-colors">
+                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
                   <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M16 7H8a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h8"></path>
@@ -265,7 +265,7 @@
                 @if (cashSalesDetails().length > 2) {
                 <div class="mt-1 text-right">
                   <label for="cash-more-schema"
-                    class="text-xs text-indigo-600 hover:underline cursor-pointer select-none">{{ cashMoreSchemaFlag ?
+                    class="text-xs text-indigo-600 cursor-pointer select-none">{{ cashMoreSchemaFlag ?
                     'Voir moins' : 'Voir plus' }}</label>
                 </div>
                 }
@@ -332,7 +332,7 @@
         <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 md:p-4">
           <!-- local toggle -->
           <input id="schema-right-open" type="checkbox" class="sr-only peer" />
-          <label for="schema-right-open" class="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg hover:bg-rose-100/50 transition-colors">
+          <label for="schema-right-open" class="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg transition-colors">
             <span class="text-sm font-semibold text-rose-800 inline-flex items-center gap-2">
               <svg class="w-5 h-5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -351,12 +351,12 @@
             <div class="absolute left-3 top-0 bottom-0 border-l border-rose-200"></div>
 
             <div
-              class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 mb-2 hover:scale-[1.01] hover:border-rose-300 transition">
+              class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 mb-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
               <input id="schema-expenses-open" type="checkbox" class="sr-only peer" />
               <div class="flex items-center justify-between gap-2">
                 <label for="schema-expenses-open"
-                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg hover:bg-rose-100/30 transition-colors">
+                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
                   <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M6 6h12v12H6z"></path>
@@ -395,12 +395,12 @@
         </div>
 
             <div
-              class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 hover:scale-[1.01] hover:border-rose-300 transition">
+              class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
               <input id="schema-suppliers-open" type="checkbox" class="sr-only peer" />
               <div class="flex items-center justify-between gap-2">
                 <label for="schema-suppliers-open"
-                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg hover:bg-rose-100/30 transition-colors">
+                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
                   <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 21V8l9-5 9 5v13"></path>
@@ -428,12 +428,12 @@
             </div>
 
             <div
-              class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 hover:scale-[1.01] hover:border-rose-300 transition">
+              class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
               <input id="schema-refunds-open" type="checkbox" class="sr-only peer" />
               <div class="flex items-center justify-between gap-2">
                 <label for="schema-refunds-open"
-                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg hover:bg-rose-100/30 transition-colors">
+                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
                   <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 3v18h18" />
@@ -879,7 +879,7 @@
               @if (cashSalesDetails().length > 2) {
               <div class="mt-1 text-right">
                 <label for="cash-more-expanded"
-                  class="text-xs text-indigo-600 hover:underline cursor-pointer select-none">{{ cashMoreExpandedFlag ?
+                  class="text-xs text-indigo-600 cursor-pointer select-none">{{ cashMoreExpandedFlag ?
                   'Voir moins' : 'Voir plus' }}</label>
               </div>
       }
@@ -958,7 +958,7 @@
     <!-- Bottom action buttons -->
     <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
       <button (click)="showCloseForm.set(true)"
-        class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-emerald-200 bg-emerald-50 text-emerald-700 text-lg font-bold shadow-lg hover:scale-[1.02] hover:border-emerald-300 hover:bg-emerald-100 transition-all duration-200 flex items-center justify-center gap-3">
+        class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-emerald-200 bg-emerald-50 text-emerald-700 text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-3">
         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 3v18h18" />
@@ -968,7 +968,7 @@
       </button>
 
       <button (click)="printDetailedReport()"
-        class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-indigo-200 bg-indigo-50 text-indigo-700 text-lg font-bold shadow-lg hover:scale-[1.02] hover:border-indigo-300 hover:bg-indigo-100 transition-all duration-200 flex items-center justify-center gap-3"
+        class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-indigo-200 bg-indigo-50 text-indigo-700 text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-3"
         title="Imprimer l'extrait (test)">
         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -980,7 +980,7 @@
       </button>
 
       <button (click)="showFundForm.set(true)"
-        class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-blue-200 bg-blue-50 text-blue-700 text-lg font-bold shadow-lg hover:scale-[1.02] hover:border-blue-300 hover:bg-blue-100 transition-all duration-200 flex items-center justify-center gap-3">
+        class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-blue-200 bg-blue-50 text-blue-700 text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-3">
         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 2v20" />
@@ -993,7 +993,7 @@
     <!-- Bottom left adjust balance button -->
     <div class="absolute bottom-4 left-4">
       <button (click)="showAdjustForm.set(true)"
-        class="w-12 h-12 rounded-full border-2 border-blue-200 bg-blue-50 text-blue-700 shadow-lg hover:scale-[1.05] hover:border-blue-300 hover:bg-blue-100 transition-all duration-200 flex items-center justify-center"
+        class="w-12 h-12 rounded-full border-2 border-blue-200 bg-blue-50 text-blue-700 shadow-lg transition-all duration-200 flex items-center justify-center"
         title="Ajuster le solde">
         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -1006,7 +1006,7 @@
     <!-- Bottom right detailed view button -->
     <div class="absolute bottom-4 right-4">
       <button (click)="flowmodal_show()"
-        class="w-12 h-12 rounded-full border-2 border-slate-200 bg-slate-50 text-slate-700 shadow-lg hover:scale-[1.05] hover:border-slate-300 hover:bg-slate-100 transition-all duration-200 flex items-center justify-center"
+        class="w-12 h-12 rounded-full border-2 border-slate-200 bg-slate-50 text-slate-700 shadow-lg transition-all duration-200 flex items-center justify-center"
         title="Vue détaillée Entrées / Sorties">
         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -1034,7 +1034,7 @@
             </svg>
             <span class="text-sm font-semibold text-indigo-800">Tickets (x{{ currentSession()?.summary?.totalTickets || 0 }})</span>
           </div>
-          <button (click)="showTicketsModal.set(false)" class="w-8 h-8 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:border-slate-300" aria-label="Fermer">
+          <button (click)="showTicketsModal.set(false)" class="w-8 h-8 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600" aria-label="Fermer">
             ✕
           </button>
       </div>
@@ -1098,35 +1098,35 @@
           </div>
           <div class="grid grid-cols-3 gap-3 mb-6">
             <button type="button" (click)="addDigit('1')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">1</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">1</button>
             <button type="button" (click)="addDigit('2')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">2</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">2</button>
             <button type="button" (click)="addDigit('3')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">3</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">3</button>
             <button type="button" (click)="addDigit('4')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">4</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">4</button>
             <button type="button" (click)="addDigit('5')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">5</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">5</button>
             <button type="button" (click)="addDigit('6')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">6</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">6</button>
             <button type="button" (click)="addDigit('7')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">7</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">7</button>
             <button type="button" (click)="addDigit('8')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">8</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">8</button>
             <button type="button" (click)="addDigit('9')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">9</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">9</button>
             <button type="button" (click)="addDigit('.')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">.</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">.</button>
             <button type="button" (click)="addDigit('0')"
-            class="bg-gradient-to-b from-amber-200 to-orange-300 hover:from-amber-300 hover:to-orange-400 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-amber-400">0</button>
+            class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">0</button>
             <button type="button" (click)="clearAmount()"
-            class="bg-gradient-to-b from-red-200 to-red-300 hover:from-red-300 hover:to-red-400 text-red-800 rounded-xl p-4 text-sm font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-red-400">EFFACER</button>
+            class="bg-gradient-to-b from-red-200 to-red-300 text-red-800 rounded-xl p-4 text-sm font-bold shadow-lg transform transition-all duration-150 border border-red-400">EFFACER</button>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <button type="button" (click)="showCloseForm.set(false)"
-            class="bg-gradient-to-b from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800 rounded-xl p-4 font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-gray-400">ANNULER</button>
+            class="bg-gradient-to-b from-gray-200 to-gray-300 text-gray-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-gray-400">ANNULER</button>
             <button type="button" (click)="closeSession()" [disabled]="loading()"
-            class="bg-gradient-to-b from-green-200 to-green-300 hover:from-green-300 hover:to-green-400 text-green-800 rounded-xl p-4 font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400 disabled:opacity-50 disabled:transform-none">{{
+            class="bg-gradient-to-b from-green-200 to-green-300 text-green-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-green-400 disabled:opacity-50 disabled:transform-none">{{
             loading() ? 'TRAITEMENT...' : 'CONFIRMER' }}</button>
           </div>
         </div>
@@ -1175,35 +1175,35 @@
           </div>
           <div class="grid grid-cols-3 gap-3 mb-6">
             <button type="button" (click)="addFundDigit('1')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">1</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">1</button>
             <button type="button" (click)="addFundDigit('2')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">2</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">2</button>
             <button type="button" (click)="addFundDigit('3')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">3</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">3</button>
             <button type="button" (click)="addFundDigit('4')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">4</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">4</button>
             <button type="button" (click)="addFundDigit('5')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">5</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">5</button>
             <button type="button" (click)="addFundDigit('6')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">6</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">6</button>
             <button type="button" (click)="addFundDigit('7')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">7</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">7</button>
             <button type="button" (click)="addFundDigit('8')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">8</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">8</button>
             <button type="button" (click)="addFundDigit('9')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">9</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">9</button>
             <button type="button" (click)="addFundDigit('.')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">.</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">.</button>
             <button type="button" (click)="addFundDigit('0')"
-            class="bg-gradient-to-b from-green-200 to-emerald-300 hover:from-green-300 hover:to-emerald-400 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400">0</button>
+            class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">0</button>
             <button type="button" (click)="clearFundAmount()"
-            class="bg-gradient-to-b from-red-200 to-red-300 hover:from-red-300 hover:to-red-400 text-red-800 rounded-xl p-4 text-sm font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-red-400">EFFACER</button>
+            class="bg-gradient-to-b from-red-200 to-red-300 text-red-800 rounded-xl p-4 text-sm font-bold shadow-lg transform transition-all duration-150 border border-red-400">EFFACER</button>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <button type="button" (click)="showFundForm.set(false)"
-            class="bg-gradient-to-b from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800 rounded-xl p-4 font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-gray-400">ANNULER</button>
+            class="bg-gradient-to-b from-gray-200 to-gray-300 text-gray-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-gray-400">ANNULER</button>
             <button type="button" (click)="fundCashRegister()" [disabled]="loading()"
-            class="bg-gradient-to-b from-green-200 to-green-300 hover:from-green-300 hover:to-green-400 text-green-800 rounded-xl p-4 font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400 disabled:opacity-50 disabled:transform-none">{{
+            class="bg-gradient-to-b from-green-200 to-green-300 text-green-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-green-400 disabled:opacity-50 disabled:transform-none">{{
             loading() ? 'TRAITEMENT...' : 'CONFIRMER' }}</button>
           </div>
         </div>
@@ -1229,7 +1229,7 @@
           }} → {{ (flowsDateTo()|| (currentSession()?.closedAt || (currentSession()?.openedAt)) | date:'dd/MM') }} •
           Dépôt : {{ currentSession()?.depot?.name }}</p>
           </div>
-      <button (click)="showFlowsModal.set(false)" class="text-slate-500 hover:text-slate-800"
+      <button (click)="showFlowsModal.set(false)" class="text-slate-500"
         aria-label="Fermer">✕</button>
         </div>
         <div class="p-4 border-b grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -1341,35 +1341,35 @@
           </div>
           <div class="grid grid-cols-3 gap-3 mb-6">
             <button type="button" (click)="addAdjustDigit('1')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">1</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">1</button>
             <button type="button" (click)="addAdjustDigit('2')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">2</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">2</button>
             <button type="button" (click)="addAdjustDigit('3')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">3</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">3</button>
             <button type="button" (click)="addAdjustDigit('4')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">4</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">4</button>
             <button type="button" (click)="addAdjustDigit('5')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">5</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">5</button>
             <button type="button" (click)="addAdjustDigit('6')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">6</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">6</button>
             <button type="button" (click)="addAdjustDigit('7')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">7</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">7</button>
             <button type="button" (click)="addAdjustDigit('8')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">8</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">8</button>
             <button type="button" (click)="addAdjustDigit('9')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">9</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">9</button>
             <button type="button" (click)="addAdjustDigit('.')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">.</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">.</button>
             <button type="button" (click)="addAdjustDigit('0')"
-            class="bg-gradient-to-b from-blue-200 to-indigo-300 hover:from-blue-300 hover:to-indigo-400 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-blue-400">0</button>
+            class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">0</button>
             <button type="button" (click)="clearAdjustAmount()"
-            class="bg-gradient-to-b from-red-200 to-red-300 hover:from-red-300 hover:to-red-400 text-red-800 rounded-xl p-4 text-sm font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-red-400">EFFACER</button>
+            class="bg-gradient-to-b from-red-200 to-red-300 text-red-800 rounded-xl p-4 text-sm font-bold shadow-lg transform transition-all duration-150 border border-red-400">EFFACER</button>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <button type="button" (click)="showAdjustForm.set(false)"
-            class="bg-gradient-to-b from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800 rounded-xl p-4 font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-gray-400">ANNULER</button>
+            class="bg-gradient-to-b from-gray-200 to-gray-300 text-gray-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-gray-400">ANNULER</button>
             <button type="button" (click)="adjustBalance()" [disabled]="loading()"
-            class="bg-gradient-to-b from-green-200 to-green-300 hover:from-green-300 hover:to-green-400 text-green-800 rounded-xl p-4 font-bold shadow-lg transform hover:scale-95 transition-all duration-150 border border-green-400 disabled:opacity-50 disabled:transform-none">{{
+            class="bg-gradient-to-b from-green-200 to-green-300 text-green-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-green-400 disabled:opacity-50 disabled:transform-none">{{
             loading() ? 'TRAITEMENT...' : 'CONFIRMER' }}</button>
           </div>
         </div>

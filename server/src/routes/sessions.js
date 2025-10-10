@@ -636,7 +636,7 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
         });
       } else {
         // For regular closures, create new change request
-        await tx.changeRequest.create({
+        const cr = await tx.changeRequest.create({
           data: {
             type: 'VARIANCE_APPROVAL',
             entityId: parseInt(id),
@@ -647,6 +647,15 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
             requestedBy: req.user.id
           }
         });
+        // Fire Web Push to all admins/managers (simple broadcast)
+        try {
+          const { sendPushToAll } = require('../lib/push');
+          await sendPushToAll({
+            title: 'Clôture à valider',
+            body: `Session #${id} — ${session.user?.firstName || ''} ${session.user?.lastName || ''} • ${session.depot?.name || ''}`.trim(),
+            data: { type: 'CLOTURE', id: cr.id, sessionId: parseInt(id) }
+          });
+        } catch (e) { /* noop */ }
       }
 
       // For admin corrections, handle the open session update within the transaction

@@ -1,5 +1,5 @@
 <!-- Splash + Login sequence with smooth fade -->
-<div class="relative min-h-screen bg-[url('/bg.webp')] bg-cover bg-center flex items-center justify-center p-4 overflow-hidden">
+<div class="relative min-h-screen bg-[url('/bg.webp')] bg-cover bg-center flex items-center justify-center p-4 overflow-hidden" style="touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;">
   <!-- Light overlay for readability -->
   <div class="absolute inset-0 bg-white/80"></div>
   <!-- Splash Screen (overlay) -->
@@ -71,19 +71,19 @@
           </div>
 
           <!-- Keypad -->
-          <div class="grid grid-cols-3 gap-3 select-none">
+          <div class="grid grid-cols-3 gap-3 select-none" style="touch-action: manipulation;">
             <button *ngFor="let num of [1,2,3,4,5,6,7,8,9]" type="button" (click)="addToInput(num.toString())"
               class="text-white font-semibold rounded-xl py-3 shadow-sm transition-colors"
-              [style.backgroundColor]="primaryColor">
+              [style.backgroundColor]="primaryColor" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
               {{ num }}
             </button>
             <button type="button" (click)="clearAll()"
-              class="bg-gray-100 text-gray-700 font-semibold rounded-xl py-3 shadow-sm border border-gray-200 hover:bg-gray-200">C</button>
+              class="bg-gray-100 text-gray-700 font-semibold rounded-xl py-3 shadow-sm border border-gray-200" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">C</button>
             <button type="button" (click)="addToInput('0')"
               class="text-white font-semibold rounded-xl py-3 shadow-sm transition-colors"
-              [style.backgroundColor]="primaryColor">0</button>
+              [style.backgroundColor]="primaryColor" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">0</button>
             <button type="button" (click)="backspace()"
-              class="bg-gray-100 text-gray-700 font-semibold rounded-xl py-3 shadow-sm border border-gray-200 hover:bg-gray-200">←</button>
+              class="bg-gray-100 text-gray-700 font-semibold rounded-xl py-3 shadow-sm border border-gray-200" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">←</button>
           </div>
 
           <!-- Submit -->
@@ -104,7 +104,7 @@
 
           <div class="text-center">
             <span class="text-xs text-gray-600">Mot de passe oublié ? </span>
-            <a href="tel:22212319" title="Appeler l'administrateur" class="text-xs font-semibold hover:underline"
+            <a href="tel:22212319" title="Appeler l'administrateur" class="text-xs font-semibold"
               [style.color]="primaryColor">Contacter l'administrateur</a>
           </div>
         </form>
@@ -150,7 +150,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       <button type="button" *ngFor="let d of getFilteredDepots()" (click)="selectedDepotId = d.id"
         [class]="selectedDepotId===d.id ? 'ring-2' : ''"
-        class="text-left bg-white rounded-xl border p-4 hover:shadow-md transition-shadow"
+        class="text-left bg-white rounded-xl border p-4 transition-shadow"
         [style.borderColor]="selectedDepotId===d.id ? primaryColor : undefined"
         [style.boxShadow]="selectedDepotId===d.id ? '0 0 0 2px ' + primaryColor + '33' : undefined">
         <div class="flex items-start gap-3">
@@ -230,26 +230,26 @@
     </div>
 
     <!-- Single Keypad -->
-    <div class="grid grid-cols-3 gap-2 mb-6">
+    <div class="grid grid-cols-3 gap-2 mb-6" style="touch-action: manipulation;">
       <button *ngFor="let num of [1,2,3,4,5,6,7,8,9]" type="button"
         (click)="addToPasswordInput(num.toString(), 'newPin')"
         class="text-white font-semibold rounded-lg py-2 shadow-sm transition-colors"
-        [style.backgroundColor]="primaryColor">
+        [style.backgroundColor]="primaryColor" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
         {{ num }}
       </button>
       <button type="button" (click)="clearPassword('newPin')"
-        class="bg-gray-100 text-gray-700 font-semibold rounded-lg py-2 shadow-sm border border-gray-200 hover:bg-gray-200">C</button>
+        class="bg-gray-100 text-gray-700 font-semibold rounded-lg py-2 shadow-sm border border-gray-200" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">C</button>
       <button type="button" (click)="addToPasswordInput('0', 'newPin')"
         class="text-white font-semibold rounded-lg py-2 shadow-sm transition-colors"
-        [style.backgroundColor]="primaryColor">0</button>
+        [style.backgroundColor]="primaryColor" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">0</button>
       <button type="button" (click)="backspacePassword('newPin')"
-        class="bg-gray-100 text-gray-700 font-semibold rounded-lg py-2 shadow-sm border border-gray-200 hover:bg-gray-200">←</button>
+        class="bg-gray-100 text-gray-700 font-semibold rounded-lg py-2 shadow-sm border border-gray-200" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">←</button>
     </div>
 
     <!-- Actions -->
     <div class="flex gap-3">
       <button (click)="closePasswordChange()"
-        class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">
+        class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium transition-colors">
         Annuler
       </button>
       <button *ngIf="passwordChangeStep === 'new'" (click)="nextStep()"

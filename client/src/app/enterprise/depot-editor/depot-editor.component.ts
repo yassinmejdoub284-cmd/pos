@@ -10,7 +10,7 @@ import { Depot } from '../../core/models/depot.model';
   template: `
     <div class="max-w-3xl mx-auto">
       <div class="mb-6 flex items-center gap-3">
-        <button (click)="goBack()" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200">Retour</button>
+        <button (click)="goBack()" class="px-3 py-2 rounded-lg bg-gray-100">Retour</button>
         <h1 class="text-xl font-semibold text-gray-800">{{ editId ? 'Modifier Entrepôt' : 'Nouvel Entrepôt' }}</h1>
       </div>
 
@@ -21,7 +21,7 @@ import { Depot } from '../../core/models/depot.model';
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" role="radiogroup" aria-label="Type d'entrepôt">
             <button type="button"
                     class="group relative rounded-xl border p-4 text-left transition-all"
-                    [ngClass]="form.get('type')?.value==='WAREHOUSE' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'"
+                    [ngClass]="form.get('type')?.value==='WAREHOUSE' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'"
                     role="radio" [attr.aria-checked]="form.get('type')?.value==='WAREHOUSE'"
                     (click)="form.get('type')?.setValue('WAREHOUSE')">
               <div class="flex items-center gap-3">
@@ -38,7 +38,7 @@ import { Depot } from '../../core/models/depot.model';
 
             <button type="button"
                     class="group relative rounded-xl border p-4 text-left transition-all"
-                    [ngClass]="form.get('type')?.value==='SHOP' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'"
+                    [ngClass]="form.get('type')?.value==='SHOP' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'"
                     role="radio" [attr.aria-checked]="form.get('type')?.value==='SHOP'"
                     (click)="form.get('type')?.setValue('SHOP')">
               <div class="flex items-center gap-3">
@@ -55,7 +55,7 @@ import { Depot } from '../../core/models/depot.model';
 
             <button type="button"
                     class="group relative rounded-xl border p-4 text-left transition-all"
-                    [ngClass]="form.get('type')?.value==='BRANCH' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'"
+                    [ngClass]="form.get('type')?.value==='BRANCH' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'"
                     role="radio" [attr.aria-checked]="form.get('type')?.value==='BRANCH'"
                     (click)="form.get('type')?.setValue('BRANCH')">
               <div class="flex items-center gap-3">
@@ -72,7 +72,7 @@ import { Depot } from '../../core/models/depot.model';
 
             <button type="button"
                     class="group relative rounded-xl border p-4 text-left transition-all"
-                    [ngClass]="form.get('type')?.value==='MAIN' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'"
+                    [ngClass]="form.get('type')?.value==='MAIN' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'"
                     role="radio" [attr.aria-checked]="form.get('type')?.value==='MAIN'"
                     (click)="form.get('type')?.setValue('MAIN')">
               <div class="flex items-center gap-3">
@@ -116,8 +116,8 @@ import { Depot } from '../../core/models/depot.model';
           </div>
         </div>
         <div class="flex justify-end gap-2">
-          <button type="button" (click)="goBack()" class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200">Annuler</button>
-          <button type="submit" [disabled]="form.invalid" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">{{ editId ? 'Enregistrer' : 'Créer' }}</button>
+          <button type="button" (click)="goBack()" class="px-4 py-2 rounded-lg bg-gray-100">Annuler</button>
+          <button type="submit" [disabled]="form.invalid" class="px-4 py-2 rounded-lg bg-indigo-600 text-white">{{ editId ? 'Enregistrer' : 'Créer' }}</button>
         </div>
       </form>
     </div>

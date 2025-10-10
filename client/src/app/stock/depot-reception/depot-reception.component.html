@@ -8,7 +8,7 @@
         </div>
         <button 
           (click)="goBack()"
-          class="px-4 py-2 bg-slate-200 hover:bg-indigo-500 text-slate-800 rounded-2xl transition-colors"
+          class="px-4 py-2 bg-slate-200 text-slate-800 rounded-2xl transition-colors"
         >
           Retour
         </button>
@@ -60,7 +60,7 @@
                 <button 
                   (click)="confirmReceipt(shipment)"
                   [disabled]="loading"
-                  class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 text-slate-800 font-semibold rounded-2xl transition-colors"
+                  class="px-6 py-3 bg-emerald-600 disabled:bg-slate-200 text-slate-800 font-semibold rounded-2xl transition-colors"
                 >
                   <span *ngIf="loading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
                   Confirmer Réception

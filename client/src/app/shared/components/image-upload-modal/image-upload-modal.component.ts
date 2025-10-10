@@ -13,7 +13,7 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
         <div class="p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-xl font-semibold text-gray-800">Modifier l'image du produit</h3>
-            <button (click)="close()" class="text-gray-500 hover:text-gray-800">
+            <button (click)="close()" class="text-gray-500">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -25,7 +25,7 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
             <button 
               (click)="setUploadMethod('file')"
               [class]="'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ' + 
-                (uploadMethod === 'file' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-800')">
+                (uploadMethod === 'file' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600')">
               <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
               </svg>
@@ -34,7 +34,7 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
             <button 
               (click)="setUploadMethod('url')"
               [class]="'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ' + 
-                (uploadMethod === 'url' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-800')">
+                (uploadMethod === 'url' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600')">
               <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
               </svg>
@@ -59,7 +59,7 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
                 class="hidden">
               <button 
                 (click)="fileInput.click()"
-                class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-pink-600 hover:to-purple-700 transition-all">
+                class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2 rounded-lg transition-all">
                 Sélectionner une image
               </button>
             </div>
@@ -76,7 +76,7 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
               <div class="flex justify-center space-x-4">
                 <button 
                   (click)="resetSelection()"
-                  class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-all">
+                  class="bg-gray-600 text-white px-4 py-2 rounded-lg transition-all">
                   Annuler
                 </button>
               </div>
@@ -91,12 +91,12 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
               <div class="flex justify-center space-x-4">
                 <button 
                   (click)="confirmUpload()"
-                  class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all">
+                  class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg transition-all">
                   Confirmer l'upload
                 </button>
                 <button 
                   (click)="resetSelection()"
-                  class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-all">
+                  class="bg-gray-600 text-white px-4 py-2 rounded-lg transition-all">
                   Annuler
                 </button>
               </div>
@@ -142,7 +142,7 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
                   [disabled]="!imageUrl || !!urlError || urlLoading"
                   [class]="'px-4 py-2 rounded-lg transition-all ' + 
                     (imageUrl && !urlError && !urlLoading ? 
-                      'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700' : 
+                      'bg-gradient-to-r from-green-500 to-emerald-600 text-white' : 
                       'bg-gray-300 text-gray-500 cursor-not-allowed')">
                   <span *ngIf="urlLoading" class="flex items-center">
                     <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -155,7 +155,7 @@ import { ImageCropperComponent } from '../image-cropper/image-cropper.component'
                 </button>
                 <button 
                   (click)="resetSelection()"
-                  class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-all">
+                  class="bg-gray-600 text-white px-4 py-2 rounded-lg transition-all">
                   Annuler
                 </button>
               </div>
