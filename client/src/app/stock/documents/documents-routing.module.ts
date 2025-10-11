@@ -5,9 +5,13 @@ import { BonEntreeComponent } from './bon-entree/bon-entree.component';
 import { BonSortieComponent } from './bon-sortie/bon-sortie.component';
 import { BonTransfertComponent } from './bon-transfert/bon-transfert.component';
 import { BonLivraisonComponent } from './bon-livraison/bon-livraison.component';
+import { DocumentComponent } from './document/document.component';
+import { DocumentsListComponent } from './documents/documents.component';
 
 const routes: Routes = [
-  { path: '', component: DocumentsComponent },
+  { path: '', component: DocumentsListComponent },
+  { path: 'list', component: DocumentsListComponent },
+  { path: ':id', component: DocumentComponent },
   // Use distinct param names to avoid confusion between depotId and documentId
   { path: 'bon-entree/:depotId', component: BonEntreeComponent },
   { path: 'bon-entree/edit/:documentId', component: BonEntreeComponent },

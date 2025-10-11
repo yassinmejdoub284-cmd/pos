@@ -82,7 +82,7 @@ export interface AppSettings {
       autoInvoice: boolean;
       tvaAndPrix: boolean;
     };
-    retour: {
+    facture: {
       client: boolean;
       depot: boolean;
       vehicle: boolean;

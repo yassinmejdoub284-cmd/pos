@@ -9,6 +9,8 @@ import { BonEntreeComponent } from './bon-entree/bon-entree.component';
 import { BonSortieComponent } from './bon-sortie/bon-sortie.component';
 import { BonTransfertComponent } from './bon-transfert/bon-transfert.component';
 import { BonLivraisonComponent } from './bon-livraison/bon-livraison.component';
+import { DocumentComponent } from './document/document.component';
+import { DocumentsListComponent } from './documents/documents.component';
 
 @NgModule({
   declarations: [
@@ -22,7 +24,9 @@ import { BonLivraisonComponent } from './bon-livraison/bon-livraison.component';
     FormsModule,
     RouterModule,
     DocumentsRoutingModule,
-    DocumentsComponent
+    DocumentsComponent,
+    DocumentComponent,
+    DocumentsListComponent
   ]
 })
 export class DocumentsModule {} 

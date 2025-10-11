@@ -1,0 +1,214 @@
+/* Document display container - EXACTLY like print version */
+.document-display-container {
+  background: white;
+  margin: 20px auto;
+  max-width: 800px;
+  border: 2px solid #000;
+  padding: 20px;
+  font-family: 'Times New Roman', serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #000;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.document-wrapper {
+  background: white;
+  color: #000;
+  font-family: 'Times New Roman', serif;
+  font-size: 12px;
+  line-height: 1.5;
+  width: 100%;
+}
+
+/* Override any conflicting styles from the main app */
+.document-display-container * {
+  box-sizing: border-box;
+  font-family: 'Times New Roman', serif !important;
+}
+
+/* Reset any flex or grid layouts that might interfere */
+.document-wrapper > * {
+  display: block !important;
+  width: 100% !important;
+}
+
+/* Print-style container */
+.document-wrapper .container {
+  max-width: 800px;
+  margin: 0 auto;
+  border: 2px solid #000;
+  padding: 20px;
+  background: white;
+}
+
+/* Print-style header */
+.document-wrapper .header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 25px;
+  border-bottom: 3px solid #000;
+  padding-bottom: 15px;
+}
+
+.document-wrapper .company-info {
+  flex: 1;
+}
+
+.document-wrapper .document-info {
+  text-align: right;
+  flex: 1;
+}
+
+.document-wrapper .title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.document-wrapper .subtitle {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.document-wrapper .info-row {
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+.document-wrapper .info-section {
+  margin: 12px 0;
+  padding: 10px;
+  background-color: #f8f8f8;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.document-wrapper .label {
+  font-weight: bold;
+  display: inline-block;
+  width: 140px;
+  color: #333;
+}
+
+.document-wrapper .value {
+  font-weight: normal;
+  color: #000;
+}
+
+/* Print-style table */
+.document-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 12px;
+  border: 2px solid #000;
+}
+
+.document-wrapper th,
+.document-wrapper td {
+  border: 1px solid #000;
+  padding: 8px;
+  text-align: left;
+}
+
+.document-wrapper th {
+  background-color: #e0e0e0;
+  font-weight: bold;
+  text-align: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.document-wrapper tfoot {
+  border-top: 2px solid #000;
+}
+
+.document-wrapper .total-row {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+.document-wrapper .text-right {
+  text-align: right;
+}
+
+.document-wrapper .text-center {
+  text-align: center;
+}
+
+.document-wrapper .font-bold {
+  font-weight: bold;
+}
+
+.document-wrapper .total-breakdown {
+  display: flex;
+  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.document-wrapper .total-line {
+  display: flex;
+  justify-content: space-between;
+  width: 300px;
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+
+.document-wrapper .total-final {
+  border-top: 1px solid #000;
+  padding-top: 5px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Print-style footer */
+.document-wrapper .footer {
+  margin-top: 40px;
+  border-top: 2px solid #000;
+  padding-top: 20px;
+}
+
+.document-wrapper .signature-section {
+  margin-bottom: 20px;
+}
+
+.document-wrapper .signature-box {
+  width: 300px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.document-wrapper .signature-label {
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.document-wrapper .signature-line {
+  border-bottom: 1px solid #000;
+  height: 20px;
+}
+
+.document-wrapper .legal-notice {
+  text-align: center;
+  font-size: 11px;
+  color: #333;
+  margin-top: 20px;
+}
+
+.document-wrapper .legal-notice p {
+  margin: 5px 0;
+}
+
+/* Ensure images in the document are properly sized */
+.document-wrapper img {
+  max-width: 140px !important;
+  max-height: 80px !important;
+  object-fit: contain;
+}

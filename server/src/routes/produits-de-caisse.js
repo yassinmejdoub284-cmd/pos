@@ -228,9 +228,14 @@ router.post('/', authenticateToken, async (req, res) => {
       if (defaultFamily) {
         defaultFamilleId = defaultFamily.id;
       } else {
-        return res.status(400).json({ 
-          error: 'Aucune famille de produits trouvée. Veuillez créer une famille d\'abord.' 
+        // Create a default family if none exists
+        const newDefaultFamily = await prisma.productFamily.create({
+          data: {
+            name: 'Général',
+            description: 'Famille par défaut'
+          }
         });
+        defaultFamilleId = newDefaultFamily.id;
       }
     } else {
       // Check if provided famille exists
@@ -287,7 +292,7 @@ router.post('/', authenticateToken, async (req, res) => {
         designation_legale,
         description,
         familleId: parseInt(defaultFamilleId),
-        barcode,
+        barcode: barcode || null,
         unite,
         prix_vente_TTC,
         prix_achat,
@@ -423,34 +428,33 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    if (productIds && (!Array.isArray(productIds) || productIds.length === 0)) {
+    // Only validate productIds if it's explicitly provided and not empty
+    // For sub-products (produits de caisse), productIds can be empty
+    if (productIds !== undefined && productIds !== null && !Array.isArray(productIds)) {
       return res.status(400).json({ 
-        error: 'La liste des produits ne peut pas être vide' 
+        error: 'La liste des produits doit être un tableau' 
       });
     }
 
     // Parse productIds if provided
     let productIdsArray = [];
-    if (productIds) {
+    if (productIds !== undefined && productIds !== null) {
       // Ensure productIds is an array of integers
       productIdsArray = Array.isArray(productIds) 
         ? productIds.map(id => parseInt(id)).filter(id => !isNaN(id))
         : [];
       
-      if (productIdsArray.length === 0) {
-        return res.status(400).json({ 
-          error: 'Liste de produits invalide' 
+      // Only validate product existence if there are products in the array
+      if (productIdsArray.length > 0) {
+        const existingProducts = await prisma.product.findMany({
+          where: { id: { in: productIdsArray } }
         });
-      }
 
-      const existingProducts = await prisma.product.findMany({
-        where: { id: { in: productIdsArray } }
-      });
-
-      if (existingProducts.length !== productIdsArray.length) {
-        return res.status(400).json({ 
-          error: 'Certains produits n\'existent pas' 
-        });
+        if (existingProducts.length !== productIdsArray.length) {
+          return res.status(400).json({ 
+            error: 'Certains produits n\'existent pas' 
+          });
+        }
       }
     }
 
@@ -483,8 +487,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (name !== undefined) updateData.name = name;
     if (designation_legale !== undefined) updateData.designation_legale = designation_legale;
     if (description !== undefined) updateData.description = description;
-    if (familleId !== undefined) updateData.familleId = parseInt(familleId);
-    if (barcode !== undefined) updateData.barcode = barcode;
+    if (familleId !== undefined && familleId !== null) updateData.familleId = parseInt(familleId);
+    if (barcode !== undefined) updateData.barcode = barcode || null;
     if (unite !== undefined) updateData.unite = unite;
     if (prix_vente_TTC !== undefined) updateData.prix_vente_TTC = prix_vente_TTC;
     if (prix_achat !== undefined) updateData.prix_achat = prix_achat;

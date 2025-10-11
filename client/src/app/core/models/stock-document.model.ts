@@ -1,8 +1,8 @@
 export interface StockDocument {
   id: number;
   numero: string;
-  type: 'BON_EXPEDITION' | 'BON_ENTREE_DEPOT' | 'BON_TRANSFERT' | 'BON_ENTREE_MAGASIN';
-  status: 'PREPARED' | 'SENT' | 'RECEIVED' | 'CANCELLED';
+  type: 'BON_EXPEDITION' | 'BON_ENTREE_DEPOT' | 'BON_TRANSFERT' | 'BON_ENTREE_MAGASIN' | 'FACTURE';
+  status: 'PREPARED' | 'SENT' | 'RECEIVED' | 'CANCELLED' | 'COMPLETED';
   emetteurId: number;
   destinataireId: number;
   clientId?: number;
@@ -34,6 +34,11 @@ export interface StockDocumentItem {
   notes?: string;
   barcode?: string;
   count?: number;
+  prixUnitaire?: number;
+  tva?: number;
+  montantHT?: number;
+  montantTVA?: number;
+  montantTTC?: number;
   
   product?: Product;
 }

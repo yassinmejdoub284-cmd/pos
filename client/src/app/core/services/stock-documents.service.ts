@@ -146,4 +146,16 @@ export class StockDocumentsService {
       catchError((error) => throwError(() => error))
     );
   }
+
+  getDocumentById(id: string): Observable<StockDocument> {
+    return this.http.get<StockDocument>(`${this.apiUrl}/${id}`).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
+
+  getAllDocuments(): Observable<StockDocument[]> {
+    return this.http.get<StockDocument[]>(this.apiUrl).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
 } 

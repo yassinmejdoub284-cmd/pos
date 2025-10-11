@@ -721,12 +721,15 @@ model StockDocumentItem {
   montantTTC    Decimal?      @map("montant_ttc") @db.Decimal(10, 3)
   montantTVA    Decimal?      @map("montant_tva") @db.Decimal(10, 3)
   prixUnitaire  Decimal?      @map("prix_unitaire") @db.Decimal(10, 3)
-  tva           Decimal?      @default(19.00) @db.Decimal(5, 2)
-  document      StockDocument @relation(fields: [documentId], references: [id])
-  product       Product       @relation(fields: [productId], references: [id])
+  tva              Decimal?      @default(19.00) @db.Decimal(5, 2)
+  parentProductId  Int?          @map("parent_product_id")
+  childProductName String?       @map("child_product_name") @db.VarChar(255)
+  document         StockDocument @relation(fields: [documentId], references: [id])
+  product          Product       @relation(fields: [productId], references: [id])
 
   @@index([documentId], map: "stock_document_items_document_id_fkey")
   @@index([productId], map: "stock_document_items_product_id_fkey")
+  @@index([parentProductId], map: "stock_document_items_parent_product_id_fkey")
   @@map("stock_document_items")
 }
 
@@ -1271,6 +1274,7 @@ enum DocumentType {
   BON_ENTREE_DEPOT
   BON_TRANSFERT
   BON_ENTREE_MAGASIN
+  FACTURE
 }
 
 enum DocumentStatus {
@@ -1278,6 +1282,7 @@ enum DocumentStatus {
   SENT
   RECEIVED
   CANCELLED
+  COMPLETED
 }
 
 enum ClientType {

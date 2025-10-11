@@ -91,7 +91,8 @@ async function generateDocumentNumber(type) {
                  type === 'BON_ENTREE_DEPOT' ? 'BED' :
                  type === 'BON_RETOUR_DEPOT' ? 'BDR' :
                  type === 'BON_TRANSFERT' ? 'BT' :
-                 type === 'BON_ENTREE_MAGASIN' ? 'BEM' : 'DOC';
+                 type === 'BON_ENTREE_MAGASIN' ? 'BEM' :
+                 type === 'FACTURE' ? 'FAC' : 'DOC';
   
   const now = new Date();
   const year = now.getFullYear();
@@ -111,7 +112,8 @@ async function getNextDocumentId(type) {
                    type === 'BON_ENTREE_DEPOT' ? 'BED' :
                    type === 'BON_RETOUR_DEPOT' ? 'BDR' :
                    type === 'BON_TRANSFERT' ? 'BT' :
-                   type === 'BON_ENTREE_MAGASIN' ? 'BEM' : 'DOC';
+                   type === 'BON_ENTREE_MAGASIN' ? 'BEM' :
+                   type === 'FACTURE' ? 'FAC' : 'DOC';
     
     const now = new Date();
     const year = now.getFullYear();
@@ -1720,7 +1722,7 @@ router.post('/', authenticateToken, async (req, res) => {
     const documentNumber = numero || await generateDocumentNumber(type);
     
     // Validate and convert status to valid DocumentStatus enum value
-    const validStatuses = ['PREPARED', 'SENT', 'RECEIVED', 'CANCELLED'];
+    const validStatuses = ['PREPARED', 'SENT', 'RECEIVED', 'CANCELLED', 'COMPLETED'];
     const validatedStatus = validStatuses.includes(status) ? status : 'PREPARED';
     
     if (status && !validStatuses.includes(status)) {
@@ -1750,7 +1752,9 @@ router.post('/', authenticateToken, async (req, res) => {
               montantTTC: item.montantTTC || 0,
               batch: item.batch || null,
               notes: typeof item.famille === 'object' ? item.famille.name : (item.notes || null),
-              barcode: item.barcode || null
+              barcode: item.barcode || null,
+              parentProductId: item.parentProductId || null,
+              childProductName: item.childProductName || null
             }))
           },
           statusHistory: {

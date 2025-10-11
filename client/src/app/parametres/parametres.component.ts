@@ -100,13 +100,13 @@ export class ParametresComponent implements OnInit {
         autoInvoice: false,
         tvaAndPrix: true
       },
-      retour: {
+      facture: {
         client: true,
         depot: false,
         vehicle: false,
         driver: false,
         manualDestination: false,
-        autoInvoice: false,
+        autoInvoice: true,
         tvaAndPrix: true
       }
     }
@@ -175,13 +175,13 @@ export class ParametresComponent implements OnInit {
               autoInvoice: false,
               tvaAndPrix: true
             },
-            retour: {
+            facture: {
               client: true,
               depot: false,
               vehicle: false,
               driver: false,
               manualDestination: false,
-              autoInvoice: false,
+              autoInvoice: true,
               tvaAndPrix: true
             }
           };

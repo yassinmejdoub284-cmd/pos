@@ -1,0 +1,204 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+  <!-- Header -->
+  <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+    <div class="flex justify-between items-center">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800">Documents</h1>
+          <p class="text-slate-600 font-medium">Gestion des documents de stock</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button (click)="goToScan()" 
+          class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+          </svg>
+          Nouveau Scan
+        </button>
+        <button (click)="goBack()" 
+          class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
+          </svg>
+          Retour
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+    <div class="flex flex-wrap gap-4 items-center">
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-slate-700">Type:</label>
+        <select [(ngModel)]="selectedType" (change)="filterDocuments()" 
+          class="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+          <option value="">Tous les types</option>
+          <option value="BON_ENTREE_MAGASIN">Bon de Livraison</option>
+          <option value="BON_EXPEDITION">Bon de Sortie</option>
+          <option value="BON_TRANSFERT">Bon de Transfert</option>
+          <option value="FACTURE">Facture</option>
+        </select>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-slate-700">Statut:</label>
+        <select [(ngModel)]="selectedStatus" (change)="filterDocuments()" 
+          class="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+          <option value="">Tous les statuts</option>
+          <option value="PREPARED">Préparé</option>
+          <option value="SENT">Envoyé</option>
+          <option value="RECEIVED">Reçu</option>
+          <option value="CANCELLED">Annulé</option>
+          <option value="COMPLETED">Terminé</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-slate-700">Recherche:</label>
+        <input [(ngModel)]="searchTerm" (input)="filterDocuments()" 
+          type="text" placeholder="Numéro, client..." 
+          class="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+      </div>
+
+      <button (click)="clearFilters()" 
+        class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium transition-colors">
+        Effacer
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6">
+    {{ error }}
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="text-center py-16">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+    <p class="text-gray-600 mt-4">Chargement des documents...</p>
+  </div>
+
+  <!-- Documents List -->
+  <div *ngIf="!loading" class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/50">
+    <div class="p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold text-slate-800">Documents ({{ filteredDocuments.length }})</h2>
+        <div *ngIf="filteredDocuments.length === 0" class="text-sm text-slate-600">
+          Aucun document trouvé.
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="filteredDocuments.length === 0" class="text-center py-16">
+        <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Aucun document trouvé</h3>
+        <p class="text-gray-600 mb-6">Créez votre premier document en scannant des produits.</p>
+        <button (click)="goToScan()" 
+          class="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2 mx-auto">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+          </svg>
+          Commencer le scan
+        </button>
+      </div>
+
+      <!-- Documents Grid -->
+      <div *ngIf="filteredDocuments.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div *ngFor="let doc of filteredDocuments" 
+             class="bg-white border border-gray-200 rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg">
+          <div class="flex justify-between items-start mb-4">
+            <div class="flex items-center gap-2">
+              <span [class]="getTypeClass(doc.type)" class="px-3 py-1 rounded-full text-xs font-medium">
+                {{ getTypeLabel(doc.type) }}
+              </span>
+              <span [class]="getStatusClass(doc.status)" class="px-3 py-1 rounded-full text-xs font-medium">
+                {{ getStatusLabel(doc.status) }}
+              </span>
+            </div>
+          </div>
+          
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ doc.numero }}</h3>
+          
+          <div class="text-sm text-gray-600 space-y-1 mb-4">
+            <div *ngIf="doc.client">
+              <span class="font-medium">Client:</span> {{ doc.client.firstName }} {{ doc.client.lastName }}
+            </div>
+            <div *ngIf="doc.client?.address">
+              <span class="font-medium">Adresse:</span> {{ doc.client?.address }}
+            </div>
+            <div *ngIf="!doc.client && doc.emetteur">
+              <span class="font-medium">De:</span> {{ doc.emetteur.name }}
+            </div>
+            <div *ngIf="!doc.client && doc.destinataire">
+              <span class="font-medium">Vers:</span> {{ doc.destinataire.name }}
+            </div>
+            <div>
+              <span class="font-medium">Créé le:</span> {{ formatDate(doc.createdAt) }}
+            </div>
+            <div *ngIf="doc.items && doc.items.length > 0">
+              <span class="font-medium">Articles:</span> {{ doc.items.length }} produit{{ doc.items.length > 1 ? 's' : '' }}
+            </div>
+          </div>
+          
+          <div *ngIf="doc.notes" class="text-sm text-gray-600 bg-gray-50 rounded p-2 mb-4">
+            <span class="font-medium">Notes:</span> {{ doc.notes }}
+          </div>
+          
+          <div class="space-y-2">
+            <!-- Main action -->
+            <div class="flex gap-2">
+              <button (click)="viewDocument(doc)" 
+                class="flex-1 bg-orange-500 text-white rounded-lg text-sm font-medium py-2 px-4 transition-colors duration-200">
+                Voir détails
+              </button>
+            </div>
+            
+            <!-- Secondary actions -->
+            <div class="flex gap-2">
+              <button (click)="printDocument(doc)" 
+                class="flex-1 bg-green-500 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200 flex items-center justify-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+                <span>Imprimer</span>
+              </button>
+              <button *ngIf="canGenerateInvoice(doc)" (click)="openInvoiceModal(doc)" 
+                class="flex-1 bg-emerald-600 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200 flex items-center justify-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span>Facture</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Modal -->
+  <div *ngIf="showInvoiceModal && selectedDocument" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="cancelInvoice()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md" (click)="$event.stopPropagation()">
+      <div class="p-5 border-b">
+        <h3 class="text-lg font-semibold">Générer facture</h3>
+      </div>
+      <div class="p-5 space-y-4">
+        <label class="block text-sm font-medium text-slate-700">Numéro de facture</label>
+        <input [(ngModel)]="invoiceNumber" type="text" name="invoiceNumber" placeholder="Ex: FAC-202510-0001" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+      </div>
+      <div class="p-5 border-t flex gap-3 justify-end">
+        <button (click)="cancelInvoice()" class="px-4 py-2 rounded-lg bg-slate-200">Annuler</button>
+        <button (click)="confirmGenerateInvoice()" [disabled]="!invoiceNumber" class="px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50">Générer</button>
+      </div>
+    </div>
+  </div>
+</div>

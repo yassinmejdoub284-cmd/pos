@@ -37,7 +37,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   // Document type selection modal
   showDocumentTypeModal = false;
   showDocumentConfigurationModal = false;
-  selectedDocumentType: 'livraison' | 'sortie' | 'transfert' | 'retour' | null = null;
+  selectedDocumentType: 'livraison' | 'sortie' | 'transfert' | 'facture' | null = null;
   
   // Document configuration
   documentConfig = {
@@ -56,6 +56,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   showVehicleSelectionModal = false;
   showDriverSelectionModal = false;
   showManualDestinationModal = false;
+  showInvoiceNumberModal = false;
   
   // Selected values
   selectedClient: any = null;
@@ -63,6 +64,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   selectedVehicle: any = null;
   selectedDriver: any = null;
   manualDestination = '';
+  invoiceNumber = '';
   
   // Data for selections
   clients: any[] = [];
@@ -100,6 +102,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.loadDepots();
     this.loadVehicles();
     this.loadDrivers();
+    this.loadSettings();
   }
 
   ngOnDestroy(): void {
@@ -108,6 +111,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   handleKeyDown(event: KeyboardEvent): void {
+    // Don't process scanning input if any modal is open
+    if (this.isAnyModalOpen()) {
+      return;
+    }
+
     // Prevent default behavior for Enter key to avoid form submission
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -126,6 +134,17 @@ export class ScanningComponent implements OnInit, OnDestroy {
       this.currentInput += event.key;
       this.playBeepSound();
     }
+  }
+
+  isAnyModalOpen(): boolean {
+    return this.showDocumentTypeModal ||
+           this.showDocumentConfigurationModal ||
+           this.showClientSelectionModal ||
+           this.showDepotSelectionModal ||
+           this.showVehicleSelectionModal ||
+           this.showDriverSelectionModal ||
+           this.showManualDestinationModal ||
+           this.showInvoiceNumberModal;
   }
 
   private loadProducts(): void {
@@ -150,6 +169,31 @@ export class ScanningComponent implements OnInit, OnDestroy {
         produits.forEach(produit => {
           this.produitsDeCaisseCache.set(produit.id, produit);
         });
+    this.searchProductByBarcode("1234001891011")
+    this.searchProductByBarcode("1234002891011")
+    this.searchProductByBarcode("1234003891011")
+    this.searchProductByBarcode("1234004891011")
+    this.searchProductByBarcode("1234005891011")
+    this.searchProductByBarcode("1234006891011")
+    this.searchProductByBarcode("1234007891011")
+    this.searchProductByBarcode("1234008891011")
+    this.searchProductByBarcode("1234009891011")
+    this.searchProductByBarcode("1234010891011")
+    this.searchProductByBarcode("1234011891011")
+    this.searchProductByBarcode("1234012891011")
+    this.searchProductByBarcode("1234013891011")
+    this.searchProductByBarcode("1234014891011")
+    this.searchProductByBarcode("1234015891011")
+    this.searchProductByBarcode("1234016891011")
+    this.searchProductByBarcode("1234017891011")
+    this.searchProductByBarcode("1234018891011")
+    this.searchProductByBarcode("1234019891011")
+    this.searchProductByBarcode("1234020891011")
+    this.searchProductByBarcode("1234021891011")
+    this.searchProductByBarcode("1234022891011")
+    this.searchProductByBarcode("1234023891011")
+    this.searchProductByBarcode("1234024891011")
+    this.searchProductByBarcode("1234025891011")
       }
     } catch (error) {
       console.error('Error loading produits de caisse:', error);
@@ -614,7 +658,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         const totalPrice = items.reduce((sum, item) => {
           const produit = this.produitsDeCaisseCache.get(item.articleId);
           if (produit) {
-            const prixUnitaire = produit.prix_achat || 0;
+            const prixUnitaire = produit.prix_vente_TTC || 0;
             const quantite = item.quantity / 1000; // Convert to kg
             return sum + (prixUnitaire * quantite);
           }
@@ -633,7 +677,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         const totalPrice = items.reduce((sum, item) => {
           const produit = this.produitsDeCaisseCache.get(item.articleId);
           if (produit) {
-            const prixUnitaire = produit.prix_achat || 0;
+            const prixUnitaire = produit.prix_vente_TTC || 0;
             const quantite = item.quantity / 1000; // Convert to kg
             return sum + (prixUnitaire * quantite);
           }
@@ -672,7 +716,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   getSubProductPrice(articleId: number, quantity: number): number {
     const produit = this.produitsDeCaisseCache.get(articleId);
     if (produit) {
-      const prixUnitaire = produit.prix_achat || 0;
+      const prixUnitaire = produit.prix_vente_TTC || 0;
       const quantite = quantity / 1000; // Convert to kg
       return prixUnitaire * quantite;
     }
@@ -707,12 +751,43 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.showDocumentTypeModal = false;
   }
 
-  selectDocumentType(type: 'livraison' | 'sortie' | 'transfert' | 'retour'): void {
+  closeInvoiceNumberModal(): void {
+    this.showInvoiceNumberModal = false;
+    this.invoiceNumber = '';
+    this.selectedDocumentType = null;
+  }
+
+  confirmInvoiceNumber(): void {
+    if (!this.invoiceNumber.trim()) {
+      this.error = 'Veuillez saisir un numéro de facture';
+      setTimeout(() => { this.error = ''; }, 3000);
+      return;
+    }
+    
+    this.showInvoiceNumberModal = false;
+    
+    // Continue with the document configuration flow
+    if (this.selectedDocumentType) {
+      this.loadDocumentTypeDefaults(this.selectedDocumentType);
+    }
+  }
+
+  selectDocumentType(type: 'livraison' | 'sortie' | 'transfert' | 'facture'): void {
     this.selectedDocumentType = type;
     this.closeDocumentTypeModal();
     this.resetDocumentConfig();
+    
+    // Apply defaults immediately (synchronously)
+    this.applyDocumentTypeDefaults(type);
+    
+    // If facture is selected, show invoice number modal first
+    if (type === 'facture') {
+      this.showInvoiceNumberModal = true;
+      return;
+    }
+    
+    // Then try to load from server settings (asynchronously)
     this.loadDocumentTypeDefaults(type);
-    this.openDocumentConfigurationModal();
   }
 
   private resetDocumentConfig(): void {
@@ -739,25 +814,98 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.showManualDestinationModal = false;
   }
 
-  private loadDocumentTypeDefaults(type: 'livraison' | 'sortie' | 'transfert' | 'retour'): void {
+  private applyDocumentTypeDefaults(type: 'livraison' | 'sortie' | 'transfert' | 'facture'): void {
+    console.log('Applying document type defaults for:', type);
+    
+    // Define default configurations for each document type
+    const defaultConfigs = {
+      livraison: {
+        client: true,
+        depot: false,
+        vehicle: true,
+        driver: true,
+        manualDestination: false,
+        autoInvoice: false,
+        tvaAndPrix: true
+      },
+      sortie: {
+        client: false,
+        depot: true,
+        vehicle: false,
+        driver: false,
+        manualDestination: false,
+        autoInvoice: false,
+        tvaAndPrix: true
+      },
+      transfert: {
+        client: false,
+        depot: true,
+        vehicle: true,
+        driver: true,
+        manualDestination: false,
+        autoInvoice: false,
+        tvaAndPrix: false
+      },
+      facture: {
+        client: true,
+        depot: false,
+        vehicle: false,
+        driver: false,
+        manualDestination: false,
+        autoInvoice: true,
+        tvaAndPrix: true
+      }
+    };
+
+    // Apply the defaults immediately
+    const defaults = defaultConfigs[type];
+    console.log('Applying defaults for', type, ':', defaults);
+    
+    this.documentConfig = {
+      client: defaults.client,
+      depot: defaults.depot,
+      vehicle: defaults.vehicle,
+      driver: defaults.driver,
+      manualDestination: defaults.manualDestination,
+      autoInvoice: defaults.autoInvoice,
+      tvaAndPrix: defaults.tvaAndPrix
+    };
+    
+    console.log('Document config after applying defaults:', this.documentConfig);
+  }
+
+  private loadDocumentTypeDefaults(type: 'livraison' | 'sortie' | 'transfert' | 'facture'): void {
+    console.log('Loading document type defaults from server for:', type);
+    
+    // Try to load settings from server to override defaults
     this.settingsService.getSettings().subscribe({
       next: (settings) => {
+        console.log('Settings loaded:', settings);
+        console.log('Document type defaults from server:', settings?.documentTypeDefaults);
+        console.log('Specific type defaults from server:', settings?.documentTypeDefaults?.[type]);
+        
         if (settings?.documentTypeDefaults?.[type]) {
-          const defaults = settings.documentTypeDefaults[type];
+          const serverDefaults = settings.documentTypeDefaults[type];
+          console.log('Overriding with server defaults:', serverDefaults);
           this.documentConfig = {
-            client: defaults.client || false,
-            depot: defaults.depot || false,
-            vehicle: defaults.vehicle || false,
-            driver: defaults.driver || false,
-            manualDestination: defaults.manualDestination || false,
-            autoInvoice: defaults.autoInvoice || false,
-            tvaAndPrix: defaults.tvaAndPrix || false
+            client: serverDefaults.client || false,
+            depot: serverDefaults.depot || false,
+            vehicle: serverDefaults.vehicle || false,
+            driver: serverDefaults.driver || false,
+            manualDestination: serverDefaults.manualDestination || false,
+            autoInvoice: serverDefaults.autoInvoice || false,
+            tvaAndPrix: serverDefaults.tvaAndPrix || false
           };
         }
+        console.log('Final document config after server override:', this.documentConfig);
+        // Open the configuration modal after settings are loaded
+        this.openDocumentConfigurationModal();
       },
       error: (error) => {
         console.error('Error loading document type defaults:', error);
-        // Keep the default false values if settings can't be loaded
+        console.log('Using default configuration due to error:', this.documentConfig);
+        // Still open the modal with default values
+        this.openDocumentConfigurationModal();
       }
     });
   }
@@ -813,8 +961,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   closeDocumentConfigurationModal(): void {
     this.showDocumentConfigurationModal = false;
-    this.selectedDocumentType = null;
-    this.resetDocumentConfig();
+    // Don't reset document config here - it should be preserved for the next steps
+    // this.selectedDocumentType = null; // Also don't reset the selected type
+    // this.resetDocumentConfig(); // This was causing the issue
   }
 
   toggleConfigOption(option: keyof typeof this.documentConfig): void {
@@ -843,6 +992,10 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   proceedToSelections(): void {
+    console.log('proceedToSelections called');
+    console.log('documentConfig:', this.documentConfig);
+    console.log('selectedDocumentType:', this.selectedDocumentType);
+    
     this.closeDocumentConfigurationModal();
     
     // Show selection modals based on configuration in sequence
@@ -851,18 +1004,32 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   private proceedToNextSelection(): void {
+    console.log('proceedToNextSelection called');
+    console.log('documentConfig:', this.documentConfig);
+    console.log('selectedClient:', this.selectedClient);
+    console.log('selectedDepot:', this.selectedDepot);
+    console.log('selectedVehicle:', this.selectedVehicle);
+    console.log('selectedDriver:', this.selectedDriver);
+    console.log('manualDestination:', this.manualDestination);
+    
     // Check what selections are still needed in order
     if (this.documentConfig.client && !this.selectedClient) {
+      console.log('Opening client selection modal');
       this.showClientSelectionModal = true;
     } else if (this.documentConfig.depot && !this.selectedDepot) {
+      console.log('Opening depot selection modal');
       this.showDepotSelectionModal = true;
     } else if (this.documentConfig.vehicle && !this.selectedVehicle) {
+      console.log('Opening vehicle selection modal');
       this.showVehicleSelectionModal = true;
     } else if (this.documentConfig.driver && !this.selectedDriver) {
+      console.log('Opening driver selection modal');
       this.showDriverSelectionModal = true;
     } else if (this.documentConfig.manualDestination && !this.manualDestination) {
+      console.log('Opening manual destination modal');
       this.showManualDestinationModal = true;
     } else {
+      console.log('All selections completed, generating document');
       // All selections completed, generate document
       this.generateDocument();
     }
@@ -927,16 +1094,22 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   // Document Generation
   private generateDocument(): void {
+    console.log('generateDocument called');
     this.loading = true;
     this.error = '';
     this.success = '';
 
     const documentData = this.prepareDocumentData();
+    console.log('Sending document data to server:', documentData);
 
     this.stockDocumentsService.createDocument(documentData).subscribe({
       next: (savedDocument) => {
+        console.log('Document created successfully:', savedDocument);
         this.loading = false;
         this.success = `Document ${savedDocument.numero} créé avec succès!`;
+        
+        // Open the document for printing
+        this.openDocumentForPrint(savedDocument);
         
         // Clear scanned items and reset
         this.clearScannedItems();
@@ -946,6 +1119,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         setTimeout(() => { this.success = ''; }, 3000);
       },
       error: (error) => {
+        console.error('Error creating document:', error);
         this.loading = false;
         this.error = 'Erreur lors de la création du document: ' + (error?.message || 'Erreur inconnue');
         setTimeout(() => { this.error = ''; }, 5000);
@@ -953,30 +1127,55 @@ export class ScanningComponent implements OnInit, OnDestroy {
     });
   }
 
+  private openDocumentForPrint(document: any): void {
+    console.log('Opening document for print:', document);
+    
+    // Navigate to the generic document details page for printing
+    // This will open the document in a new tab/window for printing
+    const documentUrl = `/stock/documents/${document.id}`;
+    
+    // Open in new tab for printing
+    window.open(documentUrl, '_blank');
+  }
+
   private prepareDocumentData(): any {
     const documentType = this.getDocumentTypeForAPI();
     
     const documentData: any = {
       type: documentType,
-      depotId: 1, // Default depot, should be configurable
+      numero: this.invoiceNumber && this.selectedDocumentType === 'facture' ? this.invoiceNumber : undefined,
+      depotId: this.selectedDepot?.id || 1, // Use selected depot or default
       status: 'COMPLETED',
       items: this.scannedItems.map(item => {
         const produit = this.produitsDeCaisseCache.get(item.articleId);
+        const parentProductId = produit?.parentProductId || item.articleId;
+        const parentProduct = this.productsCache.get(parentProductId);
+        
         const baseItem = {
-          productId: item.articleId,
+          productId: item.articleId, // Save individual child product ID
           quantity: item.quantity / 1000, // Convert to kg
-          count: item.count
+          count: item.count,
+          famille: parentProduct?.famille || parentProduct?.name || 'Produit scanné',
+          parentProductId: parentProductId, // Add parent reference for grouping
+          childProductName: produit?.name || `CHILDREN ${item.articleId}` // Add child name for display
         };
         
-        // Only include price fields if TVA & Prix is enabled
-        if (this.documentConfig.tvaAndPrix && produit) {
+        // Always include price fields if produit exists
+        if (produit) {
+          const prixUnitaire = produit.prix_vente_TTC || 0;
+          const tva = produit.tva || 19;
+          const quantite = item.quantity / 1000; // Convert to kg
+          const montantTTC = prixUnitaire * quantite;
+          const montantHT = montantTTC / (1 + tva / 100);
+          const montantTVA = montantTTC - montantHT;
+          
           return {
             ...baseItem,
-            prixUnitaire: produit.prix_vente_TTC || 0,
-            tva: produit.tva || 19,
-            montantHT: produit ? (produit.prix_vente_TTC * (item.quantity / 1000)) / (1 + (produit.tva || 19) / 100) : 0,
-            montantTVA: produit ? (produit.prix_vente_TTC * (item.quantity / 1000)) - ((produit.prix_vente_TTC * (item.quantity / 1000)) / (1 + (produit.tva || 19) / 100)) : 0,
-            montantTTC: produit ? produit.prix_vente_TTC * (item.quantity / 1000) : 0
+            prixUnitaire: prixUnitaire,
+            tva: tva,
+            montantHT: montantHT,
+            montantTVA: montantTVA,
+            montantTTC: montantTTC
           };
         }
         
@@ -1000,6 +1199,37 @@ export class ScanningComponent implements OnInit, OnDestroy {
     if (this.manualDestination) {
       documentData.destination = this.manualDestination;
     }
+    if (this.invoiceNumber && this.selectedDocumentType === 'facture') {
+      documentData.invoiceNumber = this.invoiceNumber;
+    }
+
+    // Add notes if any configuration is selected
+    const notes = [];
+    if (this.selectedClient) {
+      notes.push(`Client: ${this.selectedClient.firstName} ${this.selectedClient.lastName}`);
+    }
+    if (this.selectedVehicle) {
+      const vehicleName = this.selectedVehicle.brand && this.selectedVehicle.model 
+        ? `${this.selectedVehicle.brand} ${this.selectedVehicle.model}`
+        : this.selectedVehicle.name || 'Véhicule sélectionné';
+      notes.push(`Véhicule: ${vehicleName}`);
+    }
+    if (this.selectedDriver) {
+      const driverName = this.selectedDriver.firstName && this.selectedDriver.lastName
+        ? `${this.selectedDriver.firstName} ${this.selectedDriver.lastName}`
+        : this.selectedDriver.name || 'Chauffeur sélectionné';
+      notes.push(`Chauffeur: ${driverName}`);
+    }
+    if (this.manualDestination) {
+      notes.push(`Destination: ${this.manualDestination}`);
+    }
+    if (this.invoiceNumber && this.selectedDocumentType === 'facture') {
+      notes.push(`Numéro de facture: ${this.invoiceNumber}`);
+    }
+    
+    if (notes.length > 0) {
+      documentData.notes = notes.join(' | ');
+    }
 
     return documentData;
   }
@@ -1012,8 +1242,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
         return 'BON_EXPEDITION';
       case 'transfert':
         return 'BON_TRANSFERT';
-      case 'retour':
-        return 'BON_RETOUR';
+      case 'facture':
+        return 'FACTURE';
       default:
         return 'BON_ENTREE_DEPOT';
     }
@@ -1027,8 +1257,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
         return 'Bon de Sortie';
       case 'transfert':
         return 'Bon de Transfert';
-      case 'retour':
-        return 'Bon de Retour';
+      case 'facture':
+        return 'Facture';
       default:
         return 'Document';
     }
@@ -1055,5 +1285,18 @@ export class ScanningComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       itemElement.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
     }, 2000);
+  }
+
+  private loadSettings(): void {
+    this.settingsService.getSettings().subscribe({
+      next: (settings) => {
+        // Settings are loaded and available for use
+        // The loadDocumentTypeDefaults method will be called when a document type is selected
+        console.log('Settings loaded successfully');
+      },
+      error: (error) => {
+        console.error('Error loading settings:', error);
+      }
+    });
   }
 }

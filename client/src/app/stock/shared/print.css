@@ -1,0 +1,90 @@
+body {
+    font-family: 'Times New Roman', serif;
+    margin: 0;
+    padding: 20px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #000;
+    background: white;
+  }
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    border: 2px solid #000;
+    padding: 20px;
+    background: white;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 25px;
+    border-bottom: 3px solid #000;
+    padding-bottom: 15px;
+  }
+  .company-info { flex: 1; }
+  .document-info { text-align: right; flex: 1; }
+  .title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .subtitle { font-size: 14px; color: #333; margin-bottom: 10px; font-weight: bold; }
+  .info-row { margin: 4px 0; font-size: 12px; }
+  .info-section {
+    margin: 12px 0;
+    padding: 10px;
+    background-color: #f8f8f8;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  .label { font-weight: bold; display: inline-block; width: 140px; color: #333; }
+  .value { font-weight: normal; color: #000; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 12px;
+    border: 2px solid #000;
+  }
+  th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+  th {
+    background-color: #e0e0e0;
+    font-weight: bold;
+    text-align: center;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  tfoot { border-top: 2px solid #000; }
+  .total-row { background-color: #f0f0f0; font-weight: bold; }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .font-bold { font-weight: bold; }
+  .totals-summary {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f8f8f8;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  .total-breakdown {
+    display: flex;
+    justify-content: flex-end;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .total-line { display: flex; justify-content: space-between; width: 300px; margin-bottom: 5px; font-size: 13px; }
+  .total-final { border-top: 1px solid #000; padding-top: 5px; font-weight: bold; font-size: 14px; }
+  .footer { margin-top: 40px; border-top: 2px solid #000; padding-top: 20px; }
+  .signature-section { margin-bottom: 20px; }
+  .signature-box { width: 300px; margin: 0 auto; text-align: center; }
+  .signature-label { font-weight: bold; margin-bottom: 10px; }
+  .signature-line { border-bottom: 1px solid #000; height: 20px; }
+  .legal-notice { text-align: center; font-size: 11px; color: #333; margin-top: 20px; }
+  .legal-notice p { margin: 5px 0; }
+  @media print {
+    body { margin: 0; padding: 10px; }
+    .container { max-width: none; border: none; padding: 0; }
+  }
