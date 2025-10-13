@@ -3,7 +3,8 @@ import { RouterModule, Routes } from '@angular/router';
 import { DocumentsReceptionComponent } from './documents-reception.component';
 
 const routes: Routes = [
-  { path: '', component: DocumentsReceptionComponent }
+  { path: '', component: DocumentsReceptionComponent },
+  { path: ':depotId', component: DocumentsReceptionComponent }
 ];
 
 @NgModule({

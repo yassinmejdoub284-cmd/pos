@@ -7,24 +7,40 @@ const router = express.Router();
 
 router.post('/login', async (req, res) => {
   try {
-    const { pin } = req.body;
+    const { pin, token } = req.body;
 
-    if (!pin) {
-      return res.status(400).json({ error: 'PIN is required' });
+    if (!pin && !token) {
+      return res.status(400).json({ error: 'PIN or token is required' });
     }
 
-    const user = await prisma.user.findFirst({
-      where: {
-        pin,
-        isActive: true
+    let user;
+    if (token) {
+      // Token-based authentication
+      user = await prisma.user.findFirst({
+        where: {
+          token,
+          isActive: true
+        }
+      });
+      
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid token' });
       }
-    });
-
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid PIN' });
+    } else {
+      // PIN-based authentication
+      user = await prisma.user.findFirst({
+        where: {
+          pin,
+          isActive: true
+        }
+      });
+      
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid PIN' });
+      }
     }
 
-    const token = jwt.sign(
+    const jwtToken = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
@@ -47,7 +63,7 @@ router.post('/login', async (req, res) => {
         role: user.role,
         depotId: user.depotId
       },
-      token,
+      token: jwtToken,
       permissions
     });
 

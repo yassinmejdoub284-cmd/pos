@@ -46,7 +46,27 @@ export class StockComponent implements OnInit {
       icon: 'M8 4h8l4 4v12H8V4zm8 8H10m6 4H10',
       color: 'from-blue-600 to-indigo-700'
     },
-    
+    {
+      id: 'documents-reception',
+      title: 'Réception Documents',
+      description: 'Réceptionner les documents de stock',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      color: 'from-teal-500 to-cyan-600'
+    },
+    {
+      id: 'vehicles',
+      title: 'Véhicules',
+      description: 'Liste et gestion des véhicules',
+      icon: 'M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2',
+      color: 'from-indigo-500 to-purple-600'
+    },
+    {
+      id: 'drivers',
+      title: 'Chauffeurs',
+      description: 'Nom, prénom et CIN des chauffeurs',
+      icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+      color: 'from-amber-500 to-orange-600'
+    },
     {
       id: 'stock',
       title: 'Gestion de Stock',
@@ -147,9 +167,17 @@ export class StockComponent implements OnInit {
     console.log('Opening action:', action, 'for user:', currentUser?.role, 'depotId:', currentUser?.depotId);
 
     // Actions that do NOT require depot selection
-    if (action === 'drivers' || action === 'documents') {
+    if (action === 'drivers' || action === 'vehicles' || action === 'documents') {
       if (action === 'documents') {
         this.showDocumentsDialog = true;
+        return;
+      }
+      if (action === 'vehicles') {
+        this.router.navigate(['/stock/vehicles']);
+        return;
+      }
+      if (action === 'drivers') {
+        this.router.navigate(['/stock/drivers']);
         return;
       }
       this.router.navigate(['/stock/transport']);
@@ -194,8 +222,8 @@ export class StockComponent implements OnInit {
   }
 
   getAvailableDepots(): Depot[] {
-    if (this.selectedAction === 'stock-history' || this.selectedAction === 'drivers') {
-      // Exclude SHOP type depots for stock-history and drivers actions
+    if (this.selectedAction === 'stock-history' || this.selectedAction === 'drivers' || this.selectedAction === 'vehicles') {
+      // Exclude SHOP type depots for stock-history, drivers, and vehicles actions
       return this.depots.filter(depot => depot.type !== 'SHOP');
     }
     return this.depots;
@@ -219,6 +247,9 @@ export class StockComponent implements OnInit {
         // Navigate to dedicated returns list route
         this.router.navigate(['/stock/documents/bon-retour', depot.id]);
         break;
+      case 'documents-reception':
+        this.router.navigate(['/documents-reception', depot.id]);
+        break;
       case 'inventory':
         this.router.navigate(['/inventory', depot.id]);
         break;
@@ -227,6 +258,9 @@ export class StockComponent implements OnInit {
         break;
       case 'drivers':
         this.router.navigate(['/stock/transport']);
+        break;
+      case 'vehicles':
+        this.router.navigate(['/stock/vehicles']);
         break;
       case 'bon-transfert':
         this.router.navigate(['/stock/documents/bon-transfert', depot.id]);
@@ -247,12 +281,16 @@ export class StockComponent implements OnInit {
         return 'Bon de retour';
       case 'documents':
         return 'Documents';
+      case 'documents-reception':
+        return 'Réception Documents';
+      case 'vehicles':
+        return 'Véhicules';
+      case 'drivers':
+        return 'Chauffeurs';
       case 'inventory':
         return 'Inventaire';
       case 'stock-history':
         return 'Historique du stock';
-      case 'drivers':
-        return 'Gestion des Chauffeurs';
       default:
         return 'Action';
     }
@@ -268,12 +306,16 @@ export class StockComponent implements OnInit {
         return 'M19 14l-7 7m0 0l-7-7m7 7V3';
       case 'documents':
         return 'M3 7h18M3 12h18M3 17h18';
+      case 'documents-reception':
+        return 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z';
+      case 'vehicles':
+        return 'M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2';
+      case 'drivers':
+        return 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z';
       case 'inventory':
         return 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01';
       case 'stock-history':
         return 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z';
-      case 'drivers':
-        return 'M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z';
       case 'bon-sortie':
         return 'M20 12H4m16 0l-4-4m4 4l-4 4';
       case 'bon-transfert':
@@ -293,12 +335,16 @@ export class StockComponent implements OnInit {
         return 'bg-gradient-to-br from-emerald-500 to-green-600';
       case 'bon-retour':
         return 'bg-gradient-to-br from-rose-500 to-red-600';
+      case 'documents-reception':
+        return 'bg-gradient-to-br from-teal-500 to-cyan-600';
+      case 'vehicles':
+        return 'bg-gradient-to-br from-indigo-500 to-purple-600';
+      case 'drivers':
+        return 'bg-gradient-to-br from-amber-500 to-orange-600';
       case 'inventory':
         return 'bg-gradient-to-br from-emerald-500 to-teal-600';
       case 'stock-history':
         return 'bg-gradient-to-br from-cyan-500 to-blue-600';
-      case 'drivers':
-        return 'bg-gradient-to-br from-blue-500 to-indigo-600';
       case 'documents':
         return 'bg-gradient-to-br from-blue-600 to-indigo-700';
       default:
@@ -426,7 +472,14 @@ export class StockComponent implements OnInit {
     }
 
     console.log('Auto-routing to assigned depot:', assignedDepot.name, 'for action:', action);
-    // Route directly to the assigned depot
+    
+    // Handle documents-reception action directly for non-admin users
+    if (action === 'documents-reception') {
+      this.router.navigate(['/documents-reception', assignedDepot.id]);
+      return;
+    }
+    
+    // Route directly to the assigned depot for other actions
     this.selectDepotForAction(assignedDepot);
   }
 

@@ -49,9 +49,9 @@
 
 /* Fixed product dimensions for consistent drag calculations */
 .product-button {
-  width: 96.2px;
+  width: 89px;
   height: 127.6px;
-  min-width: 96.2px;
+  min-width: 89px;
   min-height: 127.6px;
   max-width: 96.2px;
   max-height: 127.6px;

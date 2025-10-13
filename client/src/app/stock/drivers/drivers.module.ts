@@ -2,11 +2,13 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule, Routes } from '@angular/router';
+import { DriversComponent } from './drivers.component';
 import { DriversListComponent } from './drivers-list/drivers-list.component';
 import { DriverFormComponent } from './driver-form/driver-form.component';
 
 const routes: Routes = [
-  { path: '', component: DriversListComponent },
+  { path: '', component: DriversComponent },
+  { path: 'list', component: DriversListComponent },
   { path: 'new', component: DriverFormComponent },
   { path: 'edit/:id', component: DriverFormComponent },
   { path: ':depotId', component: DriversListComponent }
@@ -14,6 +16,7 @@ const routes: Routes = [
 
 @NgModule({
   declarations: [
+    DriversComponent,
     DriversListComponent,
     DriverFormComponent
   ],

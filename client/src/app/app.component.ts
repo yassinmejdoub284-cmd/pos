@@ -2,6 +2,7 @@ import { Component, OnInit, HostListener } from '@angular/core';
 import { RouterOutlet, RouterModule } from '@angular/router';
 import { AuthService } from './core/services/auth.service';
 import { AttendanceService } from './core/services/attendance.service';
+import { FullscreenService } from './core/services/fullscreen.service';
 
 @Component({
   selector: 'app-root',
@@ -15,12 +16,16 @@ export class AppComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
-    private attendanceService: AttendanceService
+    private attendanceService: AttendanceService,
+    private fullscreenService: FullscreenService
   ) {}
 
   ngOnInit(): void {
     // Ensure auth is initialized on app start
     this.authService.getToken();
+    
+    // Initialize fullscreen service and request fullscreen if user previously chose it
+    this.fullscreenService.requestFullscreenOnStartup();
   }
 
   @HostListener('window:beforeunload', ['$event'])

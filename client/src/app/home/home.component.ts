@@ -6,6 +6,7 @@ import { ExpenseService } from '../core/services/expense.service';
 import { ApprovalsService } from '../core/services/approvals.service';
 import { SessionsService } from '../core/services/sessions.service';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
+import { FullscreenService } from '../core/services/fullscreen.service';
 import { Subject, forkJoin, timer, of } from 'rxjs';
 import { takeUntil, catchError, shareReplay, debounceTime } from 'rxjs/operators';
 
@@ -261,6 +262,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     private expenseService: ExpenseService,
     private approvalsService: ApprovalsService,
     private settingsService: SettingsService,
+    private fullscreenService: FullscreenService,
     private router: Router,
     private cdr: ChangeDetectorRef
   ) {}
@@ -683,6 +685,22 @@ export class HomeComponent implements OnInit, OnDestroy {
   logout(): void {
     this.authService.logout();
     this.router.navigate(['/auth/login']);
+  }
+
+  async toggleFullscreen(): Promise<void> {
+    try {
+      await this.fullscreenService.toggleFullscreen();
+    } catch (error) {
+      console.error('Error toggling fullscreen:', error);
+    }
+  }
+
+  get isFullscreen(): boolean {
+    return this.fullscreenService.isFullscreen();
+  }
+
+  get isFullscreenSupported(): boolean {
+    return this.fullscreenService.isSupported();
   }
 
   loadSettings(): void {

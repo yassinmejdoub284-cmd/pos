@@ -34,15 +34,26 @@
         <div class="text-center mb-2">
           <span class="block text-3xl font-extrabold text-gray-800">Bonjour !</span>
           <span class="block text-sm mt-1" [style.color]="primaryColor">Heureux de vous revoir. Entrez votre code PIN
-            pour continuer.</span>
+            ou scanner votre badge pour continuer.</span>
         </div>
 
         <!-- PIN form -->
         <form (ngSubmit)="onSubmit()" class="space-y-2 md:space-y-6">
-          <!-- PIN dots -->
+          <!-- PIN/Token display -->
           <div>
             <div class="w-full bg-white/80 border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm">
-              <div class="flex justify-center gap-2 sm:gap-3">
+              <!-- Scanner status indicator -->
+              <div *ngIf="isScannerMode" class="flex items-center justify-center mb-2">
+                <div class="flex items-center gap-2 px-3 py-1 bg-blue-100 rounded-full">
+                  <svg class="w-4 h-4 text-blue-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                  </svg>
+                  <span class="text-xs font-medium text-blue-700">{{ scannerStatusText }}</span>
+                </div>
+              </div>
+              
+              <!-- PIN dots for short input -->
+              <div *ngIf="credentials.pin.length <= 8" class="flex justify-center gap-2 sm:gap-3">
                 <div *ngFor="let digit of [0,1,2,3,4,5,6,7]"
                   class="md:w-10 md:h-10 w-6 h-6 rounded-xl border-2 flex items-center justify-center text-xl font-bold transition-all duration-300 flex-shrink-0"
                   [class]="credentials.pin.length > digit ? 'text-white shadow-md' : 'border-gray-300 bg-white text-gray-400'"
@@ -51,8 +62,23 @@
                   <span *ngIf="credentials.pin.length > digit">•</span>
                 </div>
               </div>
+              
+              <!-- Token display for long input -->
+              <div *ngIf="credentials.pin.length > 8" class="text-center">
+                <div class="flex items-center justify-center gap-2 mb-2">
+                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <span class="text-sm font-medium text-green-700">Token détecté</span>
+                </div>
+                <div class="bg-gray-100 rounded-lg p-2 font-mono text-xs text-gray-700 break-all">
+                  {{ credentials.pin }}
+                </div>
+              </div>
             </div>
-            <span class="block text-xs text-gray-600 text-center mt-2">Code PIN (4 à 8 chiffres)</span>
+            <span class="block text-xs text-gray-600 text-center mt-2">
+              {{ credentials.pin.length > 8 ? 'Token de badge scanné' : 'Code PIN (4 à 8 chiffres)' }}
+            </span>
           </div>
 
           <!-- Hidden input to bind model -->
@@ -87,10 +113,12 @@
           </div>
 
           <!-- Submit -->
-          <button type="submit" [disabled]="loading || credentials.pin.length < 4"
+          <button type="submit" [disabled]="loading || (credentials.pin.length < 4 && credentials.pin.length <= 8)"
             class="w-full text-white py-3.5 rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             [style.backgroundColor]="primaryColor">
-            <span *ngIf="!loading">Se connecter</span>
+            <span *ngIf="!loading">
+              {{ credentials.pin.length > 8 ? 'Se connecter avec badge' : 'Se connecter' }}
+            </span>
             <span *ngIf="loading" class="flex items-center justify-center">
               <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

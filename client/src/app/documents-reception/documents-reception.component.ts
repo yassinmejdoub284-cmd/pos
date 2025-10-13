@@ -26,7 +26,6 @@ export class DocumentsReceptionComponent implements OnInit {
   currentDepotId: number | null = null;
   depots: any[] = [];
   isAdmin = false;
-  adminDepotId: number | null = null;
   showDepotSelector = false;
 
   // Details modal
@@ -47,8 +46,18 @@ export class DocumentsReceptionComponent implements OnInit {
     this.isAdmin = (user?.role === 'ADMIN');
     this.currentDepotId = user?.depotId ?? null;
 
+    // Check if depotId is provided in route params
+    const depotIdFromRoute = this.router.url.split('/').pop();
+    if (depotIdFromRoute && !isNaN(Number(depotIdFromRoute))) {
+      this.currentDepotId = Number(depotIdFromRoute);
+    }
+
     if (this.isAdmin) {
       this.loadDepots();
+      // If admin and no specific depot selected, show depot selector
+      if (!this.currentDepotId) {
+        this.showDepotSelector = true;
+      }
     }
 
     this.loadDocuments();
@@ -62,7 +71,6 @@ export class DocumentsReceptionComponent implements OnInit {
   }
 
   private getScopedDepotId(): number | undefined {
-    if (this.isAdmin && this.adminDepotId) return this.adminDepotId;
     return this.currentDepotId ?? undefined;
   }
 
@@ -99,7 +107,7 @@ export class DocumentsReceptionComponent implements OnInit {
   }
 
   selectDepot(depotId: number): void {
-    this.adminDepotId = depotId;
+    this.currentDepotId = depotId;
     this.showDepotSelector = false;
     this.loadDocuments();
   }
@@ -204,7 +212,7 @@ export class DocumentsReceptionComponent implements OnInit {
   }
 
   approve(doc: StockDocument): void {
-    const depotId = doc.destinataireId || this.getScopedDepotId();
+    const depotId = this.getScopedDepotId();
     if (!depotId) {
       this.error = 'Dépôt cible introuvable';
       return;

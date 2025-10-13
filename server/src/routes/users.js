@@ -18,7 +18,8 @@ router.get('/', requireRole(['ADMIN']), async (req, res) => {
         isActive: true,
         lastLogin: true,
         createdAt: true,
-        pin: true
+        pin: true,
+        token: true
       },
       orderBy: {
         createdAt: 'desc'
@@ -48,7 +49,8 @@ router.get('/:id', requireRole(['ADMIN']), async (req, res) => {
         isActive: true,
         lastLogin: true,
         createdAt: true,
-        pin: true
+        pin: true,
+        token: true
       }
     });
 
@@ -88,7 +90,8 @@ router.put('/:id', requireRole(['ADMIN']), async (req, res) => {
         isActive: true,
         lastLogin: true,
         createdAt: true,
-        pin: true
+        pin: true,
+        token: true
       }
     });
 
@@ -127,13 +130,49 @@ router.put('/:id/pin', authenticateToken, async (req, res) => {
         isActive: true,
         lastLogin: true,
         createdAt: true,
-        pin: true
+        pin: true,
+        token: true
       }
     });
 
     res.json(updatedUser);
   } catch (error) {
     console.error('Error updating user pin:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/:id/token', requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { token } = req.body;
+
+    if (!token || String(token).length < 10) {
+      return res.status(400).json({ error: 'Token invalide (minimum 10 caractères requis)' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { token: String(token) },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        depotId: true,
+        isActive: true,
+        lastLogin: true,
+        createdAt: true,
+        pin: true,
+        token: true
+      }
+    });
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('Error updating user token:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

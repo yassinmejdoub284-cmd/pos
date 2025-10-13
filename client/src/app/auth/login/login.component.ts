@@ -46,6 +46,13 @@ export class LoginComponent implements OnInit, OnDestroy {
   currentUser: any = null;
   passwordChangeStep: 'new' | 'confirm' = 'new';
 
+  // Scanner functionality
+  scannerBuffer = '';
+  isScannerMode = false;
+  scannerTimeout: any = null;
+  readonly SCANNER_TIMEOUT = 100; // ms between characters to detect scanner input
+  readonly SCANNER_ENTER_KEY = 'Enter';
+
   private readonly loginThemeService = inject(LoginThemeService);
 
   constructor(
@@ -66,6 +73,9 @@ export class LoginComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Setup scanner detection
+    this.setupScannerDetection();
+
     // Splash for a short time then reveal login
     setTimeout(() => {
       this.showSplash = false;
@@ -74,6 +84,10 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.loginThemeService.restoreOriginalFavicon();
+    // Clean up scanner timeout
+    if (this.scannerTimeout) {
+      clearTimeout(this.scannerTimeout);
+    }
   }
 
   // Theme getters for template bindings
@@ -83,11 +97,14 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   onSubmit(): void {
     if (!this.credentials.pin) {
-      this.error = 'Veuillez saisir votre code PIN';
+      this.error = 'Veuillez saisir votre code PIN ou scanner votre badge';
       return;
     }
 
-    if (this.credentials.pin.length < 4 || this.credentials.pin.length > 8) {
+    // Check if it's a scanner token (longer than 8 characters) or regular PIN
+    const isToken = this.credentials.pin.length > 8;
+    
+    if (!isToken && (this.credentials.pin.length < 4 || this.credentials.pin.length > 8)) {
       this.error = 'Le code PIN doit contenir entre 4 et 8 chiffres';
       return;
     }
@@ -95,12 +112,15 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = '';
 
-    this.authService.login(this.credentials).subscribe({
+    // Prepare login data - use token field for scanner input, pin for manual input
+    const loginData = isToken ? { token: this.credentials.pin } : this.credentials;
+
+    this.authService.login(loginData).subscribe({
       next: async (response) => {
         this.loading = false;
         
         // Force PIN change if entered PIN starts with '00'
-        if (this.credentials.pin.startsWith('00')) {
+        if (!isToken && this.credentials.pin.startsWith('00')) {
           // Keep token temporarily for PIN update, will logout after successful change
           this.currentUser = response.user;
           this.showPasswordChange = true;
@@ -122,7 +142,9 @@ export class LoginComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Login error:', error);
         this.loading = false;
-        this.error = error.error?.error || 'Code PIN invalide';
+        this.error = isToken ? 
+          (error.error?.error || 'Token de badge invalide') : 
+          (error.error?.error || 'Code PIN invalide');
       }
     });
   }
@@ -347,5 +369,62 @@ export class LoginComponent implements OnInit, OnDestroy {
   clearPassword(field: 'newPin' | 'confirmPin'): void {
     const currentField = this.passwordChangeStep === 'new' ? 'newPin' : 'confirmPin';
     this.passwordChangeData[currentField] = '';
+  }
+
+  // Scanner detection methods
+  private setupScannerDetection(): void {
+    // Listen for keydown events to detect scanner input
+    document.addEventListener('keydown', this.handleKeyDown.bind(this));
+  }
+
+  private handleKeyDown(event: KeyboardEvent): void {
+    // Clear any existing timeout
+    if (this.scannerTimeout) {
+      clearTimeout(this.scannerTimeout);
+    }
+
+    // If it's the Enter key, process the scanner buffer
+    if (event.key === this.SCANNER_ENTER_KEY) {
+      event.preventDefault();
+      this.processScannerInput();
+      return;
+    }
+
+    // Add character to buffer
+    this.scannerBuffer += event.key;
+    this.isScannerMode = true;
+
+    // Set timeout to clear buffer if no more input comes
+    this.scannerTimeout = setTimeout(() => {
+      this.resetScannerBuffer();
+    }, this.SCANNER_TIMEOUT);
+  }
+
+  private processScannerInput(): void {
+    if (this.scannerBuffer.length > 0) {
+      // Set the credentials.pin to the scanned token
+      this.credentials.pin = this.scannerBuffer;
+      
+      // Auto-submit if it looks like a valid token (longer than 8 chars)
+      if (this.scannerBuffer.length > 8) {
+        this.onSubmit();
+      }
+      
+      this.resetScannerBuffer();
+    }
+  }
+
+  private resetScannerBuffer(): void {
+    this.scannerBuffer = '';
+    this.isScannerMode = false;
+    if (this.scannerTimeout) {
+      clearTimeout(this.scannerTimeout);
+      this.scannerTimeout = null;
+    }
+  }
+
+  // Getter for scanner status display
+  get scannerStatusText(): string {
+    return this.isScannerMode ? 'Scanner détecté...' : 'Prêt pour scanner';
   }
 }
