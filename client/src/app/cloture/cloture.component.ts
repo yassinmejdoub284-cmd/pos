@@ -3,20 +3,21 @@ import { Observable } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { SessionsService, SessionCaisse, CashMovementRequest, CloseSessionRequest, OpenSessionRequest } from '../core/services/sessions.service';
+import { SessionsService, SessionCaisse } from '../core/services/sessions.service';
+import { SalesService } from '../core/services/sales.service';
+import { TicketDetailsModalComponent } from '../shared/ticket-details-modal/ticket-details-modal.component';
 import { AuthService } from '../core/services/auth.service';
 import { PrintService } from '../core/services/print.service';
 import { DailyExtractService } from '../core/services/daily-extract.service';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
 import { DepotsService } from '../core/services/depots.service';
 import { TicketCounterService } from '../core/services/ticket-counter.service';
-import { Depot } from '../core/models/depot.model';
 
 @Component({
   selector: 'app-cloture',
   templateUrl: './cloture.component.html',
   standalone: true,
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, FormsModule, TicketDetailsModalComponent]
 })
 export class ClotureComponent implements OnInit, OnDestroy {
   currentSession = signal<SessionCaisse | null>(null);
@@ -47,7 +48,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => sum + t.amount, 0));
 
   // Cash sales detail state
-  cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number }[]>([]);
+  cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number; status?: string; dailyTicketNumber?: number | string }[]>([]);
   cashSalesLoading = signal(false);
   // UI local toggles for cash sales "voir plus"
   cashMoreMainFlag = false;
@@ -64,6 +65,35 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // App settings stream for template consumption
   settings$!: Observable<AppSettings>;
+  // Ticket details modal state
+  showTicketDetailsModal = signal(false);
+  selectedTicketForDetails: any = null;
+
+  openTicketDetails(ticketId: number): void {
+    if (!ticketId) return;
+    this.salesService.getSale(ticketId).subscribe({
+      next: (full) => {
+        this.selectedTicketForDetails = full;
+        this.showTicketDetailsModal.set(true);
+      },
+      error: () => {
+        this.error.set('Impossible de charger les détails du ticket');
+      }
+    });
+  }
+
+  closeTicketDetails(): void {
+    this.showTicketDetailsModal.set(false);
+    this.selectedTicketForDetails = null;
+  }
+
+  onTicketDetailsPrint(sale: any): void {
+    this.printService.printSaleReceipt(sale);
+  }
+
+  onTicketDetailsReturn(_sale: any): void {
+    // Not supported from clôture; handled in Historique/Caisse
+  }
 
   // Resolve logo URL from settings (fallback to public logo)
   getLogoUrl(settings: AppSettings | null | undefined): string {
@@ -284,6 +314,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
   private refreshIntervalId: any;
   private isRefreshing = false;
   isAdminUser = false;
+  // Snapshot to avoid unnecessary UI updates
+  private lastSessionSnapshot: string | null = null;
+  private lastSalesSnapshot: string | null = null;
 
   // Crédit and supplier payments helpers
   getCreditAmount(): number {
@@ -564,9 +597,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const userSalesMap = new Map<string, number>();
     
     sales.forEach((sale: any) => {
+      const status = String(sale.status || '').toUpperCase();
+      if (status === 'CANCELLED' || status === 'REFUNDED') {
+        return; // Exclude cancelled/refunded from user totals
+      }
       const userName = sale.user ? `${sale.user.firstName} ${sale.user.lastName}` : 'Utilisateur inconnu';
       const saleAmount = parseFloat(sale.finalTotal || sale.total || 0) || 0;
-      
+
       if (userSalesMap.has(userName)) {
         userSalesMap.set(userName, userSalesMap.get(userName)! + saleAmount);
       } else {
@@ -592,7 +629,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
           id: s.id,
           amount: parseFloat((s.paidAmount ?? s.finalTotal ?? s.amount ?? 0) as any) || 0,
           totalAmount: s.totalAmount ?? s.finalTotal,
-          createdAt: s.createdAt
+          createdAt: s.createdAt,
+          // carry session-local numbering fields for display in modal
+          dailyTicketNumber: s.dailyTicketNumber ?? s.sessionTicketNumber ?? s.numero ?? s.sessionIndex ?? s.sessionSeq ?? null
         })));
         this.loading.set(false);
         this.showTicketsModal.set(true);
@@ -616,22 +655,51 @@ export class ClotureComponent implements OnInit, OnDestroy {
           const paid = parseFloat(s.paidAmount ?? 0) || 0;
           const total = parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0;
           const hasCredit = total - paid > 0;
-          return method === 'CASH' || paid > 0 || hasCredit;
+          // Include all cash-related tickets; we'll style struck for cancelled/refunded
+          return (method === 'CASH' || paid > 0 || hasCredit);
         });
-        this.cashSalesDetails.set(
-          cashSales.map(s => ({
-            id: s.id,
-            paidAmount: parseFloat(s.paidAmount ?? 0) || 0,
-            totalAmount: parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0,
-            createdAt: s.createdAt
-          }))
-        );
+        // Merge status from current session sales if missing
+        const existing = (((this.currentSession() as any)?.sales) || []) as any[];
+        const statusById = new Map<number, string>(existing.map(e => [e.id, (e.status || '').toString()]));
+        const rows = cashSales.map(s => ({
+          id: s.id,
+          paidAmount: parseFloat(s.paidAmount ?? 0) || 0,
+          totalAmount: parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0,
+          createdAt: s.createdAt,
+          status: (s.status || statusById.get(s.id) || '').toString(),
+          dailyTicketNumber: (s as any)?.dailyTicketNumber
+        }));
+        // Sort latest first (descending by createdAt, fallback by id)
+        rows.sort((a: any, b: any) => {
+          const ta = new Date(a.createdAt || 0).getTime();
+          const tb = new Date(b.createdAt || 0).getTime();
+          if (tb !== ta) return tb - ta;
+          return (b.id || 0) - (a.id || 0);
+        });
+        this.cashSalesDetails.set(rows);
         this.cashSalesLoading.set(false);
       },
       error: () => {
         this.cashSalesLoading.set(false);
       }
     });
+  }
+
+  // Prefer session-local ticket numbering for display (e.g., #0005)
+  getTicketDisplayNo(source: any): string {
+    const candidate = source?.dailyTicketNumber
+      ?? source?.sessionTicketNumber
+      ?? source?.ticketNumber
+      ?? source?.numero
+      ?? source?.sessionIndex
+      ?? source?.sessionSeq
+      ?? null;
+    const raw = candidate ?? source?.id;
+    const num = parseInt(raw as any, 10);
+    if (Number.isFinite(num)) {
+      return num.toString().padStart(4, '0');
+    }
+    return String(raw ?? '');
   }
 
   // Schema helpers: open Encaissement section and specific client payments detail
@@ -669,7 +737,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
     private dailyExtractService: DailyExtractService,
     private settingsService: SettingsService,
     private depotsService: DepotsService,
-    private ticketCounterService: TicketCounterService
+    private ticketCounterService: TicketCounterService,
+    private salesService: SalesService
   ) {}
 
   ngOnInit(): void {
@@ -677,14 +746,14 @@ export class ClotureComponent implements OnInit, OnDestroy {
     this.isAdminUser = this.authService.isAdmin();
     // Load immediately; depot scope is handled globally via header
     this.loadCurrentSession();
-    // Refresh session data every 5 seconds to get updated sales (pause when modal open or tab hidden)
+    // Refresh session data every 15 seconds to reduce flicker (pause when modal open or tab hidden)
     this.refreshIntervalId = setInterval(() => {
       if (document?.hidden) return;
       if (this.showCloseForm() || this.showFundForm() || this.showAdjustForm() || this.showTicketsModal()) return;
       if (this.currentSession()) {
         this.loadCurrentSession(true);
       }
-    }, 5000);
+    }, 15000);
   }
 
   ngOnDestroy(): void {
@@ -706,11 +775,24 @@ export class ClotureComponent implements OnInit, OnDestroy {
     
     this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({
       next: (session) => {
-        this.currentSession.set(session);
-        
-        // Load sales data for user summary if session exists
+        // Build a compact snapshot to detect meaningful changes
+        const snapshot = session ? JSON.stringify({
+          id: session.id,
+          expectedCash: (session as any)?.summary?.expectedCash ?? null,
+          totalSales: (session as any)?.summary?.totalSales ?? null,
+          totalTickets: (session as any)?.summary?.totalTickets ?? null,
+          cmLen: (session as any)?.cashMovements?.length ?? 0
+        }) : 'null';
+
+        if (this.lastSessionSnapshot !== snapshot) {
+          this.currentSession.set(session);
+          this.lastSessionSnapshot = snapshot;
+          // Load sales data for user summary if session exists
         if (session) {
           this.loadSessionSalesData(session.id);
+          // Ensure cash details are refreshed so the list shows immediately
+          this.loadCashSalesDetails();
+        }
         }
         
         if (!silent) this.loading.set(false);
@@ -730,12 +812,21 @@ export class ClotureComponent implements OnInit, OnDestroy {
       next: (report: any) => {
         const currentSession = this.currentSession();
         if (currentSession && report?.session?.sales) {
-          // Add sales data to current session
-          const updatedSession = {
-            ...currentSession,
-            sales: report.session.sales
-          };
-          this.currentSession.set(updatedSession);
+          // Only update if sales snapshot changed to avoid re-render flicker
+          const sales = report.session.sales as any[];
+          const newSalesSnapshot = JSON.stringify({
+            len: sales.length,
+            lastId: sales.length ? sales[sales.length - 1].id : null,
+            lastUpdated: sales.length ? sales[sales.length - 1].updatedAt || sales[sales.length - 1].createdAt : null
+          });
+          if (this.lastSalesSnapshot !== newSalesSnapshot) {
+            const updatedSession = {
+              ...currentSession,
+              sales: report.session.sales
+            } as any;
+            this.currentSession.set(updatedSession);
+            this.lastSalesSnapshot = newSalesSnapshot;
+          }
         }
       },
       error: (error) => {
@@ -1114,7 +1205,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     this.sessionsService.addCashMovement(session.id, {
       type: delta > 0 ? 'ENTREE' : 'SORTIE',
       amount: Math.abs(delta),
-      reason: `Ajustement solde : ${delta > 0 ? '+' : ''}${delta.toFixed(3)} TND (Ancien: ${currentBalance.toFixed(3)}, Nouveau: ${targetBalance.toFixed(3)})`
+      reason: `Ajustement solde : ${delta > 0 ? '+' : ''}${delta.toFixed(3)} DT (Ancien: ${currentBalance.toFixed(3)}, Nouveau: ${targetBalance.toFixed(3)})`
     }).subscribe({
       next: () => {
         this.showAdjustForm.set(false);

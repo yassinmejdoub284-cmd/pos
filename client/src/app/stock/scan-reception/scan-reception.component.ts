@@ -1615,9 +1615,9 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
               <td class="text-center font-semibold">${(totalQuantity/1000).toFixed(3)} kg</td>
               <td class="text-center font-semibold">${totalCount}</td>
               ${this.sessionDocumentType !== 'sortie' ? `
-                <td class="text-center font-semibold">${totalHT.toFixed(3)} TND</td>
-                <td class="text-center font-semibold">${totalTVA.toFixed(3)} TND</td>
-                <td class="text-center font-semibold">${totalTTC.toFixed(3)} TND</td>
+                <td class="text-center font-semibold">${totalHT.toFixed(3)} DT</td>
+                <td class="text-center font-semibold">${totalTVA.toFixed(3)} DT</td>
+                <td class="text-center font-semibold">${totalTTC.toFixed(3)} DT</td>
               ` : ''}
             </tr>
           `;
@@ -1642,9 +1642,9 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
                   <td class="text-center">${quantite.toFixed(3)} kg</td>
                   <td class="text-center">${item.count}</td>
                   ${this.sessionDocumentType !== 'sortie' ? `
-                    <td class="text-center">${montantHT.toFixed(3)} TND</td>
-                    <td class="text-center">${montantTVA.toFixed(3)} TND</td>
-                    <td class="text-center">${montantTTC.toFixed(3)} TND</td>
+                    <td class="text-center">${montantHT.toFixed(3)} DT</td>
+                    <td class="text-center">${montantTVA.toFixed(3)} DT</td>
+                    <td class="text-center">${montantTTC.toFixed(3)} DT</td>
                   ` : ''}
                 </tr>
               `;
@@ -1703,8 +1703,10 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
           const quantite = item.quantity / 1000;
           
           const montantTTC = prixUnitaire * quantite;
-          const montantHT = montantTTC / (1 + tva / 100);
-          const montantTVA = montantTTC - montantHT;
+          // Correct TVA calculation: HT = TTC / (1 + TVA), TVA = TTC - HT
+          const tvaFraction = tva <= 1 ? tva : tva / 100;
+          const montantHT = Math.round((montantTTC / (1 + tvaFraction)) * 1000) / 1000;
+          const montantTVA = Math.round((montantTTC - montantHT) * 1000) / 1000;
           
           totalHT += montantHT;
           totalTVA += montantTVA;
@@ -1978,9 +1980,9 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
             <tfoot>
               <tr class="total-row">
                 <td colspan="4" class="text-right font-bold">TOTAL:</td>
-                <td class="text-center font-bold">${totalHT.toFixed(3)} TND</td>
-                <td class="text-center font-bold">${totalTVA.toFixed(3)} TND</td>
-                <td class="text-center font-bold">${totalTTC.toFixed(3)} TND</td>
+                <td class="text-center font-bold">${totalHT.toFixed(3)} DT</td>
+                <td class="text-center font-bold">${totalTVA.toFixed(3)} DT</td>
+                <td class="text-center font-bold">${totalTTC.toFixed(3)} DT</td>
               </tr>
             </tfoot>
           ` : ''}
@@ -1991,15 +1993,15 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
             <div class="total-breakdown">
               <div class="total-line">
                 <span class="label">Total HT:</span>
-                <span class="value">${totalHT.toFixed(3)} TND</span>
+                <span class="value">${totalHT.toFixed(3)} DT</span>
               </div>
               <div class="total-line">
                 <span class="label">Total TVA:</span>
-                <span class="value">${totalTVA.toFixed(3)} TND</span>
+                <span class="value">${totalTVA.toFixed(3)} DT</span>
               </div>
               <div class="total-line total-final">
                 <span class="label">Total TTC:</span>
-                <span class="value">${totalTTC.toFixed(3)} TND</span>
+                <span class="value">${totalTTC.toFixed(3)} DT</span>
               </div>
             </div>
           </div>

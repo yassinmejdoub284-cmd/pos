@@ -730,7 +730,7 @@ router.post('/gift', async (req, res) => {
     try {
       await sendPushToAll({
         title: 'Nouveau Cadeau',
-        body: `Cadeau de ${finalTotal} TND - ${items.length} articles par ${req.user.firstName} ${req.user.lastName}`,
+        body: `Cadeau de ${finalTotal} DT - ${items.length} articles par ${req.user.firstName} ${req.user.lastName}`,
         data: { type: 'GIFT', id: saleWithDetails.id, depotId: saleWithDetails.depotId }
       });
     } catch (e) {
@@ -986,16 +986,58 @@ router.get('/:id', async (req, res) => {
 
 router.put('/:id/status', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
+  const { id } = req.params;
+  const { status } = req.body;
 
     if (!['PENDING', 'COMPLETED', 'CANCELLED', 'REFUNDED'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    await prisma.sale.update({ where: { id: parseInt(id), depotId: req.user.depotId }, data: { status } });
+  const userDepotId = req.user.depotId;
+  const updated = await prisma.$transaction(async (tx) => {
+      // Load sale first to validate depot and current status
+      const existing = await tx.sale.findFirst({ where: { id: parseInt(id), depotId: userDepotId } });
+      if (!existing) {
+        throw new Error('Sale not found');
+      }
 
-    res.json({ message: 'Sale status updated successfully' });
+      // If status is unchanged, no-op
+      if ((existing.status || '').toUpperCase() === (status || '').toUpperCase()) {
+        return existing;
+      }
+
+      const sale = await tx.sale.update({ where: { id: parseInt(id), depotId: userDepotId }, data: { status } });
+
+      // Do not create cash movements on CANCELLED; sales summary excludes CANCELLED to avoid double subtraction
+      // Also revert any legacy cancellation movements by marking them as rejected and restoring expected cash
+      if (status === 'CANCELLED') {
+        // Find any previous cancellation movements tied to this sale and mark them rejected
+        const movements = await tx.cashMovement.findMany({
+          where: {
+            ticketId: sale.id,
+            type: 'SORTIE'
+          }
+        });
+        for (const m of movements) {
+          const alreadyRejected = String(m.reason || '').includes('[REJETÉ]');
+          if (!alreadyRejected) {
+            await tx.cashMovement.update({
+              where: { id: m.id },
+              data: { reason: `${m.reason || ''} [REJETÉ]` }
+            });
+            // Restore expected cash on the movement's session
+            await tx.sessionCaisse.update({
+              where: { id: m.sessionId },
+              data: { expectedCash: { increment: parseFloat(m.amount || 0) } }
+            });
+          }
+        }
+      }
+
+      return sale;
+    });
+
+    res.json({ message: 'Sale status updated successfully', sale: updated });
   } catch (error) {
     console.error('Error updating sale status:', error);
     res.status(500).json({ error: 'Internal server error' });

@@ -299,6 +299,10 @@ export class TicketActionDialogComponent {
         return 'Temporaire';
       case 'PENDING':
         return 'En attente';
+      case 'CANCELLED':
+        return 'Annulé';
+      case 'REFUNDED':
+        return 'Retourné';
       default:
         return status;
     }

@@ -56,7 +56,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
     driver: false,
     manualDestination: false,
     autoInvoice: false,
-    tvaAndPrix: false
+    tvaAndPrix: false,
+    validity: false
   };
 
   // Selection modals
@@ -66,6 +67,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   showDriverSelectionModal = false;
   showManualDestinationModal = false;
   showInvoiceNumberModal = false;
+  showValidityModal = false;
   showScanDetailsModal = false;
   selectedProductForDetails: any = null;
   showQuantityEditModal = false;
@@ -84,6 +86,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
   selectedDriver: any = null;
   manualDestination = '';
   invoiceNumber = '';
+  validityFromDate = '';
+  validityToDate = '';
   
   // Data for selections
   clients: any[] = [];
@@ -197,6 +201,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
            this.showDriverSelectionModal ||
            this.showManualDestinationModal ||
            this.showInvoiceNumberModal ||
+           this.showValidityModal ||
            this.showScanDetailsModal ||
            this.showQuantityEditModal ||
            this.showColisEditModal;
@@ -224,7 +229,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         produits.forEach(produit => {
           this.produitsDeCaisseCache.set(produit.id, produit);
         });
-    // this.searchProductByBarcode("1234001891011")
+    this.searchProductByBarcode("1234001891011")
     // this.searchProductByBarcode("1234002891011")
     // this.searchProductByBarcode("1234003891011")
     // this.searchProductByBarcode("1234004891011")
@@ -1171,13 +1176,16 @@ export class ScanningComponent implements OnInit, OnDestroy {
       driver: false,
       manualDestination: false,
       autoInvoice: false,
-      tvaAndPrix: false
+      tvaAndPrix: false,
+      validity: false
     };
     this.selectedClient = null;
     this.selectedDepot = null;
     this.selectedVehicle = null;
     this.selectedDriver = null;
     this.manualDestination = '';
+    this.validityFromDate = '';
+    this.validityToDate = '';
     
     // Close all modals
     this.showClientSelectionModal = false;
@@ -1185,6 +1193,23 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.showVehicleSelectionModal = false;
     this.showDriverSelectionModal = false;
     this.showManualDestinationModal = false;
+    this.showValidityModal = false;
+  }
+
+  private cancelDocumentCreation(): void {
+    // Reset all document creation state
+    this.resetDocumentConfig();
+    this.selectedDocumentType = null;
+    this.invoiceNumber = '';
+    
+    // Close all document-related modals
+    this.showDocumentTypeModal = false;
+    this.showDocumentConfigurationModal = false;
+    this.showInvoiceNumberModal = false;
+    
+    // Show a message to the user
+    this.success = 'Création de document annulée';
+    setTimeout(() => { this.success = ''; }, 3000);
   }
 
   private applyDocumentTypeDefaults(type: 'livraison' | 'sortie' | 'transfert' | 'facture'): void {
@@ -1199,7 +1224,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
         driver: true,
         manualDestination: false,
         autoInvoice: false,
-        tvaAndPrix: true
+        tvaAndPrix: true,
+        validity: false
       },
       sortie: {
         client: false,
@@ -1208,7 +1234,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
         driver: false,
         manualDestination: false,
         autoInvoice: false,
-        tvaAndPrix: true
+        tvaAndPrix: true,
+        validity: false
       },
       transfert: {
         client: false,
@@ -1217,7 +1244,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
         driver: true,
         manualDestination: false,
         autoInvoice: false,
-        tvaAndPrix: false
+        tvaAndPrix: false,
+        validity: false
       },
       facture: {
         client: true,
@@ -1226,7 +1254,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
         driver: false,
         manualDestination: false,
         autoInvoice: true,
-        tvaAndPrix: true
+        tvaAndPrix: true,
+        validity: false
       }
     };
 
@@ -1241,7 +1270,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
       driver: defaults.driver,
       manualDestination: defaults.manualDestination,
       autoInvoice: defaults.autoInvoice,
-      tvaAndPrix: defaults.tvaAndPrix
+      tvaAndPrix: defaults.tvaAndPrix,
+      validity: defaults.validity
     };
     
     console.log('Document config after applying defaults:', this.documentConfig);
@@ -1258,7 +1288,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         console.log('Specific type defaults from server:', settings?.documentTypeDefaults?.[type]);
         
         if (settings?.documentTypeDefaults?.[type]) {
-          const serverDefaults = settings.documentTypeDefaults[type];
+          const serverDefaults = settings.documentTypeDefaults[type] as any;
           console.log('Overriding with server defaults:', serverDefaults);
           this.documentConfig = {
             client: serverDefaults.client || false,
@@ -1267,7 +1297,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
             driver: serverDefaults.driver || false,
             manualDestination: serverDefaults.manualDestination || false,
             autoInvoice: serverDefaults.autoInvoice || false,
-            tvaAndPrix: serverDefaults.tvaAndPrix || false
+            tvaAndPrix: serverDefaults.tvaAndPrix || false,
+            validity: serverDefaults.validity || false
           };
         }
         console.log('Final document config after server override:', this.documentConfig);
@@ -1418,6 +1449,78 @@ export class ScanningComponent implements OnInit, OnDestroy {
     });
   }
 
+  private loadDepotsForTransfer(): void {
+    this.depotsService.list().subscribe({
+      next: (depots) => {
+        // For transfer documents, filter depots to show only those from the same enterprise
+        // This assumes that depots with similar characteristics belong to the same enterprise
+        this.depots = this.filterDepotsByEnterprise(depots);
+      },
+      error: (error) => {
+        console.error('Error loading depots for transfer:', error);
+      }
+    });
+  }
+
+  private filterDepotsByEnterprise(allDepots: any[]): any[] {
+    if (!this.currentDepot) {
+      // If no current depot, return all active depots except current
+      return allDepots.filter((d: any) => d.isActive && d.id !== this.currentDepotId);
+    }
+
+    // Get current depot characteristics for filtering
+    const currentDepot = this.currentDepot;
+    
+    // Filter depots based on enterprise characteristics
+    // This is a simplified approach - in a real system, you'd have explicit enterprise/company relationships
+    const filteredDepots = allDepots.filter((d: any) => {
+      // Basic filters
+      if (!d.isActive || d.id === this.currentDepotId) {
+        return false;
+      }
+
+      // For now, we'll use a simple approach:
+      // - Include all MAIN type depots (they're usually central/enterprise level)
+      // - Include depots that share similar characteristics with current depot
+      // - Exclude depots that are clearly from different enterprises (different city, very different naming patterns)
+      
+      // Include MAIN type depots (enterprise level)
+      if (d.type === 'MAIN') {
+        return true;
+      }
+
+      // Include depots from the same city (likely same enterprise)
+      if (currentDepot.city && d.city && currentDepot.city === d.city) {
+        return true;
+      }
+
+      // Include depots with similar naming patterns (e.g., same prefix)
+      if (currentDepot.name && d.name) {
+        const currentPrefix = currentDepot.name.split(' ')[0];
+        const depotPrefix = d.name.split(' ')[0];
+        if (currentPrefix === depotPrefix && currentPrefix.length > 2) {
+          return true;
+        }
+      }
+
+      // Include BRANCH and SHOP types (likely same enterprise)
+      if (d.type === 'BRANCH' || d.type === 'SHOP') {
+        return true;
+      }
+
+      return false;
+    });
+
+    console.log('Filtered depots for transfer:', {
+      currentDepot: currentDepot,
+      totalDepots: allDepots.length,
+      filteredDepots: filteredDepots.length,
+      filteredDepotNames: filteredDepots.map(d => d.name)
+    });
+
+    return filteredDepots;
+  }
+
   private loadVehicles(): void {
     this.vehiclesService.getActiveVehicles().subscribe({
       next: (vehicles) => {
@@ -1473,6 +1576,10 @@ export class ScanningComponent implements OnInit, OnDestroy {
         case 'manualDestination':
           this.manualDestination = '';
           break;
+        case 'validity':
+          this.validityFromDate = '';
+          this.validityToDate = '';
+          break;
       }
     }
   }
@@ -1504,6 +1611,12 @@ export class ScanningComponent implements OnInit, OnDestroy {
       this.showClientSelectionModal = true;
     } else if (this.documentConfig.depot && !this.selectedDepot) {
       console.log('Opening depot selection modal');
+      // Load appropriate depots based on document type
+      if (this.selectedDocumentType === 'transfert') {
+        this.loadDepotsForTransfer();
+      } else {
+        this.loadDepots();
+      }
       this.showDepotSelectionModal = true;
     } else if (this.documentConfig.vehicle && !this.selectedVehicle) {
       console.log('Opening vehicle selection modal');
@@ -1514,6 +1627,10 @@ export class ScanningComponent implements OnInit, OnDestroy {
     } else if (this.documentConfig.manualDestination && !this.manualDestination) {
       console.log('Opening manual destination modal');
       this.showManualDestinationModal = true;
+    } else if (this.documentConfig.validity && (!this.validityFromDate || !this.validityToDate)) {
+      console.log('Opening validity modal');
+      this.setDefaultValidityDates(); // Automatically set default dates
+      this.showValidityModal = true;
     } else {
       console.log('All selections completed, generating document');
       // All selections completed, generate document
@@ -1524,58 +1641,90 @@ export class ScanningComponent implements OnInit, OnDestroy {
   // Client Selection Methods
   closeClientSelectionModal(): void {
     this.showClientSelectionModal = false;
-    // Continue to next selection if needed
-    this.proceedToNextSelection();
+    // Cancel the entire document creation process
+    this.cancelDocumentCreation();
   }
 
   selectClient(client: any): void {
     this.selectedClient = client;
-    this.closeClientSelectionModal();
+    this.showClientSelectionModal = false;
+    this.proceedToNextSelection();
   }
 
   // Depot Selection Methods
   closeDepotSelectionModal(): void {
     this.showDepotSelectionModal = false;
-    this.proceedToNextSelection();
+    // Cancel the entire document creation process
+    this.cancelDocumentCreation();
   }
 
   selectDepot(depot: any): void {
     this.selectedDepot = depot;
-    this.closeDepotSelectionModal();
+    this.showDepotSelectionModal = false;
+    this.proceedToNextSelection();
   }
 
   // Vehicle Selection Methods
   closeVehicleSelectionModal(): void {
     this.showVehicleSelectionModal = false;
-    this.proceedToNextSelection();
+    // Cancel the entire document creation process
+    this.cancelDocumentCreation();
   }
 
   selectVehicle(vehicle: any): void {
     this.selectedVehicle = vehicle;
-    this.closeVehicleSelectionModal();
+    this.showVehicleSelectionModal = false;
+    this.proceedToNextSelection();
   }
 
   // Driver Selection Methods
   closeDriverSelectionModal(): void {
     this.showDriverSelectionModal = false;
-    this.proceedToNextSelection();
+    // Cancel the entire document creation process
+    this.cancelDocumentCreation();
   }
 
   selectDriver(driver: any): void {
     this.selectedDriver = driver;
-    this.closeDriverSelectionModal();
+    this.showDriverSelectionModal = false;
+    this.proceedToNextSelection();
   }
 
   // Manual Destination Methods
   closeManualDestinationModal(): void {
     this.showManualDestinationModal = false;
-    this.proceedToNextSelection();
+    // Cancel the entire document creation process
+    this.cancelDocumentCreation();
   }
 
   confirmManualDestination(): void {
     if (this.manualDestination.trim()) {
-      this.closeManualDestinationModal();
+      this.showManualDestinationModal = false;
+      this.proceedToNextSelection();
     }
+  }
+
+  // Validity Methods
+  closeValidityModal(): void {
+    this.showValidityModal = false;
+    // Cancel the entire document creation process
+    this.cancelDocumentCreation();
+  }
+
+  confirmValidity(): void {
+    if (this.validityFromDate && this.validityToDate) {
+      this.showValidityModal = false;
+      this.proceedToNextSelection();
+    }
+  }
+
+  setDefaultValidityDates(): void {
+    const today = new Date();
+    const threeDaysLater = new Date();
+    threeDaysLater.setDate(today.getDate() + 3);
+    
+    this.validityFromDate = today.toISOString().split('T')[0];
+    this.validityToDate = threeDaysLater.toISOString().split('T')[0];
   }
 
   // Document Generation
@@ -1593,29 +1742,50 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.error = '';
     this.success = '';
 
-    const documentData = this.prepareDocumentData();
-    console.log('Sending document data to server:', documentData);
+    // Get the document type for number generation
+    const documentType = this.getDocumentTypeForAPI();
+    
+    // Get next document number to avoid duplicates
+    this.stockDocumentsService.getNextDocumentNumber(documentType).subscribe({
+      next: (nextNumber) => {
+        console.log('Next document number:', nextNumber);
+        
+        const documentData = this.prepareDocumentData();
+        // Set the generated number if not already set (for non-facture documents)
+        if (!documentData.numero) {
+          documentData.numero = nextNumber;
+        }
+        
+        console.log('Sending document data to server:', documentData);
 
-    this.stockDocumentsService.createDocument(documentData).subscribe({
-      next: (savedDocument) => {
-        console.log('Document created successfully:', savedDocument);
-        this.loading = false;
-        this.success = `Document ${savedDocument.numero} créé avec succès!`;
-        
-        // Open the document for printing
-        this.openDocumentForPrint(savedDocument);
-        
-        // Clear scanned items and reset
-        this.clearScannedItems();
-        this.resetDocumentConfig();
-        this.selectedDocumentType = null;
-        
-        setTimeout(() => { this.success = ''; }, 3000);
+        this.stockDocumentsService.createDocument(documentData).subscribe({
+          next: (savedDocument) => {
+            console.log('Document created successfully:', savedDocument);
+            this.loading = false;
+            this.success = `Document ${savedDocument.numero} créé avec succès!`;
+            
+            // Open the document for printing
+            this.openDocumentForPrint(savedDocument);
+            
+            // Clear scanned items and reset
+            this.clearScannedItems();
+            this.resetDocumentConfig();
+            this.selectedDocumentType = null;
+            
+            setTimeout(() => { this.success = ''; }, 3000);
+          },
+          error: (error) => {
+            console.error('Error creating document:', error);
+            this.loading = false;
+            this.error = 'Erreur lors de la création du document: ' + (error?.message || 'Erreur inconnue');
+            setTimeout(() => { this.error = ''; }, 5000);
+          }
+        });
       },
       error: (error) => {
-        console.error('Error creating document:', error);
+        console.error('Error getting next document number:', error);
         this.loading = false;
-        this.error = 'Erreur lors de la création du document: ' + (error?.message || 'Erreur inconnue');
+        this.error = 'Erreur lors de la génération du numéro de document';
         setTimeout(() => { this.error = ''; }, 5000);
       }
     });
@@ -1649,19 +1819,20 @@ export class ScanningComponent implements OnInit, OnDestroy {
       numero: this.invoiceNumber && this.selectedDocumentType === 'facture' ? this.invoiceNumber : undefined,
       fromDepotId: emetteurId, // Use the server-expected field name
       destinationDepotId: destinataireId, // Use the server-expected field name
-      status: 'COMPLETED',
+      status: this.selectedDepot && this.selectedDepot.id !== emetteurId ? 'SENT' : 'COMPLETED',
       items: this.scannedItems.map(item => {
         const produit = this.produitsDeCaisseCache.get(item.articleId);
         const parentProductId = produit?.parentProductId || item.articleId;
         const parentProduct = this.productsCache.get(parentProductId);
         
         const baseItem = {
-          productId: item.articleId, // Save individual child product ID
+          productId: parentProductId, // Use parent product ID for stock management
           quantity: item.quantity / 1000, // Convert to kg
           count: item.count,
           famille: parentProduct?.famille || parentProduct?.name || 'Produit scanné',
           parentProductId: parentProductId, // Add parent reference for grouping
-          childProductName: produit?.name || `CHILDREN ${item.articleId}` // Add child name for display
+          childProductName: produit?.name || `CHILDREN ${item.articleId}`, // Add child name for display
+          childProductId: item.articleId // Keep child product ID for reference
         };
         
         // Always include price fields if produit exists
@@ -1670,8 +1841,10 @@ export class ScanningComponent implements OnInit, OnDestroy {
           const tva = produit.tva || 19;
           const quantite = item.quantity / 1000; // Convert to kg
           const montantTTC = prixUnitaire * quantite;
-          const montantHT = montantTTC / (1 + tva / 100);
-          const montantTVA = montantTTC - montantHT;
+          // Correct TVA calculation: HT = TTC / (1 + TVA), TVA = TTC - HT
+          const tvaFraction = tva <= 1 ? tva : tva / 100;
+          const montantHT = Math.round((montantTTC / (1 + tvaFraction)) * 1000) / 1000;
+          const montantTVA = Math.round((montantTTC - montantHT) * 1000) / 1000;
           
           return {
             ...baseItem,
@@ -1767,9 +1940,18 @@ export class ScanningComponent implements OnInit, OnDestroy {
     if (this.invoiceNumber && this.selectedDocumentType === 'facture') {
       notes.push(`Numéro de facture: ${this.invoiceNumber}`);
     }
+    if (this.validityFromDate && this.validityToDate) {
+      notes.push(`Validité du: ${new Date(this.validityFromDate).toLocaleDateString('fr-FR')} au: ${new Date(this.validityToDate).toLocaleDateString('fr-FR')}`);
+    }
     
     if (notes.length > 0) {
       documentData.notes = notes.join(' | ');
+    }
+
+    // Add validity dates to document data
+    if (this.validityFromDate && this.validityToDate) {
+      documentData.validationFromDate = this.validityFromDate;
+      documentData.validationToDate = this.validityToDate;
     }
 
     return documentData;

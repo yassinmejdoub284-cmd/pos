@@ -63,6 +63,7 @@ export interface AppSettings {
       manualDestination: boolean;
       autoInvoice: boolean;
       tvaAndPrix: boolean;
+      validity: boolean;
     };
     sortie: {
       client: boolean;
@@ -72,6 +73,7 @@ export interface AppSettings {
       manualDestination: boolean;
       autoInvoice: boolean;
       tvaAndPrix: boolean;
+      validity: boolean;
     };
     transfert: {
       client: boolean;
@@ -81,6 +83,7 @@ export interface AppSettings {
       manualDestination: boolean;
       autoInvoice: boolean;
       tvaAndPrix: boolean;
+      validity: boolean;
     };
     facture: {
       client: boolean;
@@ -90,6 +93,7 @@ export interface AppSettings {
       manualDestination: boolean;
       autoInvoice: boolean;
       tvaAndPrix: boolean;
+      validity: boolean;
     };
   };
 }

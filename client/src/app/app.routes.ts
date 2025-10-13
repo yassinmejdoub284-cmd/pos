@@ -122,5 +122,10 @@ export const routes: Routes = [
     path: 'scanning', 
     canActivate: [authGuard],
     loadChildren: () => import('./scanning/scanning.module').then(m => m.ScanningModule) 
+  },
+  { 
+    path: 'documents-reception', 
+    canActivate: [authGuard],
+    loadChildren: () => import('./documents-reception/documents-reception.module').then(m => m.DocumentsReceptionModule) 
   }
 ];

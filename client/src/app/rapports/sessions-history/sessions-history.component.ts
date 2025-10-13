@@ -57,7 +57,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   showSessionSelectionModal = signal(false);
 
   // Cash sales detail state
-  cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number }[]>([]);
+  cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number; status?: string; createdAt?: string; dailyTicketNumber?: number | string }[]>([]);
   cashSalesLoading = signal(false);
   // UI local toggles for cash sales "voir plus"
   cashMoreMainFlag = false;
@@ -789,11 +789,15 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
             id: sale.id,
             paidAmount,
             totalAmount: finalTotal,
-            createdAt: sale.createdAt
+            createdAt: sale.createdAt,
+            status: (sale.status || '').toString(),
+            dailyTicketNumber: (sale as any)?.dailyTicketNumber
           };
         });
 
-        const cashSales = enriched.filter(s => (s.paidAmount || 0) > 0);
+        const cashSales = enriched
+          .filter(s => (s.paidAmount || 0) > 0)
+          .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
         this.ticketItemsById.set(itemsMap);
         this.cashSalesDetails.set(cashSales);
@@ -803,6 +807,23 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         this.cashSalesLoading.set(false);
       }
     });
+  }
+
+  // Prefer session-local ticket numbering for display (e.g., #0005)
+  getTicketDisplayNo(source: any): string {
+    const candidate = source?.dailyTicketNumber
+      ?? source?.sessionTicketNumber
+      ?? source?.ticketNumber
+      ?? source?.numero
+      ?? source?.sessionIndex
+      ?? source?.sessionSeq
+      ?? null;
+    const raw = candidate ?? source?.id;
+    const num = parseInt(raw as any, 10);
+    if (Number.isFinite(num)) {
+      return num.toString().padStart(4, '0');
+    }
+    return String(raw ?? '');
   }
 
   toggleTicketDetails(ticketId: number): void {
@@ -1072,7 +1093,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     this.sessionsService.addCashMovement(session.id, {
       type: delta > 0 ? 'ENTREE' : 'SORTIE',
       amount: Math.abs(delta),
-      reason: `Ajustement solde : ${delta > 0 ? '+' : ''}${delta.toFixed(3)} TND (Ancien: ${currentBalance.toFixed(3)}, Nouveau: ${targetBalance.toFixed(3)})`
+      reason: `Ajustement solde : ${delta > 0 ? '+' : ''}${delta.toFixed(3)} DT (Ancien: ${currentBalance.toFixed(3)}, Nouveau: ${targetBalance.toFixed(3)})`
     }).subscribe({
       next: () => {
         this.showAdjustForm.set(false);

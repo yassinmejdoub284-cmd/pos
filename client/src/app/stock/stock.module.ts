@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { StockRoutingModule } from './stock-routing.module';
 import { StockComponent } from './stock.component';
 import { DocumentSelectionDialogComponent } from './document-selection-dialog/document-selection-dialog.component';
+import { StockDocumentActionDialogComponent } from '../shared/stock-document-action-dialog/stock-document-action-dialog.component';
 
 @NgModule({
   declarations: [
@@ -14,7 +15,8 @@ import { DocumentSelectionDialogComponent } from './document-selection-dialog/do
   imports: [
     CommonModule,
     StockRoutingModule,
-    FormsModule
+    FormsModule,
+    StockDocumentActionDialogComponent
   ]
 })
 export class StockModule { }

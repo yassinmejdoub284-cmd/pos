@@ -80,7 +80,8 @@ export class ParametresComponent implements OnInit {
         driver: true,
         manualDestination: false,
         autoInvoice: false,
-        tvaAndPrix: true
+        tvaAndPrix: true,
+        validity: false
       },
       sortie: {
         client: false,
@@ -89,7 +90,8 @@ export class ParametresComponent implements OnInit {
         driver: false,
         manualDestination: false,
         autoInvoice: false,
-        tvaAndPrix: true
+        tvaAndPrix: true,
+        validity: false
       },
       transfert: {
         client: false,
@@ -98,7 +100,8 @@ export class ParametresComponent implements OnInit {
         driver: true,
         manualDestination: false,
         autoInvoice: false,
-        tvaAndPrix: true
+        tvaAndPrix: true,
+        validity: false
       },
       facture: {
         client: true,
@@ -107,7 +110,8 @@ export class ParametresComponent implements OnInit {
         driver: false,
         manualDestination: false,
         autoInvoice: true,
-        tvaAndPrix: true
+        tvaAndPrix: true,
+        validity: false
       }
     }
   };
@@ -125,6 +129,54 @@ export class ParametresComponent implements OnInit {
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => {
       this.updateSectionFromRoute();
     });
+  }
+
+  private ensureDocumentTypeDefaults(): void {
+    if (!this.settings.documentTypeDefaults) {
+      console.log('Ensuring documentTypeDefaults is initialized');
+      this.settings.documentTypeDefaults = {
+        livraison: {
+          client: true,
+          depot: false,
+          vehicle: true,
+          driver: true,
+          manualDestination: false,
+          autoInvoice: false,
+          tvaAndPrix: true,
+          validity: false
+        },
+        sortie: {
+          client: false,
+          depot: true,
+          vehicle: false,
+          driver: false,
+          manualDestination: false,
+          autoInvoice: false,
+          tvaAndPrix: true,
+          validity: false
+        },
+        transfert: {
+          client: false,
+          depot: true,
+          vehicle: true,
+          driver: true,
+          manualDestination: false,
+          autoInvoice: false,
+          tvaAndPrix: true,
+          validity: false
+        },
+        facture: {
+          client: true,
+          depot: false,
+          vehicle: false,
+          driver: false,
+          manualDestination: false,
+          autoInvoice: true,
+          tvaAndPrix: true,
+          validity: false
+        }
+      };
+    }
   }
 
   load(): void {
@@ -147,6 +199,7 @@ export class ParametresComponent implements OnInit {
         
         // Ensure documentTypeDefaults exists with default values
         if (!this.settings.documentTypeDefaults) {
+          console.log('Initializing documentTypeDefaults with default values');
           this.settings.documentTypeDefaults = {
             livraison: {
               client: true,
@@ -155,7 +208,8 @@ export class ParametresComponent implements OnInit {
               driver: true,
               manualDestination: false,
               autoInvoice: false,
-              tvaAndPrix: true
+              tvaAndPrix: true,
+              validity: false
             },
             sortie: {
               client: false,
@@ -164,7 +218,8 @@ export class ParametresComponent implements OnInit {
               driver: false,
               manualDestination: false,
               autoInvoice: false,
-              tvaAndPrix: true
+              tvaAndPrix: true,
+              validity: false
             },
             transfert: {
               client: false,
@@ -173,7 +228,8 @@ export class ParametresComponent implements OnInit {
               driver: true,
               manualDestination: false,
               autoInvoice: false,
-              tvaAndPrix: true
+              tvaAndPrix: true,
+              validity: false
             },
             facture: {
               client: true,
@@ -182,7 +238,8 @@ export class ParametresComponent implements OnInit {
               driver: false,
               manualDestination: false,
               autoInvoice: true,
-              tvaAndPrix: true
+              tvaAndPrix: true,
+              validity: false
             }
           };
         }
@@ -204,6 +261,10 @@ export class ParametresComponent implements OnInit {
         } catch { this.devicesConfigInput = ''; }
         
         console.log('Loaded settings with devicesConfig:', this.settings.devicesConfig);
+        
+        // Ensure documentTypeDefaults is initialized
+        this.ensureDocumentTypeDefaults();
+        
         this.loading = false;
       },
       error: () => {
@@ -244,6 +305,13 @@ export class ParametresComponent implements OnInit {
     };
     return this.currentSection ? (map[this.currentSection] || this.currentSection) : 'Paramètres';
   }
+
+  get documentTypeDefaults(): any {
+    return this.settings.documentTypeDefaults || {};
+  }
+
+  // Expose Object to template for Object.keys() usage
+  Object = Object;
 
   save(): void {
     this.saving = true;
@@ -292,7 +360,11 @@ export class ParametresComponent implements OnInit {
     this.settings.autoApproveExpenseBelow = Number(this.settings.autoApproveExpenseBelow) || 0;
     this.settings.historyRetentionDays = Number((this.settings as any).historyRetentionDays) || 30;
     
+    // Ensure documentTypeDefaults is properly included in settings
+    this.ensureDocumentTypeDefaults();
+    
     console.log('Saving settings with devicesConfig:', this.settings.devicesConfig);
+    console.log('Saving settings with documentTypeDefaults:', this.settings.documentTypeDefaults);
     
     this.settingsService.updateSettings(this.settings).subscribe({
       next: (s) => {

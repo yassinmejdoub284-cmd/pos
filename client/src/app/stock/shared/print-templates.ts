@@ -202,8 +202,23 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   const currentDate = new Date().toLocaleDateString('fr-FR');
   const currentTime = new Date().toLocaleTimeString('fr-FR');
 
-  // Unified title based on document type
-  const getDocumentTitle = (doc: StockDocument): string => {
+  // Unified title based on document type or session type
+  const getDocumentTitle = (doc: StockDocument, sessionType?: ScanDocumentType): string => {
+    // If sessionType is provided, use it to show from recipient's perspective
+    if (sessionType) {
+      switch (sessionType) {
+        case 'livraison':
+          return 'Bon d\'Entrée';
+        case 'sortie':
+          return 'Bon de Sortie';
+        case 'transfert':
+          return 'Bon de Transfert';
+        default:
+          return 'Document';
+      }
+    }
+    
+    // Otherwise use original document type
     switch (doc.type) {
       case 'BON_EXPEDITION':
         return 'Bon de Sortie';
@@ -218,7 +233,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
     }
   };
 
-  const title = getDocumentTitle(document);
+  const title = getDocumentTitle(document, sessionType);
 
   // Build item rows (with grouping and pricing for ALL document types)
   // Helper: normalize TVA to fraction (0.07 for 7% or 0.07)
@@ -240,8 +255,12 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
     montantTVA: number;
   }> = {};
   
-  // Always process with pricing for all document types
-  {
+  // Process with or without pricing based on document type
+  const isTransferDocument = document.type === 'BON_TRANSFERT';
+  const isSortieDocument = document.type === 'BON_EXPEDITION';
+  const isNonPricingDocument = isTransferDocument || isSortieDocument;
+  
+  if (!isNonPricingDocument) {
     const isWholesaleClient = !!(document as any).client && ((document as any).client.clientType === 'WHOLESALE');
     
     // Group items by parent product AND TVA rate
@@ -282,8 +301,17 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
       let montantTTC = Number(item.montantTTC) || 0;
       let tvaRate = Number(item.tva) || 0;
       
-      // If no item pricing, calculate from product
-      if (!montantHT && !montantTVA && !montantTTC) {
+      // Always recalculate amounts if we have TTC and TVA rate
+      if (montantTTC > 0 && tvaRate > 0) {
+        const tvaFrac = getTvaRateFraction(tvaRate);
+        // Correct TVA calculation: HT = TTC / (1 + TVA), TVA = TTC - HT
+        montantHT = montantTTC / (1 + tvaFrac);
+        montantTVA = montantTTC - montantHT;
+        // Round to 3 decimal places
+        montantHT = Math.round(montantHT * 1000) / 1000;
+        montantTVA = Math.round(montantTVA * 1000) / 1000;
+      } else if (!montantHT && !montantTVA && !montantTTC) {
+        // If no item pricing, calculate from product
         const baseUnit = Number(product.prix_vente_TTC ?? 0) || 0; // TTC
         const bundlePrice = Number(product.bundlePrice ?? 0) || 0;
         const bundleSize = Number(product.bundleSize ?? 0) || 0;
@@ -292,8 +320,12 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
         const tvaFrac = getTvaRateFraction(product.tva);
         tvaRate = Number(product.tva) || 0;
         montantTTC = unitPriceTTC * qty;
+        // Correct TVA calculation: HT = TTC / (1 + TVA), TVA = TTC - HT
         montantHT = montantTTC / (1 + tvaFrac);
         montantTVA = montantTTC - montantHT;
+        // Round to 3 decimal places
+        montantHT = Math.round(montantHT * 1000) / 1000;
+        montantTVA = Math.round(montantTVA * 1000) / 1000;
       }
       
       // Convert TVA rate to percentage if it's a decimal (0.07 -> 7%, 0.19 -> 19%)
@@ -376,9 +408,78 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
         </tr>
       `;
     }).join('');
+  } else {
+    // For transfer and sortie documents, process without pricing
+    const parentGroups: Record<string, {
+      parentName: string;
+      children: Array<{
+        childName: string;
+        quantity: number;
+        count: number;
+      }>;
+      totalQty: number;
+      totalCount: number;
+    }> = {};
+    
+    (document.items || []).forEach((raw) => {
+      const item: any = raw as any;
+      const product = item.product || {};
+      
+      // Get parent product ID (use parentProductId if available, otherwise use productId)
+      const parentId = item.parentProductId || item.productId;
+      const childName = item.childProductName || product.name || `CHILDREN ${item.productId}`;
+      const parentName = item.famille || product.famille || 'Général';
+      
+      const qty = Number(item.quantity ?? 0) || 0; // kg
+      const cnt = Number(item.count ?? 1) || 0;
+      
+      // Create unique group key based on parent product ID
+      const groupKey = `${parentId}`;
+      
+      // Initialize parent group if not exists
+      if (!parentGroups[groupKey]) {
+        parentGroups[groupKey] = {
+          parentName,
+          children: [],
+          totalQty: 0,
+          totalCount: 0
+        };
+      }
+      
+      // Add child to parent group
+      parentGroups[groupKey].children.push({
+        childName,
+        quantity: qty,
+        count: cnt
+      });
+      
+      // Update parent totals
+      parentGroups[groupKey].totalQty += qty;
+      parentGroups[groupKey].totalCount += cnt;
+    });
+    
+    // Generate rows for each parent group (without pricing)
+    const parentEntries = Object.entries(parentGroups);
+    itemsRows = parentEntries.map(([groupKey, group], idx) => {
+      // Create children details string (only names, no quantities)
+      const childrenDetails = group.children
+        .map(child => child.childName)
+        .join(', ');
+      
+      // Create designation with parent name and children details (small font)
+      const designation = `${group.parentName} <span style="font-size: 8px; color: #666;">(${childrenDetails})</span>`;
+      
+      return `
+        <tr>
+          <td class="text-center">${idx + 1}</td>
+          <td>${designation}</td>
+          <td class="text-center">${(Number(group.totalQty) || 0).toFixed(3)}</td>
+        </tr>
+      `;
+    }).join('');
   }
 
-  const totalsSection = `
+  const totalsSection = isNonPricingDocument ? '' : `
     <tfoot>
       <tr class="total-row">
         <td colspan="3" class="text-right font-bold">TOTAL:</td>
@@ -392,7 +493,12 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   // Build unified header for ALL document types (like Bon de Livraison)
   const em = (document as any).emetteur || {};
   const dest = (document as any).destinataire || {};
-  const company = (em && (em.company)) ? (em.company) : em;
+  
+  // For entry documents (livraison), use receiver's company info; otherwise use sender's
+  const isEntryDocument = sessionType === 'livraison';
+  const companySource = isEntryDocument ? dest : em;
+  const company = (companySource && (companySource.company)) ? (companySource.company) : companySource;
+  
   const companyName = company.raisonSociale || company.name || 'Société';
   const companyForme = company.formeJuridique || company.forme_juridique || '';
   const companyAddress = company.adresse || company.address || '-';
@@ -400,18 +506,22 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   const companyPhone = company.telephone || company.phone || '-';
   const companyEmail = company.email || '';
   const companyMatricule = company.matriculeFiscal || company.matricule_fiscale || '-';
-  // Use enterprise (sender company) logo only
-  const senderCompanyLogoUrl = (em && em.company && em.company.logoUrl) ? em.company.logoUrl : '';
-  const companyLogo = senderCompanyLogoUrl ? getAbsoluteLogoUrl(senderCompanyLogoUrl) : '';
+  
+  // Use appropriate company logo based on perspective
+  const companyLogoUrl = (companySource && companySource.company && companySource.company.logoUrl) ? companySource.company.logoUrl : '';
+  const companyLogo = companyLogoUrl ? getAbsoluteLogoUrl(companyLogoUrl) : '';
 
-  const client = (document as any).client || (dest && (dest.client || dest.clients?.[0])) || null;
+  // Only show client if explicitly set on document (not from depot defaults)
+  const client = (document as any).client || null;
   console.log('Print template - Document client:', (document as any).client);
-  console.log('Print template - Dest client:', dest && (dest.client || dest.clients?.[0]));
   console.log('Print template - Final client:', client);
-  const clientName = client && client.firstName ? `${client.firstName} ${client.lastName || ''}`.trim() : '-';
-  const clientAddress = client?.address || '-';
-  const clientPhone = client?.phone || '-';
-  const clientMatricule = client?.matriculeFiscal || client?.matricule_fiscale || '-';
+  
+  // Only show client information if client exists
+  const hasClient = client && (client.firstName || client.lastName || client.name);
+  const clientName = hasClient ? (client.firstName ? `${client.firstName} ${client.lastName || ''}`.trim() : client.name) : '';
+  const clientAddress = hasClient ? (client.address || '') : '';
+  const clientPhone = hasClient ? (client.phone || '') : '';
+  const clientMatricule = hasClient ? (client.matriculeFiscal || client.matricule_fiscale || '') : '';
 
   const unifiedHeader = `
     <div class="header">
@@ -425,12 +535,14 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
         <div class="info-row"><span class="label">Téléphone:</span><span class="value">${companyPhone}</span></div>
         <div class="info-row"><span class="label">Matricule fiscale:</span><span class="value">${companyMatricule}</span></div>
       </div>
+      ${hasClient ? `
       <div class="document-info">
         <div class="info-row"><span class="label">Client:</span><span class="value">${clientName}</span></div>
-        <div class="info-row"><span class="label">Adresse:</span><span class="value">${clientAddress}</span></div>
-        <div class="info-row"><span class="label">Téléphone:</span><span class="value">${clientPhone}</span></div>
-        <div class="info-row"><span class="label">Matricule fiscal:</span><span class="value">${clientMatricule}</span></div>
+        ${clientAddress ? `<div class="info-row"><span class="label">Adresse:</span><span class="value">${clientAddress}</span></div>` : ''}
+        ${clientPhone ? `<div class="info-row"><span class="label">Téléphone:</span><span class="value">${clientPhone}</span></div>` : ''}
+        ${clientMatricule ? `<div class="info-row"><span class="label">Matricule fiscal:</span><span class="value">${clientMatricule}</span></div>` : ''}
       </div>
+      ` : ''}
     </div>
   `;
 
@@ -438,16 +550,28 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   const additionalInfo = (() => {
     switch (document.type) {
       case 'BON_EXPEDITION':
+        // Extract destination from notes if not directly available
+        const destination = (document as any).destination || 
+          (document.notes && document.notes.includes('Destination:') 
+            ? document.notes.split('Destination:')[1]?.split('|')[0]?.trim() 
+            : null) || 'Non spécifié';
+        
         return `
           <div class="info-section">
             <span class="label">Destination:</span>
-            <span class="value">${(document as any).destination || 'Non spécifié'}</span>
+            <span class="value">${destination}</span>
           </div>
           <div class="info-section">
             <span class="label">Validité du:</span>
-            <span class="value">${(document as any).validationFromDate ? new Date((document as any).validationFromDate).toLocaleDateString('fr-FR') : 'Non spécifié'}</span>
+            <span class="value">${(document as any).validationFromDate ? new Date((document as any).validationFromDate).toLocaleDateString('fr-FR') : 
+              (document.notes && document.notes.includes('Validité du:') 
+                ? document.notes.split('Validité du:')[1]?.split(' au:')[0]?.trim() 
+                : 'Non spécifié')}</span>
             <span class="label" style="margin-left: 20px;">Validité au:</span>
-            <span class="value">${(document as any).validationToDate ? new Date((document as any).validationToDate).toLocaleDateString('fr-FR') : 'Non spécifié'}</span>
+            <span class="value">${(document as any).validationToDate ? new Date((document as any).validationToDate).toLocaleDateString('fr-FR') : 
+              (document.notes && document.notes.includes(' au:') 
+                ? document.notes.split(' au:')[1]?.split('|')[0]?.trim() 
+                : 'Non spécifié')}</span>
           </div>
         `;
       case 'BON_TRANSFERT':
@@ -482,10 +606,12 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
           <tr>
             <th>Code</th>
             <th>Désignation</th>
-             <th>Qté</th>
+            <th>Qté</th>
+            ${!isNonPricingDocument ? `
             <th>Montant HT</th>
             <th>TVA</th>
             <th>Montant TTC</th>
+            ` : ''}
           </tr>
         </thead>
         <tbody>
@@ -494,6 +620,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
         ${totalsSection}
       </table>
 
+       ${!isNonPricingDocument ? `
        <div class="totals-and-amount" style="page-break-inside: avoid;">
          <div class="totals-summary" style="display: flex; justify-content: space-between;">
            ${document.type === 'FACTURE' ? `
@@ -536,9 +663,25 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
            </div>
          ` : ''}
        </div>
+       ` : ''}
 
       <div class="footer">
         <div class="signature-section" style="display:flex; gap:24px; justify-content:space-between;">
+          ${isTransferDocument ? `
+          <div class="signature-box" style="flex:1;">
+            <div class="signature-label">Signature ${document.emetteur?.name || 'Dépôt'}</div>
+            <div class="signature-line"></div>
+          </div>
+          <div class="signature-box" style="flex:1;">
+            <div class="signature-label">Signature ${document.destinataire?.name || 'Dépôt'}</div>
+            <div class="signature-line"></div>
+          </div>
+          ` : isSortieDocument ? `
+          <div class="signature-box" style="flex:1; margin: 0 auto;">
+            <div class="signature-label">Signature et cachet entreprise</div>
+            <div class="signature-line"></div>
+          </div>
+          ` : `
           <div class="signature-box" style="flex:1;">
             <div class="signature-label">Signature et cachet fournisseur</div>
             <div class="signature-line"></div>
@@ -547,6 +690,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
             <div class="signature-label">Signature client</div>
             <div class="signature-line"></div>
           </div>
+          `}
         </div>
         ${tunisianFooter}
       </div>

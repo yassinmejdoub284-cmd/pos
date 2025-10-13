@@ -329,7 +329,7 @@ export class ApprovalsComponent implements OnInit {
     // First reject the change request
     this.approvalsService.rejectChangeRequest(this.rejectTarget.id, { 
       reasonCode: 'ECART_COMPTAGE', 
-      notes: this.rejectNotes.trim() || `Correction: montant corrigé à ${this.correctedAmount} TND` 
+      notes: this.rejectNotes.trim() || `Correction: montant corrigé à ${this.correctedAmount} DT` 
     }).subscribe({
       next: () => {
         this.showRejectModal = false;

@@ -89,6 +89,49 @@ function ensureDefaults(data = {}) {
       showClientInfo: typeof data.printSettings?.showClientInfo === 'boolean' ? data.printSettings.showClientInfo : true,
       showPaymentMethod: typeof data.printSettings?.showPaymentMethod === 'boolean' ? data.printSettings.showPaymentMethod : true,
       showDiscountDetails: typeof data.printSettings?.showDiscountDetails === 'boolean' ? data.printSettings.showDiscountDetails : true
+    },
+    // Document type defaults
+    documentTypeDefaults: data.documentTypeDefaults || {
+      livraison: {
+        client: true,
+        depot: false,
+        vehicle: true,
+        driver: true,
+        manualDestination: false,
+        autoInvoice: false,
+        tvaAndPrix: true,
+        validity: false
+      },
+      sortie: {
+        client: false,
+        depot: true,
+        vehicle: false,
+        driver: false,
+        manualDestination: false,
+        autoInvoice: false,
+        tvaAndPrix: true,
+        validity: false
+      },
+      transfert: {
+        client: false,
+        depot: true,
+        vehicle: true,
+        driver: true,
+        manualDestination: false,
+        autoInvoice: false,
+        tvaAndPrix: true,
+        validity: false
+      },
+      facture: {
+        client: true,
+        depot: false,
+        vehicle: false,
+        driver: false,
+        manualDestination: false,
+        autoInvoice: true,
+        tvaAndPrix: true,
+        validity: false
+      }
     }
   };
 }

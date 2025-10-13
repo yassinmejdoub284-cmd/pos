@@ -603,13 +603,13 @@ export class PrintService {
 
     if (summary.salesByPayment) {
       Object.entries(summary.salesByPayment).forEach(([method, data]) => {
-        escpos += method + ': ' + this.formatCurrency(data.amount) + ' TND\n';
+        escpos += method + ': ' + this.formatCurrency(data.amount) + ' DT\n';
         escpos += '  (' + data.count + ' tickets)\n';
       });
     }
 
     escpos += '\n';
-    escpos += 'Total Ventes: ' + this.formatCurrency(summary.totalSales) + ' TND\n';
+    escpos += 'Total Ventes: ' + this.formatCurrency(summary.totalSales) + ' DT\n';
     escpos += 'Nombre Tickets: ' + summary.totalTickets + '\n\n';
 
     // Cash movements
@@ -618,7 +618,7 @@ export class PrintService {
       escpos += '=================\n';
 
       session.cashMovements.forEach(movement => {
-        escpos += this.getCashMovementTypeLabel(movement.type) + ': ' + this.formatCurrency(movement.amount) + ' TND\n';
+        escpos += this.getCashMovementTypeLabel(movement.type) + ': ' + this.formatCurrency(movement.amount) + ' DT\n';
         escpos += '  ' + movement.reason + '\n';
         escpos += '  ' + this.formatDateTime(movement.createdAt) + '\n\n';
       });
@@ -627,19 +627,19 @@ export class PrintService {
     // Cash counting
     escpos += 'COMPTAGE ESPÈCES\n';
     escpos += '================\n';
-    escpos += 'Fonds de caisse: ' + this.formatCurrency(session.openingFund) + ' TND\n';
-    escpos += 'Espèces attendues: ' + this.formatCurrency(summary.expectedCash) + ' TND\n';
+    escpos += 'Fonds de caisse: ' + this.formatCurrency(session.openingFund) + ' DT\n';
+    escpos += 'Espèces attendues: ' + this.formatCurrency(summary.expectedCash) + ' DT\n';
 
     if (session.countedCash) {
-      escpos += 'Espèces comptées: ' + this.formatCurrency(session.countedCash) + ' TND\n';
-      escpos += 'Écart: ' + this.formatCurrency(session.variance || 0) + ' TND\n';
+      escpos += 'Espèces comptées: ' + this.formatCurrency(session.countedCash) + ' DT\n';
+      escpos += 'Écart: ' + this.formatCurrency(session.variance || 0) + ' DT\n';
 
       if (session.variance && session.variance !== 0) {
         escpos += '\n';
         if (session.variance > 0) {
-          escpos += 'SURPLUS: ' + this.formatCurrency(session.variance) + ' TND\n';
+          escpos += 'SURPLUS: ' + this.formatCurrency(session.variance) + ' DT\n';
         } else {
-          escpos += 'MANQUE: ' + this.formatCurrency(Math.abs(session.variance)) + ' TND\n';
+          escpos += 'MANQUE: ' + this.formatCurrency(Math.abs(session.variance)) + ' DT\n';
         }
       }
     }
@@ -648,20 +648,20 @@ export class PrintService {
 
     // Closing info
     if (session.closedAt) {
-      escpos += 'Fonds pour prochaine session: ' + this.formatCurrency(session.openingFund) + ' TND\n';
+      escpos += 'Fonds pour prochaine session: ' + this.formatCurrency(session.openingFund) + ' DT\n';
 
       // Withdrawal information (only for Z reports with closure data)
       if (type === 'Z' && closureData) {
         if (closureData.withdrawalAmount > 0) {
-          escpos += 'Retrait vers Caisse Centrale: ' + this.formatCurrency(closureData.withdrawalAmount) + ' TND\n';
-          escpos += 'Solde restant en caisse: ' + this.formatCurrency(closureData.remainingBalance) + ' TND\n';
+          escpos += 'Retrait vers Caisse Centrale: ' + this.formatCurrency(closureData.withdrawalAmount) + ' DT\n';
+          escpos += 'Solde restant en caisse: ' + this.formatCurrency(closureData.remainingBalance) + ' DT\n';
         }
       }
 
       // Calculate deposit amount
       const depositAmount = (session.countedCash || 0) - (session.openingFund || 0);
       if (depositAmount > 0) {
-        escpos += 'Montant à déposer: ' + this.formatCurrency(depositAmount) + ' TND\n';
+        escpos += 'Montant à déposer: ' + this.formatCurrency(depositAmount) + ' DT\n';
       }
     }
 
@@ -726,7 +726,7 @@ export class PrintService {
     
     // Center both title and date on the same line
     escpos += '\x1B\x61\x01'; // Center align
-    escpos += 'Extrait Journalière - ' + closingTime + '\n';
+    escpos += 'Extr. Journalière - ' + closingTime + '\n';
     
     // Add decorative bottom border
     escpos += '================================\n\n';
@@ -747,7 +747,12 @@ export class PrintService {
     // Sales by family with detailed products
 
     // Build products per family from session sales if needed
-    const sales: any[] = (sessionReport?.session?.sales || []) as any[];
+    // Use session sales but exclude cancelled/refunded to prevent printing annulé/remboursé items
+    const sales: any[] = ((sessionReport?.session?.sales || []) as any[])
+      .filter(s => {
+        const st = String(s?.status || '').toUpperCase();
+        return st !== 'CANCELLED' && st !== 'REFUNDED';
+      });
     const familyToProducts: Record<string, { name: string; quantity: number; revenue: number }[]> = {};
     const normalizeFamily = (name: any): string => (name ?? '').toString().trim();
 
@@ -790,7 +795,7 @@ export class PrintService {
         const familyTotal = Number(family.totalRevenue || family.total || family.amount || family.amountTTC || 0)
           || (familyToProducts[famName]?.reduce((s, p) => s + p.revenue, 0) || 0);
         const amount = this.formatCurrency(familyTotal);
-        const totalWidth = 32; // Total line width
+        const totalWidth = 30; // Total line width
         const usedSpace = famName.length + 1 + amount.length; // +1 for colon
         const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
         const line = famName.toUpperCase() + ':' + dots + amount;
@@ -805,7 +810,7 @@ export class PrintService {
         for (const famName of famNames) {
           const famTotal = familyToProducts[famName].reduce((s, x) => s + x.revenue, 0);
           const amount = this.formatCurrency(famTotal);
-          const totalWidth = 32; // Total line width
+          const totalWidth = 30; // Total line width
           const usedSpace = famName.length + 1 + amount.length; // +1 for colon
           const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
           const line = famName.toUpperCase() + ':' + dots + amount;
@@ -825,9 +830,9 @@ export class PrintService {
       : Object.values(familyToProducts).reduce((sum, products) => 
           sum + products.reduce((s, p) => s + p.revenue, 0), 0);
     
-    escpos += '--------------------------------\n';
+    escpos += '-------------------------------\n';
     const totalAmount = this.formatCurrency(totalFamilySales);
-    const totalWidth = 32;
+    const totalWidth = 30;
     const usedSpace = 'TOTAL:'.length + totalAmount.length;
     const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
     escpos += 'TOTAL:' + dots + totalAmount + '\n\n';
@@ -838,18 +843,18 @@ export class PrintService {
 
     // Financial summary
     escpos += '################################\n';
-    escpos += '    RÉSUMÉ FINANCIER\n';
+    escpos += '        RÉSUMÉ FINANCIER\n';
     escpos += '################################\n';
     
     const expectedCash = summary.expectedCash || 0;
     const totalSales = summary.totalSales || 0;
     const financialOpeningFund = session.openingFund || 0;
     
-    const financialTotalWidth = 32;
+    const financialTotalWidth = 30;
     
     const formatFinancialLine = (label: string, amount: number) => {
       const amountStr = this.formatCurrency(amount);
-      const usedSpace = label.length + amountStr.length;
+      const usedSpace = label.length + amountStr.length - 1;
       const spaces = ' '.repeat(Math.max(1, financialTotalWidth - usedSpace));
       return label + spaces + amountStr;
     };
@@ -998,9 +1003,9 @@ export class PrintService {
         escpos += line + '\n';
       });
     } else {
-      escpos += formatFinancialLine('Règlement Fournisseurs:', 0) + '\n';
+      escpos += formatFinancialLine('Règlement Frs:', 0) + '\n';
     }
-    escpos += '--------------------------------\n';
+    escpos += '-------------------------------\n';
     escpos += formatFinancialLine('Solde attendu:', expectedCash) + '\n';
     
     if (withdrawalAmount > 0) {
@@ -1009,7 +1014,6 @@ export class PrintService {
     }
     
     escpos += '================================\n\n';
-
     // Cut paper
     escpos += '\x1D\x56\x00';
 
@@ -1332,7 +1336,7 @@ export class PrintService {
 
   private formatCurrency(amount: number | string): string {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return (isNaN(numAmount) ? 0 : numAmount).toFixed(3) + ' TND';
+    return (isNaN(numAmount) ? 0 : numAmount).toFixed(3) + ' DT';
   }
 
   private formatDate(date: Date | string): string {
@@ -1728,7 +1732,7 @@ export class PrintService {
     text += centerAlign + boldOn + 'FACTURE' + boldOff + '\n';
     text += leftAlign + 'N° Facture: ' + (invoice.invoiceNumber || `FAC-${invoice.id}`) + '\n';
     text += 'Date: ' + date + '  Heure: ' + time + '\n';
-    text += '--------------------------------\n\n';
+    text += '-------------------------------\n\n';
     
     // Client information
     const clientName = invoice.client ? `${invoice.client.firstName || ''} ${invoice.client.lastName || ''}`.trim() : 'Client anonyme';
@@ -1743,11 +1747,11 @@ export class PrintService {
     if (clientAddress) {
       text += 'Adresse: ' + this.sanitizeForThermalPrinter(clientAddress) + '\n';
     }
-    text += '--------------------------------\n\n';
+    text += '-------------------------------\n\n';
     
     // Items
     text += boldOn + 'ARTICLES:' + boldOff + '\n';
-    text += '--------------------------------\n';
+    text += '-------------------------------\n';
     
     const lines = invoice.lines || [];
     lines.forEach((line: any) => {
@@ -1761,7 +1765,7 @@ export class PrintService {
       text += nameTruncated.padEnd(20) + qty.padStart(3) + unitPrice.padStart(8) + total.padStart(8) + '\n';
     });
     
-    text += '--------------------------------\n';
+    text += '-------------------------------\n';
     
     // Totals
     const totalHT = Number(invoice.totalHT || 0).toFixed(3);
@@ -1772,7 +1776,7 @@ export class PrintService {
     text += 'TVA'.padEnd(20) + totalTVA.padStart(19) + ' dt\n';
     text += boldOn + 'TOTAL TTC'.padEnd(20) + totalTTC.padStart(19) + ' dt' + boldOff + '\n';
     
-    text += '--------------------------------\n';
+    text += '-------------------------------\n';
     text += centerAlign + 'Merci de votre confiance!' + '\n';
     text += '==================\n\n';
     
@@ -1806,7 +1810,7 @@ export class PrintService {
     
     // Center both title and date on the same line
     escpos += '\x1B\x61\x01'; // Center align
-    escpos += 'Extrait Journalière - ' + closingTime + '\n';
+    escpos += 'Extr. Journalière - ' + closingTime + '\n';
     
     // Add decorative bottom border
     escpos += '================================\n\n';
@@ -1842,7 +1846,7 @@ export class PrintService {
 
     // Print family totals
     escpos += 'VENTES PAR FAMILLE:\n';
-    escpos += '--------------------------------\n';
+    escpos += '-------------------------------\n';
     
     const sortedFamilies = Object.entries(familyTotals)
       .filter(([_, total]) => total > 0)
@@ -1850,7 +1854,7 @@ export class PrintService {
 
     for (const [familyName, total] of sortedFamilies) {
       const amount = this.formatCurrency(total);
-      const totalWidth = 32;
+      const totalWidth = 30;
       const usedSpace = familyName.length + amount.length;
       const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
       const line = familyName.toUpperCase() + dots + amount;
@@ -1859,9 +1863,9 @@ export class PrintService {
 
     // Add total
     const totalFamilySales = Math.round((Object.values(familyTotals).reduce((sum, total) => sum + total, 0)) * 1000) / 1000;
-    escpos += '--------------------------------\n';
+    escpos += '-------------------------------\n';
     const totalAmount = this.formatCurrency(totalFamilySales);
-    const totalWidth = 32;
+    const totalWidth = 30;
     const usedSpace = 'TOTAL:'.length + totalAmount.length;
     const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
     escpos += 'TOTAL:' + dots + totalAmount + '\n\n';
@@ -1875,7 +1879,7 @@ export class PrintService {
     const totalSales = summary.totalSales || 0;
     const financialOpeningFund = session.openingFund || 0;
     
-    const financialTotalWidth = 32;
+    const financialTotalWidth = 30;
     
     const formatFinancialLine = (label: string, amount: number) => {
       const amountStr = this.formatCurrency(amount);
@@ -1923,7 +1927,7 @@ export class PrintService {
     
     // Center both title and date on the same line
     escpos += '\x1B\x61\x01'; // Center align
-    escpos += 'Extrait Journalière - ' + closingTime + '\n';
+    escpos += 'Extr. Journalière - ' + closingTime + '\n';
     
     // Add decorative bottom border
     escpos += '================================\n\n';
@@ -1977,11 +1981,11 @@ export class PrintService {
       
       // Print family header
       escpos += `\n${familyName.toUpperCase()}:\n`;
-      escpos += '--------------------------------\n';
+      escpos += '-------------------------------\n';
       
       // Print table header
       escpos += 'Article'.padEnd(25) + 'Qty'.padStart(8) + 'Unit Price'.padStart(12) + 'Total'.padStart(12) + '\n';
-      escpos += '--------------------------------\n';
+      escpos += '-------------------------------\n';
       
       // Sort articles within family by total (descending)
       const sortedArticles = Object.entries(articles)
@@ -2005,7 +2009,7 @@ export class PrintService {
       // Print family total
       const familyTotal = Object.values(articles).reduce((sum, data) => sum + data.total, 0);
       const familyTotalFormatted = this.formatCurrency(familyTotal);
-      escpos += '--------------------------------\n';
+      escpos += '-------------------------------\n';
       escpos += `Total ${familyName.toUpperCase()}`.padEnd(25) + ''.padStart(8) + ''.padStart(12) + familyTotalFormatted.padStart(12) + '\n';
     }
 
@@ -2024,7 +2028,7 @@ export class PrintService {
     const totalSales = summary.totalSales || 0;
     const financialOpeningFund = session.openingFund || 0;
     
-    const financialTotalWidth = 32;
+    const financialTotalWidth = 30;
     
     const formatFinancialLine = (label: string, amount: number) => {
       const amountStr = this.formatCurrency(amount);
@@ -2101,7 +2105,7 @@ export class PrintService {
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>Extrait Journalière - ${closingTime}</title>
+        <title>Extr. Journalière - ${closingTime}</title>
         <style>
             @page {
                 size: A4;
@@ -2236,7 +2240,7 @@ export class PrintService {
     </head>
     <body>
         <div class="header">
-            <div class="title">Extrait Journalière - ${closingTime}</div>
+            <div class="title">Extr. Journalière - ${closingTime}</div>
         </div>
         
         <h2>VENTES PAR ARTICLE (PAR FAMILLE)</h2>

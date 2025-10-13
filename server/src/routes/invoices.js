@@ -348,7 +348,7 @@ router.post('/', authenticateToken, async (req, res) => {
     try {
       await sendPushToAll({
         title: 'Nouvelle Facture',
-        body: `Facture ${invoice.invoiceNumber} - ${invoice.totalAmount} TND par ${req.user.firstName} ${req.user.lastName}`,
+        body: `Facture ${invoice.invoiceNumber} - ${invoice.totalAmount} DT par ${req.user.firstName} ${req.user.lastName}`,
         data: { type: 'INVOICE', id: invoice.id, depotId: invoice.depotId }
       });
     } catch (e) {

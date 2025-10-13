@@ -79,7 +79,7 @@
               <div><span class="font-medium">Type:</span> {{ getDocumentTypeLabel(selectedDocument) }}</div>
               <div><span class="font-medium">Statut:</span>
                 <span [class]="selectedDocument.status === 'PREPARED' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'" class="px-2 py-1 rounded-full text-xs font-medium">
-                  {{ selectedDocument.status === 'PREPARED' ? 'Préparé' : selectedDocument.status }}
+                  {{ getStatusLabel(selectedDocument.status) }}
                 </span>
               </div>
               <div><span class="font-medium">Date de création:</span> {{ formatDate(selectedDocument.createdAt) }}</div>
@@ -105,7 +105,7 @@
         <!-- Items Table -->
         <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div class="bg-gray-50 px-4 py-3 border-b">
-            <h3 class="font-semibold text-gray-800">Articles ({{ getTotalCount(selectedDocument.items) }})</h3>
+            <h3 class="font-semibold text-gray-800">Articles ({{ getGroupedItems(selectedDocument.items || []).length }})</h3>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full">
@@ -118,14 +118,16 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
-                <tr *ngFor="let item of selectedDocument.items; index as i">
+                <tr *ngFor="let group of getGroupedItems(selectedDocument.items || []); index as i">
                   <td class="px-4 py-3 text-sm text-gray-900">{{ i + 1 }}</td>
                   <td class="px-4 py-3 text-sm text-gray-900">
-                    <div class="font-medium">{{ item.product?.name || 'Produit #' + item.productId }}</div>
-                    <div *ngIf="item.batch" class="text-xs text-gray-500">Lot: {{ item.batch }}</div>
+                    <div class="font-medium">{{ group.product?.name || 'Produit #' + group.productId }}</div>
+                    <div *ngIf="group.childItems.length > 1" class="text-xs text-gray-500">
+                      {{ group.childItems.length }} variante(s)
+                    </div>
                   </td>
-                  <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ item.quantity }} kg</td>
-                  <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ item['count'] || 1 }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ group.quantity }} kg</td>
+                  <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ group.count }}</td>
                 </tr>
               </tbody>
             </table>
@@ -134,10 +136,10 @@
             <div class="flex justify-end">
               <div class="text-right space-y-1">
                 <div class="text-sm text-gray-600">
-                  <span class="font-medium">Quantité totale:</span> {{ getTotalQuantity(selectedDocument.items) }} kg
+                  <span class="font-medium">Quantité totale:</span> {{ getTotalQuantity(selectedDocument.items || []) }} kg
                 </div>
                 <div class="text-sm text-gray-600">
-                  <span class="font-medium">Nombre d'articles:</span> {{ getTotalCount(selectedDocument.items) }}
+                  <span class="font-medium">Nombre d'articles:</span> {{ getGroupedItems(selectedDocument.items || []).length }}
                 </div>
               </div>
             </div>
@@ -223,7 +225,7 @@
                   </span>
                   <span [class]="doc.status === 'PREPARED' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'" 
                         class="px-3 py-1 rounded-full text-xs font-medium">
-                    {{ doc.status === 'PREPARED' ? 'Préparé' : doc.status }}
+                    {{ getStatusLabel(doc.status) }}
                   </span>
                 </div>
               </div>

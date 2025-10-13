@@ -4,6 +4,7 @@ import { DepotsService } from '../core/services/depots.service';
 import { Depot } from '../core/models/depot.model';
 import { StockDocumentsService } from '../core/services/stock-documents.service';
 import { AuthService } from '../core/services/auth.service';
+import { StockDocumentActionDialogComponent } from '../shared/stock-document-action-dialog/stock-document-action-dialog.component';
 
 @Component({
   selector: 'app-stock',
@@ -14,11 +15,13 @@ export class StockComponent implements OnInit {
   depots: Depot[] = [];
   loading = false;
   error = '';
+  pendingDocumentsCount = 0;
 
   // Modal properties
   showActionDepotModal = false;
   selectedAction: string | null = null;
-  showTransportModal = false;
+  // Transport modal removed
+  showDocumentsDialog = false;
 
   // Action cards configuration
   actionCards = [
@@ -37,26 +40,13 @@ export class StockComponent implements OnInit {
       color: 'from-rose-500 to-red-600'
     },
     {
-      id: 'bon-sortie',
-      title: 'Bon de sortie',
-      description: 'Documents de sortie de stock',
-      icon: 'M20 12H4m16 0l-4-4m4 4l-4 4',
-      color: 'from-red-500 to-pink-600'
+      id: 'documents',
+      title: 'Documents',
+      description: 'Consulter les documents de stock',
+      icon: 'M8 4h8l4 4v12H8V4zm8 8H10m6 4H10',
+      color: 'from-blue-600 to-indigo-700'
     },
-    {
-      id: 'bon-transfert',
-      title: 'Bon de transfert',
-      description: 'Transferts entre dépôts',
-      icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
-      color: 'from-amber-500 to-yellow-600'
-    },
-    {
-      id: 'bon-livraison',
-      title: 'Bon de livraison',
-      description: 'Documents de livraison',
-      icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
-      color: 'from-green-500 to-teal-600'
-    },
+    
     {
       id: 'stock',
       title: 'Gestion de Stock',
@@ -84,13 +74,14 @@ export class StockComponent implements OnInit {
 
   constructor(
     private depotsService: DepotsService,
-    private router: Router,
+    public router: Router,
     private stockDocs: StockDocumentsService,
     private authService: AuthService
   ) {}
 
   ngOnInit(): void {
     this.loadDepots();
+    this.loadPendingDocumentsCount();
   }
 
   loadDepots() {
@@ -103,6 +94,25 @@ export class StockComponent implements OnInit {
       error: () => {
         this.error = "Erreur lors du chargement des dépôts";
         this.loading = false;
+      }
+    });
+  }
+
+  loadPendingDocumentsCount(): void {
+    const currentUser = this.authService.currentUser();
+    if (!currentUser?.depotId) return;
+
+    this.stockDocs.getDocuments(1, 50, 'BON_ENTREE_MAGASIN', 'SENT', currentUser.depotId).subscribe({
+      next: (response) => {
+        const documents = Array.isArray(response) ? response : (response?.data ?? []);
+        this.pendingDocumentsCount = documents.filter((d: any) => 
+          d.type === 'BON_ENTREE_MAGASIN' && 
+          (d.status === 'SENT' || d.status === 'PREPARED') &&
+          d.destinataireId === currentUser.depotId
+        ).length;
+      },
+      error: () => {
+        this.pendingDocumentsCount = 0;
       }
     });
   }
@@ -137,7 +147,11 @@ export class StockComponent implements OnInit {
     console.log('Opening action:', action, 'for user:', currentUser?.role, 'depotId:', currentUser?.depotId);
 
     // Actions that do NOT require depot selection
-    if (action === 'drivers') {
+    if (action === 'drivers' || action === 'documents') {
+      if (action === 'documents') {
+        this.showDocumentsDialog = true;
+        return;
+      }
       this.router.navigate(['/stock/transport']);
       return;
     }
@@ -154,24 +168,25 @@ export class StockComponent implements OnInit {
     this.showActionDepotModal = true;
   }
 
-  // Transport selection modal controls
-  openTransportModal(): void {
-    this.showTransportModal = true;
+  // Transport modal removed; use direct navigation cards
+
+  onDocumentsActionSelected(actionId: 'all' | 'factures' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert'): void {
+    this.showDocumentsDialog = false;
+    const type = actionId === 'factures'
+      ? 'FACTURE'
+      : actionId === 'bon-livraison'
+      ? 'BON_ENTREE_MAGASIN'
+      : actionId === 'bon-expedition'
+      ? 'BON_EXPEDITION'
+      : actionId === 'bon-transfert'
+      ? 'BON_TRANSFERT'
+      : '';
+    const queryParams: any = {};
+    if (type) queryParams.type = type;
+    this.router.navigate(['/stock/documents'], { queryParams });
   }
 
-  closeTransportModal(): void {
-    this.showTransportModal = false;
-  }
-
-  goToVehicles(): void {
-    this.showTransportModal = false;
-    this.router.navigate(['/stock/vehicles']);
-  }
-
-  goToDrivers(): void {
-    this.showTransportModal = false;
-    this.router.navigate(['/stock/drivers']);
-  }
+  // Removed goToVehicles/goToDrivers; handled by routerLink in template
 
   closeActionDepotModal(): void {
     this.showActionDepotModal = false;
@@ -213,9 +228,6 @@ export class StockComponent implements OnInit {
       case 'drivers':
         this.router.navigate(['/stock/transport']);
         break;
-      case 'bon-sortie':
-        this.router.navigate(['/stock/documents/bon-sortie', depot.id]);
-        break;
       case 'bon-transfert':
         this.router.navigate(['/stock/documents/bon-transfert', depot.id]);
         break;
@@ -233,18 +245,14 @@ export class StockComponent implements OnInit {
         return 'Bon d\'entrée';
       case 'bon-retour':
         return 'Bon de retour';
+      case 'documents':
+        return 'Documents';
       case 'inventory':
         return 'Inventaire';
       case 'stock-history':
         return 'Historique du stock';
       case 'drivers':
         return 'Gestion des Chauffeurs';
-      case 'bon-sortie':
-        return 'Bon de sortie';
-      case 'bon-transfert':
-        return 'Bon de transfert';
-      case 'bon-livraison':
-        return 'Bon de livraison';
       default:
         return 'Action';
     }
@@ -258,6 +266,8 @@ export class StockComponent implements OnInit {
         return 'M12 4v16m8-8H4';
       case 'bon-retour':
         return 'M19 14l-7 7m0 0l-7-7m7 7V3';
+      case 'documents':
+        return 'M3 7h18M3 12h18M3 17h18';
       case 'inventory':
         return 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01';
       case 'stock-history':
@@ -289,12 +299,8 @@ export class StockComponent implements OnInit {
         return 'bg-gradient-to-br from-cyan-500 to-blue-600';
       case 'drivers':
         return 'bg-gradient-to-br from-blue-500 to-indigo-600';
-      case 'bon-sortie':
-        return 'bg-gradient-to-br from-red-500 to-rose-600';
-      case 'bon-transfert':
-        return 'bg-gradient-to-br from-amber-500 to-orange-600';
-      case 'bon-livraison':
-        return 'bg-gradient-to-br from-green-500 to-emerald-600';
+      case 'documents':
+        return 'bg-gradient-to-br from-blue-600 to-indigo-700';
       default:
         return 'bg-gradient-to-br from-gray-500 to-slate-600';
     }
@@ -422,6 +428,14 @@ export class StockComponent implements OnInit {
     console.log('Auto-routing to assigned depot:', assignedDepot.name, 'for action:', action);
     // Route directly to the assigned depot
     this.selectDepotForAction(assignedDepot);
+  }
+
+  goToDocumentsReception(): void {
+    this.router.navigate(['/documents-reception']);
+  }
+
+  refreshPendingCount(): void {
+    this.loadPendingDocumentsCount();
   }
 
   logout(): void {

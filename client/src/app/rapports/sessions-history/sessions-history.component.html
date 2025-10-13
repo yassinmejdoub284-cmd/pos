@@ -67,7 +67,11 @@
                        class="text-lg sm:text-xl font-bold text-slate-800 cursor-pointer hover:text-blue-600 transition-colors duration-200 select-none">
                      Session #{{selectedSession()?.id}}
                    </h3>
-                  <p class="text-xs sm:text-sm text-slate-600">{{selectedSession()?.openedAt | date:'dd/MM/yyyy HH:mm'}}</p>
+                  <div class="mt-1">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800">
+                      {{selectedSession()?.openedAt | date:'dd/MM/YY HH:mm'}}
+                    </span>
+                  </div>
                   <div *ngIf="selectedSession()?.status === 'CLOSED' && selectedSession()?.closedAt" class="mt-1">
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
                       {{selectedSession()?.closedAt | date:'dd/MM/YY HH:mm'}}
@@ -307,7 +311,9 @@
                                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                 </svg>
-                                <span>{{ ($any(s).createdAt || selectedSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ s.id }}</span>
+                                <span [ngClass]="(['REFUNDED','CANCELLED'].includes(($any(s).status || '').toUpperCase())) ? 'line-through decoration-2 decoration-gray-800' : ''">
+                                  {{ ($any(s).createdAt || selectedSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ getTicketDisplayNo(s) }}
+                                </span>
                                 @if (s.totalAmount !== s.paidAmount) {
                                 <span
                                   class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">{{
@@ -315,7 +321,7 @@
                                 }
                               </button>
                               <div class="flex items-center gap-2">
-                                <div class="font-medium text-emerald-700">+{{ formatCurrency(s.paidAmount) }}</div>
+                                <div class="font-medium text-emerald-700" [ngClass]="(['REFUNDED','CANCELLED'].includes(($any(s).status || '').toUpperCase())) ? 'line-through decoration-2 decoration-gray-800 text-gray-400' : ''">+{{ formatCurrency(s.paidAmount) }}</div>
                               </div>
                             </div>
                             <!-- Ticket Details -->
@@ -603,13 +609,10 @@
                  <!-- Session Details -->
                  <div class="space-y-3 flex-1">
                   <!-- Date & Time -->
-                  <div class="flex items-center gap-2 text-sm text-slate-600">
-                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <span>{{session.openedAt | date:'dd/MM/yyyy'}}</span>
-                    <span class="text-slate-400">•</span>
-                    <span>{{session.openedAt | date:'HH:mm'}}</span>
+                  <div class="flex items-center gap-2 text-sm">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                      {{session.openedAt | date:'dd/MM/YY HH:mm'}}
+                    </span>
                   </div>
 
                   <!-- Closed Time (if applicable) -->

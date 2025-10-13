@@ -2981,7 +2981,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
         
         // Print the enhanced daily extract
         this.printService.printDailyExtractWithWithdrawal(enhancedExtract);
-        this.showAlertMessage(`Extrait journalière imprimé - Retrait: ${this.closureForm.retraitCentrale} TND`, 'success');
+        this.showAlertMessage(`Extrait journalière imprimé - Retrait: ${this.closureForm.retraitCentrale} DT`, 'success');
       },
       error: (error) => {
         console.error('Error fetching daily extract:', error);
@@ -4583,10 +4583,60 @@ export class CaisseComponent implements OnInit, OnDestroy {
         this.closeTicketActionDialog();
         break;
       case 'instant-refund':
-        this.openInstantRefundModal(ticket);
+        // Open confirmation modal before cancelling
+        this.openCancelTicketModal(ticket);
         this.closeTicketActionDialog();
         break;
     }
+  }
+  // Simple ticket cancel (no refund, just subtract from caisse and strike ticket)
+  cancelTicket(ticket: Sale): void {
+    if (!ticket?.id) return;
+    // Guard: avoid duplicate cancel if already cancelled/refunded
+    const status = (ticket as any)?.status ? String((ticket as any).status).toUpperCase() : '';
+    if (status === 'CANCELLED' || status === 'REFUNDED') {
+      this.showAlertMessage('Ticket déjà annulé', 'info');
+      return;
+    }
+    this.http.put(`${environment.apiUrl}/sales/${ticket.id}/status`, { status: 'CANCELLED' }, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    }).subscribe({
+      next: () => {
+        this.showAlertMessage('Ticket annulé', 'success');
+        // Refresh session tickets and summary
+        this.loadTodaysTickets();
+        this.sessionsService.getActiveSessionByDepot().subscribe();
+        this.closeCancelTicketModal();
+      },
+      error: () => {
+        this.showAlertMessage('Erreur lors de l\'annulation du ticket', 'error');
+      }
+    });
+  }
+
+  // Cancel ticket confirmation modal state
+  showCancelTicketModal = false;
+  ticketToCancel: Sale | null = null;
+
+  openCancelTicketModal(ticket: Sale): void {
+    // Prevent opening if already finalised
+    const st = (ticket as any)?.status ? String((ticket as any).status).toUpperCase() : '';
+    if (st === 'CANCELLED' || st === 'REFUNDED') {
+      this.showAlertMessage('Ticket déjà annulé', 'info');
+      return;
+    }
+    this.ticketToCancel = ticket;
+    this.showCancelTicketModal = true;
+  }
+
+  closeCancelTicketModal(): void {
+    this.showCancelTicketModal = false;
+    this.ticketToCancel = null;
+  }
+
+  confirmCancelTicket(): void {
+    if (!this.ticketToCancel) return;
+    this.cancelTicket(this.ticketToCancel);
   }
 
   closeTicketActionDialog(): void {

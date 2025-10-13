@@ -72,12 +72,14 @@
                                          ticket.status === 'TEMPORARY' ? 'bg-yellow-100 text-yellow-700' : 
                                          ticket.status === 'PENDING' ? 'bg-orange-100 text-orange-700' : 
                                          ticket.status === 'REFUNDED' ? 'bg-red-100 text-red-700' : 
+                                         ticket.status === 'CANCELLED' ? 'bg-gray-200 text-gray-700' : 
                                          'bg-gray-100 text-gray-700')">
                             {{ (isTicketPendingRefund(ticket) ? 'Annulation en cours' :
                             ticket.status === 'COMPLETED' ? 'Terminé' :
                             ticket.status === 'TEMPORARY' ? 'Temporaire' :
                             ticket.status === 'PENDING' ? 'En attente' :
-                            ticket.status === 'REFUNDED' ? 'Retourné' : ticket.status) }}
+                            ticket.status === 'REFUNDED' ? 'Retourné' :
+                            ticket.status === 'CANCELLED' ? 'Annulé' : ticket.status) }}
                           </span>
                         </div>
                         <div class="text-xs text-gray-600 mt-1">
@@ -2143,6 +2145,13 @@
               <div class="text-right">
                 <div class="text-lg font-bold text-emerald-600">0.000 dt</div>
                 <div class="text-xs text-slate-500">Cadeau</div>
+                <button (click)="showTicketDetails(sale)"
+                  class="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 text-xs">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                  Voir ticket
+                </button>
               </div>
             </div>
 
@@ -3627,6 +3636,23 @@
     [hasPendingRefundRequestForTicket]="hasPendingRefundRequest.bind(this)"
     (actionSelected)="onTicketActionSelected($event)" (dialogClosed)="closeTicketActionDialog()">
   </app-ticket-action-dialog>
+
+  <!-- Cancel Ticket Confirmation Modal -->
+  <div *ngIf="showCancelTicketModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 max-w-md w-full shadow-2xl">
+      <div class="p-5 border-b border-slate-200 bg-slate-50 rounded-t-2xl">
+        <div class="text-lg font-bold text-slate-800">Confirmer l'annulation</div>
+      </div>
+      <div class="p-5 text-sm text-slate-700">
+        <div class="mb-2">Vous êtes sur le point d'annuler le ticket <span class="font-mono font-semibold">#{{ ticketToCancel?.id }}</span>.</div>
+        <div class="">Cette action soustrait le montant du ticket de la caisse et marque le ticket comme <span class="font-semibold">Annulé</span>.</div>
+      </div>
+      <div class="p-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex gap-2">
+        <button (click)="closeCancelTicketModal()" class="flex-1 px-4 py-2 rounded-md border border-slate-300 text-slate-700 bg-white hover:bg-slate-50">Annuler</button>
+        <button (click)="confirmCancelTicket()" class="flex-1 px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700">Confirmer</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Gift Action Dialog -->
   <app-gift-action-dialog *ngIf="showGiftActionDialog" (actionSelected)="onGiftActionSelected($event)"

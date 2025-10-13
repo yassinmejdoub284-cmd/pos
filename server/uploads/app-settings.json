@@ -1,7 +1,7 @@
 {
   "1": {
     "companyName": "DEPOT TUNIS",
-    "logoUrl": "/uploads/logos/logo-1759043187618-80620683.png",
+    "logoUrl": "https://192.168.1.15:3255/uploads/logos/logo-1759043187618-80620683.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -34,6 +34,7 @@
     "ticketWidth": 58,
     "droitDeTimbre": false,
     "autoApproveExpenseBelow": 0,
+    "allowNegativeStock": false,
     "printSettings": {
       "showLogo": true,
       "logoSize": "medium",
@@ -51,6 +52,48 @@
       "showClientInfo": true,
       "showPaymentMethod": true,
       "showDiscountDetails": true
+    },
+    "documentTypeDefaults": {
+      "livraison": {
+        "client": true,
+        "depot": false,
+        "vehicle": true,
+        "driver": true,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "sortie": {
+        "client": false,
+        "depot": true,
+        "vehicle": true,
+        "driver": true,
+        "manualDestination": true,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": true
+      },
+      "transfert": {
+        "client": false,
+        "depot": true,
+        "vehicle": true,
+        "driver": true,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "facture": {
+        "client": true,
+        "depot": false,
+        "vehicle": false,
+        "driver": false,
+        "manualDestination": false,
+        "autoInvoice": true,
+        "tvaAndPrix": true,
+        "validity": false
+      }
     }
   },
   "2": {

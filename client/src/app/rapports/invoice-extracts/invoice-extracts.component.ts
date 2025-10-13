@@ -807,9 +807,9 @@ export class InvoiceExtractsComponent implements OnInit {
                       </td>
                       <td class="px-4 py-3 text-sm text-gray-700 border-r border-gray-200">${line.legalDesignation}</td>
                       <td class="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200">${line.quantity}</td>
-                      <td class="px-4 py-3 text-sm text-gray-900 text-right border-r border-gray-200">${line.prixVenteHTVA.toFixed(2)} TND</td>
+                      <td class="px-4 py-3 text-sm text-gray-900 text-right border-r border-gray-200">${line.prixVenteHTVA.toFixed(2)} DT</td>
                       <td class="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-200">${line.tvaPercent}%</td>
-                      <td class="px-4 py-3 text-sm font-medium text-gray-900 text-right">${line.sousTotalTTC.toFixed(2)} TND</td>
+                      <td class="px-4 py-3 text-sm font-medium text-gray-900 text-right">${line.sousTotalTTC.toFixed(2)} DT</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -824,16 +824,16 @@ export class InvoiceExtractsComponent implements OnInit {
                 <div class="space-y-2">
                   <div class="flex justify-between text-sm">
                     <span class="text-gray-600">Sous-total HT:</span>
-                    <span class="font-medium">${draft.totals.subtotalHTVA.toFixed(2)} TND</span>
+                    <span class="font-medium">${draft.totals.subtotalHTVA.toFixed(2)} DT</span>
                   </div>
                   <div class="flex justify-between text-sm">
                     <span class="text-gray-600">TVA (19%):</span>
-                    <span class="font-medium">${draft.totals.totalTVA.toFixed(2)} TND</span>
+                    <span class="font-medium">${draft.totals.totalTVA.toFixed(2)} DT</span>
                   </div>
                   <div class="border-t border-gray-300 pt-2">
                     <div class="flex justify-between text-base font-semibold">
                       <span>Total TTC:</span>
-                      <span class="text-blue-600">${draft.totals.totalTTC.toFixed(2)} TND</span>
+                      <span class="text-blue-600">${draft.totals.totalTTC.toFixed(2)} DT</span>
                     </div>
                   </div>
                 </div>

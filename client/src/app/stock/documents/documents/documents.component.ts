@@ -6,11 +6,13 @@ import { StockDocumentsService } from '../../../core/services/stock-documents.se
 import { StockDocument } from '../../../core/models/stock-document.model';
 import { ProduitsDeCaisseService } from '../../../core/services/produits-de-caisse.service';
 import { ProductsService } from '../../../core/services/products.service';
+import { StockDocumentActionDialogComponent } from '../../../shared/stock-document-action-dialog/stock-document-action-dialog.component';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-documents',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, StockDocumentActionDialogComponent],
   templateUrl: './documents.component.html',
   styleUrls: ['./documents.component.css']
 })
@@ -24,6 +26,9 @@ export class DocumentsListComponent implements OnInit {
   selectedType = '';
   selectedStatus = '';
   searchTerm = '';
+
+  // Dialog
+  showTypeDialog = false;
   
   // Invoice modal
   showInvoiceModal = false;
@@ -39,7 +44,8 @@ export class DocumentsListComponent implements OnInit {
     private router: Router,
     private stockDocumentsService: StockDocumentsService,
     private produitsDeCaisseService: ProduitsDeCaisseService,
-    private productsService: ProductsService
+    private productsService: ProductsService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -52,20 +58,57 @@ export class DocumentsListComponent implements OnInit {
     });
   }
 
+  openTypeDialog(): void {
+    this.showTypeDialog = true;
+  }
+
+  closeTypeDialog(): void {
+    this.showTypeDialog = false;
+  }
+
+  handleTypeSelected(actionId: 'all' | 'factures' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert'): void {
+    this.onTypeSelected(actionId);
+  }
+
+  onTypeSelected(actionId: 'all' | 'factures' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert'): void {
+    // Map dialog choice to backend type values
+    const map: Record<string, string> = {
+      'all': ''
+    };
+    if (actionId === 'factures') {
+      this.selectedType = 'FACTURE';
+    } else if (actionId === 'bon-livraison') {
+      this.selectedType = 'BON_ENTREE_MAGASIN';
+    } else if (actionId === 'bon-expedition') {
+      this.selectedType = 'BON_EXPEDITION';
+    } else if (actionId === 'bon-transfert') {
+      this.selectedType = 'BON_TRANSFERT';
+    } else {
+      this.selectedType = '';
+    }
+    this.filterDocuments();
+    this.closeTypeDialog();
+  }
+
   loadDocuments(): void {
     this.loading = true;
     this.error = '';
     
-    this.stockDocumentsService.getAllDocuments().subscribe({
-      next: (documents) => {
-        this.documents = Array.isArray(documents) ? documents : [];
+    // Get current user's depot ID to filter documents sent from this depot
+    const currentUser = this.authService.currentUser();
+    const currentDepotId = currentUser?.depotId;
+    
+    this.stockDocumentsService.getDocuments(1, 50, this.selectedType || undefined, this.selectedStatus || undefined, currentDepotId).subscribe({
+      next: (response) => {
+        const docs = Array.isArray(response) ? response : (response?.data ?? response ?? []);
+        this.documents = Array.isArray(docs) ? docs : [];
         this.filterDocuments();
         this.loading = false;
       },
       error: (error) => {
         console.error('Error loading documents:', error);
         this.error = 'Erreur lors du chargement des documents: ' + (error?.message || 'Erreur inconnue');
-        this.documents = []; // Ensure documents is always an array
+        this.documents = [];
         this.filteredDocuments = [];
         this.loading = false;
       }
@@ -118,11 +161,9 @@ export class DocumentsListComponent implements OnInit {
   getTypeLabel(type: string): string {
     switch (type) {
       case 'BON_ENTREE_MAGASIN':
-        return 'Bon de Livraison';
+        return 'Bon d\'entrée magasin';
       case 'BON_EXPEDITION':
         return 'Bon de Sortie';
-      case 'BON_TRANSFERT':
-        return 'Bon de Transfert';
       case 'FACTURE':
         return 'Facture';
       default:
@@ -136,8 +177,6 @@ export class DocumentsListComponent implements OnInit {
         return 'bg-orange-100 text-orange-800';
       case 'BON_EXPEDITION':
         return 'bg-blue-100 text-blue-800';
-      case 'BON_TRANSFERT':
-        return 'bg-purple-100 text-purple-800';
       case 'FACTURE':
         return 'bg-emerald-100 text-emerald-800';
       default:
@@ -303,8 +342,10 @@ export class DocumentsListComponent implements OnInit {
           const tva = produit.tva || item.tva || 19;
           const quantite = item.quantity;
           const montantTTC = prixUnitaire * quantite;
-          const montantHT = montantTTC / (1 + tva / 100);
-          const montantTVA = montantTTC - montantHT;
+          // Correct TVA calculation: HT = TTC / (1 + TVA), TVA = TTC - HT
+          const tvaFraction = tva <= 1 ? tva : tva / 100;
+          const montantHT = Math.round((montantTTC / (1 + tvaFraction)) * 1000) / 1000;
+          const montantTVA = Math.round((montantTTC - montantHT) * 1000) / 1000;
           
           return {
             ...baseItem,

@@ -1,7 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { StockDocumentsService } from '../../../core/services/stock-documents.service';
 import { StockDocument } from '../../../core/models/stock-document.model';
@@ -12,10 +10,9 @@ import { ProductsService } from '../../../core/services/products.service';
 
 @Component({
   selector: 'app-document',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
   templateUrl: './document.component.html',
-  styleUrls: ['./document.component.css']
+  styleUrls: ['./document.component.css'],
+  standalone: false
 })
 export class DocumentComponent implements OnInit {
   document: StockDocument | null = null;
@@ -556,8 +553,10 @@ export class DocumentComponent implements OnInit {
           const tva = produit.tva || item.tva || 19;
           const quantite = item.quantity;
           const montantTTC = prixUnitaire * quantite;
-          const montantHT = montantTTC / (1 + tva / 100);
-          const montantTVA = montantTTC - montantHT;
+          // Correct TVA calculation: HT = TTC / (1 + TVA), TVA = TTC - HT
+          const tvaFraction = tva <= 1 ? tva : tva / 100;
+          const montantHT = Math.round((montantTTC / (1 + tvaFraction)) * 1000) / 1000;
+          const montantTVA = Math.round((montantTTC - montantHT) * 1000) / 1000;
           
           return {
             ...baseItem,

@@ -416,7 +416,7 @@ router.post('/', authenticateToken, async (req, res) => {
     try {
       await sendPushToAll({
         title: 'Nouvelle Dépense',
-        body: `Dépense de ${expense.amount} TND - ${expense.category?.name || 'Divers'} par ${req.user.firstName} ${req.user.lastName}`,
+        body: `Dépense de ${expense.amount} DT - ${expense.category?.name || 'Divers'} par ${req.user.firstName} ${req.user.lastName}`,
         data: { type: 'EXPENSE', id: expense.id, depotId: expense.depotId }
       });
       console.log('[expenses.create] Push notification sent for expense:', expense.id);

@@ -125,8 +125,8 @@ import { Sale } from '../../core/models/sale.model';
               <div class="space-y-3">
                 <div class="flex justify-between">
                   <span class="text-gray-600">Type de paiement:</span>
-                  <span class="font-semibold" [class]="getPaymentTypeClass(ticket?.paymentType)">
-                    {{ getPaymentTypeText(ticket?.paymentType) }}
+                  <span class="font-semibold" [class]="(isGiftStatus(ticket?.status)) ? 'text-pink-600' : getPaymentTypeClass(ticket?.paymentType)">
+                    {{ isGiftStatus(ticket?.status) ? 'CADEAU' : getPaymentTypeText(ticket?.paymentType) }}
                   </span>
                 </div>
                 <div *ngIf="ticket?.paymentMethod" class="flex justify-between">
@@ -195,8 +195,9 @@ import { Sale } from '../../core/models/sale.model';
               </svg>
               Imprimer
             </button>
-            <button (click)="onReturnExchange()" 
-              class="px-4 py-2 bg-orange-600 text-white rounded-lg transition-all duration-200 shadow-sm text-sm">
+            <button (click)="onReturnExchange()" [disabled]="isFinalized()"
+              class="px-4 py-2 rounded-lg transition-all duration-200 shadow-sm text-sm"
+              [ngClass]="isFinalized() ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-orange-600 text-white'">
               <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
               </svg>
@@ -235,7 +236,7 @@ export class TicketDetailsModalComponent {
   }
 
   onReturnExchange(): void {
-    if (this.ticket) {
+    if (this.ticket && !this.isFinalized()) {
       this.returnExchangeRequested.emit(this.ticket);
     }
   }
@@ -256,9 +257,9 @@ export class TicketDetailsModalComponent {
       case 'PENDING':
         return 'bg-orange-100 text-orange-700';
       case 'CANCELLED':
-        return 'bg-red-100 text-red-700';
+        return 'bg-gray-200 text-gray-700';
       case 'REFUNDED':
-        return 'bg-purple-100 text-purple-700';
+        return 'bg-red-100 text-red-700';
       case 'PENDING_ADMIN':
         return 'bg-blue-100 text-blue-700';
       case 'CADEAU':
@@ -266,6 +267,11 @@ export class TicketDetailsModalComponent {
       default:
         return 'bg-gray-100 text-gray-700';
     }
+  }
+
+  isFinalized(): boolean {
+    const st = (this.ticket?.status || '').toUpperCase();
+    return st === 'CANCELLED' || st === 'REFUNDED';
   }
 
   getStatusText(status: string): string {
@@ -309,6 +315,11 @@ export class TicketDetailsModalComponent {
       default:
         return 'Non spécifié';
     }
+  }
+
+  isGiftStatus(status?: string): boolean {
+    const s = (status || '').toUpperCase();
+    return s === 'CADEAU' || s === 'PENDING_ADMIN';
   }
 
   getDisplayTicketNumber(): string {

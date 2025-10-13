@@ -642,8 +642,8 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
             entityId: parseInt(id),
             entityType: 'SESSION_CAISSE',
             reason: varianceExceedsThreshold
-              ? `Écart de ${finalVariance.toFixed(3)} TND dépasse le seuil de ${settings.varianceThreshold} TND`
-              : `Clôture à approuver (écart: ${finalVariance.toFixed(3)} TND, seuil: ${settings.varianceThreshold} TND)`,
+              ? `Écart de ${finalVariance.toFixed(3)} DT dépasse le seuil de ${settings.varianceThreshold} DT`
+              : `Clôture à approuver (écart: ${finalVariance.toFixed(3)} DT, seuil: ${settings.varianceThreshold} DT)`,
             requestedBy: req.user.id
           }
         });
@@ -677,7 +677,7 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
               sessionId: existingOpenSession.id,
               type: missingAmount > 0 ? 'ENTREE' : 'SORTIE', // Add if positive, remove if negative
               amount: Math.abs(missingAmount), // Always positive amount
-              reason: `Correction admin ${missingAmount > 0 ? '+' : ''}${missingAmount.toFixed(3)} TND (Tentative: ${withdrawalAttempt.toFixed(3)} TND, Reçu: ${actuallyReceived.toFixed(3)} TND)`,
+              reason: `Correction admin ${missingAmount > 0 ? '+' : ''}${missingAmount.toFixed(3)} DT (Tentative: ${withdrawalAttempt.toFixed(3)} DT, Reçu: ${actuallyReceived.toFixed(3)} DT)`,
               ticketId: null,
               createdById: req.user.id
             }
@@ -689,7 +689,7 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
               sessionId: parseInt(id),
               type: missingAmount > 0 ? 'ENTREE' : 'SORTIE', // Add if positive, remove if negative
               amount: Math.abs(missingAmount), // Always positive amount
-              reason: `Correction admin ${missingAmount > 0 ? '+' : ''}${missingAmount.toFixed(3)} TND (Tentative: ${withdrawalAttempt.toFixed(3)} TND, Reçu: ${actuallyReceived.toFixed(3)} TND)`,
+              reason: `Correction admin ${missingAmount > 0 ? '+' : ''}${missingAmount.toFixed(3)} DT (Tentative: ${withdrawalAttempt.toFixed(3)} DT, Reçu: ${actuallyReceived.toFixed(3)} DT)`,
               ticketId: null,
               createdById: req.user.id
             }
@@ -1039,9 +1039,9 @@ async function calculateSessionSummary(sessionId) {
 
   if (!session) return null;
 
-  // Calculate cash from sales
+  // Calculate cash from sales (exclude refunded)
   const cashSales = session.sales
-    .filter(sale => sale.paymentMethod?.type === 'CASH')
+    .filter(sale => sale.paymentMethod?.type === 'CASH' && !['REFUNDED','CANCELLED'].includes((sale.status || '').toUpperCase()))
     .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
 
   // Calculate cash movements (exclude rejected movements)
@@ -1063,8 +1063,10 @@ async function calculateSessionSummary(sessionId) {
     if (!salesByPayment[method]) {
       salesByPayment[method] = { amount: 0, count: 0 };
     }
-    salesByPayment[method].amount += parseFloat(sale.finalTotal);
-    salesByPayment[method].count += 1;
+    if (!['REFUNDED','CANCELLED'].includes((sale.status || '').toUpperCase())) {
+      salesByPayment[method].amount += parseFloat(sale.finalTotal);
+      salesByPayment[method].count += 1;
+    }
   });
 
   // Calculate outstanding credit from client debt transactions tied to this session's sales
@@ -1254,7 +1256,9 @@ async function calculateSessionSummary(sessionId) {
   expectedCash = expectedCash + clientPaymentsTotal;
 
   // Compute cash from sales as totalSales - creditOutstanding and add entries then subtract sorties
-  const totalSalesAmount = session.sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
+  const totalSalesAmount = session.sales
+    .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+    .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
   const cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
   expectedCash = expectedCash + cashFromSalesNetCredit + entree - sortie;
 
@@ -1264,8 +1268,10 @@ async function calculateSessionSummary(sessionId) {
     entree,
     sortie,
     salesByPayment,
-    totalSales: session.sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0),
-    totalTickets: session.sales.length,
+    totalSales: session.sales
+      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+      .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0),
+    totalTickets: session.sales.filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase())).length,
     creditOutstanding,
     creditAdvancePaid,
     clientPaymentsTotal,
@@ -1321,13 +1327,18 @@ async function generateZReport(sessionId, closureData = {}) {
   
   // Group sales by families (like daily extract)
   const familyMap = new Map();
-  
-  session.sales.forEach(item => {
+  // Exclude cancelled/refunded sales from family breakdown
+  const salesForFamilies = session.sales.filter(s => {
+    const st = (s.status || '').toUpperCase();
+    return st !== 'CANCELLED' && st !== 'REFUNDED';
+  });
+
+  salesForFamilies.forEach(item => {
     item.items.forEach(i => {
       const familyName = i.product?.famille?.name || 'Divers';
       const family = familyMap.get(familyName) || { name: familyName, amount: 0 };
       family.amount += parseFloat(i.total || 0);
-      familyMap.set(familyName, family);
+      familyMap.set(familyName, family)
     });
   });
 
@@ -1364,6 +1375,12 @@ async function generateZReport(sessionId, closureData = {}) {
       paidAmount: (s.paymentMethod?.type || '').toUpperCase() === 'CASH' ? (parseFloat(s.finalTotal || 0) || 0) : 0
     }));
   }
+
+  // Ensure session-local ticket number is present for client display
+  session.sales = session.sales.map(s => ({
+    ...s,
+    dailyTicketNumber: s.dailyTicketNumber ?? s.sessionTicketNumber ?? s.ticketNumber ?? s.numero ?? s.sessionIndex ?? s.sessionSeq ?? s.id
+  }));
 
   return {
     session: {
@@ -1411,9 +1428,9 @@ function generateESCReport(reportData, type) {
   escpos += 'RÉCAPITULATIF VENTES\n';
   escpos += '===================\n';
   Object.entries(summary.salesByPayment).forEach(([method, data]) => {
-    escpos += `${method}: ${data.amount.toFixed(3)} TND (${data.count} tickets)\n`;
+    escpos += `${method}: ${data.amount.toFixed(3)} DT (${data.count} tickets)\n`;
   });
-  escpos += `\nTotal: ${summary.totalSales.toFixed(3)} TND\n`;
+  escpos += `\nTotal: ${summary.totalSales.toFixed(3)} DT\n`;
   escpos += `Tickets: ${summary.totalTickets}\n\n`;
   
   escpos += 'MOUVEMENTS CAISSE\n';
@@ -1421,18 +1438,18 @@ function generateESCReport(reportData, type) {
   session.cashMovements
     .filter(m => !m.reason?.includes('[REJETÉ]')) // Exclude rejected movements from print
     .forEach(movement => {
-      escpos += `${movement.type}: ${movement.amount.toFixed(3)} TND\n`;
+      escpos += `${movement.type}: ${movement.amount.toFixed(3)} DT\n`;
       escpos += `  ${movement.reason}\n`;
     });
   escpos += '\n';
   
   escpos += 'COMPTAGE ESPÈCES\n';
   escpos += '================\n';
-  escpos += `Fonds de caisse: ${session.openingFund.toFixed(3)} TND\n`;
-  escpos += `Espèces attendues: ${summary.expectedCash.toFixed(3)} TND\n`;
+  escpos += `Fonds de caisse: ${session.openingFund.toFixed(3)} DT\n`;
+  escpos += `Espèces attendues: ${summary.expectedCash.toFixed(3)} DT\n`;
   if (session.countedCash) {
-    escpos += `Espèces comptées: ${session.countedCash.toFixed(3)} TND\n`;
-    escpos += `Écart: ${session.variance.toFixed(3)} TND\n`;
+    escpos += `Espèces comptées: ${session.countedCash.toFixed(3)} DT\n`;
+    escpos += `Écart: ${session.variance.toFixed(3)} DT\n`;
   }
   escpos += '\n';
   

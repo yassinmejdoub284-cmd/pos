@@ -4,29 +4,20 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 
 import { DocumentsRoutingModule } from './documents-routing.module';
-import { DocumentsComponent } from './documents.component';
 import { BonEntreeComponent } from './bon-entree/bon-entree.component';
-import { BonSortieComponent } from './bon-sortie/bon-sortie.component';
-import { BonTransfertComponent } from './bon-transfert/bon-transfert.component';
-import { BonLivraisonComponent } from './bon-livraison/bon-livraison.component';
+// Removed Bon de sortie, transfert, livraison components
 import { DocumentComponent } from './document/document.component';
-import { DocumentsListComponent } from './documents/documents.component';
 
 @NgModule({
   declarations: [
     BonEntreeComponent,
-    BonSortieComponent,
-    BonTransfertComponent,
-    BonLivraisonComponent
+    DocumentComponent
   ],
   imports: [
     CommonModule,
     FormsModule,
     RouterModule,
-    DocumentsRoutingModule,
-    DocumentsComponent,
-    DocumentComponent,
-    DocumentsListComponent
+    DocumentsRoutingModule
   ]
 })
 export class DocumentsModule {} 

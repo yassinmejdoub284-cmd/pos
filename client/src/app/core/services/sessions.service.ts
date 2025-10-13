@@ -315,13 +315,13 @@ export class SessionsService {
     if (variance === 0) {
       message = 'Comptage parfait';
     } else if (variance > 0) {
-      message = `Surplus de ${variance.toFixed(3)} TND`;
+      message = `Surplus de ${variance.toFixed(3)} DT`;
     } else {
-      message = `Manque de ${Math.abs(variance).toFixed(3)} TND`;
+      message = `Manque de ${Math.abs(variance).toFixed(3)} DT`;
     }
     
     if (requiresApproval) {
-      message += ` (Approbation requise - seuil: ${threshold} TND)`;
+      message += ` (Approbation requise - seuil: ${threshold} DT)`;
     }
     
     return {

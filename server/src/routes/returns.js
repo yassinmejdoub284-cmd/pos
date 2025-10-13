@@ -201,67 +201,8 @@ router.post('/requests/:id/approve', authenticateToken, requireRole(['ADMIN', 'M
         console.log(`No originalSaleId found for return request ${request.numero}`);
       }
 
-      // Handle cash adjustment for cash refunds
-      console.log(`Return request data:`, {
-        originalSaleTotal: request.originalSaleTotal,
-        requestDepotId: request.depotId,
-        userDepotId: req.user.depotId,
-        numero: request.numero,
-        userId: req.user.id
-      });
-      
-      if (request.originalSaleTotal && request.originalSaleTotal > 0) {
-        console.log(`Processing cash refund of ${request.originalSaleTotal} TND for return request ${request.numero}`);
-        
-        // Find the active session for the user's depot (not the request's depot)
-        const activeSession = await tx.sessionCaisse.findFirst({
-          where: {
-            depotId: req.user.depotId,
-            status: { in: ['OPEN', 'REOPENED'] }
-          },
-          orderBy: { createdAt: 'desc' }
-        });
-
-        console.log(`Active session found:`, activeSession ? `ID ${activeSession.id}` : 'None');
-
-        if (activeSession) {
-          console.log(`Creating cash movement for session ${activeSession.id} with amount ${request.originalSaleTotal}`);
-          
-          try {
-            // Create cash movement to subtract the refund amount from register
-            const reason = `Remboursement bon de retour ${request.numero}`;
-            console.log(`Cash movement reason: "${reason}" (length: ${reason.length})`);
-            
-            const cashMovement = await tx.cashMovement.create({
-              data: {
-                sessionId: activeSession.id,
-                type: 'SORTIE',
-                amount: parseFloat(request.originalSaleTotal),
-                reason: reason,
-                ticketId: null,
-                createdById: req.user.id
-              }
-            });
-
-            console.log(`Cash movement created with ID: ${cashMovement.id}`);
-
-            // Update expected cash in session
-            await tx.sessionCaisse.update({
-              where: { id: activeSession.id },
-              data: { expectedCash: { decrement: parseFloat(request.originalSaleTotal) } }
-            });
-
-            console.log(`Updated expected cash for session ${activeSession.id}`);
-          } catch (error) {
-            console.error(`Error creating cash movement:`, error);
-            throw error; // Re-throw to ensure transaction rollback
-          }
-        } else {
-          console.log(`No active session found for user depot ${req.user.depotId}`);
-        }
-      } else {
-        console.log(`No originalSaleTotal found for return request ${request.numero}`);
-      }
+      // Do not create any cash movement for refunds; refunded tickets should not affect décaissement
+      console.log('[returns.approve] Skipping cash movement for refund to avoid impacting décaissement');
 
       // Mark as processed after all items handled
       await tx.returnRequest.update({

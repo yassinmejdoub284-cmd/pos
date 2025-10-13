@@ -6,11 +6,11 @@
   <!-- Overlay header -->
   <div
     class="sticky top-0 z-10 bg-white/80 border-b border-slate-200 px-3 md:px-6 py-3 flex items-center justify-between">
-      <div class="min-w-0">
+    <div class="min-w-0">
       <span class="text-lg md:text-xl font-bold text-slate-800">Clôture Caisse</span>
       <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">{{ currentSession()
         ? 'Active' : 'Fermée' }}</span>
-        </div>
+    </div>
     <div class="flex items-center gap-2">
       <!-- Master expand/collapse all -->
       <label for="schema-all-open"
@@ -25,16 +25,16 @@
         </span>
       </label>
       <button (click)="goToRegister()"
-      class="bg-blue-400 p-2 text-white rounded-full shadow-2xl transition-all duration-300 transform flex items-center justify-center"
-      title="Accueil">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-            </path>
-          </svg>
-        </button>
-      </div>
+        class="bg-blue-400 p-2 text-white rounded-full shadow-2xl transition-all duration-300 transform flex items-center justify-center"
+        title="Accueil">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+          </path>
+        </svg>
+      </button>
     </div>
+  </div>
 
 
 
@@ -45,7 +45,7 @@
     <div class="hidden md:block absolute left-0 right-0 top-1/2 -translate-y-1/2 pointer-events-none">
       <div class="absolute left-0 right-1/2 h-0.5 border-b border-emerald-200"></div>
       <div class="absolute left-1/2 right-0 h-0.5 border-b border-rose-200"></div>
-  </div>
+    </div>
 
     <!-- KPI chips (global, above the whole schema) -->
     <div class="mb-4 flex flex-wrap items-center justify-center gap-2">
@@ -93,7 +93,7 @@
         </svg>
         <span>Ventes en crédits:</span>
         <span class="font-semibold">{{ formatCurrency(getCreditAmount()) }}</span>
-    </div>
+      </div>
     </div>
 
     <!-- Main grid (always on; details toggled per-item; master shows extra details below) -->
@@ -103,7 +103,8 @@
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 md:p-4">
           <!-- local toggle -->
           <input id="schema-left-open" type="checkbox" class="sr-only peer" />
-          <label for="schema-left-open" class="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg transition-colors">
+          <label for="schema-left-open"
+            class="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg transition-colors">
             <span class="text-sm font-semibold text-emerald-800 inline-flex items-center gap-2">
               <svg class="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -113,15 +114,16 @@
               Encaissement
             </span>
             <span class="text-right text-base md:text-lg font-bold text-emerald-700">{{
-              formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit() + getFundingsTotal())
+              formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit() +
+              getFundingsTotal())
               }}</span>
-</label>
+          </label>
 
           <!-- Children with vertical connector (toggleable) -->
-          <div class="mt-3 relative pl-6 hidden peer-checked:block section-children max-h-72 md:max-h-[30rem] overflow-y-auto pr-2">
+          <div
+            class="mt-3 relative pl-6 hidden peer-checked:block section-children max-h-72 md:max-h-[30rem] overflow-y-auto pr-2">
             <div class="absolute left-3 top-0 bottom-0 border-l border-emerald-200"></div>
-            <div
-              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
+            <div class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
               <input id="schema-client-payments-open" type="checkbox" class="sr-only peer" />
               <div class="flex items-center justify-between gap-2">
@@ -136,7 +138,7 @@
                 </label>
                 <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getClientPaymentsTotal())
                   }}</span>
-    </div>
+              </div>
               <div class="mt-2 hidden peer-checked:block schema-detail">
                 @if (recentClientPayments().length) {
                 <div class="max-h-32 overflow-y-auto divide-y">
@@ -144,8 +146,8 @@
                   <div class="flex items-center justify-between py-1 text-sm">
                     <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
                     <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
-  </div>
-  }
+                  </div>
+                  }
                 </div>
                 } @else {
                 <div class="text-xs text-slate-500">Aucun détail disponible pour les encaissements de crédit.</div>
@@ -153,8 +155,7 @@
               </div>
             </div>
 
-            <div
-              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
+            <div class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
               <input id="schema-advances-open" type="checkbox" class="sr-only peer" />
               <div class="flex items-center justify-between gap-2">
@@ -167,7 +168,7 @@
                     <rect x="4" y="4" width="16" height="16" rx="2"></rect>
                   </svg>
                   Total acompte sur commande
-    </label>
+                </label>
                 <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getTotalOrderAdvances())
                   }}</span>
               </div>
@@ -178,18 +179,17 @@
                   <div class="flex items-center justify-between py-1 text-sm">
                     <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
                     <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
-  </div>
-  }
+                  </div>
+                  }
                 </div>
                 } @else {
                 <div class="text-xs text-slate-500">Aucun acompte enregistré.</div>
                 }
               </div>
-  </div>
+            </div>
 
             <!-- Alimentation de caisse -->
-            <div
-              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
+            <div class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
               <input id="schema-fundings-open" type="checkbox" class="sr-only peer" />
               <div class="flex items-center justify-between gap-2">
@@ -204,7 +204,7 @@
                   Alimentation de caisse
                 </label>
                 <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getFundingsTotal()) }}</span>
-          </div>
+              </div>
               <div class="mt-2 hidden peer-checked:block schema-detail">
                 @if (recentFundings().length) {
                 <div class="max-h-32 overflow-y-auto divide-y">
@@ -218,11 +218,10 @@
                 } @else {
                 <div class="text-xs text-slate-500">Aucune alimentation enregistrée.</div>
                 }
-          </div>
-        </div>
+              </div>
+            </div>
 
-            <div
-              class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 transition">
+            <div class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 transition">
               <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
               <input id="schema-cash-open" type="checkbox" class="sr-only peer"
                 (change)="$any($event.target)?.checked && loadCashSalesDetails()" />
@@ -242,13 +241,14 @@
               <div class="mt-2 hidden peer-checked:block schema-detail">
                 <div class="text-xs text-slate-600">Calcul: Ventes TTC - Ventes en crédits</div>
                 @if (cashSalesDetails().length) {
-                <input id="cash-more-schema" type="checkbox" class="sr-only" [ngModel]="cashMoreSchemaFlag" (ngModelChange)="cashMoreSchemaFlag = $event" />
+                <input id="cash-more-schema" type="checkbox" class="sr-only" [ngModel]="cashMoreSchemaFlag"
+                  (ngModelChange)="cashMoreSchemaFlag = $event" />
                 <div class="mt-2 max-h-32 overflow-y-auto divide-y">
                   @for (s of cashSalesDetails(); track s.id; let i = $index) {
-                  @if (i < 2 || cashMoreSchemaFlag) {
-                  <div class="flex items-center justify-between py-1 text-sm">
-                    <div class="text-slate-600">
-                      {{ ($any(s).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ s.id }}
+                  @if (i < 2 || cashMoreSchemaFlag) { <div class="flex items-center justify-between py-1 text-sm cursor-pointer" (click)="openTicketDetails(s.id)">
+                    <div class="text-slate-600"
+                      [ngClass]="(($any(s).status || '').toUpperCase() === 'CANCELLED') ? 'line-through decoration-2 decoration-gray-700' : ''">
+                      {{ ($any(s).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ getTicketDisplayNo(s) }}
                       @if (s.totalAmount !== s.paidAmount) {
                       <span
                         class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">{{
@@ -256,466 +256,123 @@
                       }
                     </div>
                     <div class="flex items-center gap-2">
-                      <div class="font-medium text-emerald-700">+{{ formatCurrency(s.paidAmount) }}</div>
+                      <div class="font-medium text-emerald-700"
+                        [ngClass]="(($any(s).status || '').toUpperCase() === 'CANCELLED') ? 'line-through decoration-gray-700 text-gray-400' : ''">
+                        +{{ formatCurrency(s.paidAmount) }}</div>
                     </div>
-                  </div>
-                  }
-                  }
-                </div>
-                @if (cashSalesDetails().length > 2) {
-                <div class="mt-1 text-right">
-                  <label for="cash-more-schema"
-                    class="text-xs text-indigo-600 cursor-pointer select-none">{{ cashMoreSchemaFlag ?
-                    'Voir moins' : 'Voir plus' }}</label>
                 </div>
                 }
-                } @else {
-                <div class="mt-2 text-xs text-slate-500">Détails non chargés.</div>
                 }
               </div>
+              @if (cashSalesDetails().length > 2) {
+              <div class="mt-1 text-right">
+                <label for="cash-more-schema" class="text-xs text-indigo-600 cursor-pointer select-none">{{
+                  cashMoreSchemaFlag ?
+                  'Voir moins' : 'Voir plus' }}</label>
+              </div>
+              }
+              } @else {
+              <div class="mt-2 text-xs text-slate-500">Détails non chargés.</div>
+              }
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Center: Solde de caisse -->
-      <div class="relative">
-        <!-- Circle: Solde de caisse -->
-        <div
-          class="relative mx-auto w-56 h-56 md:w-64 md:h-64 rounded-full bg-blue-50 border-4 border-blue-200 shadow flex flex-col items-center justify-center text-center overflow-hidden">
-          <img aria-hidden="true"
-            class="p-10 absolute inset-0 w-full h-full object-contain opacity-20 pointer-events-none select-none"
-            [attr.src]="getLogoUrl((settings$ | async) || null)" alt="">
-          <div class="mb-2 text-blue-700 inline-flex items-center gap-2 text-base md:text-lg font-bold">
-            <svg class="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9"></circle>
-              <path d="M8 12h5a3 3 0 1 0 0-6H9"></path>
-              <path d="M9 18h6"></path>
+    <!-- Center: Solde de caisse -->
+    <div class="relative">
+      <!-- Circle: Solde de caisse -->
+      <div
+        class="relative mx-auto w-56 h-56 md:w-64 md:h-64 rounded-full bg-blue-50 border-4 border-blue-200 shadow flex flex-col items-center justify-center text-center overflow-hidden">
+        <img aria-hidden="true"
+          class="p-10 absolute inset-0 w-full h-full object-contain opacity-20 pointer-events-none select-none"
+          [attr.src]="getLogoUrl((settings$ | async) || null)" alt="">
+        <div class="mb-2 text-blue-700 inline-flex items-center gap-2 text-base md:text-lg font-bold">
+          <svg class="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M8 12h5a3 3 0 1 0 0-6H9"></path>
+            <path d="M9 18h6"></path>
           </svg>
-            <span>Solde de caisse</span>
+          <span>Solde de caisse</span>
         </div>
-          <div class="text-2xl md:text-3xl font-extrabold text-blue-800">{{
-            formatCurrency(currentSession()?.summary?.expectedCash || 0) }}</div>
-          </div>
-
-        <!-- Note under circle -->
-        <div class="mt-3 flex items-center justify-center">
-          <span
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold shadow-sm">
-            <svg class="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3 9l9-6 9 6" />
-              <path d="M9 22V12h6v10" />
-              <path d="M3 9v13h18V9" />
-            </svg>
-            <span>Magasin — {{ currentSession()?.depot?.name || '—' }}</span>
-          </span>
-        </div>
-
-        <!-- User sales summary -->
-        @if (getUserSalesSummary().length > 0) {
-        <div class="mt-2 text-center">
-          <div class="flex flex-wrap justify-center gap-1 text-[9px] text-slate-600">
-            @for (user of getUserSalesSummary(); track user.userName) {
-            <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-              {{ user.userName }}: <span class="font-black">{{ formatCurrency(user.totalSales) }}</span>
-            </span>
-            }
-          </div>
-        </div>
-        }
-    </div>
-
-      <!-- Right: Décaissement -->
-      <div class="relative">
-        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 md:p-4">
-          <!-- local toggle -->
-          <input id="schema-right-open" type="checkbox" class="sr-only peer" />
-          <label for="schema-right-open" class="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg transition-colors">
-            <span class="text-sm font-semibold text-rose-800 inline-flex items-center gap-2">
-              <svg class="w-5 h-5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M7 7l10 10"></path>
-                <path d="M17 7H7v10"></path>
-              </svg>
-              Décaissement
-            </span>
-            <span class="text-right text-base md:text-lg font-bold text-rose-700">{{
-              formatCurrency(getExpensesTotal() + getSupplierPaymentsTotal() + getRefundsTotal())
-              }}</span>
-          </label>
-
-          <!-- Children with vertical connector (toggleable) -->
-          <div class="mt-3 relative pl-6 hidden peer-checked:block section-children max-h-72 md:max-h-96 overflow-y-auto pr-2">
-            <div class="absolute left-3 top-0 bottom-0 border-l border-rose-200"></div>
-
-            <div
-              class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 mb-2 transition">
-              <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
-              <input id="schema-expenses-open" type="checkbox" class="sr-only peer" />
-              <div class="flex items-center justify-between gap-2">
-                <label for="schema-expenses-open"
-                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
-                  <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 6h12v12H6z"></path>
-                    <path d="M9 9h6M9 13h6"></path>
-                  </svg>
-                  Dépenses
-                </label>
-                <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getExpensesTotal()) }}</span>
-  </div>
-              <div class="mt-2 hidden peer-checked:block schema-detail">
-                @if (recentExpenses().length) {
-                <div class="max-h-32 overflow-y-auto divide-y">
-                  @for (m of recentExpenses(); track m.createdAt) {
-                  <div class="py-1 text-sm">
-                    <div class="flex items-center justify-between">
-                      <div class="text-slate-600">
-                        {{ m.createdAt | date:'dd/MM HH:mm' }} ·
-                        @if (m.categoryName || m.supplierName) {
-                        <span>
-                          {{ m.categoryName || 'Dépense' }}
-                          @if (m.supplierName) {<span> · Fournisseur: {{ m.supplierName }}</span>}
-                        </span>
-                        } @else {
-                        <span>{{ m.reason }}</span>
-                        }
-                        @if (m.notes && m.notes.includes('Paiement partiel')) {
-                        <div class="text-xs text-orange-600 mt-1">
-                          {{ m.notes }}
-                        </div>
-                        }
-                      </div>
-                      <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
-                    </div>
-                  </div>
-                  }
-                </div>
-                } @else {
-                <div class="text-xs text-slate-500">Aucune ligne de dépense trouvée dans cette session.</div>
-                }
-          </div>
-        </div>
-
-            <div
-              class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 transition">
-              <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
-              <input id="schema-suppliers-open" type="checkbox" class="sr-only peer" />
-              <div class="flex items-center justify-between gap-2">
-                <label for="schema-suppliers-open"
-                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
-                  <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 21V8l9-5 9 5v13"></path>
-                    <path d="M9 21v-6h6v6"></path>
-                  </svg>
-                  Règlements fournisseur
-                </label>
-                <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getSupplierPaymentsTotal())
-                  }}</span>
-        </div>
-              <div class="mt-2 hidden peer-checked:block schema-detail">
-                @if (recentSupplierPayments().length) {
-                <div class="max-h-32 overflow-y-auto divide-y">
-                  @for (m of recentSupplierPayments(); track m.createdAt) {
-                  <div class="flex items-center justify-between py-1 text-sm">
-                    <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
-                    <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
-                  </div>
-                  }
-                </div>
-                } @else {
-                <div class="text-xs text-slate-500">Aucun règlement fournisseur trouvé.</div>
-                }
-              </div>
-            </div>
-
-            <div
-              class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 transition">
-              <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
-              <input id="schema-refunds-open" type="checkbox" class="sr-only peer" />
-              <div class="flex items-center justify-between gap-2">
-                <label for="schema-refunds-open"
-                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
-                  <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 3v18h18" />
-                    <path d="M19 9l-6 6-4-4" />
-                    <path d="M9 9h6v6H9z" />
-                  </svg>
-                  Remboursements
-                </label>
-                <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getRefundsTotal())
-                  }}</span>
-        </div>
-              <div class="mt-2 hidden peer-checked:block schema-detail">
-                @if (recentRefunds().length) {
-                <div class="max-h-32 overflow-y-auto divide-y">
-                  @for (m of recentRefunds(); track m.createdAt) {
-                  <div class="flex items-center justify-between py-1 text-sm">
-                    <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
-                    <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
-                  </div>
-                  }
-                </div>
-                } @else {
-                <div class="text-xs text-slate-500">Aucun remboursement trouvé.</div>
-                }
-              </div>
-            </div>
-          </div>
-        </div>
-        </div>
-    </div>
-
-    <!-- Expanded grid (when master is on) -->
-    <div class="hidden peer-checked:grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-center">
-      <!-- Left: Encaissement (always open) -->
-      <div class="relative">
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 md:p-4">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-semibold text-emerald-800 inline-flex items-center gap-2">
-              <svg class="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M7 17L17 7"></path>
-                <path d="M7 7h10v10"></path>
-              </svg>
-              Encaissement
-            </span>
-            <span class="text-right text-base md:text-lg font-bold text-emerald-700">{{
-              formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit())
-              }}</span>
-            </div>
-          <div class="mt-3 relative pl-6">
-            <div class="absolute left-3 top-0 bottom-0 border-l border-emerald-200"></div>
-            <div class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2">
-              <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
-              <input id="schema-client-payments-open-all" type="checkbox" class="sr-only peer" />
-              <div class="flex items-center justify-between gap-2">
-                <label for="schema-client-payments-open-all"
-                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none">
-                  <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 7l-8 8-4-4"></path>
-                    <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                  </svg>
-                  Encaissements Crédit Clients
-                </label>
-                <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getClientPaymentsTotal())
-                  }}</span>
-          </div>
-              <div class="mt-2 hidden peer-checked:block">
-          @if (recentClientPayments().length) {
-                <div class="max-h-32 overflow-y-auto divide-y">
-            @for (m of recentClientPayments(); track m.createdAt) {
-            <div class="flex items-center justify-between py-1 text-sm">
-              <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
-              <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
-            </div>
-            }
-          </div>
-          } @else {
-                <div class="text-xs text-slate-500">Aucun détail disponible pour les encaissements de crédit.</div>
-                }
-            </div>
-          </div>
-            <div class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2">
-              <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
-              <input id="schema-advances-open-all" type="checkbox" class="sr-only peer" />
-              <div class="flex items-center justify-between gap-2">
-                <label for="schema-advances-open-all"
-                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none">
-                  <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 7H8"></path>
-                    <path d="M14 17H4"></path>
-                    <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-                  </svg>
-                  Total acompte sur commande
-                </label>
-                <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getTotalOrderAdvances())
-                  }}</span>
-              </div>
-              <div class="mt-2 hidden peer-checked:block">
-          @if (recentOrderAdvances().length) {
-                <div class="max-h-32 overflow-y-auto divide-y">
-            @for (m of recentOrderAdvances(); track m.createdAt) {
-            <div class="flex items-center justify-between py-1 text-sm">
-              <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
-              <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
-            </div>
-            }
-          </div>
-          } @else {
-                <div class="text-xs text-slate-500">Aucun acompte enregistré.</div>
-                }
-            </div>
-          </div>
-            <div class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2">
-              <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
-              <input id="schema-cash-open-all" type="checkbox" class="sr-only peer"
-                (change)="$any($event.target)?.checked && loadCashSalesDetails()" />
-              <div class="flex items-center justify-between gap-2">
-                <label for="schema-cash-open-all"
-                  class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none">
-                  <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 7H8a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h8"></path>
-                    <path d="M16 7v10"></path>
-                  </svg>
-                  Espèces en Caisse
-                </label>
-                <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getCashFromSalesNetOfCredit())
-                  }}</span>
-              </div>
-              <div class="mt-2 hidden peer-checked:block">
-                <div class="text-xs text-slate-600">Calcul: Ventes TTC - Ventes en crédits</div>
-                @if (cashSalesDetails().length) {
-          <div class="mt-2 max-h-32 overflow-y-auto divide-y">
-            @for (s of cashSalesDetails(); track s.id) {
-            <div class="flex items-center justify-between py-1 text-sm">
-              <div class="text-slate-600">
-                Ticket #{{ s.id }} @if (s.totalAmount !== s.paidAmount) {
-                  <span
-                    class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">{{
-                    formatCurrency(s.totalAmount - s.paidAmount) }} (crédit)</span>
-                  }
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="font-medium text-emerald-700">+{{ formatCurrency(s.paidAmount) }}</div>
-              </div>
-            </div>
-            }
-          </div>
-          } @else {
-                <div class="mt-2 text-xs text-slate-500">Détails non chargés.</div>
-          }
-              </div>
-            </div>
-          </div>
-        </div>
+        <div class="text-2xl md:text-3xl font-extrabold text-blue-800">{{
+          formatCurrency(currentSession()?.summary?.expectedCash || 0) }}</div>
       </div>
 
-      <!-- Center duplicate -->
-      <div class="relative">
-        <div class="flex items-center justify-center gap-2 mb-4">
-          <div
-            class="px-2 py-1 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs inline-flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 3v18h18" />
-              <path d="M19 9l-6 6-4-4" />
-            </svg>
-            <span>Ventes TTC:</span>
-            <span class="font-semibold">{{ formatCurrency(currentSession()?.summary?.totalSales || 0) }}</span>
-            </div>
-          <div
-            class="px-2 py-1 rounded-full border border-violet-200 bg-violet-50 text-violet-700 text-xs inline-flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 8h18" />
-              <rect x="3" y="4" width="18" height="16" rx="2" />
-              <path d="M8 12h8" />
-            </svg>
-            <span>Tickets:</span>
-            <span class="font-semibold">{{ currentSession()?.summary?.totalTickets || 0 }}</span>
-          </div>
-          <div
-            class="px-2 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-xs inline-flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 7h16" />
-              <path d="M4 12h16" />
-              <path d="M4 17h16" />
-            </svg>
-            <span>Ventes en crédits:</span>
-            <span class="font-semibold">{{ formatCurrency(getCreditAmount()) }}</span>
-          </div>
-        </div>
-        <div
-          class="relative mx-auto w-56 h-56 md:w-64 md:h-64 rounded-full bg-blue-50 border-4 border-blue-200 shadow flex flex-col items-center justify-center text-center overflow-hidden">
-          <img aria-hidden="true"
-            class="absolute inset-0 w-full h-full object-contain opacity-10 pointer-events-none select-none"
-            [attr.src]="getLogoUrl((settings$ | async) || null)" alt="">
-          <div class="mb-2 text-blue-700 inline-flex items-center gap-2 text-base md:text-lg font-bold">
-            <svg class="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9"></circle>
-              <path d="M8 12h5a3 3 0 1 0 0-6H9"></path>
-              <path d="M9 18h6"></path>
-            </svg>
-            <span>Solde de caisse</span>
-          </div>
-          <div class="text-2xl md:text-3xl font-extrabold text-blue-800">{{
-            formatCurrency(currentSession()?.summary?.expectedCash || 0) }}</div>
-        </div>
-        <div class="mt-3 flex items-center justify-center">
-          <span
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold shadow-sm">
-            <svg class="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3 9l9-6 9 6" />
-              <path d="M9 22V12h6v10" />
-              <path d="M3 9v13h18V9" />
-            </svg>
-            <span>Magasin — {{ currentSession()?.depot?.name || '—' }}</span>
+      <!-- Note under circle -->
+      <div class="mt-3 flex items-center justify-center">
+        <span
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold shadow-sm">
+          <svg class="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 9l9-6 9 6" />
+            <path d="M9 22V12h6v10" />
+            <path d="M3 9v13h18V9" />
+          </svg>
+          <span>Magasin — {{ currentSession()?.depot?.name || '—' }}</span>
+        </span>
+      </div>
+
+      <!-- User sales summary -->
+      @if (getUserSalesSummary().length > 0) {
+      <div class="mt-2 text-center">
+        <div class="flex flex-wrap justify-center gap-1 text-[9px] text-slate-600">
+          @for (user of getUserSalesSummary(); track user.userName) {
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+            {{ user.userName }}: <span class="font-black">{{ formatCurrency(user.totalSales) }}</span>
           </span>
+          }
         </div>
+      </div>
+      }
+    </div>
 
-        <!-- User sales summary in expanded view -->
-        @if (getUserSalesSummary().length > 0) {
-        <div class="mt-2 text-center">
-          <div class="text-[10px] text-slate-500 mb-1">Ventes par utilisateur</div>
-          <div class="flex flex-wrap justify-center gap-1 text-[9px] text-slate-600">
-            @for (user of getUserSalesSummary(); track user.userName) {
-            <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-              {{ user.userName }}: {{ formatCurrency(user.totalSales) }}
-            </span>
-            }
-          </div>
-        </div>
-        }
-        </div>
+    <!-- Right: Décaissement -->
+    <div class="relative">
+      <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 md:p-4">
+        <!-- local toggle -->
+        <input id="schema-right-open" type="checkbox" class="sr-only peer" />
+        <label for="schema-right-open"
+          class="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg transition-colors">
+          <span class="text-sm font-semibold text-rose-800 inline-flex items-center gap-2">
+            <svg class="w-5 h-5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 7l10 10"></path>
+              <path d="M17 7H7v10"></path>
+            </svg>
+            Décaissement
+          </span>
+          <span class="text-right text-base md:text-lg font-bold text-rose-700">{{
+            formatCurrency(getExpensesTotal() + getSupplierPaymentsTotal() + getRefundsTotal())
+            }}</span>
+        </label>
 
-      <!-- Right: Décaissement (always open) -->
-      <div class="relative">
-        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 md:p-4">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-semibold text-rose-800 inline-flex items-center gap-2">
-              <svg class="w-5 h-5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M7 7l10 10"></path>
-                <path d="M17 7H7v10"></path>
-              </svg>
-              Décaissement
-            </span>
-            <span class="text-right text-base md:text-lg font-bold text-rose-700">{{
-              formatCurrency(getExpensesTotal() + getSupplierPaymentsTotal() + getRefundsTotal())
-              }}</span>
-          </div>
-          <div class="mt-3 relative pl-6">
-            <div class="absolute left-3 top-0 bottom-0 border-l border-rose-200"></div>
-            <div class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 mb-2">
-              <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
-              <input id="schema-expenses-open-all" type="checkbox" class="sr-only peer" />
-              <div class="flex items-center justify-between gap-2">
-                <label for="schema-expenses-open-all"
-                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none">
-                  <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 6h12v12H6z"></path>
-                    <path d="M9 9h6M9 13h6"></path>
-                  </svg>
-                  Dépenses
-                </label>
-                <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getExpensesTotal()) }}</span>
-              </div>
-              <div class="mt-2 hidden peer-checked:block">
-          @if (recentExpenses().length) {
-                <div class="max-h-32 overflow-y-auto divide-y">
-            @for (m of recentExpenses(); track m.createdAt) {
+        <!-- Children with vertical connector (toggleable) -->
+        <div
+          class="mt-3 relative pl-6 hidden peer-checked:block section-children max-h-72 md:max-h-96 overflow-y-auto pr-2">
+          <div class="absolute left-3 top-0 bottom-0 border-l border-rose-200"></div>
+
+          <div class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 mb-2 transition">
+            <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
+            <input id="schema-expenses-open" type="checkbox" class="sr-only peer" />
+            <div class="flex items-center justify-between gap-2">
+              <label for="schema-expenses-open"
+                class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
+                <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 6h12v12H6z"></path>
+                  <path d="M9 9h6M9 13h6"></path>
+                </svg>
+                Dépenses
+              </label>
+              <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getExpensesTotal()) }}</span>
+            </div>
+            <div class="mt-2 hidden peer-checked:block schema-detail">
+              @if (recentExpenses().length) {
+              <div class="max-h-32 overflow-y-auto divide-y">
+                @for (m of recentExpenses(); track m.createdAt) {
                 <div class="py-1 text-sm">
                   <div class="flex items-center justify-between">
                     <div class="text-slate-600">
@@ -724,7 +381,7 @@
                       <span>
                         {{ m.categoryName || 'Dépense' }}
                         @if (m.supplierName) {<span> · Fournisseur: {{ m.supplierName }}</span>}
-          </span>
+                      </span>
                       } @else {
                       <span>{{ m.reason }}</span>
                       }
@@ -733,96 +390,126 @@
                         {{ m.notes }}
                       </div>
                       }
-          </div>
+                    </div>
                     <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
-        </div>
-            </div>
-            }
-          </div>
-          } @else {
-                <div class="text-xs text-slate-500">Aucune ligne de dépense trouvée dans cette session.</div>
+                  </div>
+                </div>
                 }
-            </div>
-          </div>
-            <div class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2">
-              <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
-              <input id="schema-suppliers-open-all" type="checkbox" class="sr-only peer" />
-              <div class="flex items-center justify-between gap-2">
-                <label for="schema-suppliers-open-all"
-                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none">
-                  <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 21V8l9-5 9 5v13"></path>
-                    <path d="M9 21v-6h6v6"></path>
-                  </svg>
-                  Règlements fournisseur
-                </label>
-                <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getSupplierPaymentsTotal())
-                  }}</span>
               </div>
-              <div class="mt-2 hidden peer-checked:block">
-          @if (recentSupplierPayments().length) {
-                <div class="max-h-32 overflow-y-auto divide-y">
-            @for (m of recentSupplierPayments(); track m.createdAt) {
-            <div class="flex items-center justify-between py-1 text-sm">
-              <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
-              <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+              } @else {
+              <div class="text-xs text-slate-500">Aucune ligne de dépense trouvée dans cette session.</div>
+              }
             </div>
-            }
           </div>
-          } @else {
-                <div class="text-xs text-slate-500">Aucun règlement fournisseur trouvé.</div>
-          }
-        </div>
-      </div>
-            <div class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2">
-              <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
-              <input id="schema-refunds-open-all" type="checkbox" class="sr-only peer" />
-              <div class="flex items-center justify-between gap-2">
-                <label for="schema-refunds-open-all"
-                  class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none">
-                  <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 3v18h18" />
-                    <path d="M19 9l-6 6-4-4" />
-                    <path d="M9 9h6v6H9z" />
-                  </svg>
-                  Remboursements
-                </label>
-                <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getRefundsTotal())
-                  }}</span>
+
+          <div class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 transition">
+            <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
+            <input id="schema-suppliers-open" type="checkbox" class="sr-only peer" />
+            <div class="flex items-center justify-between gap-2">
+              <label for="schema-suppliers-open"
+                class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
+                <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21V8l9-5 9 5v13"></path>
+                  <path d="M9 21v-6h6v6"></path>
+                </svg>
+                Règlements fournisseur
+              </label>
+              <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getSupplierPaymentsTotal())
+                }}</span>
+            </div>
+            <div class="mt-2 hidden peer-checked:block schema-detail">
+              @if (recentSupplierPayments().length) {
+              <div class="max-h-32 overflow-y-auto divide-y">
+                @for (m of recentSupplierPayments(); track m.createdAt) {
+                <div class="flex items-center justify-between py-1 text-sm">
+                  <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+                  <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+                </div>
+                }
               </div>
-              <div class="mt-2 hidden peer-checked:block">
-          @if (recentRefunds().length) {
-                <div class="max-h-32 overflow-y-auto divide-y">
-            @for (m of recentRefunds(); track m.createdAt) {
-            <div class="flex items-center justify-between py-1 text-sm">
-              <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
-              <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+              } @else {
+              <div class="text-xs text-slate-500">Aucun règlement fournisseur trouvé.</div>
+              }
             </div>
-            }
           </div>
-          } @else {
-                <div class="text-xs text-slate-500">Aucun remboursement trouvé.</div>
-          }
+
+          <div class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 transition">
+            <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
+            <input id="schema-refunds-open" type="checkbox" class="sr-only peer" />
+            <div class="flex items-center justify-between gap-2">
+              <label for="schema-refunds-open"
+                class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none w-full p-2 rounded-lg transition-colors">
+                <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 3v18h18" />
+                  <path d="M19 9l-6 6-4-4" />
+                  <path d="M9 9h6v6H9z" />
+                </svg>
+                Remboursements
+              </label>
+              <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getRefundsTotal())
+                }}</span>
+            </div>
+            <div class="mt-2 hidden peer-checked:block schema-detail">
+              @if (recentRefunds().length) {
+              <div class="max-h-32 overflow-y-auto divide-y">
+                @for (m of recentRefunds(); track m.createdAt) {
+                <div class="flex items-center justify-between py-1 text-sm">
+                  <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+                  <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+                </div>
+                }
+              </div>
+              } @else {
+              <div class="text-xs text-slate-500">Aucun remboursement trouvé.</div>
+              }
+            </div>
+          </div>
         </div>
       </div>
     </div>
-      </div>
-        </div>
-        </div>
+  </div>
 
-    <!-- Master details-only area: shows children-of-children for both sides when "Tout afficher" is checked -->
-    <div class="hidden peer-checked:block mt-4">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Left details -->
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <div class="text-sm font-semibold text-emerald-800 mb-2">Encaissement — Détails</div>
-          <div class="space-y-2">
-        <div>
-              <div class="text-xs text-emerald-700 font-semibold mb-1">Encaissements Crédit Clients</div>
+  <!-- Expanded grid (when master is on) -->
+  <div class="hidden peer-checked:grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-center">
+    <!-- Left: Encaissement (always open) -->
+    <div class="relative">
+      <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 md:p-4">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-semibold text-emerald-800 inline-flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 17L17 7"></path>
+              <path d="M7 7h10v10"></path>
+            </svg>
+            Encaissement
+          </span>
+          <span class="text-right text-base md:text-lg font-bold text-emerald-700">{{
+            formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit())
+            }}</span>
+        </div>
+        <div class="mt-3 relative pl-6">
+          <div class="absolute left-3 top-0 bottom-0 border-l border-emerald-200"></div>
+          <div class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2">
+            <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
+            <input id="schema-client-payments-open-all" type="checkbox" class="sr-only peer" />
+            <div class="flex items-center justify-between gap-2">
+              <label for="schema-client-payments-open-all"
+                class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none">
+                <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 7l-8 8-4-4"></path>
+                  <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                </svg>
+                Encaissements Crédit Clients
+              </label>
+              <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getClientPaymentsTotal())
+                }}</span>
+            </div>
+            <div class="mt-2 hidden peer-checked:block">
               @if (recentClientPayments().length) {
-              <div class="max-h-40 overflow-y-auto divide-y">
+              <div class="max-h-32 overflow-y-auto divide-y">
                 @for (m of recentClientPayments(); track m.createdAt) {
                 <div class="flex items-center justify-between py-1 text-sm">
                   <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
@@ -833,80 +520,205 @@
               } @else {
               <div class="text-xs text-slate-500">Aucun détail disponible pour les encaissements de crédit.</div>
               }
-        </div>
-        <div>
-              <div class="text-xs text-emerald-700 font-semibold mb-1">Total acompte sur commande</div>
+            </div>
+          </div>
+          <div class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2 mb-2">
+            <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
+            <input id="schema-advances-open-all" type="checkbox" class="sr-only peer" />
+            <div class="flex items-center justify-between gap-2">
+              <label for="schema-advances-open-all"
+                class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none">
+                <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 7H8"></path>
+                  <path d="M14 17H4"></path>
+                  <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                </svg>
+                Total acompte sur commande
+              </label>
+              <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getTotalOrderAdvances())
+                }}</span>
+            </div>
+            <div class="mt-2 hidden peer-checked:block">
               @if (recentOrderAdvances().length) {
-              <div class="max-h-40 overflow-y-auto divide-y">
+              <div class="max-h-32 overflow-y-auto divide-y">
                 @for (m of recentOrderAdvances(); track m.createdAt) {
                 <div class="flex items-center justify-between py-1 text-sm">
                   <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
                   <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
-        </div>
+                </div>
                 }
-      </div>
+              </div>
               } @else {
               <div class="text-xs text-slate-500">Aucun acompte enregistré.</div>
               }
-    </div>
-            <div>
-              <div class="text-xs text-emerald-700 font-semibold mb-1">Alimentation de caisse</div>
-              @if (recentFundings().length) {
-              <div class="max-h-40 overflow-y-auto divide-y">
-                @for (m of recentFundings(); track m.createdAt) {
-                <div class="flex items-center justify-between py-1 text-sm">
-                  <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
-                  <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
-        </div>
-                }
-      </div>
-              } @else {
-              <div class="text-xs text-slate-500">Aucune alimentation enregistrée.</div>
-              }
+            </div>
           </div>
-            <div>
-              <div class="text-xs text-emerald-700 font-semibold mb-1">Espèces en Caisse</div>
-              <div class="text-[11px] text-slate-600 mb-1">Calcul: Ventes TTC - Ventes en crédits</div>
+          <div class="relative group rounded-lg border border-emerald-200 bg-emerald-50/60 p-2">
+            <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-emerald-200"></div>
+            <input id="schema-cash-open-all" type="checkbox" class="sr-only peer"
+              (change)="$any($event.target)?.checked && loadCashSalesDetails()" />
+            <div class="flex items-center justify-between gap-2">
+              <label for="schema-cash-open-all"
+                class="text-sm text-emerald-800 inline-flex items-center gap-2 cursor-pointer select-none">
+                <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 7H8a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h8"></path>
+                  <path d="M16 7v10"></path>
+                </svg>
+                Espèces en Caisse
+              </label>
+              <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getCashFromSalesNetOfCredit())
+                }}</span>
+            </div>
+            <div class="mt-2 hidden peer-checked:block">
+              <div class="text-xs text-slate-600">Calcul: Ventes TTC - Ventes en crédits</div>
               @if (cashSalesDetails().length) {
-              <input id="cash-more-expanded" type="checkbox" class="sr-only" [ngModel]="cashMoreExpandedFlag" (ngModelChange)="cashMoreExpandedFlag = $event" />
-              <div class="max-h-40 overflow-y-auto divide-y">
-                @for (s of cashSalesDetails(); track s.id; let i = $index) {
-                @if (i < 2 || cashMoreExpandedFlag) {
-                <div class="flex items-center justify-between py-1 text-sm">
-                  <div class="text-slate-600">
-                    {{ ($any(s).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ s.id }}
-                    @if (s.totalAmount !== s.paidAmount) {
+              <div class="mt-2 max-h-32 overflow-y-auto divide-y">
+            @for (s of cashSalesDetails(); track s.id) {
+            <div class="flex items-center justify-between py-1 text-sm cursor-pointer" (click)="openTicketDetails(s.id)">
+                  <div class="text-slate-600"
+                    [ngClass]="(['REFUNDED','CANCELLED'].includes(($any(s).status || '').toUpperCase())) ? 'line-through decoration-2 decoration-gray-800' : ''">
+                    Ticket #{{ getTicketDisplayNo(s) }} @if (s.totalAmount !== s.paidAmount) {
                     <span
                       class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">{{
                       formatCurrency(s.totalAmount - s.paidAmount) }} (crédit)</span>
                     }
                   </div>
-                  <div class="font-medium text-emerald-700">+{{ formatCurrency(s.paidAmount) }}</div>
-        </div>
-        }
-        }
-      </div>
-              @if (cashSalesDetails().length > 2) {
-              <div class="mt-1 text-right">
-                <label for="cash-more-expanded"
-                  class="text-xs text-indigo-600 cursor-pointer select-none">{{ cashMoreExpandedFlag ?
-                  'Voir moins' : 'Voir plus' }}</label>
+                  <div class="flex items-center gap-2">
+                    <div class="font-medium text-emerald-700"
+                      [ngClass]="(['REFUNDED','CANCELLED'].includes(($any(s).status || '').toUpperCase())) ? 'line-through decoration-2 decoration-gray-800 text-gray-400' : ''">
+                      +{{ formatCurrency(s.paidAmount) }}</div>
+                  </div>
+                </div>
+                }
               </div>
-      }
-      } @else {
-              <div class="text-xs text-slate-500">Détails non chargés.</div>
+              } @else {
+              <div class="mt-2 text-xs text-slate-500">Détails non chargés.</div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center duplicate -->
+    <div class="relative">
+      <div class="flex items-center justify-center gap-2 mb-4">
+        <div
+          class="px-2 py-1 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs inline-flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18" />
+            <path d="M19 9l-6 6-4-4" />
+          </svg>
+          <span>Ventes TTC:</span>
+          <span class="font-semibold">{{ formatCurrency(currentSession()?.summary?.totalSales || 0) }}</span>
+        </div>
+        <div
+          class="px-2 py-1 rounded-full border border-violet-200 bg-violet-50 text-violet-700 text-xs inline-flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 8h18" />
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M8 12h8" />
+          </svg>
+          <span>Tickets:</span>
+          <span class="font-semibold">{{ currentSession()?.summary?.totalTickets || 0 }}</span>
+        </div>
+        <div
+          class="px-2 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-xs inline-flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7h16" />
+            <path d="M4 12h16" />
+            <path d="M4 17h16" />
+          </svg>
+          <span>Ventes en crédits:</span>
+          <span class="font-semibold">{{ formatCurrency(getCreditAmount()) }}</span>
+        </div>
+      </div>
+      <div
+        class="relative mx-auto w-56 h-56 md:w-64 md:h-64 rounded-full bg-blue-50 border-4 border-blue-200 shadow flex flex-col items-center justify-center text-center overflow-hidden">
+        <img aria-hidden="true"
+          class="absolute inset-0 w-full h-full object-contain opacity-10 pointer-events-none select-none"
+          [attr.src]="getLogoUrl((settings$ | async) || null)" alt="">
+        <div class="mb-2 text-blue-700 inline-flex items-center gap-2 text-base md:text-lg font-bold">
+          <svg class="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M8 12h5a3 3 0 1 0 0-6H9"></path>
+            <path d="M9 18h6"></path>
+          </svg>
+          <span>Solde de caisse</span>
+        </div>
+        <div class="text-2xl md:text-3xl font-extrabold text-blue-800">{{
+          formatCurrency(currentSession()?.summary?.expectedCash || 0) }}</div>
+      </div>
+      <div class="mt-3 flex items-center justify-center">
+        <span
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold shadow-sm">
+          <svg class="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 9l9-6 9 6" />
+            <path d="M9 22V12h6v10" />
+            <path d="M3 9v13h18V9" />
+          </svg>
+          <span>Magasin — {{ currentSession()?.depot?.name || '—' }}</span>
+        </span>
+      </div>
+
+      <!-- User sales summary in expanded view -->
+      @if (getUserSalesSummary().length > 0) {
+      <div class="mt-2 text-center">
+        <div class="text-[10px] text-slate-500 mb-1">Ventes par utilisateur</div>
+        <div class="flex flex-wrap justify-center gap-1 text-[9px] text-slate-600">
+          @for (user of getUserSalesSummary(); track user.userName) {
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+            {{ user.userName }}: {{ formatCurrency(user.totalSales) }}
+          </span>
+          }
+        </div>
+      </div>
       }
     </div>
-      </div>
-          </div>
-        <!-- Right details -->
-        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3">
-          <div class="text-sm font-semibold text-rose-800 mb-2">Décaissement — Détails</div>
-          <div class="space-y-2">
-            <div>
-              <div class="text-xs text-rose-700 font-semibold mb-1">Dépenses</div>
+
+    <!-- Right: Décaissement (always open) -->
+    <div class="relative">
+      <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 md:p-4">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-semibold text-rose-800 inline-flex items-center gap-2">
+            <svg class="w-5 h-5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 7l10 10"></path>
+              <path d="M17 7H7v10"></path>
+            </svg>
+            Décaissement
+          </span>
+          <span class="text-right text-base md:text-lg font-bold text-rose-700">{{
+            formatCurrency(getExpensesTotal() + getSupplierPaymentsTotal() + getRefundsTotal())
+            }}</span>
+        </div>
+        <div class="mt-3 relative pl-6">
+          <div class="absolute left-3 top-0 bottom-0 border-l border-rose-200"></div>
+          <div class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 mb-2">
+            <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
+            <input id="schema-expenses-open-all" type="checkbox" class="sr-only peer" />
+            <div class="flex items-center justify-between gap-2">
+              <label for="schema-expenses-open-all"
+                class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none">
+                <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 6h12v12H6z"></path>
+                  <path d="M9 9h6M9 13h6"></path>
+                </svg>
+                Dépenses
+              </label>
+              <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getExpensesTotal()) }}</span>
+            </div>
+            <div class="mt-2 hidden peer-checked:block">
               @if (recentExpenses().length) {
-              <div class="max-h-40 overflow-y-auto divide-y">
+              <div class="max-h-32 overflow-y-auto divide-y">
                 @for (m of recentExpenses(); track m.createdAt) {
                 <div class="py-1 text-sm">
                   <div class="flex items-center justify-between">
@@ -916,481 +728,683 @@
                       <span>
                         {{ m.categoryName || 'Dépense' }}
                         @if (m.supplierName) {<span> · Fournisseur: {{ m.supplierName }}</span>}
-          </span>
+                      </span>
                       } @else {
                       <span>{{ m.reason }}</span>
                       }
-          </div>
-                    <div class="font-medium text-rose-700">-{{ formatCurrency(m.amount) }}</div>
-        </div>
-            </div>
-            }
-          </div>
+                      @if (m.notes && m.notes.includes('Paiement partiel')) {
+                      <div class="text-xs text-orange-600 mt-1">
+                        {{ m.notes }}
+                      </div>
+                      }
+                    </div>
+                    <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+                  </div>
+                </div>
+                }
+              </div>
               } @else {
-              <div class="text-xs text-slate-500">Aucune ligne de dépense trouvée.</div>
+              <div class="text-xs text-slate-500">Aucune ligne de dépense trouvée dans cette session.</div>
               }
+            </div>
           </div>
-            <div>
-              <div class="text-xs text-rose-700 font-semibold mb-1">Règlements fournisseur</div>
+          <div class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2">
+            <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
+            <input id="schema-suppliers-open-all" type="checkbox" class="sr-only peer" />
+            <div class="flex items-center justify-between gap-2">
+              <label for="schema-suppliers-open-all"
+                class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none">
+                <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21V8l9-5 9 5v13"></path>
+                  <path d="M9 21v-6h6v6"></path>
+                </svg>
+                Règlements fournisseur
+              </label>
+              <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getSupplierPaymentsTotal())
+                }}</span>
+            </div>
+            <div class="mt-2 hidden peer-checked:block">
               @if (recentSupplierPayments().length) {
-              <div class="max-h-40 overflow-y-auto divide-y">
+              <div class="max-h-32 overflow-y-auto divide-y">
                 @for (m of recentSupplierPayments(); track m.createdAt) {
                 <div class="flex items-center justify-between py-1 text-sm">
                   <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
-                  <div class="font-medium text-rose-700">-{{ formatCurrency(m.amount) }}</div>
-        </div>
+                  <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+                </div>
                 }
-      </div>
-      } @else {
+              </div>
+              } @else {
               <div class="text-xs text-slate-500">Aucun règlement fournisseur trouvé.</div>
               }
-        </div>
-            <div>
-              <div class="text-xs text-rose-700 font-semibold mb-1">Remboursements</div>
+            </div>
+          </div>
+          <div class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2">
+            <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-3 border-b border-rose-200"></div>
+            <input id="schema-refunds-open-all" type="checkbox" class="sr-only peer" />
+            <div class="flex items-center justify-between gap-2">
+              <label for="schema-refunds-open-all"
+                class="text-sm text-rose-800 inline-flex items-center gap-2 cursor-pointer select-none">
+                <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 3v18h18" />
+                  <path d="M19 9l-6 6-4-4" />
+                  <path d="M9 9h6v6H9z" />
+                </svg>
+                Remboursements
+              </label>
+              <span class="text-sm font-semibold text-rose-700">{{ formatCurrency(getRefundsTotal())
+                }}</span>
+            </div>
+            <div class="mt-2 hidden peer-checked:block">
               @if (recentRefunds().length) {
-              <div class="max-h-40 overflow-y-auto divide-y">
+              <div class="max-h-32 overflow-y-auto divide-y">
                 @for (m of recentRefunds(); track m.createdAt) {
                 <div class="flex items-center justify-between py-1 text-sm">
                   <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
-                  <div class="font-medium text-rose-700">-{{ formatCurrency(m.amount) }}</div>
-        </div>
+                  <div class="font-medium text-red-700">-{{ formatCurrency(m.amount) }}</div>
+                </div>
                 }
-      </div>
-      } @else {
+              </div>
+              } @else {
               <div class="text-xs text-slate-500">Aucun remboursement trouvé.</div>
               }
-        </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Bottom action buttons -->
-    <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
-      <button (click)="showCloseForm.set(true)"
-        class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-emerald-200 bg-emerald-50 text-emerald-700 text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-3">
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 3v18h18" />
-          <path d="M19 9l-6 6-4-4" />
-        </svg>
-        <span>Clôturer la caisse</span>
-      </button>
-
-      <button (click)="printDetailedReport()"
-        class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-indigo-200 bg-indigo-50 text-indigo-700 text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-3"
-        title="Imprimer l'extrait (test)">
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 3h18v6H3z" />
-          <path d="M6 13h12v8H6z" />
-          <circle cx="18" cy="10" r="1" />
-        </svg>
-        <span>Imprimer</span>
-      </button>
-
-      <button (click)="showFundForm.set(true)"
-        class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-blue-200 bg-blue-50 text-blue-700 text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-3">
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2v20" />
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-        <span>Alimenter</span>
-      </button>
   </div>
 
-    <!-- Bottom left adjust balance button -->
-    <div class="absolute bottom-4 left-4">
-      <button (click)="showAdjustForm.set(true)"
-        class="w-12 h-12 rounded-full border-2 border-blue-200 bg-blue-50 text-blue-700 shadow-lg transition-all duration-200 flex items-center justify-center"
-        title="Ajuster le solde">
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2v20" />
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-      </button>
-    </div>
+  <!-- Ticket Details Modal -->
+  <app-ticket-details-modal *ngIf="showTicketDetailsModal()" [ticket]="selectedTicketForDetails"
+    (closed)="closeTicketDetails()" (printRequested)="onTicketDetailsPrint($event)"
+    (returnExchangeRequested)="onTicketDetailsReturn($event)">
+  </app-ticket-details-modal>
 
-    <!-- Bottom right detailed view button -->
-    <div class="absolute bottom-4 right-4">
-      <button (click)="flowmodal_show()"
-        class="w-12 h-12 rounded-full border-2 border-slate-200 bg-slate-50 text-slate-700 shadow-lg transition-all duration-200 flex items-center justify-center"
-        title="Vue détaillée Entrées / Sorties">
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 3v18h18" />
-          <path d="M9 9h6v6H9z" />
-          <path d="M21 3l-6 6" />
-          <path d="M21 9l-6-6" />
-        </svg>
-      </button>
-    </div>
+  <!-- Master details-only area: shows children-of-children for both sides when "Tout afficher" is checked -->
+  <div class="hidden peer-checked:block mt-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Left details -->
+      <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+        <div class="text-sm font-semibold text-emerald-800 mb-2">Encaissement — Détails</div>
+        <div class="space-y-2">
+          <div>
+            <div class="text-xs text-emerald-700 font-semibold mb-1">Encaissements Crédit Clients</div>
+            @if (recentClientPayments().length) {
+            <div class="max-h-40 overflow-y-auto divide-y">
+              @for (m of recentClientPayments(); track m.createdAt) {
+              <div class="flex items-center justify-between py-1 text-sm">
+                <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+                <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
+              </div>
+              }
+            </div>
+            } @else {
+            <div class="text-xs text-slate-500">Aucun détail disponible pour les encaissements de crédit.</div>
+            }
           </div>
+          <div>
+            <div class="text-xs text-emerald-700 font-semibold mb-1">Total acompte sur commande</div>
+            @if (recentOrderAdvances().length) {
+            <div class="max-h-40 overflow-y-auto divide-y">
+              @for (m of recentOrderAdvances(); track m.createdAt) {
+              <div class="flex items-center justify-between py-1 text-sm">
+                <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+                <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
+              </div>
+              }
+            </div>
+            } @else {
+            <div class="text-xs text-slate-500">Aucun acompte enregistré.</div>
+            }
+          </div>
+          <div>
+            <div class="text-xs text-emerald-700 font-semibold mb-1">Alimentation de caisse</div>
+            @if (recentFundings().length) {
+            <div class="max-h-40 overflow-y-auto divide-y">
+              @for (m of recentFundings(); track m.createdAt) {
+              <div class="flex items-center justify-between py-1 text-sm">
+                <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+                <div class="font-medium text-emerald-700">+{{ formatCurrency(m.amount) }}</div>
+              </div>
+              }
+            </div>
+            } @else {
+            <div class="text-xs text-slate-500">Aucune alimentation enregistrée.</div>
+            }
+          </div>
+          <div>
+            <div class="text-xs text-emerald-700 font-semibold mb-1">Espèces en Caisse</div>
+            <div class="text-[11px] text-slate-600 mb-1">Calcul: Ventes TTC - Ventes en crédits</div>
+            @if (cashSalesDetails().length) {
+            <input id="cash-more-expanded" type="checkbox" class="sr-only" [ngModel]="cashMoreExpandedFlag"
+              (ngModelChange)="cashMoreExpandedFlag = $event" />
+            <div class="max-h-40 overflow-y-auto divide-y">
+              @for (s of cashSalesDetails(); track s.id; let i = $index) {
+              @if (i < 2 || cashMoreExpandedFlag) { <div class="flex items-center justify-between py-1 text-sm cursor-pointer" (click)="openTicketDetails(s.id)">
+                <div class="text-slate-600">
+                   {{ ($any(s).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ getTicketDisplayNo(s) }}
+                  @if (s.totalAmount !== s.paidAmount) {
+                  <span
+                    class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">{{
+                    formatCurrency(s.totalAmount - s.paidAmount) }} (crédit)</span>
+                  }
+                </div>
+                <div class="font-medium text-emerald-700">+{{ formatCurrency(s.paidAmount) }}</div>
+            </div>
+            }
+            }
+          </div>
+          @if (cashSalesDetails().length > 2) {
+          <div class="mt-1 text-right">
+            <label for="cash-more-expanded" class="text-xs text-indigo-600 cursor-pointer select-none">{{
+              cashMoreExpandedFlag ?
+              'Voir moins' : 'Voir plus' }}</label>
+          </div>
+          }
+          } @else {
+          <div class="text-xs text-slate-500">Détails non chargés.</div>
+          }
         </div>
+      </div>
+    </div>
+    <!-- Right details -->
+    <div class="rounded-xl border border-rose-200 bg-rose-50 p-3">
+      <div class="text-sm font-semibold text-rose-800 mb-2">Décaissement — Détails</div>
+      <div class="space-y-2">
+        <div>
+          <div class="text-xs text-rose-700 font-semibold mb-1">Dépenses</div>
+          @if (recentExpenses().length) {
+          <div class="max-h-40 overflow-y-auto divide-y">
+            @for (m of recentExpenses(); track m.createdAt) {
+            <div class="py-1 text-sm">
+              <div class="flex items-center justify-between">
+                <div class="text-slate-600">
+                  {{ m.createdAt | date:'dd/MM HH:mm' }} ·
+                  @if (m.categoryName || m.supplierName) {
+                  <span>
+                    {{ m.categoryName || 'Dépense' }}
+                    @if (m.supplierName) {<span> · Fournisseur: {{ m.supplierName }}</span>}
+                  </span>
+                  } @else {
+                  <span>{{ m.reason }}</span>
+                  }
+                </div>
+                <div class="font-medium text-rose-700">-{{ formatCurrency(m.amount) }}</div>
+              </div>
+            </div>
+            }
+          </div>
+          } @else {
+          <div class="text-xs text-slate-500">Aucune ligne de dépense trouvée.</div>
+          }
+        </div>
+        <div>
+          <div class="text-xs text-rose-700 font-semibold mb-1">Règlements fournisseur</div>
+          @if (recentSupplierPayments().length) {
+          <div class="max-h-40 overflow-y-auto divide-y">
+            @for (m of recentSupplierPayments(); track m.createdAt) {
+            <div class="flex items-center justify-between py-1 text-sm">
+              <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+              <div class="font-medium text-rose-700">-{{ formatCurrency(m.amount) }}</div>
+            </div>
+            }
+          </div>
+          } @else {
+          <div class="text-xs text-slate-500">Aucun règlement fournisseur trouvé.</div>
+          }
+        </div>
+        <div>
+          <div class="text-xs text-rose-700 font-semibold mb-1">Remboursements</div>
+          @if (recentRefunds().length) {
+          <div class="max-h-40 overflow-y-auto divide-y">
+            @for (m of recentRefunds(); track m.createdAt) {
+            <div class="flex items-center justify-between py-1 text-sm">
+              <div class="text-slate-600">{{ m.createdAt | date:'dd/MM HH:mm' }} · {{ m.reason }}</div>
+              <div class="font-medium text-rose-700">-{{ formatCurrency(m.amount) }}</div>
+            </div>
+            }
+          </div>
+          } @else {
+          <div class="text-xs text-slate-500">Aucun remboursement trouvé.</div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom action buttons -->
+<div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
+  <button (click)="showCloseForm.set(true)"
+    class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-emerald-200 bg-emerald-50 text-emerald-700 text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-3">
+    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round">
+      <path d="M3 3v18h18" />
+      <path d="M19 9l-6 6-4-4" />
+    </svg>
+    <span>Clôturer la caisse</span>
+  </button>
+
+  <button (click)="printDetailedReport()"
+    class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-indigo-200 bg-indigo-50 text-indigo-700 text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-3"
+    title="Imprimer l'extrait (test)">
+    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round">
+      <path d="M3 3h18v6H3z" />
+      <path d="M6 13h12v8H6z" />
+      <circle cx="18" cy="10" r="1" />
+    </svg>
+    <span>Imprimer</span>
+  </button>
+
+  <button (click)="showFundForm.set(true)"
+    class="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-blue-200 bg-blue-50 text-blue-700 text-lg font-bold shadow-lg transition-all duration-200 flex items-center justify-center gap-3">
+    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round">
+      <path d="M12 2v20" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+    <span>Alimenter</span>
+  </button>
+</div>
+
+<!-- Bottom left adjust balance button -->
+<div class="absolute bottom-4 left-4">
+  <button (click)="showAdjustForm.set(true)"
+    class="w-12 h-12 rounded-full border-2 border-blue-200 bg-blue-50 text-blue-700 shadow-lg transition-all duration-200 flex items-center justify-center"
+    title="Ajuster le solde">
+    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round">
+      <path d="M12 2v20" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  </button>
+</div>
+
+<!-- Bottom right detailed view button -->
+<div class="absolute bottom-4 right-4">
+  <button (click)="flowmodal_show()"
+    class="w-12 h-12 rounded-full border-2 border-slate-200 bg-slate-50 text-slate-700 shadow-lg transition-all duration-200 flex items-center justify-center"
+    title="Vue détaillée Entrées / Sorties">
+    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round">
+      <path d="M3 3v18h18" />
+      <path d="M9 9h6v6H9z" />
+      <path d="M21 3l-6 6" />
+      <path d="M21 9l-6-6" />
+    </svg>
+  </button>
+</div>
+</div>
+</div>
 
 <!-- Modals moved outside hidden legacy container so buttons work in Schema view -->
-  @if (showTicketsModal()) {
-  <div class="fixed inset-0 z-50 flex items-center justify-center">
-    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"></div>
-    <div class="relative w-full max-w-lg mx-3">
-      <div class="rounded-2xl border-2 border-indigo-200 bg-white shadow-2xl overflow-hidden">
-        <div class="px-5 py-4 bg-indigo-50 border-b border-indigo-200 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <svg class="w-5 h-5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 3v18h18"/>
-              <path d="M19 9l-6 6-4-4"/>
-            </svg>
-            <span class="text-sm font-semibold text-indigo-800">Tickets (x{{ currentSession()?.summary?.totalTickets || 0 }})</span>
-          </div>
-          <button (click)="showTicketsModal.set(false)" class="w-8 h-8 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600" aria-label="Fermer">
-            ✕
-          </button>
+@if (showTicketsModal()) {
+<div class="fixed inset-0 z-50 flex items-center justify-center">
+  <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"></div>
+  <div class="relative w-full max-w-lg mx-3">
+    <div class="rounded-2xl border-2 border-indigo-200 bg-white shadow-2xl overflow-hidden">
+      <div class="px-5 py-4 bg-indigo-50 border-b border-indigo-200 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18" />
+            <path d="M19 9l-6 6-4-4" />
+          </svg>
+          <span class="text-sm font-semibold text-indigo-800">Tickets (x{{ currentSession()?.summary?.totalTickets || 0
+            }})</span>
+        </div>
+        <button (click)="showTicketsModal.set(false)"
+          class="w-8 h-8 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600"
+          aria-label="Fermer">
+          ✕
+        </button>
       </div>
       <div class="max-h-[60vh] overflow-y-auto divide-y">
         @for (t of sessionTickets(); track t.id) {
-          <div class="px-4 py-2">
-            <div class="text-slate-600 text-xs">
-              {{ ($any(t).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ t.id }}
-              @if (((($any(t).totalAmount || 0) - (t.amount || 0)) > 0)) {
-              <span class="text-[10px] px-1 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200 ml-2">{{
-                formatCurrency($any(t).totalAmount - t.amount) }} (crédit)</span>
-              }
-            </div>
-            <div class="mt-0.5 text-right text-slate-900 font-semibold text-sm">{{ formatCurrency(t.amount) }}</div>
+        <div class="px-4 py-2">
+          <div class="text-slate-600 text-xs">
+            {{ ($any(t).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ getTicketDisplayNo(t) }}
+            @if (((($any(t).totalAmount || 0) - (t.amount || 0)) > 0)) {
+            <span class="text-[10px] px-1 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200 ml-2">{{
+              formatCurrency($any(t).totalAmount - t.amount) }} (crédit)</span>
+            }
+          </div>
+          <div class="mt-0.5 text-right text-slate-900 font-semibold text-sm">{{ formatCurrency(t.amount) }}</div>
         </div>
         }
-          @if (!sessionTickets().length) {
-          <div class="px-5 py-10 text-center text-slate-500 text-sm">Aucun ticket chargé. Ouvrez les Tickets pour charger.</div>
+        @if (!sessionTickets().length) {
+        <div class="px-5 py-10 text-center text-slate-500 text-sm">Aucun ticket chargé. Ouvrez les Tickets pour charger.
+        </div>
         }
       </div>
-        <div class="px-5 py-3 bg-indigo-50 border-t border-indigo-200 flex items-center justify-between">
-          <div class="text-slate-700 text-sm font-medium">Total</div>
-          <div class="text-indigo-700 text-base font-bold">{{ formatCurrency(ticketsTotal()) }}</div>
-        </div>
+      <div class="px-5 py-3 bg-indigo-50 border-t border-indigo-200 flex items-center justify-between">
+        <div class="text-slate-700 text-sm font-medium">Total</div>
+        <div class="text-indigo-700 text-base font-bold">{{ formatCurrency(ticketsTotal()) }}</div>
       </div>
     </div>
   </div>
-  }
+</div>
+}
 
-  @if (showCloseForm()) {
-  <div
-    class="fixed inset-0 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative mx-auto p-6 w-full max-w-md">
-      <div
-        class="bg-gradient-to-b from-amber-100 to-orange-200 rounded-3xl shadow-2xl border-4 border-amber-300 overflow-hidden">
-        <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 relative">
-          <div class="flex items-center justify-center space-x-2">
-            <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-            <h2 class="text-white text-xl font-bold">CAISSE CENTRALE</h2>
-            <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-          </div>
-          <p class="text-amber-100 text-sm mt-1 text-center">Retrait de fonds</p>
-          <div class="absolute top-16 rotate-10 right-1">
-            <div class="bg-green-600/60 rounded-lg px-3 py-2 border border-green-700/30">
-              <p class="text-white text-xs font-medium">SOLDE</p>
+@if (showCloseForm()) {
+<div
+  class="fixed inset-0 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 overflow-y-auto h-full w-full z-50">
+  <div class="relative mx-auto p-6 w-full max-w-md">
+    <div
+      class="bg-gradient-to-b from-amber-100 to-orange-200 rounded-3xl shadow-2xl border-4 border-amber-300 overflow-hidden">
+      <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 relative">
+        <div class="flex items-center justify-center space-x-2">
+          <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+          <h2 class="text-white text-xl font-bold">CAISSE CENTRALE</h2>
+          <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+        </div>
+        <p class="text-amber-100 text-sm mt-1 text-center">Retrait de fonds</p>
+        <div class="absolute top-16 rotate-10 right-1">
+          <div class="bg-green-600/60 rounded-lg px-3 py-2 border border-green-700/30">
+            <p class="text-white text-xs font-medium">SOLDE</p>
             <p class="text-white text-sm font-bold">{{ formatCurrency(currentSession()?.summary?.expectedCash || 0) }}
-              </p>
-            </div>
+            </p>
           </div>
         </div>
-        <div class="bg-gradient-to-b from-amber-50 to-orange-100 p-6 mx-4 my-4 rounded-2xl border-2 border-amber-300">
-          <div class="bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl p-4 mb-6 border border-green-300">
-            <div class="text-center">
-              <p class="text-green-700 text-sm mb-2 font-medium">MONTANT À RETIRER</p>
-              <div class="bg-white rounded-lg p-3 border border-green-400 shadow-sm">
+      </div>
+      <div class="bg-gradient-to-b from-amber-50 to-orange-100 p-6 mx-4 my-4 rounded-2xl border-2 border-amber-300">
+        <div class="bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl p-4 mb-6 border border-green-300">
+          <div class="text-center">
+            <p class="text-green-700 text-sm mb-2 font-medium">MONTANT À RETIRER</p>
+            <div class="bg-white rounded-lg p-3 border border-green-400 shadow-sm">
               <span class="text-green-800 text-3xl font-mono font-bold tracking-wider">{{
                 closeSessionForm.retraitCentrale || '0.000' }}</span>
-                <span class="text-green-600 text-lg ml-2">TND</span>
-              </div>
+              <span class="text-green-600 text-lg ml-2">TND</span>
             </div>
           </div>
-          <div class="grid grid-cols-3 gap-3 mb-6">
-            <button type="button" (click)="addDigit('1')"
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-6">
+          <button type="button" (click)="addDigit('1')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">1</button>
-            <button type="button" (click)="addDigit('2')"
+          <button type="button" (click)="addDigit('2')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">2</button>
-            <button type="button" (click)="addDigit('3')"
+          <button type="button" (click)="addDigit('3')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">3</button>
-            <button type="button" (click)="addDigit('4')"
+          <button type="button" (click)="addDigit('4')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">4</button>
-            <button type="button" (click)="addDigit('5')"
+          <button type="button" (click)="addDigit('5')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">5</button>
-            <button type="button" (click)="addDigit('6')"
+          <button type="button" (click)="addDigit('6')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">6</button>
-            <button type="button" (click)="addDigit('7')"
+          <button type="button" (click)="addDigit('7')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">7</button>
-            <button type="button" (click)="addDigit('8')"
+          <button type="button" (click)="addDigit('8')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">8</button>
-            <button type="button" (click)="addDigit('9')"
+          <button type="button" (click)="addDigit('9')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">9</button>
-            <button type="button" (click)="addDigit('.')"
+          <button type="button" (click)="addDigit('.')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">.</button>
-            <button type="button" (click)="addDigit('0')"
+          <button type="button" (click)="addDigit('0')"
             class="bg-gradient-to-b from-amber-200 to-orange-300 text-amber-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-amber-400">0</button>
-            <button type="button" (click)="clearAmount()"
+          <button type="button" (click)="clearAmount()"
             class="bg-gradient-to-b from-red-200 to-red-300 text-red-800 rounded-xl p-4 text-sm font-bold shadow-lg transform transition-all duration-150 border border-red-400">EFFACER</button>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <button type="button" (click)="showCloseForm.set(false)"
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button" (click)="showCloseForm.set(false)"
             class="bg-gradient-to-b from-gray-200 to-gray-300 text-gray-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-gray-400">ANNULER</button>
-            <button type="button" (click)="closeSession()" [disabled]="loading()"
+          <button type="button" (click)="closeSession()" [disabled]="loading()"
             class="bg-gradient-to-b from-green-200 to-green-300 text-green-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-green-400 disabled:opacity-50 disabled:transform-none">{{
             loading() ? 'TRAITEMENT...' : 'CONFIRMER' }}</button>
-          </div>
         </div>
-        <div class="bg-gradient-to-r from-amber-400 to-orange-400 px-6 py-3 text-center">
-          <div class="flex justify-center space-x-4 text-amber-900 text-xs font-medium">
-            <span>🔒 SÉCURISÉ</span>
-            <span>💳 24/7</span>
-            <span>🏦 PATISSERIE</span>
-          </div>
+      </div>
+      <div class="bg-gradient-to-r from-amber-400 to-orange-400 px-6 py-3 text-center">
+        <div class="flex justify-center space-x-4 text-amber-900 text-xs font-medium">
+          <span>🔒 SÉCURISÉ</span>
+          <span>💳 24/7</span>
+          <span>🏦 PATISSERIE</span>
         </div>
       </div>
     </div>
   </div>
-  }
+</div>
+}
 
-  @if (showFundForm()) {
+@if (showFundForm()) {
 <div class="fixed inset-0 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative mx-auto p-6 w-full max-w-md">
-      <div
-        class="bg-gradient-to-b from-green-100 to-emerald-200 rounded-3xl shadow-2xl border-4 border-green-300 overflow-hidden">
-        <div class="bg-gradient-to-r from-green-500 to-emerald-500 px-6 py-4 relative">
-          <div class="flex items-center justify-center space-x-2">
-            <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-            <h2 class="text-white text-xl font-bold">ALIMENTATION CAISSE</h2>
-            <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-          </div>
-          <p class="text-green-100 text-sm mt-1 text-center">Ajout de fonds</p>
-          <div class="absolute top-16 rotate-10 right-1">
-            <div class="bg-white/60 rounded-lg px-3 py-2 border border-white/30">
-              <p class="text-green-800 text-xs font-medium">SOLDE</p>
+  <div class="relative mx-auto p-6 w-full max-w-md">
+    <div
+      class="bg-gradient-to-b from-green-100 to-emerald-200 rounded-3xl shadow-2xl border-4 border-green-300 overflow-hidden">
+      <div class="bg-gradient-to-r from-green-500 to-emerald-500 px-6 py-4 relative">
+        <div class="flex items-center justify-center space-x-2">
+          <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+          <h2 class="text-white text-xl font-bold">ALIMENTATION CAISSE</h2>
+          <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+        </div>
+        <p class="text-green-100 text-sm mt-1 text-center">Ajout de fonds</p>
+        <div class="absolute top-16 rotate-10 right-1">
+          <div class="bg-white/60 rounded-lg px-3 py-2 border border-white/30">
+            <p class="text-green-800 text-xs font-medium">SOLDE</p>
             <p class="text-green-800 text-sm font-bold">{{ formatCurrency(currentSession()?.summary?.expectedCash || 0)
               }}</p>
-            </div>
           </div>
         </div>
-        <div class="bg-gradient-to-b from-green-50 to-emerald-100 p-6 mx-4 my-4 rounded-2xl border-2 border-green-300">
-          <div class="bg-gradient-to-r from-blue-100 to-cyan-100 rounded-xl p-4 mb-6 border border-blue-300">
-            <div class="text-center">
-              <p class="text-blue-700 text-sm mb-2 font-medium">MONTANT À AJOUTER</p>
-              <div class="bg-white rounded-lg p-3 border border-blue-400 shadow-sm">
+      </div>
+      <div class="bg-gradient-to-b from-green-50 to-emerald-100 p-6 mx-4 my-4 rounded-2xl border-2 border-green-300">
+        <div class="bg-gradient-to-r from-blue-100 to-cyan-100 rounded-xl p-4 mb-6 border border-blue-300">
+          <div class="text-center">
+            <p class="text-blue-700 text-sm mb-2 font-medium">MONTANT À AJOUTER</p>
+            <div class="bg-white rounded-lg p-3 border border-blue-400 shadow-sm">
               <span class="text-blue-800 text-3xl font-mono font-bold tracking-wider">{{ fundForm.amount || '0.000'
                 }}</span>
-                <span class="text-blue-600 text-lg ml-2">TND</span>
-              </div>
+              <span class="text-blue-600 text-lg ml-2">TND</span>
             </div>
           </div>
-          <div class="grid grid-cols-3 gap-3 mb-6">
-            <button type="button" (click)="addFundDigit('1')"
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-6">
+          <button type="button" (click)="addFundDigit('1')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">1</button>
-            <button type="button" (click)="addFundDigit('2')"
+          <button type="button" (click)="addFundDigit('2')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">2</button>
-            <button type="button" (click)="addFundDigit('3')"
+          <button type="button" (click)="addFundDigit('3')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">3</button>
-            <button type="button" (click)="addFundDigit('4')"
+          <button type="button" (click)="addFundDigit('4')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">4</button>
-            <button type="button" (click)="addFundDigit('5')"
+          <button type="button" (click)="addFundDigit('5')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">5</button>
-            <button type="button" (click)="addFundDigit('6')"
+          <button type="button" (click)="addFundDigit('6')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">6</button>
-            <button type="button" (click)="addFundDigit('7')"
+          <button type="button" (click)="addFundDigit('7')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">7</button>
-            <button type="button" (click)="addFundDigit('8')"
+          <button type="button" (click)="addFundDigit('8')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">8</button>
-            <button type="button" (click)="addFundDigit('9')"
+          <button type="button" (click)="addFundDigit('9')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">9</button>
-            <button type="button" (click)="addFundDigit('.')"
+          <button type="button" (click)="addFundDigit('.')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">.</button>
-            <button type="button" (click)="addFundDigit('0')"
+          <button type="button" (click)="addFundDigit('0')"
             class="bg-gradient-to-b from-green-200 to-emerald-300 text-green-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-green-400">0</button>
-            <button type="button" (click)="clearFundAmount()"
+          <button type="button" (click)="clearFundAmount()"
             class="bg-gradient-to-b from-red-200 to-red-300 text-red-800 rounded-xl p-4 text-sm font-bold shadow-lg transform transition-all duration-150 border border-red-400">EFFACER</button>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <button type="button" (click)="showFundForm.set(false)"
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button" (click)="showFundForm.set(false)"
             class="bg-gradient-to-b from-gray-200 to-gray-300 text-gray-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-gray-400">ANNULER</button>
-            <button type="button" (click)="fundCashRegister()" [disabled]="loading()"
+          <button type="button" (click)="fundCashRegister()" [disabled]="loading()"
             class="bg-gradient-to-b from-green-200 to-green-300 text-green-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-green-400 disabled:opacity-50 disabled:transform-none">{{
             loading() ? 'TRAITEMENT...' : 'CONFIRMER' }}</button>
-          </div>
         </div>
-        <div class="bg-gradient-to-r from-green-400 to-emerald-400 px-6 py-3 text-center">
-          <div class="flex justify-center space-x-4 text-green-900 text-xs font-medium">
-            <span>💰 SÉCURISÉ</span>
-            <span>💳 24/7</span>
-            <span>🏦 PATISSERIE</span>
-          </div>
+      </div>
+      <div class="bg-gradient-to-r from-green-400 to-emerald-400 px-6 py-3 text-center">
+        <div class="flex justify-center space-x-4 text-green-900 text-xs font-medium">
+          <span>💰 SÉCURISÉ</span>
+          <span>💳 24/7</span>
+          <span>🏦 PATISSERIE</span>
         </div>
       </div>
     </div>
   </div>
-  }
+</div>
+}
 
-  @if (showFlowsModal()) {
-    <div class="fixed inset-0 bg-black/30 z-50 flex items-end md:items-center justify-center">
-      <div class="bg-white w-full md:max-w-5xl rounded-t-2xl md:rounded-2xl shadow-xl max-h-[90vh] overflow-hidden">
-        <div class="p-4 border-b flex items-center justify-between">
-          <div>
-            <h3 class="text-lg font-semibold text-slate-800">Détail des flux de caisse — Entrées / Sorties</h3>
+@if (showFlowsModal()) {
+<div class="fixed inset-0 bg-black/30 z-50 flex items-end md:items-center justify-center">
+  <div class="bg-white w-full md:max-w-5xl rounded-t-2xl md:rounded-2xl shadow-xl max-h-[90vh] overflow-hidden">
+    <div class="p-4 border-b flex items-center justify-between">
+      <div>
+        <h3 class="text-lg font-semibold text-slate-800">Détail des flux de caisse — Entrées / Sorties</h3>
         <p class="text-xs text-slate-500">Période : {{ (flowsDateFrom()|| (currentSession()?.openedAt | date:'dd/MM'))
           }} → {{ (flowsDateTo()|| (currentSession()?.closedAt || (currentSession()?.openedAt)) | date:'dd/MM') }} •
           Dépôt : {{ currentSession()?.depot?.name }}</p>
-          </div>
-      <button (click)="showFlowsModal.set(false)" class="text-slate-500"
-        aria-label="Fermer">✕</button>
-        </div>
-        <div class="p-4 border-b grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div>
-            <label class="block text-xs text-slate-500 mb-1" for="flows-from">Date de</label>
+      </div>
+      <button (click)="showFlowsModal.set(false)" class="text-slate-500" aria-label="Fermer">✕</button>
+    </div>
+    <div class="p-4 border-b grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div>
+        <label class="block text-xs text-slate-500 mb-1" for="flows-from">Date de</label>
         <input id="flows-from" type="date" class="w-full border rounded px-2 py-1 text-sm" [ngModel]="flowsDateFrom()"
           (ngModelChange)="flowsDateFrom.set($event)" placeholder="Date de" title="Date de">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1" for="flows-to">Date à</label>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1" for="flows-to">Date à</label>
         <input id="flows-to" type="date" class="w-full border rounded px-2 py-1 text-sm" [ngModel]="flowsDateTo()"
           (ngModelChange)="flowsDateTo.set($event)" placeholder="Date à" title="Date à">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1" for="flows-depot">Dépôt</label>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1" for="flows-depot">Dépôt</label>
         <input id="flows-depot" type="text" class="w-full border rounded px-2 py-1 text-sm"
           [value]="currentSession()?.depot?.name" disabled placeholder="Dépôt" title="Dépôt">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-500 mb-1" for="flows-search">Recherche</label>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1" for="flows-search">Recherche</label>
         <input id="flows-search" type="text" class="w-full border rounded px-2 py-1 text-sm" [ngModel]="flowsSearch()"
           (ngModelChange)="flowsSearch.set($event)" placeholder="Rechercher..." title="Recherche">
-          </div>
-        </div>
-        <div class="p-4 border-b flex items-center gap-2">
+      </div>
+    </div>
+    <div class="p-4 border-b flex items-center gap-2">
       <button (click)="exportFlowsCsv()" class="px-3 py-1.5 rounded bg-slate-800 text-white text-sm">Exporter
         CSV</button>
-          <button (click)="printFlows()" class="px-3 py-1.5 rounded bg-slate-700 text-white text-sm">Imprimer</button>
-          <div class="ml-auto text-xs text-slate-500">Tri: récents en haut</div>
-        </div>
-        <div class="p-4 overflow-auto">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="border rounded-lg overflow-hidden">
-              <div class="sticky top-0 bg-slate-50 p-2 font-semibold">ENTRÉES</div>
-              <div class="divide-y max-h-[50vh] overflow-y-auto">
-                @for (e of getDetailedEntryRows(); track e.createdAt) {
-                  <div class="flex items-start justify-between gap-3 p-2">
-                    <div class="text-sm text-slate-700 line-clamp-2" title="{{ e.label }}">{{ e.label }}</div>
-                    <div class="text-sm font-semibold text-emerald-700">+{{ formatCurrency(e.amount) }}</div>
-                  </div>
-                }
-                @if (!getDetailedEntryRows().length) {
-                  <div class="p-4 text-center text-sm text-slate-500">Aucun mouvement pour cette période et ce dépôt.</div>
-                }
-              </div>
-              <div class="p-2 border-t text-sm font-semibold flex items-center justify-between">
-                <span>Total Entrées</span>
-                <span class="text-emerald-700">+{{ formatCurrency(getDetailedTotals().totalEntries) }}</span>
-              </div>
+      <button (click)="printFlows()" class="px-3 py-1.5 rounded bg-slate-700 text-white text-sm">Imprimer</button>
+      <div class="ml-auto text-xs text-slate-500">Tri: récents en haut</div>
+    </div>
+    <div class="p-4 overflow-auto">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="border rounded-lg overflow-hidden">
+          <div class="sticky top-0 bg-slate-50 p-2 font-semibold">ENTRÉES</div>
+          <div class="divide-y max-h-[50vh] overflow-y-auto">
+            @for (e of getDetailedEntryRows(); track e.createdAt) {
+            <div class="flex items-start justify-between gap-3 p-2">
+              <div class="text-sm text-slate-700 line-clamp-2" title="{{ e.label }}">{{ e.label }}</div>
+              <div class="text-sm font-semibold text-emerald-700">+{{ formatCurrency(e.amount) }}</div>
             </div>
-            <div class="border rounded-lg overflow-hidden">
-              <div class="sticky top-0 bg-slate-50 p-2 font-semibold">SORTIES</div>
-              <div class="divide-y max-h-[50vh] overflow-y-auto">
-                @for (s of getDetailedExitRows(); track s.createdAt) {
-                  <div class="flex items-start justify-between gap-3 p-2">
-                    <div class="text-sm text-slate-700 line-clamp-2" title="{{ s.label }}">{{ s.label }}</div>
-                    <div class="text-sm font-semibold text-red-700">-{{ formatCurrency(s.amount) }}</div>
-                  </div>
-                }
-                @if (!getDetailedExitRows().length) {
-                  <div class="p-4 text-center text-sm text-slate-500">Aucun mouvement pour cette période et ce dépôt.</div>
-                }
-              </div>
-              <div class="p-2 border-t text-sm font-semibold flex items-center justify-between">
-                <span>Total Sorties</span>
-                <span class="text-red-700">-{{ formatCurrency(getDetailedTotals().totalSorties) }}</span>
-              </div>
-            </div>
+            }
+            @if (!getDetailedEntryRows().length) {
+            <div class="p-4 text-center text-sm text-slate-500">Aucun mouvement pour cette période et ce dépôt.</div>
+            }
           </div>
-      <div class="text-center mt-4 text-sm font-bold" [class.text-emerald-700]="getDetailedTotals().net >= 0"
-        [class.text-red-700]="getDetailedTotals().net < 0">
-            Solde net = {{ formatCurrency(getDetailedTotals().net) }}
+          <div class="p-2 border-t text-sm font-semibold flex items-center justify-between">
+            <span>Total Entrées</span>
+            <span class="text-emerald-700">+{{ formatCurrency(getDetailedTotals().totalEntries) }}</span>
+          </div>
+        </div>
+        <div class="border rounded-lg overflow-hidden">
+          <div class="sticky top-0 bg-slate-50 p-2 font-semibold">SORTIES</div>
+          <div class="divide-y max-h-[50vh] overflow-y-auto">
+            @for (s of getDetailedExitRows(); track s.createdAt) {
+            <div class="flex items-start justify-between gap-3 p-2">
+              <div class="text-sm text-slate-700 line-clamp-2" title="{{ s.label }}">{{ s.label }}</div>
+              <div class="text-sm font-semibold text-red-700">-{{ formatCurrency(s.amount) }}</div>
+            </div>
+            }
+            @if (!getDetailedExitRows().length) {
+            <div class="p-4 text-center text-sm text-slate-500">Aucun mouvement pour cette période et ce dépôt.</div>
+            }
+          </div>
+          <div class="p-2 border-t text-sm font-semibold flex items-center justify-between">
+            <span>Total Sorties</span>
+            <span class="text-red-700">-{{ formatCurrency(getDetailedTotals().totalSorties) }}</span>
           </div>
         </div>
       </div>
+      <div class="text-center mt-4 text-sm font-bold" [class.text-emerald-700]="getDetailedTotals().net >= 0"
+        [class.text-red-700]="getDetailedTotals().net < 0">
+        Solde net = {{ formatCurrency(getDetailedTotals().net) }}
+      </div>
     </div>
-  }
+  </div>
+</div>
+}
 
-  @if (showAdjustForm()) {
-  <div class="fixed inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative mx-auto p-6 w-full max-w-md">
-      <div
-        class="bg-gradient-to-b from-blue-100 to-indigo-200 rounded-3xl shadow-2xl border-4 border-blue-300 overflow-hidden">
-        <div class="bg-gradient-to-r from-blue-500 to-indigo-500 px-6 py-4 relative">
-          <div class="flex items-center justify-center space-x-2">
-            <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-            <h2 class="text-white text-xl font-bold">AJUSTER LE SOLDE</h2>
-            <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-          </div>
-          <p class="text-blue-100 text-sm mt-1 text-center">Modification du solde de caisse</p>
-          <div class="absolute top-16 rotate-10 right-1">
-            <div class="bg-white/60 rounded-lg px-3 py-2 border border-white/30">
-              <p class="text-blue-800 text-xs font-medium">SOLDE ACTUEL</p>
+@if (showAdjustForm()) {
+<div class="fixed inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 overflow-y-auto h-full w-full z-50">
+  <div class="relative mx-auto p-6 w-full max-w-md">
+    <div
+      class="bg-gradient-to-b from-blue-100 to-indigo-200 rounded-3xl shadow-2xl border-4 border-blue-300 overflow-hidden">
+      <div class="bg-gradient-to-r from-blue-500 to-indigo-500 px-6 py-4 relative">
+        <div class="flex items-center justify-center space-x-2">
+          <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+          <h2 class="text-white text-xl font-bold">AJUSTER LE SOLDE</h2>
+          <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+        </div>
+        <p class="text-blue-100 text-sm mt-1 text-center">Modification du solde de caisse</p>
+        <div class="absolute top-16 rotate-10 right-1">
+          <div class="bg-white/60 rounded-lg px-3 py-2 border border-white/30">
+            <p class="text-blue-800 text-xs font-medium">SOLDE ACTUEL</p>
             <p class="text-blue-800 text-sm font-bold">{{ formatCurrency(currentSession()?.summary?.expectedCash || 0)
               }}</p>
-            </div>
           </div>
         </div>
-        <div class="bg-gradient-to-b from-blue-50 to-indigo-100 p-6 mx-4 my-4 rounded-2xl border-2 border-blue-300">
-          <div class="bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl p-4 mb-6 border border-purple-300">
-            <div class="text-center">
-              <p class="text-purple-700 text-sm mb-2 font-medium">NOUVEAU SOLDE (TND)</p>
-              <div class="bg-white rounded-lg p-3 border border-purple-400 shadow-sm">
+      </div>
+      <div class="bg-gradient-to-b from-blue-50 to-indigo-100 p-6 mx-4 my-4 rounded-2xl border-2 border-blue-300">
+        <div class="bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl p-4 mb-6 border border-purple-300">
+          <div class="text-center">
+            <p class="text-purple-700 text-sm mb-2 font-medium">NOUVEAU SOLDE (TND)</p>
+            <div class="bg-white rounded-lg p-3 border border-purple-400 shadow-sm">
               <span class="text-purple-800 text-3xl font-mono font-bold tracking-wider">{{
                 adjustForm.newBalance || '0.000' }}</span>
-                <span class="text-purple-600 text-lg ml-2">TND</span>
-              </div>
+              <span class="text-purple-600 text-lg ml-2">TND</span>
             </div>
           </div>
-          <div class="grid grid-cols-3 gap-3 mb-6">
-            <button type="button" (click)="addAdjustDigit('1')"
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-6">
+          <button type="button" (click)="addAdjustDigit('1')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">1</button>
-            <button type="button" (click)="addAdjustDigit('2')"
+          <button type="button" (click)="addAdjustDigit('2')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">2</button>
-            <button type="button" (click)="addAdjustDigit('3')"
+          <button type="button" (click)="addAdjustDigit('3')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">3</button>
-            <button type="button" (click)="addAdjustDigit('4')"
+          <button type="button" (click)="addAdjustDigit('4')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">4</button>
-            <button type="button" (click)="addAdjustDigit('5')"
+          <button type="button" (click)="addAdjustDigit('5')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">5</button>
-            <button type="button" (click)="addAdjustDigit('6')"
+          <button type="button" (click)="addAdjustDigit('6')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">6</button>
-            <button type="button" (click)="addAdjustDigit('7')"
+          <button type="button" (click)="addAdjustDigit('7')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">7</button>
-            <button type="button" (click)="addAdjustDigit('8')"
+          <button type="button" (click)="addAdjustDigit('8')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">8</button>
-            <button type="button" (click)="addAdjustDigit('9')"
+          <button type="button" (click)="addAdjustDigit('9')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">9</button>
-            <button type="button" (click)="addAdjustDigit('.')"
+          <button type="button" (click)="addAdjustDigit('.')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">.</button>
-            <button type="button" (click)="addAdjustDigit('0')"
+          <button type="button" (click)="addAdjustDigit('0')"
             class="bg-gradient-to-b from-blue-200 to-indigo-300 text-blue-900 rounded-xl p-4 text-xl font-bold shadow-lg transform transition-all duration-150 border border-blue-400">0</button>
-            <button type="button" (click)="clearAdjustAmount()"
+          <button type="button" (click)="clearAdjustAmount()"
             class="bg-gradient-to-b from-red-200 to-red-300 text-red-800 rounded-xl p-4 text-sm font-bold shadow-lg transform transition-all duration-150 border border-red-400">EFFACER</button>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <button type="button" (click)="showAdjustForm.set(false)"
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button" (click)="showAdjustForm.set(false)"
             class="bg-gradient-to-b from-gray-200 to-gray-300 text-gray-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-gray-400">ANNULER</button>
-            <button type="button" (click)="adjustBalance()" [disabled]="loading()"
+          <button type="button" (click)="adjustBalance()" [disabled]="loading()"
             class="bg-gradient-to-b from-green-200 to-green-300 text-green-800 rounded-xl p-4 font-bold shadow-lg transform transition-all duration-150 border border-green-400 disabled:opacity-50 disabled:transform-none">{{
             loading() ? 'TRAITEMENT...' : 'CONFIRMER' }}</button>
-          </div>
         </div>
-        <div class="bg-gradient-to-r from-blue-400 to-indigo-400 px-6 py-3 text-center">
-          <div class="flex justify-center space-x-4 text-blue-900 text-xs font-medium">
-            <span>⚖️ AJUSTEMENT</span>
-            <span>💰 PRÉCIS</span>
-            <span>🏦 PATISSERIE</span>
-          </div>
+      </div>
+      <div class="bg-gradient-to-r from-blue-400 to-indigo-400 px-6 py-3 text-center">
+        <div class="flex justify-center space-x-4 text-blue-900 text-xs font-medium">
+          <span>⚖️ AJUSTEMENT</span>
+          <span>💰 PRÉCIS</span>
+          <span>🏦 PATISSERIE</span>
         </div>
       </div>
     </div>
   </div>
-  }
+</div>
+}

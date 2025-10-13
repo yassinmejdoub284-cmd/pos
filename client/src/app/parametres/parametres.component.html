@@ -369,8 +369,16 @@
         <div *ngIf="showSection('documents')" class="bg-gradient-to-br from-white to-violet-50 rounded-xl border border-violet-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-4">Configuration par défaut des documents</h3>
           
-          <!-- Bon de Livraison -->
-          <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
+          <!-- Show loading state if documentTypeDefaults is not initialized -->
+          <div *ngIf="!settings.documentTypeDefaults || Object.keys(settings.documentTypeDefaults).length === 0" class="text-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto mb-4"></div>
+            <p class="text-gray-600">Chargement de la configuration...</p>
+          </div>
+          
+          <!-- Document Type Configurations (only show when documentTypeDefaults is available) -->
+          <div *ngIf="settings.documentTypeDefaults && Object.keys(settings.documentTypeDefaults).length > 0">
+            <!-- Bon de Livraison -->
+            <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
             <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Livraison</h4>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
               <label class="flex items-center gap-2">
@@ -400,6 +408,10 @@
               <label class="flex items-center gap-2">
                 <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.tvaAndPrix" class="h-4 w-4"/>
                 <span class="text-sm text-gray-700">TVA & Prix</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.validity" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Validité</span>
               </label>
             </div>
           </div>
@@ -436,6 +448,10 @@
                 <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.tvaAndPrix" class="h-4 w-4"/>
                 <span class="text-sm text-gray-700">TVA & Prix</span>
               </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.validity" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Validité</span>
+              </label>
             </div>
           </div>
 
@@ -470,6 +486,10 @@
               <label class="flex items-center gap-2">
                 <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.tvaAndPrix" class="h-4 w-4"/>
                 <span class="text-sm text-gray-700">TVA & Prix</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.validity" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Validité</span>
               </label>
             </div>
           </div>
@@ -506,8 +526,13 @@
                 <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.tvaAndPrix" class="h-4 w-4"/>
                 <span class="text-sm text-gray-700">TVA & Prix</span>
               </label>
+              <label class="flex items-center gap-2">
+                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.validity" class="h-4 w-4"/>
+                <span class="text-sm text-gray-700">Validité</span>
+              </label>
             </div>
           </div>
+          </div> <!-- End of documentTypeDefaults conditional -->
         </div>
       </div>
     </div>

@@ -1426,6 +1426,7 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
 // Approve receipt - similar to receive but for delivery documents
 router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
   try {
+    console.log('🚀 APPROVE RECEIPT ENDPOINT CALLED');
     const documentId = parseInt(req.params.id);
     const { depotId } = req.body;
     
@@ -1462,23 +1463,37 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Document non prêt pour approbation' });
     }
     
-    if (document.type !== 'BON_ENTREE_MAGASIN') {
-      console.log('Document type not suitable for receipt approval:', { type: document.type });
-      return res.status(400).json({ error: 'Type de document non approprié pour l\'approbation de réception' });
-    }
+    // Allow all document types to be approved for receipt
+    // Previously only BON_ENTREE_MAGASIN and FACTURE were allowed
+    console.log('Document type approved for receipt:', { type: document.type });
     
     await prisma.$transaction(async (tx) => {
       console.log('Starting stock addition transaction for', document.items.length, 'items');
       
+      // Group items by parent product to consolidate quantities
+      const groupedItems = new Map();
+      
       for (const item of document.items) {
         console.log('Processing item - full object:', JSON.stringify(item, null, 2));
-        console.log('Processing item:', { productId: item.productId, quantity: item.quantity });
+        console.log('Processing item:', { 
+          productId: item.productId, 
+          parentProductId: item.parentProductId,
+          famille: item.famille,
+          quantity: item.quantity 
+        });
         
-        // Find the parent product by famille (since product_id stores individual produit_de_caisse)
+        // Use parentProductId if available, otherwise try to find parent by famille
         let parentProduct = null;
         let targetProductId = item.productId;
         
-        if (item.famille) {
+        if (item.parentProductId) {
+          console.log('✅ Using parentProductId from document item:', item.parentProductId);
+          targetProductId = item.parentProductId;
+          parentProduct = await tx.product.findUnique({
+            where: { id: item.parentProductId }
+          });
+          console.log('✅ Found parent product by parentProductId:', parentProduct ? { id: parentProduct.id, name: parentProduct.name } : 'NOT FOUND');
+        } else if (item.famille) {
           console.log('Searching for parent product by famille:', item.famille);
           
           // Try exact match first
@@ -1507,7 +1522,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
           }
         }
         
-        // If no famille or no parent found, use the original product
+        // If no parent found, use the original product
         if (!parentProduct) {
           parentProduct = await tx.product.findUnique({
             where: { id: item.productId }
@@ -1515,18 +1530,38 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
           console.log('Using original product:', parentProduct ? { id: parentProduct.id, name: parentProduct.name } : 'NOT FOUND');
         }
         
+        // Group by target product ID and sum quantities
+        const quantity = parseFloat(item.quantity) || 0;
+        console.log('🎯 Final targetProductId:', targetProductId, 'quantity:', quantity);
+        if (groupedItems.has(targetProductId)) {
+          groupedItems.get(targetProductId).quantity += quantity;
+          console.log('📊 Added to existing group, new total:', groupedItems.get(targetProductId).quantity);
+        } else {
+          groupedItems.set(targetProductId, {
+            productId: targetProductId,
+            quantity: quantity,
+            parentProduct: parentProduct
+          });
+          console.log('🆕 Created new group for productId:', targetProductId);
+        }
+      }
+      
+      // Process grouped items
+      for (const [productId, groupedItem] of groupedItems) {
+        console.log('Processing grouped item:', { productId, quantity: groupedItem.quantity });
+        
         const inventory = await tx.inventory.findUnique({
           where: {
             depotId_productId: {
               depotId: parseInt(depotId),
-              productId: targetProductId
+              productId: productId
             }
           }
         });
         
         if (inventory) {
           const currentQuantity = parseFloat(inventory.quantity) || 0;
-          const addingQuantity = parseFloat(item.quantity) || 0;
+          const addingQuantity = groupedItem.quantity;
           const newQuantity = currentQuantity + addingQuantity;
           
           console.log('Updating existing inventory:', { 
@@ -1541,17 +1576,16 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
             }
           });
         } else {
-          const quantity = parseFloat(item.quantity) || 0;
           console.log('Creating new inventory entry:', { 
             depotId: parseInt(depotId), 
-            productId: targetProductId, 
-            quantity: quantity 
+            productId: productId, 
+            quantity: groupedItem.quantity 
           });
           await tx.inventory.create({
             data: {
               depotId: parseInt(depotId),
-              productId: targetProductId,
-              quantity: quantity
+              productId: productId,
+              quantity: groupedItem.quantity
             }
           });
         }
@@ -1559,9 +1593,9 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
         // Create stock movement record
         await tx.stockMovement.create({
           data: {
-            productId: targetProductId,
+            productId: productId,
             depotId: parseInt(depotId),
-            quantity: parseFloat(item.quantity) || 0, // Positive for incoming
+            quantity: groupedItem.quantity, // Positive for incoming
             type: 'IN',
             fromDepotId: document.emetteurId,
             toDepotId: parseInt(depotId),
@@ -1807,7 +1841,27 @@ router.post('/', authenticateToken, async (req, res) => {
       for (const item of items) {
         const productId = item.produitId || item.productId;
         const quantity = parseFloat(item.quantity);
-        const depotIdInt = parseInt(depotId);
+        
+        // Use fromDepotId as fallback if depotId is not provided
+        const effectiveDepotId = depotId || fromDepotId;
+        if (!effectiveDepotId) {
+          throw new Error('Depot ID is required for inventory operations');
+        }
+        const depotIdInt = parseInt(effectiveDepotId);
+        
+        if (isNaN(depotIdInt)) {
+          throw new Error(`Invalid depot ID: ${effectiveDepotId}`);
+        }
+        
+        console.log('Processing inventory update:', { 
+          productId, 
+          quantity, 
+          depotIdInt, 
+          type, 
+          effectiveDepotId,
+          originalDepotId: depotId,
+          fromDepotId 
+        });
 
         if (type === 'BON_ENTREE_DEPOT') {
           // Add to inventory

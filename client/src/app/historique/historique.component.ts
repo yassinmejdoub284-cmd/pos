@@ -1022,13 +1022,13 @@ export class HistoriqueComponent implements OnInit {
       case 'RETURN':
         typeDetails = 'Type: Retour simple (remboursement en espèces)';
         if (refundAmount > 0) {
-          typeDetails += `\nRemboursement en espèces: ${refundAmount.toFixed(2)} TND`;
+          typeDetails += `\nRemboursement en espèces: ${refundAmount.toFixed(2)} DT`;
         }
         break;
       case 'EXCHANGE_CASH':
         typeDetails = 'Type: Échange avec remboursement en espèces';
         if (refundAmount > 0) {
-          typeDetails += `\nRemboursement en espèces: ${refundAmount.toFixed(2)} TND`;
+          typeDetails += `\nRemboursement en espèces: ${refundAmount.toFixed(2)} DT`;
         }
         break;
       case 'EXCHANGE_PRODUCTS':
@@ -1036,13 +1036,13 @@ export class HistoriqueComponent implements OnInit {
         if (this.exchangeProducts.length > 0) {
           typeDetails += '\nProduits d\'échange:';
           this.exchangeProducts.forEach((item, index) => {
-            typeDetails += `\n${index + 1}. ${item.productName} - ${item.quantity}x ${item.unitPrice.toFixed(2)} TND = ${(item.quantity * item.unitPrice).toFixed(2)} TND`;
+            typeDetails += `\n${index + 1}. ${item.productName} - ${item.quantity}x ${item.unitPrice.toFixed(2)} DT = ${(item.quantity * item.unitPrice).toFixed(2)} DT`;
           });
           const suggest = this.suggestedCashBackForExchangeProducts;
           if (suggest > 0) {
-            typeDetails += `\nÀ rendre au client: ${suggest.toFixed(2)} TND`;
+            typeDetails += `\nÀ rendre au client: ${suggest.toFixed(2)} DT`;
           }
-          typeDetails += `\nTotal échange: ${this.getExchangeTotal().toFixed(2)} TND`;
+          typeDetails += `\nTotal échange: ${this.getExchangeTotal().toFixed(2)} DT`;
         }
         break;
       case 'EXCHANGE_NOTHING':

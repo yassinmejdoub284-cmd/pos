@@ -104,6 +104,10 @@ export class BonEntreeComponent implements OnInit {
         this.selectedSupplier = doc.supplier || null;
         this.items = doc.items || [];
         this.notes = doc.notes || '';
+        
+        // Load parent products for items that have parentProductId
+        this.loadParentProductsForItems();
+        
         this.loading = false;
       },
       error: (error) => {
@@ -113,20 +117,108 @@ export class BonEntreeComponent implements OnInit {
     });
   }
 
+  private loadParentProductsForItems(): void {
+    if (!this.items || this.items.length === 0) return;
+    
+    // Get unique parent product IDs
+    const parentProductIds = [...new Set(this.items
+      .filter(item => (item as any).parentProductId)
+      .map(item => (item as any).parentProductId)
+    )];
+    
+    if (parentProductIds.length === 0) return;
+    
+    // Load parent products
+    this.productsService.getProducts().subscribe({
+      next: (allProducts) => {
+        const parentProducts = allProducts.filter(p => parentProductIds.includes(p.id));
+        
+        // Update items to use parent product data
+        this.items.forEach(item => {
+          const parentProductId = (item as any).parentProductId;
+          if (parentProductId) {
+            const parentProduct = parentProducts.find(p => p.id === parentProductId);
+            if (parentProduct) {
+              // Replace the child product with parent product for display
+              (item as any).product = parentProduct;
+              (item as any).productId = parentProductId; // Update productId to parent ID for consistency
+            }
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Error loading parent products:', error);
+      }
+    });
+  }
+
   loadDocumentsForDepot(returnsOnly: boolean = false): void {
     if (!this.depotId) return;
     this.loading = true;
-    this.stockDocsService.getDocuments(1, 50, 'BON_ENTREE_DEPOT', undefined, parseInt(this.depotId)).subscribe({
+    
+    // Load all document types for this depot with RECEIVED status
+    this.stockDocsService.getDocuments(1, 50, undefined, 'RECEIVED', parseInt(this.depotId)).subscribe({
       next: (response) => {
-        const docs = (response.data || []).filter((d: StockDocument) => (d as any).type === 'BON_ENTREE_DEPOT');
+        const allDocs = response?.data || [];
+        
         this.documents = returnsOnly
-          ? docs.filter((d: StockDocument) => this.isReturnDocument(d))
-          : docs.filter((d: StockDocument) => !this.isReturnDocument(d));
+          ? allDocs.filter((d: StockDocument) => this.isReturnDocument(d))
+          : allDocs.filter((d: StockDocument) => !this.isReturnDocument(d));
+        
+        // Load parent products for all document items
+        this.loadParentProductsForAllDocuments();
+        
         this.loading = false;
       },
-      error: () => {
+      error: (error) => {
         this.error = 'Erreur lors du chargement des documents';
         this.loading = false;
+      }
+    });
+  }
+
+  private loadParentProductsForAllDocuments(): void {
+    if (!this.documents || this.documents.length === 0) return;
+    
+    // Get unique parent product IDs from all documents
+    const parentProductIds = new Set<number>();
+    this.documents.forEach(doc => {
+      if (doc.items) {
+        doc.items.forEach(item => {
+          const parentProductId = (item as any).parentProductId;
+          if (parentProductId) {
+            parentProductIds.add(parentProductId);
+          }
+        });
+      }
+    });
+    
+    if (parentProductIds.size === 0) return;
+    
+    // Load parent products
+    this.productsService.getProducts().subscribe({
+      next: (allProducts) => {
+        const parentProducts = allProducts.filter(p => parentProductIds.has(p.id));
+        
+        // Update all document items to use parent product data
+        this.documents.forEach(doc => {
+          if (doc.items) {
+            doc.items.forEach(item => {
+              const parentProductId = (item as any).parentProductId;
+              if (parentProductId) {
+                const parentProduct = parentProducts.find(p => p.id === parentProductId);
+                if (parentProduct) {
+                  // Replace the child product with parent product for display
+                  (item as any).product = parentProduct;
+                  (item as any).productId = parentProductId; // Update productId to parent ID for consistency
+                }
+              }
+            });
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Error loading parent products for documents:', error);
       }
     });
   }
@@ -267,7 +359,8 @@ export class BonEntreeComponent implements OnInit {
   printDocument(doc?: StockDocument): void {
     const target = doc || this.document;
     if (!target) return;
-    const printContent = buildScanLikeDocumentHtmlFromDocument(target, 'transfert', null);
+    // Show as "Bon d'entrée" from recipient's perspective
+    const printContent = buildScanLikeDocumentHtmlFromDocument(target, 'livraison', null);
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       this.error = 'Impossible d\'ouvrir la fenêtre d\'impression';
@@ -350,8 +443,58 @@ export class BonEntreeComponent implements OnInit {
         return 'Bon d\'expédition';
       case 'BON_TRANSFERT':
         return 'Bon de transfert';
+      case 'FACTURE':
+        return 'Facture approuvée';
       default:
         return doc.type as any;
     }
+  }
+
+  getStatusLabel(status: string): string {
+    switch (status) {
+      case 'PREPARED':
+        return 'Préparé';
+      case 'SENT':
+        return 'Envoyé';
+      case 'RECEIVED':
+        return 'Reçu';
+      case 'CANCELLED':
+        return 'Annulé';
+      case 'COMPLETED':
+        return 'Terminé';
+      default:
+        return status;
+    }
+  }
+
+  // Group items by parent product for display
+  getGroupedItems(items: any[]): any[] {
+    if (!items || items.length === 0) return [];
+    
+    const grouped = new Map<number, any>();
+    
+    items.forEach(item => {
+      const parentProductId = (item as any).parentProductId || item.productId;
+      const parentProduct = (item as any).product;
+      
+      if (grouped.has(parentProductId)) {
+        // Add to existing group
+        const group = grouped.get(parentProductId);
+        group.quantity += parseFloat(item.quantity) || 0;
+        group.count += parseInt(item.count) || 1;
+        group.childItems.push(item);
+      } else {
+        // Create new group
+        grouped.set(parentProductId, {
+          productId: parentProductId,
+          product: parentProduct,
+          quantity: parseFloat(item.quantity) || 0,
+          count: parseInt(item.count) || 1,
+          childItems: [item]
+        });
+      }
+    });
+    
+    return Array.from(grouped.values());
   }
 }
