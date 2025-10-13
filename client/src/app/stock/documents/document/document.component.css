@@ -212,3 +212,62 @@
   max-height: 80px !important;
   object-fit: contain;
 }
+
+/* Beautiful Client Section Styles */
+.client-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.client-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+  transform: rotate(45deg);
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.client-info-item {
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.client-info-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.client-icon {
+  transition: all 0.3s ease;
+}
+
+.client-info-item:hover .client-icon {
+  transform: scale(1.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .client-section {
+    margin-top: 2rem;
+  }
+}
+
+/* Print styles - hide client section when printing */
+@media print {
+  .client-section {
+    display: none !important;
+  }
+  
+  .document-display-container {
+    width: 100% !important;
+  }
+}

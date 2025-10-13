@@ -337,15 +337,23 @@ router.get('/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    // Attach client by parsing notes if present
-    let client = null;
-    if (document.notes && document.notes.includes('Client:')) {
+    // Use client from relation if available, otherwise parse from notes
+    console.log('Document client relation:', document.client);
+    console.log('Document clientId:', document.clientId);
+    console.log('Document notes:', document.notes);
+    
+    let client = document.client;
+    if (!client && document.notes && document.notes.includes('Client:')) {
       const m = document.notes.match(/Client:(\d+)/);
       if (m) {
         const cid = parseInt(m[1]);
+        console.log('Parsing client from notes, clientId:', cid);
         try {
           client = await prisma.client.findUnique({ where: { id: cid } });
-        } catch (e) {}
+          console.log('Client found from notes:', client);
+        } catch (e) {
+          console.error('Error fetching client from notes:', e);
+        }
       }
     }
 
@@ -538,6 +546,7 @@ router.post('/expedition', authenticateToken, async (req, res) => {
         include: {
           emetteur: true,
           destinataire: true,
+          client: true,
           items: {
             include: {
               product: true
@@ -936,6 +945,7 @@ router.post('/scan', authenticateToken, async (req, res) => {
         include: {
           emetteur: true,
           destinataire: true,
+          client: true,
           items: {
             include: {
               product: true
@@ -1144,6 +1154,7 @@ router.post('/transfer', authenticateToken, async (req, res) => {
         include: {
           emetteur: true,
           destinataire: true,
+          client: true,
           items: {
             include: {
               product: true
@@ -1729,6 +1740,20 @@ router.post('/', authenticateToken, async (req, res) => {
       console.log(`Invalid status '${status}' received, converting to 'PREPARED'`);
     }
     
+    console.log('Creating document with clientId:', clientId);
+    console.log('Document data:', { type, numero: documentNumber, clientId, fromDepotId, destinationDepotId });
+    
+    // Check if document number already exists
+    const existingDocument = await prisma.stockDocument.findUnique({
+      where: { numero: documentNumber }
+    });
+    
+    if (existingDocument) {
+      return res.status(400).json({ 
+        error: `Le numéro de document '${documentNumber}' existe déjà. Veuillez utiliser un autre numéro.` 
+      });
+    }
+    
     const document = await prisma.$transaction(async (tx) => {
       // Create the document
       const doc = await tx.stockDocument.create({
@@ -1738,6 +1763,7 @@ router.post('/', authenticateToken, async (req, res) => {
           status: validatedStatus,
           emetteurId: fromDepotId || depotId,
           destinataireId: destinationDepotId || depotId,
+          clientId: clientId || null,
           notes: clientId ? `Client:${clientId}${notes ? ' | ' + notes : ''}` : (notes || null),
           items: {
             create: items.map(item => ({
@@ -1768,6 +1794,7 @@ router.post('/', authenticateToken, async (req, res) => {
         include: {
           emetteur: true,
           destinataire: true,
+          client: true,
           items: {
             include: {
               product: true

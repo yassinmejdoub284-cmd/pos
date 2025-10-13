@@ -1,2 +1,49 @@
 /* minimal styling; project uses global styles */
 
+/* Session Selection Modal Animations */
+.session-modal-enter {
+  animation: modalEnter 0.3s ease-out;
+}
+
+.session-modal-exit {
+  animation: modalExit 0.2s ease-in;
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalExit {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+  }
+}
+
+/* Session Card Hover Effects */
+.session-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.session-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Backdrop Blur Animation */
+.modal-backdrop {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+

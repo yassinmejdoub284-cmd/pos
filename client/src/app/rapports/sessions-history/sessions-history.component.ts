@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin, of } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 import { SessionsService, SessionCaisse, SessionFilters, CashMovementRequest, CloseSessionRequest, OpenSessionRequest } from '../../core/services/sessions.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PrintService } from '../../core/services/print.service';
@@ -51,6 +52,9 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   sessionTickets = signal<Array<{ id: number; amount: number; totalAmount?: number; createdAt?: string | Date }>>([]);
   ticketsMoreFlag = false;
   ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => sum + t.amount, 0));
+
+  // Full-screen session selection modal state
+  showSessionSelectionModal = signal(false);
 
   // Cash sales detail state
   cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number }[]>([]);
@@ -1167,6 +1171,83 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         this.loading.set(false);
       }
     });
+  }
+
+  // Session selection modal methods
+  openSessionSelectionModal(): void {
+    this.loading.set(true);
+    // Load summary data for all sessions before showing modal
+    this.loadSessionsWithSummary(() => {
+      this.showSessionSelectionModal.set(true);
+      this.loading.set(false);
+    });
+  }
+
+  private loadSessionsWithSummary(after?: () => void): void {
+    const sessions = this.sessions();
+    if (sessions.length === 0) {
+      if (after) after();
+      return;
+    }
+
+    // Check if sessions already have summary data
+    const sessionsNeedingSummary = sessions.filter(session => 
+      !session.summary || 
+      (session.summary.totalSales === 0 && session.summary.expectedCash === 0)
+    );
+
+    if (sessionsNeedingSummary.length === 0) {
+      // All sessions already have summary data
+      if (after) after();
+      return;
+    }
+
+    console.log(`Loading summary for ${sessionsNeedingSummary.length} sessions`);
+
+    // Load summary for sessions that need it using forkJoin for better performance
+    const summaryObservables = sessionsNeedingSummary.map(session => 
+      this.sessionsService.getSessionReport(session.id, 'Z').pipe(
+        tap(report => console.log(`Loaded summary for session ${session.id}:`, report)),
+        catchError(error => {
+          console.error(`Error loading summary for session ${session.id}:`, error);
+          return of({ summary: session.summary, session: { cashMovements: session.cashMovements } });
+        })
+      )
+    );
+
+    forkJoin(summaryObservables).subscribe({
+      next: (reports) => {
+        // Update only the sessions that needed summary data
+        const updatedSessions = sessions.map(session => {
+          const needsSummary = sessionsNeedingSummary.find(s => s.id === session.id);
+          if (needsSummary) {
+            const reportIndex = sessionsNeedingSummary.findIndex(s => s.id === session.id);
+            return {
+              ...session,
+              summary: reports[reportIndex]?.summary || session.summary,
+              cashMovements: reports[reportIndex]?.session?.cashMovements || session.cashMovements
+            };
+          }
+          return session;
+        });
+        
+        this.sessions.set(updatedSessions);
+        if (after) after();
+      },
+      error: (error) => {
+        console.error('Error loading session summaries:', error);
+        if (after) after();
+      }
+    });
+  }
+
+  closeSessionSelectionModal(): void {
+    this.showSessionSelectionModal.set(false);
+  }
+
+  selectSessionFromModal(session: SessionCaisse): void {
+    this.selectSession(session);
+    this.closeSessionSelectionModal();
   }
 }
 

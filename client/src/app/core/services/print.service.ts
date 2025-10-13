@@ -80,12 +80,47 @@ export class PrintService {
     if (printWindow) {
       printWindow.document.write(`
         <html>
-          <head><title>Print</title></head>
-          <body style="font-family: monospace; white-space: pre-wrap;">${text}</body>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Print</title>
+            <style>
+              body { 
+                font-family: monospace; 
+                white-space: pre-wrap; 
+                margin: 0; 
+                padding: 8px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              @media print {
+                body { margin: 0; padding: 4px; }
+              }
+            </style>
+          </head>
+          <body>${text}</body>
         </html>
       `);
       printWindow.document.close();
-      printWindow.print();
+      
+      // Wait for content to load before printing
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          // Don't auto-close - let user close manually
+        }, 500);
+      };
+
+      // Fallback: if onload doesn't fire, try after a longer delay
+      setTimeout(() => {
+        if (printWindow && !printWindow.closed) {
+          try {
+            printWindow.print();
+          } catch (error) {
+            console.error('Print failed:', error);
+          }
+        }
+      }, 1000);
     }
   }
 
@@ -126,7 +161,25 @@ export class PrintService {
     if (printWindow) {
       printWindow.document.write(html);
       printWindow.document.close();
-      printWindow.print();
+      
+      // Wait for content to load before printing
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          // Don't auto-close - let user close manually
+        }, 500);
+      };
+
+      // Fallback: if onload doesn't fire, try after a longer delay
+      setTimeout(() => {
+        if (printWindow && !printWindow.closed) {
+          try {
+            printWindow.print();
+          } catch (error) {
+            console.error('Print failed:', error);
+          }
+        }
+      }, 1000);
     }
   }
 
@@ -297,8 +350,8 @@ export class PrintService {
   }
 
   printDetailedSessionReportWithArticleGrouping(sessionReport: any, companyData?: any): void {
-    const escposData = this.generateDailyExtractESCWithArticleGrouping(sessionReport, companyData, 0);
-    void this.printEscPos(escposData);
+    const htmlData = this.generateDailyExtractHTMLWithArticleGrouping(sessionReport, companyData, 0);
+    this.printHtml(htmlData);
   }
 
   printXReport(xReportData: ZReportData): void {
@@ -427,13 +480,26 @@ export class PrintService {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
 
-    // Wait for content to load, then print
+    // Wait for content to load, then print - but don't auto-close
     printWindow.onload = () => {
+      // Give more time for content to render, especially on tablets
       setTimeout(() => {
         printWindow.print();
-        printWindow.close();
-      }, 100);
+        // Don't auto-close - let user close manually
+        // This prevents issues on tablets where content might not be fully rendered
+      }, 500);
     };
+
+    // Fallback: if onload doesn't fire, try after a longer delay
+    setTimeout(() => {
+      if (printWindow && !printWindow.closed) {
+        try {
+          printWindow.print();
+        } catch (error) {
+          console.error('Print failed:', error);
+        }
+      }
+    }, 1000);
   }
 
 
@@ -694,12 +760,12 @@ export class PrintService {
         console.log('Sale items:', items.length, 'items in sale', sale.id);
         for (const it of items) {
           console.log('Processing item:', it);
-          const famCandidate = it.familyName || it.categoryName || it.family || it.product?.famille?.name || it.product?.family?.name || '';
+          const famCandidate = it.product?.famille?.name || it.product?.family?.name || it.familyName || it.categoryName || it.family || '';
           const fam = normalizeFamily(famCandidate);
           const familyName = fam && fam.length ? fam : 'AUTRES';
           const productName: string = (it.productName || it.name || 'Produit').toString();
-          const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
-          const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+          const qty: number = Math.round(parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0);
+          const lineTotal: number = Math.round((parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0) * 1000) / 1000;
           console.log('Item details:', { familyName, productName, qty, lineTotal });
           if (!tempMap[familyName]) tempMap[familyName] = {};
           if (!tempMap[familyName][productName]) {
@@ -1020,10 +1086,17 @@ export class PrintService {
       <html>
         <head>
           <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Reçu Vente #${this.getTicketNumberForPrint(sale)}</title>
           <style>
             @page { margin: 0 !important; }
-            body { font-family: 'Courier New', monospace; margin: 0; padding: 8px; }
+            body { 
+              font-family: 'Courier New', monospace; 
+              margin: 0; 
+              padding: 8px; 
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
             .ticket { width: 300px; margin: 0 auto; }
             .center { text-align: center; }
             .line { border-top: 1px dashed #000; margin: 8px 0; }
@@ -1036,6 +1109,10 @@ export class PrintService {
             td.total { width: 20%; text-align: right; }
             .muted { color: #444; }
             .bold { font-weight: 700; }
+            @media print {
+              body { margin: 0; padding: 4px; }
+              .ticket { width: 100%; }
+            }
           </style>
         </head>
         <body>
@@ -1450,13 +1527,26 @@ export class PrintService {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
 
-    // Wait for content to load, then print
+    // Wait for content to load, then print - but don't auto-close
     printWindow.onload = () => {
+      // Give more time for content to render, especially on tablets
       setTimeout(() => {
         printWindow.print();
-        printWindow.close();
-      }, 100);
+        // Don't auto-close - let user close manually
+        // This prevents issues on tablets where content might not be fully rendered
+      }, 500);
     };
+
+    // Fallback: if onload doesn't fire, try after a longer delay
+    setTimeout(() => {
+      if (printWindow && !printWindow.closed) {
+        try {
+          printWindow.print();
+        } catch (error) {
+          console.error('Print failed:', error);
+        }
+      }
+    }, 1000);
   }
 
   // Build HTML invoice for browser printing
@@ -1516,10 +1606,17 @@ export class PrintService {
       <html>
         <head>
           <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Facture ${invoice.invoiceNumber || invoice.id}</title>
           <style>
             @page { margin: 0 !important; }
-            body { font-family: 'Courier New', monospace; margin: 0; padding: 8px; }
+            body { 
+              font-family: 'Courier New', monospace; 
+              margin: 0; 
+              padding: 8px; 
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
             .ticket { width: 300px; margin: 0 auto; }
             .center { text-align: center; }
             .line { border-top: 1px dashed #000; margin: 8px 0; }
@@ -1533,6 +1630,10 @@ export class PrintService {
             .muted { color: #444; }
             .bold { font-weight: 700; }
             .invoice-header { background: #f0f0f0; padding: 8px; margin: 8px 0; }
+            @media print {
+              body { margin: 0; padding: 4px; }
+              .ticket { width: 100%; }
+            }
           </style>
         </head>
         <body>
@@ -1726,10 +1827,10 @@ export class PrintService {
       for (const sale of sales) {
         const items: any[] = (sale.items || []) as any[];
         for (const it of items) {
-          const famCandidate = it.familyName || it.categoryName || it.family || it.product?.famille?.name || it.product?.family?.name || '';
+          const famCandidate = it.product?.famille?.name || it.product?.family?.name || it.familyName || it.categoryName || it.family || '';
           const fam = normalizeFamily(famCandidate);
           const familyName = fam && fam.length ? fam : 'AUTRES';
-          const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+          const lineTotal: number = Math.round((parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0) * 1000) / 1000;
           
           if (!familyTotals[familyName]) {
             familyTotals[familyName] = 0;
@@ -1757,7 +1858,7 @@ export class PrintService {
     }
 
     // Add total
-    const totalFamilySales = Object.values(familyTotals).reduce((sum, total) => sum + total, 0);
+    const totalFamilySales = Math.round((Object.values(familyTotals).reduce((sum, total) => sum + total, 0)) * 1000) / 1000;
     escpos += '--------------------------------\n';
     const totalAmount = this.formatCurrency(totalFamilySales);
     const totalWidth = 32;
@@ -1832,54 +1933,87 @@ export class PrintService {
     const session = sessionReport.session;
     const summary = sessionReport.summary;
 
-    // Build article grouping from session sales
+    // Build article grouping from session sales with family grouping
     const sales: any[] = (sessionReport?.session?.sales || []) as any[];
-    const articleTotals: Record<string, { quantity: number; total: number }> = {};
+    const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number }>> = {};
 
-    console.log('Processing sales for article grouping:', sales.length, 'sales');
+    console.log('Processing sales for article grouping with families:', sales.length, 'sales');
     
     if (sales.length) {
       for (const sale of sales) {
         const items: any[] = (sale.items || []) as any[];
         for (const it of items) {
           const productName: string = (it.productName || it.name || 'Produit').toString();
-          const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
-          const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+          const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
+          const qty: number = Math.round(parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0);
+          const lineTotal: number = Math.round((parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0) * 1000) / 1000;
           
-          if (!articleTotals[productName]) {
-            articleTotals[productName] = { quantity: 0, total: 0 };
+          // Initialize family if not exists
+          if (!familyArticleTotals[familyName]) {
+            familyArticleTotals[familyName] = {};
           }
-          articleTotals[productName].quantity += qty;
-          articleTotals[productName].total += lineTotal;
+          
+          // Initialize article if not exists
+          if (!familyArticleTotals[familyName][productName]) {
+            familyArticleTotals[familyName][productName] = { quantity: 0, total: 0 };
+          }
+          
+          familyArticleTotals[familyName][productName].quantity += qty;
+          familyArticleTotals[familyName][productName].total += lineTotal;
         }
       }
     }
 
-    // Print article totals
-    escpos += 'VENTES PAR ARTICLE:\n';
-    escpos += '--------------------------------\n';
+    // Print article totals grouped by family in table format
+    escpos += 'VENTES PAR ARTICLE (PAR FAMILLE):\n';
+    escpos += '================================\n';
     
-    const sortedArticles = Object.entries(articleTotals)
-      .filter(([_, data]) => data.quantity > 0 && data.total > 0)
-      .sort(([, a], [, b]) => b.total - a.total);
+    // Sort families alphabetically
+    const sortedFamilies = Object.keys(familyArticleTotals).sort();
+    let totalArticleSales = 0;
 
-    for (const [productName, data] of sortedArticles) {
-      const amount = this.formatCurrency(data.total);
-      const totalWidth = 32;
-      const usedSpace = `${data.quantity} ${productName}`.length + amount.length;
-      const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
-      const line = `${data.quantity} ${productName}` + dots + amount;
-      escpos += line + '\n';
+    for (const familyName of sortedFamilies) {
+      const articles = familyArticleTotals[familyName];
+      
+      // Print family header
+      escpos += `\n${familyName.toUpperCase()}:\n`;
+      escpos += '--------------------------------\n';
+      
+      // Print table header
+      escpos += 'Article'.padEnd(25) + 'Qty'.padStart(8) + 'Unit Price'.padStart(12) + 'Total'.padStart(12) + '\n';
+      escpos += '--------------------------------\n';
+      
+      // Sort articles within family by total (descending)
+      const sortedArticles = Object.entries(articles)
+        .filter(([_, data]) => data.quantity > 0 && data.total > 0)
+        .sort(([, a], [, b]) => b.total - a.total);
+
+      // Print articles in this family
+      for (const [productName, data] of sortedArticles) {
+        const unitPrice = data.quantity > 0 ? data.total / data.quantity : 0;
+        const unitPriceFormatted = this.formatCurrency(unitPrice);
+        const totalFormatted = this.formatCurrency(data.total);
+        
+        const line = productName.padEnd(25) + 
+                    data.quantity.toString().padStart(8) + 
+                    unitPriceFormatted.padStart(12) + 
+                    totalFormatted.padStart(12);
+        escpos += line + '\n';
+        totalArticleSales += data.total;
+      }
+      
+      // Print family total
+      const familyTotal = Object.values(articles).reduce((sum, data) => sum + data.total, 0);
+      const familyTotalFormatted = this.formatCurrency(familyTotal);
+      escpos += '--------------------------------\n';
+      escpos += `Total ${familyName.toUpperCase()}`.padEnd(25) + ''.padStart(8) + ''.padStart(12) + familyTotalFormatted.padStart(12) + '\n';
     }
 
-    // Add total
-    const totalArticleSales = Object.values(articleTotals).reduce((sum, data) => sum + data.total, 0);
-    escpos += '--------------------------------\n';
-    const totalAmount = this.formatCurrency(totalArticleSales);
-    const totalWidth = 32;
-    const usedSpace = 'TOTAL:'.length + totalAmount.length;
-    const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
-    escpos += 'TOTAL:' + dots + totalAmount + '\n\n';
+    // Add grand total
+    escpos += '\n================================\n';
+    const totalAmount = this.formatCurrency(Math.round(totalArticleSales * 1000) / 1000);
+    escpos += 'TOTAL GENERAL'.padEnd(25) + ''.padStart(8) + ''.padStart(12) + totalAmount.padStart(12) + '\n';
+    escpos += '================================\n\n';
 
     // Financial summary (same as original)
     escpos += '################################\n';
@@ -1913,6 +2047,296 @@ export class PrintService {
     escpos += '\x1D\x56\x00'; // Full cut
     
     return escpos;
+  }
+
+  private generateDailyExtractHTMLWithArticleGrouping(sessionReport: any, companyData?: any, withdrawalAmount: number = 0): string {
+    const closedDate = new Date();
+    const formatDateNoYearWithTime = (date: Date) => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day}/${month} ${hours}:${minutes}`;
+    };
+    const closingTime = formatDateNoYearWithTime(closedDate);
+    
+    const session = sessionReport.session;
+    const summary = sessionReport.summary;
+
+    // Build article grouping from session sales with family grouping
+    const sales: any[] = (sessionReport?.session?.sales || []) as any[];
+    const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number }>> = {};
+
+    if (sales.length) {
+      for (const sale of sales) {
+        const items: any[] = (sale.items || []) as any[];
+        for (const it of items) {
+          const productName: string = (it.productName || it.name || 'Produit').toString();
+          const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
+          const qty: number = Math.round(parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0);
+          const lineTotal: number = Math.round((parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0) * 1000) / 1000;
+          
+          // Initialize family if not exists
+          if (!familyArticleTotals[familyName]) {
+            familyArticleTotals[familyName] = {};
+          }
+          
+          // Initialize article if not exists
+          if (!familyArticleTotals[familyName][productName]) {
+            familyArticleTotals[familyName][productName] = { quantity: 0, total: 0 };
+          }
+          
+          familyArticleTotals[familyName][productName].quantity += qty;
+          familyArticleTotals[familyName][productName].total += lineTotal;
+        }
+      }
+    }
+
+    // Sort families alphabetically
+    const sortedFamilies = Object.keys(familyArticleTotals).sort();
+    let totalArticleSales = 0;
+
+    let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Extrait Journalière - ${closingTime}</title>
+        <style>
+            @page {
+                size: A4;
+                margin: 0.5cm;
+            }
+            body { 
+                font-family: 'Courier New', monospace; 
+                margin: 0; 
+                padding: 8px; 
+                font-size: 9px;
+                line-height: 1.1;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 8px;
+                border-bottom: 1px solid #000;
+                padding-bottom: 4px;
+            }
+            .title {
+                font-size: 11px;
+                font-weight: bold;
+                margin-bottom: 2px;
+            }
+            .date {
+                font-size: 9px;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 4px;
+            }
+            th, td {
+                border: 1px solid #000;
+                padding: 1px 3px;
+                text-align: left;
+                font-size: 8px;
+            }
+            th {
+                background-color: #e0e0e0;
+                font-weight: bold;
+                text-align: center;
+                font-size: 8px;
+            }
+            .qty, .unit-price, .total {
+                text-align: right;
+            }
+            .category {
+                text-align: left;
+                width: 25%;
+                font-weight: bold;
+                background-color: #f0f0f0;
+            }
+            .article {
+                text-align: left;
+                width: 35%;
+            }
+            .qty {
+                width: 12%;
+            }
+            .unit-price {
+                width: 15%;
+            }
+            .total {
+                width: 13%;
+            }
+            .family-total {
+                font-weight: bold;
+                background-color: #f8f8f8;
+                font-size: 8px;
+            }
+            .grand-total {
+                margin-top: 8px;
+                border-top: 1px solid #000;
+                padding-top: 4px;
+            }
+            .grand-total table {
+                border: 1px solid #000;
+            }
+            .grand-total td {
+                font-weight: bold;
+                font-size: 9px;
+            }
+            .financial-summary {
+                margin-top: 8px;
+                border: 1px solid #000;
+                padding: 6px;
+            }
+            .financial-summary h3 {
+                text-align: center;
+                margin: 0 0 4px 0;
+                font-size: 10px;
+            }
+            .financial-summary table {
+                width: 100%;
+            }
+            .financial-summary td {
+                border: none;
+                padding: 1px 4px;
+                font-size: 8px;
+            }
+            .financial-summary .label {
+                text-align: left;
+            }
+            .financial-summary .amount {
+                text-align: right;
+                font-weight: bold;
+            }
+            h2 {
+                font-size: 10px;
+                margin: 4px 0 8px 0;
+                text-align: center;
+            }
+            @media print {
+                body { 
+                    font-size: 8px;
+                    padding: 4px;
+                }
+                th, td {
+                    padding: 0px 2px;
+                    font-size: 7px;
+                }
+                .grand-total {
+                    margin-top: 4px;
+                    padding-top: 2px;
+                }
+                .financial-summary {
+                    margin-top: 4px;
+                    padding: 3px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="title">Extrait Journalière - ${closingTime}</div>
+        </div>
+        
+        <h2>VENTES PAR ARTICLE (PAR FAMILLE)</h2>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th class="category">Category</th>
+                    <th class="article">Article</th>
+                    <th class="qty">Qty</th>
+                    <th class="unit-price">Unit Price</th>
+                    <th class="total">Total</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+    for (const familyName of sortedFamilies) {
+      const articles = familyArticleTotals[familyName];
+      
+      // Sort articles within family by total (descending)
+      const sortedArticles = Object.entries(articles)
+        .filter(([_, data]) => data.quantity > 0 && data.total > 0)
+        .sort(([, a], [, b]) => b.total - a.total);
+
+      // Print articles in this family
+      for (const [productName, data] of sortedArticles) {
+        const unitPrice = data.quantity > 0 ? data.total / data.quantity : 0;
+        const unitPriceFormatted = this.formatCurrency(unitPrice);
+        const totalFormatted = this.formatCurrency(data.total);
+        
+        html += `
+                <tr>
+                    <td class="category">${familyName.toUpperCase()}</td>
+                    <td class="article">${productName}</td>
+                    <td class="qty">${data.quantity}</td>
+                    <td class="unit-price">${unitPriceFormatted}</td>
+                    <td class="total">${totalFormatted}</td>
+                </tr>`;
+        totalArticleSales += data.total;
+      }
+      
+      // Print family total
+      const familyTotal = Object.values(articles).reduce((sum, data) => sum + data.total, 0);
+      const familyTotalFormatted = this.formatCurrency(familyTotal);
+      
+      html += `
+                <tr class="family-total">
+                    <td class="category">Total ${familyName.toUpperCase()}</td>
+                    <td class="article"></td>
+                    <td class="qty"></td>
+                    <td class="unit-price"></td>
+                    <td class="total">${familyTotalFormatted}</td>
+                </tr>`;
+    }
+
+    // Add grand total
+    const totalAmount = this.formatCurrency(Math.round(totalArticleSales * 1000) / 1000);
+    html += `
+            </tbody>
+        </table>
+        
+        <div class="grand-total">
+            <table>
+                <tr>
+                    <td class="category">TOTAL GENERAL</td>
+                    <td class="article"></td>
+                    <td class="qty"></td>
+                    <td class="unit-price"></td>
+                    <td class="total">${totalAmount}</td>
+                </tr>
+            </table>
+        </div>`;
+
+    // Financial summary
+    const expectedCash = summary.expectedCash || 0;
+    const totalSales = summary.totalSales || 0;
+    const financialOpeningFund = session.openingFund || 0;
+    
+    html += `
+        <div class="financial-summary">
+            <h3>RÉSUMÉ FINANCIER</h3>
+            <table>
+                <tr>
+                    <td class="label">Fonds initial:</td>
+                    <td class="amount">${this.formatCurrency(financialOpeningFund)}</td>
+                </tr>
+                <tr>
+                    <td class="label">Espèces attendues:</td>
+                    <td class="amount">${this.formatCurrency(expectedCash)}</td>
+                </tr>
+                <tr>
+                    <td class="label">Total ventes:</td>
+                    <td class="amount">${this.formatCurrency(totalSales)}</td>
+                </tr>
+            </table>
+        </div>
+    </body>
+    </html>`;
+
+    return html;
   }
 
 }

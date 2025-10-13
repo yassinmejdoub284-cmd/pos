@@ -8,6 +8,8 @@ import { VehiclesService } from '../core/services/vehicles.service';
 import { DriversService } from '../core/services/drivers.service';
 import { StockDocumentsService } from '../core/services/stock-documents.service';
 import { SettingsService } from '../core/services/settings.service';
+import { SessionsService } from '../core/services/sessions.service';
+import { AuthService } from '../core/services/auth.service';
 import { Product } from '../core/models/product.model';
 import { ProduitDeCaisse } from '../core/models/produit-de-caisse.model';
 
@@ -31,7 +33,14 @@ export class ScanningComponent implements OnInit, OnDestroy {
     productName: string;
     quantity: number;
     count: number;
+    colisCount: number;
     lastScanned: Date;
+    individualScans: Array<{
+      id: string;
+      quantity: number;
+      timestamp: Date;
+      barcode: string;
+    }>;
   }> = [];
 
   // Document type selection modal
@@ -57,6 +66,16 @@ export class ScanningComponent implements OnInit, OnDestroy {
   showDriverSelectionModal = false;
   showManualDestinationModal = false;
   showInvoiceNumberModal = false;
+  showScanDetailsModal = false;
+  selectedProductForDetails: any = null;
+  showQuantityEditModal = false;
+  selectedScanForEdit: any = null;
+  editedQuantity = '';
+  shouldClearOnFirstTap = false;
+  showColisEditModal = false;
+  selectedProductForColisEdit: any = null;
+  editedColisCount = '';
+  shouldClearColisOnFirstTap = false;
   
   // Selected values
   selectedClient: any = null;
@@ -71,6 +90,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
   depots: any[] = [];
   vehicles: any[] = [];
   drivers: any[] = [];
+  currentDepotId: number | null = null;
+  currentDepot: any = null;
+  currentSettings: any = null;
 
   // Products cache for fast lookup
   private productsCache = new Map<number, Product>();
@@ -90,7 +112,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
     private vehiclesService: VehiclesService,
     private driversService: DriversService,
     private stockDocumentsService: StockDocumentsService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private sessionsService: SessionsService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -99,10 +123,38 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.loadProducts();
     this.loadProduitsDeCaisse();
     this.loadClients();
+    this.loadCurrentDepot();
     this.loadDepots();
     this.loadVehicles();
     this.loadDrivers();
     this.loadSettings();
+    
+    // Also try to get the active session directly
+    this.sessionsService.getActiveSession().subscribe({
+      next: (session) => {
+        console.log('Active session from getActiveSession:', session);
+        console.log('Session depotId:', session?.depotId);
+        console.log('Session depot:', session?.depot);
+        console.log('Full session object:', JSON.stringify(session, null, 2));
+        
+        if (session && session.depotId) {
+          this.currentDepotId = session.depotId;
+          if (session.depot) {
+            this.currentDepot = session.depot;
+          } else {
+            this.loadDepotById(session.depotId);
+          }
+        } else {
+          console.log('No session or no depotId found');
+          // Try to get depot from user or other sources
+          this.tryAlternativeDepotLoading();
+        }
+      },
+      error: (error) => {
+        console.error('Error getting active session:', error);
+        this.tryAlternativeDepotLoading();
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -144,7 +196,10 @@ export class ScanningComponent implements OnInit, OnDestroy {
            this.showVehicleSelectionModal ||
            this.showDriverSelectionModal ||
            this.showManualDestinationModal ||
-           this.showInvoiceNumberModal;
+           this.showInvoiceNumberModal ||
+           this.showScanDetailsModal ||
+           this.showQuantityEditModal ||
+           this.showColisEditModal;
   }
 
   private loadProducts(): void {
@@ -169,31 +224,31 @@ export class ScanningComponent implements OnInit, OnDestroy {
         produits.forEach(produit => {
           this.produitsDeCaisseCache.set(produit.id, produit);
         });
-    this.searchProductByBarcode("1234001891011")
-    this.searchProductByBarcode("1234002891011")
-    this.searchProductByBarcode("1234003891011")
-    this.searchProductByBarcode("1234004891011")
-    this.searchProductByBarcode("1234005891011")
-    this.searchProductByBarcode("1234006891011")
-    this.searchProductByBarcode("1234007891011")
-    this.searchProductByBarcode("1234008891011")
-    this.searchProductByBarcode("1234009891011")
-    this.searchProductByBarcode("1234010891011")
-    this.searchProductByBarcode("1234011891011")
-    this.searchProductByBarcode("1234012891011")
-    this.searchProductByBarcode("1234013891011")
-    this.searchProductByBarcode("1234014891011")
-    this.searchProductByBarcode("1234015891011")
-    this.searchProductByBarcode("1234016891011")
-    this.searchProductByBarcode("1234017891011")
-    this.searchProductByBarcode("1234018891011")
-    this.searchProductByBarcode("1234019891011")
-    this.searchProductByBarcode("1234020891011")
-    this.searchProductByBarcode("1234021891011")
-    this.searchProductByBarcode("1234022891011")
-    this.searchProductByBarcode("1234023891011")
-    this.searchProductByBarcode("1234024891011")
-    this.searchProductByBarcode("1234025891011")
+    // this.searchProductByBarcode("1234001891011")
+    // this.searchProductByBarcode("1234002891011")
+    // this.searchProductByBarcode("1234003891011")
+    // this.searchProductByBarcode("1234004891011")
+    // this.searchProductByBarcode("1234005891011")
+    // this.searchProductByBarcode("1234006891011")
+    // this.searchProductByBarcode("1234007891011")
+    // this.searchProductByBarcode("1234008891011")
+    // this.searchProductByBarcode("1234009891011")
+    // this.searchProductByBarcode("1234010891011")
+    // this.searchProductByBarcode("1234011891011")
+    // this.searchProductByBarcode("1234012891011")
+    // this.searchProductByBarcode("1234013891011")
+    // this.searchProductByBarcode("1234014891011")
+    // this.searchProductByBarcode("1234015891011")
+    // this.searchProductByBarcode("1234016891011")
+    // this.searchProductByBarcode("1234017891011")
+    // this.searchProductByBarcode("1234018891011")
+    // this.searchProductByBarcode("1234019891011")
+    // this.searchProductByBarcode("1234020891011")
+    // this.searchProductByBarcode("1234021891011")
+    // this.searchProductByBarcode("1234022891011")
+    // this.searchProductByBarcode("1234023891011")
+    // this.searchProductByBarcode("1234024891011")
+    // this.searchProductByBarcode("1234025891011")
       }
     } catch (error) {
       console.error('Error loading produits de caisse:', error);
@@ -428,6 +483,14 @@ export class ScanningComponent implements OnInit, OnDestroy {
       const produitDeCaisse = this.produitsDeCaisseCache.get(articleId);
       const productId = produitDeCaisse?.parentProductId || articleId;
       
+      // Create individual scan entry
+      const individualScan = {
+        id: `${articleId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        quantity: quantity,
+        timestamp: new Date(),
+        barcode: barcode
+      };
+      
       // Find existing item or create new one
       const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
       
@@ -435,7 +498,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
         // Update existing item - add quantity and increment count
         this.scannedItems[existingItemIndex].quantity += quantity;
         this.scannedItems[existingItemIndex].count += 1;
+        this.scannedItems[existingItemIndex].colisCount += 1; // Increment colis count
         this.scannedItems[existingItemIndex].lastScanned = new Date();
+        this.scannedItems[existingItemIndex].individualScans.push(individualScan);
         this.success = `${productName} scanné (${this.scannedItems[existingItemIndex].count}x, Qty: ${this.scannedItems[existingItemIndex].quantity}g)`;
       } else {
         // Add new item
@@ -444,7 +509,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
           productName: productName,
           quantity,
           count: 1,
-          lastScanned: new Date()
+          colisCount: 1, // Initialize colis count to 1
+          lastScanned: new Date(),
+          individualScans: [individualScan]
         });
         this.success = `Nouveau ${productName} ajouté (Qty: ${quantity}g)`;
       }
@@ -561,7 +628,285 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   removeScannedItem(articleId: number): void {
-    this.scannedItems = this.scannedItems.filter(item => item.articleId !== articleId);
+      this.scannedItems = this.scannedItems.filter(item => item.articleId !== articleId);
+  }
+
+  // Scan Details Modal Methods
+  showScanDetails(product: any): void {
+    this.selectedProductForDetails = product;
+    this.showScanDetailsModal = true;
+  }
+
+  closeScanDetailsModal(): void {
+    this.showScanDetailsModal = false;
+    this.selectedProductForDetails = null;
+  }
+
+  removeIndividualScan(articleId: number, scanId: string): void {
+    const itemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
+    if (itemIndex >= 0) {
+      const scanIndex = this.scannedItems[itemIndex].individualScans.findIndex(scan => scan.id === scanId);
+      if (scanIndex >= 0) {
+        const removedScan = this.scannedItems[itemIndex].individualScans[scanIndex];
+        
+        // Remove the individual scan
+        this.scannedItems[itemIndex].individualScans.splice(scanIndex, 1);
+        
+        // Update totals
+        this.scannedItems[itemIndex].quantity -= removedScan.quantity;
+        this.scannedItems[itemIndex].count -= 1;
+        this.scannedItems[itemIndex].colisCount -= 1; // Decrement colis count
+        
+        // Update last scanned time
+        if (this.scannedItems[itemIndex].individualScans.length > 0) {
+          this.scannedItems[itemIndex].lastScanned = this.scannedItems[itemIndex].individualScans
+            .reduce((latest, scan) => scan.timestamp > latest ? scan.timestamp : latest, new Date(0));
+        }
+        
+        // Update the selectedProductForDetails object to reflect the changes immediately
+        if (this.selectedProductForDetails) {
+          // Remove the scan from selectedProductForDetails
+          this.selectedProductForDetails.individualScans = this.selectedProductForDetails.individualScans.filter((scan: any) => scan.id !== scanId);
+          
+          // Update the total quantity, count, and colis count in selectedProductForDetails
+          this.selectedProductForDetails.quantity = this.scannedItems[itemIndex].quantity;
+          this.selectedProductForDetails.count = this.scannedItems[itemIndex].count;
+          this.selectedProductForDetails.colisCount = this.scannedItems[itemIndex].colisCount;
+        }
+        
+        // Remove the entire item if no scans remain
+        if (this.scannedItems[itemIndex].individualScans.length === 0) {
+          this.scannedItems.splice(itemIndex, 1);
+          this.closeScanDetailsModal();
+        }
+        
+        this.success = `Scan supprimé (${(removedScan.quantity/1000).toFixed(3)}kg)`;
+        setTimeout(() => { this.success = ''; }, 3000);
+      }
+    }
+  }
+
+  // Quantity Edit Modal Methods
+  editScanQuantity(articleId: number, scanId: string): void {
+    const itemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
+    if (itemIndex >= 0) {
+      const scanIndex = this.scannedItems[itemIndex].individualScans.findIndex(scan => scan.id === scanId);
+      if (scanIndex >= 0) {
+        this.selectedScanForEdit = {
+          articleId: articleId,
+          scanIndex: scanIndex,
+          itemIndex: itemIndex,
+          currentQuantity: this.scannedItems[itemIndex].individualScans[scanIndex].quantity
+        };
+        this.editedQuantity = (this.scannedItems[itemIndex].individualScans[scanIndex].quantity / 1000).toFixed(3);
+        this.shouldClearOnFirstTap = true; // Set flag to clear on first tap
+        this.showQuantityEditModal = true;
+      }
+    }
+  }
+
+  closeQuantityEditModal(): void {
+    this.showQuantityEditModal = false;
+    this.selectedScanForEdit = null;
+    this.editedQuantity = '';
+    this.shouldClearOnFirstTap = false; // Reset flag
+  }
+
+  updateQuantity(): void {
+    if (!this.selectedScanForEdit || !this.editedQuantity.trim()) {
+      this.showError('Veuillez saisir une quantité valide');
+      return;
+    }
+
+    const newQuantity = parseFloat(this.editedQuantity);
+    if (isNaN(newQuantity) || newQuantity <= 0) {
+      this.showError('La quantité doit être un nombre positif');
+      return;
+    }
+
+    const newQuantityInGrams = Math.round(newQuantity * 1000);
+    const itemIndex = this.selectedScanForEdit.itemIndex;
+    const scanIndex = this.selectedScanForEdit.scanIndex;
+    const oldQuantity = this.selectedScanForEdit.currentQuantity;
+
+    // Update the individual scan quantity
+    this.scannedItems[itemIndex].individualScans[scanIndex].quantity = newQuantityInGrams;
+
+    // Update the total quantity for the item
+    this.scannedItems[itemIndex].quantity = this.scannedItems[itemIndex].quantity - oldQuantity + newQuantityInGrams;
+
+    // Update the selectedProductForDetails object to reflect the changes immediately
+    if (this.selectedProductForDetails) {
+      // Find the scan in the selectedProductForDetails and update it
+      const scanToUpdate = this.selectedProductForDetails.individualScans.find((scan: any) => scan.id === this.scannedItems[itemIndex].individualScans[scanIndex].id);
+      if (scanToUpdate) {
+        scanToUpdate.quantity = newQuantityInGrams;
+      }
+      
+      // Update the total quantity in selectedProductForDetails
+      this.selectedProductForDetails.quantity = this.scannedItems[itemIndex].quantity;
+    }
+
+    this.success = `Quantité modifiée: ${(oldQuantity/1000).toFixed(3)}kg → ${(newQuantityInGrams/1000).toFixed(3)}kg`;
+    setTimeout(() => { this.success = ''; }, 3000);
+
+    this.closeQuantityEditModal();
+  }
+
+  // Numpad methods
+  addDigit(digit: string): void {
+    if (this.shouldClearOnFirstTap) {
+      // Clear the current value and start fresh
+      this.editedQuantity = digit;
+      this.shouldClearOnFirstTap = false; // Reset flag after first tap
+    } else if (this.editedQuantity.length < 10) { // Limit to reasonable length
+      this.editedQuantity += digit;
+    }
+  }
+
+  removeLastDigit(): void {
+    this.editedQuantity = this.editedQuantity.slice(0, -1);
+  }
+
+  clearQuantity(): void {
+    this.editedQuantity = '';
+    this.shouldClearOnFirstTap = false; // Reset flag when manually clearing
+  }
+
+  addDecimalPoint(): void {
+    if (this.shouldClearOnFirstTap) {
+      // Clear the current value and start with decimal point
+      this.editedQuantity = '0.';
+      this.shouldClearOnFirstTap = false; // Reset flag after first tap
+    } else if (!this.editedQuantity.includes('.')) {
+      this.editedQuantity += '.';
+    }
+  }
+
+  // Colis Edit Modal Methods
+  editColisCount(product: any): void {
+    this.selectedProductForColisEdit = product;
+    this.editedColisCount = product.colisCount.toString();
+    this.shouldClearColisOnFirstTap = true; // Set flag to clear on first tap
+    this.showColisEditModal = true;
+  }
+
+  closeColisEditModal(): void {
+    this.showColisEditModal = false;
+    this.selectedProductForColisEdit = null;
+    this.editedColisCount = '';
+    this.shouldClearColisOnFirstTap = false; // Reset flag
+  }
+
+  updateColisCount(): void {
+    if (!this.selectedProductForColisEdit || !this.editedColisCount.trim()) {
+      this.showError('Veuillez saisir un nombre de colis valide');
+      return;
+    }
+
+    const newColisCount = parseInt(this.editedColisCount, 10);
+    if (isNaN(newColisCount) || newColisCount < 1) {
+      this.showError('Le nombre de colis doit être un nombre entier positif');
+      return;
+    }
+
+    const itemIndex = this.scannedItems.findIndex(item => item.articleId === this.selectedProductForColisEdit.articleId);
+    if (itemIndex >= 0) {
+      const oldColisCount = this.scannedItems[itemIndex].colisCount;
+      this.scannedItems[itemIndex].colisCount = newColisCount;
+
+      // Update the selectedProductForDetails object to reflect the changes immediately
+      if (this.selectedProductForDetails) {
+        this.selectedProductForDetails.colisCount = newColisCount;
+      }
+
+      this.success = `Nombre de colis modifié: ${oldColisCount} → ${newColisCount}`;
+      setTimeout(() => { this.success = ''; }, 3000);
+    }
+
+    this.closeColisEditModal();
+  }
+
+  // Colis Numpad methods
+  addColisDigit(digit: string): void {
+    if (this.shouldClearColisOnFirstTap) {
+      // Clear the current value and start fresh
+      this.editedColisCount = digit;
+      this.shouldClearColisOnFirstTap = false; // Reset flag after first tap
+    } else if (this.editedColisCount.length < 3) { // Limit to reasonable length for colis count
+      this.editedColisCount += digit;
+    }
+  }
+
+  removeLastColisDigit(): void {
+    this.editedColisCount = this.editedColisCount.slice(0, -1);
+  }
+
+  clearColisCount(): void {
+    this.editedColisCount = '';
+    this.shouldClearColisOnFirstTap = false; // Reset flag when manually clearing
+  }
+
+  // Helper method to get the most recent scan timestamp
+  getMostRecentScanTimestamp(): Date | null {
+    if (!this.selectedProductForDetails || !this.selectedProductForDetails.individualScans || this.selectedProductForDetails.individualScans.length === 0) {
+      return null;
+    }
+    
+    return this.selectedProductForDetails.individualScans.reduce((latest: Date, scan: any) => {
+      return scan.timestamp > latest ? scan.timestamp : latest;
+    }, new Date(0));
+  }
+
+  // Helper method to check if a scan is the most recent one
+  isMostRecentScan(scan: any): boolean {
+    const mostRecentTimestamp = this.getMostRecentScanTimestamp();
+    return mostRecentTimestamp !== null && scan.timestamp.getTime() === mostRecentTimestamp.getTime();
+  }
+
+  // Helper method to get the globally most recent scan timestamp across all products
+  getGlobalMostRecentScanTimestamp(): Date | null {
+    if (this.scannedItems.length === 0) {
+      return null;
+    }
+    
+    let globalMostRecent = new Date(0);
+    
+    this.scannedItems.forEach(item => {
+      if (item.individualScans && item.individualScans.length > 0) {
+        const itemMostRecent = item.individualScans.reduce((latest: Date, scan: any) => {
+          return scan.timestamp > latest ? scan.timestamp : latest;
+        }, new Date(0));
+        
+        if (itemMostRecent > globalMostRecent) {
+          globalMostRecent = itemMostRecent;
+        }
+      }
+    });
+    
+    return globalMostRecent.getTime() > 0 ? globalMostRecent : null;
+  }
+
+  // Helper method to check if a scan is the globally most recent one
+  isGlobalMostRecentScan(scan: any): boolean {
+    const globalMostRecentTimestamp = this.getGlobalMostRecentScanTimestamp();
+    return globalMostRecentTimestamp !== null && scan.timestamp.getTime() === globalMostRecentTimestamp.getTime();
+  }
+
+  // Helper method to check if a product has the most recent scan
+  hasMostRecentScan(subProduct: any): boolean {
+    if (!subProduct.individualScans || subProduct.individualScans.length === 0) {
+      return false;
+    }
+    
+    const globalMostRecentTimestamp = this.getGlobalMostRecentScanTimestamp();
+    if (!globalMostRecentTimestamp) {
+      return false;
+    }
+    
+    return subProduct.individualScans.some((scan: any) => 
+      scan.timestamp.getTime() === globalMostRecentTimestamp.getTime()
+    );
   }
 
   getGroupedScannedItems(): Array<{
@@ -571,8 +916,15 @@ export class ScanningComponent implements OnInit, OnDestroy {
       productName: string;
       quantity: number;
       count: number;
+      colisCount: number;
       lastScanned: Date;
       color?: string;
+      individualScans: Array<{
+        id: string;
+        quantity: number;
+        timestamp: Date;
+        barcode: string;
+      }>;
     }>;
     totalQuantity: number;
     totalPrice: number;
@@ -587,8 +939,15 @@ export class ScanningComponent implements OnInit, OnDestroy {
       productName: string;
       quantity: number;
       count: number;
+      colisCount: number;
       lastScanned: Date;
       color?: string;
+      individualScans: Array<{
+        id: string;
+        quantity: number;
+        timestamp: Date;
+        barcode: string;
+      }>;
     }>;
     totalQuantity: number;
     totalPrice: number;
@@ -598,8 +957,15 @@ export class ScanningComponent implements OnInit, OnDestroy {
       productName: string;
       quantity: number;
       count: number;
+      colisCount: number;
       lastScanned: Date;
       color?: string;
+      individualScans: Array<{
+        id: string;
+        quantity: number;
+        timestamp: Date;
+        barcode: string;
+      }>;
     }>>();
 
     // Group scanned items by their parent product
@@ -643,8 +1009,15 @@ export class ScanningComponent implements OnInit, OnDestroy {
         productName: string;
         quantity: number;
         count: number;
+        colisCount: number;
         lastScanned: Date;
         color?: string;
+        individualScans: Array<{
+          id: string;
+          quantity: number;
+          timestamp: Date;
+          barcode: string;
+        }>;
       }>;
       totalQuantity: number;
       totalPrice: number;
@@ -921,10 +1294,123 @@ export class ScanningComponent implements OnInit, OnDestroy {
     });
   }
 
+  private loadCurrentDepot(): void {
+    // First try to get the current session directly
+    const currentSession = this.sessionsService.currentSession();
+    console.log('Direct current session:', currentSession);
+    
+    if (currentSession && currentSession.depotId) {
+      this.currentDepotId = currentSession.depotId;
+      console.log('Current depot ID from direct session:', this.currentDepotId);
+      if (currentSession.depot) {
+        this.currentDepot = currentSession.depot;
+        console.log('Current depot from direct session:', this.currentDepot);
+      } else {
+        this.loadDepotById(currentSession.depotId);
+      }
+    }
+
+    // Also subscribe to changes
+    this.sessionsService.currentSession$.subscribe({
+      next: (session) => {
+        console.log('Current session from subscription:', session);
+        if (session && session.depotId) {
+          this.currentDepotId = session.depotId;
+          console.log('Current depot ID from subscription:', this.currentDepotId);
+          // Store the depot information from the session if available
+          if (session.depot) {
+            this.currentDepot = session.depot;
+            console.log('Current depot from subscription:', this.currentDepot);
+          } else {
+            // If depot info is not in session, load it separately
+            console.log('Loading depot by ID from subscription:', session.depotId);
+            this.loadDepotById(session.depotId);
+          }
+        } else {
+          console.log('No session or depot ID found in subscription');
+        }
+      },
+      error: (error) => {
+        console.error('Error loading current depot:', error);
+      }
+    });
+  }
+
+  private loadDepotById(depotId: number): void {
+    this.depotsService.list().subscribe({
+      next: (depots) => {
+        console.log('All depots:', depots);
+        const depot = depots.find((d: any) => d.id === depotId);
+        console.log('Found depot:', depot);
+        if (depot) {
+          this.currentDepot = depot;
+          console.log('Set current depot:', this.currentDepot);
+        }
+      },
+      error: (error) => {
+        console.error('Error loading depot by ID:', error);
+      }
+    });
+  }
+
+  private tryAlternativeDepotLoading(): void {
+    console.log('Trying alternative depot loading methods...');
+    
+    // Try to get depot from user profile
+    const currentUser = this.authService.currentUser();
+    console.log('Current user from auth service:', currentUser);
+    
+    if (currentUser && currentUser.depotId) {
+      console.log('Found depot ID in user profile:', currentUser.depotId);
+      this.currentDepotId = currentUser.depotId;
+      this.loadDepotById(this.currentDepotId);
+      return;
+    }
+    
+    // Try to get depot from localStorage
+    const storedDepotId = localStorage.getItem('currentDepotId');
+    if (storedDepotId) {
+      console.log('Found depot ID in localStorage:', storedDepotId);
+      this.currentDepotId = parseInt(storedDepotId);
+      this.loadDepotById(this.currentDepotId);
+      return;
+    }
+    
+    // Try to get depot from ticket counter service localStorage
+    const ticketStateKeys = Object.keys(localStorage).filter(key => key.startsWith('pos_ticket_state_depot_'));
+    if (ticketStateKeys.length > 0) {
+      const depotIdFromTicket = ticketStateKeys[0].replace('pos_ticket_state_depot_', '');
+      console.log('Found depot ID from ticket counter:', depotIdFromTicket);
+      this.currentDepotId = parseInt(depotIdFromTicket);
+      this.loadDepotById(this.currentDepotId);
+      return;
+    }
+    
+    console.log('No alternative depot sources found');
+    
+    // If no depot found, try to get the first available depot as fallback
+    this.depotsService.list().subscribe({
+      next: (depots) => {
+        const activeDepots = depots.filter((d: any) => d.isActive);
+        if (activeDepots.length > 0) {
+          console.log('Using first available depot as fallback:', activeDepots[0]);
+          this.currentDepotId = activeDepots[0].id;
+          this.currentDepot = activeDepots[0];
+        }
+      },
+      error: (error) => {
+        console.error('Error loading fallback depot:', error);
+      }
+    });
+  }
+
   private loadDepots(): void {
     this.depotsService.list().subscribe({
       next: (depots) => {
-        this.depots = depots.filter((d: any) => d.isActive);
+        this.depots = depots.filter((d: any) => {
+          // Filter out inactive depots and the current depot
+          return d.isActive && d.id !== this.currentDepotId;
+        });
       },
       error: (error) => {
         console.error('Error loading depots:', error);
@@ -1095,6 +1581,14 @@ export class ScanningComponent implements OnInit, OnDestroy {
   // Document Generation
   private generateDocument(): void {
     console.log('generateDocument called');
+    
+    // Validate that we have the required depot information
+    if (!this.currentDepotId) {
+      this.error = 'Erreur: Impossible de déterminer le dépôt actuel. Veuillez vous reconnecter.';
+      setTimeout(() => { this.error = ''; }, 5000);
+      return;
+    }
+    
     this.loading = true;
     this.error = '';
     this.success = '';
@@ -1141,10 +1635,20 @@ export class ScanningComponent implements OnInit, OnDestroy {
   private prepareDocumentData(): any {
     const documentType = this.getDocumentTypeForAPI();
     
+    // Ensure we have a valid current depot ID
+    const emetteurId = this.currentDepotId || 1;
+    // For documents that don't require a destination depot, use the same depot as sender
+    const destinataireId = this.selectedDepot?.id || emetteurId;
+    
+    console.log('Document data - emetteurId:', emetteurId, 'destinataireId:', destinataireId);
+    console.log('Current depot:', this.currentDepot);
+    console.log('Selected depot:', this.selectedDepot);
+    
     const documentData: any = {
       type: documentType,
       numero: this.invoiceNumber && this.selectedDocumentType === 'facture' ? this.invoiceNumber : undefined,
-      depotId: this.selectedDepot?.id || 1, // Use selected depot or default
+      fromDepotId: emetteurId, // Use the server-expected field name
+      destinationDepotId: destinataireId, // Use the server-expected field name
       status: 'COMPLETED',
       items: this.scannedItems.map(item => {
         const produit = this.produitsDeCaisseCache.get(item.articleId);
@@ -1183,13 +1687,50 @@ export class ScanningComponent implements OnInit, OnDestroy {
       })
     };
 
+    // Add enterprise information from current depot/settings
+    if (this.currentSettings) {
+      documentData.enterpriseInfo = {
+        companyName: this.currentSettings.companyName,
+        logoUrl: this.currentSettings.logoUrl,
+        companyAddress: this.currentSettings.companyAddress,
+        companyPhone: this.currentSettings.companyPhone,
+        companyEmail: this.currentSettings.companyEmail,
+        companyRC: this.currentSettings.companyRC,
+        companyMF: this.currentSettings.companyMF
+      };
+    }
+
+    // Add current depot information as sender
+    if (this.currentDepot) {
+      documentData.senderDepot = {
+        id: this.currentDepot.id,
+        name: this.currentDepot.name,
+        code: this.currentDepot.code,
+        address: this.currentDepot.address,
+        city: this.currentDepot.city,
+        phone: this.currentDepot.phone,
+        email: this.currentDepot.email
+      };
+    }
+
+    // Add destination depot information if different from sender
+    if (this.selectedDepot && this.selectedDepot.id !== emetteurId) {
+      documentData.destinationDepot = {
+        id: this.selectedDepot.id,
+        name: this.selectedDepot.name,
+        code: this.selectedDepot.code,
+        address: this.selectedDepot.address,
+        city: this.selectedDepot.city,
+        phone: this.selectedDepot.phone,
+        email: this.selectedDepot.email
+      };
+    }
+
     // Add specific data based on configuration
     if (this.selectedClient) {
       documentData.clientId = this.selectedClient.id;
     }
-    if (this.selectedDepot) {
-      documentData.destinationDepotId = this.selectedDepot.id;
-    }
+    // Note: selectedDepot is already used as destinataireId above
     if (this.selectedVehicle) {
       documentData.vehicleId = this.selectedVehicle.id;
     }
@@ -1291,8 +1832,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.settingsService.getSettings().subscribe({
       next: (settings) => {
         // Settings are loaded and available for use
-        // The loadDocumentTypeDefaults method will be called when a document type is selected
-        console.log('Settings loaded successfully');
+        this.currentSettings = settings;
+        console.log('Settings loaded successfully:', settings);
       },
       error: (error) => {
         console.error('Error loading settings:', error);

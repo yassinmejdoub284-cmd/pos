@@ -23,13 +23,13 @@ export function getScanPrintStyles(): string {
     }
     .header {
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       margin-bottom: 25px;
       border-bottom: 3px solid #000;
       padding-bottom: 15px;
     }
-    .company-info { flex: 1; }
-    .document-info { text-align: right; flex: 1; }
+    .company-info { margin-bottom: 15px; }
+    .document-info { text-align: left; width: fit-content; border: 1px solid #ccc; border-radius: 8px; padding: 10px; background-color: #f9f9f9; }
     .title {
       font-size: 24px;
       font-weight: bold;
@@ -38,7 +38,7 @@ export function getScanPrintStyles(): string {
       letter-spacing: 1px;
     }
     .subtitle { font-size: 14px; color: #333; margin-bottom: 10px; font-weight: bold; }
-    .info-row { margin: 4px 0; font-size: 12px; }
+    .info-row { margin: 4px 0; font-size: 12px; line-height: 1.2; }
     .info-section {
       margin: 12px 0;
       padding: 10px;
@@ -46,8 +46,8 @@ export function getScanPrintStyles(): string {
       border: 1px solid #ccc;
       border-radius: 4px;
     }
-    .label { font-weight: bold; display: inline-block; width: 140px; color: #333; }
-    .value { font-weight: normal; color: #000; }
+    .label { font-weight: bold; display: inline-block; width: 140px; color: #333; vertical-align: top; }
+    .value { font-weight: normal; color: #000; display: inline-block; vertical-align: top; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -233,6 +233,13 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   let unifiedTotalTVA = 0;
   let unifiedTotalTTC = 0;
   
+  // Group by TVA rates for breakdown table (moved outside block scope)
+  const tvaGroups: Record<number, {
+    rate: number;
+    baseHT: number;
+    montantTVA: number;
+  }> = {};
+  
   // Always process with pricing for all document types
   {
     const isWholesaleClient = !!(document as any).client && ((document as any).client.clientType === 'WHOLESALE');
@@ -334,6 +341,17 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
       unifiedTotalHT += montantHT;
       unifiedTotalTVA += montantTVA;
       unifiedTotalTTC += montantTTC;
+      
+      // Group by TVA rate for breakdown table
+      if (!tvaGroups[tvaRate]) {
+        tvaGroups[tvaRate] = {
+          rate: tvaRate,
+          baseHT: 0,
+          montantTVA: 0
+        };
+      }
+      tvaGroups[tvaRate].baseHT += montantHT;
+      tvaGroups[tvaRate].montantTVA += montantTVA;
     });
     
     // Generate rows for each parent group
@@ -377,19 +395,23 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   const company = (em && (em.company)) ? (em.company) : em;
   const companyName = company.raisonSociale || company.name || 'Société';
   const companyForme = company.formeJuridique || company.forme_juridique || '';
-  const companyAddress = company.adresse || company.address || '';
+  const companyAddress = company.adresse || company.address || '-';
   const companyCity = ''; // do not display city in addresses
-  const companyPhone = company.telephone || company.phone || '';
+  const companyPhone = company.telephone || company.phone || '-';
   const companyEmail = company.email || '';
-  const companyMatricule = company.matriculeFiscal || company.matricule_fiscale || '';
+  const companyMatricule = company.matriculeFiscal || company.matricule_fiscale || '-';
   // Use enterprise (sender company) logo only
   const senderCompanyLogoUrl = (em && em.company && em.company.logoUrl) ? em.company.logoUrl : '';
   const companyLogo = senderCompanyLogoUrl ? getAbsoluteLogoUrl(senderCompanyLogoUrl) : '';
 
   const client = (document as any).client || (dest && (dest.client || dest.clients?.[0])) || null;
-  const clientName = client && client.firstName ? `${client.firstName} ${client.lastName || ''}`.trim() : 'Client non spécifié';
-  const clientAddress = client?.address || '';
-  const clientMatricule = client?.matriculeFiscal || client?.matricule_fiscale || '';
+  console.log('Print template - Document client:', (document as any).client);
+  console.log('Print template - Dest client:', dest && (dest.client || dest.clients?.[0]));
+  console.log('Print template - Final client:', client);
+  const clientName = client && client.firstName ? `${client.firstName} ${client.lastName || ''}`.trim() : '-';
+  const clientAddress = client?.address || '-';
+  const clientPhone = client?.phone || '-';
+  const clientMatricule = client?.matriculeFiscal || client?.matricule_fiscale || '-';
 
   const unifiedHeader = `
     <div class="header">
@@ -399,18 +421,15 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
         <div class="subtitle">N° ${document.numero}</div>
         <div class="info-row"><span class="label">Date:</span><span class="value">${currentDate}</span></div>
         <div class="info-row"><span class="label">Société:</span><span class="value">${companyName}</span></div>
-        ${companyAddress ? `<div class="info-row"><span class="label">Adresse:</span><span class="value">${companyAddress}</span></div>` : ''}
-        ${companyPhone ? `<div class="info-row"><span class="label">Téléphone:</span><span class="value">${companyPhone}</span></div>` : ''}
-        ${companyMatricule ? `<div class="info-row"><span class="label">Matricule fiscale:</span><span class="value">${companyMatricule}</span></div>` : ''}
+        <div class="info-row"><span class="label">Adresse:</span><span class="value">${companyAddress}</span></div>
+        <div class="info-row"><span class="label">Téléphone:</span><span class="value">${companyPhone}</span></div>
+        <div class="info-row"><span class="label">Matricule fiscale:</span><span class="value">${companyMatricule}</span></div>
       </div>
       <div class="document-info">
         <div class="info-row"><span class="label">Client:</span><span class="value">${clientName}</span></div>
-        
-        ${clientAddress ? `<div class=\"info-row\"><span class=\"label\">Adresse:</span><span class=\"value\">${clientAddress}</span></div>` : ''}
-        ${client?.phone ? `<div class=\"info-row\"><span class=\"label\">Téléphone:</span><span class=\"value\">${client.phone}</span></div>` : ''}
-        ${client?.email ? `<div class=\"info-row\"><span class=\"label\">Email:</span><span class=\"value\">${client.email}</span></div>` : ''}
-        ${clientMatricule ? `<div class=\"info-row\"><span class=\"label\">Matricule fiscal:</span><span class=\"value\">${clientMatricule}</span></div>` : ''}
-        ${client?.postalCode ? `<div class=\"info-row\"><span class=\"label\">Code postal:</span><span class=\"value\">${client.postalCode}</span></div>` : ''}
+        <div class="info-row"><span class="label">Adresse:</span><span class="value">${clientAddress}</span></div>
+        <div class="info-row"><span class="label">Téléphone:</span><span class="value">${clientPhone}</span></div>
+        <div class="info-row"><span class="label">Matricule fiscal:</span><span class="value">${clientMatricule}</span></div>
       </div>
     </div>
   `;
@@ -443,12 +462,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
           </div>
         `;
       case 'BON_ENTREE_MAGASIN':
-        return `
-          <div class="info-section">
-            <span class="label">Informations de livraison:</span>
-            <span class="value">Document de livraison pour ${(document as any).client ? `${(document as any).client.firstName} ${(document as any).client.lastName}` : 'client'}</span>
-          </div>
-        `;
+        return ``;
       case 'FACTURE':
         return ``;
       default:
@@ -493,11 +507,15 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
                    </tr>
                  </thead>
                  <tbody>
-                   <tr>
-                     <td style="border: 1px solid #000; text-align: center;">${unifiedTotalHT > 0 ? ((unifiedTotalTVA / unifiedTotalHT) * 100).toFixed(1) : '0.0'}</td>
-                     <td style="border: 1px solid #000; text-align: center;">${(Number(unifiedTotalHT) || 0).toFixed(3)}</td>
-                     <td style="border: 1px solid #000; text-align: center;">${(Number(unifiedTotalTVA) || 0).toFixed(3)}</td>
-                   </tr>
+                   ${Object.values(tvaGroups)
+                     .sort((a: any, b: any) => a.rate - b.rate) // Sort by TVA rate
+                     .map((tvaGroup: any) => `
+                     <tr>
+                       <td style="border: 1px solid #000; text-align: center;">${tvaGroup.rate.toFixed(1)}</td>
+                       <td style="border: 1px solid #000; text-align: center;">${tvaGroup.baseHT.toFixed(3)}</td>
+                       <td style="border: 1px solid #000; text-align: center;">${tvaGroup.montantTVA.toFixed(3)}</td>
+                     </tr>
+                   `).join('')}
                  </tbody>
                </table>
              </div>

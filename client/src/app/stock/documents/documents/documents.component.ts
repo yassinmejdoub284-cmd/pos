@@ -4,6 +4,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StockDocumentsService } from '../../../core/services/stock-documents.service';
 import { StockDocument } from '../../../core/models/stock-document.model';
+import { ProduitsDeCaisseService } from '../../../core/services/produits-de-caisse.service';
+import { ProductsService } from '../../../core/services/products.service';
 
 @Component({
   selector: 'app-documents',
@@ -27,11 +29,17 @@ export class DocumentsListComponent implements OnInit {
   showInvoiceModal = false;
   selectedDocument: StockDocument | null = null;
   invoiceNumber = '';
+  
+  // Caches for products and produits de caisse
+  productsCache = new Map<number, any>();
+  produitsDeCaisseCache = new Map<number, any>();
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private stockDocumentsService: StockDocumentsService
+    private stockDocumentsService: StockDocumentsService,
+    private produitsDeCaisseService: ProduitsDeCaisseService,
+    private productsService: ProductsService
   ) {}
 
   ngOnInit(): void {
@@ -50,19 +58,26 @@ export class DocumentsListComponent implements OnInit {
     
     this.stockDocumentsService.getAllDocuments().subscribe({
       next: (documents) => {
-        this.documents = documents;
+        this.documents = Array.isArray(documents) ? documents : [];
         this.filterDocuments();
         this.loading = false;
       },
       error: (error) => {
         console.error('Error loading documents:', error);
         this.error = 'Erreur lors du chargement des documents: ' + (error?.message || 'Erreur inconnue');
+        this.documents = []; // Ensure documents is always an array
+        this.filteredDocuments = [];
         this.loading = false;
       }
     });
   }
 
   filterDocuments(): void {
+    if (!this.documents || !Array.isArray(this.documents)) {
+      this.filteredDocuments = [];
+      return;
+    }
+    
     let filtered = [...this.documents];
 
     // Filter by type
@@ -192,7 +207,18 @@ export class DocumentsListComponent implements OnInit {
   openInvoiceModal(document: StockDocument): void {
     this.selectedDocument = document;
     this.showInvoiceModal = true;
-    this.invoiceNumber = '';
+    // Suggest next invoice number
+    this.suggestNextInvoiceNumber();
+  }
+
+  private suggestNextInvoiceNumber(): void {
+    const today = new Date();
+    const year = today.getFullYear().toString().slice(-2);
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const day = today.getDate().toString().padStart(2, '0');
+    
+    // Generate a suggested number like FAC-251011-0001
+    this.invoiceNumber = `FAC-${year}${month}${day}-0001`;
   }
 
   cancelInvoice(): void {
@@ -202,12 +228,147 @@ export class DocumentsListComponent implements OnInit {
   }
 
   confirmGenerateInvoice(): void {
-    if (!this.invoiceNumber || !this.selectedDocument) return;
+    if (!this.selectedDocument) return;
     
-    // TODO: Implement invoice generation logic
-    console.log('Generating invoice:', this.invoiceNumber, 'for document:', this.selectedDocument.id);
+    if (!this.invoiceNumber || this.invoiceNumber.trim() === '') {
+      this.error = 'Veuillez saisir un numéro de facture';
+      return;
+    }
     
-    this.cancelInvoice();
+    console.log('Generating invoice for document:', this.selectedDocument.id);
+    console.log('Using invoice number:', this.invoiceNumber);
+    
+    // Load caches first, then generate invoice
+    this.loadProductCaches().then(() => {
+      this.generateInvoiceWithRealProducts();
+    });
+  }
+
+  private async loadProductCaches(): Promise<void> {
+    try {
+      // Load all products
+      const products = await this.productsService.getProducts().toPromise();
+      if (products) {
+        products.forEach((product: any) => {
+          this.productsCache.set(product.id, product);
+        });
+      }
+
+      // Load all produits de caisse
+      const produitsDeCaisse = await this.produitsDeCaisseService.getProduitsDeCaisse().toPromise();
+      if (produitsDeCaisse) {
+        produitsDeCaisse.forEach((produit: any) => {
+          this.produitsDeCaisseCache.set(produit.id, produit);
+        });
+      }
+
+      console.log('Product caches loaded:', {
+        products: this.productsCache.size,
+        produitsDeCaisse: this.produitsDeCaisseCache.size
+      });
+    } catch (error) {
+      console.error('Error loading product caches:', error);
+    }
+  }
+
+  private generateInvoiceWithRealProducts(): void {
+    if (!this.selectedDocument) return;
+
+    // Prepare invoice document data similar to scanning
+    const invoiceData = {
+      type: 'FACTURE',
+      numero: this.invoiceNumber, // Use the manual invoice number from the modal
+      fromDepotId: this.selectedDocument.emetteurId || 1,
+      destinationDepotId: this.selectedDocument.destinataireId || this.selectedDocument.emetteurId || 1,
+      clientId: this.selectedDocument.clientId || this.selectedDocument.client?.id,
+      status: 'COMPLETED',
+      items: this.selectedDocument.items?.map(item => {
+        // Get the actual sub-product (produit de caisse) details
+        const produit = this.produitsDeCaisseCache.get(item.productId);
+        const parentProductId = produit?.parentProductId || item.productId;
+        const parentProduct = this.productsCache.get(parentProductId);
+        
+        const baseItem = {
+          productId: item.productId, // Keep the actual scanned sub-product ID
+          quantity: item.quantity,
+          count: item.count || 1,
+          famille: parentProduct?.famille || parentProduct?.name || item.famille || 'Produit scanné',
+          parentProductId: parentProductId,
+          childProductName: produit?.name || `CHILDREN ${item.productId}`
+        };
+        
+        // Use the actual sub-product pricing if available
+        if (produit) {
+          const prixUnitaire = produit.prix_vente_TTC || item.prixUnitaire || 0;
+          const tva = produit.tva || item.tva || 19;
+          const quantite = item.quantity;
+          const montantTTC = prixUnitaire * quantite;
+          const montantHT = montantTTC / (1 + tva / 100);
+          const montantTVA = montantTTC - montantHT;
+          
+          return {
+            ...baseItem,
+            prixUnitaire: prixUnitaire,
+            tva: tva,
+            montantHT: montantHT,
+            montantTVA: montantTVA,
+            montantTTC: montantTTC,
+            batch: item.batch,
+            notes: item.notes,
+            barcode: item.barcode
+          };
+        }
+        
+        // Fallback to stored values if produit not found
+        return {
+          ...baseItem,
+          prixUnitaire: item.prixUnitaire || 0,
+          tva: item.tva || 19,
+          montantHT: item.montantHT || 0,
+          montantTVA: item.montantTVA || 0,
+          montantTTC: item.montantTTC || 0,
+          batch: item.batch,
+          notes: item.notes,
+          barcode: item.barcode
+        };
+      }) || [],
+      notes: `Facture générée automatiquement à partir du document ${this.selectedDocument.numero}`,
+      // Include client details
+      client: this.selectedDocument.client ? {
+        id: this.selectedDocument.client.id,
+        code: this.selectedDocument.client.code,
+        firstName: this.selectedDocument.client.firstName,
+        lastName: this.selectedDocument.client.lastName,
+        email: this.selectedDocument.client.email,
+        phone: this.selectedDocument.client.phone,
+        address: this.selectedDocument.client.address,
+        city: this.selectedDocument.client.city,
+        matriculeFiscal: this.selectedDocument.client.matriculeFiscal,
+        postalCode: this.selectedDocument.client.postalCode,
+        clientType: this.selectedDocument.client.clientType
+      } : null
+    };
+
+    console.log('Invoice data with real products:', invoiceData);
+    console.log('Original document clientId:', this.selectedDocument.clientId);
+    console.log('Original document client:', this.selectedDocument.client);
+    console.log('Final clientId being sent:', invoiceData.clientId);
+
+    // Create the invoice document
+    this.stockDocumentsService.createDocument(invoiceData).subscribe({
+      next: (createdInvoice) => {
+        console.log('Invoice created successfully:', createdInvoice);
+        this.cancelInvoice();
+        
+        // Navigate to the new invoice document
+        this.router.navigate(['/stock/documents', createdInvoice.id]);
+      },
+      error: (error) => {
+        console.error('Error creating invoice:', error);
+        const errorMessage = error?.error?.error || error?.message || 'Erreur inconnue';
+        this.error = 'Erreur lors de la création de la facture: ' + errorMessage;
+      }
+    });
   }
 
   goToScan(): void {
