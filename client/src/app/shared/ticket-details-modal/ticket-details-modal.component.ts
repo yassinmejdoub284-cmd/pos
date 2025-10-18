@@ -186,7 +186,7 @@ import { Sale } from '../../core/models/sale.model';
         </div>
 
         <!-- Sticky Footer -->
-        <div class="sticky bottom-0 bg-gradient-to-r from-blue-50/95 to-indigo-50/95 backdrop-blur-sm p-4 border-t border-blue-200/60 shadow-lg">
+        <div class="sticky bottom-0 bg-gradient-to-r from-blue-50/95 to-indigo-50/95 p-4 border-t border-blue-200/60 shadow-lg">
           <div class="flex justify-center space-x-3">
             <button (click)="onPrint()" 
               class="px-4 py-2 bg-blue-600 text-white rounded-lg transition-all duration-200 shadow-sm text-sm">

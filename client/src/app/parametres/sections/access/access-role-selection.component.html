@@ -1,0 +1,52 @@
+<div class="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-pink-50 p-6">
+  <div>
+    <div class="flex items-center justify-between mb-4 md:mb-6">
+      <div class="flex items-center gap-3">
+        <a routerLink="/parametres"
+           class="w-10 h-10 md:w-11 md:h-11 bg-gray-100 text-gray-800 rounded-lg border border-gray-200 transition-all flex items-center justify-center">
+          <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <div>
+          <span class="text-xs text-gray-500">Paramètres</span>
+          <div class="text-2xl md:text-3xl font-bold text-gray-800">Gestion des Accès</div>
+          <div class="text-sm text-gray-600">Choisissez un rôle pour configurer la page d’accueil.</div>
+        </div>
+      </div>
+      <a routerLink="/parametres/access/new" class="px-4 py-2 rounded-xl bg-emerald-600 text-white shadow">Ajouter un rôle</a>
+    </div>
+
+    <div class="min-h-[70vh] grid grid-cols-1 md:grid-cols-3 gap-6 place-items-center content-center">
+      <button title="Configurer" *ngFor="let role of roles" (click)="openRole(role)"
+              class="w-full h-56 p-6 rounded-3xl border bg-white text-left border-emerald-100/60 hover:border-emerald-300 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400 shadow-sm relative">
+        <div class="absolute top-3 right-3 flex items-center gap-3">
+          <a [routerLink]="['/parametres/access/new', role.id]" title="Modifier" class="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 border border-blue-200 flex items-center justify-center shadow-sm active:scale-95">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h2m-7 7h10M5 12l5 5L20 7"/>
+            </svg>
+          </a>
+          <button (click)="deleteRole($event, role)" title="Supprimer" class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-700 border border-rose-200 flex items-center justify-center shadow-sm active:scale-95">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="flex items-center gap-6 h-full">
+          <div class="w-20 h-20 rounded-3xl flex items-center justify-center shadow-md"
+               [ngStyle]="{ backgroundColor: getRoleColor(role.id) }">
+            <svg class="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path [attr.d]="getRoleIcon(role.id, role.icon)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <div class="text-2xl font-bold text-gray-800 mb-1">{{ role.name }}</div>
+            <div class="text-sm text-gray-600">Configurer les blocs d’accueil</div>
+          </div>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+
+

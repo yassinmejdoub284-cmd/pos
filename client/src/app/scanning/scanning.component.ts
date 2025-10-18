@@ -10,6 +10,7 @@ import { StockDocumentsService } from '../core/services/stock-documents.service'
 import { SettingsService } from '../core/services/settings.service';
 import { SessionsService } from '../core/services/sessions.service';
 import { AuthService } from '../core/services/auth.service';
+import { WholesaleRulesService, WholesaleRule } from '../core/services/wholesale-rules.service';
 import { Product } from '../core/models/product.model';
 import { ProduitDeCaisse } from '../core/models/produit-de-caisse.model';
 
@@ -79,6 +80,19 @@ export class ScanningComponent implements OnInit, OnDestroy {
   editedColisCount = '';
   shouldClearColisOnFirstTap = false;
   
+  // Manual Add Modals
+  showManualAddModal = false;
+  showProductSelectionModal = false;
+  showManualQuantityModal = false;
+  showManualColisModal = false;
+  selectedProductForManualAdd: any = null;
+  manualQuantity = '';
+  manualColisCount = '';
+  shouldClearManualQuantityOnFirstTap = false;
+  shouldClearManualColisOnFirstTap = false;
+  searchQuery = '';
+  filteredProduitsDeCaisse: any[] = [];
+  
   // Selected values
   selectedClient: any = null;
   selectedDepot: any = null;
@@ -101,6 +115,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
   // Products cache for fast lookup
   private productsCache = new Map<number, Product>();
   private produitsDeCaisseCache = new Map<number, ProduitDeCaisse>();
+  
+  // Wholesale rules for pricing
+  private wholesaleRules: WholesaleRule[] = [];
 
   // Sound effects
   private beepSound: HTMLAudioElement | null = null;
@@ -118,7 +135,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
     private stockDocumentsService: StockDocumentsService,
     private settingsService: SettingsService,
     private sessionsService: SessionsService,
-    private authService: AuthService
+    private authService: AuthService,
+    private wholesaleRulesService: WholesaleRulesService
   ) {}
 
   ngOnInit(): void {
@@ -132,6 +150,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.loadVehicles();
     this.loadDrivers();
     this.loadSettings();
+    this.loadWholesaleRules();
     
     // Also try to get the active session directly
     this.sessionsService.getActiveSession().subscribe({
@@ -204,7 +223,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
            this.showValidityModal ||
            this.showScanDetailsModal ||
            this.showQuantityEditModal ||
-           this.showColisEditModal;
+           this.showColisEditModal ||
+           this.showManualAddModal ||
+           this.showProductSelectionModal ||
+           this.showManualQuantityModal ||
+           this.showManualColisModal;
   }
 
   private loadProducts(): void {
@@ -229,7 +252,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
         produits.forEach(produit => {
           this.produitsDeCaisseCache.set(produit.id, produit);
         });
-    this.searchProductByBarcode("1234001891011")
+        // Initialize filtered list for manual add
+        this.filteredProduitsDeCaisse = produits;
+    // this.searchProductByBarcode("1234001891011")
     // this.searchProductByBarcode("1234002891011")
     // this.searchProductByBarcode("1234003891011")
     // this.searchProductByBarcode("1234004891011")
@@ -1036,7 +1061,13 @@ export class ScanningComponent implements OnInit, OnDestroy {
         const totalPrice = items.reduce((sum, item) => {
           const produit = this.produitsDeCaisseCache.get(item.articleId);
           if (produit) {
-            const prixUnitaire = produit.prix_vente_TTC || 0;
+            let prixUnitaire = produit.prix_vente_TTC || 0;
+
+            // Apply custom/bundle pricing when available (for any client)
+            if (this.hasCustomPrice(produit)) {
+              prixUnitaire = this.getWholesalePrice(produit);
+            }
+            
             const quantite = item.quantity / 1000; // Convert to kg
             return sum + (prixUnitaire * quantite);
           }
@@ -1055,7 +1086,13 @@ export class ScanningComponent implements OnInit, OnDestroy {
         const totalPrice = items.reduce((sum, item) => {
           const produit = this.produitsDeCaisseCache.get(item.articleId);
           if (produit) {
-            const prixUnitaire = produit.prix_vente_TTC || 0;
+            let prixUnitaire = produit.prix_vente_TTC || 0;
+
+            // Apply custom/bundle pricing when available (for any client)
+            if (this.hasCustomPrice(produit)) {
+              prixUnitaire = this.getWholesalePrice(produit);
+            }
+            
             const quantite = item.quantity / 1000; // Convert to kg
             return sum + (prixUnitaire * quantite);
           }
@@ -1091,7 +1128,148 @@ export class ScanningComponent implements OnInit, OnDestroy {
     return 'Général';
   }
 
+  getParentProductImage(produit: any): string | null {
+    if (!produit) return null;
+    
+    // If this produit has a parentProductId, get the parent product image
+    if (produit.parentProductId) {
+      const parentProduct = this.productsCache.get(produit.parentProductId) || null;
+      if (parentProduct && parentProduct.photo) {
+        return parentProduct.photo;
+      }
+    }
+    
+    // If no parent product or no image, return null
+    return null;
+  }
+
   getSubProductPrice(articleId: number, quantity: number): number {
+    const produit = this.produitsDeCaisseCache.get(articleId);
+    if (produit) {
+      let prixUnitaire = produit.prix_vente_TTC || 0;
+
+      // Apply custom/bundle pricing when available (for any client)
+      if (this.hasCustomPrice(produit)) {
+        prixUnitaire = this.getWholesalePrice(produit);
+      }
+
+      const quantite = quantity / 1000; // Convert to kg
+      return prixUnitaire * quantite;
+    }
+    return 0;
+  }
+
+  private isWholesaleClient(): boolean {
+    return this.selectedClient?.clientType === 'WHOLESALE';
+  }
+
+  private getWholesalePrice(produit: ProduitDeCaisse): number {
+    // First try to get from parent product if available
+    if (produit.parentProductId) {
+      const parentProduct = this.productsCache.get(produit.parentProductId);
+      if (parentProduct && (parentProduct as any).bundlePrice && (parentProduct as any).bundleSize) {
+        return (parentProduct as any).bundlePrice / (parentProduct as any).bundleSize;
+      }
+    }
+
+    // Then try from the produit itself
+    if ((produit as any).bundlePrice && (produit as any).bundleSize) {
+      return (produit as any).bundlePrice / (produit as any).bundleSize;
+    }
+
+    // Apply wholesale rules if available
+    const applicableRule = this.findApplicableWholesaleRule(produit.id);
+    if (applicableRule) {
+      const basePrice = produit.prix_vente_TTC || 0;
+      const ruleVal = Number(applicableRule.value) || 0;
+      
+      if (applicableRule.ruleType === 'percentage') {
+        return basePrice * (1 - ruleVal / 100);
+      } else if (applicableRule.ruleType === 'fixed') {
+        return ruleVal;
+      } else if (applicableRule.ruleType === 'discount') {
+        return Math.max(0, basePrice - ruleVal);
+      }
+    }
+
+    // Fallback to regular price
+    return produit.prix_vente_TTC || 0;
+  }
+
+  private findApplicableWholesaleRule(productId: number): WholesaleRule | null {
+    // Since wholesale rules don't have specific productIds, apply the first active rule
+    // In a real system, you might want to have more sophisticated rule matching
+    return this.wholesaleRules.find(rule => 
+      !rule.isArchived
+    ) || null;
+  }
+
+  private hasCustomPrice(produit: ProduitDeCaisse): boolean {
+    // Only apply custom pricing if a client is selected
+    if (!this.selectedClient) {
+      return false;
+    }
+
+    // Bundle-level price on parent product
+    if (produit.parentProductId) {
+      const parentProduct = this.productsCache.get(produit.parentProductId);
+      if (parentProduct && (parentProduct as any).bundlePrice && (parentProduct as any).bundleSize) {
+        return true;
+      }
+    }
+    // Bundle on the produit itself
+    if ((produit as any).bundlePrice && (produit as any).bundleSize) {
+      return true;
+    }
+    // Applicable pricing rule
+    return this.findApplicableWholesaleRule(produit.id) !== null;
+  }
+
+  private loadWholesaleRules(): void {
+    this.wholesaleRulesService.getWholesaleRules().subscribe({
+      next: (rules: WholesaleRule[]) => {
+        this.wholesaleRules = rules;
+      },
+      error: (error: any) => {
+        console.error('Error loading wholesale rules:', error);
+        this.wholesaleRules = [];
+      }
+    });
+  }
+
+  // Check if wholesale pricing is being applied
+  isCustomPricingActiveForArticle(articleId: number, quantity: number): boolean {
+    const produit = this.produitsDeCaisseCache.get(articleId);
+    if (!produit) {
+      return false;
+    }
+    if (!this.hasCustomPrice(produit)) {
+      return false;
+    }
+    // Compare computed custom price with original
+    const original = this.getOriginalPrice(articleId, quantity);
+    const current = this.getSubProductPrice(articleId, quantity);
+    return Math.abs(current - original) > 1e-9;
+  }
+
+  // Check if the selected client has any custom pricing available
+  hasClientCustomPricing(): boolean {
+    if (!this.selectedClient) {
+      return false;
+    }
+
+    // Check if any scanned products have custom pricing
+    for (const item of this.scannedItems) {
+      const produit = this.produitsDeCaisseCache.get(item.articleId);
+      if (produit && this.hasCustomPrice(produit)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Get the original price for comparison
+  getOriginalPrice(articleId: number, quantity: number): number {
     const produit = this.produitsDeCaisseCache.get(articleId);
     if (produit) {
       const prixUnitaire = produit.prix_vente_TTC || 0;
@@ -1829,6 +2007,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
           productId: parentProductId, // Use parent product ID for stock management
           quantity: item.quantity / 1000, // Convert to kg
           count: item.count,
+          colisCount: item.colisCount, // Include the colis count
           famille: parentProduct?.famille || parentProduct?.name || 'Produit scanné',
           parentProductId: parentProductId, // Add parent reference for grouping
           childProductName: produit?.name || `CHILDREN ${item.articleId}`, // Add child name for display
@@ -1837,7 +2016,13 @@ export class ScanningComponent implements OnInit, OnDestroy {
         
         // Always include price fields if produit exists
         if (produit) {
-          const prixUnitaire = produit.prix_vente_TTC || 0;
+          let prixUnitaire = produit.prix_vente_TTC || 0;
+          
+          // Apply custom/bundle pricing when available (for any client)
+          if (this.hasCustomPrice(produit)) {
+            prixUnitaire = this.getWholesalePrice(produit);
+          }
+          
           const tva = produit.tva || 19;
           const quantite = item.quantity / 1000; // Convert to kg
           const montantTTC = prixUnitaire * quantite;
@@ -1917,36 +2102,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       documentData.invoiceNumber = this.invoiceNumber;
     }
 
-    // Add notes if any configuration is selected
-    const notes = [];
-    if (this.selectedClient) {
-      notes.push(`Client: ${this.selectedClient.firstName} ${this.selectedClient.lastName}`);
-    }
-    if (this.selectedVehicle) {
-      const vehicleName = this.selectedVehicle.brand && this.selectedVehicle.model 
-        ? `${this.selectedVehicle.brand} ${this.selectedVehicle.model}`
-        : this.selectedVehicle.name || 'Véhicule sélectionné';
-      notes.push(`Véhicule: ${vehicleName}`);
-    }
-    if (this.selectedDriver) {
-      const driverName = this.selectedDriver.firstName && this.selectedDriver.lastName
-        ? `${this.selectedDriver.firstName} ${this.selectedDriver.lastName}`
-        : this.selectedDriver.name || 'Chauffeur sélectionné';
-      notes.push(`Chauffeur: ${driverName}`);
-    }
-    if (this.manualDestination) {
-      notes.push(`Destination: ${this.manualDestination}`);
-    }
-    if (this.invoiceNumber && this.selectedDocumentType === 'facture') {
-      notes.push(`Numéro de facture: ${this.invoiceNumber}`);
-    }
-    if (this.validityFromDate && this.validityToDate) {
-      notes.push(`Validité du: ${new Date(this.validityFromDate).toLocaleDateString('fr-FR')} au: ${new Date(this.validityToDate).toLocaleDateString('fr-FR')}`);
-    }
-    
-    if (notes.length > 0) {
-      documentData.notes = notes.join(' | ');
-    }
+    // Do not duplicate structured fields into notes; rely on dedicated columns (clientId, vehicleId, driverId, destination, validationFromDate, validationToDate, numero)
 
     // Add validity dates to document data
     if (this.validityFromDate && this.validityToDate) {
@@ -2021,5 +2177,326 @@ export class ScanningComponent implements OnInit, OnDestroy {
         console.error('Error loading settings:', error);
       }
     });
+  }
+
+  // Manual Add Methods
+  showManualAdd(): void {
+    this.openProductSelection();
+  }
+
+  private resetManualAddState(): void {
+    this.selectedProductForManualAdd = null;
+    this.manualQuantity = '';
+    this.manualColisCount = '';
+    this.searchQuery = '';
+    this.shouldClearManualQuantityOnFirstTap = false;
+    this.shouldClearManualColisOnFirstTap = false;
+    this.filteredProduitsDeCaisse = Array.from(this.produitsDeCaisseCache.values());
+  }
+
+  openProductSelection(): void {
+    this.showProductSelectionModal = true;
+    this.filteredProduitsDeCaisse = Array.from(this.produitsDeCaisseCache.values());
+  }
+
+  closeProductSelectionModal(): void {
+    this.showProductSelectionModal = false;
+    this.searchQuery = '';
+    this.filteredProduitsDeCaisse = Array.from(this.produitsDeCaisseCache.values());
+    this.resetManualAddState();
+  }
+
+  filterProduitsDeCaisse(): void {
+    if (!this.searchQuery.trim()) {
+      this.filteredProduitsDeCaisse = Array.from(this.produitsDeCaisseCache.values());
+    } else {
+      const query = this.searchQuery.toLowerCase();
+      this.filteredProduitsDeCaisse = Array.from(this.produitsDeCaisseCache.values()).filter(produit =>
+        produit.name.toLowerCase().includes(query) ||
+        produit.id.toString().includes(query) ||
+        this.getParentProductName(produit).toLowerCase().includes(query)
+      );
+    }
+  }
+
+  getGroupedProduitsDeCaisse(): Array<{
+    parentProduct: Product | null;
+    parentProductId: number;
+    parentProductName: string;
+    parentProductImage: string | null;
+    produits: any[];
+  }> {
+    const groups = new Map<number, any[]>();
+
+    // Group produits by parent product
+    this.filteredProduitsDeCaisse.forEach(produit => {
+      const parentId = produit.parentProductId || -produit.id; // Use negative ID for standalone products
+      if (!groups.has(parentId)) {
+        groups.set(parentId, []);
+      }
+      groups.get(parentId)!.push(produit);
+    });
+
+    // Convert to array and sort
+    const result = Array.from(groups.entries()).map(([parentId, produits]) => {
+      let parentProduct: Product | null = null;
+      let parentProductName = 'Produits Indépendants';
+      let parentProductImage: string | null = null;
+
+      if (parentId > 0) {
+        parentProduct = this.productsCache.get(parentId) || null;
+        parentProductName = parentProduct?.name || 'Produit Parent Inconnu';
+        parentProductImage = parentProduct?.photo || null;
+      } else {
+        // For standalone products, use the first product's info
+        if (produits.length > 0) {
+          parentProductName = produits[0].name;
+        }
+      }
+
+      return {
+        parentProduct,
+        parentProductId: parentId,
+        parentProductName,
+        parentProductImage,
+        produits: produits.sort((a, b) => a.name.localeCompare(b.name))
+      };
+    });
+
+    // Sort groups by number of variants (most variants first), then by parent product name
+    return result.sort((a, b) => {
+      if (b.produits.length !== a.produits.length) {
+        return b.produits.length - a.produits.length;
+      }
+      return a.parentProductName.localeCompare(b.parentProductName);
+    });
+  }
+
+  getParentProductName(produit: any): string {
+    if (!produit) return '';
+    
+    if (produit.parentProductId) {
+      const parentProduct = this.productsCache.get(produit.parentProductId) || null;
+      return parentProduct?.name || 'Produit Parent Inconnu';
+    }
+    
+    return produit.name || '';
+  }
+
+  selectProductForManualAdd(produit: any): void {
+    this.selectedProductForManualAdd = produit;
+    this.showProductSelectionModal = false;
+    this.openManualQuantityModal();
+  }
+
+  openManualQuantityModal(): void {
+    this.manualQuantity = '';
+    this.shouldClearManualQuantityOnFirstTap = true;
+    this.showManualQuantityModal = true;
+  }
+
+  closeManualQuantityModal(): void {
+    this.showManualQuantityModal = false;
+    this.manualQuantity = '';
+    this.shouldClearManualQuantityOnFirstTap = false;
+  }
+
+  confirmManualQuantity(): void {
+    if (!this.manualQuantity.trim()) {
+      this.showError('Veuillez saisir une quantité valide');
+      return;
+    }
+
+    const quantity = parseFloat(this.manualQuantity);
+    if (isNaN(quantity) || quantity <= 0) {
+      this.showError('La quantité doit être un nombre positif');
+      return;
+    }
+
+    this.showManualQuantityModal = false;
+    this.openManualColisModal();
+  }
+
+  openManualColisModal(): void {
+    this.manualColisCount = '1';
+    this.shouldClearManualColisOnFirstTap = true;
+    this.showManualColisModal = true;
+  }
+
+  closeManualColisModal(): void {
+    this.showManualColisModal = false;
+    this.manualColisCount = '';
+    this.shouldClearManualColisOnFirstTap = false;
+  }
+
+  confirmManualColis(): void {
+    if (!this.manualColisCount.trim()) {
+      this.showError('Veuillez saisir un nombre de colis valide');
+      return;
+    }
+
+    const colisCount = parseInt(this.manualColisCount, 10);
+    if (isNaN(colisCount) || colisCount < 1) {
+      this.showError('Le nombre de colis doit être un nombre entier positif');
+      return;
+    }
+
+    this.addManualProduct();
+  }
+
+  private addManualProduct(): void {
+    if (!this.selectedProductForManualAdd) {
+      this.showError('Aucun produit sélectionné');
+      return;
+    }
+
+    const quantity = parseFloat(this.manualQuantity);
+    const colisCount = parseInt(this.manualColisCount, 10);
+    const articleId = this.selectedProductForManualAdd.id;
+    const productName = this.selectedProductForManualAdd.name;
+
+    // Create individual scan entry for manual add
+    const individualScan = {
+      id: `manual_${articleId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      quantity: Math.round(quantity * 1000), // Convert to grams
+      timestamp: new Date(),
+      barcode: `MANUAL_${articleId}_${Date.now()}`
+    };
+
+    // Find existing item or create new one
+    const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
+
+    if (existingItemIndex >= 0) {
+      // Update existing item - add quantity and increment count
+      this.scannedItems[existingItemIndex].quantity += Math.round(quantity * 1000);
+      this.scannedItems[existingItemIndex].count += 1;
+      this.scannedItems[existingItemIndex].colisCount += colisCount;
+      this.scannedItems[existingItemIndex].lastScanned = new Date();
+      this.scannedItems[existingItemIndex].individualScans.push(individualScan);
+      this.success = `${productName} ajouté manuellement (${this.scannedItems[existingItemIndex].count}x, Qty: ${(this.scannedItems[existingItemIndex].quantity/1000).toFixed(3)}kg)`;
+    } else {
+      // Add new item
+      this.scannedItems.push({
+        articleId: articleId,
+        productName: productName,
+        quantity: Math.round(quantity * 1000), // Convert to grams
+        count: 1,
+        colisCount: colisCount,
+        lastScanned: new Date(),
+        individualScans: [individualScan]
+      });
+      this.success = `Nouveau ${productName} ajouté manuellement (Qty: ${quantity.toFixed(3)}kg, ${colisCount} colis)`;
+    }
+
+    // Play success sound
+    this.playSuccessSound();
+
+    // Clear success message after 3 seconds
+    setTimeout(() => { this.success = ''; }, 3000);
+    this.error = '';
+
+    // Close all modals and reset state
+    this.showManualColisModal = false;
+    this.resetManualAddState();
+
+    // Scroll to the added item after a short delay to ensure DOM is updated
+    setTimeout(() => {
+      this.scrollToScannedItem(articleId);
+    }, 100);
+  }
+
+  // Manual Quantity Numpad methods
+  addManualQuantityDigit(digit: string): void {
+    if (this.shouldClearManualQuantityOnFirstTap) {
+      // Clear the current value and start fresh
+      this.manualQuantity = digit;
+      this.shouldClearManualQuantityOnFirstTap = false; // Reset flag after first tap
+    } else if (this.manualQuantity.length < 10) { // Limit to reasonable length
+      this.manualQuantity += digit;
+    }
+  }
+
+  removeLastManualQuantityDigit(): void {
+    this.manualQuantity = this.manualQuantity.slice(0, -1);
+  }
+
+  clearManualQuantity(): void {
+    this.manualQuantity = '';
+    this.shouldClearManualQuantityOnFirstTap = false; // Reset flag when manually clearing
+  }
+
+  addManualQuantityDecimalPoint(): void {
+    if (this.shouldClearManualQuantityOnFirstTap) {
+      // Clear the current value and start with decimal point
+      this.manualQuantity = '0.';
+      this.shouldClearManualQuantityOnFirstTap = false; // Reset flag after first tap
+    } else if (!this.manualQuantity.includes('.')) {
+      this.manualQuantity += '.';
+    }
+  }
+
+  // Manual Colis Numpad methods
+  addManualColisDigit(digit: string): void {
+    if (this.shouldClearManualColisOnFirstTap) {
+      // Clear the current value and start fresh
+      this.manualColisCount = digit;
+      this.shouldClearManualColisOnFirstTap = false; // Reset flag after first tap
+    } else if (this.manualColisCount.length < 3) { // Limit to reasonable length for colis count
+      this.manualColisCount += digit;
+    }
+  }
+
+  removeLastManualColisDigit(): void {
+    this.manualColisCount = this.manualColisCount.slice(0, -1);
+  }
+
+  clearManualColisCount(): void {
+    this.manualColisCount = '';
+    this.shouldClearManualColisOnFirstTap = false; // Reset flag when manually clearing
+  }
+
+  // Color methods for vibrant pastel theme
+  getGroupHeaderColor(index: number): string {
+    const colors = [
+      'from-purple-500 to-purple-600',      // Deep purple
+      'from-pink-500 to-pink-600',          // Deep pink
+      'from-blue-500 to-blue-600',          // Deep blue
+      'from-teal-500 to-teal-600',          // Deep teal
+      'from-emerald-500 to-emerald-600',    // Deep emerald
+      'from-amber-500 to-amber-600',        // Deep amber
+      'from-orange-500 to-orange-600',      // Deep orange
+      'from-red-500 to-red-600',            // Deep red
+      'from-indigo-500 to-indigo-600',      // Deep indigo
+      'from-cyan-500 to-cyan-600'           // Deep cyan
+    ];
+    return colors[index % colors.length];
+  }
+
+  getProductCardColor(groupIndex: number, productIndex: number): string {
+    const colorSets = [
+      // Purple group
+      ['bg-purple-400 border-purple-500 hover:bg-purple-500', 'bg-purple-300 border-purple-400 hover:bg-purple-400', 'bg-purple-500 border-purple-600 hover:bg-purple-600'],
+      // Pink group
+      ['bg-pink-400 border-pink-500 hover:bg-pink-500', 'bg-pink-300 border-pink-400 hover:bg-pink-400', 'bg-pink-500 border-pink-600 hover:bg-pink-600'],
+      // Blue group
+      ['bg-blue-400 border-blue-500 hover:bg-blue-500', 'bg-blue-300 border-blue-400 hover:bg-blue-400', 'bg-blue-500 border-blue-600 hover:bg-blue-600'],
+      // Teal group
+      ['bg-teal-400 border-teal-500 hover:bg-teal-500', 'bg-teal-300 border-teal-400 hover:bg-teal-400', 'bg-teal-500 border-teal-600 hover:bg-teal-600'],
+      // Emerald group
+      ['bg-emerald-400 border-emerald-500 hover:bg-emerald-500', 'bg-emerald-300 border-emerald-400 hover:bg-emerald-400', 'bg-emerald-500 border-emerald-600 hover:bg-emerald-600'],
+      // Amber group
+      ['bg-amber-400 border-amber-500 hover:bg-amber-500', 'bg-amber-300 border-amber-400 hover:bg-amber-400', 'bg-amber-500 border-amber-600 hover:bg-amber-600'],
+      // Orange group
+      ['bg-orange-400 border-orange-500 hover:bg-orange-500', 'bg-orange-300 border-orange-400 hover:bg-orange-400', 'bg-orange-500 border-orange-600 hover:bg-orange-600'],
+      // Red group
+      ['bg-red-400 border-red-500 hover:bg-red-500', 'bg-red-300 border-red-400 hover:bg-red-400', 'bg-red-500 border-red-600 hover:bg-red-600'],
+      // Indigo group
+      ['bg-indigo-400 border-indigo-500 hover:bg-indigo-500', 'bg-indigo-300 border-indigo-400 hover:bg-indigo-400', 'bg-indigo-500 border-indigo-600 hover:bg-indigo-600'],
+      // Cyan group
+      ['bg-cyan-400 border-cyan-500 hover:bg-cyan-500', 'bg-cyan-300 border-cyan-400 hover:bg-cyan-400', 'bg-cyan-500 border-cyan-600 hover:bg-cyan-600']
+    ];
+    
+    const colorSet = colorSets[groupIndex % colorSets.length];
+    return colorSet[productIndex % colorSet.length];
   }
 }

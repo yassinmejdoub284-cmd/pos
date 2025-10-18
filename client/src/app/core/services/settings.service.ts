@@ -32,6 +32,13 @@ export interface AppSettings {
   autoApproveExpenseBelow: number;
   // Historique
   historyRetentionDays?: number;
+  // Role-based history limits
+  roleHistoryLimits?: {
+    ADMIN?: number;
+    MANAGER?: number;
+    CASHIER?: number;
+    STOCK_MANAGER?: number;
+  };
   // Stock
   allowNegativeStock?: boolean;
   // Print settings
@@ -52,6 +59,22 @@ export interface AppSettings {
     showClientInfo: boolean;
     showPaymentMethod: boolean;
     showDiscountDetails: boolean;
+  };
+  // Document display settings
+  documentDisplaySettings: {
+    livraison: {
+      showPackageCount: boolean; // true = show "X colis", false = show children names
+    };
+    sortie: {
+      showPackageCount: boolean;
+    };
+    transfert: {
+      showPackageCount: boolean;
+    };
+    facture: {
+      showPackageCount: boolean;
+      timbrePrice: number; // Fiscal stamp price in DT
+    };
   };
   // Document type defaults
   documentTypeDefaults: {
@@ -94,6 +117,17 @@ export interface AppSettings {
       autoInvoice: boolean;
       tvaAndPrix: boolean;
       validity: boolean;
+    };
+  };
+  // Role-based home access configuration
+  roleAccessConfig?: {
+    [role in 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER']?: {
+      blocks: {
+        [blockId: string]: {
+          visible: boolean;
+          submodules?: { [subId: string]: boolean };
+        };
+      };
     };
   };
 }

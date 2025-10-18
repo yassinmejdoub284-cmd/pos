@@ -5,12 +5,26 @@
 //   enableRealtime: false
 // };
 
+// export const environment = {
+//   production: false,
+//   apiUrl: 'https://192.168.1.18:3255/api',
+//   socketUrl: 'https://192.168.1.18:3255',
+//   enableRealtime: false
+// };
+
 export const environment = {
   production: false,
   apiUrl: 'https://192.168.28.51:3255/api',
   socketUrl: 'https://192.168.28.51:3255',
   enableRealtime: false
 };
+
+// export const environment = {
+//   production: false,
+//   apiUrl: 'https://10.157.251.51:3255/api',
+//   socketUrl: 'https://10.157.251.51:3255',
+//   enableRealtime: false
+// };
 
 // export const environment = {
 //   production: false,

@@ -20,14 +20,43 @@ router.get('/count/:depotId', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER'])
   try {
     const depotId = parseInt(req.params.depotId);
     
-    const count = await prisma.inventory.count({
-      where: {
-        depotId: depotId,
-        quantity: {
-          gt: 0
-        }
-      }
+    // Get depot information to determine product source
+    const depot = await prisma.depot.findUnique({
+      where: { id: depotId }
     });
+
+    if (!depot) {
+      return res.status(404).json({ error: 'Depot not found' });
+    }
+
+    let count = 0;
+
+    // IMPORTANT: Product source depends on depot type
+    // - SHOP depots: Use general 'inventory' table (linked to 'produits')
+    // - Other depot types (MAIN, BRANCH, WAREHOUSE): Use 'produits-de-caisse' table
+    if (depot.type === 'SHOP') {
+      // For SHOP depots, count from general inventory table
+      count = await prisma.inventory.count({
+        where: {
+          depotId: depotId,
+          quantity: {
+            gt: 0
+          }
+        }
+      });
+    } else {
+      // For NOT SHOP depots (MAIN, BRANCH, WAREHOUSE), count from produits-de-caisse
+      count = await prisma.produitDeCaisse.count({
+        where: {
+          isActive: true,
+          depotAssignments: {
+            some: {
+              depotId: depotId
+            }
+          }
+        }
+      });
+    }
 
     res.json(count);
   } catch (error) {
@@ -56,7 +85,8 @@ router.get('/sessions', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), asyn
         depot: {
           select: {
             name: true,
-            code: true
+            code: true,
+            type: true
           }
         },
         starter: {
@@ -109,7 +139,8 @@ router.get('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), 
         depot: {
           select: {
             name: true,
-            code: true
+            code: true,
+            type: true
           }
         },
         starter: {
@@ -135,20 +166,6 @@ router.get('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), 
         },
         items: {
           include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                barcode: true,
-                unite: true,
-                prix_vente_TTC: true,
-                famille: {
-                  select: {
-                    name: true
-                  }
-                }
-              }
-            },
             counter: {
               select: {
                 firstName: true,
@@ -158,9 +175,7 @@ router.get('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), 
             }
           },
           orderBy: {
-            product: {
-              name: 'asc'
-            }
+            id: 'asc'
           }
         }
       }
@@ -168,6 +183,70 @@ router.get('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), 
 
     if (!session) {
       return res.status(404).json({ error: 'Inventory session not found' });
+    }
+
+    // IMPORTANT: Product source depends on depot type
+    // - SHOP depots: Use general 'product' table
+    // - Other depot types (MAIN, BRANCH, WAREHOUSE): Use 'produitDeCaisse' table
+    if (session.depot.type === 'SHOP') {
+      // For SHOP depots, get product details from general product table
+      const itemsWithProducts = await Promise.all(
+        session.items.map(async (item) => {
+          const product = await prisma.product.findUnique({
+            where: { id: item.productId },
+            select: {
+              id: true,
+              name: true,
+              barcode: true,
+              unite: true,
+              prix_vente_TTC: true,
+              prix_achat: true,
+              tva: true,
+              famille: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              }
+            }
+          });
+          
+          if (!product) {
+            console.warn(`Product not found for productId: ${item.productId} in SHOP depot`);
+          }
+          
+          return { ...item, product };
+        })
+      );
+      session.items = itemsWithProducts;
+    } else {
+      // For NOT SHOP depots, get product details from produitDeCaisse table
+      const itemsWithProducts = await Promise.all(
+        session.items.map(async (item) => {
+          const product = await prisma.produitDeCaisse.findUnique({
+            where: { id: item.productId },
+            select: {
+              id: true,
+              name: true,
+              barcode: true,
+              unite: true,
+              prix_vente_TTC: true,
+              famille: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          });
+          
+          if (!product) {
+            console.warn(`ProduitDeCaisse not found for productId: ${item.productId} in NOT SHOP depot`);
+          }
+          
+          return { ...item, product };
+        })
+      );
+      session.items = itemsWithProducts;
     }
 
     res.json(session);
@@ -204,31 +283,96 @@ router.post('/sessions', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), asy
       });
     }
 
-    // Get all products with current inventory for this depot
-    const inventory = await prisma.inventory.findMany({
-      where: {
-        depotId: targetDepotId,
-        quantity: {
-          gt: 0
-        }
-      },
-      include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            barcode: true,
-            unite: true,
-            prix_vente_TTC: true,
-            famille: {
-              select: {
-                name: true
+    // Get depot information to determine product source
+    const depot = await prisma.depot.findUnique({
+      where: { id: targetDepotId }
+    });
+
+    if (!depot) {
+      return res.status(404).json({ error: 'Depot not found' });
+    }
+
+    let inventory = [];
+
+    // IMPORTANT: Product source depends on depot type
+    // - SHOP depots: Use general 'inventory' table (linked to 'produits')
+    // - Other depot types (MAIN, BRANCH, WAREHOUSE): Use 'produits-de-caisse' table
+    if (depot.type === 'SHOP') {
+      // For SHOP depots, get from general inventory table
+      inventory = await prisma.inventory.findMany({
+        where: {
+          depotId: targetDepotId,
+          quantity: {
+            gt: 0
+          }
+        },
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              barcode: true,
+              unite: true,
+              prix_vente_TTC: true,
+              famille: {
+                select: {
+                  name: true
+                }
               }
             }
           }
         }
-      }
-    });
+      });
+    } else {
+      // For NOT SHOP depots (MAIN, BRANCH, WAREHOUSE), get from produits-de-caisse
+      const produitsDeCaisse = await prisma.produitDeCaisse.findMany({
+        where: {
+          isActive: true,
+          depotAssignments: {
+            some: {
+              depotId: targetDepotId
+            }
+          }
+        },
+        include: {
+          famille: {
+            select: {
+              name: true
+            }
+          }
+        }
+      });
+
+      // Get actual inventory quantities for these products
+      const inventoryRecords = await prisma.inventory.findMany({
+        where: {
+          depotId: targetDepotId,
+          productId: {
+            in: produitsDeCaisse.map(p => p.id)
+          }
+        }
+      });
+
+      // Create a map of productId -> quantity for quick lookup
+      const inventoryMap = new Map();
+      inventoryRecords.forEach(record => {
+        inventoryMap.set(record.productId, parseFloat(record.quantity) || 0);
+      });
+
+      // Convert produits-de-caisse to inventory format with actual quantities
+      inventory = produitsDeCaisse.map(produit => ({
+        productId: produit.id,
+        quantity: inventoryMap.get(produit.id) || 0, // Use actual inventory quantity
+        product: {
+          id: produit.id,
+          name: produit.name,
+          barcode: produit.barcode,
+          unite: produit.unite,
+          prix_vente_TTC: produit.prix_vente_TTC,
+          famille: produit.famille
+        }
+      }));
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       // Create inventory session
@@ -346,7 +490,10 @@ router.post('/sessions/:sessionId/items', requireRole(['ADMIN', 'MANAGER', 'STOC
     }
 
     if (!['DRAFT', 'IN_PROGRESS'].includes(session.status)) {
-      return res.status(400).json({ error: 'Cannot add items to this session status' });
+      // Allow ADMIN to add items regardless of status
+      if (req.user?.role !== 'ADMIN') {
+        return res.status(400).json({ error: 'Cannot add items to this session status' });
+      }
     }
 
     // Check if product exists
@@ -422,10 +569,13 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
     }
 
     if (!['DRAFT', 'IN_PROGRESS'].includes(session.status)) {
-      console.error('Cannot update items in session status:', session.status);
-      return res.status(400).json({ 
-        error: `Cannot update items in this session status: ${session.status}. Only DRAFT and IN_PROGRESS sessions can be updated.` 
-      });
+      // Allow ADMIN to update items regardless of status
+      if (req.user?.role !== 'ADMIN') {
+        console.error('Cannot update items in session status:', session.status);
+        return res.status(400).json({ 
+          error: `Cannot update items in this session status: ${session.status}. Only DRAFT and IN_PROGRESS sessions can be updated.` 
+        });
+      }
     }
 
     // Get the inventory item
@@ -622,16 +772,12 @@ router.get('/sessions/:id/summary', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANA
     const session = await prisma.inventorySession.findUnique({
       where: { id: sessionId },
       include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                name: true,
-                prix_vente_TTC: true
-              }
-            }
+        depot: {
+          select: {
+            type: true
           }
-        }
+        },
+        items: true
       }
     });
 
@@ -639,9 +785,55 @@ router.get('/sessions/:id/summary', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANA
       return res.status(404).json({ error: 'Inventory session not found' });
     }
 
-    const totalItems = session.items.length;
-    const countedItems = session.items.filter(item => item.countedQuantity !== null).length;
-    const itemsWithEcart = session.items.filter(item => item.ecartQuantity !== null && item.ecartQuantity !== 0);
+    // IMPORTANT: Product source depends on depot type
+    // - SHOP depots: Use general 'product' table
+    // - Other depot types (MAIN, BRANCH, WAREHOUSE): Use 'produitDeCaisse' table
+    let itemsWithProducts = [];
+    
+    if (session.depot.type === 'SHOP') {
+      // For SHOP depots, get product details from general product table
+      itemsWithProducts = await Promise.all(
+        session.items.map(async (item) => {
+          const product = await prisma.product.findUnique({
+            where: { id: item.productId },
+            select: {
+              name: true,
+              prix_vente_TTC: true,
+              prix_achat: true
+            }
+          });
+          
+          if (!product) {
+            console.warn(`Product not found for productId: ${item.productId} in SHOP depot (summary)`);
+          }
+          
+          return { ...item, product };
+        })
+      );
+    } else {
+      // For NOT SHOP depots, get product details from produitDeCaisse table
+      itemsWithProducts = await Promise.all(
+        session.items.map(async (item) => {
+          const product = await prisma.produitDeCaisse.findUnique({
+            where: { id: item.productId },
+            select: {
+              name: true,
+              prix_vente_TTC: true
+            }
+          });
+          
+          if (!product) {
+            console.warn(`ProduitDeCaisse not found for productId: ${item.productId} in NOT SHOP depot (summary)`);
+          }
+          
+          return { ...item, product };
+        })
+      );
+    }
+
+    const totalItems = itemsWithProducts.length;
+    const countedItems = itemsWithProducts.filter(item => item.countedQuantity !== null).length;
+    const itemsWithEcart = itemsWithProducts.filter(item => item.ecartQuantity !== null && item.ecartQuantity !== 0);
     
     const summary = {
       session: {
@@ -662,7 +854,7 @@ router.get('/sessions/:id/summary', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANA
       },
       ecarts: itemsWithEcart.map(item => ({
         productId: item.productId,
-        productName: item.product.name,
+        productName: item.product?.name || 'Produit inconnu',
         theoreticalQuantity: item.theoreticalQuantity,
         countedQuantity: item.countedQuantity,
         ecartQuantity: item.ecartQuantity,

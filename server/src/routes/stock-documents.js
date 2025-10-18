@@ -87,11 +87,11 @@ async function calculateSessionSummary(sessionId) {
 const router = express.Router();
 
 async function generateDocumentNumber(type) {
-  const prefix = type === 'BON_EXPEDITION' ? 'BEXP' : 
-                 type === 'BON_ENTREE_DEPOT' ? 'BED' :
-                 type === 'BON_RETOUR_DEPOT' ? 'BDR' :
+  const prefix = type === 'BON_EXPEDITION' ? 'BS' : 
+                 type === 'BON_ENTREE_DEPOT' ? 'BE' :
+                 type === 'BON_RETOUR_DEPOT' ? 'BR' :
                  type === 'BON_TRANSFERT' ? 'BT' :
-                 type === 'BON_ENTREE_MAGASIN' ? 'BEM' :
+                 type === 'BON_ENTREE_MAGASIN' ? 'BL' :
                  type === 'FACTURE' ? 'FAC' : 'DOC';
   
   const now = new Date();
@@ -108,11 +108,11 @@ async function generateDocumentNumber(type) {
 async function getNextDocumentId(type) {
   try {
     // Get the highest sequence number from existing document numbers of this type
-    const prefix = type === 'BON_EXPEDITION' ? 'BEXP' : 
-                   type === 'BON_ENTREE_DEPOT' ? 'BED' :
-                   type === 'BON_RETOUR_DEPOT' ? 'BDR' :
+    const prefix = type === 'BON_EXPEDITION' ? 'BS' : 
+                   type === 'BON_ENTREE_DEPOT' ? 'BE' :
+                   type === 'BON_RETOUR_DEPOT' ? 'BR' :
                    type === 'BON_TRANSFERT' ? 'BT' :
-                   type === 'BON_ENTREE_MAGASIN' ? 'BEM' :
+                   type === 'BON_ENTREE_MAGASIN' ? 'BL' :
                    type === 'FACTURE' ? 'FAC' : 'DOC';
     
     const now = new Date();
@@ -164,9 +164,9 @@ function parseQuantity(q) {
 
 
 
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 20, type, status, depotId, clientId, dateFrom, dateTo } = req.query;
+    const { page = 1, limit = 20, type, status, depotId, clientId, dateFrom, dateTo, fromDepotOnly } = req.query;
     const skip = (page - 1) * limit;
         
     const where = {};
@@ -177,7 +177,12 @@ router.get('/', async (req, res) => {
         'entry': 'BON_ENTREE_DEPOT',
         'sortie': 'BON_EXPEDITION', 
         'transfert': 'BON_TRANSFERT',
-        'livraison': 'BON_ENTREE_MAGASIN'
+        'livraison': 'BON_ENTREE_MAGASIN',
+        // Also handle direct enum values
+        'BON_ENTREE_DEPOT': 'BON_ENTREE_DEPOT',
+        'BON_EXPEDITION': 'BON_EXPEDITION',
+        'BON_TRANSFERT': 'BON_TRANSFERT',
+        'BON_ENTREE_MAGASIN': 'BON_ENTREE_MAGASIN'
       };
       where.type = typeMapping[type] || type;
     }
@@ -187,10 +192,14 @@ router.get('/', async (req, res) => {
     }
     
     if (depotId) {
-      where.OR = [
-        { emetteurId: parseInt(depotId) },
-        { destinataireId: parseInt(depotId) }
-      ];
+      if (String(fromDepotOnly).toLowerCase() === 'true') {
+        where.emetteurId = parseInt(depotId);
+      } else {
+        where.OR = [
+          { emetteurId: parseInt(depotId) },
+          { destinataireId: parseInt(depotId) }
+        ];
+      }
     }
     if (clientId) {
       where.notes = { contains: `Client:${parseInt(clientId)}` };
@@ -201,6 +210,8 @@ router.get('/', async (req, res) => {
       if (dateFrom) where.createdAt.gte = new Date(dateFrom);
       if (dateTo) where.createdAt.lte = new Date(dateTo);
     }
+    
+    console.log('Stock documents query:', { where, skip, limit, type, status, depotId, fromDepotOnly });
     
     const [documents, total] = await Promise.all([
       prisma.stockDocument.findMany({
@@ -227,6 +238,8 @@ router.get('/', async (req, res) => {
       }),
       prisma.stockDocument.count({ where })
     ]);
+    
+    console.log('Stock documents result:', { documentsCount: documents.length, total });
     
     // Attach client objects for docs that reference a client in notes
     const clientIdMatches = documents
@@ -273,6 +286,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
       emetteur: { include: { company: true } },
       destinataire: { include: { company: true } },
       client: true,
+      vehicle: { include: { brand: true } },
+      driver: true,
         items: {
           include: {
             product: true
@@ -1798,6 +1813,11 @@ router.post('/', authenticateToken, async (req, res) => {
           emetteurId: fromDepotId || depotId,
           destinataireId: destinationDepotId || depotId,
           clientId: clientId || null,
+          vehicleId: vehicleId || null,
+          driverId: driverId || null,
+          destination: destination || null,
+          validationFromDate: validationFromDate ? new Date(validationFromDate) : null,
+          validationToDate: validationToDate ? new Date(validationToDate) : null,
           notes: clientId ? `Client:${clientId}${notes ? ' | ' + notes : ''}` : (notes || null),
           items: {
             create: items.map(item => ({

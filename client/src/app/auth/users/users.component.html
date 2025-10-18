@@ -10,7 +10,7 @@
 
     <div *ngIf="error" class="mb-3 p-3 bg-red-100 border border-red-200 rounded-xl text-red-700">{{ error }}</div>
 
-    <div class="bg-white/90 rounded-2xl border border-indigo-100 p-5 shadow-xl backdrop-blur">
+    <div class="bg-white/90 rounded-2xl border border-indigo-100 p-5 shadow-xl">
       <div class="flex flex-wrap items-center gap-3 mb-4">
         <div class="relative flex-1 min-w-[240px]">
           <input type="text" [(ngModel)]="search" placeholder="Rechercher utilisateur, email, rôle..." aria-label="Rechercher"
@@ -59,12 +59,41 @@
               </button>
             </div>
           </div>
-          <div class="mt-4 flex flex-wrap gap-2">
-            <button (click)="openEdit(u)" class="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white">Modifier</button>
-            <button (click)="confirmDelete(u)" class="px-3 py-1.5 text-xs rounded-lg bg-red-600 text-white">Supprimer</button>
-            <div class="ml-auto flex items-center gap-2">
-              <button (click)="openNumpad('updatePin', u)" class="px-3 py-1.5 text-xs rounded-lg bg-amber-500 text-white">Maj PIN</button>
+          <div class="text-xs text-slate-600 mt-1">
+            <div class="bg-white/60 rounded-lg px-2 py-1 flex items-center justify-between">
+              <span>iButton:</span>
+              <button (click)="toggleTokenVisibility(u.id)" 
+                      class="flex items-center gap-1 text-slate-700  transition-colors">
+                <span class="font-mono font-bold">{{ getDisplayedToken(u) }}</span>
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path *ngIf="!isTokenVisible(u.id)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path *ngIf="!isTokenVisible(u.id)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                  <path *ngIf="isTokenVisible(u.id)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                </svg>
+              </button>
             </div>
+          </div>
+          <div class="mt-4 flex items-center gap-2">
+            <button (click)="openEdit(u)" title="Modifier" class="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h2m-7 7h10M5 12l5 5L20 7"/>
+              </svg>
+            </button>
+            <button (click)="confirmDelete(u)" title="Supprimer" class="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+            <button (click)="openNumpad('updatePin', u)" title="Mettre à jour PIN" class="w-9 h-9 rounded-full bg-amber-500 text-white flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+            </button>
+            <button (click)="openTokenModal('updateToken', u)" title="Mettre à jour iButton" class="w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center ml-auto">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -82,11 +111,8 @@
         <input type="text" [(ngModel)]="newUser.lastName" placeholder="Nom" class="w-full border rounded-xl px-3 py-2 bg-white/70">
       </div>
       <div class="grid grid-cols-2 gap-2">
-        <select [(ngModel)]="newUser.role" class="w-full border rounded-xl px-3 py-2 bg-white/70" title="Rôle">
-          <option value="ADMIN">Administrateur</option>
-          <option value="MANAGER">Responsable Magasin</option>
-          <option value="CASHIER">Caissier</option>
-          <option value="STOCK_MANAGER">Gestionnaire Stock</option>
+        <select [(ngModel)]="newRoleKey" class="w-full border rounded-xl px-3 py-2 bg-white/70" title="Rôle">
+          <option *ngFor="let opt of roleAccessOptions" [value]="opt.key">{{ opt.label }}</option>
         </select>
         <button type="button" (click)="openDepotSelection(false)" 
                 class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left transition-colors">
@@ -96,6 +122,10 @@
       <button type="button" (click)="openNumpad('newPin')" 
               class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left transition-colors">
         <span class="text-gray-500">{{ newUser.pin || 'Cliquer pour définir le PIN' }}</span>
+      </button>
+      <button type="button" (click)="openTokenModal('newToken')" 
+              class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left transition-colors">
+        <span class="text-gray-500">{{ newUser.token || 'Cliquer pour lire l\'iButton' }}</span>
       </button>
     </div>
     <div class="mt-4 flex justify-end gap-2">
@@ -115,17 +145,18 @@
         <input type="text" [(ngModel)]="selectedUser.lastName" placeholder="Nom" class="w-full border rounded-xl px-3 py-2 bg-white/70">
       </div>
       <div class="grid grid-cols-2 gap-2">
-        <select [(ngModel)]="selectedUser.role" class="w-full border rounded-xl px-3 py-2 bg-white/70" title="Rôle">
-          <option value="ADMIN">Administrateur</option>
-          <option value="MANAGER">Responsable Magasin</option>
-          <option value="CASHIER">Caissier</option>
-          <option value="STOCK_MANAGER">Gestionnaire Stock</option>
+        <select [(ngModel)]="newRoleKey" class="w-full border rounded-xl px-3 py-2 bg-white/70" title="Rôle">
+          <option *ngFor="let opt of roleAccessOptions" [value]="opt.key">{{ opt.label }}</option>
         </select>
         <button type="button" (click)="openDepotSelection(true)" 
                 class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left transition-colors">
           <span class="text-gray-500">{{ getDepotName(selectedUser.depotId) }}</span>
         </button>
       </div>
+      <button type="button" (click)="openTokenModal('editToken')" 
+              class="w-full border rounded-xl px-3 py-2 bg-white/70 text-left transition-colors">
+        <span class="text-gray-500">{{ selectedUser.token || 'Cliquer pour lire l\'iButton' }}</span>
+      </button>
       <label class="inline-flex items-center gap-2 text-sm">
         <input type="checkbox" [(ngModel)]="selectedUser.isActive" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
         Actif
@@ -260,6 +291,82 @@
           <span>Mise à jour...</span>
         </span>
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Token Modal -->
+<div *ngIf="showTokenModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+     (keydown)="$event.preventDefault(); $event.stopPropagation()"
+     (submit)="$event.preventDefault()"
+     tabindex="-1">
+  <div class="bg-white/95 rounded-2xl border border-indigo-100 w-full max-w-md p-5 shadow-xl" 
+       (keydown)="$event.preventDefault(); $event.stopPropagation()"
+       (submit)="$event.preventDefault()"
+       tabindex="0">
+    <h3 class="text-lg font-semibold mb-3">{{ tokenData.title }}</h3>
+    
+    <!-- Scanner Status -->
+    <div *ngIf="isScannerMode" class="flex items-center justify-center mb-4">
+      <div class="flex items-center gap-2 px-3 py-1 bg-blue-100 rounded-full">
+        <svg class="w-4 h-4 text-blue-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+        </svg>
+        <span class="text-xs font-medium text-blue-700">Scanner détecté - Lecture en cours...</span>
+      </div>
+    </div>
+    
+    <!-- Token Display -->
+    <div class="mb-4">
+      <div class="bg-gray-100 rounded-xl p-4 text-center">
+        <div *ngIf="!tokenData.token" class="text-gray-500 mb-2">
+          <svg class="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+          </svg>
+          <p class="text-sm">Placez l'iButton dans le lecteur</p>
+        </div>
+        <div *ngIf="tokenData.token" class="text-2xl font-mono font-bold text-gray-800 mb-2">{{ tokenData.token }}</div>
+        <div *ngIf="tokenData.token" class="text-xs text-gray-500">Token détecté: {{ tokenData.token.length }} caractères</div>
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
+      <div class="flex items-start gap-2">
+        <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div class="text-sm text-blue-800">
+          <p class="font-medium mb-1">Instructions:</p>
+          <ul class="text-xs space-y-1">
+            <li>• Placez l'iButton dans le lecteur/connecteur</li>
+            <li>• Ne tapez pas manuellement - seul l'iButton est autorisé</li>
+            <li>• Le token sera automatiquement lu et enregistré</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="tokenError" class="mb-3 p-3 bg-red-100 border border-red-200 rounded-xl text-red-700 text-sm">{{ tokenError }}</div>
+
+    <!-- Manual Confirm Button (only if token is detected) -->
+    <div *ngIf="tokenData.token" class="mb-4">
+      <button (click)="confirmToken()" 
+              [disabled]="tokenLoading || !tokenData.token || tokenData.token.length < 10"
+              class="w-full p-3 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        <span *ngIf="!tokenLoading">Confirmer le token</span>
+        <span *ngIf="tokenLoading" class="flex items-center justify-center gap-2">
+          <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>Mise à jour...</span>
+        </span>
+      </button>
+    </div>
+
+    <div class="flex justify-end gap-2">
+      <button (click)="closeTokenModal()" class="px-4 py-2 rounded-xl bg-slate-100">Annuler</button>
     </div>
   </div>
 </div>

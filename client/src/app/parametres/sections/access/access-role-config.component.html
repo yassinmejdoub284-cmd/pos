@@ -1,0 +1,144 @@
+<div class="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-pink-50 p-4 md:p-6">
+  <div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between mb-4 md:mb-6">
+      <div class="flex items-center gap-3">
+        <a routerLink="/parametres/access"
+           class="w-10 h-10 md:w-11 md:h-11 bg-gray-100 text-gray-800 rounded-lg border border-gray-200 transition-all flex items-center justify-center">
+          <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <div>
+          <span class="text-xs text-gray-500">Accès</span>
+          <div class="text-2xl md:text-3xl font-bold text-gray-800">Accès — {{ role }}</div>
+          <div class="text-sm text-gray-600">Appui long pour gérer les sous-modules.</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button (click)="save()" [disabled]="saving" class="px-4 py-2 bg-emerald-600 text-white rounded-lg disabled:opacity-50">
+          <span *ngIf="!saving">Enregistrer</span>
+          <span *ngIf="saving">Sauvegarde…</span>
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="loading" class="text-gray-600">Chargement…</div>
+    <div *ngIf="error" class="text-red-600">{{ error }}</div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div *ngFor="let block of blocks; let i = index"
+           (click)="onTileClick(block)"
+           tabindex="0"
+           (keyup.enter)="toggleBlock(block)"
+           class="relative p-5 rounded-2xl border cursor-pointer select-none focus:outline-none focus:ring-2"
+           [class.border-emerald-300]="isBlockActive(block.id)"
+           [class.opacity-40]="!isBlockActive(block.id)"
+           [ngClass]="{ 'active-breath': isBlockActive(block.id) }"
+           [style.--breath-delay]="getBreathDelayMs(i)">
+        <div [class.bg-emerald-200]="isBlockActive(block.id)" class="absolute inset-0 rounded-2xl -z-10"></div>
+        <!-- Subtle inner animation (no outer glow) -->
+        <div class="active-overlay" *ngIf="isBlockActive(block.id)"></div>
+        <div class="active-stripes" *ngIf="isBlockActive(block.id)" [style.animationDelay]="getBreathDelayMs(i)"></div>
+        <div class="absolute top-3 right-3" *ngIf="!isBlockActive(block.id)">
+          <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.875.525-3.625 1.425-5.125M6.18 6.18A9.96 9.96 0 0112 5c5.523 0 10 4.477 10 10 0 1.825-.5 3.525-1.375 5" />
+            <line x1="3" y1="3" x2="21" y2="21" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center mb-3" [ngClass]="block.colorClass">
+          <svg class="w-7 h-7 text-gray-700" viewBox="0 0 496 496" fill="currentColor" *ngIf="block.id === 'caisse'"><path [attr.d]="getBlockIcon(block.id)"></path></svg>
+          <svg class="w-7 h-7 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" *ngIf="block.id !== 'caisse'">
+            <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" [attr.d]="getBlockIcon(block.id)" />
+          </svg>
+        </div>
+        <div class="text-lg font-semibold text-gray-800">{{ block.title }}</div>
+        <div class="text-xs text-gray-500">Cliquer pour donner l'accès</div>
+        <div class="text-xs text-gray-500">Astuce: Gestion fine par sous-modules</div>
+      </div>
+    </div>
+
+    <!-- Submodules Modal -->
+    <div *ngIf="showSubmodules" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" (click)="closeModal()">
+      <div class="bg-white rounded-2xl w-full max-w-3xl border border-gray-200" (click)="$event.stopPropagation()">
+        <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+          <div class="text-lg font-semibold text-gray-800">Sous-modules — {{ currentBlock?.title }}</div>
+          <button (click)="closeModal()" class="p-2 text-gray-500" title="Fermer">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="p-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <button type="button" *ngFor="let sub of currentBlock?.submodules"
+                    (click)="toggleSub(currentBlock?.id || '', sub.id)"
+                    class="text-left p-4 rounded-xl border bg-gradient-to-br from-white to-gray-50 hover:border-emerald-300 transition relative"
+                    [class.border-emerald-300]="settings?.roleAccessConfig?.[role]?.blocks?.[currentBlock?.id || '']?.submodules?.[sub.id] === true">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-200">
+                  <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path [attr.d]="sub.icon || 'M5 13l4 4L19 7'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <div class="text-sm font-semibold text-gray-800">{{ sub.label }}</div>
+                  <div class="text-xs text-gray-600">{{ sub.description }}</div>
+                </div>
+                <div class="ml-auto">
+                  <input type="checkbox" class="w-4 h-4" [checked]="settings?.roleAccessConfig?.[role]?.blocks?.[currentBlock?.id || '']?.submodules?.[sub.id] === true"/>
+                </div>
+              </div>
+              <div class="mt-2 ml-13 space-y-1" *ngIf="sub.children?.length">
+                <label *ngFor="let child of sub.children" class="flex items-center gap-2 text-xs">
+                  <input type="checkbox" [checked]="settings?.roleAccessConfig?.[role]?.blocks?.[currentBlock?.id || '']?.submodules?.[child.id] === true"
+                         (change)="toggleSub(currentBlock?.id || '', child.id)"/>
+                  <span class="text-gray-600">{{ child.label }}</span>
+                </label>
+              </div>
+            </button>
+          </div>
+        </div>
+        <div class="p-4 border-t border-gray-200 flex items-center justify-end gap-2">
+          <button (click)="closeModal()" class="px-3 py-2 rounded-lg bg-gray-100 text-gray-700">Fermer</button>
+          <button (click)="save()" [disabled]="saving" class="px-3 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Access Choice Modal -->
+    <div *ngIf="showAccessChoice" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" (click)="closeAccessChoice()">
+      <div class="bg-white rounded-2xl w-full max-w-lg border border-amber-200" (click)="$event.stopPropagation()">
+        <div class="p-4 border-b border-amber-200">
+          <div class="text-lg font-semibold text-gray-800">{{ isPendingAlreadyActive ? 'Accès actif — ' : 'Donner l\'accès — ' }}{{ pendingBlock?.title }}</div>
+          <div class="text-xs text-gray-600 mt-1" *ngIf="pendingBlock?.submodules?.length">Ce module comprend: {{ pendingSubmodulesList() }}</div>
+        </div>
+        <div class="p-4 grid grid-cols-2 gap-3">
+          <ng-container *ngIf="!isPendingAlreadyActive; else activeOptions">
+            <button (click)="grantFullModuleAccess()" class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-left">
+              <div class="text-sm font-semibold">Accès complet</div>
+              <div class="text-xs">Autoriser le module entier (et sous-modules)</div>
+            </button>
+            <button (click)="openSubmodulesFromChoice()" class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-left">
+              <div class="text-sm font-semibold">Choisir sous-modules</div>
+              <div class="text-xs">Sélectionner individuellement</div>
+            </button>
+          </ng-container>
+          <ng-template #activeOptions>
+            <button (click)="toggleBlock(pendingBlock!, false); closeAccessChoice()" class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-left">
+              <div class="text-sm font-semibold">Révoquer l'accès</div>
+              <div class="text-xs">Retirer l'autorisation pour ce module</div>
+            </button>
+            <button (click)="openSubmodulesFromChoice()" class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-left">
+              <div class="text-sm font-semibold">Gérer sous-modules</div>
+              <div class="text-xs">Activer/Désactiver individuellement</div>
+            </button>
+          </ng-template>
+        </div>
+        <div class="p-4 border-t border-amber-200 text-right">
+          <button (click)="closeAccessChoice()" class="px-3 py-2 rounded-lg bg-gray-100 text-gray-700">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+

@@ -6,7 +6,7 @@ import { Component } from '@angular/core';
   template: `
     <div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <!-- Header -->
-      <div class="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 sticky top-0 z-10">
+      <div class="bg-white/80 border-b border-gray-200/50 sticky top-0 z-10">
         <div class="max-w-7xl mx-auto px-6 py-4">
           <div class="flex items-center justify-between">
             <!-- Breadcrumb -->

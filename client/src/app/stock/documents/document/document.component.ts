@@ -116,7 +116,7 @@ export class DocumentComponent implements OnInit {
       const styleElement = document.createElement('style');
       styleElement.textContent = `
         .document-wrapper {
-          font-family: 'Times New Roman', serif !important;
+          font-family: Arial, Helvetica, sans-serif !important;
           font-size: 12px !important;
           line-height: 1.5 !important;
           color: #000 !important;
@@ -125,79 +125,32 @@ export class DocumentComponent implements OnInit {
         .document-wrapper .container {
           max-width: 800px !important;
           margin: 0 auto !important;
-          border: 2px solid #000 !important;
-          padding: 20px !important;
+          padding: 12px 0 0 0 !important;
           background: white !important;
         }
         .document-wrapper .header {
           display: flex !important;
           justify-content: space-between !important;
-          margin-bottom: 25px !important;
-          border-bottom: 3px solid #000 !important;
-          padding-bottom: 15px !important;
+          margin-bottom: 16px !important;
+          border-bottom: 1px solid #000 !important;
+          padding-bottom: 10px !important;
         }
-        .document-wrapper .company-info {
-          flex: 1 !important;
-        }
-        .document-wrapper .document-info {
-          text-align: right !important;
-          flex: 1 !important;
-        }
+        .document-wrapper .company-info { flex: 1 !important; }
+        .document-wrapper .document-info { text-align: right !important; flex: 1 !important; }
         .document-wrapper .title {
-          font-size: 24px !important;
+          font-size: 20px !important;
           font-weight: bold !important;
-          margin-bottom: 5px !important;
+          margin-bottom: 2px !important;
           text-transform: uppercase !important;
           letter-spacing: 1px !important;
         }
-        .document-wrapper .subtitle {
-          font-size: 14px !important;
-          color: #333 !important;
-          margin-bottom: 10px !important;
-          font-weight: bold !important;
-        }
-        .document-wrapper .info-row {
-          margin: 4px 0 !important;
-          font-size: 12px !important;
-        }
-        .document-wrapper .info-section {
-          margin: 12px 0 !important;
-          padding: 10px !important;
-          background-color: #f8f8f8 !important;
-          border: 1px solid #ccc !important;
-          border-radius: 4px !important;
-        }
-        .document-wrapper .label {
-          font-weight: bold !important;
-          display: inline-block !important;
-          width: 140px !important;
-          color: #333 !important;
-        }
-        .document-wrapper .value {
-          font-weight: normal !important;
-          color: #000 !important;
-        }
-        .document-wrapper table {
-          width: 100% !important;
-          border-collapse: collapse !important;
-          margin: 20px 0 !important;
-          font-size: 12px !important;
-          border: 2px solid #000 !important;
-        }
-        .document-wrapper th,
-        .document-wrapper td {
-          border: 1px solid #000 !important;
-          padding: 8px !important;
-          text-align: left !important;
-        }
-        .document-wrapper th {
-          background-color: #e0e0e0 !important;
-          font-weight: bold !important;
-          text-align: center !important;
-          font-size: 11px !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.5px !important;
-        }
+        .document-wrapper .subtitle { font-size: 13px !important; color: #000 !important; margin-bottom: 6px !important; font-weight: bold !important; }
+        .document-wrapper .info-row { margin: 2px 0 !important; font-size: 12px !important; line-height: 1.35 !important; }
+        .document-wrapper .label { font-weight: bold !important; display: inline-block !important; min-width: 110px !important; color: #000 !important; }
+        .document-wrapper .value { font-weight: 600 !important; color: #000 !important; }
+        .document-wrapper table { width: 100% !important; border-collapse: collapse !important; margin: 12px 0 0 0 !important; font-size: 12px !important; border: 1px solid #000 !important; }
+        .document-wrapper th, .document-wrapper td { border: 1px solid #000 !important; padding: 6px 8px !important; text-align: left !important; }
+        .document-wrapper th { background-color: transparent !important; font-weight: bold !important; text-align: center !important; font-size: 11px !important; text-transform: uppercase !important; letter-spacing: 0.5px !important; }
         .document-wrapper .text-right {
           text-align: right !important;
         }
@@ -216,9 +169,9 @@ export class DocumentComponent implements OnInit {
         .document-wrapper .total-line {
           display: flex !important;
           justify-content: space-between !important;
-          width: 300px !important;
           margin-bottom: 5px !important;
           font-size: 13px !important;
+          width: 100% !important;
         }
         .document-wrapper .total-final {
           border-top: 1px solid #000 !important;
@@ -227,9 +180,9 @@ export class DocumentComponent implements OnInit {
           font-size: 14px !important;
         }
         .document-wrapper .footer {
-          margin-top: 40px !important;
-          border-top: 2px solid #000 !important;
-          padding-top: 20px !important;
+          margin-top: 120px !important;
+          border-top: 1px solid #000 !important;
+          padding-top: 10px !important;
         }
         .document-wrapper .signature-section {
           margin-bottom: 20px !important;
@@ -295,12 +248,14 @@ export class DocumentComponent implements OnInit {
     if (!this.document) return 'Document';
     
     switch (this.document.type) {
+      case 'BON_ENTREE_DEPOT':
+        return 'Bon d\'entrée';
       case 'BON_ENTREE_MAGASIN':
         return 'Bon de Livraison';
       case 'BON_EXPEDITION':
-        return 'Bon de Sortie';
+        return 'Bon d\'expédition';
       case 'BON_TRANSFERT':
-        return 'Bon de Transfert';
+        return 'Bon de transfert';
       case 'FACTURE':
         return 'Facture';
       default:

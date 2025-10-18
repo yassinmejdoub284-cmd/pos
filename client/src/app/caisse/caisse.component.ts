@@ -214,6 +214,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Drag and Drop
   private destroy$ = new Subject<void>();
   isDragMode = false;
+  dragModeEnabled = false; // User-controlled toggle for drag functionality
   dragGhostPosition: { x: number; y: number } | null = null;
   draggedProduct: Product | null = null;
   currentTouchProduct: Product | null = null;
@@ -1147,6 +1148,19 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.clearReceipt();
     // Refresh product listing to reflect mode change (show all when off)
     this.filterProducts();
+  }
+
+  toggleDragMode(): void {
+    this.dragModeEnabled = !this.dragModeEnabled;
+    
+    // If disabling drag mode and currently dragging, cancel the drag
+    if (!this.dragModeEnabled && this.isDragMode) {
+      this.dragDropService.cancelDrag();
+    }
+    
+    // Show feedback message
+    const message = this.dragModeEnabled ? 'Mode modification activé' : 'Mode modification désactivé';
+    this.showAlertMessage(message, 'info');
   }
 
   isWholesaleSale(): boolean {
@@ -4890,6 +4904,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const globalIndex = this.allProducts.findIndex(p => p.id === product.id);
     if (globalIndex === -1) return;
 
+    // Only allow drag detection if drag mode is enabled
+    if (!this.dragModeEnabled) {
+      return;
+    }
 
     // Record the product and position for potential drag detection
     this.currentTouchProduct = product;
@@ -4901,7 +4919,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   onProductMouseMove(event: MouseEvent): void {
-    if (!this.isDragMode) {
+    if (!this.isDragMode && this.dragModeEnabled) {
       // Check if we have a current touch product and start position
       if (this.currentTouchProduct && this.currentTouchStartPosition && !this.dragDetectionStarted) {
         // Check if there's been any movement from initial position
@@ -4949,7 +4967,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
 
   onProductMouseUp(event: MouseEvent, product: Product): void {
-    if (this.isDragMode) {
+    if (this.isDragMode && this.dragModeEnabled) {
       // Handle drag end
       const dragState = this.dragDropService.getCurrentDragState();
       if (dragState.targetGlobalIndex !== null) {
@@ -4982,6 +5000,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const globalIndex = this.allProducts.findIndex(p => p.id === product.id);
     if (globalIndex === -1) return;
 
+    // Only allow drag detection if drag mode is enabled
+    if (!this.dragModeEnabled) {
+      return;
+    }
 
     // Record the product and position for potential drag detection
     const touch = event.touches[0];
@@ -4996,7 +5018,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   onProductTouchMove(event: TouchEvent): void {
     if (event.touches.length !== 1) return;
 
-    if (!this.isDragMode) {
+    if (!this.isDragMode && this.dragModeEnabled) {
       // Check if we have a current touch product and start position
       if (this.currentTouchProduct && this.currentTouchStartPosition && !this.dragDetectionStarted) {
         const touch = event.touches[0];
@@ -5049,7 +5071,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   onProductTouchEnd(event: TouchEvent, product: Product): void {
-    if (this.isDragMode) {
+    if (this.isDragMode && this.dragModeEnabled) {
       // Handle drag end
       const dragState = this.dragDropService.getCurrentDragState();
       if (dragState.targetGlobalIndex !== null) {
@@ -5134,7 +5156,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   private onGlobalTouchMove(event: TouchEvent): void {
-    if (!this.isDragMode) return;
+    if (!this.isDragMode || !this.dragModeEnabled) return;
     
     // Only handle single touch
     if (event.touches.length !== 1) return;
@@ -5160,7 +5182,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   private onGlobalTouchEnd(event: TouchEvent): void {
-    if (!this.isDragMode) return;
+    if (!this.isDragMode || !this.dragModeEnabled) return;
     
     // Handle drag end
     const dragState = this.dragDropService.getCurrentDragState();

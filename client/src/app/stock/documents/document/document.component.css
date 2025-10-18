@@ -156,9 +156,9 @@
 .document-wrapper .total-line {
   display: flex;
   justify-content: space-between;
-  width: 300px;
   margin-bottom: 5px;
   font-size: 13px;
+  width: 100% !important;
 }
 
 .document-wrapper .total-final {

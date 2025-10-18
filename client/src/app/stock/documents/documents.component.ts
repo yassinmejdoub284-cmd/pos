@@ -14,7 +14,7 @@ import { environment } from '../../../environments/environment';
   template: `
     <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
       <!-- Header -->
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+      <div class="bg-white/80 rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
         <div class="flex justify-between items-center">
           <div class="flex items-center gap-4">
             <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -39,7 +39,7 @@ import { environment } from '../../../environments/environment';
       </div>
 
       <!-- Filters -->
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+      <div class="bg-white/80 rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Type de document</label>
@@ -73,7 +73,7 @@ import { environment } from '../../../environments/environment';
       </div>
 
       <!-- Documents List -->
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/50">
+      <div class="bg-white/80 rounded-2xl shadow-lg border border-slate-200/50">
         <div class="p-6">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-bold text-slate-800">Documents ({{ totalDocuments() }})</h2>
@@ -382,11 +382,11 @@ export class DocumentsComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadDocuments();
-    this.loadCompanySettings();
-    
-    // Check for highlight parameter
+    // Check for type parameter from URL
     this.route.queryParams.subscribe(params => {
+      if (params['type']) {
+        this.selectedType = params['type'];
+      }
       if (params['highlight']) {
         // Scroll to the highlighted document after loading
         setTimeout(() => {
@@ -394,6 +394,9 @@ export class DocumentsComponent implements OnInit {
         }, 1000);
       }
     });
+    
+    this.loadDocuments();
+    this.loadCompanySettings();
   }
 
   scrollToDocument(documentId: string): void {

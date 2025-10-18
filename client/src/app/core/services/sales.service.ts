@@ -94,6 +94,10 @@ export class SalesService {
     return this.http.post<Sale>(`${this.apiUrl}/wholesale`, saleData);
   }
 
+  createWholesaleSalePublic(saleData: CreateSaleRequest): Observable<Sale> {
+    return this.http.post<Sale>(`${this.apiUrl.replace('/api/sales', '/api/sales/public')}/wholesale`, saleData);
+  }
+
   getSales(params?: { startDate?: string; endDate?: string; status?: string; paymentMethod?: string; page?: number; limit?: number; sessionIds?: number[] }): Observable<Sale[]> {
     const options = params ? { params: Object.entries(params).reduce((acc: any, [k, v]) => {
       if (v !== undefined && v !== null && v !== '') {

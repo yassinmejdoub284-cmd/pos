@@ -92,7 +92,7 @@ interface Depot {
                 <div class="flex-1">
                   <div class="flex items-center justify-between">
                     <h3 class="font-semibold text-gray-800">{{ depot.name }}</h3>
-                    <span class="bg-white/80 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-medium"
+                    <span class="bg-white/80 px-2 py-1 rounded-lg text-xs font-medium"
                           [class]="depot.statut === 'Actif' ? 'text-green-600' : 'text-gray-500'">
                       {{ depot.statut }}
                     </span>

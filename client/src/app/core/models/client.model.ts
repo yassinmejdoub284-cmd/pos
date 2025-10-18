@@ -3,6 +3,7 @@ export interface Client {
   code: string;
   firstName: string;
   lastName: string;
+  pictureUrl?: string;
   phone?: string;
   city?: string;
   address?: string;
@@ -38,6 +39,7 @@ export type AgeGroup = 'ADULT' | 'TEEN' | 'ELDER' | 'CHILD';
 export interface CreateClientRequest {
   firstName: string;
   lastName: string;
+  pictureUrl?: string;
   phone?: string;
   city?: string;
   address?: string;
@@ -52,6 +54,7 @@ export interface CreateClientRequest {
 export interface UpdateClientRequest {
   firstName?: string;
   lastName?: string;
+  pictureUrl?: string;
   phone?: string;
   city?: string;
   address?: string;

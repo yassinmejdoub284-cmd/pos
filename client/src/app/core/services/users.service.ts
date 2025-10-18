@@ -9,12 +9,13 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER';
+  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER' | 'EMPLOYEE';
   depotId?: number;
   isActive: boolean;
   lastLogin?: Date;
   createdAt: Date;
   pin?: string;
+  token?: string;
 }
 
 export interface CreateUserRequest {
@@ -23,22 +24,29 @@ export interface CreateUserRequest {
   password: string;
   firstName: string;
   lastName: string;
-  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER';
+  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER' | 'EMPLOYEE';
   depotId?: number;
   pin: string;
+  token?: string;
+  roleKey?: string;
 }
 
 export interface UpdateUserRequest {
   firstName?: string;
   lastName?: string;
-  role?: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER';
+  role?: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER' | 'EMPLOYEE';
   depotId?: number;
   isActive?: boolean;
   pin?: string;
+  roleKey?: string;
 }
 
 export interface UpdatePinRequest {
   pin: string;
+}
+
+export interface UpdateTokenRequest {
+  token: string;
 }
 
 @Injectable({
@@ -69,6 +77,10 @@ export class UsersService {
     return this.http.put<User>(`${this.apiUrl}/${id}/pin`, pinRequest);
   }
 
+  updateUserToken(id: number, tokenRequest: UpdateTokenRequest): Observable<User> {
+    return this.http.put<User>(`${this.apiUrl}/${id}/token`, tokenRequest);
+  }
+
   deleteUser(id: number): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
   }
@@ -78,7 +90,8 @@ export class UsersService {
       'ADMIN': 'Administrateur',
       'MANAGER': 'Responsable Magasin',
       'CASHIER': 'Caissier',
-      'STOCK_MANAGER': 'Gestionnaire Stock'
+      'STOCK_MANAGER': 'Gestionnaire Stock',
+      'EMPLOYEE': 'Employé'
     };
     return roleNames[role] || role;
   }
@@ -88,7 +101,8 @@ export class UsersService {
       'ADMIN': 'bg-red-500',
       'MANAGER': 'bg-blue-500',
       'CASHIER': 'bg-green-500',
-      'STOCK_MANAGER': 'bg-purple-500'
+      'STOCK_MANAGER': 'bg-purple-500',
+      'EMPLOYEE': 'bg-amber-500'
     };
     return roleColors[role] || 'bg-gray-500';
   }

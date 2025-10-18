@@ -22,6 +22,7 @@ const settingsRoutes = require('./routes/settings');
 const sessionsRoutes = require('./routes/sessions');
 const familiesRoutes = require('./routes/families');
 const suppliersRoutes = require('./routes/suppliers');
+const enterpriseSuppliersRoutes = require('./routes/enterprise-suppliers');
 const wholesaleRulesRoutes = require('./routes/wholesale-rules');
 const supplierPaymentsRoutes = require('./routes/supplier-payments');
 const clientStatementsRoutes = require('./routes/client-statements');
@@ -36,6 +37,8 @@ const attendanceRoutes = require('./routes/attendance');
 const produitsDeCaisseRoutes = require('./routes/produits-de-caisse');
 const driversRoutes = require('./routes/drivers');
 const vehiclesRoutes = require('./routes/vehicles');
+const remindersRoutes = require('./routes/reminders');
+const notificationsRoutes = require('./routes/notifications');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -64,6 +67,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/sales', authenticateToken, salesRoutes);
+// Allow unauthenticated access to wholesale sales
+app.use('/api/sales/public', salesRoutes);
 app.use('/api/products', authenticateToken, productsRoutes);
 app.use('/api/users', authenticateToken, usersRoutes);
 app.use('/api/depots', authenticateToken, depotsRoutes);
@@ -78,6 +83,7 @@ app.use('/api/settings', authenticateToken, settingsRoutes);
 app.use('/api/sessions', authenticateToken, sessionsRoutes);
 app.use('/api/families', authenticateToken, familiesRoutes);
 app.use('/api/suppliers', authenticateToken, suppliersRoutes);
+app.use('/api/enterprise/suppliers', authenticateToken, enterpriseSuppliersRoutes);
 app.use('/api/wholesale-rules', authenticateToken, wholesaleRulesRoutes);
 app.use('/api/supplier-payments', authenticateToken, supplierPaymentsRoutes);
 app.use('/api/client-statements', authenticateToken, clientStatementsRoutes);
@@ -92,6 +98,8 @@ app.use('/api/attendance', authenticateToken, attendanceRoutes);
 app.use('/api/produits-de-caisse', authenticateToken, produitsDeCaisseRoutes);
 app.use('/api/drivers', authenticateToken, driversRoutes);
 app.use('/api/vehicles', authenticateToken, vehiclesRoutes);
+app.use('/api/reminders', remindersRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Create HTTP or HTTPS server based on env
 let server;

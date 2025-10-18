@@ -67,6 +67,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     productName: string;
     quantity: number;
     count: number;
+    colisCount: number;
     lastScanned: Date;
   }> = [];
 
@@ -668,6 +669,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         // Update existing item - add quantity and increment count
         this.scannedItems[existingItemIndex].quantity += quantity;
         this.scannedItems[existingItemIndex].count += 1;
+        this.scannedItems[existingItemIndex].colisCount += 1;
         this.scannedItems[existingItemIndex].lastScanned = new Date();
         this.success = `${productName} scanné (${this.scannedItems[existingItemIndex].count}x, Qty: ${this.scannedItems[existingItemIndex].quantity})`;
       } else {
@@ -677,6 +679,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
           productName: productName,
           quantity,
           count: 1,
+          colisCount: 1,
           lastScanned: new Date()
         });
         this.success = `Nouveau ${productName} ajouté (Qty: ${quantity})`;
@@ -1080,6 +1083,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         // Update existing item - set exact quantity and colis
         this.scannedItems[existingItemIndex].quantity = customQuantity;
         this.scannedItems[existingItemIndex].count = customColis;
+        this.scannedItems[existingItemIndex].colisCount = customColis;
         this.scannedItems[existingItemIndex].lastScanned = new Date();
         this.success = `${productName} mis à jour (Colis: ${customColis}, Qty: ${customQuantity})`;
       } else {
@@ -1089,6 +1093,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
           productName: productName,
           quantity: customQuantity,
           count: customColis,
+          colisCount: customColis,
           lastScanned: new Date()
         });
         this.success = `Nouveau ${productName} ajouté (Colis: ${customColis}, Qty: ${customQuantity})`;
@@ -1726,7 +1731,8 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
           productId: item.articleId, // Use productId for transfer API
           famille: produit?.famille || 'Général',
           quantity: item.quantity / 1000, // Convert to kg
-          count: item.count
+          count: item.count,
+          colisCount: item.colisCount // Include the colis count
         };
         
         // Only include price fields for non-sortie documents
@@ -2181,9 +2187,9 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       .total-line {
         display: flex;
         justify-content: space-between;
-        width: 300px;
         margin-bottom: 5px;
         font-size: 13px;
+        width: 100% !important;
       }
       .total-final {
         border-top: 1px solid #000;
@@ -2355,7 +2361,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const timestamp = Date.now().toString().slice(-4);
     
-    let prefix = 'BEXP';
+    let prefix = 'BS';
     if (this.sessionDocumentType === 'transfert') {
       prefix = 'BT';
     } else if (this.sessionDocumentType === 'livraison') {
@@ -2542,6 +2548,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         // Update existing item - set exact quantity and colis
         this.scannedItems[existingItemIndex].quantity = quantityInGrams;
         this.scannedItems[existingItemIndex].count = colis;
+        this.scannedItems[existingItemIndex].colisCount = colis;
         this.scannedItems[existingItemIndex].lastScanned = new Date();
         this.success = `${this.selectedManualProduct.name} mis à jour (Colis: ${colis}, Qty: ${quantity}kg)`;
       } else {
@@ -2551,6 +2558,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
           productName: this.selectedManualProduct.name,
           quantity: quantityInGrams,
           count: colis,
+          colisCount: colis,
           lastScanned: new Date()
         });
         this.success = `Nouveau ${this.selectedManualProduct.name} ajouté (Colis: ${colis}, Qty: ${quantity}kg)`;

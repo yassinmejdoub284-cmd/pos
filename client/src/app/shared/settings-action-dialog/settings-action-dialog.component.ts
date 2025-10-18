@@ -16,7 +16,7 @@ export interface SettingsAction {
   imports: [CommonModule],
   template: `
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-amber-100/50">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl border border-amber-100/50">
         <!-- Header -->
         <div class="p-6 border-b border-amber-100/50">
           <div class="flex items-center space-x-3">
@@ -33,42 +33,96 @@ export interface SettingsAction {
         </div>
 
         <!-- Actions -->
-        <div class="p-6 space-y-3">
-          <button 
-            *ngFor="let action of actions" 
-            (click)="selectAction(action.id)"
-            class="w-full group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden">
-            
-            <div class="flex items-center space-x-4">
-              <!-- Icon Container -->
-              <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center transition-transform duration-300 shadow-lg ring-2 ring-white/50" 
-                   [ngClass]="action.color">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="action.icon"></path>
-                </svg>
+        <div class="p-6">
+          <div class="grid grid-cols-3 gap-4 justify-items-center" style="grid-template-rows: auto auto;">
+            <!-- First row: Paramètres Généraux spans 2 columns, then Utilisateurs -->
+            <button 
+              (click)="selectAction(actions[0].id)"
+              class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden w-full max-w-[300px] col-span-2">
+              
+              <div class="flex items-center space-x-4">
+                <!-- Icon Container -->
+                <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center transition-transform duration-300 shadow-lg ring-2 ring-white/50 flex-shrink-0" 
+                     [ngClass]="actions[0].color">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="actions[0].icon"></path>
+                  </svg>
+                </div>
+                
+                <!-- Content -->
+                <div class="text-left">
+                  <h3 class="font-bold text-amber-800 text-base group-hover:text-amber-900 transition-colors duration-300 leading-tight">
+                    {{ actions[0].title }}
+                  </h3>
+                  <p class="text-sm text-amber-600/70 group-hover:text-amber-700 transition-colors duration-300 mt-1 leading-tight">
+                    {{ actions[0].description }}
+                  </p>
+                </div>
               </div>
               
-              <!-- Content -->
-              <div class="flex-1 text-left">
-                <h3 class="font-bold text-amber-800 group- transition-colors duration-300">
-                  {{ action.title }}
-                </h3>
-                <p class="text-sm text-amber-600/70 group- transition-colors duration-300">
-                  {{ action.description }}
-                </p>
+              <!-- Hover Effect -->
+              <div class="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-yellow-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+            </button>
+
+            <button 
+              (click)="selectAction(actions[1].id)"
+              class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden w-full">
+              
+              <div class="flex flex-col items-center space-y-3">
+                <!-- Icon Container -->
+                <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center transition-transform duration-300 shadow-lg ring-2 ring-white/50" 
+                     [ngClass]="actions[1].color">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="actions[1].icon"></path>
+                  </svg>
+                </div>
+                
+                <!-- Content -->
+                <div class="text-center">
+                  <h3 class="font-bold text-amber-800 text-sm group-hover:text-amber-900 transition-colors duration-300 leading-tight">
+                    {{ actions[1].title }}
+                  </h3>
+                  <p class="text-xs text-amber-600/70 group-hover:text-amber-700 transition-colors duration-300 mt-1 leading-tight">
+                    {{ actions[1].description }}
+                  </p>
+                </div>
               </div>
               
-              <!-- Arrow -->
-              <div class="w-8 h-8 bg-gradient-to-br from-amber-100 to-yellow-100 rounded-lg flex items-center justify-center transition-all duration-300">
-                <svg class="w-4 h-4 text-amber-600 group- transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
+              <!-- Hover Effect -->
+              <div class="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-yellow-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+            </button>
+
+            <!-- Second row: 3 items centered -->
+            <button 
+              *ngFor="let action of actions.slice(2, 5); let i = index" 
+              (click)="selectAction(action.id)"
+              class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden w-full"
+              [style.grid-column]="i === 0 ? '1' : i === 1 ? '2' : '3'">
+              
+              <div class="flex flex-col items-center space-y-3">
+                <!-- Icon Container -->
+                <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center transition-transform duration-300 shadow-lg ring-2 ring-white/50" 
+                     [ngClass]="action.color">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="action.icon"></path>
+                  </svg>
+                </div>
+                
+                <!-- Content -->
+                <div class="text-center">
+                  <h3 class="font-bold text-amber-800 text-sm group-hover:text-amber-900 transition-colors duration-300 leading-tight">
+                    {{ action.title }}
+                  </h3>
+                  <p class="text-xs text-amber-600/70 group-hover:text-amber-700 transition-colors duration-300 mt-1 leading-tight">
+                    {{ action.description }}
+                  </p>
+                </div>
               </div>
-            </div>
-            
-            <!-- Hover Effect -->
-            <div class="absolute inset-0 bg-gradient-to-r from-amber-50/50 to-yellow-50/50 opacity-0 transition-opacity duration-300 rounded-xl"></div>
-          </button>
+              
+              <!-- Hover Effect -->
+              <div class="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-yellow-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+            </button>
+          </div>
         </div>
 
         <!-- Footer -->
@@ -108,12 +162,28 @@ export class SettingsActionDialogComponent {
       gradient: 'from-blue-50 to-indigo-100'
     },
     {
+      id: 'access',
+      title: 'Gestion des Accès',
+      description: 'Afficher/masquer les blocs d\'accueil par rôle',
+      icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+      color: 'from-emerald-500 to-green-600',
+      gradient: 'from-emerald-50 to-green-100'
+    },
+    {
       id: 'enterprise',
       title: 'Gestion d\'Entreprise',
       description: 'Gérer les entreprises et leurs entrepôts',
       icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
       color: 'from-indigo-500 to-purple-600',
       gradient: 'from-indigo-50 to-purple-100'
+    },
+    {
+      id: 'reminders',
+      title: 'Rappels',
+      description: 'Créer et gérer les rappels',
+      icon: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      color: 'from-emerald-500 to-cyan-600',
+      gradient: 'from-emerald-50 to-cyan-100'
     }
   ];
 

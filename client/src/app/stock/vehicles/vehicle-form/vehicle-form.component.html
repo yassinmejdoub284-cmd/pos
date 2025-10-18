@@ -1,6 +1,6 @@
 <div class="h-screen w-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col">
   <!-- Header -->
-  <div class="bg-white/80 backdrop-blur-sm p-6 shadow-lg border-b border-slate-200/50 flex-shrink-0">
+  <div class="bg-white/80 p-6 shadow-lg border-b border-slate-200/50 flex-shrink-0">
     <div class="flex justify-between items-center">
       <div class="flex items-center gap-4">
         <button (click)="goBack()" class="p-2 rounded-lg transition-colors" title="Retour">
@@ -28,7 +28,7 @@
   <!-- Form -->
   <div class="flex-1 overflow-y-auto">
     <div class="h-full">
-      <div class="bg-white/80 backdrop-blur-sm p-10 shadow-lg h-full flex flex-col">
+      <div class="bg-white/80 p-10 shadow-lg h-full flex flex-col">
         <form [formGroup]="vehicleForm" (ngSubmit)="onSubmit()" class="flex flex-col h-full">
         
           <!-- Error Message -->

@@ -1,6 +1,6 @@
 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
   <!-- Header -->
-  <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+  <div class="bg-white/80 rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
     <div class="flex justify-between items-center">
       <div class="flex items-center gap-4">
         <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -14,6 +14,17 @@
         </div>
       </div>
       <div class="flex gap-3">
+        <!-- View toggle -->
+        <div class="hidden md:flex items-center bg-slate-100 rounded-xl p-1 mr-2">
+          <button (click)="setViewMode('grid')"
+            [class]="'px-3 py-2 rounded-lg text-sm font-semibold ' + (viewMode === 'grid' ? 'bg-white shadow text-slate-900' : 'text-slate-600')">
+            Grille
+          </button>
+          <button (click)="setViewMode('table')"
+            [class]="'px-3 py-2 rounded-lg text-sm font-semibold ' + (viewMode === 'table' ? 'bg-white shadow text-slate-900' : 'text-slate-600')">
+            Tableau
+          </button>
+        </div>
         <button (click)="openTypeDialog()"
           class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,11 +51,11 @@
   </div>
 
   <!-- Filters -->
-  <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+  <div class="bg-white/80 rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
     <div class="flex flex-wrap gap-4 items-center">
       <div class="flex items-center gap-2">
         <label class="text-sm font-medium text-slate-700">Type:</label>
-        <select [(ngModel)]="selectedType" (change)="filterDocuments()" 
+        <select [(ngModel)]="selectedType" (change)="filterDocuments()" aria-label="Filtrer par type"
           class="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
           <option value="">Tous les types</option>
           <option value="BON_ENTREE_MAGASIN">Bon de Livraison</option>
@@ -56,7 +67,7 @@
       
       <div class="flex items-center gap-2">
         <label class="text-sm font-medium text-slate-700">Statut:</label>
-        <select [(ngModel)]="selectedStatus" (change)="filterDocuments()" 
+        <select [(ngModel)]="selectedStatus" (change)="filterDocuments()" aria-label="Filtrer par statut"
           class="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
           <option value="">Tous les statuts</option>
           <option value="PREPARED">Préparé</option>
@@ -93,7 +104,7 @@
   </div>
 
   <!-- Documents List -->
-  <div *ngIf="!loading" class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/50">
+  <div *ngIf="!loading" class="bg-white/80 rounded-2xl shadow-lg border border-slate-200/50">
     <div class="p-6">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-bold text-slate-800">Documents ({{ filteredDocuments.length }})</h2>
@@ -119,8 +130,8 @@
       </div>
 
       <!-- Documents Grid -->
-      <div *ngIf="filteredDocuments.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div *ngFor="let doc of filteredDocuments" 
+      <div *ngIf="filteredDocuments.length > 0 && viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div *ngFor="let doc of filteredDocuments; trackBy: trackByDocumentId" 
              class="bg-white border border-gray-200 rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg">
           <div class="flex justify-between items-start mb-4">
             <div class="flex items-center gap-2">
@@ -188,6 +199,52 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Documents Table -->
+      <div *ngIf="filteredDocuments.length > 0 && viewMode === 'table'" class="overflow-auto rounded-xl border border-slate-200">
+        <table class="min-w-full bg-white">
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">N°</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">Type</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">Statut</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">Client / De → Vers</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">Créé le</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">Articles</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let doc of filteredDocuments; trackBy: trackByDocumentId" class="border-t">
+              <td class="px-4 py-3 text-sm font-semibold text-slate-800">{{ doc.numero }}</td>
+              <td class="px-4 py-3">
+                <span [class]="getTypeClass(doc.type)" class="px-2 py-1 rounded-full text-xs font-medium">{{ getTypeLabel(doc.type) }}</span>
+              </td>
+              <td class="px-4 py-3">
+                <span [class]="getStatusClass(doc.status)" class="px-2 py-1 rounded-full text-xs font-medium">{{ getStatusLabel(doc.status) }}</span>
+              </td>
+              <td class="px-4 py-3 text-sm text-slate-700">
+                <ng-container *ngIf="doc.client; else depots">
+                  <span class="font-medium">{{ doc.client.firstName }} {{ doc.client.lastName }}</span>
+                </ng-container>
+                <ng-template #depots>
+                  <span *ngIf="doc.emetteur">{{ doc.emetteur.name }}</span>
+                  <span *ngIf="doc.destinataire"> → {{ doc.destinataire.name }}</span>
+                </ng-template>
+              </td>
+              <td class="px-4 py-3 text-sm text-slate-700">{{ formatDate(doc.createdAt) }}</td>
+              <td class="px-4 py-3 text-sm text-slate-700">{{ doc.items?.length || 0 }}</td>
+              <td class="px-4 py-3">
+                <div class="flex justify-end gap-2">
+                  <button (click)="viewDocument(doc)" class="bg-orange-500 text-white rounded-md text-xs font-medium py-2 px-3">Détails</button>
+                  <button (click)="printDocument(doc)" class="bg-green-500 text-white rounded-md text-xs font-medium py-2 px-3">Imprimer</button>
+                  <button *ngIf="canGenerateInvoice(doc)" (click)="openInvoiceModal(doc)" class="bg-emerald-600 text-white rounded-md text-xs font-medium py-2 px-3">Facture</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

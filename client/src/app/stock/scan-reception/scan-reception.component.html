@@ -1,6 +1,6 @@
 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-2 sm:p-4">
   <div class="max-w-4xl mx-auto space-y-3 sm:space-y-4">
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-3 sm:p-4 shadow border border-slate-200/50">
+    <div class="bg-white/80 rounded-2xl p-3 sm:p-4 shadow border border-slate-200/50">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div class="flex items-center gap-3">
           <div
@@ -59,7 +59,7 @@
             class="w-full px-4 py-4 bg-gradient-to-br from-fuchsia-500 via-fuchsia-600 to-pink-600 text-white rounded-2xl text-sm font-semibold shadow-lg flex items-center justify-center gap-3 relative overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed">
             <!-- Loading overlay -->
             <div *ngIf="isManualProductLoading"
-              class="absolute inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center rounded-2xl">
+              class="absolute inset-0 bg-white/20 flex items-center justify-center rounded-2xl">
               <div class="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             </div>
             <!-- Icon -->
@@ -120,7 +120,7 @@
         <!-- Top controls -->
         <div class="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 flex items-center justify-between">
           <button (click)="toggleFacingMode()" title="Changer de caméra"
-            class="pointer-events-auto w-8 h-8 sm:w-10 sm:h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white  transition">
+            class="pointer-events-auto w-8 h-8 sm:w-10 sm:h-10 bg-black/50 rounded-full flex items-center justify-center text-white  transition">
             <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h4l2-3h6l2 3h4v10H3V7z">
               </path>
@@ -128,7 +128,7 @@
           </button>
           <div class="flex gap-1 sm:gap-2">
             <button (click)="restartCamera()" title="Redémarrer la caméra"
-              class="pointer-events-auto w-8 h-8 sm:w-10 sm:h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white  transition">
+              class="pointer-events-auto w-8 h-8 sm:w-10 sm:h-10 bg-black/50 rounded-full flex items-center justify-center text-white  transition">
               <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
@@ -136,7 +136,7 @@
               </svg>
             </button>
             <button (click)="flashEnabled = !flashEnabled" title="Activer/Désactiver le flash"
-              class="pointer-events-auto w-8 h-8 sm:w-10 sm:h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white  transition">
+              class="pointer-events-auto w-8 h-8 sm:w-10 sm:h-10 bg-black/50 rounded-full flex items-center justify-center text-white  transition">
               <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
                 </path>
@@ -290,7 +290,7 @@
 
 <!-- Document Type Selection Modal -->
 <div *ngIf="showDocumentTypeModal"
-  class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
     <div class="p-6">
       <div class="flex items-center justify-between mb-6">
@@ -377,7 +377,7 @@
 
 <!-- Depot Selection Modal for Bon de Sortie -->
 <div *ngIf="showDepotSelectionModal"
-  class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
     <div class="p-6">
       <div class="flex items-center justify-between mb-6">
@@ -475,7 +475,7 @@
 
 <!-- Client Selection Modal for Bon de Livraison -->
 <div *ngIf="showClientSelectionModal"
-  class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
     <div class="p-6">
       <div class="flex items-center justify-between mb-6">
@@ -575,7 +575,7 @@
 </div>
 
 <!-- Quantity Numpad Modal -->
-<div *ngIf="showNumpad" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+<div *ngIf="showNumpad" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
     <div class="p-6">
       <div class="flex items-center justify-between mb-4">
@@ -666,7 +666,7 @@
 
 <!-- Vehicle Selection Modal for Bon de Sortie -->
 <div *ngIf="showVehicleSelectionModal"
-  class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
     <div class="p-4 sm:p-6">
       <div class="flex items-center justify-between mb-4 sm:mb-6">
@@ -902,7 +902,7 @@
 
 <!-- Manual Product Selection Modal -->
 <div *ngIf="showManualProductModal"
-  class="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+  class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
   <div
     class="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300">
     <!-- Header with gradient -->
@@ -1028,7 +1028,7 @@
 
 <!-- Manual Product Quantity Modal -->
 <div *ngIf="showManualQuantityModal"
-  class="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+  class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
   <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl animate-in zoom-in-95 duration-300">
     <!-- Header with gradient -->
     <div class="bg-gradient-to-r from-fuchsia-500 to-pink-600 p-6 text-white rounded-t-3xl">

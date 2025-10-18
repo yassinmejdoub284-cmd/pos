@@ -1,0 +1,512 @@
+<!-- Enterprise Suppliers Interface -->
+<app-enterprise-layout
+  [activeSection]="activeSection"
+  [pageTitle]="'Gestion des Fournisseurs'"
+  [pageSubtitle]="'Gérez vos fournisseurs et leurs informations'"
+  [showBackButton]="true"
+  [backButtonText]="'Retour'"
+  [backButtonRoute]="'/enterprise'">
+  
+  <!-- Header Actions -->
+  <div slot="header-actions">
+    <button class="btn btn-primary" (click)="openCreatePopup()" [disabled]="loading">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"></path>
+      </svg>
+      Nouveau Fournisseur
+    </button>
+  </div>
+
+  <!-- Main Content -->
+  <!-- Error Message -->
+  <div *ngIf="error" class="alert alert-danger" role="alert">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <span>{{ error }}</span>
+    <button type="button" class="btn-close" (click)="clearError()" aria-label="Close">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Filters Card -->
+  <div class="filters-card">
+    <div class="filters">
+      <div class="filter-group">
+        <label for="search">Rechercher</label>
+        <div class="search-input">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+          <input 
+            type="text" 
+            id="search" 
+            [(ngModel)]="searchQuery" 
+            placeholder="Nom, contact, email, téléphone, ville..."
+            class="form-control"
+          >
+        </div>
+      </div>
+      <div class="filter-group">
+        <label for="status">Statut</label>
+        <select id="status" [(ngModel)]="selectedStatus" class="form-control">
+          <option value="all">Tous</option>
+          <option value="true">Actifs</option>
+          <option value="false">Inactifs</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <span>Chargement des fournisseurs...</span>
+    </div>
+  </div>
+
+  <!-- Suppliers Table Card -->
+  <div *ngIf="!loading" class="table-card">
+    <div class="table-header">
+      <h3>Liste des Fournisseurs</h3>
+      <span class="count-badge">{{ filteredSuppliers.length }} fournisseur(s)</span>
+    </div>
+    
+    <div class="table-container">
+      <table class="suppliers-table">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Contact</th>
+            <th>Email</th>
+            <th>Téléphone</th>
+            <th>Ville</th>
+            <th>Dette Actuelle</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let supplier of filteredSuppliers" [class.inactive]="!supplier.isActive">
+            <td>
+              <div class="supplier-info">
+                <strong>{{ supplier.name }}</strong>
+                <div *ngIf="supplier.taxNumber" class="tax-number">
+                  N° Fiscal: {{ supplier.taxNumber }}
+                </div>
+              </div>
+            </td>
+            <td>{{ supplier.contactName || '-' }}</td>
+            <td>{{ supplier.email || '-' }}</td>
+            <td>{{ supplier.phone || '-' }}</td>
+            <td>{{ supplier.city || '-' }}</td>
+            <td>
+              <span class="debt-amount" [class.positive]="supplier.currentDebt > 0" [class.negative]="supplier.currentDebt < 0">
+                {{ supplier.currentDebt | number:'1.3-3' }} DT
+              </span>
+            </td>
+            <td>
+              <span class="status-badge" [class.active]="supplier.isActive" [class.inactive]="!supplier.isActive">
+                {{ supplier.isActive ? 'Actif' : 'Inactif' }}
+              </span>
+            </td>
+            <td class="actions">
+              <button class="btn btn-sm btn-info" (click)="openDetailsPopup(supplier)" title="Détails">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+              </button>
+              <button class="btn btn-sm btn-warning" (click)="openEditPopup(supplier)" title="Modifier">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+              </button>
+              <button class="btn btn-sm btn-success" (click)="openInitSoldePopup(supplier)" title="Initialiser Solde">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                </svg>
+              </button>
+              <button class="btn btn-sm" [class.btn-secondary]="supplier.isActive" [class.btn-primary]="!supplier.isActive" 
+                      (click)="toggleSupplierStatus(supplier)" [disabled]="loading" 
+                      [title]="supplier.isActive ? 'Désactiver' : 'Activer'">
+                <svg *ngIf="supplier.isActive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <svg *ngIf="!supplier.isActive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </button>
+              <button class="btn btn-sm btn-danger" (click)="openDeletePopup(supplier)" title="Supprimer">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- No Results -->
+      <div *ngIf="filteredSuppliers.length === 0" class="no-results">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+        <h3>Aucun fournisseur trouvé</h3>
+        <p>Essayez de modifier vos critères de recherche ou ajoutez un nouveau fournisseur.</p>
+        <button class="btn btn-primary" (click)="openCreatePopup()">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"></path>
+          </svg>
+          Ajouter un fournisseur
+        </button>
+      </div>
+    </div>
+  </div>
+</app-enterprise-layout>
+
+<!-- Create Supplier Popup -->
+<div *ngIf="showCreatePopup" class="popup-overlay" (click)="closePopups()">
+  <div class="popup" (click)="$event.stopPropagation()">
+    <div class="popup-header">
+      <h3>Nouveau Fournisseur</h3>
+      <button class="btn-close" (click)="closePopups()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="popup-body">
+      <form (ngSubmit)="createSupplier()">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="createName">Nom *</label>
+            <input type="text" id="createName" [(ngModel)]="createForm.name" name="name" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="createContactName">Nom du Contact</label>
+            <input type="text" id="createContactName" [(ngModel)]="createForm.contactName" name="contactName" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="createEmail">Email</label>
+            <input type="email" id="createEmail" [(ngModel)]="createForm.email" name="email" class="form-control">
+          </div>
+          <div class="form-group">
+            <label for="createPhone">Téléphone</label>
+            <input type="tel" id="createPhone" [(ngModel)]="createForm.phone" name="phone" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="createAddress">Adresse</label>
+          <textarea id="createAddress" [(ngModel)]="createForm.address" name="address" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="createCity">Ville</label>
+            <select id="createCity" [(ngModel)]="createForm.city" name="city" class="form-control">
+              <option value="">Sélectionner une ville</option>
+              <option *ngFor="let city of tunisianCities" [value]="city">{{ city }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="createPostalCode">Code Postal</label>
+            <input type="text" id="createPostalCode" [(ngModel)]="createForm.postalCode" name="postalCode" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="createTaxNumber">N° Fiscal</label>
+            <input type="text" id="createTaxNumber" [(ngModel)]="createForm.taxNumber" name="taxNumber" class="form-control">
+          </div>
+          <div class="form-group">
+            <label for="createPaymentTerms">Conditions de Paiement</label>
+            <input type="text" id="createPaymentTerms" [(ngModel)]="createForm.paymentTerms" name="paymentTerms" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="createNotes">Notes</label>
+          <textarea id="createNotes" [(ngModel)]="createForm.notes" name="notes" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="popup-actions">
+          <button type="button" class="btn btn-secondary" (click)="closePopups()">Annuler</button>
+          <button type="submit" class="btn btn-primary" [disabled]="loading">
+            <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+            Créer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Supplier Popup -->
+<div *ngIf="showEditPopup" class="popup-overlay" (click)="closePopups()">
+  <div class="popup" (click)="$event.stopPropagation()">
+    <div class="popup-header">
+      <h3>Modifier le Fournisseur</h3>
+      <button class="btn-close" (click)="closePopups()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="popup-body">
+      <form (ngSubmit)="updateSupplier()">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editName">Nom *</label>
+            <input type="text" id="editName" [(ngModel)]="editForm.name" name="name" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="editContactName">Nom du Contact</label>
+            <input type="text" id="editContactName" [(ngModel)]="editForm.contactName" name="contactName" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editEmail">Email</label>
+            <input type="email" id="editEmail" [(ngModel)]="editForm.email" name="email" class="form-control">
+          </div>
+          <div class="form-group">
+            <label for="editPhone">Téléphone</label>
+            <input type="tel" id="editPhone" [(ngModel)]="editForm.phone" name="phone" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="editAddress">Adresse</label>
+          <textarea id="editAddress" [(ngModel)]="editForm.address" name="address" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editCity">Ville</label>
+            <select id="editCity" [(ngModel)]="editForm.city" name="city" class="form-control">
+              <option value="">Sélectionner une ville</option>
+              <option *ngFor="let city of tunisianCities" [value]="city">{{ city }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editPostalCode">Code Postal</label>
+            <input type="text" id="editPostalCode" [(ngModel)]="editForm.postalCode" name="postalCode" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editTaxNumber">N° Fiscal</label>
+            <input type="text" id="editTaxNumber" [(ngModel)]="editForm.taxNumber" name="taxNumber" class="form-control">
+          </div>
+          <div class="form-group">
+            <label for="editPaymentTerms">Conditions de Paiement</label>
+            <input type="text" id="editPaymentTerms" [(ngModel)]="editForm.paymentTerms" name="paymentTerms" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="editNotes">Notes</label>
+          <textarea id="editNotes" [(ngModel)]="editForm.notes" name="notes" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="editForm.isActive" name="isActive">
+            <span class="checkmark"></span>
+            Fournisseur actif
+          </label>
+        </div>
+        <div class="popup-actions">
+          <button type="button" class="btn btn-secondary" (click)="closePopups()">Annuler</button>
+          <button type="submit" class="btn btn-primary" [disabled]="loading">
+            <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+            Modifier
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Popup -->
+<div *ngIf="showDeletePopup" class="popup-overlay" (click)="closePopups()">
+  <div class="popup popup-small" (click)="$event.stopPropagation()">
+    <div class="popup-header">
+      <h3>Confirmer la Suppression</h3>
+      <button class="btn-close" (click)="closePopups()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="popup-body">
+      <div class="warning-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+        </svg>
+      </div>
+      <p>Êtes-vous sûr de vouloir supprimer le fournisseur <strong>{{ selectedSupplier?.name }}</strong> ?</p>
+      <p class="text-danger">Cette action est irréversible.</p>
+      <div class="popup-actions">
+        <button type="button" class="btn btn-secondary" (click)="closePopups()">Annuler</button>
+        <button type="button" class="btn btn-danger" (click)="deleteSupplier()" [disabled]="loading">
+          <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details Popup -->
+<div *ngIf="showDetailsPopup" class="popup-overlay" (click)="closePopups()">
+  <div class="popup popup-large" (click)="$event.stopPropagation()">
+    <div class="popup-header">
+      <h3>Détails du Fournisseur</h3>
+      <button class="btn-close" (click)="closePopups()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="popup-body">
+      <div *ngIf="selectedSupplier" class="supplier-details">
+        <div class="details-section">
+          <h4>Informations Générales</h4>
+          <div class="details-grid">
+            <div class="detail-item">
+              <label>Nom:</label>
+              <span>{{ selectedSupplier.name }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Contact:</label>
+              <span>{{ selectedSupplier.contactName || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Email:</label>
+              <span>{{ selectedSupplier.email || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Téléphone:</label>
+              <span>{{ selectedSupplier.phone || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Adresse:</label>
+              <span>{{ selectedSupplier.address || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Ville:</label>
+              <span>{{ selectedSupplier.city || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Code Postal:</label>
+              <span>{{ selectedSupplier.postalCode || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>N° Fiscal:</label>
+              <span>{{ selectedSupplier.taxNumber || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Conditions de Paiement:</label>
+              <span>{{ selectedSupplier.paymentTerms || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Statut:</label>
+              <span class="status-badge" [class.active]="selectedSupplier.isActive" [class.inactive]="!selectedSupplier.isActive">
+                {{ selectedSupplier.isActive ? 'Actif' : 'Inactif' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="details-section">
+          <h4>Informations Financières</h4>
+          <div class="details-grid">
+            <div class="detail-item">
+              <label>Dette Actuelle:</label>
+              <span class="debt-amount" [class.positive]="selectedSupplier.currentDebt > 0" [class.negative]="selectedSupplier.currentDebt < 0">
+                {{ selectedSupplier.currentDebt | number:'1.3-3' }} DT
+              </span>
+            </div>
+            <div class="detail-item">
+              <label>Total Dépenses:</label>
+              <span>{{ selectedSupplier.totalExpenses | number:'1.3-3' }} DT</span>
+            </div>
+            <div class="detail-item">
+              <label>Total Paiements:</label>
+              <span>{{ selectedSupplier.totalPayments | number:'1.3-3' }} DT</span>
+            </div>
+            <div class="detail-item">
+              <label>Nombre de Dépenses:</label>
+              <span>{{ selectedSupplier._count.expenses }}</span>
+            </div>
+            <div class="detail-item">
+              <label>Nombre de Paiements:</label>
+              <span>{{ selectedSupplier._count.payments }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="selectedSupplier.notes" class="details-section">
+          <h4>Notes</h4>
+          <p>{{ selectedSupplier.notes }}</p>
+        </div>
+
+        <div *ngIf="selectedSupplier.recentExpenses.length > 0" class="details-section">
+          <h4>Dépenses Récentes</h4>
+          <div class="recent-expenses">
+            <div *ngFor="let expense of selectedSupplier.recentExpenses" class="expense-item">
+              <div class="expense-info">
+                <span class="expense-amount">{{ expense.amount | number:'1.3-3' }} DT</span>
+                <span class="expense-date">{{ expense.date | date:'dd/MM/yyyy' }}</span>
+              </div>
+              <div class="expense-category">{{ expense.category?.name || 'Général' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="popup-actions">
+        <button type="button" class="btn btn-secondary" (click)="closePopups()">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Initialize Solde Popup -->
+<div *ngIf="showInitSoldePopup" class="popup-overlay" (click)="closePopups()">
+  <div class="popup" (click)="$event.stopPropagation()">
+    <div class="popup-header">
+      <h3>Initialiser le Solde</h3>
+      <button class="btn-close" (click)="closePopups()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="popup-body">
+      <div *ngIf="selectedSupplier">
+        <p>Fournisseur: <strong>{{ selectedSupplier.name }}</strong></p>
+        <p>Solde actuel: <strong>{{ selectedSupplier.currentDebt | number:'1.3-3' }} DT</strong></p>
+        
+        <form (ngSubmit)="initializeSolde()">
+          <div class="form-group">
+            <label for="initAmount">Nouveau Solde (DT) *</label>
+            <input type="number" id="initAmount" [(ngModel)]="initSoldeAmount" name="amount" 
+                   class="form-control" step="0.001" required>
+          </div>
+          <div class="form-group">
+            <label for="initNotes">Notes</label>
+            <textarea id="initNotes" [(ngModel)]="initSoldeNotes" name="notes" 
+                      class="form-control" rows="3" placeholder="Raison de l'initialisation..."></textarea>
+          </div>
+          <div class="popup-actions">
+            <button type="button" class="btn btn-secondary" (click)="closePopups()">Annuler</button>
+            <button type="submit" class="btn btn-primary" [disabled]="loading">
+              <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+              Initialiser
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

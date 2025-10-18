@@ -1,0 +1,39 @@
+/* Subtle internal animated stripes to indicate active state without outer glow */
+.active-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 150% 50%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(192, 255, 234, 0.8) 40%,
+    rgb(227, 255, 218) 70%,
+    rgb(210, 255, 230) 100%
+  );  mix-blend-mode: multiply;
+}
+
+.active-stripes {
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  pointer-events: none;
+  background: repeating-linear-gradient(135deg,
+    rgba(16,185,129,0.18) 0px,
+    rgba(16,185,129,0.18) 10px,
+    rgba(16,185,129,0.10) 10px,
+    rgba(16,185,129,0.10) 20px);
+  mask-image: radial-gradient(closest-side, rgba(0,0,0,0.85), rgba(0,0,0,0.25));
+  animation: stripes-drift 2.8s var(--breath-delay, 0ms) linear infinite;
+}
+
+@keyframes stripes-drift {
+  0% { background-position: 0 0; opacity: 0.95; }
+  50% { opacity: 0.65; }
+  100% { background-position: 56px 0; opacity: 0.95; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .active-stripes { animation: none; opacity: 0.7; }
+}
+

@@ -36,8 +36,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Create a new wholesale rule
-router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+// Create a new wholesale rule (allow any authenticated user)
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { ruleType, value, description } = req.body;
 
@@ -78,8 +78,8 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (re
   }
 });
 
-// Update a wholesale rule
-router.put('/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+// Update a wholesale rule (allow any authenticated user)
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { ruleType, value, description, isArchived } = req.body;
@@ -130,8 +130,8 @@ router.put('/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (
   }
 });
 
-// Delete a wholesale rule
-router.delete('/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+// Delete a wholesale rule (allow any authenticated user)
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -155,8 +155,8 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), asyn
   }
 });
 
-// Archive a wholesale rule
-router.put('/:id/archive', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+// Archive a wholesale rule (allow any authenticated user)
+router.put('/:id/archive', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -172,8 +172,8 @@ router.put('/:id/archive', authenticateToken, requireRole(['ADMIN', 'MANAGER']),
   }
 });
 
-// Unarchive a wholesale rule
-router.put('/:id/unarchive', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+// Unarchive a wholesale rule (allow any authenticated user)
+router.put('/:id/unarchive', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 

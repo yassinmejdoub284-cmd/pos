@@ -8,8 +8,8 @@ import { ErrorDialogData } from '../../../core/services/error-handling.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 max-w-md w-full shadow-2xl transform animate-scale-in">
+    <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div class="bg-white/95 rounded-3xl border border-gray-200/50 max-w-md w-full shadow-2xl transform animate-scale-in">
         <!-- Header -->
         <div [class]="'p-6 flex justify-between items-center ' + getHeaderClasses()">
           <div class="flex items-center gap-3">

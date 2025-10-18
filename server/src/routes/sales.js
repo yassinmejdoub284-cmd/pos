@@ -1300,4 +1300,188 @@ router.post('/wholesale', async (req, res) => {
   }
 });
 
+// Public wholesale sales endpoint (no authentication required)
+router.post('/wholesale', async (req, res) => {
+  try {
+    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, paymentType } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'Wholesale sale must have at least one item' });
+    }
+
+    // For unauthenticated requests, use a default depot or the first available depot
+    let userDepotId;
+    try {
+      const defaultDepot = await prisma.depot.findFirst({
+        where: { isActive: true },
+        orderBy: { id: 'asc' }
+      });
+      userDepotId = defaultDepot ? defaultDepot.id : 1;
+    } catch (error) {
+      console.error('Error finding default depot:', error);
+      userDepotId = 1; // Fallback to depot 1
+    }
+
+    // Validate that all items are wholesale items
+    for (const item of items) {
+      if (!item.isWholesale) {
+        return res.status(400).json({ error: 'All items must be wholesale items for wholesale sales' });
+      }
+    }
+
+    const sale = await prisma.$transaction(async (tx) => {
+      // Stock validation removed - frontend handles warnings, backend allows all sales
+
+      // Get the current active session for the depot (no user linkage)
+      const activeSession = await tx.sessionCaisse.findFirst({
+        where: {
+          depotId: userDepotId,
+          status: 'OPEN'
+        }
+      });
+
+      const newSale = await tx.sale.create({
+        data: {
+          total: parseFloat(total),
+          discount: parseFloat(discount || 0),
+          finalTotal: parseFloat(finalTotal),
+          paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
+          userId: null, // No user for unauthenticated sales
+          clientId: clientId ? parseInt(clientId) : null,
+          depotId: userDepotId,
+          sessionId: activeSession ? activeSession.id : null,
+          status: 'COMPLETED',
+          paymentType: paymentType || 'COMPTANT',
+          isWholesale: true
+        }
+      });
+
+      // Create sale items
+      const saleItems = [];
+      for (const item of items) {
+        const saleItem = await tx.saleItem.create({
+          data: {
+            saleId: newSale.id,
+            productId: item.productId,
+            productName: item.productName,
+            quantity: parseFloat(item.quantity),
+            unitPrice: parseFloat(item.unitPrice),
+            total: parseFloat(item.total),
+            isWholesale: true
+          }
+        });
+        saleItems.push(saleItem);
+
+        // Calculate margin for wholesale items
+        const product = await tx.product.findUnique({
+          where: { id: item.productId }
+        });
+
+        if (product) {
+          const costPrice = parseFloat(product.prix_achat_HT || 0);
+          const sellingPrice = parseFloat(item.unitPrice);
+          const margin = sellingPrice - costPrice;
+          const marginPercentage = costPrice > 0 ? (margin / costPrice) * 100 : 0;
+
+          await tx.saleItem.update({
+            where: { id: saleItem.id },
+            data: {
+              costPrice: costPrice,
+              margin: margin,
+              marginPercentage: marginPercentage
+            }
+          });
+        }
+
+        // For wholesale items, calculate the actual quantity to deduct (bundleQuantity * bundle size)
+        const bundleQuantity = parseFloat(item.quantity);
+        const bundleSize = parseFloat(product?.bundleSize || 1);
+        const actualQuantityToDeduct = bundleQuantity * bundleSize;
+
+        // Check if inventory exists for this product in this depot
+        const existingInventory = await tx.inventory.findFirst({
+          where: {
+            productId: item.productId,
+            depotId: userDepotId
+          }
+        });
+
+        if (existingInventory) {
+          const newQuantity = existingInventory.quantity - actualQuantityToDeduct;
+          console.log('Updating wholesale inventory:', {
+            productId: item.productId,
+            depotId: userDepotId,
+            oldQuantity: existingInventory.quantity,
+            quantityToDeduct: actualQuantityToDeduct,
+            newQuantity: newQuantity
+          });
+
+          await tx.inventory.update({
+            where: { id: existingInventory.id },
+            data: { quantity: newQuantity }
+          });
+        } else {
+          // Create new inventory record with negative quantity
+          console.log('Creating new wholesale inventory record with negative quantity:', {
+            productId: item.productId,
+            depotId: userDepotId,
+            quantity: -actualQuantityToDeduct
+          });
+
+          await tx.inventory.create({
+            data: {
+              productId: item.productId,
+              depotId: userDepotId,
+              quantity: -actualQuantityToDeduct
+            }
+          });
+        }
+      }
+
+      // Handle payment
+      if (amountPaid && amountPaid > 0) {
+        await tx.payment.create({
+          data: {
+            saleId: newSale.id,
+            amount: parseFloat(amountPaid),
+            paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
+            notes: 'Payment at wholesale sale'
+          }
+        });
+      }
+
+      // Handle debt if amount paid is less than final total
+      const remainingAmount = parseFloat(finalTotal) - parseFloat(amountPaid || 0);
+      if (remainingAmount > 0 && clientId) {
+        await tx.debt.create({
+          data: {
+            clientId: parseInt(clientId),
+            amount: remainingAmount,
+            saleId: newSale.id,
+            notes: 'Debt from wholesale sale'
+          }
+        });
+      }
+
+      return newSale;
+    });
+
+    // Get the complete sale with all details for response
+    const saleWithDetails = await prisma.sale.findUnique({
+      where: { id: sale.id },
+      include: {
+        items: true,
+        client: true,
+        payments: true,
+        debts: true
+      }
+    });
+
+    res.status(201).json({ ...saleWithDetails, loyaltyPointsEarned: sale.loyaltyPointsEarned });
+  } catch (error) {
+    console.error('Error creating public wholesale sale:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
 module.exports = router; 

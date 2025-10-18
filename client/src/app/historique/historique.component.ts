@@ -161,6 +161,14 @@ export class HistoriqueComponent implements OnInit {
     });
   }
 
+  // Get current user's history limit for display purposes
+  getCurrentUserHistoryLimit(): number {
+    if (!this.appSettings) {
+      return 10; // Default fallback
+    }
+    return this.getHistoryLimitForCurrentUser(this.appSettings);
+  }
+
   loadSales(): void {
     this.loading = true;
     this.error = '';
@@ -225,8 +233,8 @@ export class HistoriqueComponent implements OnInit {
       .subscribe({
         next: (settings: any) => {
           this.appSettings = settings;
-          // Load sessions based on historyRetentionDays setting
-          const sessionLimit = Number((settings as any).historyRetentionDays || 10);
+          // Load sessions based on role-based history limits
+          const sessionLimit = this.getHistoryLimitForCurrentUser(settings);
           this.loadRecentSessions(sessionLimit, after);
         },
         error: (error) => {
@@ -235,6 +243,22 @@ export class HistoriqueComponent implements OnInit {
           this.loadRecentSessions(10, after);
         }
       });
+  }
+
+  private getHistoryLimitForCurrentUser(settings: any): number {
+    const currentUser = this.authService.currentUser();
+    if (!currentUser || !settings.roleHistoryLimits) {
+      // Fallback to legacy setting or default
+      return Number(settings.historyRetentionDays || 10);
+    }
+
+    const roleLimit = settings.roleHistoryLimits[currentUser.role];
+    if (roleLimit !== undefined && roleLimit !== null) {
+      return Number(roleLimit);
+    }
+
+    // Fallback to legacy setting or default
+    return Number(settings.historyRetentionDays || 10);
   }
 
   loadRecentSessions(limit: number, after?: () => void): void {

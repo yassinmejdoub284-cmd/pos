@@ -2,6 +2,7 @@ import { Component, OnInit, computed, signal, effect } from '@angular/core';
 import { Router } from '@angular/router';
 import { StockDocumentsService } from '../core/services/stock-documents.service';
 import { AuthService } from '../core/services/auth.service';
+import { SessionsService } from '../core/services/sessions.service';
 import { DepotsService } from '../core/services/depots.service';
 import { StockDocument } from '../core/models/stock-document.model';
 
@@ -38,13 +39,21 @@ export class DocumentsReceptionComponent implements OnInit {
     private stockDocs: StockDocumentsService,
     private auth: AuthService,
     private depotsService: DepotsService,
-    private router: Router
+    private router: Router,
+    private sessionsService: SessionsService
   ) {}
 
   ngOnInit(): void {
     const user = this.auth.currentUser();
     this.isAdmin = (user?.role === 'ADMIN');
-    this.currentDepotId = user?.depotId ?? null;
+
+    // Prefer session depot when available
+    const session = this.sessionsService.currentSession?.();
+    if (session?.depotId) {
+      this.currentDepotId = session.depotId;
+    } else {
+      this.currentDepotId = user?.depotId ?? null;
+    }
 
     // Check if depotId is provided in route params
     const depotIdFromRoute = this.router.url.split('/').pop();
@@ -59,6 +68,16 @@ export class DocumentsReceptionComponent implements OnInit {
         this.showDepotSelector = true;
       }
     }
+
+    // Watch for session depot changes
+    this.sessionsService.currentSession$?.subscribe({
+      next: (sess: any) => {
+        if (sess?.depotId && this.currentDepotId !== sess.depotId) {
+          this.currentDepotId = sess.depotId;
+          this.loadDocuments();
+        }
+      }
+    });
 
     this.loadDocuments();
   }
@@ -155,8 +174,8 @@ export class DocumentsReceptionComponent implements OnInit {
     }
 
     const grouped = document.items.reduce((acc: any, item: any) => {
-      const parentName = item.famille || item.parentProductName || 'Produit';
-      const childName = item.childProductName || `Produit ${item.productId}`;
+      const parentName = item.product?.famille?.name || item.famille || item.parentProductName || 'Produit';
+      const childName = item.product?.name || item.childProductName || `Produit ${item.productId}`;
       const productKey = `${item.productId}_${item.quantity}_${item.count}`;
       
       if (!acc[parentName]) {

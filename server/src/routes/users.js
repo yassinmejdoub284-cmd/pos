@@ -32,6 +32,28 @@ router.get('/', requireRole(['ADMIN']), async (req, res) => {
   }
 });
 
+router.get('/roles', authenticateToken, async (req, res) => {
+  try {
+    const roles = await prisma.user.findMany({
+      select: {
+        role: true
+      },
+      distinct: ['role'],
+      where: {
+        isActive: true
+      },
+      orderBy: {
+        role: 'asc'
+      }
+    });
+    const roleList = roles.map(r => r.role);
+    res.json(roleList);
+  } catch (error) {
+    console.error('Error fetching roles:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:id', requireRole(['ADMIN']), async (req, res) => {
   try {
     const { id } = req.params;

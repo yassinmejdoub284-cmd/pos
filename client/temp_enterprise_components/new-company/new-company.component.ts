@@ -13,7 +13,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
         <div class="flex items-center space-x-4 mb-4">
           <button 
             (click)="goBack()"
-            class="p-2 bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 text-gray-600 transition-colors">
+            class="p-2 bg-white/80 rounded-xl border border-gray-200 text-gray-600 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
@@ -25,7 +25,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
       
       <form [formGroup]="companyForm" (ngSubmit)="onSubmit()" class="space-y-8">
         <!-- Identity Section -->
-        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-lg">
+        <div class="bg-white/80 rounded-2xl p-6 border border-gray-100 shadow-lg">
           <div class="flex items-center space-x-3 mb-6">
             <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
               <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -41,7 +41,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
               <input 
                 type="text" 
                 formControlName="raisonSociale"
-                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                 placeholder="Enter company name">
             </div>
             
@@ -49,7 +49,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
               <label class="block text-sm font-medium text-gray-700 mb-2">Forme juridique *</label>
               <select 
                 formControlName="formeJuridique"
-                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300">
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300">
                 <option value="">Sélectionner une forme</option>
                 <option value="SARL">SARL</option>
                 <option value="SUARL">SUARL</option>
@@ -66,7 +66,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
               <input 
                 type="text" 
                 formControlName="activite"
-                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                 placeholder="Business activity">
             </div>
             
@@ -75,7 +75,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
               <input 
                 type="date" 
                 formControlName="dateCreation"
-                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300">
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300">
             </div>
             
             <div>
@@ -105,7 +105,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                 <input 
                   type="text" 
                   formControlName="brandColor"
-                  class="flex-1 px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="flex-1 px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="#3B82F6">
               </div>
             </div>
@@ -114,7 +114,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
               <label class="block text-sm font-medium text-gray-700 mb-2">Statut *</label>
               <select 
                 formControlName="statut"
-                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300">
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300">
                 <option value="Actif">Actif</option>
                 <option value="Archivé">Archivé</option>
               </select>
@@ -123,7 +123,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
         </div>
         
         <!-- Coordonnées -->
-        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-lg">
+        <div class="bg-white/80 rounded-2xl p-6 border border-gray-100 shadow-lg">
           <div class="flex items-center space-x-3 mb-6">
             <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
               <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,27 +141,27 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                 <input 
                   type="text" 
                   formControlName="adresse"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="Adresse">
                 <input 
                   type="text" 
                   formControlName="ville"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="Ville">
                 <input 
                   type="text" 
                   formControlName="delegation"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="Délégation">
                 <input 
                   type="text" 
                   formControlName="gouvernorat"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="Gouvernorat">
                 <input 
                   type="text" 
                   formControlName="codePostal"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="Code postal">
               </div>
             </div>
@@ -172,7 +172,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                 <input 
                   type="tel" 
                   formControlName="telephone"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="+216 71 123 456">
               </div>
               <div>
@@ -180,7 +180,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                 <input 
                   type="email" 
                   formControlName="email"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="contact@company.tn">
               </div>
               <div>
@@ -188,7 +188,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                 <input 
                   type="url" 
                   formControlName="siteWeb"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="www.company.tn">
               </div>
             </div>
@@ -196,7 +196,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
         </div>
         
         <!-- Légal (Tunisie) -->
-        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-lg">
+        <div class="bg-white/80 rounded-2xl p-6 border border-gray-100 shadow-lg">
           <div class="flex items-center space-x-3 mb-6">
             <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
               <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -213,7 +213,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                 <input 
                   type="text" 
                   formControlName="matriculeFiscal"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="1260304/S/A/M/000">
               </div>
               
@@ -222,7 +222,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                 <input 
                   type="text" 
                   formControlName="rne"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="TN123456789">
               </div>
               
@@ -231,7 +231,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                 <input 
                   type="text" 
                   formControlName="registreCommerce"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="RC123456">
               </div>
               
@@ -240,7 +240,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                 <input 
                   type="number" 
                   formControlName="capitalSocial"
-                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   placeholder="100000">
               </div>
             </div>
@@ -263,7 +263,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                   <input 
                     type="text" 
                     formControlName="numeroTva"
-                    class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                     placeholder="TN1260304S">
                 </div>
                 <div>
@@ -271,7 +271,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                   <input 
                     type="number" 
                     formControlName="tauxTva"
-                    class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                     placeholder="19">
                 </div>
               </div>
@@ -286,7 +286,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                   <input 
                     type="text" 
                     formControlName="representantNom"
-                    class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                     placeholder="Full name">
                 </div>
                 <div>
@@ -294,7 +294,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
                   <input 
                     type="text" 
                     formControlName="representantCin"
-                    class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                     placeholder="12345678">
                 </div>
               </div>
@@ -303,7 +303,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
         </div>
         
         <!-- Bancaire Section -->
-        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-lg">
+        <div class="bg-white/80 rounded-2xl p-6 border border-gray-100 shadow-lg">
           <div class="flex items-center space-x-3 mb-6">
             <div class="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
               <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,7 +319,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
               <input 
                 type="text" 
                 formControlName="rib"
-                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                 placeholder="TN5900100000000000000001">
             </div>
             <div>
@@ -327,7 +327,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
               <input 
                 type="text" 
                 formControlName="banque"
-                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                 placeholder="STB">
             </div>
             <div>
@@ -335,7 +335,7 @@ import { EnterpriseService } from '../../core/services/enterprise.service';
               <input 
                 type="text" 
                 formControlName="bic"
-                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                 placeholder="STBKTNTT">
             </div>
           </div>

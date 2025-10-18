@@ -15,7 +15,7 @@ export class StockDocumentsService {
     private http: HttpClient
   ) {}
 
-  getDocuments(page: number = 1, limit: number = 20, type?: string, status?: string, depotId?: number, dateFrom?: string, dateTo?: string): Observable<any> {
+  getDocuments(page: number = 1, limit: number = 20, type?: string, status?: string, depotId?: number, dateFrom?: string, dateTo?: string, fromDepotOnly: boolean = false): Observable<any> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('limit', limit.toString());
@@ -25,6 +25,7 @@ export class StockDocumentsService {
     if (depotId) params = params.set('depotId', depotId.toString());
     if (dateFrom) params = params.set('dateFrom', dateFrom);
     if (dateTo) params = params.set('dateTo', dateTo);
+    if (fromDepotOnly) params = params.set('fromDepotOnly', 'true');
 
     return this.http.get<any>(this.apiUrl, { params }).pipe(
       catchError((error) => throwError(() => error))

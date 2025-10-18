@@ -28,7 +28,7 @@ interface Depot {
   template: `
     <div class="space-y-6">
       <!-- En-tête Société -->
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-lg">
+      <div class="bg-white/80 rounded-2xl p-6 border border-gray-100 shadow-lg">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center space-x-4">
             <button 
@@ -76,7 +76,7 @@ interface Depot {
       </div>
       
       <!-- Section Entrepôts -->
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-lg">
+      <div class="bg-white/80 rounded-2xl p-6 border border-gray-100 shadow-lg">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-xl font-semibold text-gray-800">Entrepôts</h2>
           <button 
@@ -93,10 +93,10 @@ interface Depot {
         <div *ngIf="assignedDepots.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div 
             *ngFor="let depot of assignedDepots" 
-            class="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-200 shadow-sm">
+            class="bg-white/60 rounded-xl p-4 border border-gray-200 shadow-sm">
             <div class="flex items-center justify-between mb-3">
               <h3 class="font-semibold text-gray-800">{{ depot.name }}</h3>
-              <span class="bg-white/80 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-medium"
+              <span class="bg-white/80 px-2 py-1 rounded-lg text-xs font-medium"
                     [class]="depot.statut === 'Actif' ? 'text-green-600' : 'text-gray-500'">
                 {{ depot.statut }}
               </span>

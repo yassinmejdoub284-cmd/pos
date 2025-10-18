@@ -3,12 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 
-import { InventoryComponent } from './inventory.component';
-import { CountComponent } from './count/count.component';
 import { ReviewComponent } from './review/review.component';
 import { SummaryComponent } from './summary/summary.component';
 
 import { InventoryRoutingModule } from './inventory-routing.module';
+import { InventoryComponent } from './inventory.component';
+import { CountComponent } from './count/count.component';
 
 @NgModule({
   declarations: [

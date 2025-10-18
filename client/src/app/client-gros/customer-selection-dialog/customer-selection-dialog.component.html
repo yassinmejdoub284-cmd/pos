@@ -79,9 +79,14 @@
           
           <!-- Customer Avatar -->
           <div class="flex items-center gap-4 mb-4">
-            <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold">
-              {{ customer.firstName.charAt(0) }}{{ customer.lastName.charAt(0) }}
+            <div class="w-12 h-12 rounded-lg overflow-hidden">
+              <img *ngIf="customer.pictureUrl; else csdInitials" [ngSrc]="customer.pictureUrl" width="48" height="48" class="w-12 h-12 object-cover" alt="Client">
             </div>
+            <ng-template #csdInitials>
+              <div class="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold">
+                {{ customer.firstName.charAt(0) }}{{ customer.lastName.charAt(0) }}
+              </div>
+            </ng-template>
             <div class="flex-1">
               <h3 class="font-bold text-gray-800 text-lg">{{ customer.firstName }} {{ customer.lastName }}</h3>
               <p class="text-sm text-gray-600">Code: {{ customer.code }}</p>
@@ -134,9 +139,14 @@
     <div class="px-8 py-6">
       <div class="max-w-7xl mx-auto flex justify-between items-center">
         <div *ngIf="selectedCustomer" class="flex items-center gap-4">
-          <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold">
-            {{ selectedCustomer.firstName.charAt(0) }}{{ selectedCustomer.lastName.charAt(0) }}
+          <div class="w-12 h-12 rounded-lg overflow-hidden">
+            <img *ngIf="selectedCustomer.pictureUrl; else csdFooterInitials" [ngSrc]="selectedCustomer.pictureUrl" width="48" height="48" class="w-12 h-12 object-cover" alt="Client">
           </div>
+          <ng-template #csdFooterInitials>
+            <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold">
+              {{ selectedCustomer.firstName.charAt(0) }}{{ selectedCustomer.lastName.charAt(0) }}
+            </div>
+          </ng-template>
           <div>
             <p class="text-sm font-medium text-gray-600">Client sélectionné</p>
             <p class="text-lg font-bold text-gray-800">{{ selectedCustomer.firstName }} {{ selectedCustomer.lastName }}</p>

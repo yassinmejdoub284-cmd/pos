@@ -1,222 +1,335 @@
 <div class="review-container">
-  <!-- Compact Header -->
-  <div class="header">
-    <div class="header-left">
-      <h1 class="title">
-        <i class="fas fa-clipboard-check text-blue-500"></i>
-        Rapport d'Inventaire
-        </h1>
-        <div class="session-info" *ngIf="session">
-        <span class="session-number">#{{ session.numero }}</span>
-        <span class="depot-name">{{ session.depot?.name }}</span>
-        <span class="date">{{ formatDate(session.startedAt) }}</span>
-      </div>
-      </div>
-      <div class="header-actions">
-      <button class="btn-print" (click)="printReport()" [disabled]="loading">
-        <i class="fas fa-print"></i>
-        Imprimer
-      </button>
-        <button class="btn-back" (click)="goBack()">
-          <i class="fas fa-arrow-left"></i>
-          Retour
-        </button>
-    </div>
-  </div>
-
-  <!-- Quick Stats -->
-  <div class="stats-grid" *ngIf="summary">
-    <div class="stat-card">
-      <div class="stat-icon bg-blue-100 text-blue-600">
-        <i class="fas fa-boxes"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-number">{{ summary.statistics.totalItems || 0 }}</div>
-        <div class="stat-label">Articles</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon bg-green-100 text-green-600">
-        <i class="fas fa-check-circle"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-number">{{ summary.statistics.countedItems || 0 }}</div>
-        <div class="stat-label">Comptés</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon bg-orange-100 text-orange-600">
-        <i class="fas fa-exclamation-triangle"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-number">{{ summary.statistics.itemsWithEcart || 0 }}</div>
-        <div class="stat-label">Écarts</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon bg-purple-100 text-purple-600">
-        <i class="fas fa-coins"></i>
-      </div>
-      <div class="stat-content">
-        <div class="stat-number">{{ formatCurrency(summary.statistics.totalEcartValue || 0) }}</div>
-        <div class="stat-label">Valeur Écart</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Écarts Section -->
-  <div class="ecarts-section" *ngIf="summary && summary.ecarts.length > 0">
-    <div class="section-header">
-      <h2>
-        <i class="fas fa-chart-line text-orange-500"></i>
-        Détail des Écarts
-      </h2>
-      <div class="ecart-summary">
-        <span class="ecart-count">{{ summary.ecarts.length }} écart(s)</span>
-        <span class="ecart-total" [ngClass]="(summary.statistics.totalEcartQty || 0) > 0 ? 'text-green-600' : 'text-red-600'">
-          {{ (summary.statistics.totalEcartQty || 0) > 0 ? '+' : '' }}{{ summary.statistics.totalEcartQty || 0 }} unités
-        </span>
-      </div>
-    </div>
-
-    <div class="ecarts-table">
-      <div class="table-header">
-        <div class="col-product">Produit</div>
-        <div class="col-theoretical">Théorique</div>
-        <div class="col-counted">Compté</div>
-        <div class="col-ecart">Écart</div>
-        <div class="col-value">Valeur</div>
-        <div class="col-actions">Actions</div>
-      </div>
-      
-      <div class="table-body">
-        <div class="table-row" *ngFor="let ecart of summary.ecarts; trackBy: trackByProductId">
-          <div class="col-product">
-            <div class="product-name">{{ ecart.productName }}</div>
-          </div>
-          <div class="col-theoretical">
-            <span class="quantity-badge theoretical">{{ ecart.theoreticalQuantity }}</span>
-          </div>
-          <div class="col-counted">
-            <span class="quantity-badge counted">{{ ecart.countedQuantity }}</span>
-          </div>
-          <div class="col-ecart">
-            <span class="ecart-badge" [ngClass]="getEcartClass(ecart)">
-              {{ (ecart.ecartQuantity || 0) > 0 ? '+' : '' }}{{ ecart.ecartQuantity }}
+  <!-- Header Section -->
+  <header class="review-header">
+    <div class="header-content">
+      <div class="header-left">
+        <div class="page-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 12l2 2 4-4"/>
+            <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"/>
+            <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"/>
+            <path d="M12 3c0 1-1 3-3 3s-3-2-3-3 1-3 3-3 3 2 3 3"/>
+            <path d="M12 21c0-1 1-3 3-3s3 2 3 3-1 3-3 3-3-2-3-3"/>
+          </svg>
+        </div>
+        <div class="page-info">
+          <span class="page-title">Rapport d'Inventaire</span>
+          <span class="page-subtitle" *ngIf="session">
+            Session #{{ session.numero }} • {{ session.depot?.name }} • {{ formatDate(session.startedAt) }}
           </span>
         </div>
-          <div class="col-value">
-            <span class="value-badge" [ngClass]="getEcartClass(ecart)">
-              {{ (ecart.ecartValue || 0) > 0 ? '+' : '' }}{{ formatCurrency(ecart.ecartValue || 0) }}
-          </span>
+      </div>
+      <div class="header-actions">
+        <button class="btn-secondary" (click)="printReport()" [disabled]="loading">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6,9 6,2 18,2 18,9"/>
+            <path d="M6,18H4a2,2 0 0,1 -2,-2V11a2,2 0 0,1 2,-2H20a2,2 0 0,1 2,2v5a2,2 0 0,1 -2,2H18"/>
+            <polyline points="6,14 18,14"/>
+          </svg>
+          Imprimer
+        </button>
+        <button class="btn-secondary" (click)="goBack()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Retour
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Summary Stats -->
+  <section class="stats-section">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18l-2 13H5L3 6z"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value">{{ summary?.statistics?.totalItems || 0 }}</span>
+          <span class="stat-label">Articles Total</span>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-green">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 12l2 2 4-4"/>
+            <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"/>
+            <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"/>
+            <path d="M12 3c0 1-1 3-3 3s-3-2-3-3 1-3 3-3 3 2 3 3"/>
+            <path d="M12 21c0-1 1-3 3-3s3 2 3 3-1 3-3 3-3-2-3-3"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value">{{ summary?.statistics?.countedItems || 0 }}</span>
+          <span class="stat-label">Articles Comptés</span>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-orange">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value">{{ summary?.statistics?.itemsWithEcart || 0 }}</span>
+          <span class="stat-label">Avec Écarts</span>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-purple">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value">{{ formatCurrency(summary?.statistics?.totalEcartValue || 0) }}</span>
+          <span class="stat-label">Valeur Écart</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Controls Section -->
+  <section class="controls-section">
+    <div class="controls-left">
+      <div class="filter-group">
+        <span class="filter-label">Filtrer</span>
+        <select class="filter-select" [(ngModel)]="ecartFilter" (change)="onFilterChange()" title="Filtrer les articles">
+          <option value="with-ecart">Avec écarts</option>
+          <option value="">Tous les articles</option>
+          <option value="no-ecart">Sans écarts</option>
+          <option value="positive">Écarts positifs</option>
+          <option value="negative">Écarts négatifs</option>
+        </select>
+      </div>
+      <button class="btn-clear" (click)="clearFilters()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+        Effacer
+      </button>
+    </div>
+    
+    <div class="controls-right">
+      <div class="view-toggle">
+        <button 
+          class="toggle-btn" 
+          [class.active]="viewMode === 'grid'"
+          (click)="setViewMode('grid')"
+          title="Vue grille">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
+        </button>
+        <button 
+          class="toggle-btn" 
+          [class.active]="viewMode === 'table'"
+          (click)="setViewMode('table')"
+          title="Vue tableau">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M3 12h18M3 18h18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-message">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="15" y1="9" x2="9" y2="15"/>
+      <line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>
+    {{ error }}
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="loading-spinner"></div>
+    <span>Chargement du rapport...</span>
+  </div>
+
+  <!-- Content Section -->
+  <main *ngIf="!loading" class="content-section">
+    <!-- Grid View -->
+    <div *ngIf="viewMode === 'grid'" class="grid-view">
+      <div *ngIf="filteredItems.length > 0" class="items-grid">
+        <div 
+          *ngFor="let item of filteredItems" 
+          class="item-card"
+          [class.has-ecart]="item.ecartQuantity !== 0">
+          
+          <div class="item-header">
+            <div class="item-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18l-2 13H5L3 6z"/>
+              </svg>
+            </div>
+            <div class="item-info">
+              <span class="item-name">{{ item.product?.name || 'Produit inconnu' }}</span>
+              <span class="item-code" *ngIf="item.product?.barcode">{{ item.product?.barcode }}</span>
+            </div>
+            <div class="item-status" [ngClass]="getEcartClass(item)">
+              {{ getEcartText(item) }}
+            </div>
           </div>
-          <div class="col-actions">
-            <button class="btn-edit" (click)="editEcart(ecart)" title="Modifier">
-              <i class="fas fa-edit"></i>
+          
+          <div class="item-details">
+            <div class="detail-row">
+              <span class="detail-label">Théorique</span>
+              <span class="detail-value theoretical">{{ item.theoreticalQuantity }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Compté</span>
+              <span class="detail-value counted">{{ item.countedQuantity }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Écart</span>
+              <span class="detail-value ecart" [ngClass]="getEcartClass(item)">
+                {{ (item.ecartQuantity || 0) > 0 ? '+' : '' }}{{ item.ecartQuantity || 0 }}
+              </span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Valeur</span>
+              <span class="detail-value value" [ngClass]="getEcartClass(item)">
+                {{ (item.ecartValue || 0) > 0 ? '+' : '' }}{{ formatCurrency(item.ecartValue || 0) }}
+              </span>
+            </div>
+          </div>
+          
+          <div class="item-actions">
+            <button 
+              class="action-btn action-edit"
+              (click)="editItem(item)"
+              title="Modifier l'article">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Modifier
             </button>
           </div>
         </div>
       </div>
+      
+      <!-- Empty Grid State -->
+      <div *ngIf="filteredItems.length === 0" class="empty-state">
+        <div class="empty-icon">
+          <svg *ngIf="session?.status === 'DRAFT'" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14,2 14,8 20,8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10,9 9,9 8,9"/>
+          </svg>
+          <svg *ngIf="session?.status !== 'DRAFT'" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M9 12l2 2 4-4"/>
+            <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"/>
+            <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"/>
+            <path d="M12 3c0 1-1 3-3 3s-3-2-3-3 1-3 3-3 3 2 3 3"/>
+            <path d="M12 21c0-1 1-3 3-3s3 2 3 3-1 3-3 3-3-2-3-3"/>
+          </svg>
+        </div>
+        <span *ngIf="session?.status === 'DRAFT'" class="empty-title">Session en cours</span>
+        <span *ngIf="session?.status === 'DRAFT'" class="empty-subtitle">Les produits sont prêts à être comptés</span>
+        <span *ngIf="session?.status !== 'DRAFT'" class="empty-title">Aucun écart détecté</span>
+        <span *ngIf="session?.status !== 'DRAFT'" class="empty-subtitle">Tous les comptages correspondent aux quantités théoriques</span>
+      </div>
     </div>
-  </div>
 
-  <!-- No Écarts -->
-  <div class="no-ecarts" *ngIf="summary && summary.ecarts.length === 0">
-    <div class="no-ecarts-icon">
-      <i class="fas fa-check-circle text-green-500"></i>
+    <!-- Table View -->
+    <div *ngIf="viewMode === 'table'" class="table-view">
+      <div *ngIf="filteredItems.length > 0" class="table-container">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Produit</th>
+              <th>Théorique</th>
+              <th>Compté</th>
+              <th>Écart</th>
+              <th>Valeur Écart</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr 
+              *ngFor="let item of filteredItems" 
+              class="item-row"
+              [class.has-ecart]="item.ecartQuantity !== 0">
+              <td class="item-name-cell">
+                <div class="product-info">
+                  <span class="product-name">{{ item.product?.name || 'Produit inconnu' }}</span>
+                  <span class="product-code" *ngIf="item.product?.barcode">{{ item.product?.barcode }}</span>
+                </div>
+              </td>
+              <td class="quantity-cell">
+                <span class="quantity-badge theoretical">{{ item.theoreticalQuantity }}</span>
+              </td>
+              <td class="quantity-cell">
+                <span class="quantity-badge counted">{{ item.countedQuantity }}</span>
+              </td>
+              <td class="ecart-cell">
+                <span class="ecart-badge" [ngClass]="getEcartClass(item)">
+                  {{ (item.ecartQuantity || 0) > 0 ? '+' : '' }}{{ item.ecartQuantity || 0 }}
+                </span>
+              </td>
+              <td class="value-cell">
+                <span class="value-badge" [ngClass]="getEcartClass(item)">
+                  {{ (item.ecartValue || 0) > 0 ? '+' : '' }}{{ formatCurrency(item.ecartValue || 0) }}
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button 
+                  class="action-btn action-edit"
+                  (click)="editItem(item)"
+                  title="Modifier l'article">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Empty Table State -->
+      <div *ngIf="filteredItems.length === 0" class="empty-state">
+        <div class="empty-icon">
+          <svg *ngIf="session?.status === 'DRAFT'" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14,2 14,8 20,8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10,9 9,9 8,9"/>
+          </svg>
+          <svg *ngIf="session?.status !== 'DRAFT'" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M9 12l2 2 4-4"/>
+            <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"/>
+            <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"/>
+            <path d="M12 3c0 1-1 3-3 3s-3-2-3-3 1-3 3-3 3 2 3 3"/>
+            <path d="M12 21c0-1 1-3 3-3s3 2 3 3-1 3-3 3-3-2-3-3"/>
+          </svg>
+        </div>
+        <span *ngIf="session?.status === 'DRAFT'" class="empty-title">Session en cours</span>
+        <span *ngIf="session?.status === 'DRAFT'" class="empty-subtitle">Les produits sont prêts à être comptés</span>
+        <span *ngIf="session?.status !== 'DRAFT'" class="empty-title">Aucun écart détecté</span>
+        <span *ngIf="session?.status !== 'DRAFT'" class="empty-subtitle">Tous les comptages correspondent aux quantités théoriques</span>
+      </div>
     </div>
-    <h3>Aucun écart détecté</h3>
-    <p>Tous les comptages correspondent aux quantités théoriques.</p>
-  </div>
-
-  <!-- Error Message -->
-  <div *ngIf="error" class="error-message">
-    <i class="fas fa-exclamation-triangle"></i>
-    {{ error }}
-  </div>
-
-  <!-- Loading -->
-  <div *ngIf="loading" class="loading-state">
-    <div class="loading-spinner"></div>
-    <p>Chargement du rapport...</p>
-  </div>
+  </main>
 </div>
-
-<!-- Print Styles -->
-<style>
-@media print {
-.review-container {
-    background: white !important;
-    color: black !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  
-  .header-actions,
-  .btn-edit,
-  .col-actions {
-    display: none !important;
-  }
-  
-  .header {
-    border-bottom: 2px solid #000 !important;
-    margin-bottom: 20px !important;
-    padding-bottom: 10px !important;
-  }
-  
-  .title {
-    color: #000 !important;
-    font-size: 24px !important;
-}
-
-.session-info {
-    color: #666 !important;
-  }
-  
-  .stats-grid {
-    margin-bottom: 30px !important;
-  }
-  
-  .stat-card {
-    border: 1px solid #ddd !important;
-    background: #f9f9f9 !important;
-  }
-  
-  .ecarts-table {
-    border: 1px solid #000 !important;
-  }
-  
-  .table-header {
-    background: #f0f0f0 !important;
-    border-bottom: 2px solid #000 !important;
-  }
-  
-  .table-row {
-    border-bottom: 1px solid #ddd !important;
-  }
-  
-  .table-row:nth-child(even) {
-    background: #f9f9f9 !important;
-  }
-  
-  .ecart-badge.positive {
-    background: #d4edda !important;
-    color: #155724 !important;
-    border: 1px solid #c3e6cb !important;
-  }
-  
-  .ecart-badge.negative {
-    background: #f8d7da !important;
-    color: #721c24 !important;
-    border: 1px solid #f5c6cb !important;
-  }
-  
-  .value-badge.positive {
-    color: #155724 !important;
-  }
-  
-  .value-badge.negative {
-    color: #721c24 !important;
-  }
-}
-</style>

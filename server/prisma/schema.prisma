@@ -14,7 +14,7 @@ model User {
   passwordHash                   String                    @map("password_hash") @db.VarChar(255)
   firstName                      String                    @map("first_name") @db.VarChar(50)
   lastName                       String                    @map("last_name") @db.VarChar(50)
-  role                           UserRole
+  role                           String                    @db.VarChar(50)
   depotId                        Int?                      @map("depot_id")
   isActive                       Boolean                   @default(true) @map("is_active")
   lastLogin                      DateTime?                 @map("last_login")
@@ -54,9 +54,26 @@ model User {
   supplierDebtTransactions       SupplierDebtTransaction[]
   supplierPayments               SupplierPayment[]
   depot                          Depot?                    @relation("DepotUsers", fields: [depotId], references: [id])
+  reminderVoiceResponses         ReminderVoiceResponse[]
+  createdReminders               Reminder[]                @relation("ReminderCreatedBy")
+  updatedReminders               Reminder[]                @relation("ReminderUpdatedBy")
+  reminderAssignments            ReminderAssignment[]
 
   @@index([depotId], map: "users_depot_id_fkey")
   @@map("users")
+}
+
+model UserEnterprise {
+  id             Int      @id @default(autoincrement())
+  name           String   @db.VarChar(100)
+  password       String   @db.VarChar(255) // hashed password
+  companyId      Int      @map("company_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  company        Company  @relation(fields: [companyId], references: [id])
+
+  @@index([companyId], map: "users_enterprise_company_id_fkey")
+  @@map("users_enterprise")
 }
 
 model Depot {
@@ -135,6 +152,7 @@ model Company {
   updatedAt        DateTime      @updatedAt @map("updated_at")
   depots           Depot[]
   invoices         Invoice[]
+  enterpriseUsers  UserEnterprise[]
 
   @@map("companies")
 }
@@ -324,6 +342,7 @@ model Client {
   code             String                  @unique @db.VarChar(20)
   firstName        String                  @map("first_name") @db.VarChar(50)
   lastName         String                  @map("last_name") @db.VarChar(50)
+  pictureUrl       String?                 @map("picture_url") @db.VarChar(255)
   email            String?                 @unique @db.VarChar(100)
   phone            String?                 @db.VarChar(20)
   address          String?                 @db.Text
@@ -577,10 +596,12 @@ model Supplier {
   createdAt        DateTime                  @default(now()) @map("created_at")
   updatedAt        DateTime                  @updatedAt @map("updated_at")
   currentDebt      Decimal                   @default(0.000) @map("current_debt") @db.Decimal(12, 3)
+  enterpriseId     Int?                      @map("enterprise_id")
   expenses         Expense[]
   debtTransactions SupplierDebtTransaction[]
   payments         SupplierPayment[]
 
+  @@index([enterpriseId], map: "suppliers_enterprise_id_fkey")
   @@map("suppliers")
 }
 
@@ -687,6 +708,8 @@ model StockDocument {
   emetteurId         Int                     @map("emetteur_id")
   destinataireId     Int                     @map("destinataire_id")
   clientId           Int?                    @map("client_id")
+  vehicleId          Int?                    @map("vehicle_id")
+  driverId           Int?                    @map("driver_id")
   notes              String?                 @db.Text
   destination        String?                 @db.VarChar(200)
   validationFromDate DateTime?               @map("validation_from_date")
@@ -700,6 +723,8 @@ model StockDocument {
   destinataire       Depot                   @relation("Destinataire", fields: [destinataireId], references: [id])
   emetteur           Depot                   @relation("Emetteur", fields: [emetteurId], references: [id])
   client             Client?                 @relation(fields: [clientId], references: [id])
+  vehicle            Vehicle?                @relation(fields: [vehicleId], references: [id])
+  driver             Driver?                 @relation(fields: [driverId], references: [id])
 
   @@index([destinataireId], map: "stock_documents_destinataire_id_fkey")
   @@index([emetteurId], map: "stock_documents_emetteur_id_fkey")
@@ -1026,6 +1051,121 @@ model Notification {
   @@map("notifications")
 }
 
+/// Reminder priority levels
+enum ReminderPriority {
+  FAIBLE
+  NORMAL
+  ELEVEE
+}
+
+/// Reminder status for admin lifecycle
+enum ReminderStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  DELETED
+}
+
+/// Recurrence type for reminders
+enum ReminderRecurrenceType {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+  ADVANCED
+}
+
+/// Target type for audience selection
+enum ReminderTargetType {
+  ME
+  USERS
+  ROLES
+  ALL_COMPANY
+}
+
+model Reminder {
+  id              Int                       @id @default(autoincrement())
+  title           String                    @db.VarChar(150)
+  description     String?                   @db.Text
+  dueAt           DateTime                  @map("due_at")
+  timezone        String                    @default("Africa/Tunis") @db.VarChar(50)
+  priority        ReminderPriority          @default(NORMAL)
+  recurrenceType  ReminderRecurrenceType    @default(NONE) @map("recurrence_type")
+  recurrenceText  String?                   @map("recurrence_text") @db.VarChar(200)
+  targetType      ReminderTargetType        @map("target_type")
+  visibilityScope String                    @default("TARGETS") @map("visibility_scope") @db.VarChar(20)
+  snoozeAllowed   Boolean                   @default(true) @map("snooze_allowed")
+  snoozeMaxMin    Int?                      @map("snooze_max_min")
+  escalateAfterMin Int?                     @map("escalate_after_min")
+  escalateToRole  String?                   @map("escalate_to_role") @db.VarChar(50)
+  escalateToUserId Int?                     @map("escalate_to_user_id")
+  status          ReminderStatus            @default(ACTIVE)
+  createdById     Int                       @map("created_by_id")
+  updatedById     Int?                      @map("updated_by_id")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+  voiceMessageUrl String?                   @map("voice_message_url") @db.VarChar(500)
+  allowVoiceResponses Boolean               @default(false) @map("allow_voice_responses")
+
+  createdBy       User                      @relation("ReminderCreatedBy", fields: [createdById], references: [id])
+  updatedBy       User?                     @relation("ReminderUpdatedBy", fields: [updatedById], references: [id])
+  assignments     ReminderAssignment[]
+  roleTargets     ReminderRoleTarget[]
+  voiceResponses  ReminderVoiceResponse[]
+
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("reminders")
+}
+
+/// Direct user targeting for reminders
+model ReminderAssignment {
+  id           Int       @id @default(autoincrement())
+  reminderId   Int       @map("reminder_id")
+  userId       Int       @map("user_id")
+  isRead       Boolean   @default(false) @map("is_read")
+  snoozedUntil DateTime? @map("snoozed_until")
+  lastShownAt  DateTime? @map("last_shown_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  reminder     Reminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@unique([reminderId, userId])
+  @@index([userId])
+  @@map("reminder_assignments")
+}
+
+/// Role targeting for reminders (resolved at display time)
+model ReminderRoleTarget {
+  id         Int      @id @default(autoincrement())
+  reminderId Int      @map("reminder_id")
+  role       String   @db.VarChar(50)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  reminder   Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@unique([reminderId, role])
+  @@map("reminder_role_targets")
+}
+
+model ReminderVoiceResponse {
+  id         Int      @id @default(autoincrement())
+  reminderId Int      @map("reminder_id")
+  userId     Int      @map("user_id")
+  voiceUrl   String   @map("voice_url") @db.VarChar(500)
+  duration   Int      @default(0) // seconds
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  reminder   Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([reminderId])
+  @@index([userId])
+  @@map("reminder_voice_responses")
+}
+
 model Outbox {
   id          Int          @id @default(autoincrement())
   eventType   String       @map("event_type") @db.VarChar(100)
@@ -1164,6 +1304,7 @@ model Vehicle {
   createdAt DateTime     @default(now()) @map("created_at")
   updatedAt DateTime     @updatedAt @map("updated_at")
   brand     VehicleBrand @relation(fields: [brandId], references: [id])
+  stockDocuments StockDocument[]
 
   @@index([brandId], map: "vehicles_brand_id_fkey")
   @@map("vehicles")
@@ -1184,6 +1325,7 @@ model Driver {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   depot         Depot?    @relation(fields: [depotId], references: [id])
+  stockDocuments StockDocument[]
 
   @@index([depotId], map: "drivers_depot_id_fkey")
   @@map("drivers")
@@ -1212,13 +1354,7 @@ enum ReturnDisposition {
   REBUT
 }
 
-enum UserRole {
-  ADMIN
-  MANAGER
-  CASHIER
-  STOCK_MANAGER
-  EMPLOYEE
-}
+// Removed fixed UserRole enum. Role is now a free-form string persisted at `User.role`.
 
 enum DepotType {
   MAIN
