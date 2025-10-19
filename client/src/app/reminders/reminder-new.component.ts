@@ -14,11 +14,11 @@ import { VoiceRecorderComponent } from '../shared/components/voice-recorder/voic
       <span class="text-xl font-bold text-slate-800 mb-6 block">Nouveau rappel</span>
 
       <div class="grid md:grid-cols-2 gap-4 mb-6">
-        <button (click)="setMode('TEXT')" [class]="mode==='TEXT' ? 'border-pink-400 ring-2 ring-pink-200' : 'border-slate-200'" class="w-full rounded-2xl border p-6 text-left hover:border-pink-300 transition">
+        <button (click)="setMode('TEXT')" [class]="mode==='TEXT' ? 'border-pink-400 ring-2 ring-pink-200' : 'border-slate-200'" class="w-full rounded-2xl border p-6 text-left transition">
           <span class="text-lg font-semibold block mb-2">Texte</span>
           <span class="text-slate-600 block">Envoyer un court message texte.</span>
         </button>
-        <button (click)="setMode('VOICE')" [class]="mode==='VOICE' ? 'border-cyan-400 ring-2 ring-cyan-200' : 'border-slate-200'" class="w-full rounded-2xl border p-6 text-left hover:border-cyan-300 transition">
+        <button (click)="setMode('VOICE')" [class]="mode==='VOICE' ? 'border-cyan-400 ring-2 ring-cyan-200' : 'border-slate-200'" class="w-full rounded-2xl border p-6 text-left transition">
           <span class="text-lg font-semibold block mb-2">Vocal</span>
           <span class="text-slate-600 block">Maintenir pour enregistrer, puis enregistrer.</span>
         </button>
@@ -27,16 +27,16 @@ import { VoiceRecorderComponent } from '../shared/components/voice-recorder/voic
       <div class="mb-6">
         <span class="block text-sm font-medium text-slate-700 mb-3">Destinataire</span>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <button (click)="setTarget('ME')" [class]="target==='ME' ? 'border-blue-400 ring-2 ring-blue-200 bg-blue-50' : 'border-slate-200'" class="rounded-xl border p-4 text-center hover:border-blue-300 transition">
+          <button (click)="setTarget('ME')" [class]="target==='ME' ? 'border-blue-400 ring-2 ring-blue-200 bg-blue-50' : 'border-slate-200'" class="rounded-xl border p-4 text-center transition">
             <span class="text-sm font-medium block">Moi</span>
           </button>
-          <button (click)="setTarget('USERS')" [class]="target==='USERS' ? 'border-green-400 ring-2 ring-green-200 bg-green-50' : 'border-slate-200'" class="rounded-xl border p-4 text-center hover:border-green-300 transition">
+          <button (click)="setTarget('USERS')" [class]="target==='USERS' ? 'border-green-400 ring-2 ring-green-200 bg-green-50' : 'border-slate-200'" class="rounded-xl border p-4 text-center transition">
             <span class="text-sm font-medium block">Utilisateurs</span>
           </button>
-          <button (click)="setTarget('ROLES')" [class]="target==='ROLES' ? 'border-purple-400 ring-2 ring-purple-200 bg-purple-50' : 'border-slate-200'" class="rounded-xl border p-4 text-center hover:border-purple-300 transition">
+          <button (click)="setTarget('ROLES')" [class]="target==='ROLES' ? 'border-purple-400 ring-2 ring-purple-200 bg-purple-50' : 'border-slate-200'" class="rounded-xl border p-4 text-center transition">
             <span class="text-sm font-medium block">Rôles</span>
           </button>
-          <button (click)="setTarget('ALL_COMPANY')" [class]="target==='ALL_COMPANY' ? 'border-orange-400 ring-2 ring-orange-200 bg-orange-50' : 'border-slate-200'" class="rounded-xl border p-4 text-center hover:border-orange-300 transition">
+          <button (click)="setTarget('ALL_COMPANY')" [class]="target==='ALL_COMPANY' ? 'border-orange-400 ring-2 ring-orange-200 bg-orange-50' : 'border-slate-200'" class="rounded-xl border p-4 text-center transition">
             <span class="text-sm font-medium block">Tous</span>
           </button>
         </div>

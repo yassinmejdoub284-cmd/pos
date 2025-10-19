@@ -256,50 +256,62 @@ router.get('/me/due-respect-snooze', async (req, res) => {
   try {
     const userId = req.user.id;
     const now = new Date();
-    // direct assignments due and unread or snoozedUntil <= now
-    const direct = await prisma.reminderAssignment.findMany({
-      where: {
-        userId,
-        OR: [
-          { snoozedUntil: null },
-          { snoozedUntil: { lte: now } }
-        ],
-        isRead: false,
-        reminder: { status: 'ACTIVE', dueAt: { lte: now } }
-      },
-      include: { reminder: true },
-      orderBy: { updatedAt: 'desc' },
-      take: 3
-    });
-
-    // role-based
-    const role = req.user.role;
-    const roleDue = await prisma.reminder.findMany({
+    
+    // Get all reminders that are due and active
+    const allDueReminders = await prisma.reminder.findMany({
       where: {
         status: 'ACTIVE',
         dueAt: { lte: now },
-        roleTargets: { some: { role } }
+        OR: [
+          // Direct assignments
+          { assignments: { some: { userId } } },
+          // Role-based reminders
+          { roleTargets: { some: { role: req.user.role } } },
+          // Company-wide reminders
+          { targetType: 'ALL_COMPANY' }
+        ]
       },
-      orderBy: { updatedAt: 'desc' },
-      take: 3
+      include: {
+        assignments: {
+          where: { userId }
+        },
+        roleTargets: true
+      },
+      orderBy: { updatedAt: 'desc' }
     });
 
-    // company-wide
-    const companyDue = await prisma.reminder.findMany({
-      where: { status: 'ACTIVE', dueAt: { lte: now }, targetType: 'ALL_COMPANY' },
-      orderBy: { updatedAt: 'desc' },
-      take: 3
+    // Filter out reminders that are snoozed for this user
+    const filteredReminders = allDueReminders.filter(reminder => {
+      const userAssignment = reminder.assignments[0];
+      
+      // If there's a user assignment, check if it's snoozed
+      if (userAssignment) {
+        // If snoozed until a future time, don't show
+        if (userAssignment.snoozedUntil && userAssignment.snoozedUntil > now) {
+          return false;
+        }
+        // If marked as read, don't show
+        if (userAssignment.isRead) {
+          return false;
+        }
+      }
+      
+      // If no assignment exists, this is a role-based or company-wide reminder
+      // Check if user has snoozed it before
+      if (!userAssignment) {
+        // Check if there's a snooze record for this user and reminder
+        const snoozeRecord = reminder.assignments.find(a => a.userId === userId);
+        if (snoozeRecord && snoozeRecord.snoozedUntil && snoozeRecord.snoozedUntil > now) {
+          return false;
+        }
+      }
+      
+      return true;
     });
 
-    // merge unique by id and cap 3
-    const merged = [];
-    const pushUnique = (r) => { if (!merged.find(x => x.id === r.id)) merged.push(r); };
-    direct.forEach(a => pushUnique(a.reminder));
-    roleDue.forEach(pushUnique);
-    companyDue.forEach(pushUnique);
-
-    res.json(merged.slice(0, 3));
+    res.json(filteredReminders.slice(0, 3));
   } catch (e) {
+    console.error('Error fetching due reminders:', e);
     res.status(500).json({ error: 'Erreur récupération des rappels' });
   }
 });

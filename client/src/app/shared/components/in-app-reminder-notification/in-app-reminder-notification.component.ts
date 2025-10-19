@@ -26,7 +26,7 @@ import { interval, Subscription } from 'rxjs';
             </div>
           </div>
           <button (click)="dismissNotification()" 
-                  class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                  class="p-2 text-slate-400 rounded-xl transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -63,30 +63,30 @@ import { interval, Subscription } from 'rxjs';
         <!-- Actions -->
         <div class="flex items-center gap-3">
           <button (click)="markAsRead()" 
-                  class="flex-1 h-11 rounded-xl text-white font-medium bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all">
+                  class="flex-1 h-11 rounded-xl text-white font-medium bg-gradient-to-r from-purple-500 to-pink-500 transition-all">
             <span>Marquer comme lu</span>
           </button>
           <div class="relative">
             <button (click)="toggleSnoozeMenu()" 
-                    class="h-11 px-4 rounded-xl border border-slate-300 text-slate-800 bg-white hover:bg-slate-50 transition-colors">
+                    class="h-11 px-4 rounded-xl border border-slate-300 text-slate-800 bg-white transition-colors">
               <span>Plus tard</span>
             </button>
             <div *ngIf="showSnoozeMenu" 
                  class="absolute right-0 mt-2 w-48 bg-white rounded-2xl border border-slate-200 shadow-xl p-1 z-10">
               <button (click)="onSnooze(10)" 
-                      class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors">
+                      class="w-full text-left px-3 py-2 rounded-xl transition-colors">
                 <span>10 min</span>
               </button>
               <button (click)="onSnooze(30)" 
-                      class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors">
+                      class="w-full text-left px-3 py-2 rounded-xl transition-colors">
                 <span>30 min</span>
               </button>
               <button (click)="onSnooze(120)" 
-                      class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors">
+                      class="w-full text-left px-3 py-2 rounded-xl transition-colors">
                 <span>120 min</span>
               </button>
               <button (click)="onSnoozeDemain()" 
-                      class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors">
+                      class="w-full text-left px-3 py-2 rounded-xl transition-colors">
                 <span>Demain matin</span>
               </button>
             </div>

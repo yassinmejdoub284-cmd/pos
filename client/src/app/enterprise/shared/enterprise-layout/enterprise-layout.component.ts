@@ -63,7 +63,7 @@ export class EnterpriseLayoutComponent implements OnInit, OnDestroy {
 
     // Check if user is authenticated
     if (!this.authService.isAuthenticated()) {
-      this.router.navigate(['/auth/login-hentati']);
+      this.router.navigate(['/auth/login']);
     }
   }
 

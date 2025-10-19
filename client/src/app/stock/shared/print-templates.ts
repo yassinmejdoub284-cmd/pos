@@ -247,8 +247,11 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   // Helper: normalize TVA to fraction (0.07 for 7% or 0.07)
   const getTvaRateFraction = (raw: any): number => {
     const n = Number(raw);
+    console.log(`getTvaRateFraction: raw=${raw}, type=${typeof raw}, n=${n}`);
     if (!isFinite(n) || n < 0) return 0;
-    return n <= 1 ? n : n / 100;
+    const result = n <= 1 ? n : n / 100;
+    console.log(`getTvaRateFraction: result=${result}`);
+    return result;
   };
   let itemsRows = '';
   // Unified totals for ALL document types
@@ -307,7 +310,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
       let montantHT = Number(item.montantHT) || 0;
       let montantTVA = Number(item.montantTVA) || 0;
       let montantTTC = Number(item.montantTTC) || 0;
-      let tvaRate = Number(item.tva) || 0;
+      let tvaRate = item.tva !== undefined && item.tva !== null ? Number(item.tva) : 19;
       
       // Always recalculate amounts if we have TTC and TVA rate
       if (montantTTC > 0 && tvaRate > 0) {
@@ -326,7 +329,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
         const canWholesale = !!product.isWholesale && bundleSize > 0 && bundlePrice > 0;
         const unitPriceTTC = isWholesaleClient && canWholesale ? (bundlePrice / bundleSize) : baseUnit;
         const tvaFrac = getTvaRateFraction(product.tva);
-        tvaRate = Number(product.tva) || 0;
+        tvaRate = product.tva !== undefined && product.tva !== null ? Number(product.tva) : 19;
         montantTTC = unitPriceTTC * qty;
         // Correct TVA calculation: HT = TTC / (1 + TVA), TVA = TTC - HT
         montantHT = montantTTC / (1 + tvaFrac);

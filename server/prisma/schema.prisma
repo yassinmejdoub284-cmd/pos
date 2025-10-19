@@ -596,12 +596,10 @@ model Supplier {
   createdAt        DateTime                  @default(now()) @map("created_at")
   updatedAt        DateTime                  @updatedAt @map("updated_at")
   currentDebt      Decimal                   @default(0.000) @map("current_debt") @db.Decimal(12, 3)
-  enterpriseId     Int?                      @map("enterprise_id")
   expenses         Expense[]
   debtTransactions SupplierDebtTransaction[]
   payments         SupplierPayment[]
 
-  @@index([enterpriseId], map: "suppliers_enterprise_id_fkey")
   @@map("suppliers")
 }
 
@@ -743,6 +741,7 @@ model StockDocumentItem {
   barcode       String?       @unique @db.VarChar(50)
   purchasePrice Decimal?      @map("purchase_price") @db.Decimal(10, 3)
   count         Int?          @default(1)
+  colisCount    Int?          @default(1) @map("colis_count")
   montantHT     Decimal?      @map("montant_ht") @db.Decimal(10, 3)
   montantTTC    Decimal?      @map("montant_ttc") @db.Decimal(10, 3)
   montantTVA    Decimal?      @map("montant_tva") @db.Decimal(10, 3)
@@ -750,6 +749,7 @@ model StockDocumentItem {
   tva              Decimal?      @default(19.00) @db.Decimal(5, 2)
   parentProductId  Int?          @map("parent_product_id")
   childProductName String?       @map("child_product_name") @db.VarChar(255)
+  childProductId   Int?          @map("child_product_id")
   document         StockDocument @relation(fields: [documentId], references: [id])
   product          Product       @relation(fields: [productId], references: [id])
 

@@ -326,6 +326,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Document non trouvé' });
     }
 
+    // Debug: Log TVA values from database
+    console.log('Document items TVA values:');
+    if (document.items) {
+      document.items.forEach((item, index) => {
+        console.log(`Item ${index}: productId=${item.productId}, tva=${item.tva}, type=${typeof item.tva}`);
+      });
+    }
+
     // Extract supplier information from notes if present
     let supplierInfo = null;
     if (document.notes && document.notes.includes('Supplier:')) {
@@ -451,6 +459,11 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     // Update items if provided
     if (updateData.items && Array.isArray(updateData.items)) {
+      // Get original items for stock synchronization
+      const originalItems = await prisma.stockDocumentItem.findMany({
+        where: { documentId: parseInt(id) }
+      });
+
       // Delete existing items
       await prisma.stockDocumentItem.deleteMany({
         where: { documentId: parseInt(id) }
@@ -462,16 +475,28 @@ router.put('/:id', authenticateToken, async (req, res) => {
           data: {
             documentId: parseInt(id),
             productId: item.productId,
-            famille: item.famille,
+            famille: typeof item.famille === 'object' ? item.famille.name : item.famille,
             quantity: parseFloat(item.quantity),
             count: parseInt(item.count) || 1,
+            colisCount: parseInt(item.colisCount) || 1,
             notes: item.notes || '',
-            purchasePrice: item.purchasePrice || null,
+            purchasePrice: item.purchasePrice !== undefined ? parseFloat(item.purchasePrice) : null,
             batch: item.batch || null,
-            barcode: item.barcode || null
+            barcode: item.barcode || null,
+            prixUnitaire: item.prixUnitaire !== undefined ? parseFloat(item.prixUnitaire) : null,
+            tva: item.tva !== undefined ? parseFloat(item.tva) : null,
+            montantHT: item.montantHT !== undefined ? parseFloat(item.montantHT) : null,
+            montantTVA: item.montantTVA !== undefined ? parseFloat(item.montantTVA) : null,
+            montantTTC: item.montantTTC !== undefined ? parseFloat(item.montantTTC) : null,
+            parentProductId: item.parentProductId || null,
+            childProductName: item.childProductName || null,
+            childProductId: item.childProductId || null
           }
         });
       }
+
+      // Handle stock synchronization
+      await synchronizeStockForDocumentUpdate(existingDocument, originalItems, updateData.items, req.user.id);
 
       // Fetch updated document with items
       const finalDocument = await prisma.stockDocument.findUnique({
@@ -1825,11 +1850,11 @@ router.post('/', authenticateToken, async (req, res) => {
               famille: (typeof item.famille === 'object' ? item.famille.name : item.famille) || 'SCAN',
               quantity: parseFloat(item.quantity),
               count: item.count || 1,
-              prixUnitaire: item.prixUnitaire || 0,
-              tva: item.tva || 19,
-              montantHT: item.montantHT || 0,
-              montantTVA: item.montantTVA || 0,
-              montantTTC: item.montantTTC || 0,
+              prixUnitaire: item.prixUnitaire !== undefined ? parseFloat(item.prixUnitaire) : 0,
+              tva: item.tva !== undefined ? parseFloat(item.tva) : 19,
+              montantHT: item.montantHT !== undefined ? parseFloat(item.montantHT) : 0,
+              montantTVA: item.montantTVA !== undefined ? parseFloat(item.montantTVA) : 0,
+              montantTTC: item.montantTTC !== undefined ? parseFloat(item.montantTTC) : 0,
               batch: item.batch || null,
               notes: typeof item.famille === 'object' ? item.famille.name : (item.notes || null),
               barcode: item.barcode || null,
@@ -2033,5 +2058,178 @@ router.post('/:id/convert-to-delivery', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de la conversion du document' });
   }
 });
+
+// Stock synchronization function for document updates
+async function synchronizeStockForDocumentUpdate(document, originalItems, newItems, userId) {
+  try {
+    console.log('Starting stock synchronization for document update:', document.id);
+    
+    // Create maps for easier comparison
+    const originalItemsMap = new Map();
+    const newItemsMap = new Map();
+    
+    // Map original items by productId
+    originalItems.forEach(item => {
+      const key = `${item.productId}_${item.parentProductId || 'null'}`;
+      if (originalItemsMap.has(key)) {
+        originalItemsMap.get(key).quantity += parseFloat(item.quantity);
+      } else {
+        originalItemsMap.set(key, {
+          productId: item.productId,
+          parentProductId: item.parentProductId,
+          quantity: parseFloat(item.quantity),
+          colisCount: parseInt(item.colisCount) || 1
+        });
+      }
+    });
+    
+    // Map new items by productId
+    newItems.forEach(item => {
+      const key = `${item.productId}_${item.parentProductId || 'null'}`;
+      if (newItemsMap.has(key)) {
+        newItemsMap.get(key).quantity += parseFloat(item.quantity);
+      } else {
+        newItemsMap.set(key, {
+          productId: item.productId,
+          parentProductId: item.parentProductId,
+          quantity: parseFloat(item.quantity),
+          colisCount: parseInt(item.colisCount) || 1
+        });
+      }
+    });
+    
+    // Determine stock changes based on document type
+    const isOutgoing = ['BON_EXPEDITION', 'BON_SORTIE'].includes(document.type);
+    const isIncoming = ['BON_ENTREE', 'BON_ENTREE_MAGASIN'].includes(document.type);
+    const isTransfer = document.type === 'BON_TRANSFERT';
+    
+    if (!isOutgoing && !isIncoming && !isTransfer) {
+      console.log('Document type does not require stock synchronization:', document.type);
+      return;
+    }
+    
+    // Process stock changes
+    const allProductIds = new Set([...originalItemsMap.keys(), ...newItemsMap.keys()]);
+    
+    for (const key of allProductIds) {
+      const originalItem = originalItemsMap.get(key);
+      const newItem = newItemsMap.get(key);
+      
+      const originalQuantity = originalItem ? originalItem.quantity : 0;
+      const newQuantity = newItem ? newItem.quantity : 0;
+      const quantityChange = newQuantity - originalQuantity;
+      
+      if (Math.abs(quantityChange) < 0.001) {
+        continue; // No significant change
+      }
+      
+      const productId = (originalItem || newItem).productId;
+      const parentProductId = (originalItem || newItem).parentProductId || productId;
+      
+      console.log(`Processing stock change for product ${productId}: ${originalQuantity} -> ${newQuantity} (change: ${quantityChange})`);
+      
+      // Determine which depot to update based on document type
+      let depotId = null;
+      let movementType = null;
+      let fromDepotId = null;
+      let toDepotId = null;
+      
+      if (isOutgoing) {
+        depotId = document.emetteurId;
+        movementType = 'OUT';
+        fromDepotId = document.emetteurId;
+        toDepotId = document.destinataireId;
+      } else if (isIncoming) {
+        depotId = document.destinataireId;
+        movementType = 'IN';
+        fromDepotId = document.emetteurId;
+        toDepotId = document.destinataireId;
+      } else if (isTransfer) {
+        // For transfers, we need to handle both depots
+        depotId = document.emetteurId;
+        movementType = 'TRANSFER';
+        fromDepotId = document.emetteurId;
+        toDepotId = document.destinataireId;
+      }
+      
+      if (!depotId) {
+        console.log('No depot ID found for stock update');
+        continue;
+      }
+      
+      // Update inventory for the main depot
+      await updateInventoryForProduct(depotId, parentProductId, quantityChange, isOutgoing);
+      
+      // For transfers, also update the destination depot
+      if (isTransfer && toDepotId) {
+        await updateInventoryForProduct(toDepotId, parentProductId, -quantityChange, false);
+      }
+      
+      // Create stock movement record
+      await prisma.stockMovement.create({
+        data: {
+          productId: parentProductId,
+          depotId: depotId,
+          quantity: quantityChange,
+          type: movementType,
+          fromDepotId: fromDepotId,
+          toDepotId: toDepotId,
+          reason: `DOCUMENT_UPDATE_${document.type}`,
+          reference: document.numero,
+          userId: userId
+        }
+      });
+      
+      console.log(`Stock movement created for product ${parentProductId}: ${quantityChange}kg (${movementType})`);
+    }
+    
+    console.log('Stock synchronization completed for document update:', document.id);
+  } catch (error) {
+    console.error('Error during stock synchronization for document update:', error);
+    throw error;
+  }
+}
+
+// Helper function to update inventory for a product
+async function updateInventoryForProduct(depotId, productId, quantityChange, isOutgoing) {
+  try {
+    // Find existing inventory record
+    const inventory = await prisma.inventory.findUnique({
+      where: {
+        depotId_productId: {
+          depotId: depotId,
+          productId: productId
+        }
+      }
+    });
+    
+    if (inventory) {
+      // Update existing inventory
+      const currentQuantity = parseFloat(inventory.quantity) || 0;
+      const newQuantity = currentQuantity + quantityChange;
+      
+      await prisma.inventory.update({
+        where: { id: inventory.id },
+        data: { quantity: newQuantity }
+      });
+      
+      console.log(`Updated inventory for depot ${depotId}, product ${productId}: ${currentQuantity} -> ${newQuantity}`);
+    } else {
+      // Create new inventory record
+      await prisma.inventory.create({
+        data: {
+          depotId: depotId,
+          productId: productId,
+          quantity: quantityChange
+        }
+      });
+      
+      console.log(`Created new inventory for depot ${depotId}, product ${productId}: ${quantityChange}`);
+    }
+  } catch (error) {
+    console.error(`Error updating inventory for depot ${depotId}, product ${productId}:`, error);
+    throw error;
+  }
+}
 
 module.exports = router; 

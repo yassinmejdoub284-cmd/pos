@@ -1,6 +1,6 @@
 {
   "1": {
-    "companyName": "",
+    "companyName": "PATISSERIE TUNISIENNE",
     "logoUrl": "",
     "companyAddress": "",
     "companyPhone": "",
@@ -73,12 +73,12 @@
       "sortie": {
         "client": false,
         "depot": true,
-        "vehicle": false,
-        "driver": false,
-        "manualDestination": false,
+        "vehicle": true,
+        "driver": true,
+        "manualDestination": true,
         "autoInvoice": false,
         "tvaAndPrix": true,
-        "validity": false
+        "validity": true
       },
       "transfert": {
         "client": false,
@@ -99,6 +99,21 @@
         "autoInvoice": true,
         "tvaAndPrix": true,
         "validity": false
+      }
+    },
+    "documentDisplaySettings": {
+      "livraison": {
+        "showPackageCount": true
+      },
+      "sortie": {
+        "showPackageCount": true
+      },
+      "transfert": {
+        "showPackageCount": true
+      },
+      "facture": {
+        "showPackageCount": true,
+        "timbrePrice": 1
       }
     },
     "roleAccessConfig": {}

@@ -71,7 +71,7 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <button type="button" *ngFor="let sub of currentBlock?.submodules"
                     (click)="toggleSub(currentBlock?.id || '', sub.id)"
-                    class="text-left p-4 rounded-xl border bg-gradient-to-br from-white to-gray-50 hover:border-emerald-300 transition relative"
+                    class="text-left p-4 rounded-xl border bg-gradient-to-br from-white to-gray-50 transition relative"
                     [class.border-emerald-300]="settings?.roleAccessConfig?.[role]?.blocks?.[currentBlock?.id || '']?.submodules?.[sub.id] === true">
               <div class="flex items-start gap-3">
                 <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-200">

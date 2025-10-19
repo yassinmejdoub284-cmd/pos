@@ -14,34 +14,55 @@
         </div>
       </div>
        <div class="flex gap-3">
-         <button (click)="goToScan()" 
-           class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
-           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-           </svg>
-           Nouveau Scan
-         </button>
-         <button (click)="printDocument()" 
-           class="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
-           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-           </svg>
-           Imprimer
-         </button>
-         <button *ngIf="canGenerateInvoice()" (click)="openInvoiceModal()" 
-           class="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
-           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-           </svg>
-           Générer facture
-         </button>
-         <button (click)="goBack()" 
-           class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
-           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-             <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
-           </svg>
-           Retour
-         </button>
+         <!-- Edit Mode Controls -->
+         <ng-container *ngIf="isEditMode; else viewModeControls">
+           <button (click)="saveDocument()" [disabled]="loading"
+             class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2 disabled:opacity-50">
+             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+             </svg>
+             {{ loading ? 'Sauvegarde...' : 'Sauvegarder' }}
+           </button>
+           <button (click)="cancelEdit()" [disabled]="loading"
+             class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
+             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+             </svg>
+             Annuler
+           </button>
+         </ng-container>
+
+         <!-- View Mode Controls -->
+         <ng-template #viewModeControls>
+           <button (click)="goToScan()" 
+             class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
+             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+             </svg>
+             Nouveau Scan
+           </button>
+           <button (click)="printDocument()" 
+             class="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
+             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+             </svg>
+             Imprimer
+           </button>
+           <button *ngIf="canGenerateInvoice()" (click)="openInvoiceModal()" 
+             class="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
+             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+             </svg>
+             Générer facture
+           </button>
+           <button (click)="goBack()" 
+             class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
+             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+               <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
+             </svg>
+             Retour
+           </button>
+         </ng-template>
        </div>
     </div>
   </div>
@@ -51,10 +72,158 @@
     {{ error }}
   </div>
 
+  <!-- Success Message -->
+  <div *ngIf="success" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-6">
+    {{ success }}
+  </div>
+
   <!-- Loading State -->
   <div *ngIf="loading" class="text-center py-16">
     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
     <p class="text-gray-600 mt-4">Chargement du document...</p>
+  </div>
+
+  <!-- Edit Form (only show when in edit mode) -->
+  <div *ngIf="!loading && document && isEditMode" class="bg-white/80 rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+    <h2 class="text-xl font-bold text-slate-800 mb-4">Modifier le Document</h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Document Number -->
+      <div>
+        <label for="document-number" class="block text-sm font-medium text-slate-700 mb-2">Numéro du document</label>
+        <input id="document-number" [(ngModel)]="document.numero" (ngModelChange)="updatePreview()" type="text" 
+          class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Entrez le numéro du document">
+      </div>
+
+      <!-- Document Status -->
+      <div>
+        <label for="document-status" class="block text-sm font-medium text-slate-700 mb-2">Statut</label>
+        <select id="document-status" [(ngModel)]="document.status" (ngModelChange)="updatePreview()"
+          class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          title="Sélectionnez le statut du document">
+          <option value="PREPARED">Préparé</option>
+          <option value="SENT">Envoyé</option>
+          <option value="RECEIVED">Reçu</option>
+          <option value="CANCELLED">Annulé</option>
+          <option value="COMPLETED">Terminé</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="mt-4">
+      <label for="document-notes" class="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+      <textarea id="document-notes" [(ngModel)]="document.notes" (ngModelChange)="updatePreview()"
+        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        rows="3" placeholder="Notes additionnelles..."></textarea>
+    </div>
+
+    <!-- Product Management Section -->
+    <div class="mt-8 border-t border-slate-200 pt-6">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-bold text-slate-800">Gestion des Produits</h3>
+        <div class="flex gap-3">
+          <button (click)="showManualAdd()" 
+            class="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Ajouter Produit
+          </button>
+          <button (click)="clearScannedItems()" 
+            class="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+            Effacer Tout
+          </button>
+        </div>
+      </div>
+
+      <!-- Scanned Items Display -->
+      <div *ngIf="scannedItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div *ngFor="let item of scannedItems; let index = index" 
+             class="bg-white rounded-xl p-4 border-2 shadow-sm transition-all duration-200"
+             [ngClass]="getProductCardColor(index, 0)">
+          
+          <!-- Product Info -->
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1">
+              <h5 class="font-semibold text-slate-800 text-sm">{{ item.productName }}</h5>
+              <p class="text-xs text-slate-600">ID: {{ item.articleId }}</p>
+            </div>
+            <button (click)="removeScannedItem(item.articleId)" 
+              title="Supprimer ce produit"
+              class="p-1 text-red-500 rounded-lg transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Quantity and Count -->
+          <div class="space-y-2 mb-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-slate-600">Quantité:</span>
+              <span class="font-semibold text-slate-800">{{ (item.quantity/1000).toFixed(3) }}kg</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-slate-600">Scans:</span>
+              <span class="font-semibold text-slate-800">{{ item.count }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-slate-600">Colis:</span>
+              <span class="font-semibold text-slate-800">{{ item.colisCount }}</span>
+            </div>
+          </div>
+
+          <!-- Price -->
+          <div *ngIf="getSubProductPrice(item.articleId, item.quantity) > 0" 
+               class="mb-3 p-2 bg-green-50 rounded-lg border border-green-200">
+            <div class="text-center">
+              <span class="text-sm font-bold text-green-800">
+                {{ getSubProductPrice(item.articleId, item.quantity).toFixed(2) }} DT
+              </span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex gap-2">
+            <button (click)="showScanDetails(item)" 
+              class="flex-1 bg-blue-500 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors">
+              Détails
+            </button>
+            <button (click)="editColisCount(item)" 
+              class="bg-purple-500 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors">
+              Colis
+            </button>
+            <button (click)="editUnitPrice(item)" 
+              class="bg-green-500 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors">
+              Prix
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="scannedItems.length === 0" class="text-center py-12">
+        <div class="w-16 h-16 bg-gradient-to-br from-slate-200 to-slate-300 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-700 mb-2">Aucun produit</h3>
+        <p class="text-slate-500 text-sm mb-4">Commencez par ajouter des produits au document</p>
+        <button (click)="showManualAdd()" 
+          class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2 mx-auto">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+          </svg>
+          Ajouter le premier produit
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Document Display with Beautiful Client Section -->
@@ -63,6 +232,22 @@
     <div class="lg:col-span-2 document-display-container">
       <!-- Print Styles -->
       <style [innerHTML]="printStyles"></style>
+      
+      <!-- Live Preview Header in Edit Mode -->
+      <div *ngIf="isEditMode" class="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-slate-800">Aperçu en temps réel</h3>
+            <p class="text-sm text-slate-600">Voici comment votre document apparaîtra une fois imprimé</p>
+          </div>
+        </div>
+      </div>
       
       <!-- Document Content (EXACT HTML from print template) -->
       <div class="document-wrapper" [innerHTML]="safeDocumentHtml"></div>
@@ -227,6 +412,352 @@
       <div class="p-5 border-t flex gap-3 justify-end">
         <button (click)="cancelInvoice()" class="px-4 py-2 rounded-lg bg-slate-200">Annuler</button>
         <button (click)="confirmGenerateInvoice()" [disabled]="!invoiceNumber" class="px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50">Générer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Selection Modal -->
+  <div *ngIf="showProductSelectionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="closeProductSelectionModal()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden" (click)="$event.stopPropagation()">
+      <div class="p-6 border-b">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xl font-bold text-slate-800">Sélectionner un Produit</h3>
+          <button (click)="closeProductSelectionModal()" 
+            title="Fermer la sélection de produit"
+            class="p-2 text-slate-400 rounded-lg transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="mt-4">
+          <input [(ngModel)]="searchQuery" (input)="filterProduitsDeCaisse()" type="text" 
+            placeholder="Rechercher par nom, ID ou famille..." 
+            class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        </div>
+      </div>
+      <div class="p-6 overflow-y-auto max-h-[60vh]">
+        <div *ngFor="let group of getGroupedProduitsDeCaisse(); let groupIndex = index" class="mb-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-r rounded-xl flex items-center justify-center shadow-lg" 
+                 [ngClass]="getGroupHeaderColor(groupIndex)">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+              </svg>
+            </div>
+            <div>
+              <h4 class="text-lg font-bold text-slate-800">{{ group.parentProductName }}</h4>
+              <p class="text-sm text-slate-600">{{ group.produits.length }} variante(s)</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <button *ngFor="let produit of group.produits; let productIndex = index" 
+              (click)="selectProductForManualAdd(produit)"
+              class="bg-white rounded-xl p-4 border-2 shadow-sm transition-all duration-200 text-left"
+              [ngClass]="getProductCardColor(groupIndex, productIndex)">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <span class="text-white text-xs font-bold">{{ produit.id }}</span>
+                </div>
+                <div class="flex-1">
+                  <h5 class="font-semibold text-slate-800 text-sm">{{ produit.name }}</h5>
+                  <p class="text-xs text-slate-600">{{ getParentProductName(produit) }}</p>
+                </div>
+              </div>
+              <div *ngIf="produit.prix_vente_TTC" class="text-center">
+                <span class="text-sm font-bold text-green-600">{{ produit.prix_vente_TTC }} DT</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Quantity Modal -->
+  <div *ngIf="showManualQuantityModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="closeManualQuantityModal()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md" (click)="$event.stopPropagation()">
+      <div class="p-6 border-b">
+        <h3 class="text-lg font-bold text-slate-800">Quantité (kg)</h3>
+        <p class="text-sm text-slate-600 mt-1">{{ selectedProductForManualAdd?.name }}</p>
+      </div>
+      <div class="p-6">
+        <div class="text-center mb-6">
+          <div class="text-3xl font-bold text-slate-800 mb-2">{{ manualQuantity || '0' }}</div>
+          <div class="text-sm text-slate-600">kilogrammes</div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <button *ngFor="let digit of ['1','2','3','4','5','6','7','8','9','0']" 
+            (click)="addManualQuantityDigit(digit)"
+            class="bg-slate-100 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            {{ digit }}
+          </button>
+          <button (click)="addManualQuantityDecimalPoint()" 
+            class="bg-slate-100 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            .
+          </button>
+          <button (click)="removeLastManualQuantityDigit()" 
+            class="bg-red-100 text-red-800 font-semibold py-3 rounded-lg transition-colors">
+            ⌫
+          </button>
+        </div>
+        <button (click)="clearManualQuantity()" 
+          class="w-full bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg transition-colors mb-4">
+          Effacer
+        </button>
+        <div class="flex gap-3">
+          <button (click)="closeManualQuantityModal()" 
+            class="flex-1 bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            Annuler
+          </button>
+          <button (click)="confirmManualQuantity()" 
+            class="flex-1 bg-green-500 text-white font-semibold py-3 rounded-lg transition-colors">
+            Continuer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Colis Modal -->
+  <div *ngIf="showManualColisModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="closeManualColisModal()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md" (click)="$event.stopPropagation()">
+      <div class="p-6 border-b">
+        <h3 class="text-lg font-bold text-slate-800">Nombre de Colis</h3>
+        <p class="text-sm text-slate-600 mt-1">{{ selectedProductForManualAdd?.name }}</p>
+      </div>
+      <div class="p-6">
+        <div class="text-center mb-6">
+          <div class="text-3xl font-bold text-slate-800 mb-2">{{ manualColisCount || '0' }}</div>
+          <div class="text-sm text-slate-600">colis</div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <button *ngFor="let digit of ['1','2','3','4','5','6','7','8','9','0']" 
+            (click)="addManualColisDigit(digit)"
+            class="bg-slate-100 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            {{ digit }}
+          </button>
+          <button (click)="removeLastManualColisDigit()" 
+            class="bg-red-100 text-red-800 font-semibold py-3 rounded-lg transition-colors col-span-2">
+            ⌫
+          </button>
+        </div>
+        <button (click)="clearManualColisCount()" 
+          class="w-full bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg transition-colors mb-4">
+          Effacer
+        </button>
+        <div class="flex gap-3">
+          <button (click)="closeManualColisModal()" 
+            class="flex-1 bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            Annuler
+          </button>
+          <button (click)="confirmManualColis()" 
+            class="flex-1 bg-green-500 text-white font-semibold py-3 rounded-lg transition-colors">
+            Ajouter
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scan Details Modal -->
+  <div *ngIf="showScanDetailsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="closeScanDetailsModal()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden" (click)="$event.stopPropagation()">
+      <div class="p-6 border-b">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xl font-bold text-slate-800">Détails du Produit</h3>
+          <button (click)="closeScanDetailsModal()" 
+            title="Fermer les détails du produit"
+            class="p-2 text-slate-400 rounded-lg transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="p-6 overflow-y-auto max-h-[60vh]">
+        <div *ngIf="selectedProductForDetails" class="space-y-4">
+          <div class="bg-slate-50 rounded-lg p-4">
+            <h4 class="font-semibold text-slate-800 mb-2">{{ selectedProductForDetails.productName }}</h4>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span class="text-slate-600">Quantité totale:</span>
+                <span class="font-semibold ml-2">{{ (selectedProductForDetails.quantity/1000).toFixed(3) }}kg</span>
+              </div>
+              <div>
+                <span class="text-slate-600">Nombre de scans:</span>
+                <span class="font-semibold ml-2">{{ selectedProductForDetails.count }}</span>
+              </div>
+              <div>
+                <span class="text-slate-600">Nombre de colis:</span>
+                <span class="font-semibold ml-2">{{ selectedProductForDetails.colisCount }}</span>
+              </div>
+              <div>
+                <span class="text-slate-600">Dernier scan:</span>
+                <span class="font-semibold ml-2">{{ selectedProductForDetails.lastScanned | date:'short' }}</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h5 class="font-semibold text-slate-800 mb-3">Scans individuels</h5>
+            <div class="space-y-2">
+              <div *ngFor="let scan of selectedProductForDetails.individualScans" 
+                class="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 0h10m-9 0a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="font-semibold text-slate-800">{{ (scan.quantity/1000).toFixed(3) }}kg</div>
+                    <div class="text-xs text-slate-600">{{ scan.timestamp | date:'short' }}</div>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  <button (click)="editScanQuantity(selectedProductForDetails.articleId, scan.id)" 
+                    class="bg-blue-500 text-white px-3 py-1 rounded text-xs transition-colors">
+                    Modifier
+                  </button>
+                  <button (click)="removeIndividualScan(selectedProductForDetails.articleId, scan.id)" 
+                    class="bg-red-500 text-white px-3 py-1 rounded text-xs transition-colors">
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quantity Edit Modal -->
+  <div *ngIf="showQuantityEditModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="closeQuantityEditModal()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md" (click)="$event.stopPropagation()">
+      <div class="p-6 border-b">
+        <h3 class="text-lg font-bold text-slate-800">Modifier la Quantité (kg)</h3>
+      </div>
+      <div class="p-6">
+        <div class="text-center mb-6">
+          <div class="text-3xl font-bold text-slate-800 mb-2">{{ editedQuantity || '0' }}</div>
+          <div class="text-sm text-slate-600">kilogrammes</div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <button *ngFor="let digit of ['1','2','3','4','5','6','7','8','9','0']" 
+            (click)="addDigit(digit)"
+            class="bg-slate-100 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            {{ digit }}
+          </button>
+          <button (click)="addDecimalPoint()" 
+            class="bg-slate-100 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            .
+          </button>
+          <button (click)="removeLastDigit()" 
+            class="bg-red-100 text-red-800 font-semibold py-3 rounded-lg transition-colors">
+            ⌫
+          </button>
+        </div>
+        <button (click)="clearQuantity()" 
+          class="w-full bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg transition-colors mb-4">
+          Effacer
+        </button>
+        <div class="flex gap-3">
+          <button (click)="closeQuantityEditModal()" 
+            class="flex-1 bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            Annuler
+          </button>
+          <button (click)="updateQuantity()" 
+            class="flex-1 bg-green-500 text-white font-semibold py-3 rounded-lg transition-colors">
+            Mettre à jour
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Colis Edit Modal -->
+  <div *ngIf="showColisEditModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="closeColisEditModal()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md" (click)="$event.stopPropagation()">
+      <div class="p-6 border-b">
+        <h3 class="text-lg font-bold text-slate-800">Modifier le Nombre de Colis</h3>
+        <p class="text-sm text-slate-600 mt-1">{{ selectedProductForColisEdit?.productName }}</p>
+      </div>
+      <div class="p-6">
+        <div class="text-center mb-6">
+          <div class="text-3xl font-bold text-slate-800 mb-2">{{ editedColisCount || '0' }}</div>
+          <div class="text-sm text-slate-600">colis</div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <button *ngFor="let digit of ['1','2','3','4','5','6','7','8','9','0']" 
+            (click)="addColisDigit(digit)"
+            class="bg-slate-100 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            {{ digit }}
+          </button>
+          <button (click)="removeLastColisDigit()" 
+            class="bg-red-100 text-red-800 font-semibold py-3 rounded-lg transition-colors col-span-2">
+            ⌫
+          </button>
+        </div>
+        <button (click)="clearColisCount()" 
+          class="w-full bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg transition-colors mb-4">
+          Effacer
+        </button>
+        <div class="flex gap-3">
+          <button (click)="closeColisEditModal()" 
+            class="flex-1 bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            Annuler
+          </button>
+          <button (click)="updateColisCount()" 
+            class="flex-1 bg-green-500 text-white font-semibold py-3 rounded-lg transition-colors">
+            Mettre à jour
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unit Price Edit Modal -->
+  <div *ngIf="showUnitPriceEditModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="closeUnitPriceEditModal()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md" (click)="$event.stopPropagation()">
+      <div class="p-6 border-b">
+        <h3 class="text-lg font-bold text-slate-800">Modifier le Prix Unitaire</h3>
+        <p class="text-sm text-slate-600 mt-1">{{ selectedProductForPriceEdit?.productName }}</p>
+      </div>
+      <div class="p-6">
+        <div class="text-center mb-6">
+          <div class="text-3xl font-bold text-slate-800 mb-2">{{ editedUnitPrice || '0.000' }}</div>
+          <div class="text-sm text-slate-600">DT par kg</div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <button *ngFor="let digit of ['1','2','3','4','5','6','7','8','9','0']" 
+            (click)="addPriceDigit(digit)"
+            class="bg-slate-100 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            {{ digit }}
+          </button>
+          <button (click)="addPriceDecimalPoint()" 
+            class="bg-blue-100 text-blue-800 font-semibold py-3 rounded-lg transition-colors">
+            .
+          </button>
+          <button (click)="removeLastPriceDigit()" 
+            class="bg-red-100 text-red-800 font-semibold py-3 rounded-lg transition-colors">
+            ⌫
+          </button>
+        </div>
+        <button (click)="clearUnitPrice()" 
+          class="w-full bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg transition-colors mb-4">
+          Effacer
+        </button>
+        <div class="flex gap-3">
+          <button (click)="closeUnitPriceEditModal()" 
+            class="flex-1 bg-slate-200 text-slate-800 font-semibold py-3 rounded-lg transition-colors">
+            Annuler
+          </button>
+          <button (click)="updateUnitPrice()" 
+            class="flex-1 bg-green-500 text-white font-semibold py-3 rounded-lg transition-colors">
+            Mettre à jour
+          </button>
+        </div>
       </div>
     </div>
   </div>

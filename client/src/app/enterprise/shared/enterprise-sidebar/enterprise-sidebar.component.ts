@@ -60,7 +60,7 @@ export class EnterpriseSidebarComponent implements OnInit, OnDestroy {
 
     // Check if user is authenticated
     if (!this.authService.isAuthenticated()) {
-      this.router.navigate(['/auth/login-hentati']);
+      this.router.navigate(['/auth/login']);
     }
   }
 
@@ -82,10 +82,6 @@ export class EnterpriseSidebarComponent implements OnInit, OnDestroy {
   }
 
   // Navigation methods for each section
-  goToSuppliers(): void {
-    const enterpriseId = this.currentUser?.companyId || 1;
-    this.router.navigate(['/enterprise/suppliers', enterpriseId]);
-  }
 
   goToClients(): void {
     this.onNavigateToSection('clients');
@@ -122,7 +118,7 @@ export class EnterpriseSidebarComponent implements OnInit, OnDestroy {
   // User actions
   logout(): void {
     this.authService.logout();
-    this.router.navigate(['/auth/login-hentati']);
+    this.router.navigate(['/auth/login']);
   }
 
   // Favicon management

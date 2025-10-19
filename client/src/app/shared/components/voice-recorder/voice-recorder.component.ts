@@ -17,7 +17,7 @@ import { CommonModule } from '@angular/common';
           (touchend)="stopRecording()"
           [disabled]="isRecording() || isProcessing()"
           class="w-24 h-24 rounded-full border-4 transition-all duration-200 flex items-center justify-center text-white font-medium text-sm"
-          [class]="isRecording() ? 'bg-rose-500 border-rose-300 animate-pulse' : 'bg-gradient-to-br from-rose-400 to-rose-600 border-rose-200 hover:from-rose-500 hover:to-rose-700'"
+          [class]="isRecording() ? 'bg-rose-500 border-rose-300 animate-pulse' : 'bg-gradient-to-br from-rose-400 to-rose-600 border-rose-200'"
         >
           <svg *ngIf="!isRecording()" class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
@@ -70,13 +70,13 @@ import { CommonModule } from '@angular/common';
         <div class="flex space-x-2">
           <button 
             (click)="retake()" 
-            class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50"
+            class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-slate-700 bg-white"
           >
             Réenregistrer
           </button>
           <button 
             (click)="confirm()" 
-            class="flex-1 px-3 py-2 rounded-xl text-white bg-gradient-to-r from-rose-400 to-rose-600 hover:from-rose-500 hover:to-rose-700"
+            class="flex-1 px-3 py-2 rounded-xl text-white bg-gradient-to-r from-rose-400 to-rose-600"
           >
             {{ confirmLabel }}
           </button>

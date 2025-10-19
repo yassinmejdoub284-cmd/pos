@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { LoginComponent } from './login/login.component';
-import { LoginHentatiComponent } from './login-hentati/login-hentati.component';
 import { UnauthorizedComponent } from '../unauthorized/unauthorized.component';
 import { UsersComponent } from './users/users.component';
 import { AuthRoutingModule } from './auth-routing.module';
@@ -12,7 +11,6 @@ import { VoicePlayerComponent } from '../shared/components/voice-player/voice-pl
 @NgModule({
   declarations: [
     LoginComponent,
-    LoginHentatiComponent,
     UnauthorizedComponent,
     UsersComponent
   ],

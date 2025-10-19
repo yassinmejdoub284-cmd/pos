@@ -14,7 +14,7 @@ import { Reminder } from '../core/models/reminder.model';
     <div class="mb-6">
     <div class="flex items-center justify-between mb-4">
         <div class="flex items-center space-x-4">
-          <button routerLink="/home" class="flex items-center space-x-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm hover:shadow-md transition-all duration-300">
+          <button routerLink="/home" class="flex items-center space-x-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm transition-all duration-300">
             <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
             </svg>
@@ -27,7 +27,7 @@ import { Reminder } from '../core/models/reminder.model';
             <p class="text-gray-600 text-sm">Gérez et suivez tous vos rappels</p>
           </div>
         </div>
-        <a routerLink="/reminders/nouveau" class="group relative px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+        <a routerLink="/reminders/nouveau" class="group relative px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl shadow-lg transition-all duration-300 transform">
           <div class="flex items-center space-x-2">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -142,7 +142,7 @@ import { Reminder } from '../core/models/reminder.model';
 
       <div class="grid gap-4">
         <div *ngFor="let r of filtered(); let i = index" 
-             class="group bg-gradient-to-r from-white to-gray-50/50 rounded-2xl border border-gray-200/50 p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200/50">
+             class="group bg-gradient-to-r from-white to-gray-50/50 rounded-2xl border border-gray-200/50 p-6 transition-all duration-300">
           
           <div class="flex items-start justify-between mb-4">
             <div class="flex-1">
@@ -189,19 +189,19 @@ import { Reminder } from '../core/models/reminder.model';
 
           <!-- Actions -->
           <div class="flex flex-wrap gap-2 pt-4 border-t border-gray-200/50">
-            <button (click)="editReminder(r)" class="px-4 py-2 bg-blue-500/10 text-blue-600 rounded-lg border border-blue-200/50 hover:bg-blue-500/20 transition-colors text-sm font-medium">
+            <button (click)="editReminder(r)" class="px-4 py-2 bg-blue-500/10 text-blue-600 rounded-lg border border-blue-200/50 transition-colors text-sm font-medium">
               Modifier
             </button>
-            <button (click)="duplicateReminder(r)" class="px-4 py-2 bg-purple-500/10 text-purple-600 rounded-lg border border-purple-200/50 hover:bg-purple-500/20 transition-colors text-sm font-medium">
+            <button (click)="duplicateReminder(r)" class="px-4 py-2 bg-purple-500/10 text-purple-600 rounded-lg border border-purple-200/50 transition-colors text-sm font-medium">
               Dupliquer
             </button>
-            <button (click)="togglePause(r)" class="px-4 py-2 bg-yellow-500/10 text-yellow-600 rounded-lg border border-yellow-200/50 hover:bg-yellow-500/20 transition-colors text-sm font-medium">
+            <button (click)="togglePause(r)" class="px-4 py-2 bg-yellow-500/10 text-yellow-600 rounded-lg border border-yellow-200/50 transition-colors text-sm font-medium">
               {{ r.status === 'PAUSED' ? 'Reprendre' : 'Pause' }}
             </button>
-            <button (click)="cancelReminder(r)" class="px-4 py-2 bg-orange-500/10 text-orange-600 rounded-lg border border-orange-200/50 hover:bg-orange-500/20 transition-colors text-sm font-medium">
+            <button (click)="cancelReminder(r)" class="px-4 py-2 bg-orange-500/10 text-orange-600 rounded-lg border border-orange-200/50 transition-colors text-sm font-medium">
               Annuler
             </button>
-            <button (click)="deleteReminder(r)" class="px-4 py-2 bg-red-500/10 text-red-600 rounded-lg border border-red-200/50 hover:bg-red-500/20 transition-colors text-sm font-medium">
+            <button (click)="deleteReminder(r)" class="px-4 py-2 bg-red-500/10 text-red-600 rounded-lg border border-red-200/50 transition-colors text-sm font-medium">
               Supprimer
             </button>
           </div>

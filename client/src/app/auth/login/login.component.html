@@ -184,10 +184,10 @@
           <span>Rappelle-moi plus tard</span>
         </button>
         <div *ngIf="showSnoozeMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-2xl border border-slate-200 shadow-xl p-1">
-          <button (click)="onSnooze(10)" class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50"><span>10 min</span></button>
-          <button (click)="onSnooze(30)" class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50"><span>30 min</span></button>
-          <button (click)="onSnooze(120)" class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50"><span>120 min</span></button>
-          <button (click)="onSnoozeDemain()" class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50"><span>Demain matin</span></button>
+          <button (click)="onSnooze(10)" class="w-full text-left px-3 py-2 rounded-xl"><span>10 min</span></button>
+          <button (click)="onSnooze(30)" class="w-full text-left px-3 py-2 rounded-xl"><span>30 min</span></button>
+          <button (click)="onSnooze(120)" class="w-full text-left px-3 py-2 rounded-xl"><span>120 min</span></button>
+          <button (click)="onSnoozeDemain()" class="w-full text-left px-3 py-2 rounded-xl"><span>Demain matin</span></button>
         </div>
       </div>
     </div>
@@ -210,7 +210,7 @@
             <span class="block text-sm text-slate-600 mt-1">{{ notification.message }}</span>
             <span class="block text-xs text-slate-500 mt-2">{{ formatNotificationDate(notification.createdAt) }}</span>
           </div>
-          <button (click)="markNotificationAsRead(notification.id)" title="Marquer comme lu" class="ml-2 p-1 text-slate-400 hover:text-slate-600">
+          <button (click)="markNotificationAsRead(notification.id)" title="Marquer comme lu" class="ml-2 p-1 text-slate-400">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>

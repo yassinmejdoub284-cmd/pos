@@ -2475,25 +2475,25 @@ export class ScanningComponent implements OnInit, OnDestroy {
   getProductCardColor(groupIndex: number, productIndex: number): string {
     const colorSets = [
       // Purple group
-      ['bg-purple-400 border-purple-500 hover:bg-purple-500', 'bg-purple-300 border-purple-400 hover:bg-purple-400', 'bg-purple-500 border-purple-600 hover:bg-purple-600'],
+      ['bg-purple-400 border-purple-500', 'bg-purple-300 border-purple-400', 'bg-purple-500 border-purple-600'],
       // Pink group
-      ['bg-pink-400 border-pink-500 hover:bg-pink-500', 'bg-pink-300 border-pink-400 hover:bg-pink-400', 'bg-pink-500 border-pink-600 hover:bg-pink-600'],
+      ['bg-pink-400 border-pink-500', 'bg-pink-300 border-pink-400', 'bg-pink-500 border-pink-600'],
       // Blue group
-      ['bg-blue-400 border-blue-500 hover:bg-blue-500', 'bg-blue-300 border-blue-400 hover:bg-blue-400', 'bg-blue-500 border-blue-600 hover:bg-blue-600'],
+      ['bg-blue-400 border-blue-500', 'bg-blue-300 border-blue-400', 'bg-blue-500 border-blue-600'],
       // Teal group
-      ['bg-teal-400 border-teal-500 hover:bg-teal-500', 'bg-teal-300 border-teal-400 hover:bg-teal-400', 'bg-teal-500 border-teal-600 hover:bg-teal-600'],
+      ['bg-teal-400 border-teal-500', 'bg-teal-300 border-teal-400', 'bg-teal-500 border-teal-600'],
       // Emerald group
-      ['bg-emerald-400 border-emerald-500 hover:bg-emerald-500', 'bg-emerald-300 border-emerald-400 hover:bg-emerald-400', 'bg-emerald-500 border-emerald-600 hover:bg-emerald-600'],
+      ['bg-emerald-400 border-emerald-500', 'bg-emerald-300 border-emerald-400', 'bg-emerald-500 border-emerald-600'],
       // Amber group
-      ['bg-amber-400 border-amber-500 hover:bg-amber-500', 'bg-amber-300 border-amber-400 hover:bg-amber-400', 'bg-amber-500 border-amber-600 hover:bg-amber-600'],
+      ['bg-amber-400 border-amber-500', 'bg-amber-300 border-amber-400', 'bg-amber-500 border-amber-600'],
       // Orange group
-      ['bg-orange-400 border-orange-500 hover:bg-orange-500', 'bg-orange-300 border-orange-400 hover:bg-orange-400', 'bg-orange-500 border-orange-600 hover:bg-orange-600'],
+      ['bg-orange-400 border-orange-500', 'bg-orange-300 border-orange-400', 'bg-orange-500 border-orange-600'],
       // Red group
-      ['bg-red-400 border-red-500 hover:bg-red-500', 'bg-red-300 border-red-400 hover:bg-red-400', 'bg-red-500 border-red-600 hover:bg-red-600'],
+      ['bg-red-400 border-red-500', 'bg-red-300 border-red-400', 'bg-red-500 border-red-600'],
       // Indigo group
-      ['bg-indigo-400 border-indigo-500 hover:bg-indigo-500', 'bg-indigo-300 border-indigo-400 hover:bg-indigo-400', 'bg-indigo-500 border-indigo-600 hover:bg-indigo-600'],
+      ['bg-indigo-400 border-indigo-500', 'bg-indigo-300 border-indigo-400', 'bg-indigo-500 border-indigo-600'],
       // Cyan group
-      ['bg-cyan-400 border-cyan-500 hover:bg-cyan-500', 'bg-cyan-300 border-cyan-400 hover:bg-cyan-400', 'bg-cyan-500 border-cyan-600 hover:bg-cyan-600']
+      ['bg-cyan-400 border-cyan-500', 'bg-cyan-300 border-cyan-400', 'bg-cyan-500 border-cyan-600']
     ];
     
     const colorSet = colorSets[groupIndex % colorSets.length];

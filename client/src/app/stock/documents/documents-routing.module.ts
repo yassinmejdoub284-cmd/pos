@@ -9,6 +9,7 @@ import { DocumentsListComponent } from './documents/documents.component';
 const routes: Routes = [
   { path: '', component: DocumentsListComponent },
   { path: 'list', component: DocumentsListComponent },
+  { path: ':id/edit', component: DocumentComponent },
   { path: ':id', component: DocumentComponent },
   // Use distinct param names to avoid confusion between depotId and documentId
   { path: 'bon-entree/:depotId', component: BonEntreeComponent },

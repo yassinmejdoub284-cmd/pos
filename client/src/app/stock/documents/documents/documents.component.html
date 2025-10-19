@@ -132,7 +132,7 @@
       <!-- Documents Grid -->
       <div *ngIf="filteredDocuments.length > 0 && viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div *ngFor="let doc of filteredDocuments; trackBy: trackByDocumentId" 
-             class="bg-white border border-gray-200 rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg">
+             class="bg-white border border-gray-200 rounded-xl p-6 transition-shadow duration-200">
           <div class="flex justify-between items-start mb-4">
             <div class="flex items-center gap-2">
               <span [class]="getTypeClass(doc.type)" class="px-3 py-1 rounded-full text-xs font-medium">
@@ -182,6 +182,13 @@
             
             <!-- Secondary actions -->
             <div class="flex gap-2">
+              <button (click)="modifyDocument(doc)" 
+                class="flex-1 bg-blue-500 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200 flex items-center justify-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+                <span>Modifier</span>
+              </button>
               <button (click)="printDocument(doc)" 
                 class="flex-1 bg-green-500 text-white rounded-lg text-sm font-medium py-2 px-3 transition-colors duration-200 flex items-center justify-center gap-1">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,6 +245,7 @@
               <td class="px-4 py-3">
                 <div class="flex justify-end gap-2">
                   <button (click)="viewDocument(doc)" class="bg-orange-500 text-white rounded-md text-xs font-medium py-2 px-3">Détails</button>
+                  <button (click)="modifyDocument(doc)" class="bg-blue-500 text-white rounded-md text-xs font-medium py-2 px-3">Modifier</button>
                   <button (click)="printDocument(doc)" class="bg-green-500 text-white rounded-md text-xs font-medium py-2 px-3">Imprimer</button>
                   <button *ngIf="canGenerateInvoice(doc)" (click)="openInvoiceModal(doc)" class="bg-emerald-600 text-white rounded-md text-xs font-medium py-2 px-3">Facture</button>
                 </div>

@@ -428,6 +428,11 @@ export class DocumentsListComponent implements OnInit {
     this.router.navigate(['/scanning']);
   }
 
+  modifyDocument(document: StockDocument): void {
+    // Navigate to document edit page or open edit modal
+    this.router.navigate(['/stock/documents', document.id, 'edit']);
+  }
+
   goBack(): void {
     this.router.navigate(['/stock']);
   }
