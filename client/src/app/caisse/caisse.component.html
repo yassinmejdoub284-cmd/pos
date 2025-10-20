@@ -141,7 +141,7 @@
         <!-- Categories -->
         <div class="mb-4">
           <!-- Quick Filter Buttons -->
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-2 items-center">
             <button title="Catégorie" *ngFor="let category of productCategories" (click)="selectCategory(category)"
               [class]="'px-4 py-3 rounded-full text-xs font-medium transition-all ' + 
                                (selectedCategory === category ? 
@@ -152,6 +152,20 @@
                                   category === 'Import' ? 'bg-sky-100 text-sky-700 border border-sky-300' : 
                                   category === 'Local' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-white text-gray-600  border border-blue-200'))">
               {{ category }}
+            </button>
+            
+            <!-- Drag Mode Toggle Button -->
+            <button 
+              (click)="toggleDragMode()" 
+              [class]="'px-3 py-2 rounded-full text-xs font-medium transition-all border-2 flex items-center gap-1 ' + 
+                       (dragModeEnabled ? 'bg-purple-500 text-white border-purple-500 shadow-md' : 'bg-white text-gray-600 border-gray-300')"
+              [title]="dragModeEnabled ? 'Désactiver le mode modification' : 'Activer le mode modification'"
+              [attr.aria-label]="dragModeEnabled ? 'Désactiver le mode modification' : 'Activer le mode modification'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+              </svg>
+              <span>{{ dragModeEnabled ? 'Modifier' : 'Modifier' }}</span>
             </button>
           </div>
         </div>
@@ -631,9 +645,9 @@
 
   <!-- Input Warning Modal -->
   <div *ngIf="showInputWarningModal"
-    class="fixed inset-0 bg-gradient-to-br from-orange-900/20 via-red-900/20 to-pink-900/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    class="fixed inset-0 bg-gradient-to-br from-orange-900/20 via-red-900/20 to-pink-900/20 z-50 flex items-center justify-center p-4">
     <div
-      class="bg-white/95 backdrop-blur-md rounded-2xl border border-white/20 max-w-md w-full overflow-hidden shadow-2xl transform transition-all duration-300 scale-100">
+      class="bg-white/95 rounded-2xl border border-white/20 max-w-md w-full overflow-hidden shadow-2xl transform transition-all duration-300 scale-100">
       <!-- Header -->
       <div class="bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 p-6 text-white">
         <div class="flex justify-between items-center">
@@ -701,9 +715,9 @@
   <!-- Remise Popup -->
   <!-- Discount Type Selection Popup -->
   <div *ngIf="showDiscountTypeSelection"
-    class="fixed inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    class="fixed inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20 z-50 flex items-center justify-center p-4">
     <div
-      class="bg-white/95 backdrop-blur-md rounded-2xl border border-white/20 max-w-lg w-full overflow-hidden shadow-2xl transform transition-all duration-300 scale-100">
+      class="bg-white/95 rounded-2xl border border-white/20 max-w-lg w-full overflow-hidden shadow-2xl transform transition-all duration-300 scale-100">
       <!-- Header -->
       <div class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-6 text-white">
         <div class="flex justify-between items-center">
@@ -2146,7 +2160,7 @@
                 <div class="text-lg font-bold text-emerald-600">0.000 dt</div>
                 <div class="text-xs text-slate-500">Cadeau</div>
                 <button (click)="showTicketDetails(sale)"
-                  class="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 text-xs">
+                  class="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-300 text-slate-700 bg-white text-xs">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                   </svg>
@@ -2163,7 +2177,7 @@
 
   <!-- Client Search Popup - Optimized for 1366px -->
   <div *ngIf="showClientSearchPopup"
-    class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-1"
+    class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-1"
     (click)="closeClientSearch()">
     <div
       class="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border-2 border-blue-200/50 w-full max-w-5xl max-h-[98vh] overflow-hidden shadow-2xl"
@@ -2445,9 +2459,9 @@
 
   <!-- Quick Add Client Popup -->
   <div *ngIf="showQuickAddClientPopup"
-    class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+    class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
     <div
-      class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl transform animate-scale-in">
+      class="bg-white/95 rounded-3xl border border-gray-200/50 max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl transform animate-scale-in">
       <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-6 flex justify-between items-center">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -2571,9 +2585,9 @@
 
   <!-- Quick Add Supplier Popup -->
   <div *ngIf="showQuickAddSupplierPopup"
-    class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in">
+    class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in">
     <div
-      class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl transform animate-scale-in">
+      class="bg-white/95 rounded-3xl border border-gray-200/50 max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl transform animate-scale-in">
       <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-6 flex justify-between items-center">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -2900,7 +2914,7 @@
 
   <!-- Credit Modal -->
   <div *ngIf="showCreditModal"
-    class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-sm w-full">
       <div class="p-4 border-b border-gray-200 flex items-center justify-between">
         <h3 class="text-lg font-bold text-gray-800">Créditer</h3>
@@ -2943,7 +2957,7 @@
 
   <!-- Custom Payment Confirmation Dialog -->
   <div *ngIf="showPaymentConfirmationDialog"
-    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div
       class="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-amber-100/60 transform transition-all duration-300 scale-100">
       <!-- Header -->
@@ -3458,7 +3472,7 @@
 
   <!-- Client Selection Dialog -->
   <div *ngIf="showClientSelectionDialog"
-    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
     (click)="closeClientSelectionDialog()">
     <div
       class="bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 rounded-2xl border-2 border-purple-200/50 max-w-md w-full shadow-2xl transform transition-all duration-300"
@@ -3648,8 +3662,8 @@
         <div class="">Cette action soustrait le montant du ticket de la caisse et marque le ticket comme <span class="font-semibold">Annulé</span>.</div>
       </div>
       <div class="p-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex gap-2">
-        <button (click)="closeCancelTicketModal()" class="flex-1 px-4 py-2 rounded-md border border-slate-300 text-slate-700 bg-white hover:bg-slate-50">Annuler</button>
-        <button (click)="confirmCancelTicket()" class="flex-1 px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700">Confirmer</button>
+        <button (click)="closeCancelTicketModal()" class="flex-1 px-4 py-2 rounded-md border border-slate-300 text-slate-700 bg-white">Annuler</button>
+        <button (click)="confirmCancelTicket()" class="flex-1 px-4 py-2 rounded-md bg-red-600 text-white">Confirmer</button>
       </div>
     </div>
   </div>

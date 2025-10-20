@@ -22,6 +22,9 @@ export class DocumentsListComponent implements OnInit {
   loading = true;
   error = '';
   
+  // View mode
+  viewMode: 'grid' | 'table' = 'grid';
+  
   // Filters
   selectedType = '';
   selectedStatus = '';
@@ -54,7 +57,8 @@ export class DocumentsListComponent implements OnInit {
       if (params['type']) {
         this.selectedType = params['type'];
       }
-      this.loadDocuments();
+      const depotIdParam = params['depotId'] ? Number(params['depotId']) : undefined;
+      this.loadDocuments(depotIdParam);
     });
   }
 
@@ -90,15 +94,15 @@ export class DocumentsListComponent implements OnInit {
     this.closeTypeDialog();
   }
 
-  loadDocuments(): void {
+  loadDocuments(explicitDepotId?: number): void {
     this.loading = true;
     this.error = '';
     
     // Get current user's depot ID to filter documents sent from this depot
     const currentUser = this.authService.currentUser();
-    const currentDepotId = currentUser?.depotId;
+    const currentDepotId = explicitDepotId ?? currentUser?.depotId;
     
-    this.stockDocumentsService.getDocuments(1, 50, this.selectedType || undefined, this.selectedStatus || undefined, currentDepotId).subscribe({
+    this.stockDocumentsService.getDocuments(1, 50, this.selectedType || undefined, this.selectedStatus || undefined, currentDepotId, undefined, undefined, true).subscribe({
       next: (response) => {
         const docs = Array.isArray(response) ? response : (response?.data ?? response ?? []);
         this.documents = Array.isArray(docs) ? docs : [];
@@ -161,7 +165,7 @@ export class DocumentsListComponent implements OnInit {
   getTypeLabel(type: string): string {
     switch (type) {
       case 'BON_ENTREE_MAGASIN':
-        return 'Bon d\'entrée magasin';
+        return 'Bon de Livraison';
       case 'BON_EXPEDITION':
         return 'Bon de Sortie';
       case 'FACTURE':
@@ -216,6 +220,14 @@ export class DocumentsListComponent implements OnInit {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  }
+
+  setViewMode(mode: 'grid' | 'table'): void {
+    this.viewMode = mode;
+  }
+
+  trackByDocumentId(index: number, doc: StockDocument): number | string {
+    return doc.id ?? doc.numero;
   }
 
   canGenerateInvoice(document: StockDocument): boolean {
@@ -414,6 +426,11 @@ export class DocumentsListComponent implements OnInit {
 
   goToScan(): void {
     this.router.navigate(['/scanning']);
+  }
+
+  modifyDocument(document: StockDocument): void {
+    // Navigate to document edit page or open edit modal
+    this.router.navigate(['/stock/documents', document.id, 'edit']);
   }
 
   goBack(): void {

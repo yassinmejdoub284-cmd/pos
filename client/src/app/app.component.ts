@@ -3,10 +3,11 @@ import { RouterOutlet, RouterModule } from '@angular/router';
 import { AuthService } from './core/services/auth.service';
 import { AttendanceService } from './core/services/attendance.service';
 import { FullscreenService } from './core/services/fullscreen.service';
+import { InAppReminderNotificationComponent } from './shared/components/in-app-reminder-notification/in-app-reminder-notification.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterModule],
+  imports: [RouterOutlet, RouterModule, InAppReminderNotificationComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })

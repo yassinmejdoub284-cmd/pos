@@ -6,6 +6,7 @@ import { LoginComponent } from './login/login.component';
 import { UnauthorizedComponent } from '../unauthorized/unauthorized.component';
 import { UsersComponent } from './users/users.component';
 import { AuthRoutingModule } from './auth-routing.module';
+import { VoicePlayerComponent } from '../shared/components/voice-player/voice-player.component';
 
 @NgModule({
   declarations: [
@@ -16,7 +17,8 @@ import { AuthRoutingModule } from './auth-routing.module';
   imports: [
     CommonModule,
     FormsModule,
-    AuthRoutingModule
+    AuthRoutingModule,
+    VoicePlayerComponent
   ]
 })
 export class AuthModule { }

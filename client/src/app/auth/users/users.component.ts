@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { UsersService, User } from '../../core/services/users.service';
+import { SettingsService, AppSettings } from '../../core/services/settings.service';
 import { DepotsService } from '../../core/services/depots.service';
 import { Depot } from '../../core/models/depot.model';
 
@@ -19,8 +20,9 @@ export class UsersComponent implements OnInit {
   showDepotSelection = false;
   selectedUser: User | null = null;
   newUser: Partial<User> = {
-    firstName: '', lastName: '', role: 'CASHIER', depotId: undefined, pin: ''
+    firstName: '', lastName: '', role: 'CASHIER', depotId: undefined, pin: '', token: ''
   };
+  newRoleKey: string = '';
   depots: Depot[] = [];
   selectedDepot: Depot | null = null;
   isEditingDepot = false;
@@ -36,17 +38,41 @@ export class UsersComponent implements OnInit {
   numpadLoading = false;
   currentUserForPin: User | null = null;
 
+  // Token modal
+  showTokenModal = false;
+  tokenData = {
+    token: '',
+    title: '',
+    field: '' as 'newToken' | 'editToken' | 'updateToken'
+  };
+  tokenError = '';
+  tokenLoading = false;
+  currentUserForToken: User | null = null;
+
+  // Scanner functionality for token input
+  scannerBuffer = '';
+  isScannerMode = false;
+  scannerTimeout: any = null;
+  readonly SCANNER_TIMEOUT = 100; // ms between characters to detect scanner input
+  readonly SCANNER_ENTER_KEY = 'Enter';
+  private boundKeyDownHandler: ((event: KeyboardEvent) => void) | null = null;
+
   // PIN display state
   visiblePins: { [userId: number]: boolean } = {};
+  
+  // Token display state
+  visibleTokens: { [userId: number]: boolean } = {};
 
   constructor(
     private usersService: UsersService,
-    private depotsService: DepotsService
+    private depotsService: DepotsService,
+    private settingsService: SettingsService
   ) {}
 
   ngOnInit(): void {
     this.load();
     this.loadDepots();
+    this.loadCurrentRoles();
   }
 
   load(): void {
@@ -67,13 +93,36 @@ export class UsersComponent implements OnInit {
   // UI actions
   openAdd(): void { this.showAddModal = true; this.resetNewUser(); }
   closeAdd(): void { this.showAddModal = false; }
-  openEdit(user: User): void { this.selectedUser = user; this.showEditModal = true; }
+  openEdit(user: User): void {
+    this.selectedUser = user;
+    // Initialize roleKey selector with existing roleKey or fallback to role
+    this.newRoleKey = (user as any)?.roleKey || user.role || '';
+    this.showEditModal = true;
+  }
   closeEdit(): void { this.selectedUser = null; this.showEditModal = false; }
   confirmDelete(user: User): void { this.selectedUser = user; this.showDeleteConfirm = true; }
   cancelDelete(): void { this.selectedUser = null; this.showDeleteConfirm = false; }
 
   resetNewUser(): void {
-    this.newUser = { firstName: '', lastName: '', role: 'CASHIER', depotId: undefined, pin: '' };
+    this.newUser = { firstName: '', lastName: '', role: 'CASHIER', depotId: undefined, pin: '', token: '' };
+  }
+
+  // Role Access (custom role keys from settings)
+  roleAccessOptions: { key: string; label: string }[] = [];
+
+  private loadCurrentRoles(): void {
+    this.settingsService.getSettings().subscribe({
+      next: (s: AppSettings) => {
+        const cfg: any = s?.roleAccessConfig || {};
+        const keys = Object.keys(cfg);
+        this.roleAccessOptions = keys.map(k => ({ key: k, label: cfg[k]?.meta?.label || k }));
+        // If there is at least one, default select the first for convenience
+        if (this.roleAccessOptions.length && !this.newRoleKey) {
+          this.newRoleKey = this.roleAccessOptions[0].key;
+        }
+      },
+      error: () => {}
+    });
   }
 
   create(): void {
@@ -84,9 +133,12 @@ export class UsersComponent implements OnInit {
       password: 'default123',
       firstName: this.newUser.firstName || '',
       lastName: this.newUser.lastName || '',
-      role: (this.newUser.role || 'CASHIER') as any,
+      // Persist role as the selected custom roleKey when provided, else fallback to classic role
+      role: (this.newRoleKey?.trim() || this.newUser.role || 'CASHIER') as any,
       depotId: this.newUser.depotId,
-      pin: this.newUser.pin || ''
+      pin: this.newUser.pin || '',
+      token: this.newUser.token || '',
+      roleKey: this.newRoleKey?.trim() || undefined
     };
     this.usersService.createUser(payload).subscribe({
       next: () => { this.closeAdd(); this.load(); },
@@ -99,9 +151,12 @@ export class UsersComponent implements OnInit {
     const update = {
       firstName: this.selectedUser.firstName,
       lastName: this.selectedUser.lastName,
-      role: this.selectedUser.role,
+      // Persist role as the selected custom roleKey when provided to avoid empty role
+      role: (this.newRoleKey?.trim() || this.selectedUser.role) as any,
       depotId: this.selectedUser.depotId,
-      isActive: this.selectedUser.isActive
+      isActive: this.selectedUser.isActive,
+      // Persist selected custom role key (global RBAC)
+      roleKey: this.newRoleKey?.trim() || undefined
     };
     this.usersService.updateUser(this.selectedUser.id, update).subscribe({
       next: (u) => { this.selectedUser = u; this.closeEdit(); this.load(); },
@@ -309,6 +364,184 @@ export class UsersComponent implements OnInit {
       return user.pin || 'Non défini';
     }
     return '••••••••';
+  }
+
+  // Token management methods
+  openTokenModal(field: 'newToken' | 'editToken' | 'updateToken', user?: User): void {
+    this.tokenData.field = field;
+    this.currentUserForToken = user || null;
+    this.tokenError = '';
+    this.tokenLoading = false;
+    
+    switch (field) {
+      case 'newToken':
+        this.tokenData.title = 'Placer l\'iButton dans le lecteur pour enregistrer le token';
+        this.tokenData.token = '';
+        break;
+      case 'editToken':
+        this.tokenData.title = 'Placer le nouvel iButton dans le lecteur pour modifier le token';
+        this.tokenData.token = this.selectedUser?.token || '';
+        break;
+      case 'updateToken':
+        this.tokenData.title = 'Placer l\'iButton dans le lecteur pour mettre à jour le token';
+        this.tokenData.token = '';
+        break;
+    }
+    
+    this.showTokenModal = true;
+    this.setupTokenScannerDetection();
+    
+    // Focus the modal to ensure it captures keyboard events
+    setTimeout(() => {
+      const modal = document.querySelector('[tabindex="0"]') as HTMLElement;
+      if (modal) {
+        modal.focus();
+      }
+    }, 100);
+  }
+
+  closeTokenModal(): void {
+    this.showTokenModal = false;
+    this.tokenData = { token: '', title: '', field: '' as any };
+    this.tokenError = '';
+    this.tokenLoading = false;
+    this.currentUserForToken = null;
+    this.cleanupTokenScannerDetection();
+  }
+
+  // Scanner detection methods for token input
+  private setupTokenScannerDetection(): void {
+    this.boundKeyDownHandler = this.handleTokenKeyDown.bind(this);
+    document.addEventListener('keydown', this.boundKeyDownHandler, true);
+  }
+
+  private cleanupTokenScannerDetection(): void {
+    if (this.boundKeyDownHandler) {
+      document.removeEventListener('keydown', this.boundKeyDownHandler, true);
+      this.boundKeyDownHandler = null;
+    }
+    if (this.scannerTimeout) {
+      clearTimeout(this.scannerTimeout);
+      this.scannerTimeout = null;
+    }
+    this.resetTokenScannerBuffer();
+  }
+
+  private handleTokenKeyDown(event: KeyboardEvent): void {
+    if (!this.showTokenModal) return;
+
+    // Prevent default behavior for all keys to avoid form submission or navigation
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    // Additional check to prevent Enter key from causing navigation
+    if (event.key === 'Enter' && !this.isScannerMode) {
+      return;
+    }
+
+    if (this.scannerTimeout) {
+      clearTimeout(this.scannerTimeout);
+    }
+
+    if (event.key === this.SCANNER_ENTER_KEY) {
+      this.processTokenScannerInput();
+      return;
+    }
+
+    this.scannerBuffer += event.key;
+    this.isScannerMode = true;
+
+    this.scannerTimeout = setTimeout(() => {
+      this.resetTokenScannerBuffer();
+    }, this.SCANNER_TIMEOUT);
+  }
+
+  private processTokenScannerInput(): void {
+    if (this.scannerBuffer.length > 0) {
+      this.tokenData.token = this.scannerBuffer;
+      this.resetTokenScannerBuffer();
+      
+      // Auto-confirm if token is valid length
+      if (this.tokenData.token.length >= 10) {
+        this.confirmToken();
+      }
+    }
+  }
+
+  private resetTokenScannerBuffer(): void {
+    this.scannerBuffer = '';
+    this.isScannerMode = false;
+    if (this.scannerTimeout) {
+      clearTimeout(this.scannerTimeout);
+      this.scannerTimeout = null;
+    }
+  }
+
+  confirmToken(): void {
+    this.tokenError = '';
+    
+    // Validation
+    if (!this.tokenData.token) {
+      this.tokenError = 'Veuillez saisir un token';
+      return;
+    }
+    
+    if (this.tokenData.token.length < 10) {
+      this.tokenError = 'Le token doit contenir au moins 10 caractères';
+      return;
+    }
+
+    switch (this.tokenData.field) {
+      case 'newToken':
+        // For new users, we'll store it temporarily and save it when creating the user
+        this.closeTokenModal();
+        break;
+      case 'editToken':
+        if (this.selectedUser) {
+          this.selectedUser.token = this.tokenData.token;
+        }
+        this.closeTokenModal();
+        break;
+      case 'updateToken':
+        if (this.currentUserForToken) {
+          this.updateTokenWithModal(this.currentUserForToken, this.tokenData.token);
+        }
+        break;
+    }
+  }
+
+  updateTokenWithModal(user: User, token: string): void {
+    this.tokenLoading = true;
+    this.tokenError = '';
+    
+    this.usersService.updateUserToken(user.id, { token }).subscribe({
+      next: () => { 
+        this.tokenLoading = false;
+        this.closeTokenModal();
+        this.load();
+      },
+      error: (error) => {
+        this.tokenLoading = false;
+        this.tokenError = error.error?.error || "Erreur lors de la mise à jour du token";
+      }
+    });
+  }
+
+  // Token display methods
+  toggleTokenVisibility(userId: number): void {
+    this.visibleTokens[userId] = !this.visibleTokens[userId];
+  }
+
+  isTokenVisible(userId: number): boolean {
+    return this.visibleTokens[userId] || false;
+  }
+
+  getDisplayedToken(user: User): string {
+    if (this.isTokenVisible(user.id)) {
+      return user.token || 'Non défini';
+    }
+    return '••••••••••••••••••••';
   }
 }
 

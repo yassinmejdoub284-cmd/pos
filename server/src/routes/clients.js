@@ -81,6 +81,7 @@ router.get('/search/pos', async (req, res) => {
         code: true,
         firstName: true,
         lastName: true,
+        pictureUrl: true,
         phone: true,
         loyaltyPoints: true,
         totalSpent: true,
@@ -151,7 +152,7 @@ router.get('/:id', async (req, res) => {
 // Create new client
 router.post('/', async (req, res) => {
   try {
-    const { firstName, lastName, phone, city, address, matriculeFiscal, clientType, depotId, notes, maxDebt, allowDebt } = req.body;
+    const { firstName, lastName, phone, city, address, matriculeFiscal, clientType, depotId, notes, maxDebt, allowDebt, pictureUrl } = req.body;
 
     let defaultMax = null;
     try {
@@ -173,6 +174,7 @@ router.post('/', async (req, res) => {
           phone,
           city,
           address,
+          pictureUrl,
           matriculeFiscal,
           clientType: clientType || 'INDIVIDUAL',
           depotId: depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null,
@@ -203,7 +205,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, phone, city, address, matriculeFiscal, clientType, depotId, loyaltyPoints, totalSpent, favoriteProducts, notes, isActive, currentDebt, maxDebt, allowDebt } = req.body;
+    const { firstName, lastName, phone, city, address, matriculeFiscal, clientType, depotId, loyaltyPoints, totalSpent, favoriteProducts, notes, isActive, currentDebt, maxDebt, allowDebt, pictureUrl } = req.body;
 
     const client = await prisma.client.update({
       where: { id: parseInt(id) },
@@ -213,6 +215,7 @@ router.put('/:id', async (req, res) => {
         phone,
         city,
         address,
+        pictureUrl,
         matriculeFiscal,
         clientType,
         depotId: depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null,

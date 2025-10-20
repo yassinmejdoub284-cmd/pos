@@ -43,6 +43,13 @@ export class ParametresComponent implements OnInit {
     droitDeTimbre: false,
     autoApproveExpenseBelow: 0,
     historyRetentionDays: 30,
+    // Role-based history limits
+    roleHistoryLimits: {
+      ADMIN: 9999,
+      MANAGER: 30,
+      CASHIER: 5,
+      STOCK_MANAGER: 15
+    },
     // Stock
     allowNegativeStock: false,
     printSettings: {
@@ -62,6 +69,22 @@ export class ParametresComponent implements OnInit {
       showClientInfo: true,
       showPaymentMethod: true,
       showDiscountDetails: true
+    },
+    // Document display settings
+    documentDisplaySettings: {
+      livraison: {
+        showPackageCount: true // Default to showing package count
+      },
+      sortie: {
+        showPackageCount: true
+      },
+      transfert: {
+        showPackageCount: true
+      },
+      facture: {
+        showPackageCount: true,
+        timbrePrice: 1 // Default timbre price
+      }
     },
     devicesConfig: {
       printer: 'POS-80C',
@@ -184,7 +207,13 @@ export class ParametresComponent implements OnInit {
     this.error = '';
     this.settingsService.getSettings().subscribe({
       next: (s) => {
+        console.log('Loaded settings from backend:', s);
         this.settings = s || {};
+        
+        // Ensure basic company info exists with default values
+        if (!this.settings.companyName) {
+          this.settings.companyName = 'PATISSERIE TUNISIENNE';
+        }
         
         // Ensure devicesConfig exists with default values
         if (!this.settings.devicesConfig) {
@@ -195,6 +224,56 @@ export class ParametresComponent implements OnInit {
             autoCut: true,
             printLogo: true
           };
+        }
+        
+        // Ensure documentDisplaySettings exists with default values
+        if (!this.settings.documentDisplaySettings) {
+          console.log('Initializing documentDisplaySettings with default values');
+          this.settings.documentDisplaySettings = {
+            livraison: {
+              showPackageCount: true
+            },
+            sortie: {
+              showPackageCount: true
+            },
+            transfert: {
+              showPackageCount: true
+            },
+            facture: {
+              showPackageCount: true,
+              timbrePrice: 1
+            }
+          };
+        } else {
+          // Ensure each document type has the required properties (only if missing)
+          if (!this.settings.documentDisplaySettings.livraison) {
+            this.settings.documentDisplaySettings.livraison = { showPackageCount: true };
+          } else if (typeof this.settings.documentDisplaySettings.livraison.showPackageCount === 'undefined') {
+            this.settings.documentDisplaySettings.livraison.showPackageCount = true;
+          }
+          
+          if (!this.settings.documentDisplaySettings.sortie) {
+            this.settings.documentDisplaySettings.sortie = { showPackageCount: true };
+          } else if (typeof this.settings.documentDisplaySettings.sortie.showPackageCount === 'undefined') {
+            this.settings.documentDisplaySettings.sortie.showPackageCount = true;
+          }
+          
+          if (!this.settings.documentDisplaySettings.transfert) {
+            this.settings.documentDisplaySettings.transfert = { showPackageCount: true };
+          } else if (typeof this.settings.documentDisplaySettings.transfert.showPackageCount === 'undefined') {
+            this.settings.documentDisplaySettings.transfert.showPackageCount = true;
+          }
+          
+          if (!this.settings.documentDisplaySettings.facture) {
+            this.settings.documentDisplaySettings.facture = { showPackageCount: true, timbrePrice: 1 };
+          } else {
+            if (typeof this.settings.documentDisplaySettings.facture.showPackageCount === 'undefined') {
+              this.settings.documentDisplaySettings.facture.showPackageCount = true;
+            }
+            if (typeof this.settings.documentDisplaySettings.facture.timbrePrice === 'undefined') {
+              this.settings.documentDisplaySettings.facture.timbrePrice = 1;
+            }
+          }
         }
         
         // Ensure documentTypeDefaults exists with default values
@@ -265,6 +344,16 @@ export class ParametresComponent implements OnInit {
         // Ensure documentTypeDefaults is initialized
         this.ensureDocumentTypeDefaults();
         
+        // Ensure roleHistoryLimits is initialized
+        if (!this.settings.roleHistoryLimits) {
+          this.settings.roleHistoryLimits = {
+            ADMIN: 9999,
+            MANAGER: 30,
+            CASHIER: 5,
+            STOCK_MANAGER: 15
+          };
+        }
+        
         this.loading = false;
       },
       error: () => {
@@ -312,6 +401,51 @@ export class ParametresComponent implements OnInit {
 
   // Expose Object to template for Object.keys() usage
   Object = Object;
+
+  // Role history limits getters and setters for safe two-way binding
+  get adminHistoryLimit(): number {
+    return this.settings.roleHistoryLimits?.ADMIN ?? 9999;
+  }
+
+  set adminHistoryLimit(value: number) {
+    if (!this.settings.roleHistoryLimits) {
+      this.settings.roleHistoryLimits = {};
+    }
+    this.settings.roleHistoryLimits.ADMIN = value;
+  }
+
+  get managerHistoryLimit(): number {
+    return this.settings.roleHistoryLimits?.MANAGER ?? 30;
+  }
+
+  set managerHistoryLimit(value: number) {
+    if (!this.settings.roleHistoryLimits) {
+      this.settings.roleHistoryLimits = {};
+    }
+    this.settings.roleHistoryLimits.MANAGER = value;
+  }
+
+  get cashierHistoryLimit(): number {
+    return this.settings.roleHistoryLimits?.CASHIER ?? 5;
+  }
+
+  set cashierHistoryLimit(value: number) {
+    if (!this.settings.roleHistoryLimits) {
+      this.settings.roleHistoryLimits = {};
+    }
+    this.settings.roleHistoryLimits.CASHIER = value;
+  }
+
+  get stockManagerHistoryLimit(): number {
+    return this.settings.roleHistoryLimits?.STOCK_MANAGER ?? 15;
+  }
+
+  set stockManagerHistoryLimit(value: number) {
+    if (!this.settings.roleHistoryLimits) {
+      this.settings.roleHistoryLimits = {};
+    }
+    this.settings.roleHistoryLimits.STOCK_MANAGER = value;
+  }
 
   save(): void {
     this.saving = true;
@@ -365,6 +499,7 @@ export class ParametresComponent implements OnInit {
     
     console.log('Saving settings with devicesConfig:', this.settings.devicesConfig);
     console.log('Saving settings with documentTypeDefaults:', this.settings.documentTypeDefaults);
+    console.log('Saving settings with documentDisplaySettings:', this.settings.documentDisplaySettings);
     
     this.settingsService.updateSettings(this.settings).subscribe({
       next: (s) => {

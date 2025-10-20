@@ -26,11 +26,29 @@ const THEME_MAP: Record<string, LoginTheme> = {
   }
 };
 
+// Direct mapping by companyId for cross-device persistence
+const COMPANY_THEME_MAP: Record<number, LoginTheme> = {
+  1: {
+    companyId: 1,
+    logoUrl: '/logo_sfax.webp',
+    primaryColor: '#662c94',
+    secondaryColor: '#1E3A8A',
+    faviconUrl: '/favicon.ico'
+  },
+  2: {
+    companyId: 2,
+    logoUrl: '/logo_tunis.webp',
+    primaryColor: '#569797',
+    secondaryColor: '#7C2D12',
+    faviconUrl: '/favicon.ico'
+  }
+};
+
 const DEFAULT_THEME: LoginTheme = {
   companyId: 0,
-  logoUrl: '/logo.webp',
-  primaryColor: '#569797',
-  secondaryColor: '#4a7d7d',
+  logoUrl: '/logo_default.webp',
+  primaryColor: '#7289da',
+  secondaryColor: '#424549',
   faviconUrl: '/favicon.ico'
 };
 
@@ -45,10 +63,22 @@ export class LoginThemeService {
   }
 
   detectAndSetTheme(): void {
-    const { location } = this.document.defaultView ?? window;
-    const key = `${location.hostname}:${location.port || (location.protocol === 'https:' ? '443' : '80')}`;
-    const theme = THEME_MAP[key] ?? DEFAULT_THEME;
-    this.themeSignal.set(theme);
+    // Only use last selected company; allow depot-based override stored during login
+    // Prefer depot selection's company mapping if present
+    const storedCompanyIdRaw = localStorage.getItem('lastCompanyId') || '';
+    const storedCompanyId = Number(storedCompanyIdRaw);
+    
+    if (!Number.isNaN(storedCompanyId) && storedCompanyId > 0) {
+      const companyTheme = COMPANY_THEME_MAP[storedCompanyId];
+      if (companyTheme) {
+        this.themeSignal.set(companyTheme);
+        this.applyFaviconForLogin();
+        return;
+      }
+    }
+    // Fallback to default theme (logo_default.webp)
+    this.themeSignal.set(DEFAULT_THEME);
+    this.applyFaviconForLogin();
   }
 
   applyFaviconForLogin(): void {
@@ -65,6 +95,25 @@ export class LoginThemeService {
     if (faviconUrl) {
       linkEl.setAttribute('href', faviconUrl);
     }
+  }
+
+  // Allow other parts of the app (e.g., after login) to record the chosen company
+  setLastCompanyId(companyId: number): void {
+    if (typeof companyId === 'number' && companyId > 0) {
+      localStorage.setItem('lastCompanyId', String(companyId));
+      const theme = COMPANY_THEME_MAP[companyId] ?? {
+        ...DEFAULT_THEME,
+        companyId
+      };
+      this.themeSignal.set(theme);
+      this.applyFaviconForLogin();
+    }
+  }
+
+  clearLastCompany(): void {
+    localStorage.removeItem('lastCompanyId');
+    this.themeSignal.set(DEFAULT_THEME);
+    this.applyFaviconForLogin();
   }
 
   restoreOriginalFavicon(): void {

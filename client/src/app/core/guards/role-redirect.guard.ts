@@ -12,11 +12,8 @@ export const roleRedirectGuard: CanActivateFn = () => {
     return false;
   }
 
+  // Remove hard redirect to stock; let Home + roleAccessConfig control navigation
   const currentUser = authService.currentUser();
-  if (currentUser?.role === 'STOCK_MANAGER') {
-    router.navigate(['/stock']);
-    return false;
-  }
 
   return true;
 };

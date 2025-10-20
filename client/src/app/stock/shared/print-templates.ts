@@ -6,9 +6,9 @@ export type ScanDocumentType = 'sortie' | 'transfert' | 'livraison';
 export function getScanPrintStyles(): string {
   return `
     body {
-      font-family: 'Times New Roman', serif;
+      font-family: Arial, Helvetica, sans-serif;
       margin: 0;
-      padding: 20px;
+      padding: 12px;
       font-size: 12px;
       line-height: 1.5;
       color: #000;
@@ -17,54 +17,47 @@ export function getScanPrintStyles(): string {
     .container {
       max-width: 800px;
       margin: 0 auto;
-      border: 2px solid #000;
-      padding: 20px;
+      padding: 10px 0 0 0;
       background: white;
     }
     .header {
       display: flex;
       flex-direction: column;
-      margin-bottom: 25px;
-      border-bottom: 3px solid #000;
-      padding-bottom: 15px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid #000;
+      padding-bottom: 8px;
     }
-    .company-info { margin-bottom: 15px; }
-    .document-info { text-align: left; width: fit-content; border: 1px solid #ccc; border-radius: 8px; padding: 10px; background-color: #f9f9f9; }
+    .company-info { margin-bottom: 8px; }
+    .document-info { text-align: left; width: fit-content; padding: 4px 0; }
     .title {
-      font-size: 24px;
-      font-weight: bold;
-      margin-bottom: 5px;
+      font-size: 20px;
+      font-weight: 900;
+      margin-bottom: 2px;
       text-transform: uppercase;
       letter-spacing: 1px;
     }
-    .subtitle { font-size: 14px; color: #333; margin-bottom: 10px; font-weight: bold; }
-    .info-row { margin: 4px 0; font-size: 12px; line-height: 1.2; }
-    .info-section {
-      margin: 12px 0;
-      padding: 10px;
-      background-color: #f8f8f8;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    .label { font-weight: bold; display: inline-block; width: 140px; color: #333; vertical-align: top; }
-    .value { font-weight: normal; color: #000; display: inline-block; vertical-align: top; }
+    .subtitle { font-size: 13px; color: #000; margin-bottom: 6px; font-weight: bold; }
+    .info-row { margin: 2px 0; font-size: 12px; line-height: 1.35; }
+    .info-compact { margin: 4px 0 8px 0; }
+    .label { font-weight: bold; display: inline-block; min-width: 110px; color: #000; vertical-align: top; }
+    .value { font-weight: 600; color: #000; display: inline-block; vertical-align: top; }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 20px 0;
+      margin: 12px 0 0 0;
       font-size: 12px;
-      border: 2px solid #000;
+      border: 1px solid #000;
     }
-    th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+    th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
     th {
-      background-color: #e0e0e0;
+      background-color: transparent;
       font-weight: bold;
       text-align: center;
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    tfoot { border-top: 2px solid #000; }
+    tfoot { border-top: 1px solid #000; }
     .total-row { background-color: #f0f0f0; font-weight: bold; }
     .text-right { text-align: right; }
     .text-center { text-align: center; }
@@ -75,18 +68,18 @@ export function getScanPrintStyles(): string {
       flex-direction: column;
       align-items: flex-end;
     }
-    .total-line { display: flex; justify-content: space-between; width: 300px; margin-bottom: 5px; font-size: 13px; }
-    .total-final { border-top: 1px solid #000; padding-top: 5px; font-weight: bold; font-size: 14px; }
-    .footer { margin-top: 40px; border-top: 2px solid #000; padding-top: 20px; }
-    .signature-section { margin-bottom: 20px; }
-    .signature-box { width: 300px; margin: 0 auto; text-align: center; }
+    .total-line { width: 100% !important; display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
+    .total-final { border-top: 1px solid #000; padding-top: 6px; font-weight: bold; font-size: 13px; }
+    .footer { margin-top: 120px; border-top: 1px solid #000; padding-top: 10px; }
+    .signature-section { margin-bottom: 12px; }
+    .signature-box { width: 260px; margin: 0 auto; text-align: center; }
     .signature-label { font-weight: bold; margin-bottom: 10px; }
-    .signature-line { border-bottom: 1px solid #000; height: 20px; }
-    .legal-notice { text-align: center; font-size: 11px; color: #333; margin-top: 20px; }
+    .signature-line { border-bottom: 1px solid #000; height: 16px; }
+    .legal-notice { text-align: center; font-size: 11px; color: #000; margin-top: 20px; }
     .legal-notice p { margin: 5px 0; }
     @media print {
-      body { margin: 0; padding: 10px; }
-      .container { max-width: none; border: none; padding: 0; }
+      body { margin: 0; padding: 8px; }
+      .container { max-width: none; padding: 0; }
     }
   `;
 }
@@ -103,6 +96,14 @@ function getAbsoluteLogoUrl(logoUrl: string | undefined, baseUrl: string = 'http
   
   // For other relative URLs, add the base URL
   return `${baseUrl}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`;
+}
+
+// Helper function to format quantity - display exact value without any rounding or modification
+function formatQuantity(value: number): string {
+  if (value === 0) return '0';
+  
+  // Return the exact value as a string without any rounding or modification
+  return value.toString();
 }
 
 // Function to convert number to French words following Tunisian official document rules
@@ -204,11 +205,16 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
 
   // Unified title based on document type or session type
   const getDocumentTitle = (doc: StockDocument, sessionType?: ScanDocumentType): string => {
+    // For FACTURE documents, always use the document type regardless of sessionType
+    if ((doc.type as string) === 'FACTURE') {
+      return 'Facture';
+    }
+    
     // If sessionType is provided, use it to show from recipient's perspective
     if (sessionType) {
       switch (sessionType) {
         case 'livraison':
-          return 'Bon d\'Entrée';
+          return 'Bon de Livraison';
         case 'sortie':
           return 'Bon de Sortie';
         case 'transfert':
@@ -226,6 +232,8 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
         return 'Bon de Transfert';
       case 'BON_ENTREE_MAGASIN':
         return 'Bon de Livraison';
+      case 'BON_ENTREE_DEPOT':
+        return 'Bon d\'Entrée';
       case 'FACTURE':
         return 'Facture';
       default:
@@ -239,8 +247,11 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   // Helper: normalize TVA to fraction (0.07 for 7% or 0.07)
   const getTvaRateFraction = (raw: any): number => {
     const n = Number(raw);
+    console.log(`getTvaRateFraction: raw=${raw}, type=${typeof raw}, n=${n}`);
     if (!isFinite(n) || n < 0) return 0;
-    return n <= 1 ? n : n / 100;
+    const result = n <= 1 ? n : n / 100;
+    console.log(`getTvaRateFraction: result=${result}`);
+    return result;
   };
   let itemsRows = '';
   // Unified totals for ALL document types
@@ -299,7 +310,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
       let montantHT = Number(item.montantHT) || 0;
       let montantTVA = Number(item.montantTVA) || 0;
       let montantTTC = Number(item.montantTTC) || 0;
-      let tvaRate = Number(item.tva) || 0;
+      let tvaRate = item.tva !== undefined && item.tva !== null ? Number(item.tva) : 19;
       
       // Always recalculate amounts if we have TTC and TVA rate
       if (montantTTC > 0 && tvaRate > 0) {
@@ -307,7 +318,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
         // Correct TVA calculation: HT = TTC / (1 + TVA), TVA = TTC - HT
         montantHT = montantTTC / (1 + tvaFrac);
         montantTVA = montantTTC - montantHT;
-        // Round to 3 decimal places
+        // Round monetary amounts to 3 decimal places
         montantHT = Math.round(montantHT * 1000) / 1000;
         montantTVA = Math.round(montantTVA * 1000) / 1000;
       } else if (!montantHT && !montantTVA && !montantTTC) {
@@ -318,12 +329,12 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
         const canWholesale = !!product.isWholesale && bundleSize > 0 && bundlePrice > 0;
         const unitPriceTTC = isWholesaleClient && canWholesale ? (bundlePrice / bundleSize) : baseUnit;
         const tvaFrac = getTvaRateFraction(product.tva);
-        tvaRate = Number(product.tva) || 0;
+        tvaRate = product.tva !== undefined && product.tva !== null ? Number(product.tva) : 19;
         montantTTC = unitPriceTTC * qty;
         // Correct TVA calculation: HT = TTC / (1 + TVA), TVA = TTC - HT
         montantHT = montantTTC / (1 + tvaFrac);
         montantTVA = montantTTC - montantHT;
-        // Round to 3 decimal places
+        // Round monetary amounts to 3 decimal places
         montantHT = Math.round(montantHT * 1000) / 1000;
         montantTVA = Math.round(montantTVA * 1000) / 1000;
       }
@@ -389,19 +400,19 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
     // Generate rows for each parent group
     const parentEntries = Object.entries(parentGroups);
     itemsRows = parentEntries.map(([groupKey, group], idx) => {
-      // Create children details string (only names, no quantities)
-      const childrenDetails = group.children
-        .map(child => child.childName)
-        .join(', ');
-      
-      // Create designation with parent name and children details (small font)
-      const designation = `${group.parentName} <span style="font-size: 8px; color: #666;">(${childrenDetails})</span>`;
+      // Create designation based on document-specific settings
+      const documentType = (document.type as string).toLowerCase();
+      const showPackageCount = settings?.documentDisplaySettings?.[documentType as keyof typeof settings.documentDisplaySettings]?.showPackageCount ?? true;
+      const childrenDetails = group.children.map(child => child.childName).join(', ');
+      const designation = showPackageCount 
+        ? `${group.parentName} <span style="font-size: 8px; color: #000;">(${group.totalCount} colis)</span>`
+        : `${group.parentName} <span style="font-size: 8px; color: #000;">(${childrenDetails})</span>`;
       
       return `
         <tr>
           <td class="text-center">${idx + 1}</td>
           <td>${designation}</td>
-          <td class="text-center">${(Number(group.totalQty) || 0).toFixed(3)}</td>
+          <td class="text-center">${formatQuantity(Number(group.totalQty) || 0)}</td>
           <td class="text-center">${(Number(group.totalHT) || 0).toFixed(3)} DT</td>
           <td class="text-center">${(Number(group.tvaRate) || 0).toFixed(1)}%</td>
           <td class="text-center">${(Number(group.totalTTC) || 0).toFixed(3)} DT</td>
@@ -461,19 +472,19 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
     // Generate rows for each parent group (without pricing)
     const parentEntries = Object.entries(parentGroups);
     itemsRows = parentEntries.map(([groupKey, group], idx) => {
-      // Create children details string (only names, no quantities)
-      const childrenDetails = group.children
-        .map(child => child.childName)
-        .join(', ');
-      
-      // Create designation with parent name and children details (small font)
-      const designation = `${group.parentName} <span style="font-size: 8px; color: #666;">(${childrenDetails})</span>`;
+      // Create designation based on document-specific settings
+      const documentType = (document.type as string).toLowerCase();
+      const showPackageCount = settings?.documentDisplaySettings?.[documentType as keyof typeof settings.documentDisplaySettings]?.showPackageCount ?? true;
+      const childrenDetails = group.children.map(child => child.childName).join(', ');
+      const designation = showPackageCount 
+        ? `${group.parentName} <span style="font-size: 8px; color: #000;">(${group.totalCount} colis)</span>`
+        : `${group.parentName} <span style="font-size: 8px; color: #000;">(${childrenDetails})</span>`;
       
       return `
         <tr>
           <td class="text-center">${idx + 1}</td>
           <td>${designation}</td>
-          <td class="text-center">${(Number(group.totalQty) || 0).toFixed(3)}</td>
+          <td class="text-center">${formatQuantity(Number(group.totalQty) || 0)}</td>
         </tr>
       `;
     }).join('');
@@ -494,8 +505,9 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   const em = (document as any).emetteur || {};
   const dest = (document as any).destinataire || {};
   
+  // For FACTURE documents, always use the emetteur (provider/supplier) company info
   // For entry documents (livraison), use receiver's company info; otherwise use sender's
-  const isEntryDocument = sessionType === 'livraison';
+  const isEntryDocument = sessionType === 'livraison' && (document.type as string) !== 'FACTURE';
   const companySource = isEntryDocument ? dest : em;
   const company = (companySource && (companySource.company)) ? (companySource.company) : companySource;
   
@@ -508,7 +520,9 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   const companyMatricule = company.matriculeFiscal || company.matricule_fiscale || '-';
   
   // Use appropriate company logo based on perspective
-  const companyLogoUrl = (companySource && companySource.company && companySource.company.logoUrl) ? companySource.company.logoUrl : '';
+  // For FACTURE documents, always use the emetteur's logo (provider/supplier)
+  const logoSource = (document.type as string) === 'FACTURE' ? em : companySource;
+  const companyLogoUrl = (logoSource && logoSource.company && logoSource.company.logoUrl) ? logoSource.company.logoUrl : '';
   const companyLogo = companyLogoUrl ? getAbsoluteLogoUrl(companyLogoUrl) : '';
 
   // Only show client if explicitly set on document (not from depot defaults)
@@ -555,34 +569,49 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
           (document.notes && document.notes.includes('Destination:') 
             ? document.notes.split('Destination:')[1]?.split('|')[0]?.trim() 
             : null) || 'Non spécifié';
+        const hasClientForDoc = Boolean((document as any).client);
+        
+        // Extract vehicle and driver info from document data
+        const vehicleInfo = (document as any).vehicle ? 
+          `${(document as any).vehicle.brand?.name || 'N/A'} ${(document as any).vehicle.model || 'N/A'} - ${(document as any).vehicle.matricule || 'N/A'}` :
+          'Non spécifié';
+        
+        const driverInfo = (document as any).driver ? (() => {
+          const d = (document as any).driver;
+          const fullName = `${d.prenom || ''} ${d.nom || ''}`.trim();
+          const cinPart = d.cin ? ` (CIN: ${d.cin})` : '';
+          return `${fullName || 'Chauffeur'}${cinPart}`;
+        })() : 'Non spécifié';
         
         return `
-          <div class="info-section">
-            <span class="label">Destination:</span>
-            <span class="value">${destination}</span>
-          </div>
-          <div class="info-section">
-            <span class="label">Validité du:</span>
-            <span class="value">${(document as any).validationFromDate ? new Date((document as any).validationFromDate).toLocaleDateString('fr-FR') : 
+          <div class="info-compact">
+            ${!hasClientForDoc ? `<div class="info-row"><span class="label">Destination:</span><span class="value">${destination}</span></div>` : ''}
+            <div class="info-row"><span class="label">Véhicule:</span><span class="value">${vehicleInfo}</span></div>
+            <div class="info-row"><span class="label">Chauffeur:</span><span class="value">${driverInfo}</span></div>
+            <div class="info-row"><span class="label">Validité du:</span><span class="value">${(document as any).validationFromDate ? new Date((document as any).validationFromDate).toLocaleDateString('fr-FR') : 
               (document.notes && document.notes.includes('Validité du:') 
                 ? document.notes.split('Validité du:')[1]?.split(' au:')[0]?.trim() 
-                : 'Non spécifié')}</span>
-            <span class="label" style="margin-left: 20px;">Validité au:</span>
-            <span class="value">${(document as any).validationToDate ? new Date((document as any).validationToDate).toLocaleDateString('fr-FR') : 
+                : 'Non spécifié')}</span></div>
+            <div class="info-row"><span class="label">Validité au:</span><span class="value">${(document as any).validationToDate ? new Date((document as any).validationToDate).toLocaleDateString('fr-FR') : 
               (document.notes && document.notes.includes(' au:') 
                 ? document.notes.split(' au:')[1]?.split('|')[0]?.trim() 
-                : 'Non spécifié')}</span>
+                : 'Non spécifié')}</span></div>
           </div>
         `;
       case 'BON_TRANSFERT':
+        const emetteur = (document.emetteur as any) || {};
+        const destinataire = (document.destinataire as any) || {};
+        
         return `
-          <div class="info-section">
-            <span class="label">De:</span>
-            <span class="value">${document.emetteur?.name || 'Non spécifié'}</span>
+          <div class="info-compact">
+            <div class="info-row"><span class="label">De:</span><span class="value">${emetteur.name || 'Non spécifié'}</span></div>
+            ${emetteur.matricule ? `<div class="info-row"><span class="label">Matricule:</span><span class="value">${emetteur.matricule}</span></div>` : ''}
+            ${emetteur.adresse ? `<div class="info-row"><span class="label">Adresse:</span><span class="value">${emetteur.adresse}</span></div>` : ''}
           </div>
-          <div class="info-section">
-            <span class="label">Vers:</span>
-            <span class="value">${document.destinataire?.name || 'Non spécifié'}</span>
+          <div class="info-compact">
+            <div class="info-row"><span class="label">Vers:</span><span class="value">${destinataire.name || 'Non spécifié'}</span></div>
+            ${destinataire.matricule ? `<div class="info-row"><span class="label">Matricule:</span><span class="value">${destinataire.matricule}</span></div>` : ''}
+            ${destinataire.adresse ? `<div class="info-row"><span class="label">Adresse:</span><span class="value">${destinataire.adresse}</span></div>` : ''}
           </div>
         `;
       case 'BON_ENTREE_MAGASIN':
@@ -622,8 +651,8 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
 
        ${!isNonPricingDocument ? `
        <div class="totals-and-amount" style="page-break-inside: avoid;">
-         <div class="totals-summary" style="display: flex; justify-content: space-between;">
-           ${document.type === 'FACTURE' ? `
+         <div class="totals-summary" style="display: flex; justify-content: space-between; margin-right: 8mm;">
+           ${(document.type as string) === 'FACTURE' ? `
              <div>
                <table style="width: 200px; border-collapse: collapse; border: 1px solid #000; font-size: 11px;">
                  <thead>
@@ -650,15 +679,18 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
            <div class="total-breakdown">
              <div class="total-line"><span class="label">Total HT:</span><span class="value">${(Number(unifiedTotalHT) || 0).toFixed(3)} DT</span></div>
              <div class="total-line"><span class="label">Total TVA:</span><span class="value">${(Number(unifiedTotalTVA) || 0).toFixed(3)} DT</span></div>
-             <div class="total-line total-final"><span class="label">Total TTC:</span><span class="value">${(Number(unifiedTotalTTC) || 0).toFixed(3)} DT</span></div>
+             ${(document.type as string) === 'FACTURE' ? `
+             <div class="total-line"><span class="label">Timbre:</span><span class="value">${(settings?.documentDisplaySettings?.facture?.timbrePrice || 1).toFixed(3)} DT</span></div>
+             ` : ''}
+             <div class="total-line total-final"><span class="label">Total TTC:</span><span class="value">${((Number(unifiedTotalTTC) || 0) + ((document.type as string) === 'FACTURE' ? (settings?.documentDisplaySettings?.facture?.timbrePrice || 1) : 0)).toFixed(3)} DT</span></div>
            </div>
          </div>
 
-         ${document.type === 'FACTURE' ? `
+         ${(document.type as string) === 'FACTURE' ? `
            <div style="margin-top: 20px; padding: 15px; border: 1px solid #000; background-color: #f9f9f9;">
-             <div style="font-size: 10px; line-height: 1.4; color: #666;">
+             <div style="font-size: 10px; line-height: 1.4; color: #000;">
                <span>Arrêté la présente facture, sauf erreur ou omission de notre part, à la somme de :</span><br>
-               <span style="font-weight: bold; text-transform: uppercase; color: #000;">${numberToFrenchWords(Number(unifiedTotalTTC) || 0)}</span>
+               <span style="font-weight: bold; text-transform: uppercase; color: #000;">${numberToFrenchWords((Number(unifiedTotalTTC) || 0) + ((document.type as string) === 'FACTURE' ? (settings?.documentDisplaySettings?.facture?.timbrePrice || 1) : 0))}</span>
              </div>
            </div>
          ` : ''}
@@ -683,7 +715,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
           </div>
           ` : `
           <div class="signature-box" style="flex:1;">
-            <div class="signature-label">Signature et cachet fournisseur</div>
+            <div class="signature-label">Signature et cachet</div>
             <div class="signature-line"></div>
           </div>
           <div class="signature-box" style="flex:1;">

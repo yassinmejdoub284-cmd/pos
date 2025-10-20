@@ -2,12 +2,106 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { prisma } = require('../lib/prisma');
+const fs = require('fs');
+const path = require('path');
+const USER_ROLES_FILE = path.join(__dirname, '../uploads/user-roles.json');
+
+function readUserRoles() {
+  try {
+    if (fs.existsSync(USER_ROLES_FILE)) {
+      return JSON.parse(fs.readFileSync(USER_ROLES_FILE, 'utf-8') || '{}');
+    }
+  } catch {}
+  return {};
+}
+
+function writeUserRoles(obj) {
+  const dir = path.dirname(USER_ROLES_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(USER_ROLES_FILE, JSON.stringify(obj || {}, null, 2), 'utf-8');
+}
+
+// Enterprise login handler
+async function handleEnterpriseLogin(req, res, username, password) {
+  try {
+    // Find enterprise user
+    const enterpriseUser = await prisma.userEnterprise.findFirst({
+      where: {
+        name: username
+      },
+      include: {
+        company: true
+      }
+    });
+
+    if (!enterpriseUser) {
+      return res.status(401).json({ error: 'Nom d\'utilisateur ou mot de passe invalide' });
+    }
+
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, enterpriseUser.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Nom d\'utilisateur ou mot de passe invalide' });
+    }
+
+    // Generate JWT token
+    const jwtToken = jwt.sign(
+      { 
+        userId: enterpriseUser.id, 
+        role: 'ENTERPRISE_USER',
+        companyId: enterpriseUser.companyId,
+        userType: 'enterprise'
+      },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '24h' }
+    );
+
+    // Enterprise user permissions (full access for billing software)
+    const permissions = {
+      canManageUsers: true,
+      canManageProducts: true,
+      canManageStock: true,
+      canApproveTransfers: true,
+      canViewReports: true,
+      canManageSettings: true,
+      canProcessSales: true,
+      canViewHistory: true
+    };
+
+    res.json({
+      user: {
+        id: enterpriseUser.id,
+        username: enterpriseUser.name,
+        email: null,
+        firstName: enterpriseUser.name,
+        lastName: '',
+        role: 'ENTERPRISE_USER',
+        depotId: null,
+        roleKey: null,
+        companyId: enterpriseUser.companyId,
+        companyName: enterpriseUser.company?.raisonSociale || 'Entreprise',
+        userType: 'enterprise'
+      },
+      token: jwtToken,
+      permissions
+    });
+
+  } catch (error) {
+    console.error('Enterprise login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
 
 const router = express.Router();
 
 router.post('/login', async (req, res) => {
   try {
-    const { pin, token } = req.body;
+    const { pin, token, username, password } = req.body;
+
+    // Check if this is enterprise login (username/password)
+    if (username && password) {
+      return handleEnterpriseLogin(req, res, username, password);
+    }
 
     if (!pin && !token) {
       return res.status(400).json({ error: 'PIN or token is required' });
@@ -46,6 +140,8 @@ router.post('/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    const mapping = readUserRoles();
+    const roleKey = mapping[String(user.id)] || null;
     const permissions = getUserPermissions(user.role);
 
     await prisma.user.update({
@@ -61,7 +157,8 @@ router.post('/login', async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        depotId: user.depotId
+        depotId: user.depotId,
+        roleKey
       },
       token: jwtToken,
       permissions
@@ -75,7 +172,7 @@ router.post('/login', async (req, res) => {
 
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName, role, depotId, pin } = req.body;
+    const { username, email, password, firstName, lastName, role, roleKey, depotId, pin } = req.body;
 
     if (!username || !email || !password || !firstName || !lastName || !role) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -108,6 +205,12 @@ router.post('/register', async (req, res) => {
         pin: pin || '0000'
       }
     });
+
+    if (roleKey && typeof roleKey === 'string') {
+      const mapping = readUserRoles();
+      mapping[String(newUser.id)] = roleKey;
+      writeUserRoles(mapping);
+    }
 
     res.status(201).json({
       message: 'User created successfully',
@@ -152,6 +255,8 @@ router.get('/me', async (req, res) => {
       return res.status(401).json({ error: 'User not found' });
     }
 
+    const mapping = readUserRoles();
+    const roleKey = mapping[String(user.id)] || null;
     const permissions = getUserPermissions(user.role);
 
     res.json({
@@ -162,7 +267,8 @@ router.get('/me', async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        depotId: user.depotId
+        depotId: user.depotId,
+        roleKey
       },
       permissions
     });

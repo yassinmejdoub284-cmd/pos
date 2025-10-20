@@ -32,7 +32,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
   selectedStatus: string = 'true';
   
   // View mode
-  viewMode: 'grid' | 'table' = 'grid';
+  viewMode: 'grid' | 'table' = 'table';
 
   // Tunisian governorates (24)
   tunisianCities: string[] = [
@@ -70,6 +70,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
     matriculeFiscal: '',
     clientType: 'INDIVIDUAL',
     depotId: -1, // Default to "Tout" (any depot)
+    pictureUrl: '',
     notes: '',
     allowDebt: true,
     maxDebt: null
@@ -214,6 +215,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
       matriculeFiscal: '',
       clientType: 'INDIVIDUAL',
       depotId: -1, // Default to "Tout" (any depot)
+      pictureUrl: '',
       notes: '',
       allowDebt: true,
       maxDebt: null
@@ -232,6 +234,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
       matriculeFiscal: client.matriculeFiscal || '',
       clientType: client.clientType,
       depotId: client.depotId,
+      pictureUrl: client.pictureUrl,
       loyaltyPoints: client.loyaltyPoints,
       totalSpent: client.totalSpent,
       favoriteProducts: client.favoriteProducts,

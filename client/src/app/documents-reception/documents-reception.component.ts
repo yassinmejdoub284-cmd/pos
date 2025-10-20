@@ -1,7 +1,8 @@
 import { Component, OnInit, computed, signal, effect } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { StockDocumentsService } from '../core/services/stock-documents.service';
 import { AuthService } from '../core/services/auth.service';
+import { SessionsService } from '../core/services/sessions.service';
 import { DepotsService } from '../core/services/depots.service';
 import { StockDocument } from '../core/models/stock-document.model';
 
@@ -38,19 +39,33 @@ export class DocumentsReceptionComponent implements OnInit {
     private stockDocs: StockDocumentsService,
     private auth: AuthService,
     private depotsService: DepotsService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute,
+    private sessionsService: SessionsService
   ) {}
 
   ngOnInit(): void {
     const user = this.auth.currentUser();
     this.isAdmin = (user?.role === 'ADMIN');
-    this.currentDepotId = user?.depotId ?? null;
+
+    // Prefer session depot when available
+    const session = this.sessionsService.currentSession?.();
+    if (session?.depotId) {
+      this.currentDepotId = session.depotId;
+    } else {
+      this.currentDepotId = user?.depotId ?? null;
+    }
 
     // Check if depotId is provided in route params
-    const depotIdFromRoute = this.router.url.split('/').pop();
-    if (depotIdFromRoute && !isNaN(Number(depotIdFromRoute))) {
-      this.currentDepotId = Number(depotIdFromRoute);
-    }
+    this.route.params.subscribe(params => {
+      const depotIdFromRoute = params['depotId'];
+      if (depotIdFromRoute && !isNaN(Number(depotIdFromRoute))) {
+        this.currentDepotId = Number(depotIdFromRoute);
+        console.log('Depot ID from route:', this.currentDepotId);
+        // Load documents with the depot ID from route
+        this.loadDocuments();
+      }
+    });
 
     if (this.isAdmin) {
       this.loadDepots();
@@ -60,7 +75,21 @@ export class DocumentsReceptionComponent implements OnInit {
       }
     }
 
-    this.loadDocuments();
+    // Watch for session depot changes
+    this.sessionsService.currentSession$?.subscribe({
+      next: (sess: any) => {
+        if (sess?.depotId && this.currentDepotId !== sess.depotId) {
+          this.currentDepotId = sess.depotId;
+          this.loadDocuments();
+        }
+      }
+    });
+
+    // Load documents only if no depot ID from route (fallback)
+    // The route params subscription will handle loading when depot ID is in URL
+    if (!this.currentDepotId) {
+      this.loadDocuments();
+    }
   }
 
   private loadDepots(): void {
@@ -78,14 +107,17 @@ export class DocumentsReceptionComponent implements OnInit {
     this.loading = true;
     this.error = '';
     const depotId = this.getScopedDepotId();
+    console.log('Loading documents for depot ID:', depotId);
     // Load all document types with SENT status
     this.stockDocs.getDocuments(1, 50, undefined, 'SENT', depotId).subscribe({
       next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data ?? []);
+        console.log('Raw documents loaded:', data.length);
         // Filter for documents destined to this depot (all types)
         const filteredData = data.filter((doc: any) => 
           doc.destinataireId === depotId
         );
+        console.log('Filtered documents for depot', depotId, ':', filteredData.length);
         this.documents.set(filteredData);
         this.loading = false;
       },
@@ -129,6 +161,12 @@ export class DocumentsReceptionComponent implements OnInit {
     }
   }
 
+  getCurrentDepotName(): string {
+    if (!this.currentDepotId) return 'Aucun dépôt sélectionné';
+    const depot = this.depots.find(d => d.id === this.currentDepotId);
+    return depot ? depot.name : `Dépôt ${this.currentDepotId}`;
+  }
+
   goHome(): void {
     this.router.navigate(['/home']);
   }
@@ -155,8 +193,8 @@ export class DocumentsReceptionComponent implements OnInit {
     }
 
     const grouped = document.items.reduce((acc: any, item: any) => {
-      const parentName = item.famille || item.parentProductName || 'Produit';
-      const childName = item.childProductName || `Produit ${item.productId}`;
+      const parentName = item.product?.famille?.name || item.famille || item.parentProductName || 'Produit';
+      const childName = item.product?.name || item.childProductName || `Produit ${item.productId}`;
       const productKey = `${item.productId}_${item.quantity}_${item.count}`;
       
       if (!acc[parentName]) {

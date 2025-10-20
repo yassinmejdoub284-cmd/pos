@@ -64,6 +64,7 @@ body {
   .font-bold { font-weight: bold; }
   .totals-summary {
     margin: 20px 0;
+    margin-right: 8mm !important;
     padding: 15px;
     background-color: #f8f8f8;
     border: 1px solid #ccc;
@@ -75,7 +76,7 @@ body {
     flex-direction: column;
     align-items: flex-end;
   }
-  .total-line { display: flex; justify-content: space-between; width: 300px; margin-bottom: 5px; font-size: 13px; }
+  .total-line { width: 100% !important; display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
   .total-final { border-top: 1px solid #000; padding-top: 5px; font-weight: bold; font-size: 14px; }
   .footer { margin-top: 40px; border-top: 2px solid #000; padding-top: 20px; }
   .signature-section { margin-bottom: 20px; }

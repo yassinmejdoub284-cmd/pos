@@ -1,13 +1,13 @@
 <!-- Modern Analytics Dashboard -->
 <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
   <!-- Header Section -->
-  <div class="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-50">
+  <div class="bg-white/80 border-b border-slate-200/60 sticky top-0 z-50">
     <div class="mx-auto px-4 sm:px-6 py-4 sm:py-6">
         <div class="flex items-center justify-between gap-4">
         <div class="flex items-center gap-3 flex-1 min-w-0">
            <button (click)="goBackToReports()" 
                    title="Retour aux rapports"
-                   class="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 text-slate-600 transition-all duration-200 hover:bg-slate-200 select-none">
+                   class="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 text-slate-600 transition-all duration-200 select-none">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
             </svg>
@@ -20,14 +20,14 @@
         <div class="flex items-center gap-2 flex-shrink-0">
            <button (click)="refreshSessions()" 
                    title="Actualiser les sessions"
-                   class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500 text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:bg-blue-600 select-none">
+                   class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500 text-white shadow-lg shadow-blue-500/25 transition-all duration-200 select-none">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
             </svg>
           </button>
            <button (click)="exportSessionData()" 
                    title="Exporter les données de session"
-                   class="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 transition-all duration-200 hover:bg-emerald-600 select-none">
+                   class="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 transition-all duration-200 select-none">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
             </svg>
@@ -64,7 +64,7 @@
               </button>
                 <div class="text-center px-4">
                    <h3 (click)="openSessionSelectionModal()" 
-                       class="text-lg sm:text-xl font-bold text-slate-800 cursor-pointer hover:text-blue-600 transition-colors duration-200 select-none">
+                       class="text-lg sm:text-xl font-bold text-slate-800 cursor-pointer transition-colors duration-200 select-none">
                      Session #{{selectedSession()?.id}}
                    </h3>
                   <div class="mt-1">
@@ -305,7 +305,7 @@
                           <div class="py-1 text-sm">
                             <div class="flex items-center justify-between">
                                <button (click)="toggleTicketDetails(s.id)" 
-                                       class="flex items-center gap-2 text-slate-600 hover:text-slate-800 transition-colors cursor-pointer select-none">
+                                       class="flex items-center gap-2 text-slate-600 transition-colors cursor-pointer select-none">
                                 <svg class="w-3 h-3 transition-transform duration-200 flex-shrink-0" 
                                      [class.rotate-90]="expandedTicketId() === s.id"
                                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -525,7 +525,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-4xl mx-auto">
                <div *ngFor="let session of sessions().slice(0, 6)" 
                     (click)="selectSession(session)"
-                    class="p-4 rounded-lg border-2 border-slate-200 bg-white cursor-pointer transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 select-none min-h-[120px] flex flex-col justify-center">
+                    class="p-4 rounded-lg border-2 border-slate-200 bg-white cursor-pointer transition-all duration-200 select-none min-h-[120px] flex flex-col justify-center">
                 <div class="text-center">
                   <div class="text-lg font-bold text-slate-800 mb-1">#{{session.id}}</div>
                   <div class="text-xs text-slate-600 mb-1">{{session.openedAt | date:'dd/MM HH:mm'}}</div>
@@ -555,7 +555,7 @@
           </div>
            <button (click)="closeSessionSelectionModal()" 
                    title="Fermer la sélection de session"
-                   class="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors duration-200 select-none">
+                   class="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 text-slate-600 transition-colors duration-200 select-none">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -576,7 +576,7 @@
           <div *ngIf="!loading()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
              <div *ngFor="let session of sessions()" 
                   (click)="selectSessionFromModal(session)"
-                  class="group relative bg-white rounded-xl border-2 border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden session-card select-none h-full min-h-[280px]">
+                  class="group relative bg-white rounded-xl border-2 border-slate-200 transition-all duration-300 cursor-pointer overflow-hidden session-card select-none h-full min-h-[280px]">
                
                <!-- Session Card Content -->
                <div class="p-6 h-full flex flex-col">
@@ -680,7 +680,7 @@
             {{sessions().length}} session{{sessions().length > 1 ? 's' : ''}} disponible{{sessions().length > 1 ? 's' : ''}}
           </div>
            <button (click)="closeSessionSelectionModal()" 
-                   class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors duration-200 select-none">
+                   class="px-4 py-2 bg-slate-600 text-white rounded-lg transition-colors duration-200 select-none">
             Fermer
           </button>
         </div>

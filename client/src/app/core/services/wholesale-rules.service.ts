@@ -6,7 +6,7 @@ import { environment } from '../../../environments/environment';
 
 export interface WholesaleRule {
   id: string;
-  productIds: number[];
+  productIds?: number[]; // Optional since server doesn't provide this
   ruleType: 'percentage' | 'fixed' | 'discount' | 'manual';
   value: number;
   description?: string;

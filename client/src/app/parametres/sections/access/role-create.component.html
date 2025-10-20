@@ -1,0 +1,65 @@
+<div class="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-pink-50 p-6">
+  <div class="max-w-xl mx-auto bg-white rounded-2xl border border-emerald-100 shadow p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <a routerLink="/parametres/access" class="w-10 h-10 bg-gray-100 text-gray-800 rounded-lg border border-gray-200 flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <div>
+          <div class="text-xs text-gray-500">Gestion des Accès</div>
+          <div class="text-2xl font-bold text-gray-800">{{ isEditing ? 'Modifier le Rôle' : 'Nouveau Rôle' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="error" class="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">{{ error }}</div>
+    <div *ngIf="isEditing" class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <span>Vous modifiez le rôle <strong class="font-semibold">{{ currentKey }}</strong>.</span>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">Libellé</label>
+        <input type="text" [ngModel]="label" (ngModelChange)="onLabelChange($event)" placeholder="Ex: Chef de Caisse" class="w-full border rounded-xl px-3 py-2 bg-white/70" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">Couleur</label>
+          <input type="color" [(ngModel)]="color" class="w-full h-10 border rounded-xl p-1" />
+        </div>
+      </div>
+      <div class="text-xs text-gray-500 font-mono">Clé: {{ currentKey }}</div>
+      
+      <div>
+        <label class="block text-sm text-gray-600 mb-2">Icône (SVG) — choisir</label>
+        <div class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-64 overflow-auto p-2 bg-gray-50 rounded-xl border">
+          <button type="button"
+                  *ngFor="let d of icons"
+                  (click)="selectedIcon = d"
+                  [class]="selectedIcon === d ? 'ring-2 ring-emerald-400' : ''"
+                  class="w-12 h-12 rounded-lg bg-white border flex items-center justify-center">
+            <svg class="w-7 h-7" [ngStyle]="{ color: color }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path [attr.d]="d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 flex justify-end gap-2">
+      <a routerLink="/parametres/access" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700">Annuler</a>
+      <button (click)="submit()" [disabled]="saving"
+              [class]="isEditing ? 'px-4 py-2 rounded-xl bg-amber-600 text-white disabled:opacity-50' : 'px-4 py-2 rounded-xl bg-emerald-600 text-white disabled:opacity-50'">
+        <span *ngIf="!isEditing">Enregistrer</span>
+        <span *ngIf="isEditing">Mettre à jour</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+

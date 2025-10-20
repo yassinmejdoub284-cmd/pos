@@ -1,10 +1,15 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { RemindersService } from '../../core/services/reminders.service';
+import { Reminder } from '../../core/models/reminder.model';
+import { VoicePlayerComponent } from '../../shared/components/voice-player/voice-player.component';
 import { UsersService } from '../../core/services/users.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { LoginThemeService } from '../../core/services/login-theme.service';
+import { DepotsService } from '../../core/services/depots.service';
+import { NotificationsService } from '../../core/services/notifications.service';
 
 @Component({
   selector: 'app-login',
@@ -59,7 +64,10 @@ export class LoginComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private router: Router,
     private http: HttpClient,
-    private usersService: UsersService
+    private usersService: UsersService,
+    private depotsService: DepotsService,
+    private remindersService: RemindersService,
+    private notificationsService: NotificationsService
   ) {}
 
   ngOnInit(): void {
@@ -69,7 +77,8 @@ export class LoginComponent implements OnInit, OnDestroy {
 
     // Redirect if already authenticated
     if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/home']);
+      // Session restore: show due reminders if any
+      this.tryShowRemindersThenRedirect('SESSION');
       return;
     }
 
@@ -117,27 +126,22 @@ export class LoginComponent implements OnInit, OnDestroy {
 
     this.authService.login(loginData).subscribe({
       next: async (response) => {
+        console.log('Login successful, response:', response);
         this.loading = false;
         
         // Force PIN change if entered PIN starts with '00'
         if (!isToken && this.credentials.pin.startsWith('00')) {
+          console.log('PIN change required');
           // Keep token temporarily for PIN update, will logout after successful change
           this.currentUser = response.user;
           this.showPasswordChange = true;
           return;
         }
         
-        // If admin, force depot selection if not already chosen in this session
-        if (response.user.role === 'ADMIN') {
-          const existing = sessionStorage.getItem('visitingDepotId');
-          if (!existing) {
-            await this.loadDepots();
-            this.showDepotChoice = true;
-            return;
-          }
-        }
-        // Redirect based on user role
-        this.redirectBasedOnRole(response.user.role);
+        // After successful login, check reminders and notifications first
+        console.log('Calling tryShowRemindersThenRedirect with role:', response.user.role);
+        this.postLoginRole = response.user.role;
+        await this.tryShowRemindersThenRedirect('LOGIN');
       },
       error: (error) => {
         console.error('Login error:', error);
@@ -149,7 +153,26 @@ export class LoginComponent implements OnInit, OnDestroy {
     });
   }
 
-  private redirectBasedOnRole(role: string): void {
+  private async redirectBasedOnRole(role: string): Promise<void> {
+    console.log('Redirecting user with role:', role);
+    
+    // For admin users, check depot selection first
+    if (role === 'ADMIN') {
+      console.log('Admin user, checking depot selection before redirect');
+      const existingDepotId = sessionStorage.getItem('visitingDepotId');
+      if (!existingDepotId) {
+        console.log('No depot selected, showing depot choice');
+        this.showDepotChoice = true;
+        await this.loadDepots();
+        console.log('Depot choice dialog should be visible now, showDepotChoice:', this.showDepotChoice);
+        console.log('Depots loaded:', this.depots.length);
+        return; // Don't redirect yet, wait for depot selection
+      } else {
+        console.log('Depot already selected:', existingDepotId);
+        console.log('Admin with existing depot, proceeding to redirect to home');
+      }
+    }
+    
     switch (role) {
       case 'ADMIN':
         this.router.navigate(['/home']);
@@ -161,10 +184,161 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.router.navigate(['/caisse']);
         break;
       case 'STOCK_MANAGER':
-        this.router.navigate(['/stock']);
+        // No automatic redirect to /stock; go to Home and let access config drive modules
+        this.router.navigate(['/home']);
         break;
       default:
         this.router.navigate(['/home']);
+    }
+  }
+
+  // ===================== Rappels (Surface post-login) =====================
+  showReminderSurface = false;
+  currentReminder: Reminder | null = null;
+  reminderQueue: Reminder[] = [];
+  showSnoozeMenu = false;
+  snoozedUntilText = '';
+  showNotificationSurface = false;
+  notifications: any[] = [];
+  private postLoginRole: string | null = null;
+
+  private async tryShowRemindersThenRedirect(source: 'LOGIN' | 'SESSION'): Promise<void> {
+    console.log('tryShowRemindersThenRedirect called, source:', source);
+    // Fetch both reminders and notifications
+    this.remindersService.fetchDue().subscribe({
+      next: async (list) => {
+        console.log('Reminders fetched:', list);
+        const due = (list || []).slice(0, 3);
+        if (due.length === 0) {
+          // No reminders: fetch notifications and redirect
+          console.log('No reminders found, fetching notifications...');
+          await this.fetchNotificationsAndRedirect();
+          return;
+        }
+        console.log('Found', due.length, 'reminders, showing reminder surface');
+        this.reminderQueue = [...due];
+        this.currentReminder = this.reminderQueue.shift() || null;
+        this.showReminderSurface = !!this.currentReminder;
+      },
+      error: async (error) => {
+        console.error('Error fetching reminders:', error);
+        // On error, fetch notifications and proceed
+        await this.fetchNotificationsAndRedirect();
+      }
+    });
+  }
+
+  private async fetchNotificationsAndRedirect(): Promise<void> {
+    console.log('fetchNotificationsAndRedirect called, postLoginRole:', this.postLoginRole);
+    // Fetch notifications after login
+    this.notificationsService.updateUnreadCount();
+    
+    // Log notifications for debugging and show them if they exist
+    this.notificationsService.fetchUnread().subscribe({
+      next: async (notifications) => {
+        console.log('Notifications fetched on login:', notifications);
+        if (notifications.length > 0) {
+          console.log('Found', notifications.length, 'unread notifications, showing notification surface');
+          this.notifications = notifications;
+          this.showNotificationSurface = true;
+          // Don't redirect immediately if there are notifications to show
+          return;
+        }
+        console.log('No notifications found, redirecting to role:', this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
+        // No notifications, proceed with redirect
+        await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
+      },
+      error: async (error) => {
+        console.error('Error fetching notifications on login:', error);
+        // On error, proceed with redirect
+        await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
+      }
+    });
+  }
+
+  onMarkRead(): void {
+    if (!this.currentReminder) return;
+    const id = this.currentReminder.id;
+    this.remindersService.markRead(id).subscribe({
+      next: () => {
+        // Toast could be global; keep minimal UX
+        // Advance to next or redirect
+        this.advanceReminderQueue();
+      },
+      error: () => {
+        this.advanceReminderQueue();
+      }
+    });
+  }
+
+  toggleSnoozeMenu(): void { this.showSnoozeMenu = !this.showSnoozeMenu; }
+
+  onSnooze(minutes: number): void {
+    if (!this.currentReminder) return;
+    this.showSnoozeMenu = false;
+    this.snoozedUntilText = '';
+    this.remindersService.snooze(this.currentReminder.id, minutes, false).subscribe({
+      next: () => {
+        // Feedback text not strictly needed on surface after snooze; continue
+        this.advanceReminderQueue();
+      },
+      error: () => this.advanceReminderQueue()
+    });
+  }
+
+  onSnoozeDemain(): void {
+    if (!this.currentReminder) return;
+    this.showSnoozeMenu = false;
+    this.snoozedUntilText = '08:30';
+    this.remindersService.snooze(this.currentReminder.id, undefined, true).subscribe({
+      next: () => this.advanceReminderQueue(),
+      error: () => this.advanceReminderQueue()
+    });
+  }
+
+  onVoicePlaybackComplete(): void {
+    // Optional: Auto-mark as read after voice playback
+    // this.onMarkRead();
+  }
+
+  private advanceReminderQueue(): void {
+    if (this.reminderQueue.length > 0) {
+      this.currentReminder = this.reminderQueue.shift() || null;
+      this.snoozedUntilText = '';
+      this.showReminderSurface = !!this.currentReminder;
+      return;
+    }
+    this.currentReminder = null;
+    this.showReminderSurface = false;
+    
+    // For admin users, don't automatically redirect - let them handle notifications first
+    // The depot selection will happen when they try to access the main app
+    if (this.postLoginRole === 'ADMIN') {
+      console.log('Admin user finished reminders, proceeding to notifications without auto-redirect');
+    }
+    
+    this.fetchNotificationsAndRedirect();
+  }
+
+  formatDue(dueAt?: string): string {
+    if (!dueAt) return '';
+    const d = new Date(dueAt);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return isToday ? `aujourd’hui à ${hh}:${mm}` : `${d.toLocaleDateString()} ${hh}:${mm}`;
+    }
+
+  isOverdue(dueAt?: string): boolean {
+    return !!dueAt && new Date(dueAt).getTime() < Date.now();
+  }
+
+  formatPriority(p?: string): string {
+    switch (p) {
+      case 'ELEVEE': return 'Élevée';
+      case 'FAIBLE': return 'Faible';
+      default: return 'Normal';
     }
   }
 
@@ -224,16 +398,35 @@ export class LoginComponent implements OnInit, OnDestroy {
     }
   }
 
-  confirmDepotSelection(): void {
+  async confirmDepotSelection(): Promise<void> {
     if (!this.selectedDepotId) {
       this.error = 'Veuillez sélectionner un dépôt';
       return;
     }
+    // Persist selection for this session and beyond
     sessionStorage.setItem('visitingDepotId', String(this.selectedDepotId));
+    localStorage.setItem('visitingDepotId', String(this.selectedDepotId));
+
+    // ALWAYS update theme/logo immediately based on selected depot's company
+    this.depotsService.get(this.selectedDepotId).subscribe({
+      next: (depot: any) => {
+        const companyId = depot?.companyId ?? depot?.company?.id;
+        if (companyId && Number(companyId) > 0) {
+          localStorage.setItem('lastCompanyId', String(companyId));
+          this.loginThemeService.setLastCompanyId(Number(companyId));
+        } else {
+          // Fallback to default if no company linked
+          this.loginThemeService.clearLastCompany();
+        }
+      },
+      error: () => {
+        // On error, still proceed; theme remains as-is or default
+      }
+    });
     this.showDepotChoice = false;
     // Proceed to redirect
     const role = this.authService.getCurrentUserRole() || 'ADMIN';
-    this.redirectBasedOnRole(role);
+    await this.redirectBasedOnRole(role);
   }
 
   cancelDepotSelection(): void {
@@ -426,5 +619,64 @@ export class LoginComponent implements OnInit, OnDestroy {
   // Getter for scanner status display
   get scannerStatusText(): string {
     return this.isScannerMode ? 'Scanner détecté...' : 'Prêt pour scanner';
+  }
+
+  // Notification methods
+  formatNotificationDate(createdAt: string): string {
+    const date = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.round(diffMs / (1000 * 60));
+    
+    if (diffMins < 1) return 'À l\'instant';
+    if (diffMins < 60) return `Il y a ${diffMins} min`;
+    const diffHours = Math.round(diffMins / 60);
+    if (diffHours < 24) return `Il y a ${diffHours}h`;
+    const diffDays = Math.round(diffHours / 24);
+    if (diffDays < 7) return `Il y a ${diffDays}j`;
+    
+    return date.toLocaleDateString('fr-FR', { 
+      day: 'numeric', 
+      month: 'short', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  }
+
+  markNotificationAsRead(notificationId: number): void {
+    this.notificationsService.markAsRead(notificationId).subscribe({
+      next: () => {
+        // Remove from local list
+        this.notifications = this.notifications.filter(n => n.id !== notificationId);
+        if (this.notifications.length === 0) {
+          this.dismissNotifications();
+        }
+      },
+      error: (error) => {
+        console.error('Error marking notification as read:', error);
+      }
+    });
+  }
+
+  markAllNotificationsAsRead(): void {
+    console.log('markAllNotificationsAsRead called - user explicitly marked all as read');
+    this.notificationsService.markAllAsRead().subscribe({
+      next: () => {
+        console.log('Successfully marked all notifications as read');
+        this.notifications = [];
+        this.dismissNotifications();
+      },
+      error: (error) => {
+        console.error('Error marking all notifications as read:', error);
+      }
+    });
+  }
+
+  async dismissNotifications(): Promise<void> {
+    console.log('dismissNotifications called, postLoginRole:', this.postLoginRole);
+    console.log('NOT marking notifications as read - just dismissing the surface');
+    this.showNotificationSurface = false;
+    this.notifications = [];
+    await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
   }
 }

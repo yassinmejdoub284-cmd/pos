@@ -10,9 +10,12 @@ export interface User {
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
+  companyId?: number;
+  companyName?: string;
+  userType?: 'patisserie' | 'enterprise';
 }
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER';
+export type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER' | 'ENTERPRISE_USER';
 
 export interface UserPermissions {
   canManageUsers: boolean;
@@ -34,4 +37,6 @@ export interface AuthResponse {
 export interface LoginRequest {
   pin?: string;
   token?: string;
+  username?: string;
+  password?: string;
 } 

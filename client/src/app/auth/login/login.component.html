@@ -150,6 +150,86 @@
   </div>
 </div>
 
+<!-- Surface de rappel (post-login) -->
+<div *ngIf="showReminderSurface && currentReminder" class="fixed inset-0 bg-black/20 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-[2rem] shadow-xl border border-slate-200 max-w-lg w-full p-6 animate-fade-in">
+    <div class="mb-3">
+      <span class="text-slate-900 text-lg font-semibold">{{ currentReminder.title }}</span>
+    </div>
+    <div class="mb-4 space-y-2">
+      <span class="block text-slate-700">{{ currentReminder.description }}</span>
+      <span class="inline-flex items-center gap-2 text-sm text-slate-600">
+        <span class="px-2 py-1 rounded-xl bg-amber-50 text-amber-700 border border-amber-200">Envoyé le {{ formatDue(currentReminder.dueAt) }}</span>
+        <span *ngIf="isOverdue(currentReminder.dueAt)" class="px-2 py-1 rounded-xl bg-rose-50 text-rose-700 border border-rose-200">En retard</span>
+        <span class="px-2 py-1 rounded-xl bg-lime-50 text-lime-700 border border-lime-200">Priorité : {{ formatPriority(currentReminder.priority) }}</span>
+      </span>
+    </div>
+    <div *ngIf="snoozedUntilText" class="mb-3">
+      <span class="text-xs text-slate-500">Snoozé jusqu'à {{ snoozedUntilText }}</span>
+    </div>
+    
+    <!-- Message vocal -->
+    <div *ngIf="currentReminder.voiceMessageUrl" class="mb-4">
+      <app-voice-player 
+        [audioUrl]="currentReminder.voiceMessageUrl"
+        (playbackComplete)="onVoicePlaybackComplete()">
+      </app-voice-player>
+    </div>
+    <div class="flex items-center gap-3">
+      <button (click)="onMarkRead()" class="flex-1 h-11 rounded-xl text-white font-medium" [ngStyle]="{'background': 'linear-gradient(135deg, #ff6b6b, #00e5ff)'}">
+        <span>Lu</span>
+      </button>
+      <div class="relative">
+        <button (click)="toggleSnoozeMenu()" class="h-11 px-4 rounded-xl border border-slate-300 text-slate-800 bg-white">
+          <span>Rappelle-moi plus tard</span>
+        </button>
+        <div *ngIf="showSnoozeMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-2xl border border-slate-200 shadow-xl p-1">
+          <button (click)="onSnooze(10)" class="w-full text-left px-3 py-2 rounded-xl"><span>10 min</span></button>
+          <button (click)="onSnooze(30)" class="w-full text-left px-3 py-2 rounded-xl"><span>30 min</span></button>
+          <button (click)="onSnooze(120)" class="w-full text-left px-3 py-2 rounded-xl"><span>120 min</span></button>
+          <button (click)="onSnoozeDemain()" class="w-full text-left px-3 py-2 rounded-xl"><span>Demain matin</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Surface de notifications (post-login) -->
+<div *ngIf="showNotificationSurface && notifications.length > 0" class="fixed inset-0 bg-black/20 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-[2rem] shadow-xl border border-slate-200 max-w-lg w-full p-6 animate-fade-in">
+    <div class="mb-4">
+      <span class="text-slate-900 text-lg font-semibold">Notifications</span>
+      <span class="block text-sm text-slate-600">Vous avez {{ notifications.length }} notification(s) non lue(s)</span>
+    </div>
+    
+    <div class="space-y-3 mb-6 max-h-60 overflow-y-auto">
+      <div *ngFor="let notification of notifications" class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <span class="block font-medium text-slate-800">{{ notification.title }}</span>
+            <span class="block text-sm text-slate-600 mt-1">{{ notification.message }}</span>
+            <span class="block text-xs text-slate-500 mt-2">{{ formatNotificationDate(notification.createdAt) }}</span>
+          </div>
+          <button (click)="markNotificationAsRead(notification.id)" title="Marquer comme lu" class="ml-2 p-1 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-3">
+      <button (click)="markAllNotificationsAsRead()" class="flex-1 h-11 rounded-xl text-white font-medium" [ngStyle]="{'background': 'linear-gradient(135deg, #ff6b6b, #00e5ff)'}">
+        <span>Marquer tout comme lu</span>
+      </button>
+      <button (click)="dismissNotifications()" class="h-11 px-4 rounded-xl border border-slate-300 text-slate-800 bg-white">
+        <span>Continuer</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Admin depot selection dialog -->
 <div *ngIf="showDepotChoice" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40">
   <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border p-4 md:p-6">

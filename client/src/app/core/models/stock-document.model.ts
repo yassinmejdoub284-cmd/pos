@@ -1,3 +1,6 @@
+import { Vehicle } from './vehicle.model';
+import { Driver } from './driver.model';
+
 export interface StockDocument {
   id: number;
   numero: string;
@@ -6,6 +9,8 @@ export interface StockDocument {
   emetteurId: number;
   destinataireId: number;
   clientId?: number;
+  vehicleId?: number;
+  driverId?: number;
   notes?: string;
   destination?: string;
   validationFromDate?: Date;
@@ -17,6 +22,8 @@ export interface StockDocument {
   destinataire?: Depot;
   supplier?: Supplier;
   client?: Client;
+  vehicle?: Vehicle;
+  driver?: Driver;
   items?: StockDocumentItem[];
   statusHistory?: DocumentStatusHistory[];
   sourceLinks?: StockDocumentLink[];

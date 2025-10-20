@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ProduitsDeStockService } from './produits-de-caisse.service';
 
 export interface InventorySession {
   id: number;
@@ -22,6 +23,7 @@ export interface InventorySession {
   depot?: {
     name: string;
     code: string;
+    type?: string;
   };
   starter?: {
     firstName: string;
@@ -110,7 +112,10 @@ export interface InventorySummary {
 export class InventoryService {
   private apiUrl = `${environment.apiUrl}/inventory`;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private produitsDeStockService: ProduitsDeStockService
+  ) {}
 
   // Get all inventory sessions
   getSessions(status?: string, depotId?: number): Observable<InventorySession[]> {
@@ -177,5 +182,20 @@ export class InventoryService {
   // Get total products count in inventory for a depot
   getInventoryCount(depotId: number): Observable<number> {
     return this.http.get<number>(`${this.apiUrl}/count/${depotId}`);
+  }
+
+  // Get products for a specific depot based on depot type
+  getProductsForDepot(depotId: number, depotType?: string): Observable<any[]> {
+    // IMPORTANT: Product source depends on depot type
+    // - SHOP depots: Use general 'produits' table
+    // - Other depot types (MAIN, BRANCH, WAREHOUSE): Use 'produits-de-caisse' table
+    // - If depot type is unknown: Default to 'produits-de-caisse' (NOT SHOP)
+    // This is because SHOP depots sell products, while other depots manage stock
+    if (depotType === 'SHOP') {
+      return this.http.get<any[]>(`${environment.apiUrl}/products?depotId=${depotId}`);
+    } else {
+      // Default to produits-de-caisse for all non-SHOP depots or unknown types
+      return this.http.get<any[]>(`${environment.apiUrl}/produits-de-caisse?depotId=${depotId}`);
+    }
   }
 }

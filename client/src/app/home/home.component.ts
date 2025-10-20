@@ -5,6 +5,8 @@ import { SalesService } from '../core/services/sales.service';
 import { ExpenseService } from '../core/services/expense.service';
 import { ApprovalsService } from '../core/services/approvals.service';
 import { SessionsService } from '../core/services/sessions.service';
+import { DepotsService } from '../core/services/depots.service';
+import { EnterpriseService } from '../core/services/enterprise.service';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
 import { FullscreenService } from '../core/services/fullscreen.service';
 import { Subject, forkJoin, timer, of } from 'rxjs';
@@ -59,6 +61,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   showEnterpriseActionDialog = signal(false);
   showHistoriqueChoiceDialog = signal(false);
   showErpUnlockDialog = signal(false);
+  showCompanySwitchDialog = signal(false);
+  companySwitchData = signal<{ companyName: string; logoUrl?: string | null } | null>(null);
   
   // Settings
   appSettings = signal<AppSettings | null>(null);
@@ -218,6 +222,16 @@ export class HomeComponent implements OnInit, OnDestroy {
       roles: ['ADMIN', 'MANAGER']
     },
     {
+      id: 'reminders-admin',
+      title: 'Rappels (Administration)',
+      description: 'Créer et gérer les rappels',
+      route: '/reminders',
+      icon: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      color: 'from-emerald-500 to-cyan-600',
+      gradient: 'from-emerald-50 to-cyan-100',
+      roles: ['ADMIN', 'MANAGER']
+    },
+    {
       id: 'charges',
       title: 'Dépenses',
       route: '/charges',
@@ -272,6 +286,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     private expenseService: ExpenseService,
     private approvalsService: ApprovalsService,
     private settingsService: SettingsService,
+    private depotsService: DepotsService,
+    private enterpriseService: EnterpriseService,
     private fullscreenService: FullscreenService,
     private router: Router,
     private cdr: ChangeDetectorRef
@@ -279,9 +295,14 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.currentUser.set(this.authService.currentUser());
+    try {
+      const u: any = this.currentUser();
+      const roleKey = u?.roleKey || u?.role;
+    } catch {}
     this.updateGreeting();
     this.loadDashboardStats();
     this.loadSettings();
+    this.checkCompanySwitchInfo();
     
     // Update time every minute - optimized with proper cleanup
     this.timeInterval = setInterval(() => {
@@ -445,33 +466,99 @@ export class HomeComponent implements OnInit, OnDestroy {
   getFilteredActions(): QuickAction[] {
     const currentUser = this.currentUser();
     if (!currentUser) return [];
-    
-    // Cache filtered actions to avoid repeated computation
-    if (this._lastUserRole !== currentUser.role) {
-      this._cachedFilteredActions = this.quickActions.filter(action => 
-        action.roles.includes(currentUser.role)
-      );
-      this._lastUserRole = currentUser.role;
+
+    const effectiveRoleKey = this.getEffectiveRoleKey();
+    if (this._lastUserRole !== effectiveRoleKey) {
+      this._lastUserRole = effectiveRoleKey || null;
+      this._cachedFilteredActions = [];
     }
-    
+
+    if (this._cachedFilteredActions.length === 0) {
+      const settings = this.appSettings();
+      const access = (settings?.roleAccessConfig || {}) as any;
+      const roleAccessBlocks = effectiveRoleKey ? (access?.[effectiveRoleKey]?.blocks || {}) : {};
+
+      if (roleAccessBlocks && Object.keys(roleAccessBlocks).length > 0) {
+        // Strict: only show modules explicitly marked visible for this role key
+        const visibleIds = Object.keys(roleAccessBlocks).filter(k => roleAccessBlocks[k]?.visible === true);
+        this._cachedFilteredActions = this.quickActions.filter(a => visibleIds.includes(a.id));
+        this.cdr.detectChanges();
+      } else {
+        // Fallback: if no config exists for this role, show nothing (explicit policy)
+        this._cachedFilteredActions = [];
+      }
+    }
+
     return this._cachedFilteredActions;
+  }
+
+  private getEffectiveRoleKey(): string | null {
+    const user: any = this.currentUser();
+    if (!user) return null;
+    // Prefer explicit roleKey when present
+    if (user.roleKey && typeof user.roleKey === 'string') return user.roleKey;
+    const raw = String(user.role || '').trim();
+    if (!raw) return null;
+    const access: any = this.appSettings()?.roleAccessConfig;
+    if (access && access[raw]) return raw;
+    if (access && typeof access === 'object') {
+      const match = Object.keys(access).find(k => (access[k]?.meta?.label || '').toLowerCase() === raw.toLowerCase());
+      if (match) return match;
+    }
+    // Fallback normalization
+    return raw.toUpperCase().replace(/\s+/g, '_');
   }
 
   navigateTo(route: string): void {
     if (route === '/charges') {
+      const allowed = this.getAllowedSubmodules('charges');
+      const actionToSub: Record<string, string> = {
+        consult: 'depenses-consulter',
+        add: 'depenses-ajouter',
+        'add-category': 'depenses-categorie',
+        statistics: 'depenses-statistiques'
+      };
+      const allowedActions = Object.keys(actionToSub).filter(a => allowed.has(actionToSub[a]));
+      if (allowedActions.length === 0) return;
+      if (allowedActions.length === 1) { this.onExpenseActionSelected(allowedActions[0]); return; }
       this.showExpenseActionDialog.set(true);
       this.cdr.detectChanges();
     } else if (route === '/clients') {
+      const allowed = this.getAllowedSubmodules('clients');
+      const actionToSub: Record<string, string> = {
+        consult: 'clients-consulter',
+        add: 'clients-ajouter',
+        statement: 'clients-releve',
+        payment: 'clients-reglement'
+      };
+      const allowedActions = Object.keys(actionToSub).filter(a => allowed.has(actionToSub[a]));
+      if (allowedActions.length === 0) return;
+      if (allowedActions.length === 1) { this.onClientActionSelected(allowedActions[0]); return; }
       this.showClientActionDialog.set(true);
       this.cdr.detectChanges();
     } else if (route === '/suppliers') {
+      const allowed = this.getAllowedSubmodules('suppliers');
+      const actionToSub: Record<string, string> = {
+        consult: 'fournisseurs-consulter',
+        add: 'fournisseurs-ajouter',
+        statement: 'fournisseurs-releve',
+        payment: 'fournisseurs-reglement'
+      };
+      const allowedActions = Object.keys(actionToSub).filter(a => allowed.has(actionToSub[a]));
+      if (allowedActions.length === 0) return;
+      if (allowedActions.length === 1) { this.onSupplierActionSelected(allowedActions[0]); return; }
       this.showSupplierActionDialog.set(true);
       this.cdr.detectChanges();
     } else if (route === '/parametres') {
       this.showSettingsActionDialog.set(true);
       this.cdr.detectChanges();
     } else if (route === '/historique') {
-      // Intercept Historique to show choice screen
+      const allowed = this.getAllowedSubmodules('historique');
+      const opts: ('VENTES'|'POINTAGE')[] = [];
+      if (allowed.has('VENTES')) opts.push('VENTES');
+      if (allowed.has('POINTAGE')) opts.push('POINTAGE');
+      if (opts.length === 0) return;
+      if (opts.length === 1) { this.onHistoriqueChoiceSelected(opts[0]); return; }
       this.showHistoriqueChoiceDialog.set(true);
       this.cdr.detectChanges();
     } else if (route === '/billing-center') {
@@ -614,11 +701,17 @@ export class HomeComponent implements OnInit, OnDestroy {
       case 'users':
         this.router.navigate(['/auth/users']);
         break;
+      case 'access':
+        this.router.navigate(['/parametres/access']);
+        break;
       case 'tables-salon':
         this.router.navigate(['/tables-salon']);
         break;
       case 'enterprise':
         this.showEnterpriseActionDialog.set(true);
+        break;
+      case 'reminders':
+        this.router.navigate(['/reminders']);
         break;
     }
   }
@@ -655,6 +748,18 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.erpLoading = false;
   }
 
+  private checkCompanySwitchInfo(): void {
+    try {
+      const infoRaw = sessionStorage.getItem('companySwitchInfo');
+      if (!infoRaw) return;
+      sessionStorage.removeItem('companySwitchInfo');
+      const info = JSON.parse(infoRaw);
+      this.companySwitchData.set({ companyName: info.companyName || 'Entreprise', logoUrl: info.logoUrl || null });
+      this.showCompanySwitchDialog.set(true);
+      this.cdr.markForCheck();
+    } catch {}
+  }
+
   validateErpToken(): void {
     if (!this.erpToken.trim()) {
       this.erpErrorMessage = 'Veuillez entrer un jeton';
@@ -679,16 +784,18 @@ export class HomeComponent implements OnInit, OnDestroy {
 
 
   getRoleDisplayName(): string {
-    const currentUser = this.currentUser();
-    if (!currentUser) return '';
-    
-    switch (currentUser.role) {
-      case 'ADMIN': return 'Administrateur';
-      case 'MANAGER': return 'Responsable Magasin';
-      case 'CASHIER': return 'Caissier';
-      case 'STOCK_MANAGER': return 'Gestionnaire Stock';
-      default: return currentUser.role;
+    const u: any = this.currentUser();
+    if (!u) return '';
+    // Prefer explicit roleKey if present
+    if (u.roleKey && typeof u.roleKey === 'string') return u.roleKey;
+    // Try to resolve key by matching settings meta.label to user.role (e.g., 'Administrateur' -> 'ADMIN')
+    const access: any = this.appSettings()?.roleAccessConfig;
+    if (access && typeof access === 'object') {
+      const match = Object.keys(access).find(k => (access[k]?.meta?.label || '').toLowerCase() === String(u.role || '').toLowerCase());
+      if (match) return match;
     }
+    // Fallback: show raw role
+    return String(u.role || '');
   }
 
   isAdmin(): boolean {
@@ -716,6 +823,18 @@ export class HomeComponent implements OnInit, OnDestroy {
     return this.fullscreenService.isSupported();
   }
 
+  // Access-control helpers for sub-modules
+  private getAllowedSubmodules(blockId: string): Set<string> {
+    const effectiveRoleKey = this.getEffectiveRoleKey();
+    const access: any = this.appSettings() || {};
+    const subs = effectiveRoleKey ? (access?.roleAccessConfig?.[effectiveRoleKey]?.blocks?.[blockId]?.submodules || {}) : {};
+    return new Set(Object.keys(subs).filter(k => subs[k] === true));
+  }
+
+  private isSubAllowed(blockId: string, subId: string): boolean {
+    return this.getAllowedSubmodules(blockId).has(subId);
+  }
+
   loadSettings(): void {
     this.settingsService.getSettings().pipe(
       takeUntil(this.destroy$),
@@ -726,10 +845,65 @@ export class HomeComponent implements OnInit, OnDestroy {
     ).subscribe(settings => {
       if (settings) {
         this.appSettings.set(settings);
+        console.log('settings', settings);
         this.companyName.set(settings.companyName || 'PoS Pâtisserie');
         this.companyLogo.set(settings.logoUrl ? this.settingsService.getAbsoluteLogoUrl(settings.logoUrl) : '');
         this.logoLoadError.set(false); // Reset error state when loading new settings
+        // Invalidate cached actions so filtering re-evaluates with fresh settings
+        this._cachedFilteredActions = [];
+        this.cdr.markForCheck();
+
+        // Attempt to enrich with enterprise (company) data of the user's depot
+        this.loadEnterpriseFromUserDepot(settings);
       }
+    });
+  }
+
+  private loadEnterpriseFromUserDepot(baseSettings: AppSettings): void {
+    // If admin, prefer depot chosen at login (visitingDepotId); otherwise use user's depotId
+    const isAdmin = this.authService.isAdmin();
+    const visitingDepotIdStr = isAdmin ? sessionStorage.getItem('visitingDepotId') : null;
+    const visitingDepotId = visitingDepotIdStr ? Number(visitingDepotIdStr) : undefined;
+    const depotId = (isAdmin ? (visitingDepotId || this.currentUser()?.depotId) : this.currentUser()?.depotId) as number | undefined;
+    if (!depotId) return;
+
+    this.depotsService.get(depotId).pipe(
+      takeUntil(this.destroy$),
+      catchError(err => {
+        console.error('Error fetching depot for enterprise settings:', err);
+        return of(null);
+      })
+    ).subscribe(depot => {
+      if (!depot) return;
+      const companyId = (depot as any).companyId ?? (depot as any).company?.id;
+      if (!companyId) return;
+
+      this.enterpriseService.getCompany(Number(companyId)).pipe(
+        takeUntil(this.destroy$),
+        catchError(err => {
+          console.error('Error fetching enterprise company:', err);
+          return of(null);
+        })
+      ).subscribe(company => {
+        if (!company) return;
+
+        // Merge company info into settings display
+        const merged: AppSettings = {
+          ...baseSettings,
+          companyName: company.raisonSociale || baseSettings.companyName,
+          logoUrl: company.logoUrl || baseSettings.logoUrl,
+          companyAddress: company.adresse || baseSettings.companyAddress,
+          companyPhone: company.telephone || baseSettings.companyPhone,
+          companyEmail: company.email || baseSettings.companyEmail,
+        };
+
+        this.appSettings.set(merged);
+        this.companyName.set(merged.companyName || 'PoS Pâtisserie');
+        this.companyLogo.set(merged.logoUrl ? this.settingsService.getAbsoluteLogoUrl(merged.logoUrl) : '');
+        this.logoLoadError.set(false);
+        this._cachedFilteredActions = [];
+        this.cdr.markForCheck();
+      });
     });
   }
 
@@ -754,5 +928,15 @@ export class HomeComponent implements OnInit, OnDestroy {
     // Show with one decimal, clamp extreme values for readability
     const value = Math.abs(delta) > 9999 ? 9999 : delta;
     return `${sign}${value.toFixed(1)}%`;
+  }
+
+  // Compute grid column class based on number of visible modules
+  getGridColsClass(): string {
+    const count = this.getFilteredActions().length;
+    if (count === 2) return 'grid-cols-2';
+    if (count === 3) return 'grid-cols-3';
+    if (count === 4) return 'grid-cols-3'; // 4–6 => 3 cols
+    if (count <= 6) return 'grid-cols-3';
+    return 'grid-cols-4';
   }
 } 

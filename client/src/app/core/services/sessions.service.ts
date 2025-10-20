@@ -249,6 +249,22 @@ export class SessionsService {
     this.loadCurrentSessionByDepot();
   }
 
+  // Resolve active depotId: prefer session depot, fallback to user depot
+  getActiveDepotId(): number | undefined {
+    const sess = this.currentSession();
+    if (sess?.depotId) return sess.depotId;
+    // For admins, prefer explicitly selected depot (visitingDepotId) from login flow
+    try {
+      if (this.authService.isAdmin()) {
+        const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId') || localStorage.getItem('visitingDepotId');
+        const visitingDepotId = visitingDepotIdStr ? Number(visitingDepotIdStr) : undefined;
+        if (visitingDepotId && !Number.isNaN(visitingDepotId)) return visitingDepotId;
+      }
+    } catch {}
+    const user = this.authService.currentUser();
+    return user?.depotId ?? undefined;
+  }
+
   // Get cash movement type label in French
   getCashMovementTypeLabel(type: string): string {
     const labels: { [key: string]: string } = {

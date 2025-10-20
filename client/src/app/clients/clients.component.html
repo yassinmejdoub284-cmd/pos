@@ -9,7 +9,7 @@
     </div>
   </div>
 
-  <div class="relative z-10 max-w-7xl mx-auto p-6">
+  <div class="relative z-10 mx-auto p-6">
     <!-- Modern Header -->
     <div class="mb-8">
       <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6 mb-6">
@@ -56,7 +56,7 @@
            </button>
 
            <a routerLink="/home"
-             class="bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 px-6 py-3 rounded-2xl flex items-center justify-center space-x-3 shadow-lg">
+             class="bg-white/80 border border-gray-200/50 text-gray-700 px-6 py-3 rounded-2xl flex items-center justify-center space-x-3 shadow-lg">
              <div class="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center">
                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
@@ -69,7 +69,7 @@
     </div>
 
     <!-- Modern Filters Section -->
-    <div class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 p-4 mb-4 shadow-2xl">
+    <div class="bg-white/95 rounded-3xl border border-gray-200/50 p-4 mb-4 shadow-2xl">
       <div class="flex flex-col md:flex-row md:items-center gap-3">
         <div class="flex-1 relative">
           <input type="text" [value]="searchQuery" (input)="onSearchInput($event)" placeholder="Rechercher (nom, téléphone, code)"
@@ -100,7 +100,7 @@
     <div *ngIf="loading">
       <!-- Grid Loading -->
       <div *ngIf="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-        <div *ngFor="let i of [1,2,3,4,5,6,7,8]" class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 p-6 shadow-lg animate-pulse">
+        <div *ngFor="let i of [1,2,3,4,5,6,7,8]" class="bg-white/95 rounded-3xl border border-gray-200/50 p-6 shadow-lg animate-pulse">
           <div class="flex items-center justify-between mb-4">
             <div class="w-16 h-16 bg-gray-200 rounded-2xl"></div>
             <div class="w-16 h-6 bg-gray-200 rounded-full"></div>
@@ -123,7 +123,7 @@
       </div>
       
       <!-- Table Loading -->
-      <div *ngIf="viewMode === 'table'" class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-2xl overflow-hidden mb-8">
+      <div *ngIf="viewMode === 'table'" class="bg-white/95 rounded-3xl border border-gray-200/50 shadow-2xl overflow-hidden mb-8">
         <div class="overflow-x-auto">
           <table class="w-full">
             <thead class="bg-gradient-to-r from-purple-50 to-pink-50">
@@ -200,14 +200,19 @@
       <!-- Grid View -->
       <div *ngIf="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
         <div *ngFor="let client of clients; trackBy: trackByClientId"
-          class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 p-6 shadow-lg">
+          class="bg-white/95 rounded-3xl border border-gray-200/50 p-6 shadow-lg">
 
           <!-- Client Avatar & Status -->
           <div class="flex items-center justify-between mb-4">
             <div class="relative">
-              <div class="w-16 h-16 bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                {{ client.firstName.charAt(0) }}{{ client.lastName.charAt(0) }}
+              <div *ngIf="client.pictureUrl; else initialsGridAvatar" class="w-16 h-16 rounded-2xl overflow-hidden shadow-lg">
+                <img [ngSrc]="client.pictureUrl" width="64" height="64" class="w-16 h-16 object-cover" alt="Photo client">
               </div>
+              <ng-template #initialsGridAvatar>
+                <div class="w-16 h-16 bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  {{ client.firstName.charAt(0) }}{{ client.lastName.charAt(0) }}
+                </div>
+              </ng-template>
               <div [class]="'absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center ' + 
                 (client.isActive ? 'bg-green-500' : 'bg-red-500')">
                 <div [class]="'w-2 h-2 rounded-full ' + (client.isActive ? 'bg-green-100' : 'bg-red-100')"></div>
@@ -277,7 +282,7 @@
       </div>
 
       <!-- Table View -->
-      <div *ngIf="viewMode === 'table'" class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 shadow-2xl overflow-hidden mb-8">
+      <div *ngIf="viewMode === 'table'" class="bg-white/95 rounded-3xl border border-gray-200/50 shadow-2xl overflow-hidden mb-8">
         <div class="overflow-x-auto">
           <table class="w-full">
             <thead class="bg-gradient-to-r from-purple-50 to-pink-50">
@@ -295,8 +300,13 @@
                <tr *ngFor="let client of clients; trackBy: trackByClientId">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
-                    <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold text-sm mr-4">
-                      {{ client.firstName.charAt(0) }}{{ client.lastName.charAt(0) }}
+                    <div class="w-10 h-10 rounded-xl overflow-hidden mr-4">
+                      <img *ngIf="client.pictureUrl; else initialsTableAvatar" [ngSrc]="client.pictureUrl" width="40" height="40" class="w-10 h-10 object-cover" alt="Photo client">
+                      <ng-template #initialsTableAvatar>
+                        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold text-sm">
+                          {{ client.firstName.charAt(0) }}{{ client.lastName.charAt(0) }}
+                        </div>
+                      </ng-template>
                     </div>
                     <div>
                       <div class="text-sm font-semibold text-gray-900">{{ client.firstName }} {{ client.lastName }}</div>
@@ -374,7 +384,7 @@
     <!-- Modern Pagination -->
     <div *ngIf="totalPages > 1" class="flex justify-center items-center gap-3 mt-8">
       <button (click)="changePage(currentPage - 1)" [disabled]="currentPage === 1"
-        class="px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg">
+        class="px-4 py-2 bg-white/80 border border-gray-200/50 text-gray-700 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
         </svg>
@@ -384,13 +394,13 @@
       <div class="flex gap-2">
         <button *ngFor="let page of [].constructor(totalPages); let i = index; trackBy: trackByPage" (click)="changePage(i + 1)"
           [class]="'w-10 h-10 rounded-2xl flex items-center justify-center font-semibold shadow-lg ' + 
-                   (currentPage === i + 1 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : 'bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700')">
+                   (currentPage === i + 1 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : 'bg-white/80 border border-gray-200/50 text-gray-700')">
           {{ i + 1 }}
         </button>
       </div>
 
       <button (click)="changePage(currentPage + 1)" [disabled]="currentPage === totalPages"
-        class="px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg">
+        class="px-4 py-2 bg-white/80 border border-gray-200/50 text-gray-700 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg">
         <span class="font-semibold">Suivant</span>
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
@@ -502,6 +512,16 @@
               class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
               placeholder="200.000">
             <p class="text-xs text-slate-500 mt-1">Montant maximum autorisé pour les achats à crédit</p>
+          </div>
+        </div>
+
+        <div class="lg:col-span-2">
+          <label class="block text-sm font-medium text-slate-600 mb-2">Photo (URL)</label>
+          <input type="url" [(ngModel)]="createForm.pictureUrl" name="pictureUrl"
+            class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+            placeholder="https://...">
+          <div class="mt-2" *ngIf="createForm.pictureUrl">
+            <img [ngSrc]="createForm.pictureUrl" width="120" height="120" class="w-24 h-24 object-cover rounded-xl border border-slate-200" alt="Aperçu">
           </div>
         </div>
 
@@ -633,6 +653,16 @@
         </div>
 
         <div class="lg:col-span-2">
+          <label class="block text-sm font-medium text-slate-600 mb-2">Photo (URL)</label>
+          <input type="url" [(ngModel)]="editForm.pictureUrl" name="editPictureUrl"
+            class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+            placeholder="https://...">
+          <div class="mt-2" *ngIf="editForm.pictureUrl">
+            <img [ngSrc]="editForm.pictureUrl" width="120" height="120" class="w-24 h-24 object-cover rounded-xl border border-slate-200" alt="Aperçu">
+          </div>
+        </div>
+
+        <div class="lg:col-span-2">
           <label class="block text-sm font-medium text-slate-600 mb-2">Notes</label>
           <textarea [(ngModel)]="editForm.notes" name="notes" rows="2"
             class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all resize-none"
@@ -656,9 +686,9 @@
 
 <!-- Modern Delete Confirmation Popup -->
 <div *ngIf="showDeletePopup && selectedClient"
-  class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+  class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
   <div
-    class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 max-w-md w-full shadow-2xl transform animate-scale-in">
+    class="bg-white/95 rounded-3xl border border-gray-200/50 max-w-md w-full shadow-2xl transform animate-scale-in">
     <div class="bg-gradient-to-r from-red-500 to-pink-500 p-6 flex justify-between items-center">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -702,9 +732,9 @@
 
 <!-- Modern Initialize Solde Confirmation Popup -->
 <div *ngIf="showInitSoldePopup && selectedClient"
-  class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+  class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
   <div
-    class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 max-w-md w-full shadow-2xl transform animate-scale-in">
+    class="bg-white/95 rounded-3xl border border-gray-200/50 max-w-md w-full shadow-2xl transform animate-scale-in">
     <div class="bg-gradient-to-r from-blue-500 to-indigo-500 p-6 flex justify-between items-center">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -771,9 +801,9 @@
 
 <!-- Modern Client Details Popup -->
 <div *ngIf="showDetailsPopup && selectedClient"
-  class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+  class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
   <div
-    class="bg-white/95 backdrop-blur-sm rounded-3xl border border-gray-200/50 max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl transform animate-scale-in">
+    class="bg-white/95 rounded-3xl border border-gray-200/50 max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl transform animate-scale-in">
     <div class="bg-gradient-to-r from-blue-500 to-indigo-500 p-6 flex justify-between items-center">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -924,7 +954,7 @@
 <!-- Modern Alert System -->
 <div *ngIf="showAlert"
   class="fixed top-6 right-6 z-50 max-w-sm w-full transform transition-all duration-500 ease-in-out animate-fade-in">
-  <div class="bg-white/95 backdrop-blur-sm border border-gray-200/50 rounded-3xl shadow-2xl overflow-hidden">
+  <div class="bg-white/95 border border-gray-200/50 rounded-3xl shadow-2xl overflow-hidden">
     <div class="flex items-center justify-between p-6">
       <div class="flex items-center space-x-4">
         <div [class]="'w-12 h-12 rounded-2xl flex items-center justify-center ' + 

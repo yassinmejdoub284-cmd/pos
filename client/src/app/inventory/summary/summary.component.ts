@@ -1,6 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { InventoryService, InventorySession, InventorySummary } from '../../core/services/inventory.service';
+import { DepotsService } from '../../core/services/depots.service';
+import { ProduitsDeStockService } from '../../core/services/produits-de-caisse.service';
+import { ProduitDeStock } from '../../core/models/produit-de-caisse.model';
 
 @Component({
   selector: 'app-summary',
@@ -13,11 +16,19 @@ export class SummaryComponent implements OnInit {
   summary: InventorySummary | null = null;
   loading = false;
   error = '';
+  
+  // Stock products filtering
+  stockProducts: ProduitDeStock[] = [];
+  hasStockProductsInDepot = false;
+  showStockProductsDirectly = false;
+  depotType: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private inventoryService: InventoryService
+    private inventoryService: InventoryService,
+    private depotsService: DepotsService,
+    private produitsDeStockService: ProduitsDeStockService
   ) {}
 
   ngOnInit(): void {
@@ -25,7 +36,78 @@ export class SummaryComponent implements OnInit {
     const sessionId = this.route.snapshot.paramMap.get('id');
     if (depotId && sessionId) {
       this.depotId = parseInt(depotId, 10);
+      this.loadDepot();
+      this.loadStockProducts();
       this.loadSession(parseInt(sessionId, 10));
+    }
+  }
+
+  loadDepot(): void {
+    if (!this.depotId) return;
+    
+    this.depotsService.get(this.depotId).subscribe({
+      next: (depot) => {
+        this.depotType = depot.type;
+        this.showStockProductsDirectly = depot.type !== 'SHOP';
+      },
+      error: (err) => {
+        console.error('Error loading depot:', err);
+      }
+    });
+  }
+
+  loadStockProducts(): void {
+    this.produitsDeStockService.getProduitsDeStock().subscribe({
+      next: (stockProducts) => {
+        this.stockProducts = stockProducts;
+        console.log('Loaded stock products:', stockProducts.length);
+        this.checkDepotHasStockProducts();
+        
+        // Process data after stock products are loaded
+        this.processDataAfterStockProductsLoaded();
+      },
+      error: (err) => {
+        console.error('Error loading stock products:', err);
+      }
+    });
+  }
+
+  checkDepotHasStockProducts(): void {
+    if (!this.depotId) {
+      this.hasStockProductsInDepot = false;
+      return;
+    }
+
+    // Check if any stock products are assigned to this depot
+    this.hasStockProductsInDepot = this.stockProducts.some(stockProduct => 
+      stockProduct.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
+    );
+    
+    console.log('Depot has stock products:', this.hasStockProductsInDepot, 'for depot:', this.depotId);
+    console.log('Show stock products directly:', this.showStockProductsDirectly);
+  }
+
+  processDataAfterStockProductsLoaded(): void {
+    console.log('Processing data after stock products loaded...');
+    console.log('showStockProductsDirectly:', this.showStockProductsDirectly);
+    console.log('hasStockProductsInDepot:', this.hasStockProductsInDepot);
+    console.log('summary available:', !!this.summary);
+    console.log('session available:', !!this.session);
+    
+    // Process summary data to show stock products if needed
+    if (this.summary && this.showStockProductsDirectly && this.hasStockProductsInDepot) {
+      console.log('Processing summary for stock products...');
+      this.processSummaryForStockProducts();
+    } else {
+      console.log('Not processing summary - conditions not met');
+    }
+    
+    // Process session items to show stock products if needed
+    if (this.session && this.showStockProductsDirectly && this.hasStockProductsInDepot) {
+      console.log('Processing session items for stock products...');
+      this.processSessionItemsForStockProducts();
+    } else {
+      console.log('Not processing session items - conditions not met');
     }
   }
 
@@ -40,10 +122,76 @@ export class SummaryComponent implements OnInit {
     ]).then(([session, summary]) => {
       this.session = session || null;
       this.summary = summary || null;
+      
+      console.log('Session and summary loaded');
       this.loading = false;
     }).catch((err) => {
       this.error = err.error?.error || 'Erreur lors du chargement de la session';
       this.loading = false;
+    });
+  }
+
+  processSummaryForStockProducts(): void {
+    if (!this.summary || !this.showStockProductsDirectly) {
+      console.log('processSummaryForStockProducts: Not processing - summary:', !!this.summary, 'showStockProductsDirectly:', this.showStockProductsDirectly);
+      return;
+    }
+
+    console.log('processSummaryForStockProducts: Processing summary with', this.summary.ecarts.length, 'ecarts');
+    console.log('Available stock products:', this.stockProducts.length);
+    console.log('Depot ID:', this.depotId);
+
+    // The productId in the summary is already the stock product ID (children ID)
+    // We just need to update the product name to show the stock product name
+    this.summary.ecarts = this.summary.ecarts.map(ecart => {
+      console.log('Processing ecart with productId:', ecart.productId, 'current name:', ecart.productName);
+      
+      // Find the stock product by its ID (since productId is already the stock product ID)
+      const stockProduct = this.stockProducts.find(sp => 
+        sp.id === ecart.productId &&
+        sp.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
+      );
+      
+      if (stockProduct) {
+        console.log('Found stock product:', stockProduct.name, 'for productId:', ecart.productId);
+        return {
+          ...ecart,
+          productName: stockProduct.name
+          // productId is already correct (it's the stock product ID)
+        };
+      } else {
+        console.log('No stock product found for productId:', ecart.productId);
+      }
+      
+      return ecart;
+    });
+  }
+
+  processSessionItemsForStockProducts(): void {
+    if (!this.session || !this.showStockProductsDirectly || !this.session.items) return;
+
+    // The productId in the session items is already the stock product ID (children ID)
+    // We just need to update the product name to show the stock product name
+    this.session.items = this.session.items.map(item => {
+      // Find the stock product by its ID (since productId is already the stock product ID)
+      const stockProduct = this.stockProducts.find(sp => 
+        sp.id === item.productId &&
+        sp.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
+      );
+      
+      if (stockProduct && item.product) {
+        return {
+          ...item,
+          product: {
+            ...item.product,
+            id: item.product.id, // Ensure id is defined
+            name: stockProduct.name
+            // productId is already correct (it's the stock product ID)
+          }
+        };
+      }
+      
+      return item;
     });
   }
 

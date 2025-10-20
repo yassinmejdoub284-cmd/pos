@@ -1,7 +1,7 @@
 {
   "1": {
-    "companyName": "DEPOT TUNIS",
-    "logoUrl": "https://192.168.1.15:3255/uploads/logos/logo-1759043187618-80620683.png",
+    "companyName": "PATISSERIE TUNISIENNE",
+    "logoUrl": "",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -13,9 +13,15 @@
     "defaultClientMaxDebt": 0,
     "keyboardShortcuts": {},
     "devicesConfig": {},
-    "isDesktopVersion": false,
+    "isDesktopVersion": true,
     "auditRetentionDays": 90,
     "historyRetentionDays": 30,
+    "roleHistoryLimits": {
+      "ADMIN": 9999,
+      "MANAGER": 30,
+      "CASHIER": 5,
+      "STOCK_MANAGER": 15
+    },
     "varianceThreshold": 5,
     "defaultFonds": 50,
     "denominations": [
@@ -94,7 +100,23 @@
         "tvaAndPrix": true,
         "validity": false
       }
-    }
+    },
+    "documentDisplaySettings": {
+      "livraison": {
+        "showPackageCount": true
+      },
+      "sortie": {
+        "showPackageCount": true
+      },
+      "transfert": {
+        "showPackageCount": true
+      },
+      "facture": {
+        "showPackageCount": true,
+        "timbrePrice": 1
+      }
+    },
+    "roleAccessConfig": {}
   },
   "2": {
     "companyName": "BOUTIQUE SFAX",
@@ -211,10 +233,10 @@
     }
   },
   "4": {
-    "companyName": "Société Hentati Frères Distribution",
-    "logoUrl": "https://patisserie.solumove.net/logo_tunis.webp",
-    "companyAddress": "Avenue Sidi Ammar, Ariana, Tunis",
-    "companyPhone": "+216 22 212 319",
+    "companyName": "PATISSERIE TUNISIENNE",
+    "logoUrl": "",
+    "companyAddress": "",
+    "companyPhone": "",
     "companyEmail": "",
     "companyRC": "",
     "companyMF": "",
@@ -226,7 +248,13 @@
     "devicesConfig": {},
     "isDesktopVersion": true,
     "auditRetentionDays": 90,
-    "historyRetentionDays": 15,
+    "historyRetentionDays": 30,
+    "roleHistoryLimits": {
+      "ADMIN": 9999,
+      "MANAGER": 30,
+      "CASHIER": 5,
+      "STOCK_MANAGER": 15
+    },
     "varianceThreshold": 5,
     "defaultFonds": 50,
     "denominations": [
@@ -245,7 +273,7 @@
     "ticketWidth": 58,
     "droitDeTimbre": false,
     "autoApproveExpenseBelow": 0,
-    "allowNegativeStock": true,
+    "allowNegativeStock": false,
     "printSettings": {
       "showLogo": true,
       "logoSize": "medium",
@@ -263,7 +291,65 @@
       "showClientInfo": true,
       "showPaymentMethod": true,
       "showDiscountDetails": true
-    }
+    },
+    "documentTypeDefaults": {
+      "livraison": {
+        "client": true,
+        "depot": false,
+        "vehicle": true,
+        "driver": true,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "sortie": {
+        "client": false,
+        "depot": true,
+        "vehicle": false,
+        "driver": false,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "transfert": {
+        "client": false,
+        "depot": true,
+        "vehicle": true,
+        "driver": true,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "facture": {
+        "client": true,
+        "depot": false,
+        "vehicle": false,
+        "driver": false,
+        "manualDestination": false,
+        "autoInvoice": true,
+        "tvaAndPrix": true,
+        "validity": false
+      }
+    },
+    "documentDisplaySettings": {
+      "livraison": {
+        "showPackageCount": false
+      },
+      "sortie": {
+        "showPackageCount": true
+      },
+      "transfert": {
+        "showPackageCount": true
+      },
+      "facture": {
+        "showPackageCount": true,
+        "timbrePrice": 1
+      }
+    },
+    "roleAccessConfig": {}
   },
   "default": {
     "companyName": "SOCIÉTÉ PATISSERIE HENTETI",
@@ -288,6 +374,12 @@
     "isDesktopVersion": true,
     "auditRetentionDays": 90,
     "historyRetentionDays": 10,
+    "roleHistoryLimits": {
+      "ADMIN": 9999,
+      "MANAGER": 30,
+      "CASHIER": 5,
+      "STOCK_MANAGER": 15
+    },
     "varianceThreshold": 5,
     "defaultFonds": 50,
     "denominations": [
@@ -306,6 +398,7 @@
     "ticketWidth": 58,
     "droitDeTimbre": false,
     "autoApproveExpenseBelow": 0,
+    "allowNegativeStock": false,
     "printSettings": {
       "showLogo": true,
       "logoSize": "medium",
@@ -323,6 +416,197 @@
       "showClientInfo": true,
       "showPaymentMethod": true,
       "showDiscountDetails": true
+    },
+    "documentTypeDefaults": {
+      "livraison": {
+        "client": true,
+        "depot": false,
+        "vehicle": true,
+        "driver": true,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "sortie": {
+        "client": false,
+        "depot": true,
+        "vehicle": false,
+        "driver": false,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "transfert": {
+        "client": false,
+        "depot": true,
+        "vehicle": true,
+        "driver": true,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "facture": {
+        "client": true,
+        "depot": false,
+        "vehicle": false,
+        "driver": false,
+        "manualDestination": false,
+        "autoInvoice": true,
+        "tvaAndPrix": true,
+        "validity": false
+      }
+    },
+    "documentDisplaySettings": {
+      "livraison": {
+        "showPackageCount": true
+      },
+      "sortie": {
+        "showPackageCount": true
+      },
+      "transfert": {
+        "showPackageCount": true
+      },
+      "facture": {
+        "showPackageCount": true,
+        "timbrePrice": 1
+      }
+    },
+    "roleAccessConfig": {
+      "ADMIN": {
+        "blocks": {
+          "caisse": {
+            "visible": true
+          },
+          "historique": {
+            "visible": true,
+            "submodules": {
+              "VENTES": true,
+              "POINTAGE": true
+            }
+          },
+          "cloture": {
+            "visible": true
+          },
+          "parametres": {
+            "visible": true,
+            "submodules": {
+              "general": true,
+              "users": true,
+              "access": true,
+              "enterprise": true
+            }
+          },
+          "stock": {
+            "visible": true,
+            "submodules": {
+              "stock-achat": true,
+              "stock-historique-docs": true,
+              "stock-reception": true,
+              "stock-parc": true,
+              "stock-gestion": true,
+              "stock-inventaire": true,
+              "stock-historique": true,
+              "stock-ventes-livraisons": true,
+              "stock-produits-stock": true,
+              "stock-produits": true,
+              "stock-vente-gros": true,
+              "stock-gros-config": true
+            }
+          },
+          "rapports": {
+            "visible": true,
+            "submodules": {
+              "rapport-extrait-journalier": true,
+              "rapport-journalier-mensuel": true,
+              "rapport-vente-rubrique": true,
+              "rapport-vente-credit": true,
+              "rapport-finance": true,
+              "rapport-depense": true,
+              "rapport-dashboard": true,
+              "rapport-reconciliation": true,
+              "rapport-mvt-stock": true
+            }
+          },
+          "invoices": {
+            "visible": true
+          },
+          "approvals": {
+            "visible": true
+          },
+          "charges": {
+            "visible": true,
+            "submodules": {
+              "depenses-consulter": true,
+              "depenses-ajouter": true,
+              "depenses-categorie": true,
+              "depenses-statistiques": true
+            }
+          },
+          "clients": {
+            "visible": true,
+            "submodules": {
+              "clients-consulter": true,
+              "clients-ajouter": true,
+              "clients-releve": true,
+              "clients-reglement": true
+            }
+          },
+          "suppliers": {
+            "visible": true,
+            "submodules": {
+              "fournisseurs-consulter": true,
+              "fournisseurs-ajouter": true,
+              "fournisseurs-releve": true,
+              "fournisseurs-reglement": true
+            }
+          },
+          "billing-center": {
+            "visible": true
+          }
+        },
+        "meta": {
+          "label": "ADMIN",
+          "color": "#ff0000",
+          "icon": "M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0112 21.5 12.083 12.083 0 015.84 10.578L12 14z"
+        }
+      },
+      "CHEF_ATELIER": {
+        "blocks": {
+          "stock": {
+            "visible": true,
+            "submodules": {
+              "stock-produits-stock": true,
+              "stock-historique-docs": true,
+              "stock-reception": true,
+              "stock-inventaire": false,
+              "stock-gestion": false,
+              "stock-parc": true,
+              "stock-historique": true,
+              "stock-ventes-livraisons": true,
+              "stock-produits": false,
+              "stock-vente-gros": false,
+              "stock-gros-config": true
+            }
+          },
+          "clients": {
+            "visible": true,
+            "submodules": {
+              "clients-consulter": false,
+              "clients-ajouter": true,
+              "clients-releve": true,
+              "clients-reglement": true
+            }
+          }
+        },
+        "meta": {
+          "label": "CHEF ATELIER",
+          "color": "#1096b7",
+          "icon": "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+        }
+      }
     }
   },
   "pushSubscriptions": [

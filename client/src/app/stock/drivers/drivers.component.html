@@ -4,7 +4,7 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center py-6">
         <div class="flex items-center">
-          <button (click)="goBack()" class="mr-4 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+          <button (click)="goBack()" class="mr-4 p-2 text-gray-400 rounded-lg transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
@@ -23,7 +23,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       
       <!-- Liste des Chauffeurs -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer group"
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transition-shadow cursor-pointer group"
            (click)="navigateToDriversList()">
         <div class="flex items-center justify-between mb-4">
           <div class="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
@@ -41,7 +41,7 @@
       </div>
 
       <!-- Ajouter un Chauffeur -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer group"
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transition-shadow cursor-pointer group"
            (click)="navigateToDriverForm()">
         <div class="flex items-center justify-between mb-4">
           <div class="p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">

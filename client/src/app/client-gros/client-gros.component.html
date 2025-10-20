@@ -9,7 +9,7 @@
   </app-customer-selection-dialog>
 
   <!-- Main Content -->
-  <div *ngIf="selectedCustomer && !showCustomerDialog" class="h-screen flex flex-col relative z-10">
+  <div *ngIf="!showCustomerDialog && selectedCustomer as customer" class="h-screen flex flex-col relative z-10">
     <!-- Compact Header -->
     <div class="bg-white border-b border-gray-200 shadow-sm">
       <div class="px-4 py-3">
@@ -22,21 +22,32 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
               </svg>
             </button>
-            <div>
+            <div class="flex items-center gap-3">
+              <div class="w-20 h-20 rounded-lg overflow-hidden">
+                <img *ngIf="customer.pictureUrl; else cgHeaderInitials" [ngSrc]="customer.pictureUrl" width="100" height="100" class="w-20 h-20 object-cover" alt="Client">
+              </div>
+              <ng-template #cgHeaderInitials>
+                <div class="w-20 h-20 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                  {{ customer.firstName.charAt(0) }}{{ customer.lastName.charAt(0) }}
+                </div>
+              </ng-template>
               <h1 class="text-lg font-bold text-gray-800">Client Gros</h1>
               <div class="flex items-center gap-2 mt-1">
                 <span class="text-sm font-medium text-gray-700">
-                  {{ selectedCustomer.firstName }} {{ selectedCustomer.lastName }}
+                  {{ customer.firstName }} {{ customer.lastName }}
                 </span>
                 <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
-                  {{ selectedCustomer.code }}
+                  {{ customer.code }}
+                </span>
+                <span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-semibold">
+                  GROS
                 </span>
               </div>
             </div>
           </div>
-          <div class="bg-green-50 rounded-lg px-3 py-2 border border-green-200">
-            <p class="text-xs font-medium text-green-600">Sélectionnés</p>
-            <p class="text-lg font-bold text-green-700">{{ getSelectedProducts().length }}</p>
+          <div class="rounded-lg px-3 py-2 border bg-orange-50 border-orange-200">
+            <p class="text-xs font-medium text-orange-600">Sélectionnés</p>
+            <p class="text-lg font-bold text-orange-700">{{ getSelectedProducts().length }}</p>
           </div>
         </div>
       </div>
@@ -83,52 +94,73 @@
             </div>
           </div>
 
-           <!-- Modern Products Grid -->
-           <div *ngIf="!loading" class="product-grid">
-             <div *ngFor="let product of getPaginatedProducts(); trackBy: trackByProductId; let i = index" 
-                  (click)="toggleProductSelection(product)"
-                  [class]="getProductCardClass(product.id)">
-               
-               <!-- Product Image - Optimized -->
-               <div class="w-full h-12 mb-2 bg-gray-100 rounded-lg flex items-center justify-center relative border border-gray-200">
-                 <img title="Image du produit" *ngIf="product.photo" 
-                   [src]="product.photo" 
-                   [alt]="product.name" 
-                   class="w-full h-full object-cover rounded-lg"
-                   [loading]="i < 6 ? 'eager' : 'lazy'"
-                   decoding="async">
-                 <svg *ngIf="!product.photo" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                 </svg>
-
-                 <!-- Vrac Role Tag -->
-                 <div *ngIf="product.name.toLowerCase().includes('vrac')"
-                   class="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold px-1 py-0.5 rounded-full">
-                   VRAC
+           <!-- Grouped Products Grid -->
+           <div *ngIf="!loading" class="space-y-4">
+             <div *ngFor="let group of getGroupedProducts()" class="bg-white rounded-lg border border-gray-200 shadow-sm">
+               <!-- Group Header -->
+              <div class="flex items-center gap-3 p-3 border-b border-gray-200">
+                 <div class="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                   <img *ngIf="group.parentProductImage" [src]="group.parentProductImage" alt="Parent" class="w-full h-full object-cover">
+                   <svg *ngIf="!group.parentProductImage" class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                   </svg>
                  </div>
-
-                 <!-- Seed Role Tag -->
-                 <div *ngIf="product.name.toLowerCase().includes('seed')"
-                   class="absolute -top-1 -right-1 bg-purple-500 text-white text-xs font-bold px-1 py-0.5 rounded-full">
-                   SEED
+                 <div class="flex-1">
+                   <div class="text-sm font-semibold text-gray-800">{{ group.parentProductName }}</div>
+                   <div class="text-xs text-gray-500">Variantes: {{ group.produits.length }}</div>
                  </div>
-
-                 <!-- Selection Indicator -->
-                 <div *ngIf="isProductSelected(product.id)" 
-                      class="absolute -bottom-1 -right-1 bg-purple-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                   ✓
-                 </div>
-
+                <!-- Select all in group -->
+                <button (click)="toggleSelectGroup(group.produits)"
+                  [class]="'px-2 py-1 rounded-md text-xs font-medium border transition-colors flex items-center gap-1 ' + (areAllGroupSelected(group.produits) ? 'bg-purple-500 text-white border-purple-500' : 'bg-gray-50 text-gray-700 border-gray-200')"
+                  title="Tout sélectionner / désélectionner">
+                  <svg *ngIf="!areAllGroupSelected(group.produits)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h8a2 2 0 012 2v8a2 2 0 01-2 2H9a2 2 0 01-2-2V9a2 2 0 012-2z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 9V7a2 2 0 012-2h2"/>
+                  </svg>
+                  <svg *ngIf="areAllGroupSelected(group.produits)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h8a2 2 0 012 2v8a2 2 0 01-2 2H9a2 2 0 01-2-2V9a2 2 0 012-2z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13l2 2 4-4"/>
+                  </svg>
+                  <span>Tout</span>
+                </button>
                </div>
 
-               <!-- Product Name -->
-               <div class="font-medium text-xs mb-1 text-gray-800 leading-tight break-words text-center">
-                 {{ truncate(product.name, 18) }}
-               </div>
+               <!-- Group Items Grid -->
+               <div class="product-grid p-3">
+                 <div *ngFor="let product of group.produits; trackBy: trackByProductId; let i = index"
+                      (click)="toggleProductSelection(product)"
+                      [class]="getProductCardClass(product.id)">
+                   <div class="w-full h-12 mb-2 bg-gray-100 rounded-lg flex items-center justify-center relative border border-gray-200">
+                     <img title="Image du produit" *ngIf="product.photo"
+                       [src]="product.photo"
+                       [alt]="product.name"
+                       class="w-full h-full object-cover rounded-lg"
+                       [loading]="i < 6 ? 'eager' : 'lazy'"
+                       decoding="async">
+                     <svg *ngIf="!product.photo" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                     </svg>
 
-               <!-- Price Tag - Simplified -->
-               <div class="absolute top-1 -left-1 transform -rotate-12 bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                 {{ product.prix_vente_TTC }}dt
+                     <div *ngIf="product.name.toLowerCase().includes('vrac')"
+                       class="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold px-1 py-0.5 rounded-full">
+                       VRAC
+                     </div>
+                     <div *ngIf="product.name.toLowerCase().includes('seed')"
+                       class="absolute -top-1 -right-1 bg-purple-500 text-white text-xs font-bold px-1 py-0.5 rounded-full">
+                       SEED
+                     </div>
+                     <div *ngIf="isProductSelected(product.id)"
+                          class="absolute -bottom-1 -right-1 bg-purple-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                       ✓
+                     </div>
+                   </div>
+                   <div class="font-medium text-xs mb-1 text-gray-800 leading-tight break-words text-center">
+                     {{ truncate(product.name, 18) }}
+                   </div>
+                  <div [class]="'absolute top-1 -left-1 transform -rotate-12 text-xs font-bold px-2 py-0.5 rounded-full border ' + (hasWholesalePrice(product) ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300/60' : 'bg-rose-100/80 text-rose-800 border-rose-300/60')">
+                    {{ getWholesalePrice(product) | number:'1.3-3' }}dt
+                  </div>
+                 </div>
                </div>
              </div>
            </div>
@@ -164,7 +196,7 @@
       </div>
 
       <!-- Modern Options Panel (25%) -->
-      <div class="w-1/4 bg-gradient-to-b from-white/90 to-purple-50/90 backdrop-blur-sm flex flex-col border-l border-purple-200/50">
+      <div class="w-1/4 bg-gradient-to-b from-white/90 to-purple-50/90 flex flex-col border-l border-purple-200/50">
         <!-- Compact Options Header -->
         <div class="p-4 border-b border-gray-200/50">
           <h2 class="text-sm font-bold text-gray-800 mb-1">Règles de Remise</h2>
@@ -176,9 +208,9 @@
           <h3 class="text-sm font-semibold text-gray-700 mb-2">Sélectionnés ({{ getSelectedProducts().length }})</h3>
           <div class="max-h-24 overflow-y-auto">
             <div *ngFor="let product of getSelectedProducts()" 
-                 class="flex items-center justify-between bg-green-50 rounded p-2 mb-1 border border-green-200">
-              <span class="text-xs text-green-800 font-medium truncate flex-1">{{ product.name }}</span>
-              <span class="text-xs text-green-600 font-bold ml-2">{{ product.prix_vente_TTC }}dt</span>
+                 [class]="'flex items-center justify-between rounded p-2 mb-1 border ' + (hasWholesalePrice(product) ? 'bg-emerald-50/40 border-emerald-200/60' : 'bg-rose-50/40 border-rose-200/60')">
+              <span [class]="'text-xs font-medium truncate flex-1 ' + (hasWholesalePrice(product) ? 'text-emerald-800' : 'text-rose-800')">{{ product.name }}</span>
+              <span [class]="'text-xs font-bold ml-2 ' + (hasWholesalePrice(product) ? 'text-emerald-700' : 'text-rose-700')">{{ getWholesalePrice(product) | number:'1.3-3' }}dt</span>
             </div>
             <div *ngIf="getSelectedProducts().length === 0" class="text-center py-2">
               <p class="text-gray-500 text-xs">Aucun produit</p>
@@ -293,8 +325,13 @@
                 <div *ngFor="let productId of appliedRule.productIds" 
                      class="flex items-center justify-between text-xs">
                   <span class="text-gray-700">{{ getProductById(productId)?.name }}</span>
-                  <span class="font-semibold text-green-600">
-                    {{ getCalculatedPrice(getProductById(productId)!, appliedRule.rule) }}dt
+                  <span class="flex items-center gap-2">
+                    <span [class]="'text-[11px] line-through ' + (hasWholesalePrice(getProductById(productId)!) ? 'text-emerald-600' : 'text-rose-600')">
+                      {{ getWholesalePrice(getProductById(productId)!) | number:'1.3-3' }}dt
+                    </span>
+                    <span [class]="'font-semibold ' + (hasWholesalePrice(getProductById(productId)!) ? 'text-emerald-700' : 'text-rose-700')">
+                      {{ getCalculatedPrice(getProductById(productId)!, appliedRule.rule) | number:'1.3-3' }}dt
+                    </span>
                   </span>
                 </div>
               </div>
@@ -308,7 +345,14 @@
         <!-- Confirm Button -->
         <div class="p-4 border-t border-gray-200/50">
           <div class="mb-3 text-center">
-            <div class="text-lg font-bold text-gray-800">Total: {{ getTotalAmount() | number:'1.3-3' }}dt</div>
+            <div class="text-lg font-bold text-gray-800 flex items-center justify-center gap-3">
+              <span class="text-red-500 line-through text-base font-medium">
+                {{ getOriginalTotalAmount() | number:'1.3-3' }}dt
+              </span>
+              <span class="text-green-600">
+                Total: {{ getTotalAmount() | number:'1.3-3' }}dt
+              </span>
+            </div>
           </div>
           <button (click)="confirmAndSave()" 
             [disabled]="appliedRules.length === 0"
@@ -322,31 +366,53 @@
   </div>
 
   <!-- New Rule Dialog -->
-  <div *ngIf="showNewRuleDialog" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg border border-gray-200 max-w-md w-full shadow-xl">
+  <div *ngIf="showNewRuleDialog" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl border border-purple-100 max-w-md w-full shadow-2xl">
       <!-- Header -->
-      <div class="bg-purple-500 p-4 rounded-t-lg">
+      <div class="bg-purple-100 p-4 rounded-t-xl border-b border-purple-200">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-purple-200">
+            <svg class="w-4 h-4 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
             </svg>
           </div>
-          <h2 class="text-lg font-bold text-white">Nouvelle Règle</h2>
+          <span class="text-lg font-bold text-purple-800">Nouvelle Règle</span>
         </div>
       </div>
 
       <!-- Form -->
       <div class="p-4 space-y-4">
         <div class="space-y-2">
-          <label class="block text-sm font-semibold text-gray-700">Type de règle</label>
-          <select [(ngModel)]="newRule.ruleType" 
-            title="Type de règle"
-            class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
-            <option value="percentage">Remise en pourcentage</option>
-            <option value="fixed">Prix fixe</option>
-            <option value="discount">Remise en montant</option>
-          </select>
+          <span class="block text-sm font-semibold text-gray-700">Type de règle</span>
+          <div class="grid grid-cols-3 gap-2">
+            <!-- Percentage -->
+            <button type="button"
+              (click)="setNewRuleType('percentage')"
+              [class]="'flex flex-col items-center gap-1 rounded-lg border px-3 py-3 transition-colors ' + (newRule.ruleType === 'percentage' ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-700')">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 5L5 19M7 7a2 2 0 110-4 2 2 0 010 4zm10 14a2 2 0 100-4 2 2 0 000 4z"/>
+              </svg>
+              <span class="text-xs font-medium text-center">Remise %</span>
+            </button>
+            <!-- Fixed price -->
+            <button type="button"
+              (click)="setNewRuleType('fixed')"
+              [class]="'flex flex-col items-center gap-1 rounded-lg border px-3 py-3 transition-colors ' + (newRule.ruleType === 'fixed' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-gray-50 border-gray-200 text-gray-700')">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-2.21 0-4 1.343-4 3s1.79 3 4 3 4 1.343 4 3-1.79 3-4 3m0-12c2.21 0 4 1.343 4 3m-4-6v18"/>
+              </svg>
+              <span class="text-xs font-medium text-center">Prix fixe</span>
+            </button>
+            <!-- Discount amount -->
+            <button type="button"
+              (click)="setNewRuleType('discount')"
+              [class]="'flex flex-col items-center gap-1 rounded-lg border px-3 py-3 transition-colors ' + (newRule.ruleType === 'discount' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-gray-50 border-gray-200 text-gray-700')">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l2-2 4 4M7 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span class="text-xs font-medium text-center">Remise dt</span>
+            </button>
+          </div>
         </div>
 
         <div class="space-y-2">
@@ -354,27 +420,41 @@
             {{ newRule.ruleType === 'percentage' ? 'Pourcentage de remise' : 
                newRule.ruleType === 'fixed' ? 'Prix fixe (dt)' : 'Montant de la remise (dt)' }}
           </label>
-          <input type="number" 
-            [(ngModel)]="newRule.value" 
-            [step]="newRule.ruleType === 'percentage' ? '1' : '0.001'"
-            [min]="0"
-            [max]="newRule.ruleType === 'percentage' ? 100 : null"
-            placeholder="Ex: 10"
+          <input type="text"
+            [value]="newRuleValueString"
+            readonly
+            inputmode="decimal"
+            aria-label="Valeur de la règle"
+            title="Valeur de la règle"
             class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:border-purple-400">
         </div>
 
-        
+        <!-- Numpad -->
+        <div class="grid grid-cols-3 gap-2 select-none">
+          <button (click)="onNumpadDigit('1')" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">1</button>
+          <button (click)="onNumpadDigit('2')" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">2</button>
+          <button (click)="onNumpadDigit('3')" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">3</button>
+          <button (click)="onNumpadDigit('4')" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">4</button>
+          <button (click)="onNumpadDigit('5')" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">5</button>
+          <button (click)="onNumpadDigit('6')" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">6</button>
+          <button (click)="onNumpadDigit('7')" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">7</button>
+          <button (click)="onNumpadDigit('8')" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">8</button>
+          <button (click)="onNumpadDigit('9')" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">9</button>
+          <button (click)="onNumpadClear()" class="py-3 bg-rose-50 rounded-lg text-rose-700 text-sm font-semibold border border-rose-100">C</button>
+          <button (click)="onNumpadDigit('0')" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">0</button>
+          <button (click)="onNumpadDot()" class="py-3 bg-purple-50 rounded-lg text-purple-800 text-sm font-semibold border border-purple-100">.</button>
+        </div>
       </div>
 
       <!-- Footer -->
-      <div class="bg-gray-50 p-4 border-t border-gray-200 rounded-b-lg">
+      <div class="bg-purple-50 p-4 border-t border-purple-100 rounded-b-xl">
         <div class="flex gap-3">
           <button (click)="showNewRuleDialog = false" 
-            class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200">
+            class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 border border-gray-300">
             Annuler
           </button>
           <button (click)="addNewRule()" 
-            class="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg transition-colors duration-200">
+            class="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg transition-colors duration-200 shadow">
             Ajouter
           </button>
         </div>

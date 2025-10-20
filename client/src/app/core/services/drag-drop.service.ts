@@ -31,8 +31,8 @@ export class DragDropService {
   private movementCheckEnabled: boolean = false;
 
   // Configuration
-  private readonly EDGE_THRESHOLD = 0.15; // 15% of container width
-  private readonly EDGE_HOVER_DELAY = 300; // 300ms to trigger pagination
+  private readonly EDGE_THRESHOLD = 0.10; // 10% of container width (reduced from 15%)
+  private readonly EDGE_HOVER_DELAY = 500; // 500ms to trigger pagination (increased from 300ms)
   private readonly AUTO_PAGE_INTERVAL = 500; // 500ms between auto-pages
   private readonly MOVEMENT_THRESHOLD = 20; // 20px movement threshold to start drag
   private readonly MOVEMENT_DELAY = 300; // 300ms delay before checking for movement
@@ -60,23 +60,24 @@ export class DragDropService {
     const state = this.dragState.value;
     if (!state.isDragging) return;
 
-    // Update drag position
-    this.dragState.next({
-      ...state,
-      dragPosition: { x, y }
-    });
-
-    // Check for edge hover pagination
-    this.checkEdgeHover(x, containerRect, currentPage);
-
-    // Calculate target position
+    // Calculate target position first
     const targetIndex = this.calculateTargetIndex(x, y, containerRect, products, currentPage, itemsPerPage);
     
+    // Update drag position and target
     this.dragState.next({
       ...state,
       dragPosition: { x, y },
       targetGlobalIndex: targetIndex
     });
+
+    // Only check for edge hover pagination if there's no valid drop target
+    // This prevents edge detection from interfering with drop zones
+    if (targetIndex === null) {
+      this.checkEdgeHover(x, containerRect, currentPage);
+    } else {
+      // Clear any pending edge hover timers when we have a valid drop target
+      this.clearEdgeHoverTimers();
+    }
   }
 
   // Record initial touch/mouse position
@@ -126,23 +127,32 @@ export class DragDropService {
     }
   }
 
-  // Drop the item
+  // Drop the item - Simple position swap for better performance
   drop(fromGlobalIndex: number, toGlobalIndex: number, products: Product[]): void {
     if (fromGlobalIndex === toGlobalIndex) {
       this.cancelDrag();
       return;
     }
 
-    // Move item in array
+    // Simple swap: just swap the two products at their positions
     const newProducts = [...products];
-    const [movedItem] = newProducts.splice(fromGlobalIndex, 1);
-    newProducts.splice(toGlobalIndex, 0, movedItem);
-
-    // Recompute displayIndex for all products
-    const updatedProducts = newProducts.map((product, index) => ({
-      ...product,
-      displayIndex: index + 1
-    }));
+    const fromProduct = newProducts[fromGlobalIndex];
+    const toProduct = newProducts[toGlobalIndex];
+    
+    // Swap the products
+    newProducts[fromGlobalIndex] = toProduct;
+    newProducts[toGlobalIndex] = fromProduct;
+    
+    // Only update displayIndex for the two swapped products
+    const updatedProducts = newProducts.map((product, index) => {
+      if (index === fromGlobalIndex || index === toGlobalIndex) {
+        return {
+          ...product,
+          displayIndex: index + 1
+        };
+      }
+      return product; // Keep other products unchanged
+    });
 
     // Emit order change
     this.onOrderChange.next({
@@ -154,7 +164,7 @@ export class DragDropService {
     this.cancelDrag();
   }
 
-  // Move to specific index
+  // Move to specific index - Simple swap implementation
   moveToIndex(product: Product, targetIndex: number, products: Product[]): void {
     const currentIndex = products.findIndex(p => p.id === product.id);
     if (currentIndex === -1) return;
@@ -162,6 +172,7 @@ export class DragDropService {
     const fromGlobalIndex = currentIndex;
     const toGlobalIndex = Math.max(0, Math.min(targetIndex - 1, products.length - 1)); // Convert to 0-based
 
+    // Use the same simple swap logic
     this.drop(fromGlobalIndex, toGlobalIndex, products);
   }
 
@@ -274,11 +285,14 @@ export class DragDropService {
     const cols = Math.floor((containerRect.width + gap) / (itemWidth + gap));
     const rows = Math.ceil(itemsPerPage / cols);
 
-    // Calculate grid position using fixed dimensions
-    const col = Math.max(0, Math.floor(relativeX / (itemWidth + gap)));
-    const row = Math.max(0, Math.floor(relativeY / (itemHeight + gap)));
+    // Add tolerance for edge detection - make it more forgiving
+    const tolerance = 10; // 10px tolerance for edge detection
+    
+    // Calculate grid position with tolerance for better edge detection
+    const col = Math.max(0, Math.min(cols - 1, Math.floor((relativeX + tolerance) / (itemWidth + gap))));
+    const row = Math.max(0, Math.min(rows - 1, Math.floor((relativeY + tolerance) / (itemHeight + gap))));
 
-    // Validate position - allow dropping at the edges
+    // Validate position - be more forgiving for edge cases
     if (col < 0 || col >= cols || row < 0 || row >= rows) {
       return null;
     }
@@ -294,9 +308,11 @@ export class DragDropService {
     // Calculate global index
     const globalIndex = currentPage * itemsPerPage + localIndex;
     
-    // Validate global index
+    // Validate global index with bounds checking
     if (globalIndex < 0 || globalIndex >= products.length) {
-      return null;
+      // Fallback: try to find the nearest valid position
+      const nearestIndex = Math.max(0, Math.min(products.length - 1, globalIndex));
+      return nearestIndex;
     }
 
     return globalIndex;

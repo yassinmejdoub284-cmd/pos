@@ -53,6 +53,16 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadChildren: () => import('./rapports/rapports.module').then(m => m.RapportsModule) 
   },
+  {
+    path: 'rappels',
+    canActivate: [authGuard],
+    loadChildren: () => import('./reminders/reminders.module').then(m => m.RemindersModule)
+  },
+  {
+    path: 'reminders',
+    canActivate: [authGuard],
+    loadChildren: () => import('./reminders/reminders.module').then(m => m.RemindersModule)
+  },
   { 
     path: 'approvals', 
     canActivate: [authGuard],

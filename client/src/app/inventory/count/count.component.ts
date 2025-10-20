@@ -3,6 +3,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { InventoryService, InventorySession, InventoryItem } from '../../core/services/inventory.service';
 import { ProductsService } from '../../core/services/products.service';
 import { Product } from '../../core/models/product.model';
+import { ProduitsDeStockService } from '../../core/services/produits-de-caisse.service';
+import { ProduitDeStock } from '../../core/models/produit-de-caisse.model';
+import { DepotsService } from '../../core/services/depots.service';
+import { AuthService } from '../../core/services/auth.service';
 import { Subject, takeUntil } from 'rxjs';
 
 interface CountItem {
@@ -26,6 +30,7 @@ export class CountComponent implements OnInit, OnDestroy {
   
   depotId: number | null = null;
   session: InventorySession | null = null;
+  depotType: string | null = null;
   items: InventoryItem[] = [];
   filteredItems: InventoryItem[] = [];
   searchTerm = '';
@@ -35,6 +40,13 @@ export class CountComponent implements OnInit, OnDestroy {
   filteredProducts: Product[] = [];
   productCategories: string[] = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrac', 'Pâtisserie Tunisienne', 'Jus et Smoothies'];
   selectedCategory: string = 'Tous';
+  
+  // Stock products filtering
+  stockProducts: ProduitDeStock[] = [];
+  hasStockProductsInDepot = false;
+  
+  // Display mode: true = show stock products directly, false = show parent products
+  showStockProductsDirectly = false;
   
   // Count items (like receipt items in caisse)
   countItems: CountItem[] = [];
@@ -65,7 +77,10 @@ export class CountComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private inventoryService: InventoryService,
-    private productsService: ProductsService
+    private productsService: ProductsService,
+    private produitsDeStockService: ProduitsDeStockService,
+    private depotsService: DepotsService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -73,9 +88,11 @@ export class CountComponent implements OnInit, OnDestroy {
     const sessionId = this.route.snapshot.paramMap.get('id');
     if (depotId && sessionId) {
       this.depotId = parseInt(depotId, 10);
+      this.loadDepot();
       this.loadSession(parseInt(sessionId, 10));
     }
     this.loadProducts();
+    this.loadStockProducts();
   }
 
   ngOnDestroy(): void {
@@ -97,6 +114,21 @@ export class CountComponent implements OnInit, OnDestroy {
     }
   }
 
+  loadDepot(): void {
+    if (!this.depotId) return;
+    
+    this.depotsService.get(this.depotId).subscribe({
+      next: (depot) => {
+        this.depotType = depot.type;
+        this.showStockProductsDirectly = depot.type !== 'SHOP';
+        this.applyProductFiltering();
+      },
+      error: (err) => {
+        console.error('Error loading depot:', err);
+      }
+    });
+  }
+
   loadSession(sessionId: number): void {
     this.loading = true;
     this.error = '';
@@ -111,8 +143,15 @@ export class CountComponent implements OnInit, OnDestroy {
         this.loading = false;
         
         // Check session status and provide user feedback
+        const currentUser = this.authService.currentUser();
+        const isAdmin = currentUser?.role === 'ADMIN';
+        
         if (!['DRAFT', 'IN_PROGRESS'].includes(session.status)) {
+          if (isAdmin) {
+            this.error = `Attention: Cette session est en statut "${session.status}". En tant qu'administrateur, vous pouvez modifier cette session.`;
+          } else {
           this.error = `Attention: Cette session est en statut "${session.status}". Les quantités ne peuvent être modifiées que dans les sessions DRAFT ou IN_PROGRESS.`;
+          }
         }
       },
       error: (err) => {
@@ -123,10 +162,12 @@ export class CountComponent implements OnInit, OnDestroy {
   }
 
   loadProducts(): void {
-    this.productsService.getProducts().pipe(takeUntil(this.destroy$)).subscribe({
+    // For SHOP depots, only load products assigned to this specific depot
+    const depotId = this.depotId || undefined;
+    this.productsService.getProducts(depotId).pipe(takeUntil(this.destroy$)).subscribe({
       next: (products) => {
         this.allProducts = products;
-        this.filteredProducts = [...products];
+        this.applyProductFiltering();
         // Backfill prices for existing count items after products load
         this.countItems = this.countItems.map(ci => {
           const prod = this.getProductById(ci.product.id);
@@ -143,19 +184,137 @@ export class CountComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadStockProducts(): void {
+    this.produitsDeStockService.getProduitsDeStock().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (stockProducts) => {
+        this.stockProducts = stockProducts;
+        this.checkDepotHasStockProducts();
+        this.applyProductFiltering();
+        
+        // Re-initialize count items with correct product data after stock products are loaded
+        if (this.items.length > 0) {
+          this.initializeCountItems();
+        }
+      },
+      error: (err) => {
+        console.error('Error loading stock products:', err);
+      }
+    });
+  }
+
+  checkDepotHasStockProducts(): void {
+    if (!this.depotId) {
+      this.hasStockProductsInDepot = false;
+      return;
+    }
+
+    // Check if any stock products are assigned to this depot
+    this.hasStockProductsInDepot = this.stockProducts.some(stockProduct => 
+      stockProduct.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
+    );
+  }
+
+  applyProductFiltering(): void {
+    if (!this.showStockProductsDirectly) {
+      // For SHOP depots: products are already filtered by depot from backend, just use them directly
+      this.filteredProducts = [...this.allProducts];
+    } else if (this.showStockProductsDirectly) {
+      // For NOT SHOP depots: show stock products directly (as Product objects)
+      this.filteredProducts = this.stockProducts
+        .filter(stockProduct => 
+          stockProduct.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
+        )
+        .map(stockProduct => ({
+          id: stockProduct.id,
+          name: stockProduct.name,
+          barcode: stockProduct.barcode,
+          unite: stockProduct.unite,
+          prix_vente_TTC: stockProduct.prix_vente_TTC,
+          prix_achat: stockProduct.prix_achat,
+          photo: stockProduct.photo,
+          famille: stockProduct.famille,
+          familleId: stockProduct.familleId,
+          tva: stockProduct.tva,
+          isActive: stockProduct.isActive,
+          createdAt: stockProduct.createdAt,
+          updatedAt: stockProduct.updatedAt
+        } as Product));
+    } else {
+      // Fallback: show all products (should not happen with proper depot filtering)
+      this.filteredProducts = [...this.allProducts];
+    }
+  }
+
   initializeCountItems(): void {
-    // Only add items that have already been counted (have countedQuantity)
-    this.countItems = this.items
-      .filter(item => item.countedQuantity !== null)
-      .map(item => ({
-        product: item.product!,
+    console.log('initializeCountItems called');
+    console.log('showStockProductsDirectly:', this.showStockProductsDirectly);
+    console.log('hasStockProductsInDepot:', this.hasStockProductsInDepot);
+    console.log('items to process:', this.items.length);
+    
+    // Only show items that have already been counted (countedQuantity is not null)
+    // This prevents preselection of all products - users must manually add products to count
+    const itemsToProcess = this.items.filter(item => item.countedQuantity !== null);
+    
+    this.countItems = itemsToProcess
+      .map(item => {
+        // Use product data directly from the session item (already loaded by backend)
+        let productData: Product = {
+          id: item.product?.id ?? item.productId,
+          name: item.product?.name ?? 'Produit inconnu',
+          barcode: item.product?.barcode ?? '',
+          unite: item.product?.unite ?? 'pcs',
+          prix_vente_TTC: parseFloat(String(item.product?.prix_vente_TTC || 0)),
+          prix_achat: parseFloat(String((item.product as any)?.prix_achat || 0)), // Use actual price from session
+          familleId: (item.product as any)?.famille?.id || 0,
+          tva: parseFloat(String((item.product as any)?.tva || 0)),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        console.log('Processing item with productId:', item.productId, 'product name:', item.product?.name);
+        
+        if (this.showStockProductsDirectly && this.hasStockProductsInDepot) {
+          // Find the stock product that matches this inventory item's productId
+          const stockProduct = this.stockProducts.find(sp => 
+            sp.id === item.productId && // item.productId is the stock product ID
+            sp.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
+          );
+          
+          if (stockProduct) {
+            console.log('Found stock product:', stockProduct.name, 'for productId:', item.productId);
+            // Convert stock product to Product format
+            productData = {
+              id: stockProduct.id,
+              name: stockProduct.name,
+              barcode: stockProduct.barcode,
+              unite: stockProduct.unite,
+              prix_vente_TTC: stockProduct.prix_vente_TTC,
+              prix_achat: stockProduct.prix_achat,
+              photo: stockProduct.photo,
+              famille: stockProduct.famille,
+              familleId: stockProduct.familleId,
+              tva: stockProduct.tva,
+              isActive: stockProduct.isActive,
+              createdAt: stockProduct.createdAt,
+              updatedAt: stockProduct.updatedAt
+            } as Product;
+          } else {
+            console.log('No stock product found for productId:', item.productId);
+          }
+        }
+        
+        return {
+          product: productData,
         theoreticalQuantity: item.theoreticalQuantity,
         countedQuantity: item.countedQuantity,
         isConfirmed: item.countedQuantity !== null,
         inventoryItemId: item.id,
-        purchasePrice: this.getProductById(item.product!.id)?.prix_achat ?? 0,
-        salePrice: this.getProductById(item.product!.id)?.prix_vente_TTC ?? item.product?.prix_vente_TTC ?? 0
-      } as CountItem));
+          purchasePrice: productData.prix_achat ?? 0,
+          salePrice: productData.prix_vente_TTC ?? 0
+        } as CountItem;
+      });
+    
+    console.log('Count items initialized:', this.countItems.length);
   }
 
   updateStatistics(): void {
@@ -171,10 +330,47 @@ export class CountComponent implements OnInit, OnDestroy {
   }
 
   filterProducts(): void {
-    if (this.selectedCategory === 'Tous') {
-      this.filteredProducts = [...this.allProducts];
+    let baseProducts: Product[];
+    
+    if (!this.hasStockProductsInDepot) {
+      // If depot has no stock products, use all products
+      baseProducts = [...this.allProducts];
+    } else if (this.showStockProductsDirectly) {
+      // If not a shop, show stock products directly (as Product objects)
+      baseProducts = this.stockProducts
+        .filter(stockProduct => 
+          stockProduct.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
+        )
+        .map(stockProduct => ({
+          id: stockProduct.id,
+          name: stockProduct.name,
+          barcode: stockProduct.barcode,
+          unite: stockProduct.unite,
+          prix_vente_TTC: stockProduct.prix_vente_TTC,
+          prix_achat: stockProduct.prix_achat,
+          photo: stockProduct.photo,
+          famille: stockProduct.famille,
+          familleId: stockProduct.familleId,
+          tva: stockProduct.tva,
+          isActive: stockProduct.isActive,
+          createdAt: stockProduct.createdAt,
+          updatedAt: stockProduct.updatedAt
+        } as Product));
     } else {
-      this.filteredProducts = this.allProducts.filter(product => 
+      // If it's a shop, show parent products that have stock products assigned to this depot
+      baseProducts = this.allProducts.filter(product => 
+        this.stockProducts.some(stockProduct => 
+          stockProduct.parentProductId === product.id &&
+          stockProduct.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
+        )
+      );
+    }
+
+    // Apply category filter
+    if (this.selectedCategory === 'Tous') {
+      this.filteredProducts = baseProducts;
+    } else {
+      this.filteredProducts = baseProducts.filter(product => 
         product.famille?.name === this.selectedCategory
       );
     }
@@ -204,14 +400,28 @@ export class CountComponent implements OnInit, OnDestroy {
     const existingItem = this.items.find(item => item.product?.id === product.id);
     const theoreticalQuantity = existingItem?.theoreticalQuantity || 0;
     
+    // Ensure product has all required data
+    const productData: Product = {
+      id: product.id,
+      name: product.name || 'Produit inconnu',
+      barcode: product.barcode || '',
+      unite: product.unite || 'pcs',
+      prix_vente_TTC: product.prix_vente_TTC || 0,
+      prix_achat: product.prix_achat || 0,
+      familleId: product.familleId || 0,
+      tva: product.tva || 0,
+      createdAt: product.createdAt || new Date(),
+      updatedAt: product.updatedAt || new Date()
+    };
+    
     const countItem: CountItem = {
-      product: product,
+      product: productData,
       theoreticalQuantity: theoreticalQuantity,
       countedQuantity: null,
       isConfirmed: false,
       inventoryItemId: existingItem?.id,
-      purchasePrice: product.prix_achat ?? 0,
-      salePrice: product.prix_vente_TTC ?? 0
+      purchasePrice: productData.prix_achat || 0,
+      salePrice: productData.prix_vente_TTC || 0
     };
     
     this.countItems.push(countItem);
@@ -310,9 +520,12 @@ export class CountComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Check if session is in correct status for updates
-    if (!['DRAFT', 'IN_PROGRESS'].includes(this.session.status)) {
-      console.error('Cannot save count: session status is', this.session.status);
+    // Check if session is in correct status for updates (allow admin to override)
+    const currentUser = this.authService.currentUser();
+    const isAdmin = currentUser?.role === 'ADMIN';
+    
+    if (!['DRAFT', 'IN_PROGRESS'].includes(this.session.status) && !isAdmin) {
+      console.error('Cannot save count: session status is', this.session.status, 'and user is not admin');
       this.error = 'Impossible de modifier les quantités dans cette session (statut: ' + this.session.status + ')';
       return;
     }
@@ -472,7 +685,9 @@ export class CountComponent implements OnInit, OnDestroy {
     this.error = '';
 
     const updatePromises = this.countItems.map(item => {
-      if (item.inventoryItemId && item.countedQuantity !== null) {
+      if (item.countedQuantity !== null) {
+        if (item.inventoryItemId) {
+          // Update existing inventory item
         return this.inventoryService.updateItemCount(
           this.session!.id,
           item.inventoryItemId,
@@ -480,6 +695,23 @@ export class CountComponent implements OnInit, OnDestroy {
           'PHYSICAL_COUNT_DIFFERENCE',
           ''
         ).toPromise();
+        } else {
+          // Create new inventory item for products not in original session
+          return this.inventoryService.createInventoryItem(
+            this.session!.id,
+            item.product.id,
+            item.theoreticalQuantity
+          ).toPromise().then((newItem: any) => {
+            // Update the new item with counted quantity
+            return this.inventoryService.updateItemCount(
+              this.session!.id,
+              newItem.id,
+              item.countedQuantity,
+              'PHYSICAL_COUNT_DIFFERENCE',
+              ''
+            ).toPromise();
+          });
+        }
       }
       return Promise.resolve();
     });
@@ -492,6 +724,7 @@ export class CountComponent implements OnInit, OnDestroy {
     }).catch(err => {
       this.saving = false;
       this.error = 'Erreur lors de l\'enregistrement des comptages';
+      console.error('Save error:', err);
     });
   }
 

@@ -1,28 +1,24 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 
-import { EnterpriseRoutingModule } from './enterprise-routing.module';
+import { EnterpriseHomeComponent } from './home/home.component';
 import { EnterpriseComponent } from './enterprise.component';
-import { CompaniesListComponent } from './companies-list/companies-list.component';
-import { CompanyDetailComponent } from './company-detail/company-detail.component';
-import { AssignDepotComponent } from './assign-depot/assign-depot.component';
-import { DepotsShopsComponent } from './depots-shops/depots-shops.component';
+import { EnterpriseSidebarComponent } from './shared/enterprise-sidebar/enterprise-sidebar.component';
+import { EnterpriseLayoutComponent } from './shared/enterprise-layout/enterprise-layout.component';
+import { EnterpriseRoutingModule } from './enterprise-routing.module';
 
 @NgModule({
   declarations: [
+    EnterpriseHomeComponent,
     EnterpriseComponent,
-    CompaniesListComponent,
-    CompanyDetailComponent,
-    AssignDepotComponent,
-    DepotsShopsComponent
+    EnterpriseSidebarComponent,
+    EnterpriseLayoutComponent
   ],
   imports: [
     CommonModule,
     FormsModule,
-    ReactiveFormsModule,
-    RouterModule,
     EnterpriseRoutingModule
   ]
 })

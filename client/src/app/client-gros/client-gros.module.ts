@@ -1,5 +1,5 @@
 import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 
@@ -14,6 +14,7 @@ import { CustomerSelectionDialogComponent } from './customer-selection-dialog/cu
   ],
   imports: [
     CommonModule,
+    NgOptimizedImage,
     FormsModule,
     RouterModule,
     ClientGrosRoutingModule

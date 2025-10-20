@@ -11,7 +11,7 @@
         Retour
       </button>
       
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-4">
+      <div class="bg-white/80 rounded-2xl shadow-xl border border-white/20 p-4">
         <div class="flex items-center space-x-3">
           <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -27,7 +27,7 @@
     </div>
 
     <!-- Error/Success Messages -->
-    <div *ngIf="error" class="bg-red-50/80 backdrop-blur-sm border border-red-200/50 rounded-xl p-3 mb-4 shadow-lg">
+    <div *ngIf="error" class="bg-red-50/80 border border-red-200/50 rounded-xl p-3 mb-4 shadow-lg">
       <div class="flex items-center">
         <div class="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mr-2">
           <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <div *ngIf="success" class="bg-green-50/80 backdrop-blur-sm border border-green-200/50 rounded-xl p-3 mb-4 shadow-lg">
+    <div *ngIf="success" class="bg-green-50/80 border border-green-200/50 rounded-xl p-3 mb-4 shadow-lg">
       <div class="flex items-center">
         <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
           <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,7 +56,7 @@
 
     <!-- Step 1: Select Entry -->
     <div *ngIf="!selectedEntry && !loading" class="space-y-4">
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-4">
+      <div class="bg-white/80 rounded-2xl shadow-xl border border-white/20 p-4">
         <div class="text-center mb-4">
           <h2 class="text-lg font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Sélectionner un Bon d'Entrée</h2>
         </div>
@@ -72,7 +72,7 @@
           <div 
             *ngFor="let entry of availableEntries()" 
             (click)="selectEntry(entry)"
-            class="group bg-white/90 backdrop-blur-sm rounded-xl shadow-lg cursor-pointer transition-all duration-300 border border-white/20 overflow-hidden">
+            class="group bg-white/90 rounded-xl shadow-lg cursor-pointer transition-all duration-300 border border-white/20 overflow-hidden">
             
             <!-- Card Header -->
             <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 text-white">
@@ -135,7 +135,7 @@
     <!-- Step 2: Edit and Import -->
     <div *ngIf="selectedEntry" class="space-y-4">
       <!-- Modern Document Container -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-4">
+      <div class="bg-white/90 rounded-2xl shadow-xl border border-white/20 p-4">
         
         <!-- Document Header -->
         <div class="flex justify-between items-start mb-4">
@@ -165,7 +165,7 @@
         <!-- Left Panel - Editable Items -->
         <div class="lg:col-span-2 space-y-4">
           <!-- Items List -->
-          <div class="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/30 p-4">
+          <div class="bg-white/50 rounded-2xl border border-white/30 p-4">
             <div class="mb-4">
               <h2 class="text-lg font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Produits à Importer</h2>
             </div>
@@ -186,7 +186,7 @@
               
               <div 
                 *ngFor="let item of editableItems(); let i = index" 
-                class="grid grid-cols-12 gap-3 py-3 bg-white/70 backdrop-blur-sm rounded-xl px-3 transition-all duration-200 border border-white/50">
+                class="grid grid-cols-12 gap-3 py-3 bg-white/70 rounded-xl px-3 transition-all duration-200 border border-white/50">
                 
                 <!-- Product Info -->
                 <div class="col-span-4">
@@ -255,7 +255,7 @@
         <!-- Right Panel - Controls & Summary -->
         <div class="space-y-4">
           <!-- Numeric Keypad -->
-          <div class="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/30 p-4">
+          <div class="bg-white/50 rounded-2xl border border-white/30 p-4">
             <div class="mb-4">
               <h2 class="text-sm font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Saisie</h2>
             </div>
@@ -299,7 +299,7 @@
           </div>
 
           <!-- Notes -->
-          <div class="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/30 p-4">
+          <div class="bg-white/50 rounded-2xl border border-white/30 p-4">
             <div class="mb-3">
               <h2 class="text-sm font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Notes</h2>
             </div>
@@ -312,7 +312,7 @@
           </div>
 
           <!-- Summary -->
-          <div class="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/30 p-4">
+          <div class="bg-white/50 rounded-2xl border border-white/30 p-4">
             <div class="mb-3">
               <h2 class="text-sm font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Résumé</h2>
             </div>
@@ -333,7 +333,7 @@
           </div>
 
           <!-- Actions -->
-          <div class="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/30 p-4">
+          <div class="bg-white/50 rounded-2xl border border-white/30 p-4">
             <div class="space-y-3">
               <!-- Primary Import Button -->
               <button 

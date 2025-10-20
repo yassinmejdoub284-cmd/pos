@@ -36,9 +36,8 @@ const attendanceRoutes = require('./routes/attendance');
 const produitsDeCaisseRoutes = require('./routes/produits-de-caisse');
 const driversRoutes = require('./routes/drivers');
 const vehiclesRoutes = require('./routes/vehicles');
-const salonsRoutes = require('./routes/salons');
-const tablesRoutes = require('./routes/tables');
-const tableSalesRoutes = require('./routes/table-sales');
+const remindersRoutes = require('./routes/reminders');
+const notificationsRoutes = require('./routes/notifications');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -67,6 +66,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/sales', authenticateToken, salesRoutes);
+// Allow unauthenticated access to wholesale sales
+app.use('/api/sales/public', salesRoutes);
 app.use('/api/products', authenticateToken, productsRoutes);
 app.use('/api/users', authenticateToken, usersRoutes);
 app.use('/api/depots', authenticateToken, depotsRoutes);
@@ -95,9 +96,8 @@ app.use('/api/attendance', authenticateToken, attendanceRoutes);
 app.use('/api/produits-de-caisse', authenticateToken, produitsDeCaisseRoutes);
 app.use('/api/drivers', authenticateToken, driversRoutes);
 app.use('/api/vehicles', authenticateToken, vehiclesRoutes);
-app.use('/api/salons', authenticateToken, salonsRoutes);
-app.use('/api/tables', authenticateToken, tablesRoutes);
-app.use('/api/table-sales', authenticateToken, tableSalesRoutes);
+app.use('/api/reminders', remindersRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Create HTTP or HTTPS server based on env
 let server;
