@@ -1,0 +1,88 @@
+/* Custom styles for tables salon component with vibrant pastel theme */
+.table-card {
+  border: 2px solid transparent;
+  background: #ffffff;
+}
+
+.status-badge {
+}
+
+
+/* Custom scrollbar for tables grid */
+.tables-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tables-grid::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.tables-grid::-webkit-scrollbar-thumb {
+  background: #a78bfa;
+  border-radius: 10px;
+  border: 2px solid #f1f5f9;
+}
+
+.tables-grid::-webkit-scrollbar-thumb:hover {
+  background: #8b5cf6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .table-card {
+    padding: 1.25rem;
+  }
+  
+  .table-number {
+    width: 3.5rem;
+    height: 3.5rem;
+    font-size: 1.125rem;
+  }
+}
+
+
+
+/* Table status indicators with vibrant pastels */
+.table-available {
+  border-color: #34d399;
+  background: #ecfdf5;
+}
+
+.table-occupied {
+  border-color: #f87171;
+  background: #fef2f2;
+}
+
+.table-reserved {
+  border-color: #fbbf24;
+  background: #fffbeb;
+}
+
+.table-maintenance {
+  border-color: #a78bfa;
+  background: #faf5ff;
+}
+
+/* Vibrant pastel color palette for tables */
+.table-color-1 { background: #fef3c7; }
+.table-color-2 { background: #fecaca; }
+.table-color-3 { background: #d1fae5; }
+.table-color-4 { background: #ddd6fe; }
+.table-color-5 { background: #fed7aa; }
+.table-color-6 { background: #bfdbfe; }
+.table-color-7 { background: #fde2e8; }
+.table-color-8 { background: #e0e7ff; }
+.table-color-9 { background: #ecfdf5; }
+.table-color-10 { background: #fef2f2; }
+.table-color-11 { background: #f0fdf4; }
+.table-color-12 { background: #fef7ff; }
+
+/* Prevent body scroll when dialog is open */
+body.dialog-open {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+

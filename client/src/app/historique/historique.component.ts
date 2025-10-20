@@ -178,6 +178,13 @@ export class HistoriqueComponent implements OnInit {
       // Fallback to date filtering
       params.startDate = `${this.startDate}T00:00:00.000`;
       params.endDate = `${this.endDate}T23:59:59.999`;
+    } else {
+      // If no sessions and no date range, load recent sales (last 7 days)
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - 7);
+      params.startDate = startDate.toISOString();
+      params.endDate = endDate.toISOString();
     }
 
     this.salesService.getSales(params)
@@ -332,12 +339,18 @@ export class HistoriqueComponent implements OnInit {
       // Sale type filter
       if (this.selectedSaleType) {
         const isWholesale = this.isWholesaleSale(sale);
+        const isTable = this.isTableSale(sale);
+        
         if (this.selectedSaleType === 'wholesale' && !isWholesale) {
           console.log('Sale filtered out by sale type (wholesale):', sale.id, isWholesale);
           return false;
         }
-        if (this.selectedSaleType === 'retail' && isWholesale) {
-          console.log('Sale filtered out by sale type (retail):', sale.id, isWholesale);
+        if (this.selectedSaleType === 'retail' && (isWholesale || isTable)) {
+          console.log('Sale filtered out by sale type (retail):', sale.id, isWholesale, isTable);
+          return false;
+        }
+        if (this.selectedSaleType === 'table' && !isTable) {
+          console.log('Sale filtered out by sale type (table):', sale.id, isTable);
           return false;
         }
       }
@@ -395,6 +408,10 @@ export class HistoriqueComponent implements OnInit {
     return sale.items && sale.items.some(item => item.isWholesale);
   }
 
+  isTableSale(sale: Sale): boolean {
+    return !!(sale && sale.tableInfo && typeof sale.id === 'number' && sale.id >= 9000000);
+  }
+
   // Current session helper
   private getCurrentSessionId(): number | null {
     const current = this.allSessions[this.currentSessionPage - 1];
@@ -407,7 +424,7 @@ export class HistoriqueComponent implements OnInit {
     if (currentSessionId == null) {
       return this.filteredSales;
     }
-    return this.filteredSales.filter((sale: any) => {
+    return this.filteredSales.filter((sale: Sale) => {
       const sid = (sale?.session?.id ?? null);
       return sid === currentSessionId;
     });
@@ -672,7 +689,9 @@ export class HistoriqueComponent implements OnInit {
 
   printReceipt(sale: Sale): void {
     this.printService.printSaleReceipt(sale);
-    this.salesService.markPrinted(sale.id).subscribe({
+    // Only mark printed for regular sales, not table sales
+    if (!this.isTableSale(sale)) {
+      this.salesService.markPrinted(sale.id).subscribe({
       next: () => {
         (sale as any).isPrinted = true;
         this.showAlertMessage('Reçu envoyé à l\'imprimante', 'success');
@@ -682,6 +701,7 @@ export class HistoriqueComponent implements OnInit {
         this.showAlertMessage('Reçu envoyé. Statut imprimé non mis à jour.', 'error');
       }
     });
+    }
   }
 
   // Invoice request methods
@@ -1058,7 +1078,7 @@ export class HistoriqueComponent implements OnInit {
       depotId,
       items: this.returnItems.map(i => ({ productId: i.productId, quantity: Number(i.quantity || 0) })),
       notes: finalNotes,
-      originalSaleId: this.selectedSaleForReturn?.id || null,
+      originalSaleId: this.selectedSaleForReturn && !this.isTableSale(this.selectedSaleForReturn) ? this.selectedSaleForReturn.id : null,
       originalSaleTotal: this.selectedSaleForReturn?.finalTotal || null
     };
 
