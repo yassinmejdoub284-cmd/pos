@@ -25,6 +25,20 @@ export interface ReconciliationRow {
   };
 }
 
+export interface EcartData {
+  productId: number;
+  productName: string;
+  qtyVendu: number;
+  prixVenteUnitaire: number;
+  chiffreAffaireTheorique: number;
+  chiffreAffaireRealise: number;
+  ecartVenteGros: number;
+  ecartGratuite: number;
+  ecartRemise: number;
+  ecartGlobal: number;
+  deferenceEcart: number;
+}
+
 export interface ReconciliationData {
   productId: number;
   productName: string;
@@ -37,6 +51,7 @@ export interface ReconciliationData {
     cogs: number;
     endingStock: { qty: number; value: number; pu: number };
   };
+  ecartData?: EcartData;
 }
 
 export type RangeMode = 'DATE' | 'INVENTORY' | 'LAST_INVENTORY';
@@ -519,12 +534,108 @@ export class InventorySalesReconciliationComponent implements OnInit {
     // Calculate summary
     const summary = this.calculateSummary(rows);
 
+    // Calculate ecart data
+    const ecartData = await this.calculateEcartData(product, dateFrom, dateTo);
+
     return {
       productId: product.id,
       productName: product.name,
       rows,
-      summary
+      summary,
+      ecartData
     };
+  }
+
+  private async calculateEcartData(product: Product, dateFrom: Date, dateTo: Date): Promise<EcartData> {
+    try {
+      // Get sales data for the product in the date range
+      const sales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(sales) ? sales : [];
+      
+      const salesInRange = salesArray.filter(sale => {
+        const saleDate = new Date(sale.createdAt);
+        return saleDate >= dateFrom && saleDate <= dateTo;
+      });
+
+      let qtyVendu = 0;
+      let chiffreAffaireRealise = 0;
+      let qtyVenduGros = 0;
+      let prixVenteGros = 0;
+      let ecartGratuite = 0;
+      let ecartRemise = 0;
+
+      // Process each sale
+      for (const sale of salesInRange) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === product.id) || [];
+        
+        for (const item of saleItems) {
+          const itemQty = Number(item.quantity) || 0;
+          const itemPrice = Number(item.unitPrice) || 0;
+          const itemTotal = Number(item.total) || 0;
+          const isWholesale = item.isWholesale || sale.isWholesale;
+          const isGift = sale.status === 'CADEAU';
+          const discount = Number(item.discount) || 0;
+
+          qtyVendu += itemQty;
+          chiffreAffaireRealise += itemTotal;
+
+          if (isWholesale) {
+            qtyVenduGros += itemQty;
+            prixVenteGros += itemTotal;
+          }
+
+          if (isGift) {
+            ecartGratuite += itemTotal;
+          }
+
+          if (discount > 0) {
+            ecartRemise += discount;
+          }
+        }
+      }
+
+      const prixVenteUnitaire = Number(product.prix_vente_TTC) || 0;
+      const chiffreAffaireTheorique = qtyVendu * prixVenteUnitaire;
+      
+      // Écart vente en gros: (qté vendu en gros * prix de vente en gros) - (qté vendu en gros * prix de vente unitaire)
+      const ecartVenteGros = qtyVenduGros > 0 ? 
+        prixVenteGros - (qtyVenduGros * prixVenteUnitaire) : 0;
+
+      // Écart global: (qté vendu * prix de vente unitaire) - (chiffre d'affaire réalisé)
+      const ecartGlobal = chiffreAffaireTheorique - chiffreAffaireRealise;
+
+      // Déférence d'écart: écart théorique - (écart réalisé + écart global)
+      const deferenceEcart = chiffreAffaireTheorique - (chiffreAffaireRealise + ecartGlobal);
+
+      return {
+        productId: product.id,
+        productName: product.name,
+        qtyVendu,
+        prixVenteUnitaire,
+        chiffreAffaireTheorique,
+        chiffreAffaireRealise,
+        ecartVenteGros,
+        ecartGratuite,
+        ecartRemise,
+        ecartGlobal,
+        deferenceEcart
+      };
+    } catch (error) {
+      console.error('Error calculating ecart data:', error);
+      return {
+        productId: product.id,
+        productName: product.name,
+        qtyVendu: 0,
+        prixVenteUnitaire: 0,
+        chiffreAffaireTheorique: 0,
+        chiffreAffaireRealise: 0,
+        ecartVenteGros: 0,
+        ecartGratuite: 0,
+        ecartRemise: 0,
+        ecartGlobal: 0,
+        deferenceEcart: 0
+      };
+    }
   }
 
   private getFIFOCost(layers: FIFOLayer[], qty: number): number {
@@ -750,22 +861,14 @@ export class InventorySalesReconciliationComponent implements OnInit {
       // Multi-level header
       csvContent += `Date,Désignation,`;
       csvContent += `Achat Entrée Qté,Achat Entrée P.U,Achat Entrée Totale,`;
-      csvContent += `Achat Sortie Qté,Achat Sortie P.U,Achat Sortie Totale,`;
-      csvContent += `Achat Solde Qté,Achat Solde P.U,Achat Solde Totale,`;
-      csvContent += `Vente Entrée Qté,Vente Entrée P.U,Vente Entrée Totale,`;
-      csvContent += `Vente Sortie Qté,Vente Sortie P.U,Vente Sortie Totale,`;
-      csvContent += `Vente Solde Qté,Vente Solde P.U,Vente Solde Totale\n`;
+      csvContent += `Vente Sortie Qté,Vente Sortie P.U,Vente Sortie Totale\n`;
 
       // Data rows
       for (const row of data.rows) {
         const designation = row.isWholesale ? `${row.designation} (GROS)` : row.designation;
         csvContent += `${this.formatDate(row.date)},${designation},`;
         csvContent += `${this.formatNumber(row.achat.entree.qty)},${this.formatNumber(row.achat.entree.pu)},${this.formatNumber(row.achat.entree.totale)},`;
-        csvContent += `${this.formatNumber(row.achat.sortie.qty)},${this.formatNumber(row.achat.sortie.pu)},${this.formatNumber(row.achat.sortie.totale)},`;
-        csvContent += `${this.formatNumber(row.achat.solde.qty)},${this.formatNumber(row.achat.solde.pu)},${this.formatNumber(row.achat.solde.totale)},`;
-        csvContent += `${this.formatNumber(row.vente.entree.qty)},${this.formatNumber(row.vente.entree.pu)},${this.formatNumber(row.vente.entree.totale)},`;
-        csvContent += `${this.formatNumber(row.vente.sortie.qty)},${this.formatNumber(row.vente.sortie.pu)},${this.formatNumber(row.vente.sortie.totale)},`;
-        csvContent += `${this.formatNumber(row.vente.solde.qty)},${this.formatNumber(row.vente.solde.pu)},${this.formatNumber(row.vente.solde.totale)}\n`;
+        csvContent += `${this.formatNumber(row.vente.sortie.qty)},${this.formatNumber(row.vente.sortie.pu)},${this.formatNumber(row.vente.sortie.totale)}\n`;
       }
 
       // Summary
@@ -776,6 +879,14 @@ export class InventorySalesReconciliationComponent implements OnInit {
       csvContent += `Vente Sortie - Qté: ${this.formatNumber(data.summary.totalVenteSortie.qty)}, Total: ${this.formatNumber(data.summary.totalVenteSortie.totale)} dt\n`;
       csvContent += `Stock Final - Qté: ${this.formatNumber(data.summary.endingStock.qty)}, Valeur: ${this.formatNumber(data.summary.endingStock.value)} dt, P.U: ${this.formatNumber(data.summary.endingStock.pu)} dt\n`;
       csvContent += `COGS (${this.valuationMode}): ${this.formatNumber(data.summary.cogs)} dt\n`;
+      
+      // Écart Data
+      if (data.ecartData) {
+        csvContent += `\n`;
+        csvContent += `Tableau des Écarts:\n`;
+        csvContent += `Produit,Qté Vendue,Prix Vente Unitaire,CA Théorique,CA Réalisé,Écart Vente Gros,Écart Gratuité,Écart Remise,Écart Global,Déférence d'Écart\n`;
+        csvContent += `${data.ecartData.productName},${this.formatNumber(data.ecartData.qtyVendu)},${this.formatNumber(data.ecartData.prixVenteUnitaire)},${this.formatNumber(data.ecartData.chiffreAffaireTheorique)},${this.formatNumber(data.ecartData.chiffreAffaireRealise)},${this.formatNumber(data.ecartData.ecartVenteGros)},${this.formatNumber(data.ecartData.ecartGratuite)},${this.formatNumber(data.ecartData.ecartRemise)},${this.formatNumber(data.ecartData.ecartGlobal)},${this.formatNumber(data.ecartData.deferenceEcart)}\n`;
+      }
     }
 
     return csvContent;
