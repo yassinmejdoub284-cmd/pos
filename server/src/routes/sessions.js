@@ -867,6 +867,227 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// Get sessions with aggregated sales data for cash statements
+router.get('/summaries', authenticateToken, async (req, res) => {
+  try {
+    const { 
+      startDate, 
+      endDate, 
+      userId, 
+      posId, 
+      status,
+      depotId
+    } = req.query;
+
+    // Enforce depot isolation
+    const userDepotId = req.user.depotId;
+    const targetDepotId = parseInt(depotId || userDepotId);
+    
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to view session summaries' });
+    }
+
+    // For non-admin users, only allow access to their own depot
+    if (req.user.role !== 'ADMIN' && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
+    }
+    
+    const whereClause = {
+      depotId: targetDepotId
+    };
+    
+    // Admin can see all sessions from their depot, others only their own
+    if (req.user.role !== 'ADMIN') {
+      whereClause.userId = req.user.id;
+    } else if (userId) {
+      whereClause.userId = parseInt(userId);
+    }
+
+    if (startDate && endDate) {
+      whereClause.openedAt = { 
+        gte: new Date(startDate), 
+        lte: new Date(endDate) 
+      };
+    }
+
+    if (posId) whereClause.posId = parseInt(posId);
+    if (status) whereClause.status = status;
+
+    const sessions = await prisma.sessionCaisse.findMany({
+      where: whereClause,
+      include: {
+        user: { select: { firstName: true, lastName: true } },
+        depot: { select: { name: true, code: true } },
+        cashMovements: {
+          orderBy: { createdAt: 'desc' }
+        }
+      },
+      orderBy: { openedAt: 'desc' }
+    });
+
+    // Get aggregated sales data for each session
+    const sessionIds = sessions.map(s => s.id);
+    
+    if (sessionIds.length === 0) {
+      return res.json([]);
+    }
+
+    // Get sales aggregated by session
+    const salesAggregation = await prisma.sale.groupBy({
+      by: ['sessionId', 'paymentMethodId'],
+      where: {
+        sessionId: { in: sessionIds },
+        status: 'COMPLETED'
+      },
+      _sum: {
+        finalTotal: true
+      },
+      _count: {
+        id: true
+      }
+    });
+
+    // Get payment methods for reference
+    const paymentMethods = await prisma.paymentMethod.findMany({
+      select: { id: true, name: true, type: true }
+    });
+
+    const paymentMethodMap = paymentMethods.reduce((acc, pm) => {
+      acc[pm.id] = pm;
+      return acc;
+    }, {});
+
+    // Group sales by session
+    const salesBySession = salesAggregation.reduce((acc, sale) => {
+      if (!acc[sale.sessionId]) {
+        acc[sale.sessionId] = {
+          totalSales: 0,
+          cashSales: 0,
+          cardSales: 0,
+          otherSales: 0,
+          salesCount: 0,
+          salesByPaymentMethod: {}
+        };
+      }
+      
+      const paymentMethod = paymentMethodMap[sale.paymentMethodId];
+      const amount = sale._sum.finalTotal || 0;
+      
+      acc[sale.sessionId].totalSales += amount;
+      acc[sale.sessionId].salesCount += sale._count.id;
+      
+      if (paymentMethod) {
+        acc[sale.sessionId].salesByPaymentMethod[paymentMethod.id] = {
+          name: paymentMethod.name,
+          type: paymentMethod.type,
+          amount: amount,
+          count: sale._count.id
+        };
+        
+        // Categorize by payment type
+        if (paymentMethod.type === 'CASH' || 
+            paymentMethod.name.toLowerCase().includes('cash') ||
+            paymentMethod.name.toLowerCase().includes('espèces') ||
+            paymentMethod.name.toLowerCase().includes('comptant')) {
+          acc[sale.sessionId].cashSales += amount;
+        } else if (paymentMethod.type === 'CARD' || 
+                   paymentMethod.name.toLowerCase().includes('card') ||
+                   paymentMethod.name.toLowerCase().includes('carte')) {
+          acc[sale.sessionId].cardSales += amount;
+        } else {
+          acc[sale.sessionId].otherSales += amount;
+        }
+      }
+      
+      return acc;
+    }, {});
+
+    // Get expenses for the date range and group by session based on date overlap
+    const expensesBySession = {};
+    
+    // Initialize expenses for each session
+    sessionIds.forEach(sessionId => {
+      expensesBySession[sessionId] = {
+        totalExpenses: 0,
+        cashExpenses: 0,
+        otherExpenses: 0,
+        expensesCount: 0
+      };
+    });
+
+    // Get all expenses in the date range for the depot
+    const expenses = await prisma.expense.findMany({
+      where: {
+        depotId: targetDepotId,
+        isPaid: true,
+        date: {
+          gte: startDate ? new Date(startDate) : undefined,
+          lte: endDate ? new Date(endDate) : undefined
+        }
+      },
+      select: {
+        id: true,
+        amount: true,
+        paymentType: true,
+        date: true
+      }
+    });
+
+    // Group expenses by session based on date overlap
+    expenses.forEach(expense => {
+      const expenseDate = new Date(expense.date);
+      
+      // Find which session this expense belongs to based on date overlap
+      sessions.forEach(session => {
+        const sessionStart = new Date(session.openedAt);
+        const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
+        
+        if (expenseDate >= sessionStart && expenseDate <= sessionEnd) {
+          const amount = parseFloat(expense.amount) || 0;
+          expensesBySession[session.id].totalExpenses += amount;
+          expensesBySession[session.id].expensesCount += 1;
+          
+          if (expense.paymentType === 'CASH') {
+            expensesBySession[session.id].cashExpenses += amount;
+          } else {
+            expensesBySession[session.id].otherExpenses += amount;
+          }
+        }
+      });
+    });
+
+    // Combine session data with aggregated sales and expenses
+    const sessionsWithSummaries = sessions.map(session => {
+      const salesData = salesBySession[session.id] || {
+        totalSales: 0,
+        cashSales: 0,
+        cardSales: 0,
+        otherSales: 0,
+        salesCount: 0,
+        salesByPaymentMethod: {}
+      };
+      
+      const expensesData = expensesBySession[session.id] || {
+        totalExpenses: 0,
+        cashExpenses: 0,
+        otherExpenses: 0,
+        expensesCount: 0
+      };
+
+      return {
+        ...session,
+        salesSummary: salesData,
+        expensesSummary: expensesData
+      };
+    });
+
+    res.json(sessionsWithSummaries);
+  } catch (error) {
+    console.error('Error fetching session summaries:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get session report (X or Z)
 router.get('/:id/report', authenticateToken, async (req, res) => {
   try {
@@ -1134,12 +1355,12 @@ async function calculateSessionSummary(sessionId) {
     const sessionStart = new Date(session.openedAt);
     const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
 
-    // Fetch approved cash expenses in session window
+    // Fetch approved cash expenses in session window - use depot and time-based filtering
     const approvedCashExpenses = await prisma.expense.findMany({
       where: {
         isApproved: true,
         paymentType: 'CASH',
-        userId: session.userId,
+        depotId: session.depotId, // Filter by depot instead of user
         OR: [
           { approvedAt: { gte: sessionStart, lte: sessionEnd } },
           { createdAt: { gte: sessionStart, lte: sessionEnd } },
@@ -1165,10 +1386,9 @@ async function calculateSessionSummary(sessionId) {
       }
     });
 
-    // Keep only expenses without a corresponding cash movement to avoid double count
-    const expensesWithoutMovement = approvedCashExpenses.filter(e => !expenseIdsWithMovement.has(e.id));
-
-    cashExpenseTotal = expensesWithoutMovement.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+    // For total calculation, include all approved cash expenses (they should all have cash movements)
+    // The cash movement detection is mainly for UI display purposes
+    cashExpenseTotal = approvedCashExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
 
     // Build UI details for ALL approved cash expenses, independent of cash movement, and keep hasCashMovement flag
     const allExpenseDetails = approvedCashExpenses

@@ -47,3 +47,59 @@
   backdrop-filter: blur(8px);
 }
 
+/* Relevé Caisse Modal Animations */
+.releve-modal-enter {
+  animation: releveModalEnter 0.3s ease-out;
+}
+
+@keyframes releveModalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Relevé Caisse Button Hover Effects */
+.releve-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Relevé Table Styling */
+.releve-table {
+  font-family: 'Courier New', monospace;
+}
+
+.releve-table th {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.releve-table tbody tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+.releve-table tbody tr:hover {
+  background-color: #e2e8f0;
+}
+
+/* Currency formatting */
+.currency-positive {
+  color: #059669;
+  font-weight: 600;
+}
+
+.currency-negative {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.currency-neutral {
+  color: #6b7280;
+}
+

@@ -6,6 +6,7 @@ import { provideHttpClient, withInterceptorsFromDi, withInterceptors } from '@an
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
+import { loadingInterceptor } from './core/interceptors/loading.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -13,7 +14,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(
       withInterceptorsFromDi(),
-      withInterceptors([authInterceptor])
+      withInterceptors([loadingInterceptor, authInterceptor])
     ),
     provideServiceWorker('custom-sw.js', {
       enabled: true,

@@ -220,6 +220,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   currentTouchProduct: Product | null = null;
   currentTouchStartPosition: { x: number; y: number } | null = null;
   dragDetectionStarted: boolean = false;
+  private lastClickTime: number = 0;
+  private lastClickedProductId: number | null = null;
+  private clickCooldown: number = 300; // 300ms cooldown to prevent double clicks
 
   @ViewChild('productGrid') productGrid!: ElementRef;
   @ViewChild('mainContainer') mainContainer!: ElementRef;
@@ -4010,6 +4013,15 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   handleProductClick(product: Product): void {
+    // Prevent double clicks by implementing a cooldown
+    const currentTime = Date.now();
+    if (currentTime - this.lastClickTime < this.clickCooldown && 
+        this.lastClickedProductId === product.id) {
+      return;
+    }
+    this.lastClickTime = currentTime;
+    this.lastClickedProductId = product.id;
+
     // Check if shop inventory is loaded
     if (this.shopInventory.length === 0) {
       console.warn('Shop inventory not loaded yet, skipping stock check');
@@ -4904,15 +4916,15 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const globalIndex = this.allProducts.findIndex(p => p.id === product.id);
     if (globalIndex === -1) return;
 
+    // Always record the product and position for click detection
+    this.currentTouchProduct = product;
+    this.currentTouchStartPosition = { x: event.clientX, y: event.clientY };
+    this.dragDetectionStarted = false; // Reset drag detection flag
+
     // Only allow drag detection if drag mode is enabled
     if (!this.dragModeEnabled) {
       return;
     }
-
-    // Record the product and position for potential drag detection
-    this.currentTouchProduct = product;
-    this.currentTouchStartPosition = { x: event.clientX, y: event.clientY };
-    this.dragDetectionStarted = false; // Reset drag detection flag
 
     // Prevent default to avoid text selection
     event.preventDefault();
@@ -5000,16 +5012,16 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const globalIndex = this.allProducts.findIndex(p => p.id === product.id);
     if (globalIndex === -1) return;
 
-    // Only allow drag detection if drag mode is enabled
-    if (!this.dragModeEnabled) {
-      return;
-    }
-
-    // Record the product and position for potential drag detection
+    // Always record the product and position for click detection
     const touch = event.touches[0];
     this.currentTouchProduct = product;
     this.currentTouchStartPosition = { x: touch.clientX, y: touch.clientY };
     this.dragDetectionStarted = false; // Reset drag detection flag
+
+    // Only allow drag detection if drag mode is enabled
+    if (!this.dragModeEnabled) {
+      return;
+    }
 
     // Prevent default to avoid scrolling
     event.preventDefault();
