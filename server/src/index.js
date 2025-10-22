@@ -38,6 +38,8 @@ const driversRoutes = require('./routes/drivers');
 const vehiclesRoutes = require('./routes/vehicles');
 const remindersRoutes = require('./routes/reminders');
 const notificationsRoutes = require('./routes/notifications');
+const salonsRoutes = require('./routes/salons');
+const tablesRoutes = require('./routes/tables');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -98,6 +100,8 @@ app.use('/api/drivers', authenticateToken, driversRoutes);
 app.use('/api/vehicles', authenticateToken, vehiclesRoutes);
 app.use('/api/reminders', remindersRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/salons', authenticateToken, salonsRoutes);
+app.use('/api/tables', authenticateToken, tablesRoutes);
 
 // Create HTTP or HTTPS server based on env
 let server;

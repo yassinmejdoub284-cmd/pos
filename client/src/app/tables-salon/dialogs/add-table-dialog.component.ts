@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DialogComponent, DialogConfig } from '../../shared/dialog/dialog.component';
@@ -33,7 +33,9 @@ const COLOR_PALETTE = [
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Salon *</label>
           <select [(ngModel)]="newTable.salonId" 
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            (change)="onSalonChange()">
+            <option value="">Sélectionner un salon</option>
             @for (salon of salons; track salon.id) {
               <option [value]="salon.id">{{ salon.name }} ({{ getTablesCountBySalon(salon.id) }}/{{ salon.maxTables }})</option>
             }
@@ -44,14 +46,16 @@ const COLOR_PALETTE = [
           <label class="block text-sm font-medium text-gray-700 mb-1">Nom de la table *</label>
           <input type="text" [(ngModel)]="newTable.name" 
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-            placeholder="Ex: Table VIP, Table Terrasse">
+            placeholder="Ex: Table VIP, Table Terrasse"
+            (input)="onNameChange()">
         </div>
         
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Numéro de table *</label>
           <input type="text" [(ngModel)]="newTable.number" 
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-            placeholder="Ex: T7, Table 1, VIP-1">
+            placeholder="Ex: T7, Table 1, VIP-1"
+            (input)="onNumberChange()">
         </div>
         
         <div>
@@ -79,7 +83,7 @@ const COLOR_PALETTE = [
     </app-dialog>
   `
 })
-export class AddTableDialogComponent {
+export class AddTableDialogComponent implements OnInit {
   @Input() salons: Salon[] = [];
   @Input() getTablesCountBySalon: (salonId: number) => number = () => 0;
   @Output() close = new EventEmitter<void>();
@@ -106,8 +110,26 @@ export class AddTableDialogComponent {
     preventBodyScroll: true
   });
 
+  ngOnInit() {
+    console.log('AddTableDialogComponent initialized');
+    console.log('Available salons:', this.salons);
+    console.log('Initial newTable:', this.newTable);
+  }
+
   selectColor(color: string): void {
     this.newTable.color = color;
+  }
+
+  onSalonChange(): void {
+    console.log('Salon changed to:', this.newTable.salonId);
+  }
+
+  onNameChange(): void {
+    console.log('Name changed to:', this.newTable.name);
+  }
+
+  onNumberChange(): void {
+    console.log('Number changed to:', this.newTable.number);
   }
 
   onClose(): void {
@@ -115,8 +137,17 @@ export class AddTableDialogComponent {
   }
 
   onAdd(): void {
+    console.log('Attempting to add table:', this.newTable);
     if (this.newTable.name && this.newTable.number && this.newTable.salonId) {
+      console.log('Table data is valid, emitting add event');
       this.add.emit(this.newTable);
+    } else {
+      console.log('Table data is invalid:', {
+        name: this.newTable.name,
+        number: this.newTable.number,
+        salonId: this.newTable.salonId
+      });
+      alert('Veuillez remplir tous les champs obligatoires (nom, numéro et salon)');
     }
   }
 }

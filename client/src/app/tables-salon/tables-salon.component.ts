@@ -72,22 +72,38 @@ export class TablesSalonComponent implements OnInit {
   }
 
   loadSalons(): void {
+    console.log('Loading salons...');
     this.salonService.getSalons().subscribe({
-      next: (salons) => this.salons.set(salons),
-      error: (error) => console.error('Error loading salons:', error)
+      next: (salons) => {
+        console.log('Salons loaded:', salons);
+        this.salons.set(salons);
+      },
+      error: (error) => {
+        console.error('Error loading salons:', error);
+        alert('Erreur lors du chargement des salons: ' + (error.error?.error || error.message || 'Erreur inconnue'));
+      }
     });
   }
 
   loadTables(): void {
+    console.log('Loading tables...');
     this.salonService.getTables().subscribe({
-      next: (tables) => this.tables.set(tables),
-      error: (error) => console.error('Error loading tables:', error)
+      next: (tables) => {
+        console.log('Tables loaded:', tables);
+        this.tables.set(tables);
+      },
+      error: (error) => {
+        console.error('Error loading tables:', error);
+        alert('Erreur lors du chargement des tables: ' + (error.error?.error || error.message || 'Erreur inconnue'));
+      }
     });
   }
 
 
   // Dialog open methods
   openAddTableDialog(): void {
+    console.log('Opening add table dialog');
+    console.log('Available salons:', this.salons());
     this.showAddTableDialog.set(true);
   }
 
@@ -112,12 +128,17 @@ export class TablesSalonComponent implements OnInit {
 
   // Data management methods
   addTable(tableData: Partial<Table>): void {
+    console.log('Adding table with data:', tableData);
     this.salonService.createTable(tableData).subscribe({
       next: (table) => {
+        console.log('Table created successfully:', table);
         this.tables.update(tables => [...tables, table]);
         this.showAddTableDialog.set(false);
       },
-      error: (error) => console.error('Error creating table:', error)
+      error: (error) => {
+        console.error('Error creating table:', error);
+        alert('Erreur lors de la création de la table: ' + (error.error?.error || error.message || 'Erreur inconnue'));
+      }
     });
   }
 
