@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, inject, HostListener } from '@angular/core';
 import { Observable, forkJoin, of } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { SessionsService, SessionCaisse, SessionFilters, CashMovementRequest, CloseSessionRequest, OpenSessionRequest } from '../../core/services/sessions.service';
@@ -8,8 +8,20 @@ import { DailyExtractService } from '../../core/services/daily-extract.service';
 import { SettingsService, AppSettings } from '../../core/services/settings.service';
 import { DepotsService } from '../../core/services/depots.service';
 import { TicketCounterService } from '../../core/services/ticket-counter.service';
+import { SalesService } from '../../core/services/sales.service';
+import { Sale } from '../../core/models/sale.model';
+import { ExpenseService, Expense } from '../../core/services/expense.service';
 import { Depot } from '../../core/models/depot.model';
 import { Router } from '@angular/router';
+
+export interface ReleveEntry {
+  date: Date;
+  designation: string;
+  debit: number;
+  credit: number;
+  solde: number;
+  sessionId?: number; // Add session ID to track which session this entry belongs to
+}
 
 @Component({
   selector: 'app-sessions-history',
@@ -25,10 +37,16 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   private readonly settingsService = inject(SettingsService);
   private readonly depotsService = inject(DepotsService);
   private readonly ticketCounterService = inject(TicketCounterService);
+  private readonly salesService = inject(SalesService);
+  private readonly expenseService = inject(ExpenseService);
 
   loading = signal(false);
   loadingDetails = signal(false);
   error = signal('');
+  
+  // Dropdown states
+  showFamilyDropdown = false;
+  showArticleDropdown = false;
 
 
 
@@ -55,6 +73,21 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
   // Full-screen session selection modal state
   showSessionSelectionModal = signal(false);
+
+  // Relevé Caisse modal states
+  showReleveCaisseModal = signal(false);
+  showDateRangeModal = signal(false);
+  showReleveResultsModal = signal(false);
+  releveDateFrom = '';
+  releveDateTo = '';
+  releveEntries = signal<ReleveEntry[]>([]);
+  releveTitle = signal('');
+  
+  
+  // Expense details modal state
+  showExpenseDetailsModal = signal(false);
+  expenseDetails = signal<Array<{ id: number; amount: number; reason: string; createdAt: string; categoryName?: string; supplierName?: string; notes?: string }>>([]);
+  expenseDetailsTitle = signal('');
 
   // Cash sales detail state
   cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number; status?: string; createdAt?: string; dailyTicketNumber?: number | string }[]>([]);
@@ -101,6 +134,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.settings$ = this.settingsService.getSettings();
     this.isAdminUser = this.authService.isAdmin();
+    this.initializeDefaultDateRange();
     this.loadSessions();
   }
 
@@ -109,6 +143,15 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       clearInterval(this.refreshIntervalId);
       this.refreshIntervalId = null;
     }
+  }
+
+  initializeDefaultDateRange(): void {
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    // Format dates as YYYY-MM-DD for date inputs
+    this.releveDateFrom = firstDayOfMonth.toISOString().split('T')[0];
+    this.releveDateTo = today.toISOString().split('T')[0];
   }
 
 
@@ -841,19 +884,50 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     return uniqueUserIds.size;
   }
 
+  // Dropdown toggle methods
+  toggleFamilyDropdown(): void {
+    this.showFamilyDropdown = !this.showFamilyDropdown;
+    this.showArticleDropdown = false; // Close other dropdown
+  }
+
+  toggleArticleDropdown(): void {
+    this.showArticleDropdown = !this.showArticleDropdown;
+    this.showFamilyDropdown = false; // Close other dropdown
+  }
+
+  // Close dropdowns when clicking outside
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.relative')) {
+      this.showFamilyDropdown = false;
+      this.showArticleDropdown = false;
+    }
+  }
+
   // New print methods for family and article grouping
-  printWithFamily(session: SessionCaisse): void {
+  printWithFamily(session: SessionCaisse, format: 'A4' | '80mm' = 'A4'): void {
     if (!session) return;
+    
+    this.showFamilyDropdown = false; // Close dropdown after selection
     
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
         this.settingsService.getSettings().subscribe({
           next: (companyData) => {
-            this.printService.printDetailedSessionReportWithFamilyGrouping(sessionReport, companyData);
+            if (format === '80mm') {
+              this.printService.printDetailedSessionReportWithFamilyGrouping80mm(sessionReport, companyData);
+            } else {
+              this.printService.printDetailedSessionReportWithFamilyGrouping(sessionReport, companyData);
+            }
           },
           error: (error) => {
             console.error('Error fetching settings:', error);
-            this.printService.printDetailedSessionReportWithFamilyGrouping(sessionReport);
+            if (format === '80mm') {
+              this.printService.printDetailedSessionReportWithFamilyGrouping80mm(sessionReport);
+            } else {
+              this.printService.printDetailedSessionReportWithFamilyGrouping(sessionReport);
+            }
           }
         });
       },
@@ -863,18 +937,28 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     });
   }
 
-  printByArticle(session: SessionCaisse): void {
+  printByArticle(session: SessionCaisse, format: 'A4' | '80mm' = 'A4'): void {
     if (!session) return;
+    
+    this.showArticleDropdown = false; // Close dropdown after selection
     
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
         this.settingsService.getSettings().subscribe({
           next: (companyData) => {
-            this.printService.printDetailedSessionReportWithArticleGrouping(sessionReport, companyData);
+            if (format === '80mm') {
+              this.printService.printDetailedSessionReportWithArticleGrouping80mm(sessionReport, companyData);
+            } else {
+              this.printService.printDetailedSessionReportWithArticleGrouping(sessionReport, companyData);
+            }
           },
           error: (error) => {
             console.error('Error fetching settings:', error);
-            this.printService.printDetailedSessionReportWithArticleGrouping(sessionReport);
+            if (format === '80mm') {
+              this.printService.printDetailedSessionReportWithArticleGrouping80mm(sessionReport);
+            } else {
+              this.printService.printDetailedSessionReportWithArticleGrouping(sessionReport);
+            }
           }
         });
       },
@@ -890,6 +974,32 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
   getClosedSessionsCount(): number {
     return this.sessions().filter(s => s.status === 'CLOSED').length;
+  }
+
+  // Calculate total amount withdrawn from cash register by responsible person
+  getTotalWithdrawnAmount(): number {
+    const session = this.selectedSession();
+    if (!session) return 0;
+
+    // First try to get computedWithdrawal from session summary
+    const summary = session.summary as any;
+    if (summary?.computedWithdrawal !== undefined) {
+      return parseFloat(summary.computedWithdrawal) || 0;
+    }
+
+    // Fallback: calculate from cash movements
+    if (session.cashMovements) {
+      let totalWithdrawn = 0;
+      session.cashMovements.forEach(movement => {
+        // Count withdrawals (SORTIE, DEPOT_COFFRE, RETRAIT_CENTRALE)
+        if (movement.type === 'SORTIE' || movement.type === 'DEPOT_COFFRE' || movement.type === 'RETRAIT_CENTRALE') {
+          totalWithdrawn += parseFloat(movement.amount as any) || 0;
+        }
+      });
+      return totalWithdrawn;
+    }
+
+    return 0;
   }
 
   // Navigation methods
@@ -1269,6 +1379,958 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   selectSessionFromModal(session: SessionCaisse): void {
     this.selectSession(session);
     this.closeSessionSelectionModal();
+  }
+
+  // Relevé Caisse Methods
+  openReleveCaisseModal(): void {
+    this.showReleveCaisseModal.set(true);
+  }
+
+  closeReleveCaisseModal(): void {
+    this.showReleveCaisseModal.set(false);
+  }
+
+  openDateRangeModal(): void {
+    // Refresh default date range when opening modal
+    this.initializeDefaultDateRange();
+    this.showDateRangeModal.set(true);
+    this.closeReleveCaisseModal();
+  }
+
+  closeDateRangeModal(): void {
+    this.showDateRangeModal.set(false);
+  }
+
+  generateReleveForCurrentSession(): void {
+    const session = this.selectedSession();
+    if (!session) {
+      console.error('No session selected');
+      return;
+    }
+
+    this.releveTitle.set(`Session #${session.id} - ${session.user?.firstName} ${session.user?.lastName}`);
+    const fromDate = new Date(session.openedAt);
+    const toDate = session.closedAt ? new Date(session.closedAt) : new Date();
+    this.generateReleveEntries(fromDate, toDate, session.id);
+    this.closeReleveCaisseModal();
+    this.showReleveResultsModal.set(true);
+  }
+
+  generateReleveForDateRange(): void {
+    if (!this.releveDateFrom || !this.releveDateTo) {
+      console.error('Date range not specified');
+      return;
+    }
+
+    // Parse date-only strings and set time to start/end of day
+    const fromDate = new Date(this.releveDateFrom + 'T00:00:00');
+    const toDate = new Date(this.releveDateTo + 'T23:59:59');
+    
+    this.releveTitle.set(`Période du ${fromDate.toLocaleDateString('fr-FR')} au ${toDate.toLocaleDateString('fr-FR')}`);
+    this.generateReleveEntries(fromDate, toDate);
+    this.closeDateRangeModal();
+    this.showReleveResultsModal.set(true);
+  }
+
+  private generateReleveEntries(fromDate: Date, toDate: Date, sessionId?: number): void {
+    const entries: ReleveEntry[] = [];
+    let runningBalance = 0;
+    
+
+    // Ensure dates are valid Date objects
+    const validFromDate = fromDate instanceof Date ? fromDate : new Date(fromDate);
+    const validToDate = toDate instanceof Date ? toDate : new Date(toDate);
+
+    // Validate dates
+    if (isNaN(validFromDate.getTime()) || isNaN(validToDate.getTime())) {
+      console.error('Invalid date range provided');
+      return;
+    }
+
+    console.log('Fetching session summaries for date range:', validFromDate, 'to', validToDate);
+    
+    // Fetch session summaries with aggregated sales and expenses data
+    const sessionSummariesQuery = this.sessionsService.getSessionSummaries({
+      startDate: validFromDate.toISOString().split('T')[0],
+      endDate: validToDate.toISOString().split('T')[0]
+    });
+
+    sessionSummariesQuery.subscribe({
+      next: (sessionsWithSummaries) => {
+        console.log('Session summaries received:', sessionsWithSummaries);
+        
+        // Filter sessions by the specific sessionId if provided
+        const sessionsInRange = sessionsWithSummaries.filter(session => {
+          return (!sessionId || session.id === sessionId);
+        });
+
+        // Sort sessions by opening date
+        sessionsInRange.sort((a, b) => new Date(a.openedAt).getTime() - new Date(b.openedAt).getTime());
+
+        console.log('Processing sessions with summaries:', sessionsInRange.length);
+        this.processReleveDataWithSummaries(sessionsInRange, entries, runningBalance, validFromDate, validToDate);
+      },
+      error: (error) => {
+        console.error('Error fetching session summaries:', error);
+        console.log('Falling back to individual sales fetch...');
+        this.generateReleveEntriesFallback(fromDate, toDate, sessionId);
+      }
+    });
+  }
+
+  private addReleveEntry(
+    entries: ReleveEntry[],
+    currentBalance: number,
+    date: Date | string,
+    designation: string,
+    debit: number,
+    credit: number,
+    sessionId?: number
+  ): number {
+    const safeDebit = parseFloat((debit as any) || 0) || 0;
+    const safeCredit = parseFloat((credit as any) || 0) || 0;
+    const newBalance = currentBalance + safeDebit - safeCredit;
+    entries.push({
+      date: new Date(date),
+      designation,
+      debit: safeDebit,
+      credit: safeCredit,
+      solde: newBalance,
+      sessionId
+    });
+    return newBalance;
+  }
+
+  private processReleveData(sessionsInRange: SessionCaisse[], sales: Sale[], entries: ReleveEntry[], runningBalance: number, fromDate: Date, toDate: Date, expenses: Expense[] = []): void {
+    let currentBalance = runningBalance;
+
+    sessionsInRange.forEach(session => {
+      // Add opening fund entry
+      if (session.openingFund > 0) {
+        currentBalance = this.addReleveEntry(
+          entries,
+          currentBalance,
+          session.openedAt,
+          'Alimentation caisse',
+          session.openingFund,
+          0,
+          session.id
+        );
+      }
+
+      // Get sales for this session
+      const sessionSales = sales.filter(sale => sale.sessionId === session.id);
+      console.log(`Session ${session.id} has ${sessionSales.length} sales:`, sessionSales);
+      
+      // Add sales entries - be more flexible with payment method detection
+      const cashSales = sessionSales.filter(sale => {
+        const isCash = sale.paymentMethod?.type === 'CASH' || 
+                      sale.paymentMethod?.name?.toLowerCase().includes('cash') ||
+                      sale.paymentMethod?.name?.toLowerCase().includes('espèces') ||
+                      sale.paymentMethod?.name?.toLowerCase().includes('comptant');
+        const isCompleted = sale.status === 'COMPLETED';
+        return isCash && isCompleted;
+      });
+      console.log(`Session ${session.id} has ${cashSales.length} cash sales:`, cashSales);
+      
+      // If no cash sales found, try to include all completed sales (might be cash by default)
+      const salesToProcess = cashSales.length > 0 ? cashSales : 
+        sessionSales.filter(sale => sale.status === 'COMPLETED');
+      
+      console.log(`Processing ${salesToProcess.length} sales for session ${session.id}`);
+      
+      salesToProcess
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        .forEach(sale => {
+          currentBalance = this.addReleveEntry(
+            entries,
+            currentBalance,
+            sale.createdAt,
+            `Vente ticket ${sale.dailyTicketNumber || sale.id}`,
+            sale.finalTotal,
+            0,
+            session.id
+          );
+        });
+
+      // Add expenses from cash movements for this session
+      if (session.cashMovements) {
+        const sessionExpenseMovements = session.cashMovements.filter(movement => {
+          const reasonLower = (movement.reason || '').toLowerCase();
+          const isExpenseMovement = reasonLower.includes('dépense') || reasonLower.includes('depense');
+          return movement.type === 'SORTIE' && isExpenseMovement;
+        });
+
+        console.log(`Session ${session.id} has ${sessionExpenseMovements.length} expense movements:`, sessionExpenseMovements);
+
+        sessionExpenseMovements
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .forEach(movement => {
+            // Extract the note/description from the reason
+            const reason = movement.reason || 'Dépense';
+            console.log('Processing expense reason:', reason);
+            
+            // Try multiple patterns to extract the note
+            let note = reason;
+            const patterns = [
+              /Dépense approuvée #\d+: (.+)$/,
+              /Dépense approuvée #\d+: (.+)/,
+              /#\d+: (.+)$/,
+              /#\d+: (.+)/
+            ];
+            
+            for (const pattern of patterns) {
+              const match = reason.match(pattern);
+              if (match && match[1]) {
+                note = match[1].trim();
+                console.log('Extracted note:', note);
+                break;
+              }
+            }
+            
+            currentBalance = this.addReleveEntry(
+              entries,
+              currentBalance,
+              movement.createdAt,
+              `Dépense #${movement.id}: ${note}`,
+              0,
+              movement.amount as any,
+              session.id
+            );
+          });
+      }
+
+      // Add refunds (sales with negative amounts or specific refund status)
+      sessionSales
+        .filter(sale => sale.status === 'REFUNDED' || sale.finalTotal < 0)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        .forEach(sale => {
+          const refundAmount = Math.abs(sale.finalTotal);
+          currentBalance = this.addReleveEntry(
+            entries,
+            currentBalance,
+            sale.createdAt,
+            `Remboursement bon de retour ${sale.dailyTicketNumber || sale.id}`,
+            0,
+            refundAmount,
+            session.id
+          );
+        });
+
+      // Add cash movements
+      if (session.cashMovements) {
+        session.cashMovements
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .forEach(movement => {
+            let debit = 0;
+            let credit = 0;
+            let designation = '';
+
+            switch (movement.type) {
+              case 'ENTREE':
+                debit = movement.amount;
+                designation = `Entrée - ${movement.reason}`;
+                break;
+              case 'SORTIE':
+                credit = movement.amount;
+                designation = `Sortie - ${movement.reason}`;
+                break;
+              case 'DEPOT_COFFRE':
+                credit = movement.amount;
+                designation = `Dépôt coffre - ${movement.reason}`;
+                break;
+              case 'RETRAIT_CENTRALE':
+                credit = movement.amount;
+                designation = `Retrait centrale - ${movement.reason}`;
+                break;
+              case 'AJUSTEMENT':
+                if (movement.amount > 0) {
+                  debit = movement.amount;
+                  designation = `Ajustement + - ${movement.reason}`;
+                } else {
+                  credit = Math.abs(movement.amount);
+                  designation = `Ajustement - - ${movement.reason}`;
+                }
+                break;
+            }
+
+            currentBalance = this.addReleveEntry(
+              entries,
+              currentBalance,
+              movement.createdAt,
+              designation,
+              debit,
+              credit,
+              session.id
+            );
+          });
+      }
+
+    });
+
+    // Sort all entries by date
+    entries.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    this.releveEntries.set(entries);
+  }
+
+  private processReleveDataWithSummaries(sessionsInRange: SessionCaisse[], entries: ReleveEntry[], runningBalance: number, fromDate: Date, toDate: Date): void {
+    let currentBalance = runningBalance;
+
+    console.log('Processing sessions with summaries:', sessionsInRange);
+
+    sessionsInRange.forEach(session => {
+
+      // Add opening fund entry
+      if (session.openingFund > 0) {
+        currentBalance = this.addReleveEntry(
+          entries,
+          currentBalance,
+          session.openedAt,
+          'Alimentation caisse',
+          session.openingFund,
+          0,
+          session.id
+        );
+      }
+
+      // Add sales entries from session summary
+      if (session.salesSummary?.cashSales && session.salesSummary.cashSales > 0) {
+        currentBalance = this.addReleveEntry(
+          entries,
+          currentBalance,
+          session.openedAt,
+          `Ventes espèces (${session.salesSummary.salesCount} tickets)`,
+          session.salesSummary.cashSales,
+          0,
+          session.id
+        );
+      }
+
+      // Add expenses from cash movements for this session
+      if (session.cashMovements) {
+        const sessionExpenseMovements = session.cashMovements.filter(movement => {
+          const reasonLower = (movement.reason || '').toLowerCase();
+          const isExpenseMovement = reasonLower.includes('dépense') || reasonLower.includes('depense');
+          return movement.type === 'SORTIE' && isExpenseMovement;
+        });
+
+        sessionExpenseMovements
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .forEach(movement => {
+            // Extract the note/description from the reason
+            const reason = movement.reason || 'Dépense';
+            console.log('Processing expense reason:', reason);
+            
+            // Try multiple patterns to extract the note
+            let note = reason;
+            const patterns = [
+              /Dépense approuvée #\d+: (.+)$/,
+              /Dépense approuvée #\d+: (.+)/,
+              /#\d+: (.+)$/,
+              /#\d+: (.+)/
+            ];
+            
+            for (const pattern of patterns) {
+              const match = reason.match(pattern);
+              if (match && match[1]) {
+                note = match[1].trim();
+                console.log('Extracted note:', note);
+                break;
+              }
+            }
+            
+            currentBalance = this.addReleveEntry(
+              entries,
+              currentBalance,
+              movement.createdAt,
+              `Dépense #${movement.id}: ${note}`,
+              0,
+              movement.amount as any,
+              session.id
+            );
+          });
+      }
+
+      // Add cash movements (but skip individual expense movements since they're already aggregated)
+      if (session.cashMovements) {
+        session.cashMovements
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .forEach(movement => {
+            // Skip individual expense movements since they're already handled separately
+            const reasonLower = (movement.reason || '').toLowerCase();
+            const isExpenseMovement = reasonLower.includes('dépense') || reasonLower.includes('depense');
+            
+            if (isExpenseMovement) {
+              return; // Skip this movement
+            }
+
+            let debit = 0;
+            let credit = 0;
+            let designation = '';
+
+            switch (movement.type) {
+              case 'ENTREE':
+                debit = movement.amount;
+                designation = `Entrée - ${movement.reason}`;
+                break;
+              case 'SORTIE':
+                credit = movement.amount;
+                designation = `Sortie - ${movement.reason}`;
+                break;
+              case 'DEPOT_COFFRE':
+                credit = movement.amount;
+                designation = `Dépôt coffre - ${movement.reason}`;
+                break;
+              case 'RETRAIT_CENTRALE':
+                credit = movement.amount;
+                designation = `Retrait centrale - ${movement.reason}`;
+                break;
+              case 'AJUSTEMENT':
+                if (movement.amount > 0) {
+                  debit = movement.amount;
+                  designation = `Ajustement + - ${movement.reason}`;
+                } else {
+                  credit = Math.abs(movement.amount);
+                  designation = `Ajustement - - ${movement.reason}`;
+                }
+                break;
+            }
+
+            currentBalance = this.addReleveEntry(
+              entries,
+              currentBalance,
+              movement.createdAt,
+              designation,
+              debit,
+              credit,
+              session.id
+            );
+          });
+      }
+
+    });
+
+    // Sort all entries by date
+    entries.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    this.releveEntries.set(entries);
+  }
+
+  private generateReleveEntriesFallback(fromDate: Date, toDate: Date, sessionId?: number): void {
+    const entries: ReleveEntry[] = [];
+    let runningBalance = 0;
+
+    // Ensure dates are valid Date objects
+    const validFromDate = fromDate instanceof Date ? fromDate : new Date(fromDate);
+    const validToDate = toDate instanceof Date ? toDate : new Date(toDate);
+
+    // Validate dates
+    if (isNaN(validFromDate.getTime()) || isNaN(validToDate.getTime())) {
+      console.error('Invalid date range provided');
+      return;
+    }
+
+    // Get all sessions in the date range
+    const sessionsInRange = this.sessions().filter(session => {
+      const sessionDate = new Date(session.openedAt);
+      return sessionDate >= validFromDate && sessionDate <= validToDate && 
+             (!sessionId || session.id === sessionId);
+    });
+
+    // Sort sessions by opening date
+    sessionsInRange.sort((a, b) => new Date(a.openedAt).getTime() - new Date(b.openedAt).getTime());
+
+    // Get session IDs for sales query
+    const sessionIds = sessionsInRange.map(s => s.id);
+
+    console.log('Fetching sales and expenses for sessionIds:', sessionIds, 'from', validFromDate, 'to', validToDate);
+    
+    // Fetch both sales and expenses in parallel
+    const salesQuery = this.salesService.getSales({});
+    const expensesQuery = this.expenseService.getExpenses({
+      startDate: validFromDate.toISOString().split('T')[0],
+      endDate: validToDate.toISOString().split('T')[0]
+    });
+
+    // Use forkJoin to get both sales and expenses
+    forkJoin({
+      sales: salesQuery,
+      expenses: expensesQuery
+    }).subscribe({
+      next: (data) => {
+        console.log('Sales and expenses data received:', data);
+        const sessionSales = data.sales.filter(sale => sessionIds.includes(sale.sessionId || 0));
+        console.log('Sales for target sessions:', sessionSales);
+        
+        if (sessionSales.length > 0 || data.expenses.length > 0) {
+          console.log('Found sales/expenses, processing with data...');
+          this.processReleveData(sessionsInRange, sessionSales, entries, runningBalance, validFromDate, validToDate, data.expenses);
+        } else {
+          console.log('No sales/expenses found, using session summary data...');
+          this.processReleveDataFallback(sessionsInRange, entries, runningBalance, validFromDate, validToDate);
+        }
+      },
+      error: (error) => {
+        console.error('Error fetching sales/expenses data:', error);
+        console.log('Using fallback method...');
+        this.processReleveDataFallback(sessionsInRange, entries, runningBalance, validFromDate, validToDate);
+      }
+    });
+  }
+
+  private processReleveDataFallback(sessionsInRange: SessionCaisse[], entries: ReleveEntry[], runningBalance: number, fromDate: Date, toDate: Date): void {
+    let currentBalance = runningBalance;
+
+    console.log('Using fallback method - processing sessions:', sessionsInRange);
+
+    sessionsInRange.forEach(session => {
+      console.log(`Processing session ${session.id} summary:`, session.summary);
+      
+
+      // Add opening fund entry
+      if (session.openingFund > 0) {
+        currentBalance = this.addReleveEntry(
+          entries,
+          currentBalance,
+          session.openedAt,
+          'Alimentation caisse',
+          session.openingFund,
+          0,
+          session.id
+        );
+      }
+
+      // Add sales entries from session summary (fallback)
+      if (session.summary?.cashSales && session.summary.cashSales > 0) {
+        currentBalance = this.addReleveEntry(
+          entries,
+          currentBalance,
+          session.openedAt,
+          'Ventes espèces (résumé)',
+          session.summary.cashSales,
+          0,
+          session.id
+        );
+      }
+
+      // Also try to use totalSales if cashSales is not available
+      if ((!session.summary?.cashSales || session.summary.cashSales === 0) && 
+          session.summary?.totalSales && session.summary.totalSales > 0) {
+        currentBalance = this.addReleveEntry(
+          entries,
+          currentBalance,
+          session.openedAt,
+          'Ventes totales (résumé)',
+          session.summary.totalSales,
+          0,
+          session.id
+        );
+      }
+
+      // Add expenses from cash movements for this session
+      if (session.cashMovements) {
+        const sessionExpenseMovements = session.cashMovements.filter(movement => {
+          const reasonLower = (movement.reason || '').toLowerCase();
+          const isExpenseMovement = reasonLower.includes('dépense') || reasonLower.includes('depense');
+          return movement.type === 'SORTIE' && isExpenseMovement;
+        });
+
+        sessionExpenseMovements
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .forEach(movement => {
+            // Extract the note/description from the reason
+            const reason = movement.reason || 'Dépense';
+            console.log('Processing expense reason:', reason);
+            
+            // Try multiple patterns to extract the note
+            let note = reason;
+            const patterns = [
+              /Dépense approuvée #\d+: (.+)$/,
+              /Dépense approuvée #\d+: (.+)/,
+              /#\d+: (.+)$/,
+              /#\d+: (.+)/
+            ];
+            
+            for (const pattern of patterns) {
+              const match = reason.match(pattern);
+              if (match && match[1]) {
+                note = match[1].trim();
+                console.log('Extracted note:', note);
+                break;
+              }
+            }
+            
+            currentBalance = this.addReleveEntry(
+              entries,
+              currentBalance,
+              movement.createdAt,
+              `Dépense #${movement.id}: ${note}`,
+              0,
+              movement.amount as any,
+              session.id
+            );
+          });
+      }
+
+      // Add cash movements (but skip individual expense movements since they're already aggregated)
+      if (session.cashMovements) {
+        session.cashMovements
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .forEach(movement => {
+            // Skip individual expense movements since they're already handled separately
+            const reasonLower = (movement.reason || '').toLowerCase();
+            const isExpenseMovement = reasonLower.includes('dépense') || reasonLower.includes('depense');
+            
+            if (isExpenseMovement) {
+              return; // Skip this movement
+            }
+
+            let debit = 0;
+            let credit = 0;
+            let designation = '';
+
+            switch (movement.type) {
+              case 'ENTREE':
+                debit = movement.amount;
+                designation = `Entrée - ${movement.reason}`;
+                break;
+              case 'SORTIE':
+                credit = movement.amount;
+                designation = `Sortie - ${movement.reason}`;
+                break;
+              case 'DEPOT_COFFRE':
+                credit = movement.amount;
+                designation = `Dépôt coffre - ${movement.reason}`;
+                break;
+              case 'RETRAIT_CENTRALE':
+                credit = movement.amount;
+                designation = `Retrait centrale - ${movement.reason}`;
+                break;
+              case 'AJUSTEMENT':
+                if (movement.amount > 0) {
+                  debit = movement.amount;
+                  designation = `Ajustement + - ${movement.reason}`;
+                } else {
+                  credit = Math.abs(movement.amount);
+                  designation = `Ajustement - - ${movement.reason}`;
+                }
+                break;
+            }
+
+            currentBalance = this.addReleveEntry(
+              entries,
+              currentBalance,
+              movement.createdAt,
+              designation,
+              debit,
+              credit,
+              session.id
+            );
+          });
+      }
+
+    });
+
+    // Sort all entries by date
+    entries.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    this.releveEntries.set(entries);
+  }
+
+  closeReleveResultsModal(): void {
+    this.showReleveResultsModal.set(false);
+    this.releveEntries.set([]);
+    this.releveTitle.set('');
+  }
+
+  // Expense details modal methods
+  openExpenseDetailsModal(designation: string, sessionId?: number): void {
+    // Find the session that contains this expense entry
+    const session = sessionId ? this.sessions().find(s => s.id === sessionId) : this.selectedSession();
+    if (!session) return;
+
+    console.log('Opening expense details modal for designation:', designation, 'sessionId:', sessionId);
+
+    // Always fetch fresh session report to get the most up-to-date expense data
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (report) => {
+        console.log('Session report received:', report);
+        let expensesToShow: Array<{ id: number; amount: number; reason: string; createdAt: string; categoryName?: string; supplierName?: string; notes?: string }> = [];
+
+        // Get expenses from the session summary (this is where the backend puts them)
+        const summary = report?.summary as any;
+        const summaryExpenses = summary?.expensesDetails || [];
+        
+        console.log('Summary expenses from backend:', summaryExpenses);
+        console.log('Summary object:', summary);
+
+        // Check if this is a "Sortie - Dépense" entry (individual cash movement)
+        if (designation.includes('Sortie - Dépense')) {
+          // Extract expense ID from designation like "Sortie - Dépense #26: ..."
+          const expenseIdMatch = designation.match(/#(\d+)/);
+          if (expenseIdMatch) {
+            const expenseId = parseInt(expenseIdMatch[1], 10);
+            
+            // Find the specific expense by ID
+            const expense = summaryExpenses.find((exp: any) => exp.id === expenseId);
+            
+            if (expense) {
+              expensesToShow = [{
+                id: expense.id,
+                amount: expense.amount,
+                reason: expense.reason || expense.description || `Dépense #${expense.id}`,
+                createdAt: expense.createdAt || expense.date,
+                categoryName: expense.categoryName || expense.category?.name,
+                supplierName: expense.supplierName || expense.supplier?.name,
+                notes: expense.notes
+              }];
+            }
+          }
+        } else if (designation.includes('Dépenses espèces')) {
+          // This is an aggregated expense entry - show all cash expenses for the session
+          if (summaryExpenses.length > 0) {
+            // Use summary expenses if available
+            expensesToShow = summaryExpenses.map((expense: any) => ({
+              id: expense.id,
+              amount: expense.amount,
+              reason: expense.reason || expense.description || `Dépense #${expense.id}`,
+              createdAt: expense.createdAt || expense.date,
+              categoryName: expense.categoryName || expense.category?.name,
+              supplierName: expense.supplierName || expense.supplier?.name,
+              notes: expense.notes
+            }));
+          } else {
+            // Fallback: extract expense info from cash movements
+            const session = sessionId ? this.sessions().find(s => s.id === sessionId) : this.selectedSession();
+            if (session?.cashMovements) {
+              const expenseMovements = session.cashMovements.filter(movement => 
+                movement.reason && 
+                (movement.reason.includes('Dépense') || movement.reason.includes('depense'))
+              );
+              
+              console.log('Found expense movements:', expenseMovements);
+              
+              expensesToShow = expenseMovements.map((movement: any) => {
+                // Extract expense ID from reason like "Dépense approuvée #26: ..."
+                const expenseIdMatch = movement.reason.match(/#(\d+)/);
+                const expenseId = expenseIdMatch ? parseInt(expenseIdMatch[1], 10) : movement.id;
+                
+                return {
+                  id: expenseId,
+                  amount: movement.amount,
+                  reason: movement.reason,
+                  createdAt: movement.createdAt,
+                  categoryName: 'Non spécifié',
+                  supplierName: 'Non spécifié',
+                  notes: 'Détails non disponibles'
+                };
+              });
+            }
+            
+            // If still no expenses found, try to fetch directly from expenses API
+            if (expensesToShow.length === 0) {
+              console.log('No expenses found in session report, trying direct API call...');
+              this.fetchExpensesDirectly(session, designation);
+              return;
+            }
+          }
+        }
+
+        console.log('Expenses to show:', expensesToShow);
+        this.expenseDetails.set(expensesToShow);
+        this.expenseDetailsTitle.set(designation);
+        this.showExpenseDetailsModal.set(true);
+      },
+      error: (error) => {
+        console.error('Error fetching session report for expense details:', error);
+        this.expenseDetails.set([]);
+        this.expenseDetailsTitle.set(designation);
+        this.showExpenseDetailsModal.set(true);
+      }
+    });
+  }
+
+  closeExpenseDetailsModal(): void {
+    this.showExpenseDetailsModal.set(false);
+    this.expenseDetails.set([]);
+    this.expenseDetailsTitle.set('');
+  }
+
+  private fetchExpensesDirectly(session: any, designation: string): void {
+    // Calculate date range for the session
+    const sessionStart = new Date(session.openedAt);
+    const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
+    
+    // Fetch expenses directly from the expenses API
+    this.expenseService.getExpenses({
+      startDate: sessionStart.toISOString().split('T')[0],
+      endDate: sessionEnd.toISOString().split('T')[0],
+      status: 'approved'
+    }).subscribe({
+      next: (expensesResponse: any) => {
+        console.log('Direct expenses API response:', expensesResponse);
+        const expenses = expensesResponse.expenses || expensesResponse || [];
+        
+        // Filter for cash expenses only
+        const cashExpenses = expenses.filter((expense: any) => 
+          expense.paymentType === 'CASH' && expense.isApproved
+        );
+        
+        console.log('Cash expenses found:', cashExpenses);
+        
+        const expensesToShow = cashExpenses.map((expense: any) => ({
+          id: expense.id,
+          amount: expense.amount,
+          reason: expense.description || `Dépense #${expense.id}`,
+          createdAt: expense.approvedAt || expense.createdAt || expense.date,
+          categoryName: expense.category?.name || 'Non spécifié',
+          supplierName: expense.supplier?.name || 'Non spécifié',
+          notes: expense.notes || ''
+        }));
+        
+        console.log('Expenses to show from direct API:', expensesToShow);
+        this.expenseDetails.set(expensesToShow);
+        this.expenseDetailsTitle.set(designation);
+        this.showExpenseDetailsModal.set(true);
+      },
+      error: (error) => {
+        console.error('Error fetching expenses directly:', error);
+        this.expenseDetails.set([]);
+        this.expenseDetailsTitle.set(designation);
+        this.showExpenseDetailsModal.set(true);
+      }
+    });
+  }
+
+  getExpenseDetailsTotal(): number {
+    return this.expenseDetails().reduce((sum, expense) => sum + expense.amount, 0);
+  }
+
+
+  // Group entries by session
+  getSessionGroups(): Array<{sessionId: number; entries: ReleveEntry[]}> {
+    const groups = new Map<number, ReleveEntry[]>();
+    
+    this.releveEntries().forEach(entry => {
+      const sessionId = entry.sessionId || 0;
+      if (!groups.has(sessionId)) {
+        groups.set(sessionId, []);
+      }
+      groups.get(sessionId)!.push(entry);
+    });
+    
+    // Convert to array and sort by session ID
+    return Array.from(groups.entries())
+      .map(([sessionId, entries]) => ({ sessionId, entries }))
+      .sort((a, b) => a.sessionId - b.sessionId);
+  }
+
+  // Get session user name
+  getSessionUser(sessionId: number): string {
+    const session = this.sessions().find(s => s.id === sessionId);
+    if (session?.user) {
+      return `${session.user.firstName} ${session.user.lastName}`;
+    }
+    return 'Utilisateur inconnu';
+  }
+
+
+  exportReleveCaisse(): void {
+    const entries = this.releveEntries();
+    if (entries.length === 0) {
+      console.error('No data to export');
+      return;
+    }
+
+    // Create CSV content
+    const headers = ['Date', 'Désignation', 'Débit', 'Crédit', 'Solde'];
+    const csvContent = [
+      headers.join(','),
+      ...entries.map(entry => [
+        entry.date.toLocaleString('fr-FR'),
+        `"${entry.designation}"`,
+        entry.debit.toString(),
+        entry.credit.toString(),
+        entry.solde.toString()
+      ].join(','))
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `releve_caisse_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Debug method to check sales and expenses data
+  debugSalesData(): void {
+    console.log('=== DEBUG: Checking all sales and expenses data ===');
+    const session = this.selectedSession();
+    
+    if (!session) {
+      console.log('No session selected');
+      return;
+    }
+
+    const salesQuery = this.salesService.getSales({});
+    const expensesQuery = this.expenseService.getExpenses({});
+
+    forkJoin({
+      sales: salesQuery,
+      expenses: expensesQuery
+    }).subscribe({
+      next: (data) => {
+        console.log('All sales in system:', data.sales);
+        console.log('All expenses in system:', data.expenses);
+        
+        const sessionSales = data.sales.filter(sale => sale.sessionId === session.id);
+        console.log(`Sales for session ${session.id}:`, sessionSales);
+        
+        sessionSales.forEach(sale => {
+          console.log(`Sale ${sale.id}:`, {
+            id: sale.id,
+            sessionId: sale.sessionId,
+            finalTotal: sale.finalTotal,
+            status: sale.status,
+            paymentMethod: sale.paymentMethod,
+            dailyTicketNumber: sale.dailyTicketNumber,
+            createdAt: sale.createdAt
+          });
+        });
+
+        // Check expenses for this session period
+        const sessionStart = new Date(session.openedAt);
+        const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
+        
+        const sessionExpenses = data.expenses.filter(expense => {
+          const expenseDate = new Date(expense.date);
+          return expenseDate >= sessionStart && expenseDate <= sessionEnd;
+        });
+        
+        console.log(`Expenses for session ${session.id} period:`, sessionExpenses);
+        
+        sessionExpenses.forEach(expense => {
+          console.log(`Expense ${expense.id}:`, {
+            id: expense.id,
+            amount: expense.amount,
+            description: expense.description,
+            category: expense.category?.name,
+            paymentType: expense.paymentType,
+            isPaid: expense.isPaid,
+            date: expense.date
+          });
+        });
+      },
+      error: (error) => {
+        console.error('Error fetching sales/expenses for debug:', error);
+      }
+    });
   }
 }
 

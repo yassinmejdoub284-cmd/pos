@@ -33,6 +33,24 @@ export interface SessionCaisse {
   };
   cashMovements?: CashMovement[];
   summary?: SessionSummary;
+  salesSummary?: SalesSummary;
+  expensesSummary?: ExpensesSummary;
+}
+
+export interface SalesSummary {
+  totalSales: number;
+  cashSales: number;
+  cardSales: number;
+  otherSales: number;
+  salesCount: number;
+  salesByPaymentMethod: { [key: string]: { name: string; type: string; amount: number; count: number } };
+}
+
+export interface ExpensesSummary {
+  totalExpenses: number;
+  cashExpenses: number;
+  otherExpenses: number;
+  expensesCount: number;
 }
 
 export interface CashMovement {
@@ -206,6 +224,21 @@ export class SessionsService {
     });
     
     return this.http.get<SessionCaisse[]>(`${this.API_URL}`, { 
+      params,
+      ...this.getRequestOptions()
+    });
+  }
+
+  // Get sessions with aggregated sales and expenses data
+  getSessionSummaries(filters: SessionFilters = {}): Observable<SessionCaisse[]> {
+    const params: any = {};
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        params[key] = value.toString();
+      }
+    });
+    
+    return this.http.get<SessionCaisse[]>(`${this.API_URL}/summaries`, { 
       params,
       ...this.getRequestOptions()
     });

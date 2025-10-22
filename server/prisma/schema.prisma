@@ -469,6 +469,7 @@ model Sale {
   session                SessionCaisse?          @relation(fields: [sessionId], references: [id])
   user                   User                    @relation(fields: [userId], references: [id])
 
+  @@unique([sessionId, dailyTicketNumber], map: "unique_session_daily_ticket")
   @@index([advancePaymentMethodId], map: "sales_advance_payment_method_id_fkey")
   @@index([clientId], map: "sales_client_id_fkey")
   @@index([depotId], map: "sales_depot_id_fkey")

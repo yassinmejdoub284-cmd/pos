@@ -350,7 +350,17 @@ export class PrintService {
   }
 
   printDetailedSessionReportWithArticleGrouping(sessionReport: any, companyData?: any): void {
-    const htmlData = this.generateDailyExtractHTMLWithArticleGrouping(sessionReport, companyData, 0);
+    const htmlData = this.generateDailyExtractHTMLWithFamilyGrouping(sessionReport, companyData, 0);
+    this.printHtml(htmlData);
+  }
+
+  printDetailedSessionReportWithArticleGrouping80mm(sessionReport: any, companyData?: any): void {
+    const htmlData = this.generateDailyExtractHTMLWithFamilyGrouping80mm(sessionReport, companyData, 0);
+    this.printHtml(htmlData);
+  }
+
+  printDetailedSessionReportWithFamilyGrouping80mm(sessionReport: any, companyData?: any): void {
+    const htmlData = this.generateDailyExtractHTMLWithFamilyGrouping80mm(sessionReport, companyData, 0);
     this.printHtml(htmlData);
   }
 
@@ -2053,6 +2063,304 @@ export class PrintService {
     return escpos;
   }
 
+  private generateDailyExtractHTMLWithFamilyGrouping(sessionReport: any, companyData?: any, withdrawalAmount: number = 0): string {
+    const closedDate = new Date();
+    const formatDateNoYearWithTime = (date: Date) => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day}/${month} ${hours}:${minutes}`;
+    };
+    const closingTime = formatDateNoYearWithTime(closedDate);
+    
+    const session = sessionReport.session;
+    const summary = sessionReport.summary;
+
+    // Build family grouping from session sales
+    const sales: any[] = (sessionReport?.session?.sales || []) as any[];
+    const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number }>> = {};
+
+    if (sales.length) {
+      for (const sale of sales) {
+        const items: any[] = (sale.items || []) as any[];
+        for (const it of items) {
+          const productName: string = (it.productName || it.name || 'Produit').toString();
+          const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
+          const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
+          const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+          
+          // Initialize family if not exists
+          if (!familyArticleTotals[familyName]) {
+            familyArticleTotals[familyName] = {};
+          }
+          
+          // Initialize article if not exists
+          if (!familyArticleTotals[familyName][productName]) {
+            familyArticleTotals[familyName][productName] = { quantity: 0, total: 0 };
+          }
+          
+          familyArticleTotals[familyName][productName].quantity += qty;
+          familyArticleTotals[familyName][productName].total += lineTotal;
+        }
+      }
+    }
+
+    // Sort families alphabetically
+    const sortedFamilies = Object.keys(familyArticleTotals).sort();
+    let totalArticleSales = 0;
+
+    let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>EXTRait JOURNALIÈRE - ${closingTime}</title>
+        <style>
+            @page {
+                size: A4;
+                margin: 0.5cm;
+            }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            body { 
+                font-family: 'Arial', sans-serif; 
+                margin: 0; 
+                padding: 8px; 
+                font-size: 12px;
+                line-height: 1.2;
+                width: 100%;
+                min-height: 100vh;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #000;
+                padding-bottom: 10px;
+            }
+            .title {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+            .date {
+                font-size: 12px;
+            }
+            .family-section {
+                margin-bottom: 15px;
+            }
+            .family-title {
+                font-weight: bold;
+                font-size: 14px;
+                margin-bottom: 5px;
+                text-transform: uppercase;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 5px;
+            }
+            th, td {
+                border: 1px solid #000;
+                padding: 3px 5px;
+                text-align: left;
+                font-size: 11px;
+            }
+            th {
+                background-color: #f0f0f0;
+                font-weight: bold;
+                text-align: center;
+                font-size: 11px;
+            }
+            .article-col {
+                width: 40%;
+            }
+            .qty-col {
+                width: 15%;
+                text-align: right;
+            }
+            .unit-price-col {
+                width: 20%;
+                text-align: right;
+            }
+            .total-col {
+                width: 25%;
+                text-align: right;
+            }
+            .family-total {
+                font-weight: bold;
+                background-color: #f8f8f8;
+                font-size: 11px;
+            }
+            .financial-summary {
+                margin-top: 20px;
+                border: 2px solid #000;
+                padding: 10px;
+            }
+            .financial-summary h3 {
+                text-align: center;
+                margin: 0 0 10px 0;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            .financial-summary table {
+                width: 100%;
+                border: none;
+            }
+            .financial-summary td {
+                border: none;
+                padding: 2px 5px;
+                font-size: 11px;
+            }
+            .financial-summary .label {
+                text-align: left;
+            }
+            .financial-summary .amount {
+                text-align: right;
+                font-weight: bold;
+            }
+            .separator {
+                border-top: 1px solid #000;
+                margin: 5px 0;
+            }
+            @media print {
+                @page {
+                    size: A4 !important;
+                    margin: 0.5cm !important;
+                }
+                * {
+                    -webkit-print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                }
+                body { 
+                    font-size: 12px !important;
+                    padding: 8px !important;
+                    margin: 0 !important;
+                    width: 100% !important;
+                    min-height: 100vh !important;
+                    transform: scale(1) !important;
+                }
+                html {
+                    width: 100% !important;
+                    height: 100% !important;
+                }
+                th, td {
+                    padding: 3px 5px !important;
+                    font-size: 11px !important;
+                }
+                .title {
+                    font-size: 18px !important;
+                }
+                table {
+                    width: 100% !important;
+                    page-break-inside: avoid !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="title">EXTRait JOURNALIÈRE</div>
+            <div class="date">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+        </div>`;
+
+    // Generate family sections
+    for (const familyName of sortedFamilies) {
+      const articles = familyArticleTotals[familyName];
+      const sortedArticles = Object.keys(articles).sort();
+      let familyTotal = 0;
+
+      html += `
+        <div class="family-section">
+            <div class="family-title">${familyName}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="article-col">Article</th>
+                        <th class="qty-col">Qty</th>
+                        <th class="unit-price-col">Unit Price</th>
+                        <th class="total-col">Total</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+      for (const articleName of sortedArticles) {
+        const articleData = articles[articleName];
+        const unitPrice = articleData.quantity > 0 ? articleData.total / articleData.quantity : 0;
+        familyTotal += articleData.total;
+        totalArticleSales += articleData.total;
+
+        html += `
+                    <tr>
+                        <td class="article-col">${articleName}</td>
+                        <td class="qty-col">${articleData.quantity.toFixed(3)}</td>
+                        <td class="unit-price-col">${unitPrice.toFixed(3)} TND</td>
+                        <td class="total-col">${articleData.total.toFixed(3)} TND</td>
+                    </tr>`;
+      }
+
+      html += `
+                    <tr class="family-total">
+                        <td class="article-col">Total ${familyName}</td>
+                        <td class="qty-col"></td>
+                        <td class="unit-price-col"></td>
+                        <td class="total-col">${familyTotal.toFixed(3)} TND</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>`;
+    }
+
+    // Financial summary
+    const totalDiscount = 0; // Could be calculated from sales
+    const totalExpenses = summary?.expensesTotal || 0;
+    const totalCaisse = totalArticleSales;
+    const remainingCash = totalCaisse - withdrawalAmount;
+
+    html += `
+        <div class="financial-summary">
+            <h3>Résumé Financier</h3>
+            <table>
+                <tr>
+                    <td class="label">Totale Remise</td>
+                    <td class="amount">${totalDiscount.toFixed(3)} TND</td>
+                </tr>
+                <tr>
+                    <td class="label">Totale Recette</td>
+                    <td class="amount"><strong>${totalArticleSales.toFixed(3)} TND</strong></td>
+                </tr>
+                <tr>
+                    <td class="label">Totale Caisse (Solde Débit)</td>
+                    <td class="amount"><strong>${totalCaisse.toFixed(3)} TND</strong></td>
+                </tr>
+                <tr>
+                    <td class="label">Dépense</td>
+                    <td class="amount">${totalExpenses.toFixed(3)} TND</td>
+                </tr>
+                <tr><td colspan="2" class="separator"></td></tr>
+                <tr>
+                    <td class="label">Totale Caisse</td>
+                    <td class="amount"><strong>${totalCaisse.toFixed(3)} TND</strong></td>
+                </tr>
+                <tr>
+                    <td class="label">Retrait</td>
+                    <td class="amount">${withdrawalAmount.toFixed(3)} TND</td>
+                </tr>
+                <tr>
+                    <td class="label">Totale Reste Caisse</td>
+                    <td class="amount"><strong>${remainingCash.toFixed(3)} TND</strong></td>
+                </tr>
+            </table>
+        </div>
+    </body>
+    </html>`;
+
+    return html;
+  }
+
   private generateDailyExtractHTMLWithArticleGrouping(sessionReport: any, companyData?: any, withdrawalAmount: number = 0): string {
     const closedDate = new Date();
     const formatDateNoYearWithTime = (date: Date) => {
@@ -2105,49 +2413,56 @@ export class PrintService {
     <html>
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Extr. Journalière - ${closingTime}</title>
         <style>
             @page {
                 size: A4;
                 margin: 0.5cm;
             }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
             body { 
-                font-family: 'Courier New', monospace; 
+                font-family: 'Arial', sans-serif; 
                 margin: 0; 
                 padding: 8px; 
-                font-size: 9px;
-                line-height: 1.1;
+                font-size: 14px;
+                line-height: 1.3;
+                width: 100%;
+                min-height: 100vh;
             }
             .header {
                 text-align: center;
-                margin-bottom: 8px;
-                border-bottom: 1px solid #000;
-                padding-bottom: 4px;
+                margin-bottom: 16px;
+                border-bottom: 2px solid #000;
+                padding-bottom: 8px;
             }
             .title {
-                font-size: 11px;
+                font-size: 16px;
                 font-weight: bold;
-                margin-bottom: 2px;
+                margin-bottom: 4px;
             }
             .date {
-                font-size: 9px;
+                font-size: 12px;
             }
             table {
                 width: 100%;
                 border-collapse: collapse;
-                margin-bottom: 4px;
+                margin-bottom: 8px;
             }
             th, td {
                 border: 1px solid #000;
-                padding: 1px 3px;
+                padding: 4px 6px;
                 text-align: left;
-                font-size: 8px;
+                font-size: 11px;
             }
             th {
                 background-color: #e0e0e0;
                 font-weight: bold;
                 text-align: center;
-                font-size: 8px;
+                font-size: 11px;
             }
             .qty, .unit-price, .total {
                 text-align: right;
@@ -2174,37 +2489,37 @@ export class PrintService {
             .family-total {
                 font-weight: bold;
                 background-color: #f8f8f8;
-                font-size: 8px;
+                font-size: 11px;
             }
             .grand-total {
-                margin-top: 8px;
-                border-top: 1px solid #000;
-                padding-top: 4px;
+                margin-top: 16px;
+                border-top: 2px solid #000;
+                padding-top: 8px;
             }
             .grand-total table {
                 border: 1px solid #000;
             }
             .grand-total td {
                 font-weight: bold;
-                font-size: 9px;
+                font-size: 12px;
             }
             .financial-summary {
-                margin-top: 8px;
+                margin-top: 16px;
                 border: 1px solid #000;
-                padding: 6px;
+                padding: 12px;
             }
             .financial-summary h3 {
                 text-align: center;
-                margin: 0 0 4px 0;
-                font-size: 10px;
+                margin: 0 0 8px 0;
+                font-size: 14px;
             }
             .financial-summary table {
                 width: 100%;
             }
             .financial-summary td {
                 border: none;
-                padding: 1px 4px;
-                font-size: 8px;
+                padding: 2px 8px;
+                font-size: 11px;
             }
             .financial-summary .label {
                 text-align: left;
@@ -2214,26 +2529,52 @@ export class PrintService {
                 font-weight: bold;
             }
             h2 {
-                font-size: 10px;
-                margin: 4px 0 8px 0;
+                font-size: 14px;
+                margin: 8px 0 16px 0;
                 text-align: center;
             }
             @media print {
+                @page {
+                    size: A4 !important;
+                    margin: 0.5cm !important;
+                }
+                * {
+                    -webkit-print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                }
                 body { 
-                    font-size: 8px;
-                    padding: 4px;
+                    font-size: 14px !important;
+                    padding: 8px !important;
+                    margin: 0 !important;
+                    width: 100% !important;
+                    min-height: 100vh !important;
+                    transform: scale(1) !important;
+                }
+                html {
+                    width: 100% !important;
+                    height: 100% !important;
                 }
                 th, td {
-                    padding: 0px 2px;
-                    font-size: 7px;
+                    padding: 4px 6px !important;
+                    font-size: 12px !important;
+                }
+                .header {
+                    margin-bottom: 12px !important;
+                }
+                .title {
+                    font-size: 18px !important;
                 }
                 .grand-total {
-                    margin-top: 4px;
-                    padding-top: 2px;
+                    margin-top: 12px !important;
+                    padding-top: 6px !important;
                 }
                 .financial-summary {
-                    margin-top: 4px;
-                    padding: 3px;
+                    margin-top: 12px !important;
+                    padding: 8px !important;
+                }
+                table {
+                    width: 100% !important;
+                    page-break-inside: avoid !important;
                 }
             }
         </style>
@@ -2340,6 +2681,256 @@ export class PrintService {
     </body>
     </html>`;
 
+    return html;
+  }
+
+  private generateDailyExtractHTMLWithFamilyGrouping80mm(sessionReport: any, companyData?: any, withdrawalAmount: number = 0): string {
+    const closedDate = new Date();
+    const formatDateNoYearWithTime = (date: Date) => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day}/${month} ${hours}:${minutes}`;
+    };
+    const closingTime = formatDateNoYearWithTime(closedDate);
+    
+    const session = sessionReport.session;
+    const summary = sessionReport.summary;
+
+    // Build family grouping from session sales (same logic as A4 version)
+    const sales: any[] = (sessionReport?.session?.sales || []) as any[];
+    const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number }>> = {};
+
+    if (sales.length) {
+      for (const sale of sales) {
+        const items: any[] = (sale.items || []) as any[];
+        for (const it of items) {
+          const productName: string = (it.productName || it.name || 'Produit').toString();
+          const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
+          const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
+          const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+          
+          // Initialize family if not exists
+          if (!familyArticleTotals[familyName]) {
+            familyArticleTotals[familyName] = {};
+          }
+          
+          // Initialize article if not exists
+          if (!familyArticleTotals[familyName][productName]) {
+            familyArticleTotals[familyName][productName] = { quantity: 0, total: 0 };
+          }
+          
+          familyArticleTotals[familyName][productName].quantity += qty;
+          familyArticleTotals[familyName][productName].total += lineTotal;
+        }
+      }
+    }
+
+    // Sort families alphabetically
+    const sortedFamilies = Object.keys(familyArticleTotals).sort();
+    let totalArticleSales = 0;
+
+    let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>EXTRait JOURNALIÈRE - ${closingTime}</title>
+        <style>
+            @page {
+                size: 80mm auto;
+                margin: 2mm;
+            }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            body {
+                font-family: 'Arial', sans-serif;
+                margin: 0;
+                padding: 2px;
+                font-size: 8px;
+                line-height: 1.1;
+                width: 76mm;
+                max-width: 76mm;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 8px;
+                border-bottom: 1px solid #000;
+                padding-bottom: 4px;
+            }
+            .title {
+                font-size: 12px;
+                font-weight: bold;
+                margin-bottom: 2px;
+            }
+            .date {
+                font-size: 8px;
+            }
+            .family-section {
+                margin-bottom: 6px;
+            }
+            .family-title {
+                font-weight: bold;
+                font-size: 9px;
+                margin-bottom: 2px;
+                text-transform: uppercase;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 2px;
+            }
+            th, td {
+                border: 1px solid #000;
+                padding: 1px 2px;
+                text-align: left;
+                font-size: 7px;
+            }
+            th {
+                background-color: #f0f0f0;
+                font-weight: bold;
+                text-align: center;
+                font-size: 7px;
+            }
+            .article-col { width: 45%; }
+            .qty-col { width: 15%; text-align: right; }
+            .unit-price-col { width: 20%; text-align: right; }
+            .total-col { width: 20%; text-align: right; }
+            .family-total {
+                font-weight: bold;
+                background-color: #f8f8f8;
+                font-size: 7px;
+            }
+            .financial-summary {
+                margin-top: 8px;
+                border: 1px solid #000;
+                padding: 4px;
+            }
+            .financial-summary h3 {
+                text-align: center;
+                margin: 0 0 4px 0;
+                font-size: 9px;
+                font-weight: bold;
+            }
+            .financial-summary table { width: 100%; border: none; }
+            .financial-summary td { border: none; padding: 1px 2px; font-size: 7px; }
+            .financial-summary .label { text-align: left; }
+            .financial-summary .amount { text-align: right; font-weight: bold; }
+            .separator { border-top: 1px solid #000; margin: 2px 0; }
+            @media print {
+                @page { size: 80mm auto !important; margin: 2mm !important; }
+                * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+                body {
+                    font-size: 8px !important; padding: 2px !important; margin: 0 !important;
+                    width: 76mm !important; max-width: 76mm !important; transform: scale(1) !important;
+                }
+                html { width: 76mm !important; }
+                th, td { padding: 1px 2px !important; font-size: 7px !important; }
+                .title { font-size: 12px !important; }
+                table { width: 100% !important; page-break-inside: avoid !important; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="title">EXTRait JOURNALIÈRE</div>
+            <div class="date">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+        </div>`;
+
+    // Generate family sections (same logic as A4 version)
+    for (const familyName of sortedFamilies) {
+      const articles = familyArticleTotals[familyName];
+      const sortedArticles = Object.keys(articles).sort();
+      let familyTotal = 0;
+
+      html += `
+        <div class="family-section">
+            <div class="family-title">${familyName}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="article-col">Article</th>
+                        <th class="qty-col">Qty</th>
+                        <th class="unit-price-col">Unit Price</th>
+                        <th class="total-col">Total</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+      for (const articleName of sortedArticles) {
+        const articleData = articles[articleName];
+        const unitPrice = articleData.quantity > 0 ? articleData.total / articleData.quantity : 0;
+        familyTotal += articleData.total;
+        totalArticleSales += articleData.total;
+
+        html += `
+                    <tr>
+                        <td class="article-col">${articleName}</td>
+                        <td class="qty-col">${articleData.quantity.toFixed(3)}</td>
+                        <td class="unit-price-col">${unitPrice.toFixed(3)} TND</td>
+                        <td class="total-col">${articleData.total.toFixed(3)} TND</td>
+                    </tr>`;
+      }
+
+      html += `
+                    <tr class="family-total">
+                        <td class="article-col">Total ${familyName}</td>
+                        <td class="qty-col"></td>
+                        <td class="unit-price-col"></td>
+                        <td class="total-col">${familyTotal.toFixed(3)} TND</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>`;
+    }
+
+    // Financial summary (same logic as A4 version)
+    const totalDiscount = 0; // Could be calculated from sales
+    const totalExpenses = summary?.expensesTotal || 0;
+    const totalCaisse = totalArticleSales;
+    const remainingCash = totalCaisse - withdrawalAmount;
+
+    html += `
+        <div class="financial-summary">
+            <h3>Résumé Financier</h3>
+            <table>
+                <tr>
+                    <td class="label">Totale Remise</td>
+                    <td class="amount">${totalDiscount.toFixed(3)} TND</td>
+                </tr>
+                <tr>
+                    <td class="label">Totale Recette</td>
+                    <td class="amount"><strong>${totalArticleSales.toFixed(3)} TND</strong></td>
+                </tr>
+                <tr>
+                    <td class="label">Totale Caisse (Solde Débit)</td>
+                    <td class="amount"><strong>${totalCaisse.toFixed(3)} TND</strong></td>
+                </tr>
+                <tr>
+                    <td class="label">Dépense</td>
+                    <td class="amount">${totalExpenses.toFixed(3)} TND</td>
+                </tr>
+                <tr><td colspan="2" class="separator"></td></tr>
+                <tr>
+                    <td class="label">Totale Caisse</td>
+                    <td class="amount"><strong>${totalCaisse.toFixed(3)} TND</strong></td>
+                </tr>
+                <tr>
+                    <td class="label">Retrait</td>
+                    <td class="amount">${withdrawalAmount.toFixed(3)} TND</td>
+                </tr>
+                <tr>
+                    <td class="label">Totale Reste Caisse</td>
+                    <td class="amount"><strong>${remainingCash.toFixed(3)} TND</strong></td>
+                </tr>
+            </table>
+        </div>`;
+
+    html += `</body></html>`;
     return html;
   }
 

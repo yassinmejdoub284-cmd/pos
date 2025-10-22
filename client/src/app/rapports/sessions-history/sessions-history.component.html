@@ -18,12 +18,13 @@
           </div>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-           <button (click)="refreshSessions()" 
-                   title="Actualiser les sessions"
-                   class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500 text-white shadow-lg shadow-blue-500/25 transition-all duration-200 select-none">
+           <button (click)="openReleveCaisseModal()" 
+                   title="Générer un relevé de caisse"
+                   class="releve-button flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/25 transition-all duration-200 select-none hover:from-purple-600 hover:to-pink-600">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
             </svg>
+            <span class="hidden sm:inline font-medium">Relevé Caisse</span>
           </button>
            <button (click)="exportSessionData()" 
                    title="Exporter les données de session"
@@ -96,29 +97,66 @@
             
             <!-- Action Buttons -->
             <div class="flex flex-wrap items-center gap-2">
-               <button (click)="refreshDetails(selectedSession()!)" 
-                       class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 bg-slate-100 text-slate-700 rounded-md sm:rounded-lg transition-all duration-200 text-xs sm:text-sm select-none">
-                <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-                <span class="hidden sm:inline">Actualiser</span>
-              </button>
-               <button (click)="printWithFamily(selectedSession()!)" 
-                       class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 bg-blue-100 text-blue-700 rounded-md sm:rounded-lg transition-all duration-200 text-xs sm:text-sm select-none">
-                <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                </svg>
-                <span class="hidden sm:inline">Imprimer avec famille</span>
-                <span class="sm:hidden">Fam.</span>
-              </button>
-               <button (click)="printByArticle(selectedSession()!)" 
-                       class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 bg-emerald-100 text-emerald-700 rounded-md sm:rounded-lg transition-all duration-200 text-xs sm:text-sm select-none">
-                <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                </svg>
-                <span class="hidden sm:inline">Imprimer par article</span>
-                <span class="sm:hidden">Art.</span>
-              </button>
+               <!-- Total Withdrawn Amount Display -->
+               <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/25">
+                 <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                 </svg>
+                 <div class="text-xs sm:text-sm">
+                   <div class="font-medium">Retiré</div>
+                   <div class="text-xs opacity-90">{{getTotalWithdrawnAmount() | number:'1.3-3'}} DT</div>
+                 </div>
+               </div>
+               <!-- Print with Family Dropdown -->
+               <div class="relative" #familyDropdown>
+                 <button (click)="toggleFamilyDropdown()" 
+                         class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 bg-blue-100 text-blue-700 rounded-md sm:rounded-lg transition-all duration-200 text-xs sm:text-sm select-none">
+                  <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                  </svg>
+                  <span class="hidden sm:inline">Imprimer avec famille</span>
+                  <span class="sm:hidden">Fam.</span>
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </button>
+                <div *ngIf="showFamilyDropdown" 
+                     class="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
+                  <button (click)="printWithFamily(selectedSession()!, 'A4')" 
+                          class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-lg">
+                    📄 A4 Format
+                  </button>
+                  <button (click)="printWithFamily(selectedSession()!, '80mm')" 
+                          class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-b-lg">
+                    🧾 80mm Thermal
+                  </button>
+                </div>
+              </div>
+               <!-- Print by Article Dropdown -->
+               <div class="relative" #articleDropdown>
+                 <button (click)="toggleArticleDropdown()" 
+                         class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 bg-emerald-100 text-emerald-700 rounded-md sm:rounded-lg transition-all duration-200 text-xs sm:text-sm select-none">
+                  <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                  </svg>
+                  <span class="hidden sm:inline">Imprimer par article</span>
+                  <span class="sm:hidden">Art.</span>
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </button>
+                <div *ngIf="showArticleDropdown" 
+                     class="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
+                  <button (click)="printByArticle(selectedSession()!, 'A4')" 
+                          class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-t-lg">
+                    📄 A4 Format
+                  </button>
+                  <button (click)="printByArticle(selectedSession()!, '80mm')" 
+                          class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-b-lg">
+                    🧾 80mm Thermal
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -495,11 +533,85 @@
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
+      </div>
+    </div>
+  </div>
 
+  <!-- Expense Details Modal -->
+  <div *ngIf="showExpenseDetailsModal()" 
+       class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 modal-backdrop"
+       (click)="closeExpenseDetailsModal()">
+    <div class="w-full max-w-4xl mx-auto p-4"
+         (click)="$event.stopPropagation()">
+      <div class="bg-white rounded-2xl shadow-2xl overflow-hidden h-[70vh] flex flex-col">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-slate-200 bg-gradient-to-r from-orange-50 to-red-50">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Détails des Dépenses</h2>
+              <p class="text-slate-600 mt-1">{{expenseDetailsTitle()}}</p>
+            </div>
+            <button (click)="closeExpenseDetailsModal()" 
+                    title="Fermer"
+                    class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-600 transition-colors duration-200 select-none">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
           </div>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="flex-1 overflow-y-auto p-6">
+          <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ID</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Catégorie</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Fournisseur</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Description</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Montant</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-200">
+                  <tr *ngFor="let expense of expenseDetails()" class="hover:bg-slate-50">
+                    <td class="px-4 py-3 text-sm text-slate-900 font-mono">#{{expense.id}}</td>
+                    <td class="px-4 py-3 text-sm text-slate-900 font-mono">{{expense.createdAt | date:'dd/MM/yyyy HH:mm'}}</td>
+                    <td class="px-4 py-3 text-sm text-slate-900">{{expense.categoryName || '-'}}</td>
+                    <td class="px-4 py-3 text-sm text-slate-900">{{expense.supplierName || '-'}}</td>
+                    <td class="px-4 py-3 text-sm text-slate-900">
+                      <div class="max-w-xs">
+                        <div class="truncate">{{expense.reason}}</div>
+                        <div *ngIf="expense.notes" class="text-xs text-slate-500 mt-1 italic">{{expense.notes}}</div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-right font-medium text-red-600">
+                      {{formatCurrency(expense.amount)}}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Summary -->
+          <div class="mt-4 p-4 bg-slate-50 rounded-lg">
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-medium text-slate-700">Total des dépenses:</span>
+              <span class="text-lg font-bold text-red-600">
+                {{formatCurrency(getExpenseDetailsTotal())}}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
         </div>
       </div>
 
@@ -683,6 +795,240 @@
                    class="px-4 py-2 bg-slate-600 text-white rounded-lg transition-colors duration-200 select-none">
             Fermer
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Relevé Caisse Selection Modal -->
+  <div *ngIf="showReleveCaisseModal()" 
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 modal-backdrop releve-modal-enter"
+       (click)="closeReleveCaisseModal()">
+    <div class="w-full max-w-md mx-auto p-4"
+         (click)="$event.stopPropagation()">
+      <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-slate-200 bg-gradient-to-r from-purple-50 to-pink-50">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Relevé de Caisse</h2>
+              <p class="text-slate-600 mt-1">Choisissez le type de relevé à générer</p>
+            </div>
+            <button (click)="closeReleveCaisseModal()" 
+                    title="Fermer"
+                    class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-600 transition-colors duration-200 select-none">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6">
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Current Session Button -->
+            <button (click)="generateReleveForCurrentSession()"
+                    class="group relative p-6 rounded-xl border-2 border-slate-200 transition-all duration-300 hover:border-purple-300 hover:bg-purple-50 select-none">
+              <div class="text-center">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+                <h3 class="font-semibold text-slate-800 mb-1">Session Actuelle</h3>
+                <p class="text-xs text-slate-600">Générer pour la session en cours</p>
+              </div>
+            </button>
+
+            <!-- Date Range Button -->
+            <button (click)="openDateRangeModal()"
+                    class="group relative p-6 rounded-xl border-2 border-slate-200 transition-all duration-300 hover:border-pink-300 hover:bg-pink-50 select-none">
+              <div class="text-center">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                </div>
+                <h3 class="font-semibold text-slate-800 mb-1">Période</h3>
+                <p class="text-xs text-slate-600">Du [date] au [date]</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Date Range Selection Modal -->
+  <div *ngIf="showDateRangeModal()" 
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 modal-backdrop releve-modal-enter"
+       (click)="closeDateRangeModal()">
+    <div class="w-full max-w-md mx-auto p-4"
+         (click)="$event.stopPropagation()">
+      <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-slate-200 bg-gradient-to-r from-pink-50 to-rose-50">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Sélection de Période</h2>
+              <p class="text-slate-600 mt-1">Choisissez la période pour le relevé</p>
+            </div>
+            <button (click)="closeDateRangeModal()" 
+                    title="Fermer"
+                    class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-600 transition-colors duration-200 select-none">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6 space-y-4">
+          <div>
+            <label for="releveDateFrom" class="block text-sm font-medium text-slate-700 mb-2">Date de début</label>
+            <input type="date" 
+                   id="releveDateFrom"
+                   [(ngModel)]="releveDateFrom"
+                   placeholder="Sélectionnez la date de début"
+                   title="Date de début pour le relevé de caisse"
+                   class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-colors duration-200">
+          </div>
+          <div>
+            <label for="releveDateTo" class="block text-sm font-medium text-slate-700 mb-2">Date de fin</label>
+            <input type="date" 
+                   id="releveDateTo"
+                   [(ngModel)]="releveDateTo"
+                   placeholder="Sélectionnez la date de fin"
+                   title="Date de fin pour le relevé de caisse"
+                   class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-colors duration-200">
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="flex items-center justify-end gap-3 p-6 border-t border-slate-200 bg-slate-50">
+          <button (click)="closeDateRangeModal()" 
+                  class="px-4 py-2 text-slate-600 bg-white border border-slate-300 rounded-lg transition-colors duration-200 select-none hover:bg-slate-50">
+            Annuler
+          </button>
+          <button (click)="generateReleveForDateRange()"
+                  [disabled]="!releveDateFrom || !releveDateTo"
+                  class="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg transition-all duration-200 select-none hover:from-pink-600 hover:to-rose-600 disabled:opacity-50 disabled:cursor-not-allowed">
+            Générer Relevé
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Relevé Caisse Results Modal -->
+  <div *ngIf="showReleveResultsModal()" 
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 modal-backdrop releve-modal-enter"
+       (click)="closeReleveResultsModal()">
+    <div class="w-full max-w-6xl mx-auto p-4"
+         (click)="$event.stopPropagation()">
+      <div class="bg-white rounded-2xl shadow-2xl overflow-hidden h-[80vh] flex flex-col">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-slate-200 bg-gradient-to-r from-purple-50 to-pink-50">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-slate-800">Relevé de Caisse</h2>
+              <p class="text-slate-600 mt-1">{{releveTitle()}}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button (click)="debugSalesData()" 
+                      title="Debug sales data"
+                      class="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg transition-colors duration-200 select-none hover:bg-orange-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="hidden sm:inline">Debug</span>
+              </button>
+              <button (click)="exportReleveCaisse()" 
+                      title="Exporter le relevé"
+                      class="flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-lg transition-colors duration-200 select-none hover:bg-emerald-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span class="hidden sm:inline">Exporter</span>
+              </button>
+              <button (click)="closeReleveResultsModal()" 
+                      title="Fermer"
+                      class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-600 transition-colors duration-200 select-none">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="flex-1 overflow-y-auto p-6">
+          <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full releve-table">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Désignation</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Débit</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Crédit</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Solde</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white">
+                  <ng-container *ngFor="let sessionGroup of getSessionGroups(); let sessionIndex = index">
+                    <!-- Session Header -->
+                    <tr class="bg-slate-100 border-t-2 border-b-2 border-slate-300">
+                      <td colspan="5" class="px-4 py-3 text-center font-bold text-slate-800 text-lg">
+                        Session #{{sessionGroup.sessionId}} - {{getSessionUser(sessionGroup.sessionId)}}
+                      </td>
+                    </tr>
+                    
+                    <!-- Session Entries -->
+                    <tr *ngFor="let entry of sessionGroup.entries; let entryIndex = index" 
+                        class="hover:bg-slate-50 transition-colors duration-200"
+                        [class.cursor-pointer]="entry.designation.includes('Dépenses espèces') || entry.designation.includes('Sortie - Dépense')"
+                        (click)="(entry.designation.includes('Dépenses espèces') || entry.designation.includes('Sortie - Dépense')) && openExpenseDetailsModal(entry.designation, entry.sessionId)">
+                      <td class="px-4 py-3 text-sm text-slate-900 font-mono">{{entry.date | date:'dd/MM/yyyy HH:mm:ss'}}</td>
+                      <td class="px-4 py-3 text-sm text-slate-900">
+                        <span [class.text-blue-600]="entry.designation.includes('Dépenses espèces') || entry.designation.includes('Sortie - Dépense')"
+                              [class.font-medium]="entry.designation.includes('Dépenses espèces') || entry.designation.includes('Sortie - Dépense')"
+                              [class.underline]="entry.designation.includes('Dépenses espèces') || entry.designation.includes('Sortie - Dépense')">
+                          {{entry.designation}}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 text-sm text-right font-medium" 
+                          [class.currency-positive]="entry.debit > 0"
+                          [class.currency-neutral]="entry.debit === 0">
+                        {{entry.debit > 0 ? formatCurrency(entry.debit) : '-'}}
+                      </td>
+                      <td class="px-4 py-3 text-sm text-right font-medium"
+                          [class.currency-negative]="entry.credit > 0"
+                          [class.currency-neutral]="entry.credit === 0">
+                        {{entry.credit > 0 ? formatCurrency(entry.credit) : '-'}}
+                      </td>
+                      <td class="px-4 py-3 text-sm text-right font-bold text-slate-900 font-mono">
+                        {{formatCurrency(entry.solde)}}
+                      </td>
+                    </tr>
+                    
+                    <!-- Session Summary -->
+                    <tr class="bg-slate-50 border-t border-b border-slate-200">
+                      <td colspan="3" class="px-4 py-2 text-right text-sm font-semibold text-slate-700">
+                        Solde Session #{{sessionGroup.sessionId}}:
+                      </td>
+                      <td colspan="2" class="px-4 py-2 text-right text-sm font-bold text-slate-900">
+                        {{formatCurrency(sessionGroup.entries[sessionGroup.entries.length - 1].solde || 0)}}
+                      </td>
+                    </tr>
+                  </ng-container>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -273,7 +273,7 @@
     "ticketWidth": 58,
     "droitDeTimbre": false,
     "autoApproveExpenseBelow": 0,
-    "allowNegativeStock": false,
+    "allowNegativeStock": true,
     "printSettings": {
       "showLogo": true,
       "logoSize": "medium",
