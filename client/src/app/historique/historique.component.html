@@ -70,6 +70,7 @@
           <option value="">Tous</option>
           <option value="retail">Détail</option>
           <option value="wholesale">Gros</option>
+          <option value="table">Table Service</option>
         </select>
       </div>
 
@@ -162,7 +163,10 @@
           </thead>
           <tbody>
             <tr *ngFor="let sale of group.sales; trackBy: trackBySaleId" class="border-b border-slate-100">
-              <td class="px-3 py-2 font-semibold text-slate-800">#{{ getFormattedTicketNumber(sale) }}</td>
+              <td class="px-3 py-2 font-semibold text-slate-800">
+                #{{ getFormattedTicketNumber(sale) }}
+                <span *ngIf="isTableSale(sale)" class="ml-2 text-[10px] font-bold text-blue-600">🍽️ Table {{ sale.tableInfo?.tableNumber }}</span>
+              </td>
               <td class="px-3 py-2 text-slate-600">{{ formatDate(sale.createdAt) }}</td>
               <td class="px-3 py-2">
                 <span *ngIf="sale.client; else guestRow" class="text-slate-800">{{ sale.client.firstName }} {{ sale.client.lastName }}</span>
@@ -197,6 +201,7 @@
           <div class="px-3 py-2 border-b border-slate-200/70 bg-slate-50 rounded-t-xl flex items-center justify-between">
             <div class="flex items-center gap-1.5">
               <span class="text-base font-bold text-slate-800">#{{ getFormattedTicketNumber(sale) }}</span>
+              <span *ngIf="isTableSale(sale)" class="text-[10px] font-bold text-blue-600">🍽️ T{{ sale.tableInfo?.tableNumber }}</span>
               <span class="text-[10px] text-slate-500">{{ formatDate(sale.createdAt) }}</span>
             </div>
             <span [class]="'text-[9px] px-2 py-0.5 rounded-full ' + getStatusColor(sale.status)">{{ getStatusText(sale.status) }}</span>

@@ -208,6 +208,7 @@ model Product {
   rebutRecords             RebutRecord[]
   returnItems              ReturnItem[]
   saleItems                SaleItem[]            @relation("ProductSaleItems")
+  tableSaleItems           TableSaleItem[]
   documentItems            StockDocumentItem[]
   stockMovements           StockMovement[]
   stockTransferItems       StockTransferItem[]
@@ -1497,4 +1498,79 @@ enum InventorySessionStatus {
 enum InventoryReason {
   PHYSICAL_COUNT_DIFFERENCE
   SUSPICION_OF_ANOMALY
+}
+
+enum TableSaleStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model Salon {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  maxTables   Int      @map("max_tables")
+  location    String?  @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  tables      Table[]
+  tableSales  TableSale[]
+  
+  @@map("salons")
+}
+
+model Table {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  number    String   @db.VarChar(20)
+  color     String   @db.VarChar(7) // Hex color code
+  salonId   Int      @map("salon_id")
+  notes     String?  @db.Text
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  salon     Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  tableSales TableSale[]
+  
+  @@map("tables")
+}
+
+model TableSale {
+  id              Int             @id @default(autoincrement())
+  tableId         Int             @map("table_id")
+  salonId         Int             @map("salon_id")
+  totalAmount     Decimal         @map("total_amount") @db.Decimal(10, 2)
+  paidAmount      Decimal         @default(0.00) @map("paid_amount") @db.Decimal(10, 2)
+  remainingAmount Decimal         @default(0.00) @map("remaining_amount") @db.Decimal(10, 2)
+  status          TableSaleStatus @default(ACTIVE)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  
+  table           Table           @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  salon           Salon           @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  items           TableSaleItem[]
+  
+  @@map("table_sales")
+}
+
+model TableSaleItem {
+  id          Int        @id @default(autoincrement())
+  tableSaleId Int        @map("table_sale_id")
+  productId   Int        @map("product_id")
+  productName String     @map("product_name") @db.VarChar(200)
+  quantity    Decimal    @db.Decimal(10, 3)
+  unitPrice   Decimal    @map("unit_price") @db.Decimal(10, 2)
+  total       Decimal    @db.Decimal(10, 2)
+  isPaid      Boolean    @default(false) @map("is_paid")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  tableSale   TableSale  @relation(fields: [tableSaleId], references: [id], onDelete: Cascade)
+  product     Product    @relation(fields: [productId], references: [id])
+  
+  @@map("table_sale_items")
 }

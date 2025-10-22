@@ -105,6 +105,16 @@ export class HomeComponent implements OnInit, OnDestroy {
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
     },
     {
+      id: 'vente-tables',
+      title: 'Vente Tables',
+      description: 'Ventes par table',
+      route: '/vente-tables',
+      icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
+      color: 'from-purple-500 to-pink-600',
+      gradient: 'from-purple-50 to-pink-100',
+      roles: ['ADMIN', 'MANAGER', 'CASHIER']
+    },
+    {
       id: 'historique',
       title: 'Historique',
       description: 'Transactions',
@@ -693,6 +703,9 @@ export class HomeComponent implements OnInit, OnDestroy {
         break;
       case 'access':
         this.router.navigate(['/parametres/access']);
+        break;
+      case 'tables-salon':
+        this.router.navigate(['/tables-salon']);
         break;
       case 'enterprise':
         this.showEnterpriseActionDialog.set(true);

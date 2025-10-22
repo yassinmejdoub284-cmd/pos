@@ -170,6 +170,14 @@ export class SettingsActionDialogComponent {
       gradient: 'from-emerald-50 to-green-100'
     },
     {
+      id: 'tables-salon',
+      title: 'Gestion des Tables de Salon',
+      description: 'Gérer les tables et l\'espace salon',
+      icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
+      color: 'from-emerald-500 to-teal-600',
+      gradient: 'from-emerald-50 to-teal-100'
+    },
+    {
       id: 'enterprise',
       title: 'Gestion d\'Entreprise',
       description: 'Gérer les entreprises et leurs entrepôts',

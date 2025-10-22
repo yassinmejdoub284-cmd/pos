@@ -137,5 +137,15 @@ export const routes: Routes = [
     path: 'documents-reception', 
     canActivate: [authGuard],
     loadChildren: () => import('./documents-reception/documents-reception.module').then(m => m.DocumentsReceptionModule) 
+  },
+  { 
+    path: 'tables-salon', 
+    canActivate: [authGuard],
+    loadChildren: () => import('./tables-salon/tables-salon.module').then(m => m.TablesSalonModule) 
+  },
+  { 
+    path: 'vente-tables', 
+    canActivate: [authGuard],
+    loadChildren: () => import('./vente-tables/vente-tables.module').then(m => m.VenteTablesModule) 
   }
 ];

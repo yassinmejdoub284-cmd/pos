@@ -35,6 +35,13 @@ export const environment = {
 
 // export const environment = {
 //   production: false,
+//   apiUrl: 'https://192.168.28.51:3255/api',
+//   socketUrl: 'https://192.168.28.51:3255',
+//   enableRealtime: false
+// };
+
+// export const environment = {
+//   production: false,
 //   apiUrl: 'https://192.168.108.51:3255/api',
 //   socketUrl: 'https://192.168.108.51:3255',
 //   enableRealtime: false

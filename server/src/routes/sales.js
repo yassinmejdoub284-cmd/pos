@@ -862,6 +862,7 @@ router.get('/', async (req, res) => {
 
     if (paymentMethod) whereClause.paymentMethodId = parseInt(paymentMethod);
 
+    // Get regular sales
     const sales = await prisma.sale.findMany({
       where: whereClause,
       include: {
@@ -876,7 +877,104 @@ router.get('/', async (req, res) => {
       take: parseInt(limit)
     });
 
-    res.json(sales);
+    // Get table sales and convert them to sale format for historique
+    const tableSalesWhereClause = {};
+    
+    // Apply same date filtering to table sales
+    if (startDate && endDate) {
+      tableSalesWhereClause.createdAt = { gte: new Date(startDate), lte: new Date(endDate) };
+      console.log('Date filter applied:', { startDate, endDate });
+    } else {
+      console.log('No date filter - will get all table sales');
+    }
+
+    if (status) {
+      // Map sale status to table sale status
+      if (status === 'COMPLETED') {
+        tableSalesWhereClause.status = 'COMPLETED';
+      } else if (status === 'CANCELLED') {
+        tableSalesWhereClause.status = 'CANCELLED';
+      } else if (status === 'PENDING' || status === 'TEMPORARY') {
+        tableSalesWhereClause.status = 'ACTIVE';
+      }
+    } else {
+      // If no status filter, include all table sales (ACTIVE, COMPLETED, CANCELLED)
+      // Temporarily remove status filter to see all table sales
+      // tableSalesWhereClause.status = { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] };
+    }
+
+    console.log('Table sales where clause:', tableSalesWhereClause);
+    const tableSales = await prisma.tableSale.findMany({
+      where: tableSalesWhereClause,
+      include: {
+        items: {
+          include: {
+            product: true
+          }
+        },
+        table: true,
+        salon: true
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (parseInt(page) - 1) * parseInt(limit),
+      take: parseInt(limit)
+    });
+    console.log('Found table sales:', tableSales.length);
+
+    // Convert table sales to sale format for historique compatibility
+    const convertedTableSales = tableSales.map(tableSale => ({
+      id: 9000000 + tableSale.id, // Use high number range to avoid conflicts with regular sales
+      total: parseFloat(tableSale.totalAmount),
+      discount: 0,
+      finalTotal: parseFloat(tableSale.totalAmount),
+      paymentMethodId: null,
+      paymentMethod: { name: 'Table Service' },
+      clientId: null,
+      client: null,
+      userId: null,
+      user: { firstName: 'Table', lastName: 'Service' },
+      depotId: userDepotId,
+      sessionId: null,
+      session: null,
+      status: tableSale.status === 'ACTIVE' ? 'PENDING' : tableSale.status,
+      paymentType: 'COMPTANT',
+      isWholesale: false,
+      advancePayment: 0,
+      advancePaymentMethodId: null,
+      advancePaymentDate: null,
+      advancePaymentNotes: null,
+      dailyTicketNumber: `T${tableSale.table.number}`,
+      createdAt: tableSale.createdAt,
+      updatedAt: tableSale.updatedAt,
+      items: tableSale.items.map(item => ({
+        id: `table_item_${item.id}`,
+        productId: item.productId,
+        productName: item.productName,
+        quantity: parseFloat(item.quantity),
+        unitPrice: parseFloat(item.unitPrice),
+        total: parseFloat(item.total),
+        discount: 0,
+        isWholesale: false,
+        product: item.product,
+        isPaid: item.isPaid
+      })),
+      // Add table-specific info
+      tableInfo: {
+        tableId: tableSale.table.id,
+        tableNumber: tableSale.table.number,
+        salonId: tableSale.salon.id,
+        salonName: tableSale.salon.name,
+        paidAmount: parseFloat(tableSale.paidAmount),
+        remainingAmount: parseFloat(tableSale.remainingAmount)
+      }
+    }));
+
+    // Combine and sort all sales by creation date
+    const allSales = [...sales, ...convertedTableSales].sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    res.json(allSales);
   } catch (error) {
     console.error('Error fetching sales:', error);
     res.status(500).json({ error: 'Internal server error' });

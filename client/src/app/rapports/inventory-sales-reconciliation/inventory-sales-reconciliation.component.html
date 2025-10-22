@@ -385,43 +385,18 @@
             <thead class="bg-gray-50">
               <!-- Level 1: Main Groups -->
               <tr>
-                <th rowspan="3" class="px-4 py-3 text-left font-semibold text-gray-900 border-r border-gray-200">Date</th>
-                <th rowspan="3" class="px-4 py-3 text-left font-semibold text-gray-900 border-r border-gray-200">Désignation</th>
-                <th colspan="9" class="px-4 py-3 text-center font-semibold text-gray-900 border-r border-gray-200">ACHAT</th>
-                <th colspan="9" class="px-4 py-3 text-center font-semibold text-gray-900">VENTE</th>
+                <th rowspan="2" class="px-4 py-3 text-left font-semibold text-gray-900 border-r border-gray-200">Date</th>
+                <th rowspan="2" class="px-4 py-3 text-left font-semibold text-gray-900 border-r border-gray-200">Désignation</th>
+                <th colspan="3" class="px-4 py-3 text-center font-semibold text-gray-900 border-r border-gray-200">ACHAT</th>
+                <th colspan="3" class="px-4 py-3 text-center font-semibold text-gray-900">VENTE</th>
               </tr>
-              <!-- Level 2: Sub-groups -->
-              <tr>
-                <th colspan="3" class="px-4 py-2 text-center font-medium text-gray-700 border-r border-gray-200">Entrée</th>
-                <th colspan="3" class="px-4 py-2 text-center font-medium text-gray-700 border-r border-gray-200">Sortie</th>
-                <th colspan="3" class="px-4 py-2 text-center font-medium text-gray-700 border-r border-gray-200">Solde</th>
-                <th colspan="3" class="px-4 py-2 text-center font-medium text-gray-700 border-r border-gray-200">Entrée</th>
-                <th colspan="3" class="px-4 py-2 text-center font-medium text-gray-700 border-r border-gray-200">Sortie</th>
-                <th colspan="3" class="px-4 py-2 text-center font-medium text-gray-700">Solde</th>
-              </tr>
-              <!-- Level 3: Individual Columns -->
+              <!-- Level 2: Individual Columns -->
               <tr>
                 <!-- Achat Entrée -->
                 <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Qté</th>
                 <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">P.U</th>
                 <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Totale</th>
-                <!-- Achat Sortie -->
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Qté</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">P.U</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Totale</th>
-                <!-- Achat Solde -->
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Qté</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">P.U</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Totale</th>
-                <!-- Vente Entrée -->
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Qté</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">P.U</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Totale</th>
                 <!-- Vente Sortie -->
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Qté</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">P.U</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Totale</th>
-                <!-- Vente Solde -->
                 <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Qté</th>
                 <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">P.U</th>
                 <th class="px-2 py-2 text-center font-medium text-gray-600">Totale</th>
@@ -456,30 +431,10 @@
                 <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.achat.entree.pu) }}</td>
                 <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.achat.entree.totale) }}</td>
                 
-                <!-- Achat Sortie -->
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatQuantity(row.achat.sortie.qty) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.achat.sortie.pu) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.achat.sortie.totale) }}</td>
-                
-                <!-- Achat Solde -->
-                <td class="px-2 py-3 text-right border-r border-gray-200 font-medium">{{ formatQuantity(row.achat.solde.qty) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200 font-medium">{{ formatNumber(row.achat.solde.pu) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200 font-medium">{{ formatNumber(row.achat.solde.totale) }}</td>
-                
-                <!-- Vente Entrée -->
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatQuantity(row.vente.entree.qty) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.vente.entree.pu) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.vente.entree.totale) }}</td>
-                
                 <!-- Vente Sortie -->
                 <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatQuantity(row.vente.sortie.qty) }}</td>
                 <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.vente.sortie.pu) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.vente.sortie.totale) }}</td>
-                
-                <!-- Vente Solde -->
-                <td class="px-2 py-3 text-right border-r border-gray-200 font-medium">{{ formatQuantity(row.vente.solde.qty) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200 font-medium">{{ formatNumber(row.vente.solde.pu) }}</td>
-                <td class="px-2 py-3 text-right font-medium">{{ formatNumber(row.vente.solde.totale) }}</td>
+                <td class="px-2 py-3 text-right">{{ formatNumber(row.vente.sortie.totale) }}</td>
               </tr>
             </tbody>
           </table>
@@ -518,6 +473,85 @@
               </div>
               <div class="text-sm text-gray-600">
                 Mode de valorisation: {{ getValuationModeLabel(valuationMode) }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Écart Table -->
+        <div *ngIf="data.ecartData" class="bg-white border-t border-gray-200">
+          <div class="bg-blue-50 px-6 py-3 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-blue-900">📊 Tableau des Écarts</h3>
+            <p class="text-sm text-blue-700">Analyse des écarts entre chiffre d'affaire théorique et réalisé</p>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-blue-50">
+                <tr>
+                  <th class="px-4 py-3 text-left font-semibold text-blue-900 border-r border-blue-200">Produit</th>
+                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Qté Vendue</th>
+                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Prix Vente Unitaire</th>
+                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">CA Théorique</th>
+                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">CA Réalisé</th>
+                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart Vente Gros</th>
+                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart Gratuité</th>
+                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart Remise</th>
+                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart Global</th>
+                  <th class="px-4 py-3 text-center font-semibold text-blue-900">Déférence d'Écart</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-gray-200">
+                  <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ data.ecartData.productName }}</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatQuantity(data.ecartData.qtyVendu) }}</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatNumber(data.ecartData.prixVenteUnitaire) }} dt</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-green-600">{{ formatNumber(data.ecartData.chiffreAffaireTheorique) }} dt</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-blue-600">{{ formatNumber(data.ecartData.chiffreAffaireRealise) }} dt</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200" [class]="data.ecartData.ecartVenteGros < 0 ? 'text-red-600' : 'text-orange-600'">
+                    {{ formatNumber(data.ecartData.ecartVenteGros) }} dt
+                  </td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{ formatNumber(data.ecartData.ecartGratuite) }} dt</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{ formatNumber(data.ecartData.ecartRemise) }} dt</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200 font-bold text-lg" [class]="data.ecartData.ecartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
+                    {{ formatNumber(data.ecartData.ecartGlobal) }} dt
+                  </td>
+                  <td class="px-4 py-3 text-center font-bold text-lg" [class]="data.ecartData.deferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
+                    {{ formatNumber(data.ecartData.deferenceEcart) }} dt
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Écart Summary -->
+          <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div class="text-center">
+                <h4 class="font-semibold text-gray-900 mb-1">CA Théorique</h4>
+                <p class="text-lg font-bold text-green-600">{{ formatNumber(data.ecartData.chiffreAffaireTheorique) }} dt</p>
+                <p class="text-xs text-gray-500">Qté × Prix Unitaire</p>
+              </div>
+              <div class="text-center">
+                <h4 class="font-semibold text-gray-900 mb-1">CA Réalisé</h4>
+                <p class="text-lg font-bold text-blue-600">{{ formatNumber(data.ecartData.chiffreAffaireRealise) }} dt</p>
+                <p class="text-xs text-gray-500">Chiffre d'affaire réel</p>
+              </div>
+              <div class="text-center">
+                <h4 class="font-semibold text-gray-900 mb-1">Écart Global</h4>
+                <p class="text-lg font-bold" [class]="data.ecartData.ecartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
+                  {{ formatNumber(data.ecartData.ecartGlobal) }} dt
+                </p>
+                <p class="text-xs text-gray-500">Théorique - Réalisé</p>
+              </div>
+              <div class="text-center">
+                <h4 class="font-semibold text-gray-900 mb-1">Détail Écarts</h4>
+                <p class="text-sm text-orange-600">Gros: {{ formatNumber(data.ecartData.ecartVenteGros) }} dt</p>
+                <p class="text-sm text-red-600">Gratuité: {{ formatNumber(data.ecartData.ecartGratuite) }} dt</p>
+                <p class="text-sm text-red-600">Remise: {{ formatNumber(data.ecartData.ecartRemise) }} dt</p>
+                <p class="text-sm font-bold" [class]="data.ecartData.deferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
+                  Déférence: {{ formatNumber(data.ecartData.deferenceEcart) }} dt
+                </p>
               </div>
             </div>
           </div>
