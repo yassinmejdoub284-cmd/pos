@@ -1156,6 +1156,14 @@ router.get('/payment-methods/all', async (req, res) => {
 router.post('/wholesale', async (req, res) => {
   try {
     const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, paymentType } = req.body;
+    
+    // Debug log for wholesale sales
+    console.log('Wholesale sale received:', {
+      paymentType,
+      paymentMethodId,
+      amountPaid,
+      clientId
+    });
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Wholesale sale must have at least one item' });
@@ -1196,6 +1204,15 @@ router.post('/wholesale', async (req, res) => {
           paymentType: paymentType || 'COMPTANT',
           isWholesale: true
         }
+      });
+
+      // Debug log for created sale
+      console.log('Wholesale sale created:', {
+        id: newSale.id,
+        paymentType: newSale.paymentType,
+        paymentMethodId: newSale.paymentMethodId,
+        amountPaid,
+        clientId: newSale.clientId
       });
 
       for (const item of items) {
@@ -1299,18 +1316,33 @@ router.post('/wholesale', async (req, res) => {
         }
 
         await tx.stockMovement.create({
-          data: {
-            productId: item.productId,
-            depotId: userDepotId, // Use user's depot for stock movement
-            quantity: actualQuantityToDeduct,
-            type: 'OUT',
-            reason: 'Wholesale Sale',
-            userId: req.user.id
-          }
-        });
-      }
+            data: {
+              productId: item.productId,
+              depotId: userDepotId, // Use user's depot for stock movement
+              quantity: actualQuantityToDeduct,
+              type: 'OUT',
+              reason: 'Wholesale Sale',
+              userId: req.user.id
+            }
+          });
+        }
 
-      let loyaltyPointsEarned = 0;
+        // Record cash movement for cash payments in wholesale sales
+        const paidAmount = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : parseFloat(finalTotal);
+        if (paidAmount > 0 && String(paymentType).toLowerCase() === 'cash' && activeSession) {
+          await tx.cashMovement.create({
+            data: {
+              sessionId: activeSession.id,
+              type: 'ENTREE',
+              amount: paidAmount,
+              reason: `Vente gros #${newSale.id}`,
+              ticketId: newSale.id,
+              createdById: req.user.id
+            }
+          });
+        }
+
+        let loyaltyPointsEarned = 0;
 
       if (clientId) {
         let settings = null;
@@ -1323,34 +1355,53 @@ router.post('/wholesale', async (req, res) => {
         const outstanding = Math.max(0, parseFloat(finalTotal) - paid);
 
         if (client) {
-          // Record payment part if any
-          const paidPart = Math.max(0, paid);
-          if (paidPart > 0) {
-            await tx.clientDebtTransaction.create({
-              data: {
-                clientId: client.id,
-                saleId: newSale.id,
-                amount: paidPart,
-                type: 'PAYMENT',
-                userId: req.user.id,
-                notes: 'Payment at wholesale sale'
-              }
-            });
-          }
-          if (outstanding > 0) {
-            // Trust frontend validation; record debt without server-side limit checks
-            const newDebt = parseFloat(client.currentDebt || 0) + outstanding;
-            await tx.client.update({ where: { id: client.id }, data: { currentDebt: newDebt } });
-            await tx.clientDebtTransaction.create({
-              data: {
-                clientId: client.id,
-                saleId: newSale.id,
-                amount: outstanding,
-                type: 'DEBT',
-                userId: req.user.id,
-                notes: 'Debt from wholesale sale'
-              }
-            });
+          // For ESP (instant pay) sales: create only PAYMENT transaction (no debt)
+          // For credit sales: create both PAYMENT (if partial payment) and DEBT (if outstanding)
+          if (paymentType === 'COMPTANT' || paymentType === 'ESP') {
+            // ESP/Instant pay: create only payment transaction (no debt for cash sales)
+            if (paid > 0) {
+              // Create payment transaction (debit)
+              await tx.clientDebtTransaction.create({
+                data: {
+                  clientId: client.id,
+                  saleId: newSale.id,
+                  amount: paid,
+                  type: 'PAYMENT',
+                  userId: req.user.id,
+                  notes: 'Payment at wholesale sale (ESP)'
+                }
+              });
+            }
+          } else {
+            // Credit sales: handle partial payments and debt
+            const paidPart = Math.max(0, paid);
+            if (paidPart > 0) {
+              await tx.clientDebtTransaction.create({
+                data: {
+                  clientId: client.id,
+                  saleId: newSale.id,
+                  amount: paidPart,
+                  type: 'PAYMENT',
+                  userId: req.user.id,
+                  notes: 'Payment at wholesale sale'
+                }
+              });
+            }
+            if (outstanding > 0) {
+              // Trust frontend validation; record debt without server-side limit checks
+              const newDebt = parseFloat(client.currentDebt || 0) + outstanding;
+              await tx.client.update({ where: { id: client.id }, data: { currentDebt: newDebt } });
+              await tx.clientDebtTransaction.create({
+                data: {
+                  clientId: client.id,
+                  saleId: newSale.id,
+                  amount: outstanding,
+                  type: 'DEBT',
+                  userId: req.user.id,
+                  notes: 'Debt from wholesale sale'
+                }
+              });
+            }
           }
         }
 
@@ -1534,6 +1585,21 @@ router.post('/wholesale', async (req, res) => {
             }
           });
         }
+      }
+
+      // Record cash movement for cash payments in public wholesale sales
+      const paidAmount = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : parseFloat(finalTotal);
+      if (paidAmount > 0 && String(paymentType).toLowerCase() === 'cash' && activeSession) {
+        await tx.cashMovement.create({
+          data: {
+            sessionId: activeSession.id,
+            type: 'ENTREE',
+            amount: paidAmount,
+            reason: `Vente gros public #${newSale.id}`,
+            ticketId: newSale.id,
+            createdById: null // No user for public sales
+          }
+        });
       }
 
       // Handle payment

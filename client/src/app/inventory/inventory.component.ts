@@ -255,4 +255,8 @@ export class InventoryComponent implements OnInit {
   goHome(): void {
     this.router.navigate(['/home']);
   }
+
+  goToBalance(): void {
+    this.router.navigate(['/inventory/balance']);
+  }
 }

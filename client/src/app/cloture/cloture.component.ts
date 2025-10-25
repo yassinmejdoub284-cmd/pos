@@ -580,6 +580,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
     return opening + cashFromSales + clientPayments + orderAdvances - expenses - supplierRegs - refunds;
   }
 
+  // Get the actual expected cash from the session (not calculated)
+  getSessionExpectedCash(): number {
+    return parseFloat((this.currentSession()?.expectedCash as any) || 0) || 0;
+  }
+
   getOpeningFund(): number {
     return parseFloat((this.currentSession()?.openingFund as any) || 0) || 0;
   }
@@ -655,6 +660,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
           const paid = parseFloat(s.paidAmount ?? 0) || 0;
           const total = parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0;
           const hasCredit = total - paid > 0;
+          
+          // Debug log for wholesale sales
+          if (s.isWholesale) {
+            console.log('Wholesale sale in closure:', {
+              id: s.id,
+              paymentType: s.paymentType,
+              method: method,
+              paid: paid,
+              total: total,
+              hasCredit: hasCredit,
+              paidAmount: s.paidAmount,
+              finalTotal: s.finalTotal,
+              totalAmount: s.totalAmount
+            });
+          }
+          
           // Include all cash-related tickets; we'll style struck for cancelled/refunded
           return (method === 'CASH' || paid > 0 || hasCredit);
         });
@@ -773,8 +794,15 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
     
-    this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({
-      next: (session) => {
+    // Load closed sessions instead of active session
+    this.sessionsService.getSessions({ 
+      status: 'CLOSED',
+      depotId: currentDepotId,
+      limit: 1 
+    }).subscribe({
+      next: (sessions) => {
+        const session = sessions.length > 0 ? sessions[0] : null;
+        
         // Build a compact snapshot to detect meaningful changes
         const snapshot = session ? JSON.stringify({
           id: session.id,
@@ -793,6 +821,45 @@ export class ClotureComponent implements OnInit, OnDestroy {
           // Ensure cash details are refreshed so the list shows immediately
           this.loadCashSalesDetails();
         }
+        }
+        
+        if (!silent) this.loading.set(false);
+        this.isRefreshing = false;
+      },
+      error: (error) => {
+        this.error.set('Erreur lors du chargement de la session');
+        if (!silent) this.loading.set(false);
+        this.isRefreshing = false;
+      }
+    });
+  }
+
+  // Load specific session by ID
+  loadSessionById(sessionId: number, silent: boolean = false): void {
+    if (this.isRefreshing) return;
+    this.isRefreshing = true;
+    if (!silent) this.loading.set(true);
+    
+    this.sessionsService.getSessionById(sessionId).subscribe({
+      next: (session) => {
+        // Build a compact snapshot to detect meaningful changes
+        const snapshot = session ? JSON.stringify({
+          id: session.id,
+          expectedCash: (session as any)?.summary?.expectedCash ?? null,
+          totalSales: (session as any)?.summary?.totalSales ?? null,
+          totalTickets: (session as any)?.summary?.totalTickets ?? null,
+          cmLen: (session as any)?.cashMovements?.length ?? 0
+        }) : 'null';
+
+        if (this.lastSessionSnapshot !== snapshot) {
+          this.currentSession.set(session);
+          this.lastSessionSnapshot = snapshot;
+          // Load sales data for user summary if session exists
+          if (session) {
+            this.loadSessionSalesData(session.id);
+            // Ensure cash details are refreshed so the list shows immediately
+            this.loadCashSalesDetails();
+          }
         }
         
         if (!silent) this.loading.set(false);

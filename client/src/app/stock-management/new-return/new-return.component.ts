@@ -138,7 +138,7 @@ export class NewReturnComponent implements OnInit {
       notes: ctrl.get('notes')?.value || null
     }));
 
-    this.stockDocs.createEntry(this.depotId, null, items, 'Bon de retour').subscribe({
+    this.stockDocs.createEntry(this.depotId, null, items, 'Bon de retour', true).subscribe({
       next: () => {
         this.loading = false;
         this.success = `Bon de retour créé avec succès`;

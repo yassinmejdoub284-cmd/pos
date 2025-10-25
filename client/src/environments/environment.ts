@@ -1,16 +1,16 @@
+ export const environment = {
+   production: false,
+  apiUrl: 'https://localhost:3255/api',
+     socketUrl: 'https://localhost:3255',
+     enableRealtime: false
+  };
+
 // export const environment = {
-//   production: false,
-//   apiUrl: 'https://localhost:3255/api',
-//   socketUrl: 'https://localhost:3255',
+  //production: false,
+//   apiUrl: 'https://192.168.1.15:3255/api',
+//   socketUrl: 'https://192.168.1.15:3255',
 //   enableRealtime: false
 // };
-
-export const environment = {
-  production: false,
-  apiUrl: 'https://192.168.1.15:3255/api',
-  socketUrl: 'https://192.168.1.15:3255',
-  enableRealtime: false
-};
 
 // export const environment = {
 //   production: false,

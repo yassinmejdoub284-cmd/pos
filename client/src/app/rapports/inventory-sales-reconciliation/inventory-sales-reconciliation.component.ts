@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { InventoryService, InventorySession } from '../../core/services/inventory.service';
 import { SalesService } from '../../core/services/sales.service';
+import { SessionsService } from '../../core/services/sessions.service';
 import { ProductsService } from '../../core/services/products.service';
 import { Product, ProductFamily } from '../../core/models/product.model';
 import { Sale, SaleItem } from '../../core/models/sale.model';
@@ -52,6 +53,63 @@ export interface ReconciliationData {
     endingStock: { qty: number; value: number; pu: number };
   };
   ecartData?: EcartData;
+  releveInventaire?: ReleveInventaireRow;
+}
+
+export interface GlobalEcartSummary {
+  totalProducts: number;
+  totalQtyVendu: number;
+  totalChiffreAffaireTheorique: number;
+  totalChiffreAffaireRealise: number;
+  totalEcartVenteGros: number;
+  totalEcartGratuite: number;
+  totalEcartRemise: number;
+  totalEcartGlobal: number;
+  totalDeferenceEcart: number;
+  products: EcartData[];
+}
+
+// Relevé Inventaire interfaces
+export interface ReleveInventaireRow {
+  id: string;
+  designation: string;
+  debut: number; // montant total
+  credit: number; // montant total
+  solde: number; // debut - credit
+  type: 'ENTRY' | 'CREDIT' | 'INVENTORY' | 'MANUAL_CREDIT';
+  details?: string; // détails pour les écarts, numéros de caisse, etc.
+  date?: Date;
+  isInventory?: boolean; // ligne verte pour inventaire
+  saleId?: number; // ID de la vente pour navigation
+  ecartType?: string; // Type d'écart (GRATUITE, VENTE_GROS, REMISE)
+  isExpandable?: boolean; // Can be expanded to show details
+  expandableId?: string; // ID for expansion tracking
+  isChild?: boolean; // Is a child row of an expandable parent
+  parentId?: string; // ID of the parent row
+  isEcartGrosChild?: boolean; // Is a child of ecart gros
+  wholesaleSales?: any[]; // Wholesale sales data for dialog
+  totalWholesaleSales?: number; // Total number of wholesale sales
+  ticketNumber?: string; // Ticket number for wholesale sales
+  wholesaleAmount?: number; // Wholesale amount
+  retailAmount?: number; // Retail amount
+  priceDifference?: number; // Price difference (loss)
+}
+
+export interface CreditEntry {
+  id?: number;
+  productId: number;
+  amount: number;
+  type: 'SALE' | 'FREE_ITEM' | 'EXIT_VOUCHER' | 'WHOLESALE_DIFFERENCE';
+  description: string;
+  date: Date;
+}
+
+export interface ReleveInventaireSummary {
+  totalProducts: number;
+  totalDebut: number;
+  totalCredit: number;
+  totalSolde: number;
+  products: ReleveInventaireRow[];
 }
 
 export type RangeMode = 'DATE' | 'INVENTORY' | 'LAST_INVENTORY';
@@ -73,6 +131,7 @@ interface SaleLayer {
 @Component({
   selector: 'app-inventory-sales-reconciliation',
   templateUrl: './inventory-sales-reconciliation.component.html',
+  styleUrls: ['./inventory-sales-reconciliation.component.css'],
   standalone: false
 })
 export class InventorySalesReconciliationComponent implements OnInit {
@@ -96,22 +155,53 @@ export class InventorySalesReconciliationComponent implements OnInit {
   categories: ProductFamily[] = [];
   inventorySessions: InventorySession[] = [];
   reconciliationData: ReconciliationData[] = [];
+  globalEcartSummary: GlobalEcartSummary | null = null;
+  
+  // Relevé Inventaire data
+  releveInventaireData: ReleveInventaireRow[] = [];
+  releveInventaireSummary: ReleveInventaireSummary | null = null;
+  creditEntries: CreditEntry[] = [];
+  expandedBonEntree: Set<string> = new Set();
+  expandedEcartGros: Set<string> = new Set();
+  
+  // Wholesale sales dialog state
+  showWholesaleDialog = false;
+  selectedWholesaleSales: any[] = [];
+  selectedWholesaleProduct = '';
   
   // UI state
   loading = false;
   error = '';
   showReport = false;
+  showAddCreditForm = false;
+  showInactiveProducts = false; // Option to show inactive products
+  totalProducts = 0;
+  activeProducts = 0;
+  
+  // Form for adding credit
+  newCredit: CreditEntry = {
+    productId: 0,
+    amount: 0,
+    type: 'SALE',
+    description: '',
+    date: new Date()
+  };
+
+  // Track which product's credit modal is open
+  selectedProductForCredit: number | null = null;
   
   constructor(
     private http: HttpClient,
     private inventoryService: InventoryService,
     private salesService: SalesService,
+    private sessionsService: SessionsService,
     private productsService: ProductsService
   ) {}
 
   ngOnInit(): void {
     this.setDefaultDateRange();
     this.loadInitialData();
+    
   }
 
   setDefaultDateRange(): void {
@@ -269,21 +359,584 @@ export class InventorySalesReconciliationComponent implements OnInit {
   private async generateReconciliationData(products: Product[], dateFrom: Date, dateTo: Date): Promise<void> {
     this.reconciliationData = [];
 
-    for (const product of products) {
-      try {
-        const data = await this.generateProductReconciliation(product, dateFrom, dateTo);
-        
-        // Include products that have any data (rows, movements, or initial inventory)
-        if (data.rows.length > 0) {
-          this.reconciliationData.push(data);
+    
+    // Fetch ALL data once at the beginning
+    const [allSales, allStockMovements, allInventory] = await Promise.all([
+      this.getAllSalesData(),
+      this.getAllStockMovements(dateFrom, dateTo),
+      this.getAllInventoryData()
+    ]);
+
+
+    // Filter sales by date range
+    const salesInRange = allSales.filter(sale => {
+      const saleDate = new Date(sale.createdAt);
+      return saleDate >= dateFrom && saleDate <= dateTo;
+    });
+
+    // Filter out products with no activity to optimize processing
+    const activeProducts = this.filterActiveProducts(products, salesInRange, allStockMovements, allInventory);
+    
+    // Store counts for UI display
+    this.totalProducts = products.length;
+    this.activeProducts = activeProducts.length;
+    
+    // Choose which products to process based on user preference
+    const productsToProcess = this.showInactiveProducts ? products : activeProducts;
+    
+
+    // Process selected products using pre-fetched data (no more API calls)
+    const reconciliationPromises = productsToProcess.map(product => 
+      this.generateProductReconciliationBulk(
+        product, 
+        salesInRange, 
+        allStockMovements, 
+        allInventory
+      )
+    );
+
+    // Process all products in parallel
+    this.reconciliationData = await Promise.all(reconciliationPromises);
+
+
+    this.globalEcartSummary = this.calculateGlobalEcartSummary(this.reconciliationData);
+    
+    // Generate Relevé Inventaire from reconciliation data
+    await this.generateReleveInventaireFromReconciliationData();
+    
+    this.loading = false;
+    this.showReport = true;
+  }
+
+  private async getAllSalesData(): Promise<any[]> {
+    try {
+      const allSales = await firstValueFrom(this.salesService.getSales());
+      return Array.isArray(allSales) ? allSales : [];
+    } catch (err) {
+      console.error('Error getting all sales data:', err);
+      return [];
+    }
+  }
+
+  private async getAllInventoryData(): Promise<any[]> {
+    try {
+      const inventory = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock/inventory`));
+      return Array.isArray(inventory) ? inventory : [];
+    } catch (err) {
+      console.error('Error getting all inventory data:', err);
+      return [];
+    }
+  }
+
+  private filterActiveProducts(
+    products: Product[], 
+    salesInRange: any[], 
+    allStockMovements: any[], 
+    allInventory: any[]
+  ): Product[] {
+    
+    // Create sets of product IDs that have activity for fast lookup
+    const productsWithSales = new Set<number>();
+    const productsWithStockMovements = new Set<number>();
+    const productsWithInventory = new Set<number>();
+    
+    // Find products with sales in date range
+    for (const sale of salesInRange) {
+      if (sale.items && Array.isArray(sale.items)) {
+        for (const item of sale.items) {
+          if (item.productId) {
+            productsWithSales.add(Number(item.productId));
+          }
         }
-      } catch (err) {
-        console.error(`Error generating reconciliation for product ${product.id}:`, err);
+      }
+    }
+    
+    // Find products with stock movements
+    for (const movement of allStockMovements) {
+      if (movement.productId) {
+        productsWithStockMovements.add(Number(movement.productId));
+      }
+    }
+    
+    // Find products with inventory
+    for (const inventory of allInventory) {
+      if (inventory.productId && Number(inventory.quantity) > 0) {
+        productsWithInventory.add(Number(inventory.productId));
+      }
+    }
+    
+    // Filter products that have at least one type of activity
+    const activeProducts = products.filter(product => {
+      const hasSales = productsWithSales.has(product.id);
+      const hasStockMovements = productsWithStockMovements.has(product.id);
+      const hasInventory = productsWithInventory.has(product.id);
+      
+      return hasSales || hasStockMovements || hasInventory;
+    });
+    
+    
+    return activeProducts;
+  }
+
+  private async getAllStockMovements(dateFrom: Date, dateTo: Date): Promise<any[]> {
+    try {
+      // Get all stock documents in one call
+      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+        params: {
+          type: 'BON_ENTREE_DEPOT',
+          limit: '1000',
+          dateFrom: dateFrom.toISOString(),
+          dateTo: dateTo.toISOString()
+        }
+      }));
+
+      // Handle different response formats
+      let stockDocs = [];
+      if (Array.isArray(response)) {
+        stockDocs = response;
+      } else if (response && Array.isArray(response.data)) {
+        stockDocs = response.data;
+      } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+        stockDocs = response.stockDocuments;
+      } else {
+        return [];
+      }
+
+      const movements: any[] = [];
+      
+      for (const doc of stockDocs) {
+        if (doc.items && doc.items.length > 0) {
+          for (const item of doc.items) {
+            movements.push({
+              date: doc.createdAt,
+              designation: `Achat #${doc.numero}`,
+              type: 'ACHAT_ENTREE',
+              quantity: Number(item.quantity) || 0,
+              unitCost: Number(item.purchasePrice) || 0,
+              productId: item.productId,
+              documentId: doc.id,
+              itemId: item.id
+            });
+          }
+        }
+      }
+
+      return movements;
+    } catch (err) {
+      console.error('Error getting all stock movements:', err);
+      return [];
+    }
+  }
+
+  private async generateProductReconciliationBulk(
+    product: Product, 
+    salesInRange: any[], 
+    allStockMovements: any[],
+    allInventory: any[]
+  ): Promise<ReconciliationData> {
+    const rows: ReconciliationRow[] = [];
+    let currentStock = 0;
+    let currentCost = 0;
+    let currentValue = 0;
+    let saleCumQty = 0;
+    let saleCumValue = 0;
+    let saleAvgPrice = Number(product.prix_vente_TTC) || 0;
+    const fifoLayers: FIFOLayer[] = [];
+    const saleLayers: SaleLayer[] = [];
+
+    // Get initial inventory from pre-fetched data
+    const initialInventory = allInventory.find(item => item.productId === product.id);
+    if (initialInventory && Number(initialInventory.quantity) > 0) {
+      currentStock = Number(initialInventory.quantity) || 0;
+      currentCost = Number(product.prix_achat) || (Number(product.prix_vente_TTC) * 0.7) || 0;
+      currentValue = currentStock * currentCost;
+      saleAvgPrice = Number(product.prix_vente_TTC) || 0;
+      
+      if (this.valuationMode === 'FIFO' && currentStock > 0) {
+        saleLayers.push({ qty: currentStock, price: saleAvgPrice });
+      }
+
+      rows.push({
+        date: new Date(),
+        designation: 'Inventaire Initial',
+        achat: {
+          entree: { qty: currentStock, pu: currentCost, totale: currentValue },
+          sortie: { qty: 0, pu: 0, totale: 0 },
+          solde: { qty: currentStock, pu: currentCost, totale: currentValue }
+        },
+        vente: {
+          entree: { qty: 0, pu: 0, totale: 0 },
+          sortie: { qty: 0, pu: 0, totale: 0 },
+          solde: { qty: currentStock, pu: Number(product.prix_vente_TTC) || 0, totale: currentStock * Number(product.prix_vente_TTC) || 0 }
+        }
+      });
+    }
+
+    // Filter movements for this product from pre-fetched data
+    const productMovements = allStockMovements.filter(m => m.productId === product.id);
+    
+    // Get sales for this product from pre-fetched data
+    const productSales = salesInRange.filter(sale => 
+      sale.items?.some((item: any) => item.productId === product.id)
+    );
+
+    // Process stock movements (no API calls)
+    for (const movement of productMovements) {
+      const row: ReconciliationRow = {
+        date: new Date(movement.date),
+        designation: movement.designation,
+        isWholesale: false,
+        isGift: false,
+        achat: {
+          entree: { qty: 0, pu: 0, totale: 0 },
+          sortie: { qty: 0, pu: 0, totale: 0 },
+          solde: { qty: currentStock, pu: currentCost, totale: currentValue }
+        },
+        vente: {
+          entree: { qty: 0, pu: 0, totale: 0 },
+          sortie: { qty: 0, pu: 0, totale: 0 },
+          solde: { qty: currentStock, pu: currentCost, totale: currentValue }
+        }
+      };
+
+      if (movement.type === 'ACHAT_ENTREE') {
+        const newQty = Number(movement.quantity) || 0;
+        const newCost = Number(movement.unitCost) || 0;
+        const newValue = newQty * newCost;
+
+        row.achat.entree = { qty: newQty, pu: newCost, totale: newValue };
+
+        if (this.valuationMode === 'CUMP') {
+          const totalQty = currentStock + newQty;
+          const totalValue = currentValue + newValue;
+          currentCost = totalQty > 0 ? totalValue / totalQty : currentCost;
+        } else {
+          fifoLayers.push({
+            qty: newQty,
+            cost: newCost,
+            date: new Date(movement.date)
+          });
+          const totalValue = fifoLayers.reduce((sum, layer) => sum + (layer.qty * layer.cost), 0);
+          const totalQty = fifoLayers.reduce((sum, layer) => sum + layer.qty, 0);
+          currentCost = totalQty > 0 ? totalValue / totalQty : currentCost;
+          saleLayers.push({ qty: newQty, price: Number(product.prix_vente_TTC) || 0 });
+        }
+
+        currentStock += newQty;
+        currentValue = currentStock * currentCost;
+      }
+
+      row.achat.solde = { qty: currentStock, pu: currentCost, totale: currentValue };
+      row.vente.solde = { qty: currentStock, pu: saleAvgPrice, totale: currentStock * saleAvgPrice };
+      rows.push(row);
+    }
+
+    // Process sales (no API calls)
+    for (const sale of productSales) {
+      const saleItems = sale.items?.filter((item: any) => item.productId === product.id) || [];
+      
+      for (const item of saleItems) {
+        const outQty = Number(item.quantity) || 0;
+        const outCost = this.valuationMode === 'CUMP' ? currentCost : this.getFIFOCost(fifoLayers, outQty);
+        const unitPrice = Number(item.unitPrice) || 0;
+        const totalPrice = outQty * unitPrice;
+        const isGift = sale.status === 'CADEAU';
+        const isWholesale = item.isWholesale || sale.isWholesale;
+
+        const row: ReconciliationRow = {
+          date: new Date(sale.createdAt),
+          designation: `Vente #${sale.id}`,
+          isWholesale,
+          isGift,
+          achat: {
+            entree: { qty: 0, pu: 0, totale: 0 },
+            sortie: { qty: outQty, pu: outCost, totale: outQty * outCost },
+            solde: { qty: currentStock, pu: currentCost, totale: currentValue }
+          },
+          vente: {
+            entree: { qty: 0, pu: 0, totale: 0 },
+            sortie: { qty: outQty, pu: isGift ? 0 : unitPrice, totale: isGift ? 0 : totalPrice },
+            solde: { qty: currentStock, pu: saleAvgPrice, totale: currentStock * saleAvgPrice }
+          }
+        };
+
+        if (!isGift) {
+          saleCumQty += outQty;
+          saleCumValue += totalPrice;
+          saleAvgPrice = saleCumQty > 0 ? (saleCumValue / saleCumQty) : saleAvgPrice;
+        }
+
+        if (this.valuationMode === 'FIFO') {
+          this.consumeFIFOLayers(fifoLayers, outQty);
+          const totalValue = fifoLayers.reduce((sum, layer) => sum + (layer.qty * layer.cost), 0);
+          const totalQty = fifoLayers.reduce((sum, layer) => sum + layer.qty, 0);
+          currentCost = totalQty > 0 ? totalValue / totalQty : currentCost;
+          
+          let remainingToConsume = outQty;
+          for (let i = 0; i < saleLayers.length && remainingToConsume > 0; i++) {
+            const sl = saleLayers[i];
+            const take = Math.min(remainingToConsume, sl.qty);
+            sl.qty -= take;
+            remainingToConsume -= take;
+            if (sl.qty <= 0) {
+              saleLayers.splice(i, 1);
+              i--;
+            }
+          }
+        }
+
+        currentStock -= outQty;
+        currentValue = currentStock * currentCost;
+        row.achat.solde = { qty: currentStock, pu: currentCost, totale: currentValue };
+        
+        if (this.valuationMode === 'FIFO') {
+          const saleTotalQty = saleLayers.reduce((s, l) => s + l.qty, 0);
+          const saleTotalValue = saleLayers.reduce((s, l) => s + (l.qty * l.price), 0);
+          const salePu = saleTotalQty > 0 ? (saleTotalValue / saleTotalQty) : (Number(product.prix_vente_TTC) || 0);
+          row.vente.solde = { qty: currentStock, pu: salePu, totale: saleTotalQty * salePu };
+        } else {
+          row.vente.solde = { qty: currentStock, pu: saleAvgPrice, totale: currentStock * saleAvgPrice };
+        }
+
+        rows.push(row);
       }
     }
 
-    this.loading = false;
-    this.showReport = true;
+    // Calculate summary
+    const summary = this.calculateSummary(rows);
+
+    // Calculate ecart data using pre-fetched sales
+    const ecartData = this.calculateEcartDataBulk(product, salesInRange);
+
+    // Calculate Relevé Inventaire data using pre-fetched data
+    const debut = this.calculateDebutForReleveBulk(product, allStockMovements);
+    const credit = this.calculateCreditForReleveBulk(product, salesInRange);
+    const solde = debut - credit;
+    
+    const releveInventaire: ReleveInventaireRow = {
+      id: `product_${product.id}`,
+      designation: product.name,
+      debut,
+      credit,
+      solde,
+      type: 'ENTRY'
+    };
+
+    return {
+      productId: product.id,
+      productName: product.name,
+      rows,
+      summary,
+      ecartData,
+      releveInventaire
+    };
+  }
+
+  private async generateProductReconciliationOptimized(
+    product: Product, 
+    dateFrom: Date, 
+    dateTo: Date, 
+    salesInRange: any[], 
+    allStockMovements: any[]
+  ): Promise<ReconciliationData> {
+    const rows: ReconciliationRow[] = [];
+    let currentStock = 0;
+    let currentCost = 0;
+    let currentValue = 0;
+    let totalSaleValue = 0;
+    let saleCumQty = 0;
+    let saleCumValue = 0;
+    let saleAvgPrice = Number(product.prix_vente_TTC) || 0;
+    const fifoLayers: FIFOLayer[] = [];
+    const saleLayers: SaleLayer[] = [];
+
+    // Get initial inventory
+    const initialInventory = await this.getInitialInventory(product.id, dateFrom);
+    if (initialInventory) {
+      currentStock = Number(initialInventory.quantity) || 0;
+      currentCost = Number(product.prix_achat) || (Number(product.prix_vente_TTC) * 0.7) || 0;
+      currentValue = currentStock * currentCost;
+      totalSaleValue = currentStock * Number(product.prix_vente_TTC) || 0;
+      saleAvgPrice = Number(product.prix_vente_TTC) || 0;
+      
+      if (this.valuationMode === 'FIFO' && currentStock > 0) {
+        saleLayers.push({ qty: currentStock, price: saleAvgPrice });
+      }
+
+      rows.push({
+        date: dateFrom,
+        designation: 'Inventaire 1',
+        achat: {
+          entree: { qty: currentStock, pu: currentCost, totale: currentValue },
+          sortie: { qty: 0, pu: 0, totale: 0 },
+          solde: { qty: currentStock, pu: currentCost, totale: currentValue }
+        },
+        vente: {
+          entree: { qty: 0, pu: 0, totale: 0 },
+          sortie: { qty: 0, pu: 0, totale: 0 },
+          solde: { qty: currentStock, pu: Number(product.prix_vente_TTC) || 0, totale: totalSaleValue }
+        }
+      });
+    }
+
+    // Filter movements for this product
+    const productMovements = allStockMovements.filter(m => m.productId === product.id);
+    
+    // Get sales for this product
+    const productSales = salesInRange.filter(sale => 
+      sale.items?.some((item: any) => item.productId === product.id)
+    );
+
+    // Process stock movements
+    for (const movement of productMovements) {
+      const row: ReconciliationRow = {
+        date: new Date(movement.date),
+        designation: movement.designation,
+        isWholesale: false,
+        isGift: false,
+        achat: {
+          entree: { qty: 0, pu: 0, totale: 0 },
+          sortie: { qty: 0, pu: 0, totale: 0 },
+          solde: { qty: currentStock, pu: currentCost, totale: currentValue }
+        },
+        vente: {
+          entree: { qty: 0, pu: 0, totale: 0 },
+          sortie: { qty: 0, pu: 0, totale: 0 },
+          solde: { qty: currentStock, pu: currentCost, totale: currentValue }
+        }
+      };
+
+      if (movement.type === 'ACHAT_ENTREE') {
+        const newQty = Number(movement.quantity) || 0;
+        const newCost = Number(movement.unitCost) || 0;
+        const newValue = newQty * newCost;
+
+        row.achat.entree = { qty: newQty, pu: newCost, totale: newValue };
+
+        if (this.valuationMode === 'CUMP') {
+          const totalQty = currentStock + newQty;
+          const totalValue = currentValue + newValue;
+          currentCost = totalQty > 0 ? totalValue / totalQty : currentCost;
+        } else {
+          fifoLayers.push({
+            qty: newQty,
+            cost: newCost,
+            date: new Date(movement.date)
+          });
+          const totalValue = fifoLayers.reduce((sum, layer) => sum + (layer.qty * layer.cost), 0);
+          const totalQty = fifoLayers.reduce((sum, layer) => sum + layer.qty, 0);
+          currentCost = totalQty > 0 ? totalValue / totalQty : currentCost;
+          saleLayers.push({ qty: newQty, price: Number(product.prix_vente_TTC) || 0 });
+        }
+
+        currentStock += newQty;
+        currentValue = currentStock * currentCost;
+      }
+
+      row.achat.solde = { qty: currentStock, pu: currentCost, totale: currentValue };
+      row.vente.solde = { qty: currentStock, pu: saleAvgPrice, totale: currentStock * saleAvgPrice };
+      rows.push(row);
+    }
+
+    // Process sales
+    for (const sale of productSales) {
+      const saleItems = sale.items?.filter((item: any) => item.productId === product.id) || [];
+      
+      for (const item of saleItems) {
+        const outQty = Number(item.quantity) || 0;
+        const outCost = this.valuationMode === 'CUMP' ? currentCost : this.getFIFOCost(fifoLayers, outQty);
+        const unitPrice = Number(item.unitPrice) || 0;
+        const totalPrice = outQty * unitPrice;
+        const isGift = sale.status === 'CADEAU';
+        const isWholesale = item.isWholesale || sale.isWholesale;
+
+        const row: ReconciliationRow = {
+          date: new Date(sale.createdAt),
+          designation: `Vente #${sale.id}`,
+          isWholesale,
+          isGift,
+          achat: {
+            entree: { qty: 0, pu: 0, totale: 0 },
+            sortie: { qty: outQty, pu: outCost, totale: outQty * outCost },
+            solde: { qty: currentStock, pu: currentCost, totale: currentValue }
+          },
+          vente: {
+            entree: { qty: 0, pu: 0, totale: 0 },
+            sortie: { qty: outQty, pu: isGift ? 0 : unitPrice, totale: isGift ? 0 : totalPrice },
+            solde: { qty: currentStock, pu: saleAvgPrice, totale: currentStock * saleAvgPrice }
+          }
+        };
+
+        if (!isGift) {
+          saleCumQty += outQty;
+          saleCumValue += totalPrice;
+          saleAvgPrice = saleCumQty > 0 ? (saleCumValue / saleCumQty) : saleAvgPrice;
+        }
+
+        if (this.valuationMode === 'FIFO') {
+          this.consumeFIFOLayers(fifoLayers, outQty);
+          const totalValue = fifoLayers.reduce((sum, layer) => sum + (layer.qty * layer.cost), 0);
+          const totalQty = fifoLayers.reduce((sum, layer) => sum + layer.qty, 0);
+          currentCost = totalQty > 0 ? totalValue / totalQty : currentCost;
+          
+          let remainingToConsume = outQty;
+          for (let i = 0; i < saleLayers.length && remainingToConsume > 0; i++) {
+            const sl = saleLayers[i];
+            const take = Math.min(remainingToConsume, sl.qty);
+            sl.qty -= take;
+            remainingToConsume -= take;
+            if (sl.qty <= 0) {
+              saleLayers.splice(i, 1);
+              i--;
+            }
+          }
+        }
+
+        currentStock -= outQty;
+        currentValue = currentStock * currentCost;
+        row.achat.solde = { qty: currentStock, pu: currentCost, totale: currentValue };
+        
+        if (this.valuationMode === 'FIFO') {
+          const saleTotalQty = saleLayers.reduce((s, l) => s + l.qty, 0);
+          const saleTotalValue = saleLayers.reduce((s, l) => s + (l.qty * l.price), 0);
+          const salePu = saleTotalQty > 0 ? (saleTotalValue / saleTotalQty) : (Number(product.prix_vente_TTC) || 0);
+          row.vente.solde = { qty: currentStock, pu: salePu, totale: saleTotalQty * salePu };
+        } else {
+          row.vente.solde = { qty: currentStock, pu: saleAvgPrice, totale: currentStock * saleAvgPrice };
+        }
+
+        rows.push(row);
+      }
+    }
+
+    // Calculate summary
+    const summary = this.calculateSummary(rows);
+
+    // Calculate ecart data
+    const ecartData = await this.calculateEcartDataOptimized(product, salesInRange);
+
+    // Calculate Relevé Inventaire data
+    const debut = await this.calculateDebutForReleve(product);
+    const credit = await this.calculateCreditForReleve(product);
+    const solde = debut - credit;
+    
+    const releveInventaire: ReleveInventaireRow = {
+      id: `product_${product.id}`,
+      designation: product.name,
+      debut,
+      credit,
+      solde,
+      type: 'ENTRY'
+    };
+
+    return {
+      productId: product.id,
+      productName: product.name,
+      rows,
+      summary,
+      ecartData,
+      releveInventaire
+    };
   }
 
   private async generateProductReconciliation(product: Product, dateFrom: Date, dateTo: Date): Promise<ReconciliationData> {
@@ -537,34 +1190,41 @@ export class InventorySalesReconciliationComponent implements OnInit {
     // Calculate ecart data
     const ecartData = await this.calculateEcartData(product, dateFrom, dateTo);
 
+    // Calculate Relevé Inventaire data for this product
+    const debut = await this.calculateDebutForReleve(product);
+    const credit = await this.calculateCreditForReleve(product);
+    const solde = debut - credit;
+    
+    const releveInventaire: ReleveInventaireRow = {
+      id: `product_${product.id}`,
+      designation: product.name,
+      debut,
+      credit,
+      solde,
+      type: 'ENTRY'
+    };
+
     return {
       productId: product.id,
       productName: product.name,
       rows,
       summary,
-      ecartData
+      ecartData,
+      releveInventaire
     };
   }
 
-  private async calculateEcartData(product: Product, dateFrom: Date, dateTo: Date): Promise<EcartData> {
+  private calculateEcartDataBulk(product: Product, salesInRange: any[]): EcartData {
     try {
-      // Get sales data for the product in the date range
-      const sales = await firstValueFrom(this.salesService.getSales());
-      const salesArray = Array.isArray(sales) ? sales : [];
-      
-      const salesInRange = salesArray.filter(sale => {
-        const saleDate = new Date(sale.createdAt);
-        return saleDate >= dateFrom && saleDate <= dateTo;
-      });
-
       let qtyVendu = 0;
       let chiffreAffaireRealise = 0;
       let qtyVenduGros = 0;
       let prixVenteGros = 0;
+      let qtyGratuite = 0;
       let ecartGratuite = 0;
       let ecartRemise = 0;
 
-      // Process each sale
+      // Process each sale from pre-fetched data
       for (const sale of salesInRange) {
         const saleItems = sale.items?.filter((item: any) => item.productId === product.id) || [];
         
@@ -573,19 +1233,20 @@ export class InventorySalesReconciliationComponent implements OnInit {
           const itemPrice = Number(item.unitPrice) || 0;
           const itemTotal = Number(item.total) || 0;
           const isWholesale = item.isWholesale || sale.isWholesale;
-          const isGift = sale.status === 'CADEAU';
+          const isGift = sale.status === 'CADEAU' || itemTotal === 0;
           const discount = Number(item.discount) || 0;
 
           qtyVendu += itemQty;
-          chiffreAffaireRealise += itemTotal;
+          
+          if (isGift) {
+            qtyGratuite += itemQty;
+          } else {
+            chiffreAffaireRealise += itemTotal;
+          }
 
           if (isWholesale) {
             qtyVenduGros += itemQty;
             prixVenteGros += itemTotal;
-          }
-
-          if (isGift) {
-            ecartGratuite += itemTotal;
           }
 
           if (discount > 0) {
@@ -597,14 +1258,12 @@ export class InventorySalesReconciliationComponent implements OnInit {
       const prixVenteUnitaire = Number(product.prix_vente_TTC) || 0;
       const chiffreAffaireTheorique = qtyVendu * prixVenteUnitaire;
       
-      // Écart vente en gros: (qté vendu en gros * prix de vente en gros) - (qté vendu en gros * prix de vente unitaire)
+      ecartGratuite = qtyGratuite * prixVenteUnitaire;
+      
       const ecartVenteGros = qtyVenduGros > 0 ? 
         prixVenteGros - (qtyVenduGros * prixVenteUnitaire) : 0;
 
-      // Écart global: (qté vendu * prix de vente unitaire) - (chiffre d'affaire réalisé)
       const ecartGlobal = chiffreAffaireTheorique - chiffreAffaireRealise;
-
-      // Déférence d'écart: écart théorique - (écart réalisé + écart global)
       const deferenceEcart = chiffreAffaireTheorique - (chiffreAffaireRealise + ecartGlobal);
 
       return {
@@ -636,6 +1295,251 @@ export class InventorySalesReconciliationComponent implements OnInit {
         deferenceEcart: 0
       };
     }
+  }
+
+  private calculateDebutForReleveBulk(product: Product, allStockMovements: any[]): number {
+    try {
+      let totalDebut = 0;
+      
+      // Filter stock movements for this product from pre-fetched data
+      const productMovements = allStockMovements.filter(m => m.productId === product.id);
+      
+      for (const movement of productMovements) {
+        if (movement.type === 'ACHAT_ENTREE') {
+          const qty = Number(movement.quantity) || 0;
+          const prixVente = Number(product.prix_vente_TTC) || 0;
+          totalDebut += qty * prixVente;
+        }
+      }
+      
+      return totalDebut;
+    } catch (err) {
+      console.error('Error calculating debut for product:', product.id, err);
+      return 0;
+    }
+  }
+
+  private calculateCreditForReleveBulk(product: Product, salesInRange: any[]): number {
+    try {
+      let totalCredit = 0;
+      
+      // Calculate credit from pre-fetched sales data
+      for (const sale of salesInRange) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === product.id) || [];
+        for (const item of saleItems) {
+          const itemTotal = Number(item.total) || 0;
+          totalCredit += itemTotal;
+        }
+      }
+      
+      return totalCredit;
+    } catch (err) {
+      console.error('Error calculating credit for product:', product.id, err);
+      return 0;
+    }
+  }
+
+  private async calculateEcartDataOptimized(product: Product, salesInRange: any[]): Promise<EcartData> {
+    try {
+      let qtyVendu = 0;
+      let chiffreAffaireRealise = 0;
+      let qtyVenduGros = 0;
+      let prixVenteGros = 0;
+      let qtyGratuite = 0;
+      let ecartGratuite = 0;
+      let ecartRemise = 0;
+
+      // Process each sale
+      for (const sale of salesInRange) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === product.id) || [];
+        
+        for (const item of saleItems) {
+          const itemQty = Number(item.quantity) || 0;
+          const itemPrice = Number(item.unitPrice) || 0;
+          const itemTotal = Number(item.total) || 0;
+          const isWholesale = item.isWholesale || sale.isWholesale;
+          const isGift = sale.status === 'CADEAU' || itemTotal === 0;
+          const discount = Number(item.discount) || 0;
+
+          qtyVendu += itemQty;
+          
+          if (isGift) {
+            qtyGratuite += itemQty;
+          } else {
+            chiffreAffaireRealise += itemTotal;
+          }
+
+          if (isWholesale) {
+            qtyVenduGros += itemQty;
+            prixVenteGros += itemTotal;
+          }
+
+          if (discount > 0) {
+            ecartRemise += discount;
+          }
+        }
+      }
+
+      const prixVenteUnitaire = Number(product.prix_vente_TTC) || 0;
+      const chiffreAffaireTheorique = qtyVendu * prixVenteUnitaire;
+      
+      ecartGratuite = qtyGratuite * prixVenteUnitaire;
+      
+      const ecartVenteGros = qtyVenduGros > 0 ? 
+        prixVenteGros - (qtyVenduGros * prixVenteUnitaire) : 0;
+
+      const ecartGlobal = chiffreAffaireTheorique - chiffreAffaireRealise;
+      const deferenceEcart = chiffreAffaireTheorique - (chiffreAffaireRealise + ecartGlobal);
+
+      return {
+        productId: product.id,
+        productName: product.name,
+        qtyVendu,
+        prixVenteUnitaire,
+        chiffreAffaireTheorique,
+        chiffreAffaireRealise,
+        ecartVenteGros,
+        ecartGratuite,
+        ecartRemise,
+        ecartGlobal,
+        deferenceEcart
+      };
+    } catch (error) {
+      console.error('Error calculating ecart data:', error);
+      return {
+        productId: product.id,
+        productName: product.name,
+        qtyVendu: 0,
+        prixVenteUnitaire: 0,
+        chiffreAffaireTheorique: 0,
+        chiffreAffaireRealise: 0,
+        ecartVenteGros: 0,
+        ecartGratuite: 0,
+        ecartRemise: 0,
+        ecartGlobal: 0,
+        deferenceEcart: 0
+      };
+    }
+  }
+
+  private async calculateEcartData(product: Product, dateFrom: Date, dateTo: Date): Promise<EcartData> {
+    try {
+      // Get sales data for the product in the date range
+      const sales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(sales) ? sales : [];
+      
+      const salesInRange = salesArray.filter(sale => {
+        const saleDate = new Date(sale.createdAt);
+        return saleDate >= dateFrom && saleDate <= dateTo;
+      });
+
+      let qtyVendu = 0;
+      let chiffreAffaireRealise = 0;
+      let qtyVenduGros = 0;
+      let prixVenteGros = 0;
+      let qtyGratuite = 0;
+      let ecartGratuite = 0;
+      let ecartRemise = 0;
+
+      // Process each sale
+      for (const sale of salesInRange) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === product.id) || [];
+        
+        for (const item of saleItems) {
+          const itemQty = Number(item.quantity) || 0;
+          const itemPrice = Number(item.unitPrice) || 0;
+          const itemTotal = Number(item.total) || 0;
+          const isWholesale = item.isWholesale || sale.isWholesale;
+          const isGift = sale.status === 'CADEAU' || itemTotal === 0;
+          const discount = Number(item.discount) || 0;
+
+          qtyVendu += itemQty;
+          
+          if (isGift) {
+            qtyGratuite += itemQty;
+            // Pour les cadeaux, on ne compte pas dans le CA réalisé
+          } else {
+            chiffreAffaireRealise += itemTotal;
+          }
+
+          if (isWholesale) {
+            qtyVenduGros += itemQty;
+            prixVenteGros += itemTotal;
+          }
+
+          if (discount > 0) {
+            ecartRemise += discount;
+          }
+        }
+      }
+
+      const prixVenteUnitaire = Number(product.prix_vente_TTC) || 0;
+      const chiffreAffaireTheorique = qtyVendu * prixVenteUnitaire;
+      
+      // Écart gratuité: quantité gratuite × prix unitaire
+      ecartGratuite = qtyGratuite * prixVenteUnitaire;
+      
+      // Écart vente en gros: (qté vendu en gros * prix de vente en gros) - (qté vendu en gros * prix de vente unitaire)
+      const ecartVenteGros = qtyVenduGros > 0 ? 
+        prixVenteGros - (qtyVenduGros * prixVenteUnitaire) : 0;
+
+      // Écart global: (qté vendu * prix de vente unitaire) - (chiffre d'affaire réalisé)
+      const ecartGlobal = chiffreAffaireTheorique - chiffreAffaireRealise;
+
+      // Déférence d'écart: écart théorique - (écart réalisé + écart global)
+      const deferenceEcart = chiffreAffaireTheorique - (chiffreAffaireRealise + ecartGlobal);
+
+      // Debug logs
+
+      return {
+        productId: product.id,
+        productName: product.name,
+        qtyVendu,
+        prixVenteUnitaire,
+        chiffreAffaireTheorique,
+        chiffreAffaireRealise,
+        ecartVenteGros,
+        ecartGratuite,
+        ecartRemise,
+        ecartGlobal,
+        deferenceEcart
+      };
+    } catch (error) {
+      console.error('Error calculating ecart data:', error);
+      return {
+        productId: product.id,
+        productName: product.name,
+        qtyVendu: 0,
+        prixVenteUnitaire: 0,
+        chiffreAffaireTheorique: 0,
+        chiffreAffaireRealise: 0,
+        ecartVenteGros: 0,
+        ecartGratuite: 0,
+        ecartRemise: 0,
+        ecartGlobal: 0,
+        deferenceEcart: 0
+      };
+    }
+  }
+
+  private calculateGlobalEcartSummary(data: ReconciliationData[]): GlobalEcartSummary {
+    const productsWithEcart = data.filter(d => d.ecartData);
+    const ecartProducts = productsWithEcart.map(d => d.ecartData!);
+
+    const summary: GlobalEcartSummary = {
+      totalProducts: ecartProducts.length,
+      totalQtyVendu: ecartProducts.reduce((sum, p) => sum + p.qtyVendu, 0),
+      totalChiffreAffaireTheorique: ecartProducts.reduce((sum, p) => sum + p.chiffreAffaireTheorique, 0),
+      totalChiffreAffaireRealise: ecartProducts.reduce((sum, p) => sum + p.chiffreAffaireRealise, 0),
+      totalEcartVenteGros: ecartProducts.reduce((sum, p) => sum + p.ecartVenteGros, 0),
+      totalEcartGratuite: ecartProducts.reduce((sum, p) => sum + p.ecartGratuite, 0),
+      totalEcartRemise: ecartProducts.reduce((sum, p) => sum + p.ecartRemise, 0),
+      totalEcartGlobal: ecartProducts.reduce((sum, p) => sum + p.ecartGlobal, 0),
+      totalDeferenceEcart: ecartProducts.reduce((sum, p) => sum + p.deferenceEcart, 0),
+      products: ecartProducts
+    };
+
+    return summary;
   }
 
   private getFIFOCost(layers: FIFOLayer[], qty: number): number {
@@ -783,7 +1687,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
 
       // Get stock entry data
       try {
-        const stockEntries = await firstValueFrom(this.http.get<any[]>(`${environment.apiUrl}/stock-documents`, {
+        const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
           params: {
             type: 'BON_ENTREE_DEPOT',
             dateFrom: dateFrom.toISOString(),
@@ -791,9 +1695,17 @@ export class InventorySalesReconciliationComponent implements OnInit {
           }
         }));
 
-
-        // Handle the API response structure - it has a 'data' property
-        const entries = Array.isArray(stockEntries) ? stockEntries : ((stockEntries as any)?.data || []);
+        // Handle different response formats
+        let entries = [];
+        if (Array.isArray(response)) {
+          entries = response;
+        } else if (response && Array.isArray(response.data)) {
+          entries = response.data;
+        } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+          entries = response.stockDocuments;
+        } else {
+          entries = [];
+        }
         for (const entry of entries) {
           const items = entry.items?.filter((item: any) => item.productId === productId) || [];
           for (const item of items) {
@@ -927,5 +1839,1532 @@ export class InventorySalesReconciliationComponent implements OnInit {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  // Relevé Inventaire methods - Bulk processing with no API calls
+  async generateReleveInventaireFromReconciliationData(): Promise<void> {
+    const releveRows: ReleveInventaireRow[] = [];
+    
+    
+    // 1. Calculer le total des entrées pour référence (pas affiché)
+    const totalDebut = await this.calculateTotalDebut();
+
+    // 0. INVENTAIRE - Ligne d'inventaire (avant les bons d'entrée)
+    const inventoryData = await this.getInventoryData();
+    const inventoryVariance = await this.getInventoryVariance();
+    
+    if (inventoryData && inventoryData.length > 0) {
+      const totalInventoryValue = inventoryData.reduce((sum, item) => sum + item.amount, 0);
+      
+      // Calculate variance amounts
+      const varianceAmount = Math.abs(inventoryVariance);
+      const isPositiveVariance = inventoryVariance > 0;
+      
+      releveRows.push({
+        id: 'inventory_line',
+        designation: 'INVENTAIRE',
+        debut: isPositiveVariance ? varianceAmount : 0,
+        credit: isPositiveVariance ? 0 : varianceAmount,
+        solde: totalInventoryValue,
+        type: 'INVENTORY' as const,
+        details: `Inventaire: ${inventoryData.length} produits${varianceAmount > 0 ? ` | Écart: ${inventoryVariance > 0 ? '+' : ''}${inventoryVariance} DT` : ''}`,
+        date: new Date(),
+        isInventory: true
+      });
+    }
+
+    // 1. Lignes DÉBIT - Chaque bon d'entrée comme ligne séparée (pas de somme)
+    const stockEntries = await this.getStockEntriesDetails();
+    
+    // Grouper les entrées par document (bon d'entrée)
+    const entriesByDocument = new Map();
+    
+    for (const entry of stockEntries) {
+      const docId = entry.documentId;
+      if (!entriesByDocument.has(docId)) {
+        entriesByDocument.set(docId, {
+          documentId: docId,
+          documentNumber: entry.documentNumber,
+          date: entry.date,
+          depotName: entry.depotName,
+          supplierName: entry.supplierName,
+          items: []
+        });
+      }
+      entriesByDocument.get(docId).items.push(entry);
+    }
+    
+    
+    // Afficher chaque bon d'entrée comme une ligne séparée
+    for (const [docId, docData] of entriesByDocument) {
+      const totalDocAmount = docData.items.reduce((sum: number, item: any) => sum + item.amount, 0);
+      
+      
+      // Ligne principale du bon d'entrée (DÉBIT)
+      const docRow: ReleveInventaireRow = {
+        id: `bon_entree_${docId}`,
+        designation: `Bon d'Entrée #${docData.documentNumber} - ${docData.date.toLocaleDateString()}`,
+        debut: totalDocAmount,
+        credit: 0,
+        solde: totalDocAmount,
+        type: 'ENTRY' as const,
+        details: `Dépôt: ${docData.depotName} | Fournisseur: ${docData.supplierName} | ${docData.items.length} articles`,
+        date: docData.date
+      };
+      
+      releveRows.push(docRow);
+      
+      // Lignes détaillées pour chaque article du bon (DÉBIT)
+      for (const item of docData.items) {
+        const itemRow: ReleveInventaireRow = {
+          id: `item_${item.id}`,
+          designation: `  └─ ${item.productName} (${item.quantity} × ${item.unitPrice})`,
+          debut: item.amount,
+          credit: 0,
+          solde: item.amount,
+          type: 'ENTRY' as const,
+          details: `Article: ${item.productName} | Qty: ${item.quantity} | Prix: ${item.unitPrice} DT`,
+          date: item.date,
+          parentId: `bon_entree_${docId}` // Link to parent document
+        };
+        
+        releveRows.push(itemRow);
+      }
+    }
+    
+    if (entriesByDocument.size === 0) {
+      releveRows.push({
+        id: 'no_stock_entries',
+        designation: 'Aucune entrée de stock trouvée',
+        debut: 0,
+        credit: 0,
+        solde: 0,
+        type: 'CREDIT' as const,
+        details: 'Vérifiez l\'API /stock/documents/bon-entree',
+        date: new Date()
+      });
+    }
+    
+    // 2. Lignes CRÉDIT - Clôtures de caisse
+    const cashClosures = await this.getCashClosuresDetails();
+    for (const closure of cashClosures) {
+      releveRows.push({
+        id: `closure_${closure.id}`,
+        designation: `Clôture Caisse #${closure.sessionNumber} - ${closure.date.toLocaleDateString()}`,
+        debut: 0,
+        credit: closure.amount,
+        solde: -closure.amount,
+        type: 'CREDIT' as const,
+        details: `Session: ${closure.sessionId}, Variance: ${closure.variance}`,
+        date: closure.date
+      });
+    }
+    
+    // 3. Lignes CRÉDIT - Dépenses
+    const expenses = await this.getExpensesDetails();
+    for (const expense of expenses) {
+      releveRows.push({
+        id: `expense_${expense.id}`,
+        designation: `Dépense - ${expense.description}`,
+        debut: 0,
+        credit: expense.amount,
+        solde: -expense.amount,
+        type: 'CREDIT' as const,
+        details: `Type: ${expense.type}, Date: ${expense.date}`,
+        date: expense.date
+      });
+    }
+    
+     // 4. Lignes CRÉDIT - Écarts détaillés par type avec tickets
+    const globalEcarts = await this.getGlobalEcartsDetails();
+    
+    for (const ecart of globalEcarts) {
+       if (ecart.type === 'VENTE_GROS' && ecart.sales && ecart.sales.length > 0) {
+         // Handle wholesale ecarts grouped by ticket
+         const totalSales = ecart.totalSales || ecart.sales.length;
+         const ticketNumber = ecart.ticketNumber || 'N/A';
+         const salesInfo = `(${totalSales} ventes gros)`;
+         
+         // Main wholesale ecart row
+      releveRows.push({
+        id: `ecart_${ecart.id}`,
+           designation: `${ecart.details} ${salesInfo}`,
+        debut: 0,
+        credit: ecart.amount,
+        solde: -ecart.amount,
+           type: 'CREDIT' as const,
+           details: `Ticket #${ticketNumber} | Produit: ${ecart.productName} | Perte: ${ecart.priceDifference} DT | Vente Gros: ${ecart.wholesaleAmount} DT | Vente Détail: ${ecart.retailAmount} DT`,
+           date: ecart.date,
+           ecartType: ecart.type,
+           isExpandable: false, // No children to expand - sales shown in dialog instead
+           expandableId: `gros_${ecart.id}`,
+           wholesaleSales: ecart.sales, // Store sales data for dialog
+           totalWholesaleSales: totalSales,
+           ticketNumber: ticketNumber
+         });
+         
+         // Don't add individual sales as children - they'll be shown in dialog instead
+       } else {
+         // Handle other ecart types (Gratuité, Remise)
+         const ticketInfo = ecart.ticketNumber ? ` - Ticket #${ecart.ticketNumber}` : '';
+         const clickableDetails = ecart.saleId ? 
+           `Produit: ${ecart.productName} | Ticket: #${ecart.ticketNumber} | Cliquez pour voir les détails` : 
+           `Produit: ${ecart.productName}`;
+         
+         releveRows.push({
+           id: `ecart_${ecart.id}`,
+           designation: `${ecart.details}${ticketInfo}`,
+           debut: 0,
+           credit: ecart.amount,
+           solde: -ecart.amount,
+           type: 'CREDIT' as const,
+           details: clickableDetails,
+           date: ecart.date,
+           saleId: ecart.saleId, // Store sale ID for click handling
+           ticketNumber: ecart.ticketNumber, // Store ticket number for easy access
+           ecartType: ecart.type // Store ecart type for styling
+         });
+       }
+    }
+    
+    // 5. Lignes CRÉDIT - Remises avec numéros de caisse (pas de doublons)
+    const discounts = await this.getDiscountsDetails();
+    console.log('Found discounts:', discounts.length, discounts);
+    for (const discount of discounts) {
+      // Une seule ligne par remise pour éviter les doublons
+      releveRows.push({
+        id: `discount_${discount.id}`,
+        designation: `Remise ${discount.productName} - Ticket #${discount.ticketNumber}`,
+        debut: 0,
+        credit: discount.amount,
+        solde: -discount.amount,
+        type: 'CREDIT' as const,
+        details: `Caisse ${discount.caisseNumber} - Lien: ${discount.link}`,
+        date: discount.date
+      });
+    }
+    
+    // 6. Lignes CRÉDIT - Retours de stock
+    const stockReturns = await this.getStockReturnsDetails();
+    for (const return_ of stockReturns) {
+      releveRows.push({
+        id: `return_${return_.id}`,
+        designation: `Retour Stock - ${return_.description}`,
+        debut: 0,
+        credit: return_.amount,
+        solde: -return_.amount,
+        type: 'CREDIT' as const,
+        details: `Document: ${return_.documentNumber} - ${return_.productName}`,
+        date: return_.date
+      });
+    }
+    
+    // 7. (INVENTAIRE moved to beginning - section 0)
+    
+    // 8. Crédits manuels
+    for (const credit of this.creditEntries) {
+      releveRows.push({
+        id: `manual_${credit.id}`,
+        designation: `Crédit Manuel - ${credit.description}`,
+        debut: 0,
+        credit: credit.amount,
+        solde: -credit.amount,
+        type: 'MANUAL_CREDIT' as const,
+        details: `Type: ${this.getCreditTypeLabel(credit.type)}`,
+        date: credit.date
+      });
+    }
+    
+    // Trier par date
+    releveRows.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    // Calculer le solde cumulatif SEULEMENT pour les lignes parents
+    let runningSolde = 0;
+    for (const row of releveRows) {
+      if (!this.isBonEntreeItem(row)) {
+        // C'est une ligne parent - calculer le solde cumulatif
+        runningSolde += row.debut - row.credit;
+        row.solde = runningSolde;
+      } else {
+        // C'est une ligne enfant - garder le solde de la ligne parent
+        row.solde = runningSolde;
+      }
+    }
+    
+    
+    this.releveInventaireData = releveRows;
+    this.releveInventaireSummary = this.calculateReleveSummary(releveRows);
+  }
+
+  private async calculateTotalDebut(): Promise<number> {
+    try {
+      // Get all stock entries
+      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+        params: { type: 'BON_ENTREE_DEPOT' }
+      }));
+
+      // Handle different response formats
+      let entries = [];
+      if (Array.isArray(response)) {
+        entries = response;
+      } else if (response && Array.isArray(response.data)) {
+        entries = response.data;
+      } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+        entries = response.stockDocuments;
+      } else {
+        return 0;
+      }
+
+      let totalDebut = 0;
+      
+      for (const entry of entries) {
+        for (const item of entry.items || []) {
+          const product = this.products.find(p => p.id === item.productId);
+          if (product) {
+            const qty = Number(item.quantity) || 0;
+            const prixVente = Number(product.prix_vente_TTC) || 0;
+            totalDebut += qty * prixVente;
+          }
+        }
+      }
+      
+      return totalDebut;
+    } catch (err) {
+      console.error('Error calculating total debut:', err);
+      return 0;
+    }
+  }
+
+  private async getStockEntriesDetails(): Promise<any[]> {
+    try {
+      // Use the correct API endpoint with proper type parameter
+      
+      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+        params: {
+          type: 'BON_ENTREE_DEPOT',
+          limit: '1000' // Increase limit to get more entries
+        }
+      }));
+      
+      // Handle different response formats
+      let stockDocs = [];
+      if (Array.isArray(response)) {
+        stockDocs = response;
+      } else if (response && Array.isArray(response.data)) {
+        stockDocs = response.data;
+      } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+        stockDocs = response.stockDocuments;
+      } else {
+        return [];
+      }
+      
+      
+      const entries = [];
+      const processedEntries = new Set(); // Avoid duplicates
+      
+      for (const doc of stockDocs) {
+        // Skip if no items
+        if (!doc.items || doc.items.length === 0) {
+          continue;
+        }
+        
+        for (const item of doc.items) {
+          const entryKey = `${doc.id}_${item.id}`;
+          if (processedEntries.has(entryKey)) {
+            continue; // Skip duplicates
+          }
+          processedEntries.add(entryKey);
+          
+          const product = this.products.find(p => p.id === item.productId);
+          
+          if (product) {
+            const qty = Number(item.quantity) || 0;
+            const price = Number(product.prix_vente_TTC) || 0;
+            const amount = qty * price;
+            
+            if (amount > 0) {
+              const entry = {
+                id: `entry_${doc.id}_${item.id}`,
+                amount,
+                description: `Entrée ${product.name} (${qty} x ${price})`,
+                documentNumber: doc.numero || doc.id,
+                date: new Date(doc.createdAt),
+                productName: product.name,
+                quantity: qty,
+                unitPrice: price,
+                documentId: doc.id,
+                itemId: item.id,
+                createdAt: doc.createdAt,
+                depotName: doc.destinataire?.name || 'Dépôt principal',
+                supplierName: doc.emetteur?.name || 'Fournisseur inconnu'
+              };
+              
+              entries.push(entry);
+            }
+          }
+        }
+      }
+      
+      return entries;
+    } catch (err) {
+      console.error('Error getting stock entries details:', err);
+      return [];
+    }
+  }
+
+  private async getCashClosuresDetails(): Promise<any[]> {
+    try {
+      const dateFrom = new Date(this.startDate);
+      const dateTo = new Date(this.endDate);
+      dateTo.setHours(23, 59, 59, 999);
+
+      // Fetch ALL sessions without date filtering to get all data
+      const sessions = await firstValueFrom(
+        this.sessionsService.getSessions({
+          limit: 1000 // Increase limit to get more sessions
+        })
+      );
+
+      const sessionsArray = Array.isArray(sessions) ? sessions : [];
+      console.log('All sessions fetched:', sessionsArray.length);
+
+      // Filter for CLOSED sessions within the date range based on closed_at
+      const closures = sessionsArray
+        .filter(s => {
+          if (s.status !== 'CLOSED' || !s.closedAt) return false;
+          
+          const closedDate = new Date(s.closedAt);
+          return closedDate >= dateFrom && closedDate <= dateTo;
+        })
+        .flatMap(s => {
+          const expected = Number(s.expectedCash ?? 0);
+          const closedAt = s.closedAt || s.updatedAt || s.createdAt;
+          const closures = [];
+          
+          // Add the main closure entry
+          closures.push({
+            id: s.id,
+            sessionId: s.id,
+            sessionNumber: s.zSeq || s.xSeq || s.id,
+            amount: expected,
+            variance: Number(s.variance ?? 0),
+            date: new Date(closedAt),
+            details: `Session ${s.id} - Attendu: ${expected} DT`
+          });
+          
+          // If there's a variance (discount), add it as a separate entry
+          const variance = Number(s.variance ?? 0);
+          if (variance !== 0) {
+            closures.push({
+              id: `variance_${s.id}`,
+              sessionId: s.id,
+              sessionNumber: s.zSeq || s.xSeq || s.id,
+              amount: Math.abs(variance),
+              variance: 0,
+              date: new Date(closedAt),
+              details: `Ajustement Session ${s.id} - Variance: ${variance} DT`,
+              isVariance: true
+            });
+          }
+          
+          return closures;
+        })
+        .filter(closure => closure.amount > 0); // Only include closures with positive amounts
+
+      console.log('Found closures:', closures.length, closures);
+      return closures;
+    } catch (err) {
+      console.error('Error getting cash closures details:', err);
+      return [];
+    }
+  }
+
+  private async getExpensesDetails(): Promise<any[]> {
+    try {
+      // Get real expenses from your database within the date range
+      const dateFrom = new Date(this.startDate);
+      const dateTo = new Date(this.endDate);
+      dateTo.setHours(23, 59, 59, 999);
+      
+      
+      const expensesResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/expenses?startDate=${dateFrom.toISOString().split('T')[0]}&endDate=${dateTo.toISOString().split('T')[0]}&limit=100`));
+      
+      // Handle different response formats
+      let expenses = [];
+      if (Array.isArray(expensesResponse)) {
+        expenses = expensesResponse;
+      } else if (expensesResponse && Array.isArray(expensesResponse.data)) {
+        expenses = expensesResponse.data;
+      } else if (expensesResponse && Array.isArray(expensesResponse.expenses)) {
+        expenses = expensesResponse.expenses;
+      } else {
+        expenses = [];
+      }
+      
+      const processedExpenses = new Set(); // Avoid duplicates
+      const mappedExpenses = [];
+      
+      for (const expense of expenses) {
+        if (processedExpenses.has(expense.id)) {
+          continue; // Skip duplicates
+        }
+        processedExpenses.add(expense.id);
+        
+        // Only include approved expenses with cash payment from your real data
+        if (expense.isApproved && 
+            (expense.paymentType === 'CASH' || expense.paymentType === 'CASH_ONLY') &&
+            Number(expense.amount) > 0) {
+          
+          mappedExpenses.push({
+            id: expense.id,
+            description: expense.description || 'Dépense',
+            amount: Number(expense.amount) || 0,
+            type: expense.type || 'GENERAL',
+            date: new Date(expense.approvedAt || expense.createdAt),
+            category: expense.category?.name || 'Non spécifié',
+            supplier: expense.supplier?.name || 'Non spécifié'
+          });
+        }
+      }
+      
+      return mappedExpenses;
+    } catch (err) {
+      console.error('Error getting expenses details:', err);
+      return [];
+    }
+  }
+
+  private async getGlobalEcartsDetails(): Promise<any[]> {
+    try {
+      const ecarts = [];
+      const processedEcarts = new Set(); // Éviter les doublons
+      
+      // Get ecarts from reconciliation data and break them down by type
+      for (const data of this.reconciliationData) {
+        if (data.ecartData) {
+          const ecartData = data.ecartData;
+          
+          // 1. Écart Gratuité
+          if (ecartData.ecartGratuite !== 0) {
+            const ecartKey = `gratuite_${data.productId}_${ecartData.ecartGratuite}`;
+            if (!processedEcarts.has(ecartKey)) {
+              processedEcarts.add(ecartKey);
+              
+              // Find the actual sale that caused this gratuité
+              const gratuitSale = await this.findGratuitSaleForProduct(data.productId);
+              
+              ecarts.push({
+                id: `gratuite_${data.productId}`,
+                amount: ecartData.ecartGratuite,
+                details: `Gratuité - ${data.productName}`,
+                type: 'GRATUITE',
+                productName: data.productName,
+                saleId: gratuitSale?.id,
+                ticketNumber: gratuitSale?.dailyTicketNumber || gratuitSale?.id,
+                date: gratuitSale?.createdAt ? new Date(gratuitSale.createdAt) : new Date()
+              });
+            }
+          }
+          
+          // 2. Écart Vente Gros - Group by ticket and calculate retail vs wholesale difference
+          if (ecartData.ecartVenteGros !== 0) {
+            const ecartKey = `gros_${data.productId}_${ecartData.ecartVenteGros}`;
+            if (!processedEcarts.has(ecartKey)) {
+          processedEcarts.add(ecartKey);
+          
+              // Find ALL wholesale sales for this product
+              const wholesaleSales = await this.findAllWholesaleSalesForProduct(data.productId);
+              
+              // Group sales by ticket
+              const salesByTicket = new Map<string, any[]>();
+              for (const sale of wholesaleSales) {
+                const ticketKey = sale.dailyTicketNumber || sale.id.toString();
+                if (!salesByTicket.has(ticketKey)) {
+                  salesByTicket.set(ticketKey, []);
+                }
+                salesByTicket.get(ticketKey)!.push(sale);
+              }
+              
+              // Create ecart for each ticket
+              for (const [ticketNumber, ticketSales] of salesByTicket) {
+                const totalWholesaleAmount = ticketSales.reduce((sum, sale) => sum + (sale.itemDetails?.total || 0), 0);
+                const totalRetailAmount = ticketSales.reduce((sum, sale) => {
+                  // Find the product to get the retail price
+                  const product = this.products.find(p => p.id === data.productId);
+                  const retailPrice = product ? Number(product.prix_vente_TTC) || 0 : 0;
+                  const quantity = sale.itemDetails?.quantity || 0;
+                  return sum + (retailPrice * quantity);
+                }, 0);
+                const priceDifference = totalRetailAmount - totalWholesaleAmount;
+                
+                ecarts.push({
+                  id: `gros_ticket_${ticketNumber}_${data.productId}`,
+                  amount: priceDifference,
+                  details: `Vente Gros Ticket #${ticketNumber}`,
+                  type: 'VENTE_GROS',
+            productName: data.productName,
+                  sales: ticketSales,
+                  totalSales: ticketSales.length,
+                  date: ticketSales.length > 0 ? new Date(ticketSales[0].createdAt) : new Date(),
+                  ticketNumber: ticketNumber,
+                  wholesaleAmount: totalWholesaleAmount,
+                  retailAmount: totalRetailAmount,
+                  priceDifference: priceDifference
+                });
+              }
+            }
+          }
+          
+          // 3. Écart Remise
+          if (ecartData.ecartRemise !== 0) {
+            const ecartKey = `remise_${data.productId}_${ecartData.ecartRemise}`;
+            if (!processedEcarts.has(ecartKey)) {
+              processedEcarts.add(ecartKey);
+              
+              // Find the actual sale with discount
+              const discountSale = await this.findDiscountSaleForProduct(data.productId);
+          
+          ecarts.push({
+                id: `remise_${data.productId}`,
+                amount: ecartData.ecartRemise,
+                details: `Remise - ${data.productName}`,
+                type: 'REMISE',
+                productName: data.productName,
+                saleId: discountSale?.id,
+                ticketNumber: discountSale?.dailyTicketNumber || discountSale?.id,
+                date: discountSale?.createdAt ? new Date(discountSale.createdAt) : new Date()
+              });
+            }
+          }
+        }
+      }
+      
+      return ecarts;
+    } catch (err) {
+      console.error('Error getting global ecarts details:', err);
+      return [];
+    }
+  }
+
+  private async getDiscountsDetails(): Promise<any[]> {
+    try {
+      // Get real sales data from your database within the date range
+      const dateFrom = new Date(this.startDate);
+      const dateTo = new Date(this.endDate);
+      dateTo.setHours(23, 59, 59, 999);
+      
+      
+      const sales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(sales) ? sales : [];
+      
+      // Filter sales by date range from your real database
+      const salesInRange = salesArray.filter(sale => {
+        const saleDate = new Date(sale.createdAt);
+        return saleDate >= dateFrom && saleDate <= dateTo;
+      });
+      
+      
+      const discounts = [];
+      const processedDiscounts = new Set(); // Avoid duplicates
+      
+      console.log('Processing sales for discounts:', salesInRange.length);
+      
+      for (const sale of salesInRange) {
+        for (const item of sale.items || []) {
+          const discount = Number(item.discount) || 0;
+          const itemTotal = Number(item.total) || 0;
+          const itemUnitPrice = Number(item.unitPrice) || 0;
+          const itemQuantity = Number(item.quantity) || 0;
+          const expectedTotal = itemUnitPrice * itemQuantity;
+          const calculatedDiscount = expectedTotal - itemTotal;
+          
+          // Check if there's a sale-level discount that affects this item
+          const saleDiscount = Number(sale.discount) || 0;
+          const saleTotal = Number(sale.total) || 0;
+          const saleFinalTotal = Number(sale.finalTotal) || 0;
+          const saleLevelDiscount = saleTotal - saleFinalTotal;
+          
+          // Special logging for VERRE GRANITE
+          const product = this.products.find(p => p.id === item.productId);
+          const productName = product ? product.name : 'Produit inconnu';
+          
+          if (productName.toLowerCase().includes('granite') || productName.toLowerCase().includes('verre')) {
+            console.log(`🔍 VERRE GRANITE SALE DETECTED - Sale ${sale.id}, Item ${item.id}:`, {
+              productName: productName,
+              itemDiscount: discount,
+              unitPrice: itemUnitPrice,
+              quantity: itemQuantity,
+              itemTotal: itemTotal,
+              expectedTotal: expectedTotal,
+              calculatedDiscount: calculatedDiscount,
+              saleDiscount: saleDiscount,
+              saleTotal: saleTotal,
+              saleFinalTotal: saleFinalTotal,
+              saleLevelDiscount: saleLevelDiscount,
+              productId: item.productId,
+              item: item,
+              sale: sale
+            });
+          }
+          
+          console.log(`Sale ${sale.id}, Item ${item.id}:`, {
+            discount: discount,
+            unitPrice: itemUnitPrice,
+            quantity: itemQuantity,
+            total: itemTotal,
+            expectedTotal: expectedTotal,
+            calculatedDiscount: calculatedDiscount,
+            productId: item.productId,
+            item: item
+          });
+          
+          // Accept discounts >= 0.001 to catch small discounts like 0.5 DT
+          // Also check for sale-level discounts
+          const hasItemDiscount = discount >= 0.001 || calculatedDiscount >= 0.001;
+          const hasSaleDiscount = saleLevelDiscount >= 0.001;
+          
+          if (hasItemDiscount || hasSaleDiscount) {
+            const discountKey = `${sale.id}_${item.id}`;
+            if (processedDiscounts.has(discountKey)) {
+              continue; // Skip duplicates
+            }
+            processedDiscounts.add(discountKey);
+            
+            // Trouver le nom du produit
+            const product = this.products.find(p => p.id === item.productId);
+            const productName = product ? product.name : 'Produit inconnu';
+            
+            // Use the largest discount found (item-level or sale-level)
+            const finalDiscount = Math.max(
+              discount > 0 ? discount : 0,
+              calculatedDiscount > 0 ? calculatedDiscount : 0,
+              saleLevelDiscount > 0 ? saleLevelDiscount : 0
+            );
+            
+            // Special logging for VERRE GRANITE discount
+            if (productName.toLowerCase().includes('granite') || productName.toLowerCase().includes('verre')) {
+              console.log(`✅ ADDING VERRE GRANITE DISCOUNT:`, {
+                productName: productName,
+                finalDiscount: finalDiscount,
+                itemDiscount: discount,
+                calculatedDiscount: calculatedDiscount,
+                saleLevelDiscount: saleLevelDiscount,
+                saleId: sale.id,
+                itemId: item.id
+              });
+            }
+            
+            discounts.push({
+              id: `discount_${sale.id}_${item.id}`,
+              amount: finalDiscount,
+              ticketNumber: sale.dailyTicketNumber || sale.id,
+              caisseNumber: sale.sessionId || 'N/A',
+              link: `${environment.apiUrl}/sales/${sale.id}`,
+              date: new Date(sale.createdAt),
+              productName: productName,
+              quantity: item.quantity || 0,
+              unitPrice: item.unitPrice || 0,
+              total: item.total || 0
+            });
+          }
+        }
+      }
+      
+      console.log('Total discounts found:', discounts.length);
+      
+      return discounts;
+    } catch (err) {
+      console.error('Error getting discounts details:', err);
+      return [];
+    }
+  }
+
+  private async getStockReturnsDetails(): Promise<any[]> {
+    try {
+      // Only use valid DocumentType values to avoid API errors
+      const dateFrom = new Date(this.startDate);
+      const dateTo = new Date(this.endDate);
+      dateTo.setHours(23, 59, 59, 999);
+      
+      
+      // Only use valid DocumentType values
+      const validReturnTypes = ['BON_EXPEDITION']; // Only use valid types
+      const returns = [];
+      const processedReturns = new Set(); // Avoid duplicates
+      
+      for (const type of validReturnTypes) {
+        try {
+          const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+            params: {
+              type: type,
+              dateFrom: dateFrom.toISOString(),
+              dateTo: dateTo.toISOString(),
+              limit: '100'
+            }
+          }));
+          
+          // Handle different response formats
+          let stockDocs = [];
+          if (Array.isArray(response)) {
+            stockDocs = response;
+          } else if (response && Array.isArray(response.data)) {
+            stockDocs = response.data;
+          } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+            stockDocs = response.stockDocuments;
+          } else {
+            stockDocs = [];
+          }
+          
+          
+          for (const doc of stockDocs) {
+            // Check if this is a return document based on notes
+            const isReturn = doc.notes?.toLowerCase().includes('retour') || 
+                           doc.notes?.toLowerCase().includes('return');
+            
+            if (isReturn && doc.items && doc.items.length > 0) {
+              for (const item of doc.items) {
+                const returnKey = `${doc.id}_${item.id}`;
+                if (processedReturns.has(returnKey)) {
+                  continue; // Skip duplicates
+                }
+                processedReturns.add(returnKey);
+                
+                const product = this.products.find(p => p.id === item.productId);
+                if (product) {
+                  const qty = Number(item.quantity) || 0;
+                  const price = Number(product.prix_vente_TTC) || 0;
+                  const amount = qty * price;
+                  
+                  if (amount > 0) {
+                    returns.push({
+                      id: `return_${doc.id}_${item.id}`,
+                      amount,
+                      description: `Retour ${product.name} (${qty} x ${price})`,
+                      documentNumber: doc.numero || doc.id,
+                      date: new Date(doc.createdAt),
+                      productName: product.name,
+                      quantity: qty,
+                      unitPrice: price
+                    });
+                  }
+                }
+              }
+            }
+          }
+        } catch (typeErr) {
+          console.error(`Error getting documents of type ${type}:`, typeErr);
+        }
+      }
+      
+      return returns;
+    } catch (err) {
+      console.error('Error getting stock returns details:', err);
+      return [];
+    }
+  }
+
+  private async getInventoryVariance(): Promise<number> {
+    try {
+      // Get the specific inventory session from /inventory/4/1/review
+      const sessionDetails = await firstValueFrom(this.inventoryService.getSession(1));
+      
+      console.log('Inventory session details:', sessionDetails);
+      
+      if (sessionDetails && sessionDetails.items) {
+        let totalVariance = 0;
+        
+        for (const item of sessionDetails.items) {
+          const productId = item.productId;
+          const theoreticalQuantity = Number(item.theoreticalQuantity) || 0;
+          const countedQuantity = Number(item.countedQuantity) || 0;
+          const ecartQuantity = Number(item.ecartQuantity) || 0; // Use the ecart field from database
+          const ecartValue = Number(item.ecartValue) || 0; // Use the pre-calculated ecart value
+          const product = this.products.find(p => p.id === productId);
+          const price = Number(product?.prix_vente_TTC) || 0;
+          
+          // Use the ecartValue directly from the database (already calculated)
+          const varianceAmount = ecartValue || (ecartQuantity * price);
+          totalVariance += varianceAmount;
+          
+          console.log(`Product ${productId}: theoretical=${theoreticalQuantity}, counted=${countedQuantity}, ecart=${ecartQuantity}, ecartValue=${ecartValue}, price=${price}, varianceAmount=${varianceAmount}`);
+        }
+        
+        console.log('Total inventory variance from database:', totalVariance);
+        return totalVariance;
+      }
+      
+      return 0;
+    } catch (err) {
+      console.error('Error getting inventory variance:', err);
+      return 0;
+    }
+  }
+
+  private async getInventoryData(): Promise<{productId: number, quantity: number, price: number, amount: number}[]> {
+    try {
+      // Get current stock levels for all products
+      const inventory = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock/inventory`));
+      
+      const inventoryData: {productId: number, quantity: number, price: number, amount: number}[] = [];
+      
+      // Handle different response formats
+      let inventoryItems = [];
+      if (Array.isArray(inventory)) {
+        inventoryItems = inventory;
+      } else if (inventory && Array.isArray(inventory.data)) {
+        inventoryItems = inventory.data;
+      } else if (inventory && Array.isArray(inventory.items)) {
+        inventoryItems = inventory.items;
+      } else {
+        inventoryItems = [];
+      }
+      
+      console.log('Processing current stock for', inventoryItems.length, 'items');
+      
+      for (const item of inventoryItems) {
+        const productId = item.productId;
+        const quantity = Number(item.quantity) || 0; // Current stock quantity
+        const product = this.products.find(p => p.id === productId);
+        const price = Number(product?.prix_vente_TTC) || 0;
+        const amount = quantity * price;
+        
+        console.log(`Product ${productId}: stock_qty=${quantity}, sale_price=${price}, amount=${amount}`);
+        
+        if (quantity > 0) { // Only include items with positive stock
+          inventoryData.push({
+            productId,
+            quantity,
+            price,
+            amount
+          });
+        }
+      }
+      
+      const totalValue = inventoryData.reduce((sum, item) => sum + item.amount, 0);
+      console.log('Current stock inventory:', inventoryData.length, 'items, total value:', totalValue);
+      return inventoryData;
+    } catch (err) {
+      console.error('Error getting inventory data:', err);
+      return [];
+    }
+  }
+
+  async generateReleveInventaire(): Promise<void> {
+    this.loading = true;
+    this.error = '';
+    
+    try {
+      const releveRows: ReleveInventaireRow[] = [];
+      
+      for (const product of this.products) {
+        const debut = await this.calculateDebutForReleve(product);
+        const credit = await this.calculateCreditForReleve(product);
+        const solde = debut - credit;
+        
+        releveRows.push({
+          id: `product_${product.id}`,
+          designation: product.name,
+          debut,
+          credit,
+          solde,
+          type: 'ENTRY'
+        });
+      }
+      
+      this.releveInventaireData = releveRows;
+      this.releveInventaireSummary = this.calculateReleveSummary(releveRows);
+      this.loading = false;
+    } catch (err) {
+      this.error = 'Erreur lors de la génération du relevé inventaire';
+      this.loading = false;
+    }
+  }
+
+
+  private calculateReleveSummary(releveRows: ReleveInventaireRow[]): ReleveInventaireSummary {
+    // Ne compter que les lignes parents (pas les enfants)
+    const parentRows = releveRows.filter(row => !this.isBonEntreeItem(row));
+    
+    const totalDebut = parentRows.reduce((sum, row) => sum + row.debut, 0);
+    const totalCredit = parentRows.reduce((sum, row) => sum + row.credit, 0);
+    const totalSolde = totalDebut - totalCredit;
+    
+    return {
+      totalProducts: parentRows.length,
+      totalDebut,
+      totalCredit,
+      totalSolde,
+      products: releveRows
+    };
+  }
+
+  showAddCreditModal(productId?: number): void {
+    this.showAddCreditForm = true;
+    this.selectedProductForCredit = productId || null;
+    this.newCredit = {
+      productId: productId || 0,
+      amount: 0,
+      type: 'SALE',
+      description: '',
+      date: new Date()
+    };
+  }
+
+  hideAddCreditModal(): void {
+    this.showAddCreditForm = false;
+  }
+
+  async addCreditEntry(): Promise<void> {
+    if (!this.newCredit.amount || !this.newCredit.description) {
+      this.error = 'Veuillez remplir tous les champs obligatoires';
+      return;
+    }
+
+    try {
+      // Save to database
+      const savedCredit = await firstValueFrom(this.http.post<any>(`${environment.apiUrl}/credit-entries`, this.newCredit));
+      
+      // Add the credit entry to local array
+      this.creditEntries.push({ ...savedCredit });
+      
+      // Regenerate the Relevé Inventaire to include the new credit
+      await this.generateReleveInventaireFromReconciliationData();
+      
+      this.hideAddCreditModal();
+    } catch (err) {
+      this.error = 'Erreur lors de la sauvegarde du crédit';
+      console.error('Error saving credit entry:', err);
+    }
+  }
+
+  async removeCreditEntry(index: number): Promise<void> {
+    const entry = this.creditEntries[index];
+    
+    try {
+      // Remove from database
+      if (entry.id) {
+        await firstValueFrom(this.http.delete(`${environment.apiUrl}/credit-entries/${entry.id}`));
+      }
+      
+      // Remove from local array
+      this.creditEntries.splice(index, 1);
+      
+      // Regenerate the Relevé Inventaire
+      await this.generateReleveInventaireFromReconciliationData();
+    } catch (err) {
+      this.error = 'Erreur lors de la suppression du crédit';
+      console.error('Error removing credit entry:', err);
+    }
+  }
+
+  getCreditTypeLabel(type: string): string {
+    const labels: { [key: string]: string } = {
+      'SALE': 'Vente',
+      'FREE_ITEM': 'Gratuité',
+      'EXIT_VOUCHER': 'Bon de sortie',
+      'WHOLESALE_DIFFERENCE': 'Différence gros'
+    };
+    return labels[type] || type;
+  }
+
+  getProductName(productId: number): string {
+    const product = this.products.find(p => p.id === productId);
+    return product?.name || 'Produit inconnu';
+  }
+
+  toggleBonEntreeExpansion(bonEntreeId: string): void {
+    if (this.expandedBonEntree.has(bonEntreeId)) {
+      this.expandedBonEntree.delete(bonEntreeId);
+    } else {
+      this.expandedBonEntree.add(bonEntreeId);
+    }
+  }
+
+  isBonEntreeExpanded(bonEntreeId: string): boolean {
+    return this.expandedBonEntree.has(bonEntreeId);
+  }
+
+  isBonEntreeItem(row: ReleveInventaireRow): boolean {
+    return row.id.startsWith('item_');
+  }
+
+  getBonEntreeIdFromItem(itemId: string): string {
+    // Find the row with this itemId and return its parentId
+    const row = this.releveInventaireData.find(r => r.id === itemId);
+    return row?.parentId || '';
+  }
+
+  private async findGratuitSaleForProduct(productId: number): Promise<any> {
+    try {
+      const allSales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(allSales) ? allSales : [];
+      
+      // Find the most recent gift sale for this product
+      for (const sale of salesArray.reverse()) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
+        for (const item of saleItems) {
+          if (sale.status === 'CADEAU' || Number(item.total) === 0) {
+            return sale;
+          }
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error('Error finding gratuit sale:', err);
+      return null;
+    }
+  }
+
+  private async findWholesaleSaleForProduct(productId: number): Promise<any> {
+    try {
+      const allSales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(allSales) ? allSales : [];
+      
+      // Find the most recent wholesale sale for this product
+      for (const sale of salesArray.reverse()) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
+        for (const item of saleItems) {
+          if (item.isWholesale || sale.isWholesale) {
+            return sale;
+          }
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error('Error finding wholesale sale:', err);
+      return null;
+    }
+  }
+
+  private async findAllWholesaleSalesForProduct(productId: number): Promise<any[]> {
+    try {
+      const allSales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(allSales) ? allSales : [];
+      
+      const wholesaleSales = [];
+      
+      // Find ALL wholesale sales for this product
+      for (const sale of salesArray) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
+        for (const item of saleItems) {
+          if (item.isWholesale || sale.isWholesale) {
+            wholesaleSales.push({
+              ...sale,
+              itemDetails: {
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                total: item.total,
+                isWholesale: item.isWholesale,
+                bundleSize: item.bundleSize,
+                bundlePrice: item.bundlePrice
+              }
+            });
+            break; // Only add the sale once even if it has multiple wholesale items for this product
+          }
+        }
+      }
+      
+      return wholesaleSales;
+    } catch (err) {
+      console.error('Error finding all wholesale sales:', err);
+      return [];
+    }
+  }
+
+  private async findDiscountSaleForProduct(productId: number): Promise<any> {
+    try {
+      const allSales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(allSales) ? allSales : [];
+      
+      // Find the most recent sale with discount for this product
+      for (const sale of salesArray.reverse()) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
+        for (const item of saleItems) {
+          if (Number(item.discount) > 0) {
+            return sale;
+          }
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error('Error finding discount sale:', err);
+      return null;
+    }
+  }
+
+  openSaleDetails(saleId: number): void {
+    if (saleId) {
+      // Open sale details in a new tab or modal
+      const saleUrl = `${environment.apiUrl}/sales/${saleId}`;
+      window.open(saleUrl, '_blank');
+    }
+  }
+
+
+
+
+
+  showWholesaleSalesDialog(row: ReleveInventaireRow): void {
+    if (row.wholesaleSales && row.wholesaleSales.length > 0) {
+      this.selectedWholesaleSales = row.wholesaleSales;
+      this.selectedWholesaleProduct = row.details?.split('Produit: ')[1]?.split(' |')[0] || 'Produit inconnu';
+      this.showWholesaleDialog = true;
+    }
+  }
+
+  closeWholesaleDialog(): void {
+    this.showWholesaleDialog = false;
+    this.selectedWholesaleSales = [];
+    this.selectedWholesaleProduct = '';
+  }
+
+  calculateTotalLoss(): number {
+    return this.selectedWholesaleSales.reduce((sum, sale) => {
+      // Find the product to get the retail price
+      const product = this.products.find(p => p.id === sale.itemDetails?.productId);
+      const retailPrice = product ? Number(product.prix_vente_TTC) || 0 : 0;
+      const quantity = sale.itemDetails?.quantity || 0;
+      const wholesaleTotal = sale.itemDetails?.total || 0;
+      const retailTotal = retailPrice * quantity;
+      return sum + (retailTotal - wholesaleTotal);
+    }, 0);
+  }
+
+  calculateTotalWholesale(): number {
+    return this.selectedWholesaleSales.reduce((sum, sale) => sum + (sale.itemDetails?.total || 0), 0);
+  }
+
+  calculateTotalRetail(): number {
+    return this.selectedWholesaleSales.reduce((sum, sale) => {
+      // Find the product to get the retail price
+      const product = this.products.find(p => p.id === sale.itemDetails?.productId);
+      const retailPrice = product ? Number(product.prix_vente_TTC) || 0 : 0;
+      const quantity = sale.itemDetails?.quantity || 0;
+      return sum + (retailPrice * quantity);
+    }, 0);
+  }
+
+  calculateSaleLoss(sale: any): number {
+    // Find the product to get the retail price
+    const product = this.products.find(p => p.id === sale.itemDetails?.productId);
+    const retailPrice = product ? Number(product.prix_vente_TTC) || 0 : 0;
+    const quantity = sale.itemDetails?.quantity || 0;
+    const wholesaleTotal = sale.itemDetails?.total || 0;
+    const retailTotal = retailPrice * quantity;
+    return retailTotal - wholesaleTotal;
+  }
+
+
+
+  onEcartRowClick(row: ReleveInventaireRow): void {
+    if (row.saleId) {
+      this.openSaleDetails(row.saleId);
+    }
+  }
+
+  isEcartRowClickable(row: ReleveInventaireRow): boolean {
+    return !!(row.saleId && row.ecartType);
+  }
+
+  getEcartRowClass(row: ReleveInventaireRow): string {
+    if (!row.ecartType) return '';
+    
+    const baseClass = 'ecart-row';
+    const typeClass = `ecart-${row.ecartType.toLowerCase()}`;
+    const clickableClass = this.isEcartRowClickable(row) ? 'clickable' : '';
+    
+    return `${baseClass} ${typeClass} ${clickableClass}`.trim();
+  }
+
+  toggleEcartGrosExpansion(ecartId: string): void {
+    if (this.expandedEcartGros.has(ecartId)) {
+      this.expandedEcartGros.delete(ecartId);
+    } else {
+      this.expandedEcartGros.add(ecartId);
+    }
+  }
+
+  isEcartGrosExpanded(ecartId: string): boolean {
+    return this.expandedEcartGros.has(ecartId);
+  }
+
+  isEcartGrosChild(row: ReleveInventaireRow): boolean {
+    return !!(row.isEcartGrosChild && row.parentId);
+  }
+
+  getEcartGrosParentId(row: ReleveInventaireRow): string {
+    if (row.parentId) {
+      // Convert "ecart_123" to "gros_123"
+      return row.parentId.replace('ecart_', 'gros_');
+    }
+    return '';
+  }
+
+  shouldShowEcartGrosChild(row: ReleveInventaireRow): boolean {
+    if (!this.isEcartGrosChild(row)) return true;
+    
+    const parentId = this.getEcartGrosParentId(row);
+    return this.isEcartGrosExpanded(parentId);
+  }
+
+
+  getTextBeforeWholesaleSales(text: string): string {
+    const match = text.match(/(.*?)\s*\(\d+\s+ventes\s+gros\)/);
+    return match ? match[1] : text;
+  }
+
+  getWholesaleSalesText(text: string): string {
+    const match = text.match(/\((\d+\s+ventes\s+gros)\)/);
+    return match ? match[1] : '';
+  }
+
+  getTextAfterWholesaleSales(text: string): string {
+    const match = text.match(/\(\d+\s+ventes\s+gros\)(.*)/);
+    return match ? match[1] : '';
+  }
+
+  toggleInactiveProducts(): void {
+    this.showInactiveProducts = !this.showInactiveProducts;
+  }
+
+  getFilteringSummary(): string {
+    if (this.totalProducts === 0) return '';
+    
+    const inactiveCount = this.totalProducts - this.activeProducts;
+    const percentage = Math.round((this.activeProducts / this.totalProducts) * 100);
+    
+    return `${this.activeProducts} produits actifs sur ${this.totalProducts} total (${percentage}%) - ${inactiveCount} produits inactifs filtrés`;
+  }
+
+  private async createBasicReconciliationForProduct(product: Product, dateFrom: Date, dateTo: Date): Promise<ReconciliationData> {
+    // Create a basic reconciliation entry with empty data
+    const basicSummary = {
+      totalAchatEntree: { qty: 0, totale: 0 },
+      totalAchatSortie: { qty: 0, totale: 0 },
+      totalVenteEntree: { qty: 0, totale: 0 },
+      totalVenteSortie: { qty: 0, totale: 0 },
+      cogs: 0,
+      endingStock: { qty: 0, value: 0, pu: 0 }
+    };
+
+    // Calculate basic Relevé Inventaire data
+    const debut = await this.calculateDebutForReleve(product);
+    const credit = await this.calculateCreditForReleve(product);
+    const solde = debut - credit;
+    
+    const releveInventaire: ReleveInventaireRow = {
+      id: `product_${product.id}`,
+      designation: product.name,
+      debut,
+      credit,
+      solde,
+      type: 'ENTRY'
+    };
+
+    return {
+      productId: product.id,
+      productName: product.name,
+      rows: [],
+      summary: basicSummary,
+      ecartData: undefined,
+      releveInventaire: releveInventaire
+    };
+  }
+
+  private async calculateDebutForReleve(product: Product): Promise<number> {
+    try {
+      // Get all stock entries for this product (entrées seulement)
+      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+        params: {
+          type: 'BON_ENTREE_DEPOT'
+        }
+      }));
+
+      // Handle different response formats
+      let entries = [];
+      if (Array.isArray(response)) {
+        entries = response;
+      } else if (response && Array.isArray(response.data)) {
+        entries = response.data;
+      } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+        entries = response.stockDocuments;
+      } else {
+        return 0;
+      }
+
+      let totalDebut = 0;
+      
+      for (const entry of entries) {
+        const items = entry.items?.filter((item: any) => item.productId === product.id) || [];
+        for (const item of items) {
+          const qty = Number(item.quantity) || 0;
+          const prixVente = Number(product.prix_vente_TTC) || 0;
+          totalDebut += qty * prixVente;
+        }
+      }
+      
+      return totalDebut;
+    } catch (err) {
+      console.error('Error calculating debut for product:', product.id, err);
+      return 0;
+    }
+  }
+
+  private async calculateCreditForReleve(product: Product): Promise<number> {
+    try {
+      let totalCredit = 0;
+      
+      // 1. Clôture de caisse pour ce produit
+      const cashClosures = await this.getCashClosuresForProduct(product.id);
+      totalCredit += cashClosures;
+      
+      // 2. Dépenses liées à ce produit
+      const expenses = await this.getExpensesForProduct(product.id);
+      totalCredit += expenses;
+      
+      // 3. Écarts globaux pour ce produit
+      const globalEcart = await this.getGlobalEcartForProduct(product.id);
+      totalCredit += globalEcart;
+      
+      // 4. Remises et tickets pour ce produit
+      const discounts = await this.getDiscountsForProduct(product.id);
+      totalCredit += discounts;
+      
+      // 5. Stock de retour pour ce produit
+      const stockReturns = await this.getStockReturnsForProduct(product.id);
+      totalCredit += stockReturns;
+      
+      return totalCredit;
+    } catch (err) {
+      console.error('Error calculating credit for product:', product.id, err);
+      return 0;
+    }
+  }
+
+  private async getCashClosuresForProduct(productId: number): Promise<number> {
+    try {
+      // Get all sales data and filter by product
+      const allSales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(allSales) ? allSales : [];
+      
+      let total = 0;
+        for (const sale of salesArray) {
+        // Process all sales (not just closed sessions) to avoid API calls
+          const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
+          for (const item of saleItems) {
+            const itemTotal = Number(item.total) || 0;
+            total += itemTotal;
+        }
+      }
+      
+      return total;
+    } catch (err) {
+      console.error('Error getting cash closures for product:', productId, err);
+      return 0;
+    }
+  }
+
+  private async getExpensesForProduct(productId: number): Promise<number> {
+    try {
+      // Get expenses data
+      const expenses = await firstValueFrom(this.http.get<any[]>(`${environment.apiUrl}/expenses`));
+      const expensesArray = Array.isArray(expenses) ? expenses : [];
+      
+      let total = 0;
+      for (const expense of expensesArray) {
+        // Check if expense is related to this product
+        if (expense.productId === productId || expense.products?.some((p: any) => p.productId === productId)) {
+          total += Number(expense.amount) || 0;
+        }
+      }
+      
+      return total;
+    } catch (err) {
+      console.error('Error getting expenses for product:', productId, err);
+      return 0;
+    }
+  }
+
+  private async getGlobalEcartForProduct(productId: number): Promise<number> {
+    try {
+      // Get global ecart data for this product from reconciliation data
+      const reconciliationData = this.reconciliationData.find(data => data.productId === productId);
+      if (reconciliationData?.ecartData) {
+        return Number(reconciliationData.ecartData.ecartGlobal) || 0;
+      }
+      
+      return 0;
+    } catch (err) {
+      console.error('Error getting global ecart for product:', productId, err);
+      return 0;
+    }
+  }
+
+  private async getDiscountsForProduct(productId: number): Promise<number> {
+    try {
+      // Get sales with discounts for this product
+      const sales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(sales) ? sales : [];
+      
+      let total = 0;
+      for (const sale of salesArray) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
+        for (const item of saleItems) {
+          const discount = Number(item.discount) || 0;
+          total += discount;
+        }
+      }
+      
+      return total;
+    } catch (err) {
+      console.error('Error getting discounts for product:', productId, err);
+      return 0;
+    }
+  }
+
+  private async getStockReturnsForProduct(productId: number): Promise<number> {
+    try {
+      // Get stock returns for this product from stock documents using valid DocumentType
+      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+        params: {
+          type: 'BON_EXPEDITION' // Use valid DocumentType for returns
+        }
+      }));
+      
+      // Handle different response formats
+      let stockDocsArray = [];
+      if (Array.isArray(response)) {
+        stockDocsArray = response;
+      } else if (response && Array.isArray(response.data)) {
+        stockDocsArray = response.data;
+      } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+        stockDocsArray = response.stockDocuments;
+      } else {
+        stockDocsArray = [];
+      }
+      
+      let total = 0;
+      for (const doc of stockDocsArray) {
+        // Check if this is a return document based on notes
+        const isReturn = doc.notes?.toLowerCase().includes('retour') || 
+                        doc.notes?.toLowerCase().includes('return');
+        
+        if (isReturn) {
+        const items = doc.items?.filter((item: any) => item.productId === productId) || [];
+        for (const item of items) {
+          const qty = Number(item.quantity) || 0;
+          const product = this.products.find(p => p.id === productId);
+          const price = Number(product?.prix_vente_TTC) || 0;
+          total += qty * price;
+          }
+        }
+      }
+      
+      return total;
+    } catch (err) {
+      console.error('Error getting stock returns for product:', productId, err);
+      return 0;
+    }
   }
 }

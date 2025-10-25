@@ -89,7 +89,6 @@ const router = express.Router();
 async function generateDocumentNumber(type) {
   const prefix = type === 'BON_EXPEDITION' ? 'BS' : 
                  type === 'BON_ENTREE_DEPOT' ? 'BE' :
-                 type === 'BON_RETOUR_DEPOT' ? 'BR' :
                  type === 'BON_TRANSFERT' ? 'BT' :
                  type === 'BON_ENTREE_MAGASIN' ? 'BL' :
                  type === 'FACTURE' ? 'FAC' : 'DOC';
@@ -110,7 +109,6 @@ async function getNextDocumentId(type) {
     // Get the highest sequence number from existing document numbers of this type
     const prefix = type === 'BON_EXPEDITION' ? 'BS' : 
                    type === 'BON_ENTREE_DEPOT' ? 'BE' :
-                   type === 'BON_RETOUR_DEPOT' ? 'BR' :
                    type === 'BON_TRANSFERT' ? 'BT' :
                    type === 'BON_ENTREE_MAGASIN' ? 'BL' :
                    type === 'FACTURE' ? 'FAC' : 'DOC';
@@ -172,19 +170,18 @@ router.get('/', authenticateToken, async (req, res) => {
     const where = {};
     
     if (type) {
-      // Map frontend type values to DocumentType enum values
-      const typeMapping = {
-        'entry': 'BON_ENTREE_DEPOT',
-        'sortie': 'BON_EXPEDITION', 
-        'transfert': 'BON_TRANSFERT',
-        'livraison': 'BON_ENTREE_MAGASIN',
-        // Also handle direct enum values
-        'BON_ENTREE_DEPOT': 'BON_ENTREE_DEPOT',
-        'BON_EXPEDITION': 'BON_EXPEDITION',
-        'BON_TRANSFERT': 'BON_TRANSFERT',
-        'BON_ENTREE_MAGASIN': 'BON_ENTREE_MAGASIN'
-      };
-      where.type = typeMapping[type] || type;
+      // Only allow valid DocumentType enum values
+      const validTypes = ['BON_EXPEDITION', 'BON_ENTREE_DEPOT', 'BON_TRANSFERT', 'BON_ENTREE_MAGASIN', 'FACTURE'];
+      
+      if (!validTypes.includes(type)) {
+        console.log(`Invalid document type: ${type}. Valid types are: ${validTypes.join(', ')}`);
+        return res.status(400).json({ 
+          error: `Invalid document type: ${type}. Valid types are: ${validTypes.join(', ')}`,
+          validTypes 
+        });
+      }
+      
+      where.type = type;
     }
     
     if (status) {
@@ -705,8 +702,8 @@ router.post('/entry', authenticateToken, async (req, res) => {
       // 3. The purchase price entered may be different from the product's selling price
     }
 
-    // We only persist prisma type as BON_ENTREE_DEPOT (enum-limited), but use a separate numbering prefix for returns
-    const numberType = isReturn ? 'BON_RETOUR_DEPOT' : 'BON_ENTREE_DEPOT';
+    // Use valid DocumentType enum values only
+    const numberType = isReturn ? 'BON_EXPEDITION' : 'BON_ENTREE_DEPOT';
     const numero = await generateDocumentNumber(numberType);
 
     // If paying cash, we must have an open caisse session

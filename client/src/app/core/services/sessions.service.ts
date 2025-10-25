@@ -104,6 +104,7 @@ export interface SessionFilters {
   endDate?: string;
   userId?: number;
   posId?: number;
+  depotId?: number;
   status?: string;
   hasVariance?: boolean;
   page?: number;
@@ -242,6 +243,11 @@ export class SessionsService {
       params,
       ...this.getRequestOptions()
     });
+  }
+
+  // Get session by ID
+  getSessionById(sessionId: number): Observable<SessionCaisse> {
+    return this.http.get<SessionCaisse>(`${this.API_URL}/${sessionId}`, this.getRequestOptions());
   }
 
   // Get session report (X or Z)

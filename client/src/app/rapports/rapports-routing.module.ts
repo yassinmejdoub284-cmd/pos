@@ -43,6 +43,10 @@ const routes: Routes = [
   { 
     path: 'sessions-history', 
     loadChildren: () => import('./sessions-history/sessions-history.module').then(m => m.SessionsHistoryModule)
+  },
+  { 
+    path: 'inventory-balance', 
+    loadChildren: () => import('./inventory-balance/inventory-balance.module').then(m => m.InventoryBalanceModule)
   }
 ];
 

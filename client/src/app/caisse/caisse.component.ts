@@ -2011,6 +2011,16 @@ export class CaisseComponent implements OnInit, OnDestroy {
       paymentType: this.salePaymentType
     };
 
+    // Debug log for wholesale sales
+    if (this.isWholesaleSale()) {
+      console.log('Wholesale sale data:', {
+        paymentType: this.salePaymentType,
+        paymentMethodId: saleData.paymentMethodId,
+        amountPaid: saleData.amountPaid,
+        isWholesale: saleData.isWholesale
+      });
+    }
+
     this.salesService.createSale(saleData).subscribe({
       next: (savedSale: any) => {
         const loyaltyEarned = savedSale?.loyaltyPointsEarned || 0;
@@ -3877,6 +3887,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Auto-submit the sale with ESP payment method and exact pricing
     this.paymentType = 'cash';
     this.amountPaid = activeCart.netTotal;
+    this.salePaymentType = 'COMPTANT'; // Explicitly set to cash payment
     this.confirmPayment();
   }
 
@@ -3896,6 +3907,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Auto-submit the sale with ESP payment method and exact pricing, with print
     this.paymentType = 'cash';
     this.amountPaid = activeCart.netTotal;
+    this.salePaymentType = 'COMPTANT'; // Explicitly set to cash payment
     this.processPaymentWithReceipt();
   }
 
@@ -3915,6 +3927,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Auto-submit the sale with ESP payment method and exact pricing, without print
     this.paymentType = 'cash';
     this.amountPaid = activeCart.netTotal;
+    this.salePaymentType = 'COMPTANT'; // Explicitly set to cash payment
     this.processPaymentWithoutReceipt();
   }
 
