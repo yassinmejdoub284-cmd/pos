@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+   import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { ActivatedRoute } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { InventoryService, InventorySession } from '../../core/services/inventory.service';
 import { SalesService } from '../../core/services/sales.service';
@@ -79,6 +80,7 @@ export interface ReleveInventaireRow {
   type: 'ENTRY' | 'CREDIT' | 'INVENTORY' | 'MANUAL_CREDIT';
   details?: string; // détails pour les écarts, numéros de caisse, etc.
   date?: Date;
+  createdAt?: Date; // For proper date ordering
   isInventory?: boolean; // ligne verte pour inventaire
   saleId?: number; // ID de la vente pour navigation
   ecartType?: string; // Type d'écart (GRATUITE, VENTE_GROS, REMISE)
@@ -93,15 +95,22 @@ export interface ReleveInventaireRow {
   wholesaleAmount?: number; // Wholesale amount
   retailAmount?: number; // Retail amount
   priceDifference?: number; // Price difference (loss)
+  gratuitSales?: any[]; // Gratuité sales data for dialog
+  totalGratuitSales?: number; // Total number of gratuité sales
+  gratuitAmount?: number; // Gratuité amount
+  gratuitQuantity?: number; // Gratuité quantity
+  inventoryVariance?: number; // Inventory variance for calculation
+  totalInventoryValue?: number; // Total inventory value for reference
 }
 
 export interface CreditEntry {
   id?: number;
-  productId: number;
+  productId: number | null;
   amount: number;
   type: 'SALE' | 'FREE_ITEM' | 'EXIT_VOUCHER' | 'WHOLESALE_DIFFERENCE';
   description: string;
   date: Date;
+  createdAt?: Date;
 }
 
 export interface ReleveInventaireSummary {
@@ -163,19 +172,30 @@ export class InventorySalesReconciliationComponent implements OnInit {
   creditEntries: CreditEntry[] = [];
   expandedBonEntree: Set<string> = new Set();
   expandedEcartGros: Set<string> = new Set();
+  isInventoryMode: boolean = false; // Track if we're showing inventory-based data
+  // Snapshot and chaining state
+  lastInventorySolde: number = 0;
+  secondaryReleveRows: ReleveInventaireRow[] = [];
   
   // Wholesale sales dialog state
   showWholesaleDialog = false;
   selectedWholesaleSales: any[] = [];
   selectedWholesaleProduct = '';
   
+  // Gratuité sales dialog state
+  showGratuitDialog = false;
+  selectedGratuitSales: any[] = [];
+  selectedGratuitProduct = '';
+  
   // UI state
   loading = false;
   error = '';
+  success = '';
   showReport = false;
   showAddCreditForm = false;
   showInactiveProducts = false; // Option to show inactive products
   totalProducts = 0;
+  depotId: number | null = null;
   activeProducts = 0;
   
   // Form for adding credit
@@ -192,6 +212,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
   
   constructor(
     private http: HttpClient,
+    private route: ActivatedRoute,
     private inventoryService: InventoryService,
     private salesService: SalesService,
     private sessionsService: SessionsService,
@@ -202,6 +223,10 @@ export class InventorySalesReconciliationComponent implements OnInit {
     this.setDefaultDateRange();
     this.loadInitialData();
     
+    // Get depotId from route parameters
+    this.route.params.subscribe(params => {
+      this.depotId = params['depotId'] ? parseInt(params['depotId']) : null;
+    });
   }
 
   setDefaultDateRange(): void {
@@ -252,6 +277,49 @@ export class InventorySalesReconciliationComponent implements OnInit {
         console.error('Error loading inventory sessions:', err);
       }
     });
+  }
+
+  // Save current relevé into local storage (minimal snapshot)
+  saveCurrentReleve(): void {
+    try {
+      const snapshot = {
+        savedAt: new Date().toISOString(),
+        lastInventorySolde: this.lastInventorySolde,
+        rows: this.releveInventaireData
+      };
+      const key = 'releveSnapshots';
+      const existing = localStorage.getItem(key);
+      const list = existing ? JSON.parse(existing) : [];
+      list.push(snapshot);
+      localStorage.setItem(key, JSON.stringify(list));
+    } catch {}
+  }
+
+  // Start a new table using previous inventory solde as first line
+  startNewReleveFromLastSolde(): void {
+    const opening: ReleveInventaireRow = {
+      id: `inventory_opening_${Date.now()}`,
+      designation: 'INVENTAIRE (Solde précédent)',
+      debut: 0,
+      credit: 0,
+      solde: this.lastInventorySolde,
+      type: 'INVENTORY',
+      details: 'Solde reporté du relevé précédent',
+      date: new Date(),
+      createdAt: new Date(),
+      isInventory: true,
+      totalInventoryValue: this.lastInventorySolde
+    } as any;
+    this.secondaryReleveRows = [opening];
+    
+    // Set flag to redirect new transactions to secondary table
+    this.isInventoryMode = true;
+  }
+
+  // Clear secondary table and reset to normal mode
+  clearSecondaryReleve(): void {
+    this.secondaryReleveRows = [];
+    this.isInventoryMode = false;
   }
 
 
@@ -709,16 +777,15 @@ export class InventorySalesReconciliationComponent implements OnInit {
     const ecartData = this.calculateEcartDataBulk(product, salesInRange);
 
     // Calculate Relevé Inventaire data using pre-fetched data
-    const debut = this.calculateDebutForReleveBulk(product, allStockMovements);
-    const credit = this.calculateCreditForReleveBulk(product, salesInRange);
-    const solde = debut - credit;
+    // Get current inventory stock value directly - no calculations needed
+    const solde = await this.getCurrentInventoryStockValue(product);
     
     const releveInventaire: ReleveInventaireRow = {
       id: `product_${product.id}`,
       designation: product.name,
-      debut,
-      credit,
-      solde,
+      debut: 0, // Not used when using direct inventory value
+      credit: 0, // Not used when using direct inventory value
+      solde: solde, // Direct current inventory stock value
       type: 'ENTRY'
     };
 
@@ -916,16 +983,15 @@ export class InventorySalesReconciliationComponent implements OnInit {
     const ecartData = await this.calculateEcartDataOptimized(product, salesInRange);
 
     // Calculate Relevé Inventaire data
-    const debut = await this.calculateDebutForReleve(product);
-    const credit = await this.calculateCreditForReleve(product);
-    const solde = debut - credit;
+    // Get current inventory stock value directly - no calculations needed
+    const solde = await this.getCurrentInventoryStockValue(product);
     
     const releveInventaire: ReleveInventaireRow = {
       id: `product_${product.id}`,
       designation: product.name,
-      debut,
-      credit,
-      solde,
+      debut: 0, // Not used when using direct inventory value
+      credit: 0, // Not used when using direct inventory value
+      solde: solde, // Direct current inventory stock value
       type: 'ENTRY'
     };
 
@@ -1191,16 +1257,15 @@ export class InventorySalesReconciliationComponent implements OnInit {
     const ecartData = await this.calculateEcartData(product, dateFrom, dateTo);
 
     // Calculate Relevé Inventaire data for this product
-    const debut = await this.calculateDebutForReleve(product);
-    const credit = await this.calculateCreditForReleve(product);
-    const solde = debut - credit;
+    // Get current inventory stock value directly - no calculations needed
+    const solde = await this.getCurrentInventoryStockValue(product);
     
     const releveInventaire: ReleveInventaireRow = {
       id: `product_${product.id}`,
       designation: product.name,
-      debut,
-      credit,
-      solde,
+      debut: 0, // Not used when using direct inventory value
+      credit: 0, // Not used when using direct inventory value
+      solde: solde, // Direct current inventory stock value
       type: 'ENTRY'
     };
 
@@ -1299,20 +1364,10 @@ export class InventorySalesReconciliationComponent implements OnInit {
 
   private calculateDebutForReleveBulk(product: Product, allStockMovements: any[]): number {
     try {
-      let totalDebut = 0;
-      
-      // Filter stock movements for this product from pre-fetched data
-      const productMovements = allStockMovements.filter(m => m.productId === product.id);
-      
-      for (const movement of productMovements) {
-        if (movement.type === 'ACHAT_ENTREE') {
-          const qty = Number(movement.quantity) || 0;
-          const prixVente = Number(product.prix_vente_TTC) || 0;
-          totalDebut += qty * prixVente;
-        }
-      }
-      
-      return totalDebut;
+      // For bulk processing, we'll use a simplified approach
+      // In a real implementation, you might want to pre-fetch inventory data
+      // For now, we'll return 0 and let the individual method handle it
+      return 0;
     } catch (err) {
       console.error('Error calculating debut for product:', product.id, err);
       return 0;
@@ -1323,7 +1378,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
     try {
       let totalCredit = 0;
       
-      // Calculate credit from pre-fetched sales data
+      // Only include actual sales revenue (no ecart calculations)
       for (const sale of salesInRange) {
         const saleItems = sale.items?.filter((item: any) => item.productId === product.id) || [];
         for (const item of saleItems) {
@@ -1845,34 +1900,113 @@ export class InventorySalesReconciliationComponent implements OnInit {
   async generateReleveInventaireFromReconciliationData(): Promise<void> {
     const releveRows: ReleveInventaireRow[] = [];
     
+    // Set inventory mode to true when generating from reconciliation data
+    this.isInventoryMode = true;
+
+    // Load existing credit entries to avoid duplicates
+    await this.loadExistingCreditEntries();
     
     // 1. Calculer le total des entrées pour référence (pas affiché)
     const totalDebut = await this.calculateTotalDebut();
 
-    // 0. INVENTAIRE - Ligne d'inventaire (avant les bons d'entrée)
-    const inventoryData = await this.getInventoryData();
-    const inventoryVariance = await this.getInventoryVariance();
+    // Collect all transactions to sort by date
+    const allTransactions: ReleveInventaireRow[] = [];
+    const processedTransactionIds = new Set<string>(); // Global duplicate prevention
     
-    if (inventoryData && inventoryData.length > 0) {
-      const totalInventoryValue = inventoryData.reduce((sum, item) => sum + item.amount, 0);
+    // Helper function to add transaction only if not already processed
+    const addTransactionIfNotDuplicate = (transaction: ReleveInventaireRow) => {
+      if (!processedTransactionIds.has(transaction.id)) {
+        processedTransactionIds.add(transaction.id);
+        allTransactions.push(transaction);
+        
+        // If in inventory mode and secondary table exists, also add to secondary table
+        if (this.isInventoryMode && this.secondaryReleveRows.length > 0) {
+          // Calculate running solde for secondary table
+          const lastSecondarySolde = this.secondaryReleveRows[this.secondaryReleveRows.length - 1]?.solde || 0;
+          const newSolde = lastSecondarySolde + (transaction.debut || 0) - (transaction.credit || 0);
+          
+          const secondaryTransaction: ReleveInventaireRow = {
+            ...transaction,
+            solde: newSolde
+          };
+          this.secondaryReleveRows.push(secondaryTransaction);
+        }
+        
+        return true;
+      }
+      return false;
+    };
+    
+    // 0. INVENTAIRE - All posted inventory sessions ordered by date/time
+    const allInventorySessions = await this.getAllPostedInventorySessions();
+    const inventoryData = await this.getInventoryData();
+    
+    // Add each inventory session as a separate line
+    for (const inventorySession of allInventorySessions) {
+      // Calculate total inventory value using COUNTED quantities from inventory session
+      let totalInventoryValue = 0;
+      if (inventorySession.items && inventorySession.items.length > 0) {
+        for (const sessionItem of inventorySession.items) {
+          const product = this.products.find(p => p.id === sessionItem.productId);
+          if (product) {
+            const countedQuantity = sessionItem.countedQuantity != null ? Number(sessionItem.countedQuantity) : 0;
+            const unitPrice = Number(product.prix_vente_TTC) || 0;
+            totalInventoryValue += countedQuantity * unitPrice;
+          }
+        }
+      }
       
-      // Calculate variance amounts
-      const varianceAmount = Math.abs(inventoryVariance);
-      const isPositiveVariance = inventoryVariance > 0;
+      // Calculate inventory variance (ecart) for display in designation only
+      let inventoryVariance = 0;
+      if (inventorySession.items && inventorySession.items.length > 0) {
+        for (const sessionItem of inventorySession.items) {
+          const product = this.products.find(p => p.id === sessionItem.productId);
+          if (product && sessionItem.ecartQuantity !== null && sessionItem.ecartQuantity !== 0) {
+            const ecartValue = sessionItem.ecartQuantity * Number(product.prix_vente_TTC);
+            inventoryVariance += ecartValue;
+          }
+        }
+      }
       
-      releveRows.push({
-        id: 'inventory_line',
-        designation: 'INVENTAIRE',
-        debut: isPositiveVariance ? varianceAmount : 0,
-        credit: isPositiveVariance ? 0 : varianceAmount,
+      // Use postedAt from inventory session (this is the actual inventory date)
+      let inventoryDate = new Date();
+      if (inventorySession?.postedAt) {
+        try {
+          inventoryDate = new Date(inventorySession.postedAt);
+          if (isNaN(inventoryDate.getTime())) {
+            inventoryDate = new Date(inventorySession.postedAt.replace(' ', 'T') + 'Z');
+          }
+          if (isNaN(inventoryDate.getTime())) {
+            inventoryDate = new Date();
+          }
+        } catch (err) {
+          console.error('Error parsing inventory date:', err);
+          inventoryDate = new Date();
+        }
+      }
+      
+      // Clean up any existing inventory discrepancy credit entries (remove manual credits)
+      await this.cleanupOldInventoryEcartCredits();
+
+      // Add inventory line - direct solde from inventory, no variance applied
+      const ecartText = inventoryVariance !== 0 ? ` | Écart: ${inventoryVariance >= 0 ? '+' : ''}${inventoryVariance.toFixed(2)} DT` : '';
+      addTransactionIfNotDuplicate({
+        id: `inventory_${inventorySession.id}`,
+        designation: 'INVENTAIRE' + ecartText,
+        debut: 0,
+        credit: 0,
         solde: totalInventoryValue,
         type: 'INVENTORY' as const,
-        details: `Inventaire: ${inventoryData.length} produits${varianceAmount > 0 ? ` | Écart: ${inventoryVariance > 0 ? '+' : ''}${inventoryVariance} DT` : ''}`,
-        date: new Date(),
-        isInventory: true
+        details: `Inventaire: ${inventorySession.items?.length || 0} produits${ecartText}`,
+        date: inventoryDate,
+        createdAt: inventorySession?.postedAt || inventorySession?.closedAt || inventoryDate.toISOString(),
+        isInventory: true,
+        totalInventoryValue: totalInventoryValue
       });
+      // Track last inventory solde for chaining
+      this.lastInventorySolde = totalInventoryValue;
     }
-
+    
     // 1. Lignes DÉBIT - Chaque bon d'entrée comme ligne séparée (pas de somme)
     const stockEntries = await this.getStockEntriesDetails();
     
@@ -1909,10 +2043,10 @@ export class InventorySalesReconciliationComponent implements OnInit {
         solde: totalDocAmount,
         type: 'ENTRY' as const,
         details: `Dépôt: ${docData.depotName} | Fournisseur: ${docData.supplierName} | ${docData.items.length} articles`,
-        date: docData.date
+        date: new Date(docData.createdAt || docData.date) // Use createdAt for proper ordering
       };
       
-      releveRows.push(docRow);
+      addTransactionIfNotDuplicate(docRow);
       
       // Lignes détaillées pour chaque article du bon (DÉBIT)
       for (const item of docData.items) {
@@ -1924,16 +2058,16 @@ export class InventorySalesReconciliationComponent implements OnInit {
           solde: item.amount,
           type: 'ENTRY' as const,
           details: `Article: ${item.productName} | Qty: ${item.quantity} | Prix: ${item.unitPrice} DT`,
-          date: item.date,
+          date: new Date(item.createdAt || item.date), // Use createdAt for proper ordering
           parentId: `bon_entree_${docId}` // Link to parent document
         };
         
-        releveRows.push(itemRow);
+        addTransactionIfNotDuplicate(itemRow);
       }
     }
     
     if (entriesByDocument.size === 0) {
-      releveRows.push({
+      addTransactionIfNotDuplicate({
         id: 'no_stock_entries',
         designation: 'Aucune entrée de stock trouvée',
         debut: 0,
@@ -1948,7 +2082,15 @@ export class InventorySalesReconciliationComponent implements OnInit {
     // 2. Lignes CRÉDIT - Clôtures de caisse
     const cashClosures = await this.getCashClosuresDetails();
     for (const closure of cashClosures) {
-      releveRows.push({
+      const closureDate = new Date(closure.createdAt || closure.date);
+      console.log(`🔍 Cash Closure #${closure.sessionNumber}:`, {
+        createdAt: closure.createdAt,
+        date: closure.date,
+        finalDate: closureDate,
+        designation: `Clôture Caisse #${closure.sessionNumber} - ${closure.date.toLocaleDateString()}`
+      });
+      
+      addTransactionIfNotDuplicate({
         id: `closure_${closure.id}`,
         designation: `Clôture Caisse #${closure.sessionNumber} - ${closure.date.toLocaleDateString()}`,
         debut: 0,
@@ -1956,14 +2098,15 @@ export class InventorySalesReconciliationComponent implements OnInit {
         solde: -closure.amount,
         type: 'CREDIT' as const,
         details: `Session: ${closure.sessionId}, Variance: ${closure.variance}`,
-        date: closure.date
+        date: closureDate, // Use createdAt for proper ordering
+        createdAt: closureDate // Ensure createdAt is set for sorting
       });
     }
     
     // 3. Lignes CRÉDIT - Dépenses
     const expenses = await this.getExpensesDetails();
     for (const expense of expenses) {
-      releveRows.push({
+      addTransactionIfNotDuplicate({
         id: `expense_${expense.id}`,
         designation: `Dépense - ${expense.description}`,
         debut: 0,
@@ -1971,7 +2114,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
         solde: -expense.amount,
         type: 'CREDIT' as const,
         details: `Type: ${expense.type}, Date: ${expense.date}`,
-        date: expense.date
+        date: new Date(expense.createdAt || expense.date) // Use createdAt for proper ordering
       });
     }
     
@@ -1986,20 +2129,45 @@ export class InventorySalesReconciliationComponent implements OnInit {
          const salesInfo = `(${totalSales} ventes gros)`;
          
          // Main wholesale ecart row
-      releveRows.push({
-        id: `ecart_${ecart.id}`,
+         addTransactionIfNotDuplicate({
+           id: `ecart_${ecart.id}`,
            designation: `${ecart.details} ${salesInfo}`,
-        debut: 0,
-        credit: ecart.amount,
-        solde: -ecart.amount,
+           debut: 0,
+           credit: ecart.amount,
+           solde: -ecart.amount,
            type: 'CREDIT' as const,
-           details: `Ticket #${ticketNumber} | Produit: ${ecart.productName} | Perte: ${ecart.priceDifference} DT | Vente Gros: ${ecart.wholesaleAmount} DT | Vente Détail: ${ecart.retailAmount} DT`,
-           date: ecart.date,
+           details: `Ticket #${ticketNumber} | Produit: ${ecart.productName} | Perte: ${Number(ecart.priceDifference || 0).toFixed(3)} DT | Vente Gros: ${Number(ecart.wholesaleAmount || 0).toFixed(3)} DT | Vente Détail: ${Number(ecart.retailAmount || 0).toFixed(3)} DT`,
+           date: new Date(ecart.createdAt || ecart.date), // Use createdAt for proper ordering
            ecartType: ecart.type,
            isExpandable: false, // No children to expand - sales shown in dialog instead
            expandableId: `gros_${ecart.id}`,
            wholesaleSales: ecart.sales, // Store sales data for dialog
            totalWholesaleSales: totalSales,
+           ticketNumber: ticketNumber
+         });
+         
+         // Don't add individual sales as children - they'll be shown in dialog instead
+       } else if (ecart.type === 'GRATUITE' && ecart.sales && ecart.sales.length > 0) {
+         // Handle gratuité ecarts grouped by ticket
+         const totalSales = ecart.totalSales || ecart.sales.length;
+         const ticketNumber = ecart.ticketNumber || 'N/A';
+         const salesInfo = `(${totalSales} ventes gratuité)`;
+         
+         // Main gratuité ecart row
+         addTransactionIfNotDuplicate({
+           id: `ecart_${ecart.id}`,
+           designation: `${ecart.details} ${salesInfo}`,
+           debut: 0,
+           credit: ecart.amount,
+           solde: -ecart.amount,
+           type: 'CREDIT' as const,
+           details: `Ticket #${ticketNumber} | Produit: ${ecart.productName} | Quantité Gratuite: ${Number(ecart.gratuitQuantity || 0)} | Montant: ${Number(ecart.gratuitAmount || 0).toFixed(3)} DT`,
+           date: new Date(ecart.createdAt || ecart.date), // Use createdAt for proper ordering
+           ecartType: ecart.type,
+           isExpandable: false, // No children to expand - sales shown in dialog instead
+           expandableId: `gratuite_${ecart.id}`,
+           gratuitSales: ecart.sales, // Store sales data for dialog
+           totalGratuitSales: totalSales,
            ticketNumber: ticketNumber
          });
          
@@ -2011,43 +2179,60 @@ export class InventorySalesReconciliationComponent implements OnInit {
            `Produit: ${ecart.productName} | Ticket: #${ecart.ticketNumber} | Cliquez pour voir les détails` : 
            `Produit: ${ecart.productName}`;
          
-         releveRows.push({
-           id: `ecart_${ecart.id}`,
-           designation: `${ecart.details}${ticketInfo}`,
-           debut: 0,
-           credit: ecart.amount,
-           solde: -ecart.amount,
-           type: 'CREDIT' as const,
-           details: clickableDetails,
-           date: ecart.date,
-           saleId: ecart.saleId, // Store sale ID for click handling
-           ticketNumber: ecart.ticketNumber, // Store ticket number for easy access
-           ecartType: ecart.type // Store ecart type for styling
-         });
+        addTransactionIfNotDuplicate({
+          id: `ecart_${ecart.id}`,
+          designation: `${ecart.details}${ticketInfo}`,
+          debut: 0,
+          credit: ecart.amount,
+          solde: -ecart.amount,
+          type: 'CREDIT' as const,
+          details: clickableDetails,
+          date: new Date(ecart.createdAt || ecart.date), // Use createdAt for proper ordering
+          saleId: ecart.saleId, // Store sale ID for click handling
+          ticketNumber: ecart.ticketNumber, // Store ticket number for easy access
+          ecartType: ecart.type // Store ecart type for styling
+        });
        }
     }
     
     // 5. Lignes CRÉDIT - Remises avec numéros de caisse (pas de doublons)
     const discounts = await this.getDiscountsDetails();
-    console.log('Found discounts:', discounts.length, discounts);
+    console.log('🔍 Processing Discounts:', discounts.map(d => ({
+      id: d.id,
+      designation: d.isSaleLevelDiscount ? `Remise Globale - Ticket #${d.ticketNumber}` : `Remise ${d.productName} - Ticket #${d.ticketNumber}`,
+      amount: d.amount,
+      isGratuiteSale: d.isGratuiteSale,
+      isSaleLevelDiscount: d.isSaleLevelDiscount
+    })));
+    
     for (const discount of discounts) {
+      // Skip if this is a gratuité sale (already processed in global ecarts)
+      if (discount.isGratuiteSale) {
+        console.log(`⏭️ Skipping gratuité sale: ${discount.id} - ${discount.isSaleLevelDiscount ? 'Sale-level' : 'Item-level'} discount`);
+        continue;
+      }
+      
       // Une seule ligne par remise pour éviter les doublons
-      releveRows.push({
+      const designation = discount.isSaleLevelDiscount 
+        ? `Remise Globale - Ticket #${discount.ticketNumber}`
+        : `Remise ${discount.productName} - Ticket #${discount.ticketNumber}`;
+        
+      addTransactionIfNotDuplicate({
         id: `discount_${discount.id}`,
-        designation: `Remise ${discount.productName} - Ticket #${discount.ticketNumber}`,
+        designation: designation,
         debut: 0,
         credit: discount.amount,
         solde: -discount.amount,
         type: 'CREDIT' as const,
         details: `Caisse ${discount.caisseNumber} - Lien: ${discount.link}`,
-        date: discount.date
+        date: new Date(discount.createdAt || discount.date) // Use createdAt for proper ordering
       });
     }
     
     // 6. Lignes CRÉDIT - Retours de stock
     const stockReturns = await this.getStockReturnsDetails();
     for (const return_ of stockReturns) {
-      releveRows.push({
+      addTransactionIfNotDuplicate({
         id: `return_${return_.id}`,
         designation: `Retour Stock - ${return_.description}`,
         debut: 0,
@@ -2055,7 +2240,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
         solde: -return_.amount,
         type: 'CREDIT' as const,
         details: `Document: ${return_.documentNumber} - ${return_.productName}`,
-        date: return_.date
+        date: new Date(return_.createdAt || return_.date) // Use createdAt for proper ordering
       });
     }
     
@@ -2063,7 +2248,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
     
     // 8. Crédits manuels
     for (const credit of this.creditEntries) {
-      releveRows.push({
+      addTransactionIfNotDuplicate({
         id: `manual_${credit.id}`,
         designation: `Crédit Manuel - ${credit.description}`,
         debut: 0,
@@ -2071,26 +2256,135 @@ export class InventorySalesReconciliationComponent implements OnInit {
         solde: -credit.amount,
         type: 'MANUAL_CREDIT' as const,
         details: `Type: ${this.getCreditTypeLabel(credit.type)}`,
-        date: credit.date
+        date: new Date(credit.createdAt || credit.date) // Use createdAt for proper ordering
       });
     }
     
     // Trier par date
     releveRows.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
-    // Calculer le solde cumulatif SEULEMENT pour les lignes parents
+    // (Old cumulative logic removed - using new inventory mode logic below)
+    
+    // Sort all transactions by date and time (chronological order)
+    allTransactions.sort((a, b) => {
+      let dateA: Date;
+      let dateB: Date;
+      
+      // Get proper date for comparison
+      if (a.createdAt) {
+        dateA = new Date(a.createdAt);
+      } else if (a.date) {
+        dateA = new Date(a.date);
+      } else {
+        dateA = new Date();
+      }
+      
+      if (b.createdAt) {
+        dateB = new Date(b.createdAt);
+      } else if (b.date) {
+        dateB = new Date(b.date);
+      } else {
+        dateB = new Date();
+      }
+      
+      // Primary sort: by date and time
+      const timeDiff = dateA.getTime() - dateB.getTime();
+      if (timeDiff !== 0) {
+        return timeDiff; // Ascending order (oldest first) - most recent at bottom
+      }
+      
+      // Secondary sort: inventory line first if same date/time
+      if (a.isInventory && !b.isInventory) return -1;
+      if (!a.isInventory && b.isInventory) return 1;
+      
+      // Tertiary sort: by designation for consistent ordering
+      return a.designation.localeCompare(b.designation);
+    });
+    
+    // Debug: Log the sorted order
+    console.log('📊 Sorted Transactions Order:', allTransactions.map(t => ({
+      designation: t.designation,
+      date: t.date,
+      createdAt: t.createdAt,
+      type: t.type
+    })));
+    
+    // Add sorted transactions to releveRows after inventory
+    releveRows.push(...allTransactions);
+    
+    // Log summary of documents & inventories gathered
+    const dateFrom = new Date(this.startDate);
+    const dateTo = new Date(this.endDate);
+    console.log('📊 Documents & Inventories Gathered:', {
+      dateRange: `${dateFrom.toLocaleDateString()} - ${dateTo.toLocaleDateString()}`,
+      stockEntries: stockEntries.length,
+      cashClosures: cashClosures.length,
+      expenses: expenses.length,
+      globalEcarts: globalEcarts.length,
+      discounts: discounts.length,
+      stockReturns: stockReturns.length,
+      creditEntries: this.creditEntries.length,
+      inventoryData: inventoryData?.length || 0,
+      totalTransactions: allTransactions.length
+    });
+
+    // Display each transaction with its date/time
+    console.log('📅 Transactions by Date/Time (BEFORE sorting):');
+    allTransactions.forEach((transaction, index) => {
+      const dateTime = transaction.date ? transaction.date.toLocaleString('fr-FR') : 'No date';
+      const createdAt = transaction.createdAt ? new Date(transaction.createdAt).toLocaleString('fr-FR') : 'No createdAt';
+      console.log(`${index + 1}. [${dateTime}] [${createdAt}] ${transaction.designation} - ${transaction.type}`);
+    });
+    
+    // Display each transaction with its date/time AFTER sorting
+    console.log('📅 Transactions by Date/Time (AFTER sorting):');
+    allTransactions.forEach((transaction, index) => {
+      const dateTime = transaction.date ? transaction.date.toLocaleString('fr-FR') : 'No date';
+      const createdAt = transaction.createdAt ? new Date(transaction.createdAt).toLocaleString('fr-FR') : 'No createdAt';
+      console.log(`${index + 1}. [${dateTime}] [${createdAt}] ${transaction.designation} - ${transaction.type}`);
+    });
+    
+    // Calculate cumulative solde for inventory mode
     let runningSolde = 0;
+    let inventoryFound = false;
+    let previousSolde = 0; // Track solde before inventory line
+    
     for (const row of releveRows) {
-      if (!this.isBonEntreeItem(row)) {
-        // C'est une ligne parent - calculer le solde cumulatif
-        runningSolde += row.debut - row.credit;
+      if (row.isInventory) {
+        // Inventory line: Solde is the direct inventory value, resets the baseline
+        runningSolde = Number(row.totalInventoryValue || row.solde || 0);
         row.solde = runningSolde;
+        row.debut = 0;
+        row.credit = 0;
+        inventoryFound = true;
+        this.lastInventorySolde = runningSolde;
+        console.log(`🔍 Inventory Reset: ${row.designation}, New Baseline Solde: ${runningSolde}`);
+      } else if (!this.isBonEntreeItem(row)) {
+        // C'est une ligne parent - calculer le solde cumulatif
+        // Solde = Previous Solde + Debit - Credit
+        runningSolde = runningSolde + row.debut - row.credit;
+        row.solde = runningSolde;
+        previousSolde = runningSolde; // Update previous solde for inventory calculation
+        console.log(`🔍 Transaction: ${row.designation}, Debit: ${row.debut}, Credit: ${row.credit}, New Solde: ${runningSolde}`);
       } else {
         // C'est une ligne enfant - garder le solde de la ligne parent
         row.solde = runningSolde;
       }
     }
     
+    // If no inventory found, start from 0
+    if (!inventoryFound) {
+      console.log('⚠️ No inventory line found, starting from 0');
+      runningSolde = 0;
+      for (const row of releveRows) {
+        if (!this.isBonEntreeItem(row)) {
+          runningSolde = runningSolde + row.debut - row.credit;
+          row.solde = runningSolde;
+        } else {
+          row.solde = runningSolde;
+        }
+      }
+    }
     
     this.releveInventaireData = releveRows;
     this.releveInventaireSummary = this.calculateReleveSummary(releveRows);
@@ -2194,7 +2488,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
                 unitPrice: price,
                 documentId: doc.id,
                 itemId: item.id,
-                createdAt: doc.createdAt,
+                createdAt: doc.createdAt, // Include createdAt for proper ordering
                 depotName: doc.destinataire?.name || 'Dépôt principal',
                 supplierName: doc.emetteur?.name || 'Fournisseur inconnu'
               };
@@ -2226,8 +2520,6 @@ export class InventorySalesReconciliationComponent implements OnInit {
       );
 
       const sessionsArray = Array.isArray(sessions) ? sessions : [];
-      console.log('All sessions fetched:', sessionsArray.length);
-
       // Filter for CLOSED sessions within the date range based on closed_at
       const closures = sessionsArray
         .filter(s => {
@@ -2249,6 +2541,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
             amount: expected,
             variance: Number(s.variance ?? 0),
             date: new Date(closedAt),
+            createdAt: s.closedAt, // Use closedAt for proper ordering (when session was closed)
             details: `Session ${s.id} - Attendu: ${expected} DT`
           });
           
@@ -2262,7 +2555,8 @@ export class InventorySalesReconciliationComponent implements OnInit {
               amount: Math.abs(variance),
               variance: 0,
               date: new Date(closedAt),
-              details: `Ajustement Session ${s.id} - Variance: ${variance} DT`,
+              createdAt: s.closedAt, // Use closedAt for proper ordering (when session was closed)
+              details: `Ajustement Session ${s.id} - Variance: ${variance >= 0 ? '+' : ''}${variance} DT`,
               isVariance: true
             });
           }
@@ -2271,7 +2565,6 @@ export class InventorySalesReconciliationComponent implements OnInit {
         })
         .filter(closure => closure.amount > 0); // Only include closures with positive amounts
 
-      console.log('Found closures:', closures.length, closures);
       return closures;
     } catch (err) {
       console.error('Error getting cash closures details:', err);
@@ -2321,6 +2614,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
             amount: Number(expense.amount) || 0,
             type: expense.type || 'GENERAL',
             date: new Date(expense.approvedAt || expense.createdAt),
+            createdAt: expense.createdAt, // Include createdAt for proper ordering
             category: expense.category?.name || 'Non spécifié',
             supplier: expense.supplier?.name || 'Non spécifié'
           });
@@ -2339,81 +2633,109 @@ export class InventorySalesReconciliationComponent implements OnInit {
       const ecarts = [];
       const processedEcarts = new Set(); // Éviter les doublons
       
+      // First, collect all wholesale sales across all products and group by ticket
+      const allWholesaleSalesByTicket = new Map<string, any[]>();
+      const allGratuitSalesByTicket = new Map<string, any[]>();
+      
       // Get ecarts from reconciliation data and break them down by type
       for (const data of this.reconciliationData) {
         if (data.ecartData) {
           const ecartData = data.ecartData;
           
-          // 1. Écart Gratuité
-          if (ecartData.ecartGratuite !== 0) {
-            const ecartKey = `gratuite_${data.productId}_${ecartData.ecartGratuite}`;
-            if (!processedEcarts.has(ecartKey)) {
-              processedEcarts.add(ecartKey);
-              
-              // Find the actual sale that caused this gratuité
-              const gratuitSale = await this.findGratuitSaleForProduct(data.productId);
-              
-              ecarts.push({
-                id: `gratuite_${data.productId}`,
-                amount: ecartData.ecartGratuite,
-                details: `Gratuité - ${data.productName}`,
-                type: 'GRATUITE',
+          // Collect wholesale sales by ticket
+          if (ecartData.ecartVenteGros !== 0) {
+            const wholesaleSales = await this.findAllWholesaleSalesForProduct(data.productId);
+            for (const sale of wholesaleSales) {
+              const ticketKey = sale.dailyTicketNumber || sale.id.toString();
+              if (!allWholesaleSalesByTicket.has(ticketKey)) {
+                allWholesaleSalesByTicket.set(ticketKey, []);
+              }
+              allWholesaleSalesByTicket.get(ticketKey)!.push({
+                ...sale,
                 productName: data.productName,
-                saleId: gratuitSale?.id,
-                ticketNumber: gratuitSale?.dailyTicketNumber || gratuitSale?.id,
-                date: gratuitSale?.createdAt ? new Date(gratuitSale.createdAt) : new Date()
+                productId: data.productId
               });
             }
           }
           
-          // 2. Écart Vente Gros - Group by ticket and calculate retail vs wholesale difference
-          if (ecartData.ecartVenteGros !== 0) {
-            const ecartKey = `gros_${data.productId}_${ecartData.ecartVenteGros}`;
-            if (!processedEcarts.has(ecartKey)) {
-          processedEcarts.add(ecartKey);
-          
-              // Find ALL wholesale sales for this product
-              const wholesaleSales = await this.findAllWholesaleSalesForProduct(data.productId);
-              
-              // Group sales by ticket
-              const salesByTicket = new Map<string, any[]>();
-              for (const sale of wholesaleSales) {
-                const ticketKey = sale.dailyTicketNumber || sale.id.toString();
-                if (!salesByTicket.has(ticketKey)) {
-                  salesByTicket.set(ticketKey, []);
-                }
-                salesByTicket.get(ticketKey)!.push(sale);
+          // Collect gratuit sales by ticket
+          if (ecartData.ecartGratuite !== 0) {
+            const gratuitSales = await this.findAllGratuitSalesForProduct(data.productId);
+            for (const sale of gratuitSales) {
+              const ticketKey = sale.dailyTicketNumber || sale.id.toString();
+              if (!allGratuitSalesByTicket.has(ticketKey)) {
+                allGratuitSalesByTicket.set(ticketKey, []);
               }
-              
-              // Create ecart for each ticket
-              for (const [ticketNumber, ticketSales] of salesByTicket) {
-                const totalWholesaleAmount = ticketSales.reduce((sum, sale) => sum + (sale.itemDetails?.total || 0), 0);
-                const totalRetailAmount = ticketSales.reduce((sum, sale) => {
-                  // Find the product to get the retail price
-                  const product = this.products.find(p => p.id === data.productId);
-                  const retailPrice = product ? Number(product.prix_vente_TTC) || 0 : 0;
-                  const quantity = sale.itemDetails?.quantity || 0;
-                  return sum + (retailPrice * quantity);
-                }, 0);
-                const priceDifference = totalRetailAmount - totalWholesaleAmount;
-                
-                ecarts.push({
-                  id: `gros_ticket_${ticketNumber}_${data.productId}`,
-                  amount: priceDifference,
-                  details: `Vente Gros Ticket #${ticketNumber}`,
-                  type: 'VENTE_GROS',
-            productName: data.productName,
-                  sales: ticketSales,
-                  totalSales: ticketSales.length,
-                  date: ticketSales.length > 0 ? new Date(ticketSales[0].createdAt) : new Date(),
-                  ticketNumber: ticketNumber,
-                  wholesaleAmount: totalWholesaleAmount,
-                  retailAmount: totalRetailAmount,
-                  priceDifference: priceDifference
-                });
-              }
+              allGratuitSalesByTicket.get(ticketKey)!.push({
+                ...sale,
+                productName: data.productName,
+                productId: data.productId
+              });
             }
           }
+        }
+      }
+      
+      // Create wholesale ecarts grouped by ticket
+      for (const [ticketNumber, ticketSales] of allWholesaleSalesByTicket) {
+        const totalWholesaleAmount = ticketSales.reduce((sum, sale) => {
+          // Use the correct property path for wholesale amount
+          return sum + (Number(sale.itemDetails?.total) || 0);
+        }, 0);
+        const totalRetailAmount = ticketSales.reduce((sum, sale) => {
+          const product = this.products.find(p => p.id === sale.productId);
+          const retailPrice = product ? Number(product.prix_vente_TTC) || 0 : 0;
+          const quantity = Number(sale.itemDetails?.quantity) || 0;
+          return sum + (retailPrice * quantity);
+        }, 0);
+        const priceDifference = totalRetailAmount - totalWholesaleAmount;
+        
+        ecarts.push({
+          id: `gros_ticket_${ticketNumber}`,
+          amount: priceDifference,
+          details: `Vente Gros Ticket #${ticketNumber}`,
+          type: 'VENTE_GROS',
+          productName: 'Multiple Products',
+          sales: ticketSales,
+          totalSales: ticketSales.length,
+          date: ticketSales.length > 0 ? new Date(ticketSales[0].createdAt) : new Date(),
+          ticketNumber: ticketNumber,
+          wholesaleAmount: totalWholesaleAmount,
+          retailAmount: totalRetailAmount,
+          priceDifference: priceDifference
+        });
+      }
+      
+      // Create gratuit ecarts grouped by ticket
+      for (const [ticketNumber, ticketSales] of allGratuitSalesByTicket) {
+        const totalGratuitAmount = ticketSales.reduce((sum, sale) => sum + (Number(sale.itemDetails?.total) || 0), 0);
+        const totalGratuitQuantity = ticketSales.reduce((sum, sale) => sum + (Number(sale.itemDetails?.quantity) || 0), 0);
+        
+        console.log(`🎁 Processing Gratuité Globale for Ticket #${ticketNumber}:`, {
+          sales: ticketSales.length,
+          amount: totalGratuitAmount,
+          quantity: totalGratuitQuantity
+        });
+        
+        ecarts.push({
+          id: `gratuite_ticket_${ticketNumber}`,
+          amount: totalGratuitAmount,
+          details: `Gratuité Globale`,
+          type: 'GRATUITE',
+          productName: 'Multiple Products',
+          sales: ticketSales,
+          totalSales: ticketSales.length,
+          date: ticketSales.length > 0 ? new Date(ticketSales[0].createdAt) : new Date(),
+          ticketNumber: ticketNumber,
+          gratuitAmount: totalGratuitAmount,
+          gratuitQuantity: totalGratuitQuantity
+        });
+      }
+      
+      // Handle individual product ecarts for remise (not grouped by ticket)
+      for (const data of this.reconciliationData) {
+        if (data.ecartData) {
+          const ecartData = data.ecartData;
           
           // 3. Écart Remise
           if (ecartData.ecartRemise !== 0) {
@@ -2424,7 +2746,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
               // Find the actual sale with discount
               const discountSale = await this.findDiscountSaleForProduct(data.productId);
           
-          ecarts.push({
+              ecarts.push({
                 id: `remise_${data.productId}`,
                 amount: ecartData.ecartRemise,
                 details: `Remise - ${data.productName}`,
@@ -2465,112 +2787,102 @@ export class InventorySalesReconciliationComponent implements OnInit {
       
       
       const discounts = [];
-      const processedDiscounts = new Set(); // Avoid duplicates
-      
-      console.log('Processing sales for discounts:', salesInRange.length);
+      const processedSales = new Set(); // Avoid processing the same sale multiple times
       
       for (const sale of salesInRange) {
-        for (const item of sale.items || []) {
-          const discount = Number(item.discount) || 0;
-          const itemTotal = Number(item.total) || 0;
-          const itemUnitPrice = Number(item.unitPrice) || 0;
-          const itemQuantity = Number(item.quantity) || 0;
-          const expectedTotal = itemUnitPrice * itemQuantity;
-          const calculatedDiscount = expectedTotal - itemTotal;
+        // Skip if we already processed this sale
+        if (processedSales.has(sale.id)) {
+          continue;
+        }
+        
+        // Check if this sale is entirely gratuité (all items are free)
+        const allItems = sale.items || [];
+        const hasGratuiteItems = allItems.some(item => 
+          Number(item.unitPrice) === 0 || 
+          Number(item.total) === 0
+        );
+        const isEntirelyGratuite = allItems.length > 0 && allItems.every(item => 
+          Number(item.unitPrice) === 0 || 
+          Number(item.total) === 0
+        );
+        
+        // Check for sale-level discount first
+        const saleDiscount = Number(sale.discount) || 0;
+        const saleTotal = Number(sale.total) || 0;
+        const saleFinalTotal = Number(sale.finalTotal) || 0;
+        const saleLevelDiscount = saleTotal - saleFinalTotal;
+        
+        if (saleLevelDiscount >= 0.001) {
+          // This is a sale-level discount - create one total discount entry
+          processedSales.add(sale.id);
           
-          // Check if there's a sale-level discount that affects this item
-          const saleDiscount = Number(sale.discount) || 0;
-          const saleTotal = Number(sale.total) || 0;
-          const saleFinalTotal = Number(sale.finalTotal) || 0;
-          const saleLevelDiscount = saleTotal - saleFinalTotal;
-          
-          // Special logging for VERRE GRANITE
-          const product = this.products.find(p => p.id === item.productId);
-          const productName = product ? product.name : 'Produit inconnu';
-          
-          if (productName.toLowerCase().includes('granite') || productName.toLowerCase().includes('verre')) {
-            console.log(`🔍 VERRE GRANITE SALE DETECTED - Sale ${sale.id}, Item ${item.id}:`, {
-              productName: productName,
-              itemDiscount: discount,
-              unitPrice: itemUnitPrice,
-              quantity: itemQuantity,
-              itemTotal: itemTotal,
-              expectedTotal: expectedTotal,
-              calculatedDiscount: calculatedDiscount,
-              saleDiscount: saleDiscount,
-              saleTotal: saleTotal,
-              saleFinalTotal: saleFinalTotal,
-              saleLevelDiscount: saleLevelDiscount,
-              productId: item.productId,
-              item: item,
-              sale: sale
-            });
-          }
-          
-          console.log(`Sale ${sale.id}, Item ${item.id}:`, {
-            discount: discount,
-            unitPrice: itemUnitPrice,
-            quantity: itemQuantity,
-            total: itemTotal,
-            expectedTotal: expectedTotal,
-            calculatedDiscount: calculatedDiscount,
-            productId: item.productId,
-            item: item
+          discounts.push({
+            id: `discount_sale_${sale.id}`,
+            amount: saleLevelDiscount,
+            ticketNumber: sale.dailyTicketNumber || sale.id,
+            caisseNumber: sale.sessionId || 'N/A',
+            link: `${environment.apiUrl}/sales/${sale.id}`,
+            date: new Date(sale.createdAt),
+            createdAt: sale.createdAt,
+            productName: 'Remise Globale', // Generic name for sale-level discount
+            quantity: 1,
+            unitPrice: saleLevelDiscount,
+            total: saleLevelDiscount,
+            isSaleLevelDiscount: true,
+            isGratuiteSale: isEntirelyGratuite // Mark if this sale is entirely gratuité
           });
-          
-          // Accept discounts >= 0.001 to catch small discounts like 0.5 DT
-          // Also check for sale-level discounts
-          const hasItemDiscount = discount >= 0.001 || calculatedDiscount >= 0.001;
-          const hasSaleDiscount = saleLevelDiscount >= 0.001;
-          
-          if (hasItemDiscount || hasSaleDiscount) {
-            const discountKey = `${sale.id}_${item.id}`;
-            if (processedDiscounts.has(discountKey)) {
-              continue; // Skip duplicates
-            }
-            processedDiscounts.add(discountKey);
+        } else {
+          // Check for item-level discounts only if no sale-level discount
+          for (const item of sale.items || []) {
+            const discount = Number(item.discount) || 0;
+            const itemTotal = Number(item.total) || 0;
+            const itemUnitPrice = Number(item.unitPrice) || 0;
+            const itemQuantity = Number(item.quantity) || 0;
+            const expectedTotal = itemUnitPrice * itemQuantity;
+            const calculatedDiscount = expectedTotal - itemTotal;
             
-            // Trouver le nom du produit
-            const product = this.products.find(p => p.id === item.productId);
-            const productName = product ? product.name : 'Produit inconnu';
+            // Only process item-level discounts if they're significant
+            const hasItemDiscount = discount >= 0.001 || calculatedDiscount >= 0.001;
             
-            // Use the largest discount found (item-level or sale-level)
-            const finalDiscount = Math.max(
-              discount > 0 ? discount : 0,
-              calculatedDiscount > 0 ? calculatedDiscount : 0,
-              saleLevelDiscount > 0 ? saleLevelDiscount : 0
-            );
-            
-            // Special logging for VERRE GRANITE discount
-            if (productName.toLowerCase().includes('granite') || productName.toLowerCase().includes('verre')) {
-              console.log(`✅ ADDING VERRE GRANITE DISCOUNT:`, {
+            if (hasItemDiscount) {
+              const discountKey = `${sale.id}_${item.id}`;
+              if (processedSales.has(discountKey)) {
+                continue; // Skip duplicates
+              }
+              processedSales.add(discountKey);
+              
+              const product = this.products.find(p => p.id === item.productId);
+              const productName = product ? product.name : 'Produit inconnu';
+              
+              // Use the largest discount found
+              const finalDiscount = Math.max(
+                discount > 0 ? discount : 0,
+                calculatedDiscount > 0 ? calculatedDiscount : 0
+              );
+              
+              // Check if this specific item is a gratuité item
+              const isGratuiteItem = Number(item.unitPrice) === 0 || 
+                                   Number(item.total) === 0;
+              
+              discounts.push({
+                id: `discount_item_${sale.id}_${item.id}`,
+                amount: finalDiscount,
+                ticketNumber: sale.dailyTicketNumber || sale.id,
+                caisseNumber: sale.sessionId || 'N/A',
+                link: `${environment.apiUrl}/sales/${sale.id}`,
+                date: new Date(sale.createdAt),
+                createdAt: sale.createdAt,
                 productName: productName,
-                finalDiscount: finalDiscount,
-                itemDiscount: discount,
-                calculatedDiscount: calculatedDiscount,
-                saleLevelDiscount: saleLevelDiscount,
-                saleId: sale.id,
-                itemId: item.id
+                quantity: item.quantity || 0,
+                unitPrice: item.unitPrice || 0,
+                total: item.total || 0,
+                isSaleLevelDiscount: false,
+                isGratuiteSale: isGratuiteItem // Mark if this item is gratuité
               });
             }
-            
-            discounts.push({
-              id: `discount_${sale.id}_${item.id}`,
-              amount: finalDiscount,
-              ticketNumber: sale.dailyTicketNumber || sale.id,
-              caisseNumber: sale.sessionId || 'N/A',
-              link: `${environment.apiUrl}/sales/${sale.id}`,
-              date: new Date(sale.createdAt),
-              productName: productName,
-              quantity: item.quantity || 0,
-              unitPrice: item.unitPrice || 0,
-              total: item.total || 0
-            });
           }
         }
       }
-      
-      console.log('Total discounts found:', discounts.length);
       
       return discounts;
     } catch (err) {
@@ -2642,6 +2954,7 @@ export class InventorySalesReconciliationComponent implements OnInit {
                       description: `Retour ${product.name} (${qty} x ${price})`,
                       documentNumber: doc.numero || doc.id,
                       date: new Date(doc.createdAt),
+                      createdAt: doc.createdAt, // Include createdAt for proper ordering
                       productName: product.name,
                       quantity: qty,
                       unitPrice: price
@@ -2663,37 +2976,111 @@ export class InventorySalesReconciliationComponent implements OnInit {
     }
   }
 
-  private async getInventoryVariance(): Promise<number> {
+  private async getInventorySessionForDate(): Promise<any> {
     try {
-      // Get the specific inventory session from /inventory/4/1/review
-      const sessionDetails = await firstValueFrom(this.inventoryService.getSession(1));
+      // Get the latest posted inventory session with items
+      const sessions = await firstValueFrom(this.inventoryService.getSessions());
+      const postedSessions = sessions.filter(s => s.status === 'POSTED');
       
-      console.log('Inventory session details:', sessionDetails);
-      
-      if (sessionDetails && sessionDetails.items) {
-        let totalVariance = 0;
+      if (postedSessions.length > 0) {
+        // Return the most recent posted session
+        const latestSession = postedSessions.sort((a, b) => 
+          new Date(b.postedAt || b.closedAt || b.createdAt).getTime() - 
+          new Date(a.postedAt || a.closedAt || a.createdAt).getTime()
+        )[0];
         
-        for (const item of sessionDetails.items) {
-          const productId = item.productId;
-          const theoreticalQuantity = Number(item.theoreticalQuantity) || 0;
-          const countedQuantity = Number(item.countedQuantity) || 0;
-          const ecartQuantity = Number(item.ecartQuantity) || 0; // Use the ecart field from database
-          const ecartValue = Number(item.ecartValue) || 0; // Use the pre-calculated ecart value
-          const product = this.products.find(p => p.id === productId);
-          const price = Number(product?.prix_vente_TTC) || 0;
-          
-          // Use the ecartValue directly from the database (already calculated)
-          const varianceAmount = ecartValue || (ecartQuantity * price);
-          totalVariance += varianceAmount;
-          
-          console.log(`Product ${productId}: theoretical=${theoreticalQuantity}, counted=${countedQuantity}, ecart=${ecartQuantity}, ecartValue=${ecartValue}, price=${price}, varianceAmount=${varianceAmount}`);
-        }
+        // Get the full session with items
+        const fullSession = await firstValueFrom(this.inventoryService.getSession(latestSession.id));
         
-        console.log('Total inventory variance from database:', totalVariance);
-        return totalVariance;
+        // Debug log to show which session is being used
+        console.log('🔍 Inventory Session Debug:', {
+          sessionId: latestSession.id,
+          status: latestSession.status,
+          postedAt: latestSession.postedAt,
+          closedAt: latestSession.closedAt,
+          createdAt: latestSession.createdAt,
+          itemsCount: fullSession?.items?.length || 0
+        });
+        
+        return fullSession;
       }
       
-      return 0;
+      return null;
+    } catch (err) {
+      console.error('Error getting inventory session for date:', err);
+      return null;
+    }
+  }
+
+  private async getAllPostedInventorySessions(): Promise<any[]> {
+    try {
+      // Get all inventory sessions
+      const sessions = await firstValueFrom(this.inventoryService.getSessions());
+      
+      // Filter for posted sessions only
+      const postedSessions = sessions.filter((s: any) => s.status === 'POSTED');
+      
+      // Sort by postedAt date (oldest first for chronological order)
+      postedSessions.sort((a: any, b: any) => {
+        const dateA = new Date(a.postedAt || a.closedAt || a.createdAt);
+        const dateB = new Date(b.postedAt || b.closedAt || b.createdAt);
+        return dateA.getTime() - dateB.getTime(); // Ascending order (oldest first)
+      });
+      
+      // Get full session details with items for each session
+      const fullSessions = [];
+      for (const session of postedSessions) {
+        try {
+          const fullSession = await firstValueFrom(this.inventoryService.getSession(session.id));
+          if (fullSession && fullSession.items) {
+            fullSessions.push(fullSession);
+          }
+        } catch (err) {
+          console.error(`Error getting session ${session.id}:`, err);
+        }
+      }
+      
+      console.log('📊 All Posted Inventory Sessions:', fullSessions.map(s => ({
+        id: s.id,
+        numero: s.numero,
+        postedAt: s.postedAt,
+        closedAt: s.closedAt,
+        createdAt: s.createdAt,
+        itemsCount: s.items?.length || 0
+      })));
+      
+      return fullSessions;
+    } catch (err) {
+      console.error('Error getting all posted inventory sessions:', err);
+      return [];
+    }
+  }
+
+  private async getInventoryVariance(): Promise<number> {
+    try {
+      // Get the latest posted inventory session
+      const sessions = await firstValueFrom(this.inventoryService.getSessions());
+      const postedSessions = sessions.filter(s => s.status === 'POSTED');
+      
+      if (postedSessions.length === 0) {
+        return 0;
+      }
+      
+      // Get the most recent posted session
+      const latestSession = postedSessions.sort((a, b) => 
+        new Date(b.postedAt || b.closedAt || b.createdAt).getTime() - 
+        new Date(a.postedAt || a.closedAt || a.createdAt).getTime()
+      )[0];
+      
+      // Use the totalEcartValue directly from the session
+      // Handle string values like "-601.2"
+      const variance = latestSession.totalEcartValue;
+      console.log('🔍 Raw totalEcartValue:', variance, 'Type:', typeof variance);
+      
+      if (typeof variance === 'string') {
+        return parseFloat(variance) || 0;
+      }
+      return Number(variance) || 0;
     } catch (err) {
       console.error('Error getting inventory variance:', err);
       return 0;
@@ -2719,16 +3106,12 @@ export class InventorySalesReconciliationComponent implements OnInit {
         inventoryItems = [];
       }
       
-      console.log('Processing current stock for', inventoryItems.length, 'items');
-      
       for (const item of inventoryItems) {
         const productId = item.productId;
         const quantity = Number(item.quantity) || 0; // Current stock quantity
         const product = this.products.find(p => p.id === productId);
         const price = Number(product?.prix_vente_TTC) || 0;
         const amount = quantity * price;
-        
-        console.log(`Product ${productId}: stock_qty=${quantity}, sale_price=${price}, amount=${amount}`);
         
         if (quantity > 0) { // Only include items with positive stock
           inventoryData.push({
@@ -2740,8 +3123,6 @@ export class InventorySalesReconciliationComponent implements OnInit {
         }
       }
       
-      const totalValue = inventoryData.reduce((sum, item) => sum + item.amount, 0);
-      console.log('Current stock inventory:', inventoryData.length, 'items, total value:', totalValue);
       return inventoryData;
     } catch (err) {
       console.error('Error getting inventory data:', err);
@@ -2753,20 +3134,22 @@ export class InventorySalesReconciliationComponent implements OnInit {
     this.loading = true;
     this.error = '';
     
+    // Reset inventory mode for regular reports
+    this.isInventoryMode = false;
+    
     try {
       const releveRows: ReleveInventaireRow[] = [];
       
       for (const product of this.products) {
-        const debut = await this.calculateDebutForReleve(product);
-        const credit = await this.calculateCreditForReleve(product);
-        const solde = debut - credit;
+        // Get current inventory stock value directly - no calculations needed
+        const solde = await this.getCurrentInventoryStockValue(product);
         
         releveRows.push({
           id: `product_${product.id}`,
           designation: product.name,
-          debut,
-          credit,
-          solde,
+          debut: 0, // Not used when using direct inventory value
+          credit: 0, // Not used when using direct inventory value
+          solde: solde, // Direct current inventory stock value
           type: 'ENTRY'
         });
       }
@@ -2821,11 +3204,39 @@ export class InventorySalesReconciliationComponent implements OnInit {
     }
 
     try {
+      // Prepare data for API - ensure productId is null if not set
+      const creditData = {
+        productId: this.newCredit.productId || null,
+        amount: this.newCredit.amount,
+        type: this.newCredit.type,
+        description: this.newCredit.description,
+        date: this.newCredit.date
+      };
+
       // Save to database
-      const savedCredit = await firstValueFrom(this.http.post<any>(`${environment.apiUrl}/credit-entries`, this.newCredit));
+      const savedCredit = await firstValueFrom(this.http.post<any>(`${environment.apiUrl}/credit-entries`, creditData));
       
       // Add the credit entry to local array
       this.creditEntries.push({ ...savedCredit });
+      
+      // If in inventory mode and secondary table exists, add to secondary table immediately
+      if (this.isInventoryMode && this.secondaryReleveRows.length > 0) {
+        const lastSecondarySolde = this.secondaryReleveRows[this.secondaryReleveRows.length - 1]?.solde || 0;
+        const newSolde = lastSecondarySolde - savedCredit.amount;
+        
+        const creditTransaction: ReleveInventaireRow = {
+          id: `manual_${savedCredit.id}`,
+          designation: `Crédit Manuel - ${savedCredit.description}`,
+          debut: 0,
+          credit: savedCredit.amount,
+          solde: newSolde,
+          type: 'MANUAL_CREDIT',
+          details: `Crédit ajouté manuellement`,
+          date: new Date(savedCredit.date),
+          createdAt: new Date()
+        };
+        this.secondaryReleveRows.push(creditTransaction);
+      }
       
       // Regenerate the Relevé Inventaire to include the new credit
       await this.generateReleveInventaireFromReconciliationData();
@@ -2857,6 +3268,57 @@ export class InventorySalesReconciliationComponent implements OnInit {
     }
   }
 
+  async saveInventoryToReleveInventaire(): Promise<void> {
+    try {
+      this.loading = true;
+      this.error = '';
+
+      // Get current inventory data
+      const inventoryData = await firstValueFrom(
+        this.http.get<any[]>(`${environment.apiUrl}/inventory?depotId=${this.depotId}`)
+      );
+
+      // Get products data
+      const productsData = await firstValueFrom(
+        this.http.get<any[]>(`${environment.apiUrl}/products?depotId=${this.depotId}`)
+      );
+
+      // Create releve inventaire entries from inventory
+      const releveEntries = inventoryData.map(item => {
+        const product = productsData.find(p => p.id === item.productId);
+        return {
+          productId: item.productId,
+          designation: product?.name || `Produit ID: ${item.productId}`,
+          debut: 0, // Initial balance
+          credit: 0, // No credit for inventory
+          solde: item.quantity, // Current quantity
+          type: 'INVENTORY',
+          details: `Inventaire actuel - ${item.quantity} unités`,
+          date: new Date(),
+          createdAt: new Date()
+        };
+      });
+
+      // Save to releve inventaire (you may need to create an API endpoint for this)
+      await firstValueFrom(
+        this.http.post(`${environment.apiUrl}/releve-inventaire`, {
+          depotId: this.depotId,
+          entries: releveEntries,
+          date: new Date()
+        })
+      );
+
+      this.success = 'Inventaire sauvegardé dans le tableau de relève inventaire';
+      setTimeout(() => this.success = '', 3000);
+
+    } catch (err) {
+      this.error = 'Erreur lors de la sauvegarde de l\'inventaire';
+      console.error('Error saving inventory to releve:', err);
+    } finally {
+      this.loading = false;
+    }
+  }
+
   getCreditTypeLabel(type: string): string {
     const labels: { [key: string]: string } = {
       'SALE': 'Vente',
@@ -2867,7 +3329,84 @@ export class InventorySalesReconciliationComponent implements OnInit {
     return labels[type] || type;
   }
 
-  getProductName(productId: number): string {
+  async loadExistingCreditEntries(): Promise<void> {
+    try {
+      const creditEntries = await firstValueFrom(this.http.get<CreditEntry[]>(`${environment.apiUrl}/credit-entries`));
+      this.creditEntries = creditEntries || [];
+    } catch (error: any) {
+      console.error('Error loading existing credit entries:', error);
+      // If it's a 503 error (table not available), that's expected
+      if (error.status === 503) {
+        console.log('Credit entries table not available yet, continuing without existing entries');
+      }
+      this.creditEntries = []; // Initialize as empty array if loading fails
+    }
+  }
+
+  async cleanupOldInventoryEcartCredits(): Promise<void> {
+    try {
+      // Find and remove old inventory discrepancy credit entries
+      const oldEcartCredits = this.creditEntries.filter(entry => 
+        entry.description.includes('Écart Inventaire')
+      );
+
+      for (const oldCredit of oldEcartCredits) {
+        if (oldCredit.id) {
+          try {
+            await firstValueFrom(this.http.delete(`${environment.apiUrl}/credit-entries/${oldCredit.id}`));
+            console.log('Removed old inventory ecart credit:', oldCredit.description);
+          } catch (deleteError: any) {
+            // If entry doesn't exist (404), just continue
+            if (deleteError.status !== 404) {
+              console.error('Error deleting credit entry:', deleteError);
+            }
+          }
+        }
+      }
+
+      // Remove from local array
+      this.creditEntries = this.creditEntries.filter(entry => 
+        !entry.description.includes('Écart Inventaire')
+      );
+    } catch (error) {
+      console.error('Error cleaning up old inventory ecart credits:', error);
+    }
+  }
+
+  async removeInventoryEcartCredits(): Promise<void> {
+    try {
+      // Find all inventory discrepancy credit entries
+      const ecartCredits = this.creditEntries.filter(entry => 
+        entry.description.includes('Écart Inventaire')
+      );
+
+      for (const credit of ecartCredits) {
+        if (credit.id) {
+          try {
+            await firstValueFrom(this.http.delete(`${environment.apiUrl}/credit-entries/${credit.id}`));
+            console.log('Removed inventory ecart credit:', credit.description);
+          } catch (deleteError: any) {
+            console.error('Error deleting inventory ecart credit:', deleteError);
+          }
+        }
+      }
+
+      // Remove from local array
+      this.creditEntries = this.creditEntries.filter(entry => 
+        !entry.description.includes('Écart Inventaire')
+      );
+
+      // Regenerate the Relevé Inventaire
+      await this.generateReleveInventaireFromReconciliationData();
+    } catch (error) {
+      console.error('Error removing inventory ecart credits:', error);
+    }
+  }
+
+  getProductName(productId: number | null): string {
+    if (productId === null) {
+      return 'Global';
+    }
     const product = this.products.find(p => p.id === productId);
     return product?.name || 'Produit inconnu';
   }
@@ -2912,6 +3451,40 @@ export class InventorySalesReconciliationComponent implements OnInit {
     } catch (err) {
       console.error('Error finding gratuit sale:', err);
       return null;
+    }
+  }
+
+  private async findAllGratuitSalesForProduct(productId: number): Promise<any[]> {
+    try {
+      const allSales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(allSales) ? allSales : [];
+      
+      const gratuitSales = [];
+      
+      // Find ALL gratuit sales for this product
+      for (const sale of salesArray) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
+        for (const item of saleItems) {
+          if (sale.status === 'CADEAU' || Number(item.total) === 0) {
+            gratuitSales.push({
+              ...sale,
+              itemDetails: {
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                total: item.total,
+                isGratuit: true
+              }
+            });
+            break; // Only add the sale once even if it has multiple gratuit items for this product
+          }
+        }
+      }
+      
+      return gratuitSales;
+    } catch (err) {
+      console.error('Error finding all gratuit sales:', err);
+      return [];
     }
   }
 
@@ -3019,6 +3592,20 @@ export class InventorySalesReconciliationComponent implements OnInit {
     this.selectedWholesaleProduct = '';
   }
 
+  showGratuitSalesDialog(row: ReleveInventaireRow): void {
+    if (row.gratuitSales && row.gratuitSales.length > 0) {
+      this.selectedGratuitSales = row.gratuitSales;
+      this.selectedGratuitProduct = row.details?.split('Produit: ')[1]?.split(' |')[0] || 'Produit inconnu';
+      this.showGratuitDialog = true;
+    }
+  }
+
+  closeGratuitDialog(): void {
+    this.showGratuitDialog = false;
+    this.selectedGratuitSales = [];
+    this.selectedGratuitProduct = '';
+  }
+
   calculateTotalLoss(): number {
     return this.selectedWholesaleSales.reduce((sum, sale) => {
       // Find the product to get the retail price
@@ -3037,6 +3624,28 @@ export class InventorySalesReconciliationComponent implements OnInit {
 
   calculateTotalRetail(): number {
     return this.selectedWholesaleSales.reduce((sum, sale) => {
+      // Find the product to get the retail price
+      const product = this.products.find(p => p.id === sale.itemDetails?.productId);
+      const retailPrice = product ? Number(product.prix_vente_TTC) || 0 : 0;
+      const quantity = sale.itemDetails?.quantity || 0;
+      return sum + (retailPrice * quantity);
+    }, 0);
+  }
+
+  calculateTotalGratuit(): number {
+    return this.selectedGratuitSales.reduce((sum, sale) => {
+      return sum + (sale.itemDetails?.total || 0);
+    }, 0);
+  }
+
+  calculateTotalGratuitQuantity(): number {
+    return this.selectedGratuitSales.reduce((sum, sale) => {
+      return sum + (sale.itemDetails?.quantity || 0);
+    }, 0);
+  }
+
+  calculateTotalGratuitValue(): number {
+    return this.selectedGratuitSales.reduce((sum, sale) => {
       // Find the product to get the retail price
       const product = this.products.find(p => p.id === sale.itemDetails?.productId);
       const retailPrice = product ? Number(product.prix_vente_TTC) || 0 : 0;
@@ -3124,6 +3733,21 @@ export class InventorySalesReconciliationComponent implements OnInit {
     return match ? match[1] : '';
   }
 
+  getTextBeforeGratuitSales(text: string): string {
+    const match = text.match(/(.*?)\s*\(\d+\s+ventes\s+gratuité\)/);
+    return match ? match[1] : text;
+  }
+
+  getGratuitSalesText(text: string): string {
+    const match = text.match(/\((\d+\s+ventes\s+gratuité)\)/);
+    return match ? match[1] : '';
+  }
+
+  getTextAfterGratuitSales(text: string): string {
+    const match = text.match(/\(\d+\s+ventes\s+gratuité\)(.*)/);
+    return match ? match[1] : '';
+  }
+
   toggleInactiveProducts(): void {
     this.showInactiveProducts = !this.showInactiveProducts;
   }
@@ -3149,16 +3773,15 @@ export class InventorySalesReconciliationComponent implements OnInit {
     };
 
     // Calculate basic Relevé Inventaire data
-    const debut = await this.calculateDebutForReleve(product);
-    const credit = await this.calculateCreditForReleve(product);
-    const solde = debut - credit;
+    // Get current inventory stock value directly - no calculations needed
+    const solde = await this.getCurrentInventoryStockValue(product);
     
     const releveInventaire: ReleveInventaireRow = {
       id: `product_${product.id}`,
       designation: product.name,
-      debut,
-      credit,
-      solde,
+      debut: 0, // Not used when using direct inventory value
+      credit: 0, // Not used when using direct inventory value
+      solde: solde, // Direct current inventory stock value
       type: 'ENTRY'
     };
 
@@ -3174,39 +3797,65 @@ export class InventorySalesReconciliationComponent implements OnInit {
 
   private async calculateDebutForReleve(product: Product): Promise<number> {
     try {
-      // Get all stock entries for this product (entrées seulement)
-      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
-        params: {
-          type: 'BON_ENTREE_DEPOT'
-        }
-      }));
-
-      // Handle different response formats
-      let entries = [];
-      if (Array.isArray(response)) {
-        entries = response;
-      } else if (response && Array.isArray(response.data)) {
-        entries = response.data;
-      } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
-        entries = response.stockDocuments;
-      } else {
+      // Get current inventory balance for this product from the inventory system
+      const depotId = this.getDepotId();
+      if (!depotId) {
         return 0;
       }
 
-      let totalDebut = 0;
+      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents/inventory/${depotId}`));
       
-      for (const entry of entries) {
-        const items = entry.items?.filter((item: any) => item.productId === product.id) || [];
-        for (const item of items) {
-          const qty = Number(item.quantity) || 0;
-          const prixVente = Number(product.prix_vente_TTC) || 0;
-          totalDebut += qty * prixVente;
-        }
+      // Find the inventory record for this product
+      const inventoryRecord = response.find((record: any) => record.productId === product.id);
+      if (!inventoryRecord) {
+        return 0;
       }
+
+      // Calculate current stock value: quantity * sale price
+      const currentQuantity = Number(inventoryRecord.quantity) || 0;
+      const prixVente = Number(product.prix_vente_TTC) || 0;
+      const currentStockValue = currentQuantity * prixVente;
       
-      return totalDebut;
+      return currentStockValue;
     } catch (err) {
       console.error('Error calculating debut for product:', product.id, err);
+      return 0;
+    }
+  }
+
+  private getDepotId(): number | null {
+    // Prefer current open session depot if available
+    const sessionDepotId = this.sessionsService.currentSession()?.depotId;
+    if (sessionDepotId) return sessionDepotId;
+    // Fallback to any loaded inventory session depot
+    const invDepotId = this.inventorySessions?.[0]?.depotId;
+    return invDepotId ?? null;
+  }
+
+  private async getCurrentInventoryStockValue(product: Product): Promise<number> {
+    try {
+      // Get current inventory balance for this product from the inventory system
+      const depotId = this.getDepotId();
+      if (!depotId) {
+        return 0;
+      }
+
+      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents/inventory/${depotId}`));
+      
+      // Find the inventory record for this product
+      const inventoryRecord = response.find((record: any) => record.productId === product.id);
+      if (!inventoryRecord) {
+        return 0;
+      }
+
+      // Calculate current stock value: quantity * sale price
+      const currentQuantity = Number(inventoryRecord.quantity) || 0;
+      const prixVente = Number(product.prix_vente_TTC) || 0;
+      const currentStockValue = currentQuantity * prixVente;
+      
+      return currentStockValue;
+    } catch (err) {
+      console.error('Error getting current inventory stock value for product:', product.id, err);
       return 0;
     }
   }
@@ -3215,30 +3864,59 @@ export class InventorySalesReconciliationComponent implements OnInit {
     try {
       let totalCredit = 0;
       
-      // 1. Clôture de caisse pour ce produit
+      // Only include actual sales revenue (no ecart calculations)
       const cashClosures = await this.getCashClosuresForProduct(product.id);
       totalCredit += cashClosures;
       
-      // 2. Dépenses liées à ce produit
-      const expenses = await this.getExpensesForProduct(product.id);
-      totalCredit += expenses;
-      
-      // 3. Écarts globaux pour ce produit
-      const globalEcart = await this.getGlobalEcartForProduct(product.id);
-      totalCredit += globalEcart;
-      
-      // 4. Remises et tickets pour ce produit
-      const discounts = await this.getDiscountsForProduct(product.id);
-      totalCredit += discounts;
-      
-      // 5. Stock de retour pour ce produit
-      const stockReturns = await this.getStockReturnsForProduct(product.id);
-      totalCredit += stockReturns;
+      // Note: Écarts are ONLY shown in designation, never calculated in credit/debit
       
       return totalCredit;
     } catch (err) {
       console.error('Error calculating credit for product:', product.id, err);
       return 0;
+    }
+  }
+
+  private async getEcartForProduct(product: Product): Promise<{ qty: number; value: number }> {
+    try {
+      // Get current inventory balance
+      const depotId = this.getDepotId();
+      if (!depotId) {
+        return { qty: 0, value: 0 };
+      }
+
+      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents/inventory/${depotId}`));
+      const inventoryRecord = response.find((record: any) => record.productId === product.id);
+      
+      if (!inventoryRecord) {
+        return { qty: 0, value: 0 };
+      }
+
+      const currentQuantity = Number(inventoryRecord.quantity) || 0;
+      const prixVente = Number(product.prix_vente_TTC) || 0;
+      const currentValue = currentQuantity * prixVente;
+
+      // Get theoretical quantity from sales data (this is a simplified calculation)
+      // In a real scenario, you might want to get this from a more sophisticated calculation
+      const sales = await firstValueFrom(this.salesService.getSales());
+      const salesArray = Array.isArray(sales) ? sales : [];
+      
+      let theoreticalQuantity = 0;
+      for (const sale of salesArray) {
+        const saleItems = sale.items?.filter((item: any) => item.productId === product.id) || [];
+        for (const item of saleItems) {
+          const qty = Number(item.quantity) || 0;
+          theoreticalQuantity += qty;
+        }
+      }
+
+      const ecartQty = currentQuantity - theoreticalQuantity;
+      const ecartValue = ecartQty * prixVente;
+
+      return { qty: ecartQty, value: ecartValue };
+    } catch (err) {
+      console.error('Error calculating ecart for product:', product.id, err);
+      return { qty: 0, value: 0 };
     }
   }
 

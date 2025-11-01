@@ -114,6 +114,7 @@ model Depot {
   fromTransfers         StockTransfer[]        @relation("FromDepot")
   toTransfers           StockTransfer[]        @relation("ToDepot")
   users                 User[]                 @relation("DepotUsers")
+  releveInventaire      ReleveInventaire[]
 
   @@index([companyId], map: "depots_company_id_fkey")
   @@map("depots")
@@ -213,6 +214,8 @@ model Product {
   stockMovements           StockMovement[]
   stockTransferItems       StockTransferItem[]
   vracPrices               VracPrice[]
+  creditEntries           CreditEntry[]
+  releveInventaire        ReleveInventaire[]
 
   @@index([familleId], map: "products_famille_id_fkey")
   @@index([originalProductId], map: "products_original_product_id_fkey")
@@ -1573,4 +1576,39 @@ model TableSaleItem {
   product     Product    @relation(fields: [productId], references: [id])
   
   @@map("table_sale_items")
+}
+
+model CreditEntry {
+  id          Int      @id @default(autoincrement())
+  productId   Int?     @map("product_id") // Nullable for global entries
+  amount      Decimal  @db.Decimal(10, 2)
+  type        String   @db.VarChar(50) // SALE, FREE_ITEM, EXIT_VOUCHER, WHOLESALE_DIFFERENCE
+  description String   @db.VarChar(255)
+  date        DateTime
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  product     Product? @relation(fields: [productId], references: [id])
+  
+  @@map("credit_entries")
+}
+
+model ReleveInventaire {
+  id          Int      @id @default(autoincrement())
+  depotId     Int      @map("depot_id")
+  productId   Int?     @map("product_id")
+  designation String   @db.VarChar(255)
+  debut       Decimal  @db.Decimal(10, 2)
+  credit      Decimal  @db.Decimal(10, 2)
+  solde       Decimal  @db.Decimal(10, 2)
+  type        String   @db.VarChar(50)
+  details     String?  @db.Text
+  date        DateTime
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  depot       Depot    @relation(fields: [depotId], references: [id])
+  product     Product? @relation(fields: [productId], references: [id])
+  
+  @@map("releve_inventaire")
 }

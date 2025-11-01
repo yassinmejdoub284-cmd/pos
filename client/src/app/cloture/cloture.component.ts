@@ -551,10 +551,25 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   getCashFromSalesNetOfCredit(): number {
-    const summary: any = this.currentSession()?.summary || {};
-    const totalSales = parseFloat(summary.totalSales || 0) || 0;
-    const credit = this.getCreditAmount();
-    return Math.max(0, totalSales - credit);
+    // Calculate actual cash received from sales based on paidAmount
+    const session = this.currentSession();
+    if (!session) return 0;
+    
+    // Get sales data from session
+    const sales = (session as any)?.sales || [];
+    if (!sales.length) {
+      // If no sales data in session, try to load it
+      if (session.id) {
+        this.loadSessionSalesData(session.id);
+      }
+      return 0;
+    }
+    
+    // Sum up all paid amounts (cash portions of sales)
+    return sales.reduce((total: number, sale: any) => {
+      const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
+      return total + paidAmount;
+    }, 0);
   }
 
   getExpensesTotal(): number {
@@ -794,15 +809,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
     
-    // Load closed sessions instead of active session
-    this.sessionsService.getSessions({ 
-      status: 'CLOSED',
-      depotId: currentDepotId,
-      limit: 1 
-    }).subscribe({
-      next: (sessions) => {
-        const session = sessions.length > 0 ? sessions[0] : null;
-        
+    // Load active session for closure
+    this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({
+      next: (session) => {
         // Build a compact snapshot to detect meaningful changes
         const snapshot = session ? JSON.stringify({
           id: session.id,
@@ -815,12 +824,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
         if (this.lastSessionSnapshot !== snapshot) {
           this.currentSession.set(session);
           this.lastSessionSnapshot = snapshot;
-          // Load sales data for user summary if session exists
+        }
+        
+        // Always load sales data for user summary if session exists
         if (session) {
           this.loadSessionSalesData(session.id);
           // Ensure cash details are refreshed so the list shows immediately
           this.loadCashSalesDetails();
-        }
         }
         
         if (!silent) this.loading.set(false);
@@ -854,12 +864,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
         if (this.lastSessionSnapshot !== snapshot) {
           this.currentSession.set(session);
           this.lastSessionSnapshot = snapshot;
-          // Load sales data for user summary if session exists
-          if (session) {
-            this.loadSessionSalesData(session.id);
-            // Ensure cash details are refreshed so the list shows immediately
-            this.loadCashSalesDetails();
-          }
+        }
+        
+        // Always load sales data for user summary if session exists
+        if (session) {
+          this.loadSessionSalesData(session.id);
+          // Ensure cash details are refreshed so the list shows immediately
+          this.loadCashSalesDetails();
         }
         
         if (!silent) this.loading.set(false);
@@ -878,22 +889,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
     this.sessionsService.getSessionReport(sessionId, 'X').subscribe({
       next: (report: any) => {
         const currentSession = this.currentSession();
-        if (currentSession && report?.session?.sales) {
-          // Only update if sales snapshot changed to avoid re-render flicker
-          const sales = report.session.sales as any[];
+        if (currentSession && report?.session) {
+          // Always update session with sales data, regardless of snapshot changes
+          const sales = report.session.sales || [];
+          const updatedSession = {
+            ...currentSession,
+            sales: sales
+          } as any;
+          this.currentSession.set(updatedSession);
+          
+          // Update snapshot for future comparisons
           const newSalesSnapshot = JSON.stringify({
             len: sales.length,
             lastId: sales.length ? sales[sales.length - 1].id : null,
             lastUpdated: sales.length ? sales[sales.length - 1].updatedAt || sales[sales.length - 1].createdAt : null
           });
-          if (this.lastSalesSnapshot !== newSalesSnapshot) {
-            const updatedSession = {
-              ...currentSession,
-              sales: report.session.sales
-            } as any;
-            this.currentSession.set(updatedSession);
-            this.lastSalesSnapshot = newSalesSnapshot;
-          }
+          this.lastSalesSnapshot = newSalesSnapshot;
         }
       },
       error: (error) => {

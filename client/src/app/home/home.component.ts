@@ -342,7 +342,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           return of([]);
         })
       ),
-      session: this.sessionsService.getActiveSession().pipe(
+      session: this.sessionsService.getActiveSessionByDepot().pipe(
         takeUntil(this.destroy$),
         catchError(error => {
           console.error('Error loading session:', error);

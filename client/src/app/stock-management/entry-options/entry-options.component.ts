@@ -50,6 +50,10 @@ export class EntryOptionsComponent implements OnInit {
     this.router.navigate(['/stock-management/import-entry', this.depotId]);
   }
 
+  selectReturn(): void {
+    this.router.navigate(['/stock/documents/bon-retour', this.depotId]);
+  }
+
   goBack(): void {
     this.router.navigate(['/stock-management/depot-selection']);
   }

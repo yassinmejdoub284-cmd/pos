@@ -17,7 +17,7 @@ export const appConfig: ApplicationConfig = {
       withInterceptors([loadingInterceptor, authInterceptor])
     ),
     provideServiceWorker('custom-sw.js', {
-      enabled: true,
+      enabled: environment.production === true,
       registrationStrategy: 'registerWhenStable:3000'
     })
   ]

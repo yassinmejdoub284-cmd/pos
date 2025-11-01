@@ -144,11 +144,6 @@ export class SessionsService {
     };
   }
 
-  // Get active session for current user (DEPRECATED - use getActiveSessionByDepot instead)
-  getActiveSession(posId?: number, depotId?: number): Observable<SessionCaisse | null> {
-    console.warn('getActiveSession is deprecated. Use getActiveSessionByDepot instead for depot-only sessions.');
-    return this.getActiveSessionByDepot(posId, depotId);
-  }
 
   // Get active session by depot only (no user linkage)
   getActiveSessionByDepot(posId?: number, depotId?: number): Observable<SessionCaisse | null> {

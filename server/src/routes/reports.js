@@ -1379,8 +1379,8 @@ router.get('/daily-monthly', authenticateToken, async (req, res) => {
   }
 });
 
-// Dashboard endpoint
-router.get('/dashboard', authenticateToken, async (req, res) => {
+// Stock KPIs endpoint
+router.get('/stock-kpis', authenticateToken, async (req, res) => {
   try {
     const { depotId, startDate, endDate } = req.query;
     const targetDepotId = parseInt(depotId || req.user.depotId);
@@ -1395,14 +1395,8 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     startOfWeek.setDate(today.getDate() - 7);
     startOfWeek.setHours(0, 0, 0, 0);
 
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
-
-    const startOfYear = new Date(today.getFullYear(), 0, 1);
-    const endOfYear = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
-
-    // Get sessions for each period
-    const [dailySessions, weeklySessions, monthlySessions, yearlySessions] = await Promise.all([
+    // Get sessions for today and week
+    const [todaySessions, weekSessions] = await Promise.all([
       prisma.sessionCaisse.findMany({
         where: {
           depotId: targetDepotId,
@@ -1420,6 +1414,463 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
           openedAt: { lte: endOfDay },
           OR: [
             { closedAt: { gte: startOfWeek } },
+            { status: 'OPEN' }
+          ]
+        },
+        select: { id: true }
+      })
+    ]);
+
+    const todaySessionIds = todaySessions.map(s => s.id);
+    const weekSessionIds = weekSessions.map(s => s.id);
+
+    // Get sales data
+    const [todaySales, weekSales] = await Promise.all([
+      prisma.sale.findMany({
+        where: {
+          status: 'COMPLETED',
+          depotId: targetDepotId,
+          sessionId: { in: todaySessionIds }
+        }
+      }),
+      prisma.sale.findMany({
+        where: {
+          status: 'COMPLETED',
+          depotId: targetDepotId,
+          sessionId: { in: weekSessionIds }
+        }
+      })
+    ]);
+
+    // Calculate sales totals
+    const todaySalesTotal = todaySales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0);
+    const weekSalesTotal = weekSales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0);
+
+    // Get stock movements for today and week
+    const [todayMovements, weekMovements] = await Promise.all([
+      prisma.stockMovement.findMany({
+        where: {
+          depotId: targetDepotId,
+          date: { gte: startOfDay, lte: endOfDay }
+        }
+      }),
+      prisma.stockMovement.findMany({
+        where: {
+          depotId: targetDepotId,
+          date: { gte: startOfWeek, lte: endOfDay }
+        }
+      })
+    ]);
+
+    // Calculate stock movement totals
+    const todayEntries = todayMovements
+      .filter(m => m.type === 'ENTRY')
+      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
+    
+    const todayExits = todayMovements
+      .filter(m => m.type === 'EXIT')
+      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
+
+    const weekEntries = weekMovements
+      .filter(m => m.type === 'ENTRY')
+      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
+    
+    const weekExits = weekMovements
+      .filter(m => m.type === 'EXIT')
+      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
+
+    // Calculate turnover rate
+    const turnoverRate = todayExits > 0 ? todayEntries / todayExits : 0;
+
+    // Calculate percentage changes (simplified)
+    const todaySalesChange = 0; // Would need previous day data
+    const weekSalesChange = 0; // Would need previous week data
+    const entriesChange = 0; // Would need previous period data
+    const exitsChange = 0; // Would need previous period data
+    const turnoverChange = 0; // Would need previous period data
+
+    res.json({
+      todaySales: todaySalesTotal,
+      weekSales: weekSalesTotal,
+      totalEntries: todayEntries,
+      totalExits: todayExits,
+      turnoverRate: turnoverRate,
+      todaySalesChange: todaySalesChange,
+      weekSalesChange: weekSalesChange,
+      entriesChange: entriesChange,
+      exitsChange: exitsChange,
+      turnoverChange: turnoverChange
+    });
+  } catch (error) {
+    console.error('Error generating stock KPIs:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Stock sales chart data endpoint
+router.get('/stock-sales-chart', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, startDate, endDate } = req.query;
+    const targetDepotId = parseInt(depotId || req.user.depotId);
+    
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    // Get sessions that were active during the date range
+    const activeSessions = await prisma.sessionCaisse.findMany({
+      where: {
+        depotId: targetDepotId,
+        openedAt: { lte: end },
+        OR: [
+          { closedAt: { gte: start } },
+          { status: 'OPEN' }
+        ]
+      },
+      select: { id: true }
+    });
+
+    const sessionIds = activeSessions.map(s => s.id);
+
+    // Get sales data grouped by date
+    const sales = await prisma.sale.groupBy({
+      by: ['createdAt'],
+      where: {
+        status: 'COMPLETED',
+        depotId: targetDepotId,
+        sessionId: { in: sessionIds }
+      },
+      _sum: {
+        finalTotal: true
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+
+    const chartData = sales.map(sale => ({
+      date: sale.createdAt.toISOString().split('T')[0],
+      sales: parseFloat(sale._sum.finalTotal || 0)
+    }));
+
+    res.json(chartData);
+  } catch (error) {
+    console.error('Error generating stock sales chart data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Stock movements chart data endpoint
+router.get('/stock-movements-chart', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, startDate, endDate } = req.query;
+    const targetDepotId = parseInt(depotId || req.user.depotId);
+    
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    // Get stock movements grouped by date
+    const movements = await prisma.stockMovement.groupBy({
+      by: ['date'],
+      where: {
+        depotId: targetDepotId,
+        date: { gte: start, lte: end }
+      },
+      _sum: {
+        quantity: true
+      },
+      orderBy: {
+        date: 'asc'
+      }
+    });
+
+    const chartData = movements.map(movement => {
+      const entries = movement.type === 'ENTRY' ? parseFloat(movement._sum.quantity || 0) : 0;
+      const exits = movement.type === 'EXIT' ? parseFloat(movement._sum.quantity || 0) : 0;
+      
+      return {
+        date: movement.date.toISOString().split('T')[0],
+        entries: entries,
+        exits: exits
+      };
+    });
+
+    res.json(chartData);
+  } catch (error) {
+    console.error('Error generating stock movements chart data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Top products endpoint
+router.get('/stock-top-products', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, startDate, endDate, limit = 10 } = req.query;
+    const targetDepotId = parseInt(depotId || req.user.depotId);
+    
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    // Get sessions that were active during the date range
+    const activeSessions = await prisma.sessionCaisse.findMany({
+      where: {
+        depotId: targetDepotId,
+        openedAt: { lte: end },
+        OR: [
+          { closedAt: { gte: start } },
+          { status: 'OPEN' }
+        ]
+      },
+      select: { id: true }
+    });
+
+    const sessionIds = activeSessions.map(s => s.id);
+
+    // Get top products by sales
+    const products = await prisma.saleItem.groupBy({
+      by: ['productId'],
+      where: {
+        sale: {
+          status: 'COMPLETED',
+          depotId: targetDepotId,
+          sessionId: { in: sessionIds }
+        }
+      },
+      _sum: {
+        quantity: true,
+        total: true
+      },
+      _avg: {
+        unitPrice: true
+      },
+      orderBy: {
+        _sum: {
+          quantity: 'desc'
+        }
+      },
+      take: parseInt(limit)
+    });
+
+    const productIds = products.map(p => p.productId);
+    const productDetails = await prisma.product.findMany({
+      where: {
+        id: { in: productIds }
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    });
+
+    const topProducts = products.map(product => {
+      const details = productDetails.find(d => d.id === product.productId);
+      return {
+        id: product.productId,
+        name: details?.name || 'Unknown',
+        sales: parseFloat(product._sum.total || 0),
+        quantity: parseFloat(product._sum.quantity || 0),
+        revenue: parseFloat(product._sum.total || 0)
+      };
+    });
+
+    res.json(topProducts);
+  } catch (error) {
+    console.error('Error generating top products:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Top clients endpoint
+router.get('/stock-top-clients', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, startDate, endDate, limit = 10 } = req.query;
+    const targetDepotId = parseInt(depotId || req.user.depotId);
+    
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    // Get sessions that were active during the date range
+    const activeSessions = await prisma.sessionCaisse.findMany({
+      where: {
+        depotId: targetDepotId,
+        openedAt: { lte: end },
+        OR: [
+          { closedAt: { gte: start } },
+          { status: 'OPEN' }
+        ]
+      },
+      select: { id: true }
+    });
+
+    const sessionIds = activeSessions.map(s => s.id);
+
+    // Get top clients by sales
+    const clients = await prisma.sale.groupBy({
+      by: ['clientId'],
+      where: {
+        status: 'COMPLETED',
+        depotId: targetDepotId,
+        sessionId: { in: sessionIds },
+        clientId: { not: null }
+      },
+      _sum: {
+        finalTotal: true
+      },
+      _count: {
+        id: true
+      },
+      orderBy: {
+        _sum: {
+          finalTotal: 'desc'
+        }
+      },
+      take: parseInt(limit)
+    });
+
+    const clientIds = clients.map(c => c.clientId).filter(Boolean);
+    const clientDetails = await prisma.client.findMany({
+      where: {
+        id: { in: clientIds }
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true
+      }
+    });
+
+    const topClients = clients.map(client => {
+      const details = clientDetails.find(d => d.id === client.clientId);
+      return {
+        id: client.clientId,
+        name: details ? `${details.firstName} ${details.lastName}` : 'Unknown',
+        total: parseFloat(client._sum.finalTotal || 0),
+        orders: client._count.id
+      };
+    });
+
+    res.json(topClients);
+  } catch (error) {
+    console.error('Error generating top clients:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Product analytics endpoint
+router.get('/stock-product-analytics', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, startDate, endDate } = req.query;
+    const targetDepotId = parseInt(depotId || req.user.depotId);
+    
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    // Get sessions that were active during the date range
+    const activeSessions = await prisma.sessionCaisse.findMany({
+      where: {
+        depotId: targetDepotId,
+        openedAt: { lte: end },
+        OR: [
+          { closedAt: { gte: start } },
+          { status: 'OPEN' }
+        ]
+      },
+      select: { id: true }
+    });
+
+    const sessionIds = activeSessions.map(s => s.id);
+
+    // Get product analytics
+    const products = await prisma.saleItem.groupBy({
+      by: ['productId'],
+      where: {
+        sale: {
+          status: 'COMPLETED',
+          depotId: targetDepotId,
+          sessionId: { in: sessionIds }
+        }
+      },
+      _sum: {
+        quantity: true,
+        total: true
+      },
+      _avg: {
+        unitPrice: true
+      }
+    });
+
+    const productIds = products.map(p => p.productId);
+    const productDetails = await prisma.product.findMany({
+      where: {
+        id: { in: productIds }
+      },
+      select: {
+        id: true,
+        name: true,
+        prix_achat: true
+      }
+    });
+
+    const analytics = products.map(product => {
+      const details = productDetails.find(d => d.id === product.productId);
+      const quantityOut = parseFloat(product._sum.quantity || 0);
+      const sales = parseFloat(product._sum.total || 0);
+      const avgPrice = parseFloat(product._avg.unitPrice || 0);
+      const costPrice = parseFloat(details?.prix_achat || 0);
+      const margin = avgPrice > 0 && costPrice > 0 ? ((avgPrice - costPrice) / avgPrice) * 100 : 0;
+
+      return {
+        id: product.productId,
+        name: details?.name || 'Unknown',
+        sales: sales,
+        quantityOut: quantityOut,
+        quantityIn: 0, // Would need stock movements data
+        margin: margin,
+        topClients: [], // Would need client analysis
+        dailyEvolution: [], // Would need daily breakdown
+        lastMovements: [] // Would need recent movements
+      };
+    });
+
+    res.json(analytics);
+  } catch (error) {
+    console.error('Error generating product analytics:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Dashboard endpoint
+router.get('/dashboard', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, startDate, endDate } = req.query;
+    const targetDepotId = parseInt(depotId || req.user.depotId);
+    
+    const today = new Date();
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Default month range OR custom date range
+    const startOfMonth = startDate ? new Date(startDate) : new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = endDate ? new Date(endDate) : new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+    if (!endDate) { endOfMonth.setHours(23,59,59,999); }
+
+    const startOfYear = new Date(today.getFullYear(), 0, 1);
+    const endOfYear = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
+
+    // Get sessions for each period (monthly becomes date-range aware)
+    const [dailySessions, monthlySessions, yearlySessions] = await Promise.all([
+      prisma.sessionCaisse.findMany({
+        where: {
+          depotId: targetDepotId,
+          openedAt: { lte: endOfDay },
+          OR: [
+            { closedAt: { gte: startOfDay } },
             { status: 'OPEN' }
           ]
         },
@@ -1450,24 +1901,23 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     ]);
 
     const dailySessionIds = dailySessions.map(s => s.id);
-    const weeklySessionIds = weeklySessions.map(s => s.id);
     const monthlySessionIds = monthlySessions.map(s => s.id);
     const yearlySessionIds = yearlySessions.map(s => s.id);
 
     // Get sales data from sessions
-    const [dailySales, weeklySales, monthlySales, yearlySales] = await Promise.all([
+    const [dailySales, monthlySales, yearlySales] = await Promise.all([
       prisma.sale.findMany({
         where: {
           status: 'COMPLETED',
           depotId: targetDepotId,
           sessionId: { in: dailySessionIds }
-        }
-      }),
-      prisma.sale.findMany({
-        where: {
-          status: 'COMPLETED',
-          depotId: targetDepotId,
-          sessionId: { in: weeklySessionIds }
+        },
+        include: {
+          items: {
+            include: {
+              product: true
+            }
+          }
         }
       }),
       prisma.sale.findMany({
@@ -1475,6 +1925,13 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
           status: 'COMPLETED',
           depotId: targetDepotId,
           sessionId: { in: monthlySessionIds }
+        },
+        include: {
+          items: {
+            include: {
+              product: true
+            }
+          }
         }
       }),
       prisma.sale.findMany({
@@ -1482,6 +1939,13 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
           status: 'COMPLETED',
           depotId: targetDepotId,
           sessionId: { in: yearlySessionIds }
+        },
+        include: {
+          items: {
+            include: {
+              product: true
+            }
+          }
         }
       })
     ]);
@@ -1489,65 +1953,180 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     // Calculate sales totals
     const sales = {
       daily: dailySales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0),
-      weekly: weeklySales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0),
       monthly: monthlySales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0),
       yearly: yearlySales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0)
     };
 
-    // Get stock movements data
-    const [dailyMovements, weeklyMovements] = await Promise.all([
-      prisma.stockMovement.findMany({
-        where: {
-          depotId: targetDepotId,
-          date: { gte: startOfDay, lte: endOfDay }
+    // Calculate purchase costs (from sale items)
+    const purchases = {
+      daily: dailySales.reduce((sum, sale) => {
+        return sum + sale.items.reduce((itemSum, item) => {
+          const cost = parseFloat(item.product?.prix_achat || 0) * parseFloat(item.quantity);
+          return itemSum + cost;
+        }, 0);
+      }, 0),
+      monthly: monthlySales.reduce((sum, sale) => {
+        return sum + sale.items.reduce((itemSum, item) => {
+          const cost = parseFloat(item.product?.prix_achat || 0) * parseFloat(item.quantity);
+          return itemSum + cost;
+        }, 0);
+      }, 0),
+      yearly: yearlySales.reduce((sum, sale) => {
+        return sum + sale.items.reduce((itemSum, item) => {
+          const cost = parseFloat(item.product?.prix_achat || 0) * parseFloat(item.quantity);
+          return itemSum + cost;
+        }, 0);
+      }, 0)
+    };
+
+    // Calculate stock value with CMUP (Coût Moyen Unitaire Pondéré)
+    const stockValue = await prisma.inventory.aggregate({
+      where: {
+        depotId: targetDepotId
+      },
+      _sum: {
+        quantity: true
+      }
+    });
+
+    // Get all products with their purchase prices for CMUP calculation
+    const inventoryItems = await prisma.inventory.findMany({
+      where: {
+        depotId: targetDepotId
+      },
+      include: {
+        product: true
+      }
+    });
+
+    // Calculate stock value using CMUP (average purchase price)
+    const stockValueCMUP = inventoryItems.reduce((sum, item) => {
+      const avgPurchasePrice = parseFloat(item.product?.prix_achat || 0);
+      const quantity = parseFloat(item.quantity || 0);
+      return sum + (avgPurchasePrice * quantity);
+    }, 0);
+
+    // Helper to aggregate discounts and free items
+    const aggregateReductions = (salesList) => {
+      let discountTotal = 0;
+      let freeItemsValue = 0;
+      for (const sale of salesList) {
+        discountTotal += parseFloat(sale.discount || 0);
+        for (const item of (sale.items || [])) {
+          const itemDiscount = parseFloat(item.discount || 0);
+          const unitPrice = parseFloat(item.unitPrice || 0);
+          const qty = parseFloat(item.quantity || 0);
+          const lineTotal = parseFloat(item.total || 0);
+          discountTotal += itemDiscount;
+          if (lineTotal === 0 && qty > 0) {
+            // Consider fully free items as unit price * quantity
+            freeItemsValue += unitPrice * qty;
+          }
         }
-      }),
-      prisma.stockMovement.findMany({
-        where: {
-          depotId: targetDepotId,
-          date: { gte: startOfWeek, lte: endOfDay }
-        }
-      })
+      }
+      return { discountTotal, freeItemsValue };
+    };
+
+    // Calculate reductions per period
+    const dRed = aggregateReductions(dailySales);
+    const mRed = aggregateReductions(monthlySales);
+    const yRed = aggregateReductions(yearlySales);
+
+    // Expenses per period (approved expenses in date range for the depot)
+    const [dailyExpenses, monthlyExpenses, yearlyExpenses] = await Promise.all([
+      prisma.expense.findMany({ where: { depotId: targetDepotId, isApproved: true, date: { gte: startOfDay, lte: endOfDay } } }),
+      prisma.expense.findMany({ where: { depotId: targetDepotId, isApproved: true, date: { gte: startOfMonth, lte: endOfMonth } } }),
+      prisma.expense.findMany({ where: { depotId: targetDepotId, isApproved: true, date: { gte: startOfYear, lte: endOfYear } } })
     ]);
 
-    // Calculate stock movement totals
-    const totalEntries = dailyMovements
-      .filter(m => m.type === 'ENTRY')
-      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
-    
-    const totalExits = dailyMovements
-      .filter(m => m.type === 'EXIT')
-      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
+    const expenses = {
+      daily: dailyExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0),
+      monthly: monthlyExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0),
+      yearly: yearlyExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0)
+    };
 
-    const weeklyEntries = weeklyMovements
-      .filter(m => m.type === 'ENTRY')
-      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
-    
-    const weeklyExits = weeklyMovements
-      .filter(m => m.type === 'EXIT')
-      .reduce((sum, m) => sum + parseFloat(m.quantity || 0), 0);
+    const discounts = {
+      daily: dRed.discountTotal,
+      monthly: mRed.discountTotal,
+      yearly: yRed.discountTotal
+    };
 
-    // Calculate turnover rate (simplified)
-    const turnoverRate = totalExits > 0 ? totalEntries / totalExits : 0;
+    const freeItems = {
+      daily: dRed.freeItemsValue,
+      monthly: mRed.freeItemsValue,
+      yearly: yRed.freeItemsValue
+    };
 
-    // Calculate percentage changes (simplified - comparing with previous periods)
-    const todaySalesChange = 0; // Would need previous day data
-    const weekSalesChange = 0; // Would need previous week data
-    const entriesChange = 0; // Would need previous period data
-    const exitsChange = 0; // Would need previous period data
-    const turnoverChange = 0; // Would need previous period data
+    // Result 1: Résultat de stock vendu = Ventes - Valeur stock CMUP
+    const resultStockOnly = {
+      daily: sales.daily - stockValueCMUP,
+      monthly: sales.monthly - stockValueCMUP,
+      yearly: sales.yearly - stockValueCMUP
+    };
+
+    // Result 2: Résultat total = Ventes - (Coût des ventes CMUP + Valeur stock CMUP)
+    const resultTotal = {
+      daily: sales.daily - (purchases.daily + stockValueCMUP),
+      monthly: sales.monthly - (purchases.monthly + stockValueCMUP),
+      yearly: sales.yearly - (purchases.yearly + stockValueCMUP)
+    };
+
+    // Final result grid: résultat 1 - (remises + gratuites + dépenses)
+    const finalResult = {
+      daily: resultStockOnly.daily - (discounts.daily + freeItems.daily + expenses.daily),
+      monthly: resultStockOnly.monthly - (discounts.monthly + freeItems.monthly + expenses.monthly),
+      yearly: resultStockOnly.yearly - (discounts.yearly + freeItems.yearly + expenses.yearly)
+    };
+
+    // Get new clients this month
+    const newClientsThisMonth = await prisma.client.count({
+      where: {
+        depotId: targetDepotId,
+        createdAt: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
+      }
+    });
+
+    // Get payment delays (clients with debt > 0)
+    const paymentDelays = await prisma.client.count({
+      where: {
+        depotId: targetDepotId,
+        currentDebt: {
+          gt: 0
+        }
+      }
+    });
+
+    // Get new negotiations (sales with clients this month)
+    const newNegotiations = await prisma.sale.count({
+      where: {
+        depotId: targetDepotId,
+        clientId: { not: null },
+        status: 'COMPLETED',
+        sessionId: { in: monthlySessionIds }
+      }
+    });
+
+    const indicators = {
+      newClients: newClientsThisMonth,
+      newNegotiations: newNegotiations,
+      paymentDelays: paymentDelays
+    };
 
     res.json({
-      todaySales: sales.daily,
-      weekSales: sales.weekly,
-      totalEntries,
-      totalExits,
-      turnoverRate,
-      todaySalesChange,
-      weekSalesChange,
-      entriesChange,
-      exitsChange,
-      turnoverChange
+      sales,
+      purchases,
+      results: resultTotal, // keep legacy 'results' for existing UI
+      resultStockOnly,
+      resultTotal,
+      finalResult,
+      discounts,
+      freeItems,
+      expenses,
+      indicators,
+      stockValue: stockValueCMUP
     });
   } catch (error) {
     console.error('Error generating dashboard data:', error);

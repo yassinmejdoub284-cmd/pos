@@ -153,7 +153,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.loadWholesaleRules();
     
     // Also try to get the active session directly
-    this.sessionsService.getActiveSession().subscribe({
+    this.sessionsService.getActiveSessionByDepot().subscribe({
       next: (session) => {
         console.log('Active session from getActiveSession:', session);
         console.log('Session depotId:', session?.depotId);

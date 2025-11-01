@@ -18,7 +18,7 @@ const routes: Routes = [
   },
   { 
     path: 'new-return/:depotId', 
-    loadChildren: () => import('./new-entry/new-entry.module').then(m => m.NewEntryModule)
+    loadChildren: () => import('./new-return/new-return.module').then(m => m.NewReturnModule)
   },
   { 
     path: 'import-entry/:depotId', 

@@ -45,6 +45,15 @@ router.get('/active', authenticateToken, async (req, res) => {
     const sessionSummary = await calculateSessionSummary(activeSession.id);
     activeSession.summary = sessionSummary;
 
+    // Update the session's expectedCash field in the database
+    await prisma.sessionCaisse.update({
+      where: { id: activeSession.id },
+      data: { expectedCash: sessionSummary.expectedCash }
+    });
+    
+    // Update the response object as well
+    activeSession.expectedCash = sessionSummary.expectedCash;
+
     res.json(activeSession);
   } catch (error) {
     console.error('Error fetching active session:', error);
@@ -90,6 +99,15 @@ router.get('/active-by-depot', authenticateToken, async (req, res) => {
     // Calculate expected cash from sales and movements
     const sessionSummary = await calculateSessionSummary(activeSession.id);
     activeSession.summary = sessionSummary;
+
+    // Update the session's expectedCash field in the database
+    await prisma.sessionCaisse.update({
+      where: { id: activeSession.id },
+      data: { expectedCash: sessionSummary.expectedCash }
+    });
+    
+    // Update the response object as well
+    activeSession.expectedCash = sessionSummary.expectedCash;
 
     res.json(activeSession);
   } catch (error) {

@@ -175,6 +175,7 @@ router.post('/', authenticateToken, async (req, res) => {
       barcode,
       unite,
       prix_vente_TTC,
+      prix_achat,
       tva,
       duree_conservation,
       photo,
@@ -241,6 +242,7 @@ router.post('/', authenticateToken, async (req, res) => {
       barcode: barcode || null,
       unite: unite || 'pcs',
       prix_vente_TTC: parseFloat(prix_vente_TTC),
+      prix_achat: prix_achat ? parseFloat(prix_achat) : null,
       tva: tva ? parseFloat(tva) : 19,
       duree_conservation: duree_conservation ? parseInt(duree_conservation) : null,
       photo: photo || null,
@@ -359,6 +361,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       barcode,
       unite,
       prix_vente_TTC,
+      prix_achat,
       tva,
       duree_conservation,
       photo,
@@ -415,6 +418,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (barcode !== undefined) updateData.barcode = barcode;
     if (unite !== undefined) updateData.unite = unite;
     if (prix_vente_TTC !== undefined) updateData.prix_vente_TTC = parseFloat(prix_vente_TTC);
+    if (prix_achat !== undefined) updateData.prix_achat = prix_achat ? parseFloat(prix_achat) : null;
     if (tva !== undefined) updateData.tva = parseFloat(tva);
     if (duree_conservation !== undefined) updateData.duree_conservation = duree_conservation ? parseInt(duree_conservation) : null;
     if (photo !== undefined) updateData.photo = photo || null;

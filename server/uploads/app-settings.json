@@ -233,7 +233,7 @@
     }
   },
   "4": {
-    "companyName": "PATISSERIE TUNISIENNE",
+    "companyName": "",
     "logoUrl": "",
     "companyAddress": "",
     "companyPhone": "",
@@ -273,7 +273,7 @@
     "ticketWidth": 58,
     "droitDeTimbre": false,
     "autoApproveExpenseBelow": 0,
-    "allowNegativeStock": true,
+    "allowNegativeStock": false,
     "printSettings": {
       "showLogo": true,
       "logoSize": "medium",
@@ -336,7 +336,7 @@
     },
     "documentDisplaySettings": {
       "livraison": {
-        "showPackageCount": false
+        "showPackageCount": true
       },
       "sortie": {
         "showPackageCount": true

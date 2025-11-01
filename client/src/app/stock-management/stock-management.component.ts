@@ -15,4 +15,8 @@ export class StockManagementComponent implements OnInit {
   navigateToDepotSelection(): void {
     this.router.navigate(['/stock-management/depot-selection']);
   }
+
+  navigateToReturnDepotSelection(): void {
+    this.router.navigate(['/stock/documents/bon-retour/4']); // Navigate directly to depot 4 for now
+  }
 }

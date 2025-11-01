@@ -233,41 +233,41 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
         this.kpiCards = [
           {
             title: 'Ventes (aujourd\'hui)',
-            value: this.formatCurrency(kpiData.todaySales),
-            change: kpiData.todaySalesChange,
-            changeType: kpiData.todaySalesChange >= 0 ? 'increase' : 'decrease',
+            value: this.formatCurrency(kpiData.todaySales || 0),
+            change: kpiData.todaySalesChange || 0,
+            changeType: (kpiData.todaySalesChange || 0) >= 0 ? 'increase' : 'decrease',
             icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
             color: 'from-emerald-500 to-green-600'
           },
           {
             title: 'Ventes (7 jours)',
-            value: this.formatCurrency(kpiData.weekSales),
-            change: kpiData.weekSalesChange,
-            changeType: kpiData.weekSalesChange >= 0 ? 'increase' : 'decrease',
+            value: this.formatCurrency(kpiData.weekSales || 0),
+            change: kpiData.weekSalesChange || 0,
+            changeType: (kpiData.weekSalesChange || 0) >= 0 ? 'increase' : 'decrease',
             icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
             color: 'from-blue-500 to-cyan-600'
           },
           {
             title: 'Quantités sorties',
-            value: kpiData.totalExits.toString(),
-            change: kpiData.exitsChange,
-            changeType: kpiData.exitsChange >= 0 ? 'increase' : 'decrease',
+            value: (kpiData.totalExits || 0).toString(),
+            change: kpiData.exitsChange || 0,
+            changeType: (kpiData.exitsChange || 0) >= 0 ? 'increase' : 'decrease',
             icon: 'M20 12H4m16 0l-4-4m4 4l-4 4',
             color: 'from-red-500 to-pink-600'
           },
           {
             title: 'Quantités entrées',
-            value: kpiData.totalEntries.toString(),
-            change: kpiData.entriesChange,
-            changeType: kpiData.entriesChange >= 0 ? 'increase' : 'decrease',
+            value: (kpiData.totalEntries || 0).toString(),
+            change: kpiData.entriesChange || 0,
+            changeType: (kpiData.entriesChange || 0) >= 0 ? 'increase' : 'decrease',
             icon: 'M12 4v16m8-8H4',
             color: 'from-amber-500 to-yellow-600'
           },
           {
             title: 'Taux de rotation',
-            value: kpiData.turnoverRate.toFixed(1) + 'x',
-            change: kpiData.turnoverChange,
-            changeType: kpiData.turnoverChange >= 0 ? 'increase' : 'decrease',
+            value: ((kpiData.turnoverRate || 0).toFixed(1)) + 'x',
+            change: kpiData.turnoverChange || 0,
+            changeType: (kpiData.turnoverChange || 0) >= 0 ? 'increase' : 'decrease',
             icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
             color: 'from-purple-500 to-violet-600'
           }

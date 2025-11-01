@@ -164,7 +164,7 @@ function parseQuantity(q) {
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 20, type, status, depotId, clientId, dateFrom, dateTo, fromDepotOnly } = req.query;
+    const { page = 1, limit = 20, type, status, depotId, clientId, dateFrom, dateTo, fromDepotOnly, toDepotOnly } = req.query;
     const skip = (page - 1) * limit;
         
     const where = {};
@@ -189,12 +189,15 @@ router.get('/', authenticateToken, async (req, res) => {
     }
     
     if (depotId) {
+      const depotIdNum = parseInt(depotId);
       if (String(fromDepotOnly).toLowerCase() === 'true') {
-        where.emetteurId = parseInt(depotId);
+        where.emetteurId = depotIdNum;
+      } else if (String(toDepotOnly).toLowerCase() === 'true') {
+        where.destinataireId = depotIdNum;
       } else {
         where.OR = [
-          { emetteurId: parseInt(depotId) },
-          { destinataireId: parseInt(depotId) }
+          { emetteurId: depotIdNum },
+          { destinataireId: depotIdNum }
         ];
       }
     }
@@ -208,7 +211,7 @@ router.get('/', authenticateToken, async (req, res) => {
       if (dateTo) where.createdAt.lte = new Date(dateTo);
     }
     
-    console.log('Stock documents query:', { where, skip, limit, type, status, depotId, fromDepotOnly });
+    console.log('Stock documents query:', { where, skip, limit, type, status, depotId, fromDepotOnly, toDepotOnly });
     
     const [documents, total] = await Promise.all([
       prisma.stockDocument.findMany({
@@ -722,7 +725,7 @@ router.post('/entry', authenticateToken, async (req, res) => {
       const doc = await tx.stockDocument.create({
         data: {
           numero,
-          type: 'BON_ENTREE_DEPOT',
+          type: isReturn ? 'BON_EXPEDITION' : 'BON_ENTREE_DEPOT',
           status: 'RECEIVED',
           // Schema requires depots; we set both to the receiving depot
           emetteurId: parseInt(depotId),
@@ -765,11 +768,23 @@ router.post('/entry', authenticateToken, async (req, res) => {
         });
 
         if (inventory) {
+          const currentQuantity = parseFloat(inventory.quantity);
+          const newQuantity = isReturn ? (currentQuantity - Math.abs(quantity)) : (currentQuantity + quantity);
+          
+          // For returns, ensure we don't go below zero
+          if (isReturn && newQuantity < 0) {
+            throw new Error(`Cannot return ${Math.abs(quantity)} units of product ${productId}: only ${currentQuantity} units available`);
+          }
+          
           await tx.inventory.update({
             where: { id: inventory.id },
-            data: { quantity: (parseFloat(inventory.quantity) + quantity) }
+            data: { quantity: newQuantity }
           });
         } else {
+          // For returns, if no inventory exists, we can't return items
+          if (isReturn) {
+            throw new Error(`Cannot return product ${productId}: no inventory found`);
+          }
           await tx.inventory.create({
             data: { depotId: depotIdInt, productId, quantity }
           });
@@ -2228,5 +2243,97 @@ async function updateInventoryForProduct(depotId, productId, quantityChange, isO
     throw error;
   }
 }
+
+// Create Bon de Retour (Return Document)
+router.post('/return', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, supplierId, items, notes } = req.body;
+    const userId = req.user.id;
+
+    if (!depotId || !items || items.length === 0) {
+      return res.status(400).json({ error: 'Dépôt et articles requis' });
+    }
+
+    // Generate document reference
+    const depot = await prisma.depot.findUnique({ where: { id: depotId } });
+    if (!depot) {
+      return res.status(404).json({ error: 'Dépôt non trouvé' });
+    }
+
+    const currentYear = new Date().getFullYear();
+    const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+    
+    const lastDoc = await prisma.stockDocument.findFirst({
+      where: {
+        type: 'BON_EXPEDITION',
+        reference: { startsWith: `BR-${currentYear}${currentMonth}` }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    let nextNumber = 1;
+    if (lastDoc) {
+      const lastNumber = parseInt(lastDoc.reference.split('-').pop());
+      nextNumber = lastNumber + 1;
+    }
+
+    const reference = `BR-${currentYear}${currentMonth}-${String(nextNumber).padStart(4, '0')}`;
+
+    // Create the return document
+    const document = await prisma.stockDocument.create({
+      data: {
+        reference,
+        type: 'BON_EXPEDITION',
+        status: 'RECEIVED', // Auto-validate returns
+        depotId: depotId,
+        emetteurId: supplierId,
+        destinataireId: depotId,
+        notes: notes || 'Bon de retour',
+        createdBy: userId,
+        validatedBy: userId,
+        validatedAt: new Date(),
+        items: {
+          create: items.map(item => ({
+            productId: item.productId,
+            famille: item.famille || 'Divers',
+            quantity: -Math.abs(item.quantity), // Negative quantity for returns
+            purchasePrice: item.purchasePrice || 0,
+            batch: item.batch || null,
+            notes: item.notes || null
+          }))
+        }
+      },
+      include: {
+        depot: true,
+        emetteur: true,
+        items: {
+          include: {
+            product: true
+          }
+        }
+      }
+    });
+
+    // Update inventory for each item (reduce stock)
+    for (const item of items) {
+      const quantity = Math.abs(item.quantity); // Use positive quantity for calculation
+      await updateInventory(depotId, item.productId, -quantity); // Negative to reduce stock
+    }
+
+    // Log audit
+    await logAudit(userId, 'CREATE', 'StockDocument', document.id, {
+      type: 'BON_EXPEDITION',
+      depotId: depotId,
+      itemsCount: items.length,
+      totalValue: items.reduce((sum, item) => sum + (Math.abs(item.quantity) * (item.purchasePrice || 0)), 0)
+    });
+
+    res.json(document);
+
+  } catch (error) {
+    console.error('Error creating bon de retour:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du bon de retour' });
+  }
+});
 
 module.exports = router; 

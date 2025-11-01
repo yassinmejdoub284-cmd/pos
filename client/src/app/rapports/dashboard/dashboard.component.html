@@ -42,7 +42,13 @@
     </div>
 
     <!-- Actions -->
-    <div *ngIf="!loading && !error && dashboardData" class="flex flex-wrap gap-3 mb-6">
+    <div *ngIf="!loading && !error && dashboardData" class="flex flex-wrap gap-3 mb-6 items-center">
+      <div class="flex items-center gap-2 bg-white/80 border border-gray-200 rounded-lg px-3 py-2">
+        <label class="text-sm text-gray-600">Du</label>
+        <input type="date" [value]="startDate" (change)="onStartDateChange($event)" class="border border-gray-200 rounded px-2 py-1 text-sm" />
+        <label class="text-sm text-gray-600">Au</label>
+        <input type="date" [value]="endDate" (change)="onEndDateChange($event)" class="border border-gray-200 rounded px-2 py-1 text-sm" />
+      </div>
       <button (click)="toggleCharts()" 
         class="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-lg transition-all flex items-center space-x-2 shadow-lg">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -262,6 +268,50 @@
             <div class="flex justify-between items-center">
               <span class="text-sm text-gray-600">Annuel</span>
               <span class="font-semibold text-emerald-600">{{ dashboardData.results.yearly | number:'1.2-2' }} dt</span>
+            </div>
+            <div class="border-t pt-3 mt-3">
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Valeur Stock CMUP</span>
+                <span class="font-semibold text-purple-600">{{ dashboardData.stockValue | number:'1.2-2' }} dt</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom Results Grids -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Résultat de stock vendu -->
+        <div class="bg-white/90 rounded-xl border border-gray-200 p-6 shadow-lg">
+          <h2 class="text-xl font-bold text-gray-800 mb-4">Résultat stock vendu</h2>
+          <div class="space-y-3">
+            <div class="flex justify-between"><span class="text-sm text-gray-600">Journalier</span><span class="font-semibold">{{ (dashboardData.resultStockOnly?.daily || 0) | number:'1.2-2' }} dt</span></div>
+            <div class="flex justify-between"><span class="text-sm text-gray-600">Mensuel</span><span class="font-semibold">{{ (dashboardData.resultStockOnly?.monthly || 0) | number:'1.2-2' }} dt</span></div>
+            <div class="flex justify-between"><span class="text-sm text-gray-600">Annuel</span><span class="font-semibold">{{ (dashboardData.resultStockOnly?.yearly || 0) | number:'1.2-2' }} dt</span></div>
+          </div>
+        </div>
+
+        <!-- Résultat total -->
+        <div class="bg-white/90 rounded-xl border border-gray-200 p-6 shadow-lg">
+          <h2 class="text-xl font-bold text-gray-800 mb-4">Résultat total</h2>
+          <div class="space-y-3">
+            <div class="flex justify-between"><span class="text-sm text-gray-600">Journalier</span><span class="font-semibold">{{ (dashboardData.resultTotal?.daily || 0) | number:'1.2-2' }} dt</span></div>
+            <div class="flex justify-between"><span class="text-sm text-gray-600">Mensuel</span><span class="font-semibold">{{ (dashboardData.resultTotal?.monthly || 0) | number:'1.2-2' }} dt</span></div>
+            <div class="flex justify-between"><span class="text-sm text-gray-600">Annuel</span><span class="font-semibold">{{ (dashboardData.resultTotal?.yearly || 0) | number:'1.2-2' }} dt</span></div>
+          </div>
+        </div>
+
+        <!-- Résultat final -->
+        <div class="bg-white/90 rounded-xl border border-gray-200 p-6 shadow-lg">
+          <h2 class="text-xl font-bold text-gray-800 mb-4">Résultat final</h2>
+          <div class="space-y-3">
+            <div class="flex justify-between"><span class="text-sm text-gray-600">Journalier</span><span class="font-semibold">{{ (dashboardData.finalResult?.daily || 0) | number:'1.2-2' }} dt</span></div>
+            <div class="flex justify-between"><span class="text-sm text-gray-600">Mensuel</span><span class="font-semibold">{{ (dashboardData.finalResult?.monthly || 0) | number:'1.2-2' }} dt</span></div>
+            <div class="flex justify-between"><span class="text-sm text-gray-600">Annuel</span><span class="font-semibold">{{ (dashboardData.finalResult?.yearly || 0) | number:'1.2-2' }} dt</span></div>
+            <div class="border-t pt-3 mt-3 space-y-1">
+              <div class="flex justify-between text-sm"><span>Remises</span><span>{{ (dashboardData.discounts?.monthly || 0) | number:'1.2-2' }} dt</span></div>
+              <div class="flex justify-between text-sm"><span>Gratuits</span><span>{{ (dashboardData.freeItems?.monthly || 0) | number:'1.2-2' }} dt</span></div>
+              <div class="flex justify-between text-sm"><span>Dépenses</span><span>{{ (dashboardData.expenses?.monthly || 0) | number:'1.2-2' }} dt</span></div>
             </div>
           </div>
         </div>

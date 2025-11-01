@@ -231,6 +231,7 @@ router.get('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), 
               barcode: true,
               unite: true,
               prix_vente_TTC: true,
+              prix_achat: true,
               famille: {
                 select: {
                   name: true

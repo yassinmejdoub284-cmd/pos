@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface StockKPIData {
@@ -82,7 +82,7 @@ export class StockAnalyticsService {
     if (dateFrom) params = params.set('startDate', dateFrom);
     if (dateTo) params = params.set('endDate', dateTo);
 
-    return this.http.get<StockKPIData>(`${this.apiUrl}/dashboard`, { params }).pipe(
+    return this.http.get<StockKPIData>(`${this.apiUrl}/stock-kpis`, { params }).pipe(
       catchError((error) => throwError(() => error))
     );
   }
@@ -93,7 +93,7 @@ export class StockAnalyticsService {
     if (dateFrom) params = params.set('startDate', dateFrom);
     if (dateTo) params = params.set('endDate', dateTo);
 
-    return this.http.get<StockChartData[]>(`${this.apiUrl}/sales`, { params }).pipe(
+    return this.http.get<StockChartData[]>(`${this.apiUrl}/stock-sales-chart`, { params }).pipe(
       catchError((error) => throwError(() => error))
     );
   }
@@ -104,7 +104,7 @@ export class StockAnalyticsService {
     if (dateFrom) params = params.set('startDate', dateFrom);
     if (dateTo) params = params.set('endDate', dateTo);
 
-    return this.http.get<StockChartData[]>(`${this.apiUrl}/stock-movements`, { params }).pipe(
+    return this.http.get<StockChartData[]>(`${this.apiUrl}/stock-movements-chart`, { params }).pipe(
       catchError((error) => throwError(() => error))
     );
   }
@@ -117,7 +117,7 @@ export class StockAnalyticsService {
     if (dateFrom) params = params.set('startDate', dateFrom);
     if (dateTo) params = params.set('endDate', dateTo);
 
-    return this.http.get<TopProduct[]>(`${this.apiUrl}/products`, { params }).pipe(
+    return this.http.get<TopProduct[]>(`${this.apiUrl}/stock-top-products`, { params }).pipe(
       catchError((error) => throwError(() => error))
     );
   }
@@ -130,7 +130,7 @@ export class StockAnalyticsService {
     if (dateFrom) params = params.set('startDate', dateFrom);
     if (dateTo) params = params.set('endDate', dateTo);
 
-    return this.http.get<TopClient[]>(`${this.apiUrl}/credit-sales`, { params }).pipe(
+    return this.http.get<TopClient[]>(`${this.apiUrl}/stock-top-clients`, { params }).pipe(
       catchError((error) => throwError(() => error))
     );
   }
@@ -149,16 +149,38 @@ export class StockAnalyticsService {
       .set('page', page.toString())
       .set('limit', limit.toString());
     
-    if (type) params = params.set('type', type);
+    // Map frontend types to backend document types
+    if (type) {
+      const typeMapping: { [key: string]: string } = {
+        'entry': 'BON_ENTREE_DEPOT',
+        'sortie': 'BON_EXPEDITION',
+        'transfert': 'BON_TRANSFERT',
+        'livraison': 'BON_ENTREE_MAGASIN'
+      };
+      const mappedType = typeMapping[type] || type;
+      params = params.set('type', mappedType);
+    }
     if (status) params = params.set('status', status);
     if (dateFrom) params = params.set('dateFrom', dateFrom);
     if (dateTo) params = params.set('dateTo', dateTo);
 
-    return this.http.get<{ documents: StockDocument[]; total: number; page: number; totalPages: number }>(
+    return this.http.get<{ data: StockDocument[]; pagination: { page: number; limit: number; total: number; pages: number } }>(
       `${environment.apiUrl}/stock-documents`, 
       { params }
     ).pipe(
-      catchError((error) => throwError(() => error))
+      // Transform response to match expected format
+      map(response => ({
+        documents: response.data || [],
+        total: response.pagination?.total || 0,
+        page: response.pagination?.page || 1,
+        totalPages: response.pagination?.pages || 1
+      })),
+      catchError((error) => {
+        if (error?.error?.validTypes) {
+          console.error('Valid document types:', error.error.validTypes);
+        }
+        return throwError(() => error);
+      })
     );
   }
 
@@ -168,7 +190,7 @@ export class StockAnalyticsService {
     if (dateFrom) params = params.set('startDate', dateFrom);
     if (dateTo) params = params.set('endDate', dateTo);
 
-    return this.http.get<ProductAnalytics[]>(`${this.apiUrl}/sales-by-category`, { params }).pipe(
+    return this.http.get<ProductAnalytics[]>(`${this.apiUrl}/stock-product-analytics`, { params }).pipe(
       catchError((error) => throwError(() => error))
     );
   }

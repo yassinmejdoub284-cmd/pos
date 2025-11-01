@@ -12,7 +12,8 @@
       </button>
       
       <h1 class="text-3xl font-bold text-gray-900 mb-2">Sélection du Dépôt</h1>
-      <span class="text-gray-600">Choisissez le dépôt pour vérifier le stock ou gérer les entrées</span>
+      <span class="text-gray-600" *ngIf="!isReturnMode">Choisissez le dépôt pour vérifier le stock ou gérer les entrées</span>
+      <span class="text-gray-600" *ngIf="isReturnMode">Choisissez le dépôt pour créer un bon de retour</span>
     </div>
 
     <!-- Loading State -->
@@ -135,17 +136,20 @@
             </div>
           </button>
 
-          <!-- Entry Management Option -->
+          <!-- Entry/Return Management Option -->
           <button (click)="goToEntryManagement()" 
-                  class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl p-4 transition-all duration-300 transform flex items-center space-x-4">
+                  class="w-full bg-gradient-to-r text-white rounded-xl p-4 transition-all duration-300 transform flex items-center space-x-4"
+                  [ngClass]="isReturnMode ? 'from-red-500 to-pink-600' : 'from-blue-500 to-indigo-600'">
             <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
               </svg>
             </div>
             <div class="text-left">
-              <h4 class="font-semibold text-lg">Gérer les bons d'entrée</h4>
-              <p class="text-sm opacity-90">Créer ou importer des entrées de stock</p>
+              <h4 class="font-semibold text-lg" *ngIf="!isReturnMode">Gérer les bons d'entrée</h4>
+              <h4 class="font-semibold text-lg" *ngIf="isReturnMode">Gérer les bons de retour</h4>
+              <p class="text-sm opacity-90" *ngIf="!isReturnMode">Créer ou importer des entrées de stock</p>
+              <p class="text-sm opacity-90" *ngIf="isReturnMode">Créer un bon de retour de stock</p>
             </div>
           </button>
         </div>

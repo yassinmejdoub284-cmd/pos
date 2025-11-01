@@ -355,6 +355,16 @@
             </svg>
             {{ loading ? 'Génération...' : 'Générer le Rapport' }}
           </button>
+          
+          <button 
+            (click)="saveInventoryToReleveInventaire()" 
+            [disabled]="loading"
+            class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg transform disabled:transform-none flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+            </svg>
+            Sauvegarder Inventaire
+          </button>
         </div>
       </div>
     </div>
@@ -729,14 +739,26 @@
               <h2 class="text-xl font-bold text-emerald-900">📊 Relevé Inventaire</h2>
               <p class="text-sm text-emerald-700">Désignation, Début, Crédit et Solde pour chaque article</p>
             </div>
-            <button 
-              (click)="showAddCreditModal()" 
-              class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center">
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-              </svg>
-              Ajouter Crédit
-            </button>
+            <div class="flex items-center gap-2">
+              <button 
+                (click)="saveCurrentReleve()" 
+                class="bg-slate-600 text-white px-3 py-2 rounded-lg hover:bg-slate-700 transition-colors text-sm">
+                Sauvegarder
+              </button>
+              <button 
+                (click)="startNewReleveFromLastSolde()" 
+                class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                Nouveau relevé (solde inventaire précédent)
+              </button>
+              <button 
+                (click)="showAddCreditModal()" 
+                class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Ajouter Crédit
+              </button>
+            </div>
           </div>
         </div>
         
@@ -753,15 +775,18 @@
             <tbody>
               <tr *ngFor="let row of releveInventaireData; let i = index" 
                   class="border-b border-gray-200 hover:bg-gray-50"
-                  [class.bg-white]="i % 2 === 0 && !row.isInventory"
-                  [class.bg-gray-50]="i % 2 === 1 && !row.isInventory"
+                  [class.bg-white]="i % 2 === 0 && !row.isInventory && !isInventoryMode"
+                  [class.bg-gray-50]="i % 2 === 1 && !row.isInventory && !isInventoryMode"
                   [class.bg-green-100]="row.isInventory"
+                  [class.bg-gray-200]="isInventoryMode && !row.isInventory"
+                  [class.text-gray-600]="isInventoryMode && !row.isInventory"
                   [class.hidden]="(isBonEntreeItem(row) && !isBonEntreeExpanded(getBonEntreeIdFromItem(row.id))) || (isEcartGrosChild(row) && !isEcartGrosExpanded(getEcartGrosParentId(row)))"
                   [class]="getEcartRowClass(row)"
                   (click)="onEcartRowClick(row)">
                 <td class="px-4 py-3 text-left border-r border-gray-200 font-medium" 
                     [class.text-green-800]="row.isInventory"
                     [class.font-bold]="row.isInventory"
+                    [class.text-gray-600]="isInventoryMode && !row.isInventory"
                     [class.cursor-pointer]="row.id.startsWith('bon_entree_') || row.isExpandable"
                     (click)="row.id.startsWith('bon_entree_') ? toggleBonEntreeExpansion(row.id) : (row.isExpandable ? toggleEcartGrosExpansion(row.expandableId || '') : null)">
                   <div class="flex items-center">
@@ -802,12 +827,12 @@
                 <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold" 
                     [class.text-blue-600]="!row.isInventory"
                     [class.text-green-700]="row.isInventory">
-                  {{ row.isInventory ? '—' : formatNumber(row.debut) }}
+                  {{ formatNumber(row.debut) }}
                 </td>
                 <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold" 
                     [class.text-red-600]="!row.isInventory"
                     [class.text-green-700]="row.isInventory">
-                  {{ row.isInventory ? '—' : formatNumber(row.credit) }}
+                  {{ formatNumber(row.credit) }}
                 </td>
                 <td class="px-4 py-3 text-right font-bold text-lg" 
                     [class.text-green-600]="row.solde >= 0 && !row.isInventory"
@@ -846,6 +871,45 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- Secondary Relevé (chained) -->
+      <div *ngIf="secondaryReleveRows.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div class="bg-blue-50 px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-blue-900">📊 Relevé Inventaire (Nouveau)</h2>
+              <p class="text-sm text-blue-700">Première ligne = solde inventaire du relevé précédent</p>
+            </div>
+            <button 
+              (click)="clearSecondaryReleve()" 
+              class="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm">
+              Effacer
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-blue-50">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-blue-900 border-r border-blue-200">Désignation</th>
+                <th class="px-4 py-3 text-right font-semibold text-blue-900 border-r border-blue-200">Débit (dt)</th>
+                <th class="px-4 py-3 text-right font-semibold text-blue-900 border-r border-blue-200">Crédit (dt)</th>
+                <th class="px-4 py-3 text-right font-semibold text-blue-900">Solde (dt)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of secondaryReleveRows; let i = index" 
+                  class="border-b border-gray-200"
+                  [class.bg-blue-50]="row.isInventory">
+                <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ row.designation }}</td>
+                <td class="px-4 py-3 text-right border-r border-gray-200">{{ formatNumber(row.debut) }}</td>
+                <td class="px-4 py-3 text-right border-r border-gray-200">{{ formatNumber(row.credit) }}</td>
+                <td class="px-4 py-3 text-right font-bold">{{ formatNumber(row.solde) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

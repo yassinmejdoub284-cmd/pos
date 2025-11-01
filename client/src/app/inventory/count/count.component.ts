@@ -8,6 +8,8 @@ import { ProduitDeStock } from '../../core/models/produit-de-caisse.model';
 import { DepotsService } from '../../core/services/depots.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Subject, takeUntil } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 interface CountItem {
   product: Product;
@@ -76,6 +78,7 @@ export class CountComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private http: HttpClient,
     private inventoryService: InventoryService,
     private productsService: ProductsService,
     private produitsDeStockService: ProduitsDeStockService,
@@ -173,7 +176,7 @@ export class CountComponent implements OnInit, OnDestroy {
           const prod = this.getProductById(ci.product.id);
           return {
             ...ci,
-            purchasePrice: ci.purchasePrice || (prod?.prix_achat ?? 0),
+            purchasePrice: ci.purchasePrice || (prod?.prix_achat ?? (prod?.prix_vente_TTC ?? ci.product.prix_vente_TTC ?? 0) * 0.7),
             salePrice: ci.salePrice || (prod?.prix_vente_TTC ?? ci.product.prix_vente_TTC ?? 0)
           };
         });
@@ -309,7 +312,7 @@ export class CountComponent implements OnInit, OnDestroy {
         countedQuantity: item.countedQuantity,
         isConfirmed: item.countedQuantity !== null,
         inventoryItemId: item.id,
-          purchasePrice: productData.prix_achat ?? 0,
+          purchasePrice: productData.prix_achat ?? (productData.prix_vente_TTC * 0.7), // Default to 70% of sale price if no purchase price
           salePrice: productData.prix_vente_TTC ?? 0
         } as CountItem;
       });
@@ -420,7 +423,7 @@ export class CountComponent implements OnInit, OnDestroy {
       countedQuantity: null,
       isConfirmed: false,
       inventoryItemId: existingItem?.id,
-      purchasePrice: productData.prix_achat || 0,
+      purchasePrice: productData.prix_achat ?? (productData.prix_vente_TTC * 0.7), // Default to 70% of sale price if no purchase price
       salePrice: productData.prix_vente_TTC || 0
     };
     
@@ -750,6 +753,18 @@ export class CountComponent implements OnInit, OnDestroy {
               
               // Update session status
               this.session!.status = 'POSTED';
+
+              // Save an inventory line into tableau de relevé inventaire
+              try {
+                this.http.post(`${environment.apiUrl}/releve-inventaire/from-session/${this.session!.id}`, {
+                  depotId: this.depotId
+                }, { withCredentials: true }).subscribe({
+                  next: () => {},
+                  error: (e) => console.error('Error saving inventory to releve:', e)
+                });
+              } catch (e) {
+                console.error('Error triggering releve save:', e);
+              }
             
             // Show success message and redirect after delay
             setTimeout(() => {

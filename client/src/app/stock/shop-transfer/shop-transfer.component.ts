@@ -197,17 +197,48 @@ export class ShopTransferComponent implements OnInit {
     return { totalPurchase, totalSale, totalProfit, profitPercent };
   }
 
-  getInventoryTotals(): { totalPurchase: number; totalSale: number; totalProfit: number; profitPercent: number } {
+  getInventoryTotals(): { totalPurchase: number; totalSale: number; totalProfit: number; profitPercent: number; totalCurrentValue: number } {
     const items = this.inventory ?? [];
+    // Total Achat (PA): somme des (quantité actuelle * prix d'achat unitaire)
     const totalPurchase = items.reduce((acc: number, it: { productId: number; quantity: number; purchasePrice?: number }) => {
-      return acc + Number(this.getItemPurchaseTotal(it));
+      const unit = this.getPurchaseUnitPrice(it);
+      const qty = Number(it.quantity) || 0;
+      return acc + qty * unit;
     }, 0);
     const totalSale = items.reduce((acc: number, it: { productId: number; quantity: number }) => {
       return acc + Number(this.getItemSaleTotal(it));
     }, 0);
+    const totalCurrentValue = items.reduce((acc: number, it: { productId: number; quantity: number }) => {
+      return acc + Number(this.getItemSaleTotal(it));
+    }, 0);
     const totalProfit = totalSale - totalPurchase;
     const profitPercent = totalPurchase > 0 ? (totalProfit / totalPurchase) * 100 : 0;
-    return { totalPurchase, totalSale, totalProfit, profitPercent };
+    return { totalPurchase, totalSale, totalProfit, profitPercent, totalCurrentValue };
+  }
+
+  getTotalPurchaseFromEntries(): number {
+    let totalPurchase = 0;
+    
+    // Calculate from entry documents (bon d'entrée)
+    this.entryDocuments.forEach(doc => {
+      if (doc.items) {
+        doc.items.forEach((item: any) => {
+          const quantity = Number(item.quantity) || 0;
+          const purchasePrice = Number(item.purchasePrice) || 0;
+          totalPurchase += quantity * purchasePrice;
+        });
+      }
+    });
+    
+    return totalPurchase;
+  }
+
+  getInventoryVariance(): { totalEntries: number; currentInventory: number; variance: number } {
+    const totalEntries = this.getTotalEntries().totalValue;
+    const currentInventory = this.getInventoryTotals().totalCurrentValue;
+    const variance = currentInventory - totalEntries; // solde inventaire - solde -1
+    
+    return { totalEntries, currentInventory, variance };
   }
 
   trackByItem = (_index: number, item: { id?: number; productId: number }): number => {
@@ -236,29 +267,21 @@ export class ShopTransferComponent implements OnInit {
       .catch(() => []);
   }
 
-  // Calculate total entries (current inventory + exits = total entries)
+  // Calculate total entries (quantities and values from entry documents only)
   getTotalEntries(): { totalQuantity: number; totalValue: number } {
     let totalQuantity = 0;
     let totalValue = 0;
 
-    // Get total exits first
-    const exits = this.getTotalExits();
-    
-    // Add current inventory quantities
-    this.inventory.forEach(item => {
-      const quantity = Number(item.quantity) || 0;
-      totalQuantity += quantity;
-      totalValue += Number(this.getItemPurchaseTotal(item));
-    });
-    
-    // Total entries = current inventory + exits
-    totalQuantity += exits.totalQuantity;
-    
-    // Add exits value (calculated at purchase price)
-    this.inventory.forEach(item => {
-      const exits = this.getProductExits(item.productId);
-      const unitPrice = this.getPurchaseUnitPrice(item);
-      totalValue += exits.totalQuantity * unitPrice;
+    // Calculate quantity and value ONLY from entry documents (bon d'entrée)
+    this.entryDocuments.forEach(doc => {
+      if (doc.items) {
+        doc.items.forEach((item: any) => {
+          const quantity = Number(item.quantity) || 0;
+          const purchasePrice = Number(item.purchasePrice) || 0;
+          totalQuantity += quantity;
+          totalValue += quantity * purchasePrice;
+        });
+      }
     });
 
     return { totalQuantity, totalValue };

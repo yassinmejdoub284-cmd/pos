@@ -6,25 +6,50 @@
       <span class="text-gray-600">Gérez les entrées de stock pour tous vos dépôts</span>
     </div>
 
-    <!-- Main Action Card -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-      <div class="text-center">
-        <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
-          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-          </svg>
+    <!-- Main Action Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <!-- Stock Entries Card -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div class="text-center">
+          <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+            </svg>
+          </div>
+          
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Entrées de Stock</h2>
+          
+          <button 
+            (click)="navigateToDepotSelection()"
+            class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg transition-all duration-200 shadow-lg transform hover:scale-105">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Gérer les Entrées
+          </button>
         </div>
-        
-        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Que souhaitez-vous faire ?</h2>
-        
-        <button 
-          (click)="navigateToDepotSelection()"
-          class="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg transition-all duration-200 shadow-lg transform">
-          <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-          </svg>
-          Gérer les Entrées de Stock
-        </button>
+      </div>
+
+      <!-- Stock Returns Card -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div class="text-center">
+          <div class="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m5 14v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2h8a2 2 0 002-2z"></path>
+            </svg>
+          </div>
+          
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Retours de Stock</h2>
+          
+          <button 
+            (click)="navigateToReturnDepotSelection()"
+            class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white font-medium rounded-lg transition-all duration-200 shadow-lg transform hover:scale-105">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m5 14v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2h8a2 2 0 002-2z"></path>
+            </svg>
+            Gérer les Retours
+          </button>
+        </div>
       </div>
     </div>
 

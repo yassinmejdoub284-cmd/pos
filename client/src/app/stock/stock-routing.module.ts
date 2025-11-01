@@ -40,7 +40,15 @@ const routes: Routes = [
   { path: 'produits-de-caisse', loadChildren: () => import('./produits-de-caisse/produits-de-caisse.module').then(m => m.ProduitsDeCaisseModule) },
   { path: 'transport', loadChildren: () => import('./transport/transport.module').then(m => m.TransportModule) },
   { path: 'vehicles', loadChildren: () => import('./vehicles/vehicles.module').then(m => m.VehiclesModule) },
-  { path: 'drivers', loadChildren: () => import('./drivers/drivers.module').then(m => m.DriversModule) }
+  { path: 'drivers', loadChildren: () => import('./drivers/drivers.module').then(m => m.DriversModule) },
+  { 
+    path: 'documents/bon-retour/:depotId', 
+    loadChildren: () => import('./documents/bon-retour/bon-retour.module').then(m => m.BonRetourModule) 
+  },
+  { 
+    path: 'documents/bon-retour/edit/:documentId', 
+    loadChildren: () => import('./documents/bon-retour/bon-retour.module').then(m => m.BonRetourModule) 
+  }
 ];
 
 @NgModule({
