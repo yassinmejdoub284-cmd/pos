@@ -199,30 +199,34 @@ export class ClotureComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Règlements fournisseur (from cash movements)
+    // Règlements fournisseur (from cash movements) - exclude rejected
     const movements = (session.cashMovements || []) as Array<any>;
     for (const m of movements) {
-      const reasonLower = (m.reason || '').toLowerCase();
+      const reason = String(m.reason || '');
+      const reasonLower = reason.toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
       const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
-      if (m.type === 'SORTIE' && isSupplierPayment && amount > 0) {
+      // Exclude rejected movements
+      if (m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]')) {
         rows.push({
           createdAt: m.createdAt,
-          label: (m.reason || 'Règlement fournisseur').replace(/#\d+\s*\(FOURN:\d+\)/i, '').trim(),
+          label: reason.replace(/#\d+\s*\(FOURN:\d+\)/i, '').trim(),
           amount: amount
         });
       }
     }
 
-    // Remboursements (from cash movements)
+    // Remboursements (from cash movements) - exclude rejected
     for (const m of movements) {
-      const reasonLower = (m.reason || '').toLowerCase();
+      const reason = String(m.reason || '');
+      const reasonLower = reason.toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
       const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
-      if (m.type === 'SORTIE' && isRefund && amount > 0) {
+      // Exclude rejected movements
+      if (m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]')) {
         rows.push({
           createdAt: m.createdAt,
-          label: m.reason || 'Remboursement',
+          label: reason || 'Remboursement',
           amount: amount
         });
       }
@@ -425,8 +429,15 @@ export class ClotureComponent implements OnInit, OnDestroy {
         });
       });
     }
-    // Fallback to movements with expense-like reason
-    return this.getRecentMovements(10, (m: any) => m.type === 'SORTIE' && (((m.reason || '').toLowerCase().includes('dépense')) || ((m.reason || '').toLowerCase().includes('depense'))));
+    // Fallback to movements with expense-like reason (exclude rejected)
+    return this.getRecentMovements(10, (m: any) => {
+      const reason = String(m.reason || '');
+      const amount = parseFloat(m.amount || 0) || 0;
+      return m.type === 'SORTIE' && 
+             (reason.toLowerCase().includes('dépense') || reason.toLowerCase().includes('depense')) &&
+             !reason.includes('[REJETÉ]') && 
+             amount > 0;
+    });
   }
 
   recentSupplierPayments(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
@@ -436,10 +447,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
     return movements
       .filter(m => {
-        const reasonLower = (m.reason || '').toLowerCase();
+        const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isSupplierPayment && amount > 0;
+        return m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]');
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10)
@@ -480,10 +492,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const movements = this.currentSession()?.cashMovements || [];
     return movements
       .filter(m => {
-        const reasonLower = (m.reason || '').toLowerCase();
+        const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isSupplierPayment && amount > 0;
+        return m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]');
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
@@ -493,10 +506,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const movements = (this.currentSession()?.cashMovements || []) as any[];
     return movements
       .filter(m => {
-        const reasonLower = (m.reason || '').toLowerCase();
+        const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isRefund && amount > 0;
+        return m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]');
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10)
@@ -512,10 +526,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const movements = this.currentSession()?.cashMovements || [];
     return movements
       .filter(m => {
-        const reasonLower = (m.reason || '').toLowerCase();
+        const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isRefund && amount > 0;
+        return m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]');
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
@@ -577,10 +592,17 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const summary: any = this.currentSession()?.summary || {};
     const fromSummary = parseFloat(summary.expensesTotal || 0) || 0;
     if (fromSummary > 0) return fromSummary;
-    // Fallback to movements tagged as expenses
+    // Fallback to movements tagged as expenses (exclude rejected)
     const movements = this.currentSession()?.cashMovements || [];
     return movements
-      .filter(m => m.type === 'SORTIE' && ((m.reason || '').toLowerCase().includes('dépense') || (m.reason || '').toLowerCase().includes('depense')))
+      .filter(m => {
+        const reason = String(m.reason || '');
+        const amount = parseFloat((m as any).amount || 0) || 0;
+        return m.type === 'SORTIE' && 
+               (reason.toLowerCase().includes('dépense') || reason.toLowerCase().includes('depense')) &&
+               !reason.includes('[REJETÉ]') && 
+               amount > 0;
+      })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 

@@ -280,8 +280,34 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-  const document = await prisma.stockDocument.findUnique({
-      where: { id: parseInt(req.params.id) },
+    const { depotId } = req.query;
+    
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot documents' });
+    }
+    
+    const document = await prisma.stockDocument.findFirst({
+      where: {
+        id: parseInt(req.params.id),
+        ...(targetDepotId ? {
+          OR: [
+            { emetteurId: targetDepotId },
+            { destinataireId: targetDepotId }
+          ]
+        } : (req.user?.role === 'ADMIN' ? {} : {
+          OR: [
+            { emetteurId: userDepotId },
+            { destinataireId: userDepotId }
+          ]
+        }))
+      },
       include: {
       emetteur: { include: { company: true } },
       destinataire: { include: { company: true } },

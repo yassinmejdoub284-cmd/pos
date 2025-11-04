@@ -13,20 +13,45 @@ export function authInterceptor(
   const token = authService.getToken();
   
   // Skip adding Authorization header for login and register endpoints
-  if (token && !request.url.includes('/auth/login') && !request.url.includes('/auth/register')) {
+  const isAuthEndpoint = request.url.includes('/auth/login') || request.url.includes('/auth/register');
+  
+  if (!isAuthEndpoint) {
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
-    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-    if (visitingDepotId) {
-      headers['X-Depot-Id'] = visitingDepotId;
+    const headers: Record<string, string> = {};
+    
+    // Always add Authorization header if token exists (even if empty, let server handle it)
+    if (token && token.trim().length > 0) {
+      headers['Authorization'] = `Bearer ${token.trim()}`;
     }
-    request = request.clone({ setHeaders: headers });
+    
+    if (visitingDepotId && visitingDepotId.trim().length > 0) {
+      headers['X-Depot-Id'] = visitingDepotId.trim();
+    }
+    
+    if (Object.keys(headers).length > 0) {
+      request = request.clone({ setHeaders: headers });
+    }
   }
   
   return next(request).pipe(
     catchError((error: HttpErrorResponse) => {
       if (error && (error.status === 401 || error.status === 403)) {
-        authService.logout();
-        router.navigate(['/auth/login']);
+        // Only logout if we actually had a token AND it's not a login/register endpoint
+        // Also skip logout for auth endpoints to avoid loops
+        const isAuthEndpoint = request.url.includes('/auth/login') || request.url.includes('/auth/register');
+        if (!isAuthEndpoint) {
+          const currentToken = authService.getToken();
+          if (currentToken) {
+            // Check if token is actually invalid by verifying it exists in sessionStorage
+            const userStr = sessionStorage.getItem('user');
+            // Only logout if we have both token and user (meaning we were authenticated)
+            if (userStr) {
+              // Token might be expired or invalid - clear session
+              authService.logout();
+              router.navigate(['/auth/login']);
+            }
+          }
+        }
       }
       return throwError(() => error);
     })

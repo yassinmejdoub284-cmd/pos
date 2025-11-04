@@ -39,4 +39,5 @@ export interface LoginRequest {
   token?: string;
   username?: string;
   password?: string;
+  depotId?: number;
 } 

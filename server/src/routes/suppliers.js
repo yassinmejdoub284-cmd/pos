@@ -7,10 +7,83 @@ const router = express.Router();
 // Get all suppliers
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    const { depotId } = req.query;
+    
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: requested > visiting > user's depot
+    let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot (for MANAGER/CASHIER with visiting depot header)
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+        // Allow access for users without assigned depot (like RESPONSABLE_MAGASIN)
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot suppliers' });
+      }
+      // Deny if no depot available
+      else if (!targetDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view suppliers' });
+      }
+    }
+
+    // Filter suppliers by depotId or by expenses in the target depot
+    const suppliersWhere = {
+      isActive: true
+    };
+    
+    // If targetDepotId is specified, filter by depotId OR by expenses in that depot
+    if (targetDepotId) {
+      suppliersWhere.OR = [
+        { depotId: targetDepotId },
+        {
+          expenses: {
+            some: {
+              depotId: targetDepotId
+            }
+          }
+        }
+      ];
+    } else if (req.user?.role !== 'ADMIN' && userDepotId) {
+      // For non-admin users without specified depot, show suppliers assigned to their depot or with expenses in their depot
+      suppliersWhere.OR = [
+        { depotId: userDepotId },
+        {
+          expenses: {
+            some: {
+              depotId: userDepotId
+            }
+          }
+        }
+      ];
+    }
+    
     const suppliers = await prisma.supplier.findMany({
-      where: { isActive: true },
+      where: suppliersWhere,
       include: {
         expenses: {
+          where: targetDepotId ? { depotId: targetDepotId } : (req.user?.role !== 'ADMIN' ? { depotId: userDepotId } : {}),
           select: {
             id: true,
             amount: true,
@@ -34,7 +107,9 @@ router.get('/', authenticateToken, async (req, res) => {
         _count: {
           select: {
             debtTransactions: true,
-            expenses: true,
+            expenses: {
+              where: targetDepotId ? { depotId: targetDepotId } : (req.user?.role !== 'ADMIN' ? { depotId: userDepotId } : {})
+            },
             payments: true
           }
         }
@@ -45,8 +120,16 @@ router.get('/', authenticateToken, async (req, res) => {
     // Calculate financial information for each supplier using the same logic as supplier statement
     const suppliersWithFinancials = await Promise.all(suppliers.map(async (supplier) => {
       // Get ALL expenses and payments for this supplier (not just recent ones)
+      // Filter expenses by depotId for isolation
+      const expenseWhere = { supplierId: supplier.id };
+      if (targetDepotId) {
+        expenseWhere.depotId = targetDepotId;
+      } else if (req.user?.role !== 'ADMIN') {
+        expenseWhere.depotId = userDepotId;
+      }
+      
       const allExpenses = await prisma.expense.findMany({
-        where: { supplierId: supplier.id },
+        where: expenseWhere,
         select: { amount: true, isPaid: true, isAdvance: true, notes: true }
       });
       
@@ -139,8 +222,39 @@ router.get('/', authenticateToken, async (req, res) => {
 // Get supplier by ID
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    const { depotId } = req.query;
+    
+    // Enforce depot isolation
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot suppliers' });
+    }
+    
     const supplier = await prisma.supplier.findUnique({
-      where: { id: parseInt(req.params.id) }
+      where: { id: parseInt(req.params.id) },
+      include: {
+        expenses: {
+          where: targetDepotId ? { depotId: targetDepotId } : (req.user?.role !== 'ADMIN' ? { depotId: userDepotId } : {}),
+          select: {
+            id: true,
+            amount: true,
+            date: true,
+            notes: true,
+            category: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
+          orderBy: { date: 'desc' }
+        }
+      }
     });
     
     if (!supplier) {
@@ -157,10 +271,35 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new supplier
 router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
   try {
-    const { name, contactName, email, phone, address, city, postalCode, taxNumber, paymentTerms, notes } = req.body;
+    const { name, contactName, email, phone, address, city, postalCode, taxNumber, paymentTerms, notes, depotId } = req.body;
     
     if (!name) {
       return res.status(400).json({ error: 'Le nom du fournisseur est requis' });
+    }
+
+    // Enforce depot isolation - use provided depotId for admin, or user's depotId for non-admin
+    const userDepotId = req.user?.depotId;
+    let targetDepotId = null;
+    
+    if (req.user?.role === 'ADMIN') {
+      // Admin can choose depotId from request body (-1 means null, no depot assigned)
+      targetDepotId = depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null;
+    } else {
+      // Non-admin users must use their assigned depotId
+      if (!userDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot to create suppliers' });
+      }
+      targetDepotId = userDepotId;
+    }
+
+    // Validate depot exists if depotId is provided
+    if (targetDepotId) {
+      const depot = await prisma.depot.findUnique({
+        where: { id: targetDepotId }
+      });
+      if (!depot) {
+        return res.status(400).json({ error: 'Invalid depot specified' });
+      }
     }
 
     const supplier = await prisma.supplier.create({
@@ -174,7 +313,8 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (re
         postalCode,
         taxNumber,
         paymentTerms,
-        notes
+        notes,
+        depotId: targetDepotId
       }
     });
 
@@ -188,23 +328,55 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (re
 // Update supplier
 router.put('/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
   try {
-    const { name, contactName, email, phone, address, city, postalCode, taxNumber, paymentTerms, notes, isActive } = req.body;
+    const { name, contactName, email, phone, address, city, postalCode, taxNumber, paymentTerms, notes, isActive, depotId } = req.body;
+    
+    // Enforce depot isolation - use provided depotId for admin, or user's depotId for non-admin
+    const userDepotId = req.user?.depotId;
+    let targetDepotId = undefined;
+    
+    if (req.user?.role === 'ADMIN' && depotId !== undefined) {
+      // Admin can choose depotId from request body (-1 means null, no depot assigned)
+      targetDepotId = parseInt(depotId) === -1 ? null : parseInt(depotId);
+    } else if (req.user?.role !== 'ADMIN') {
+      // Non-admin users must use their assigned depotId
+      if (!userDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot to update suppliers' });
+      }
+      targetDepotId = userDepotId;
+    }
+
+    // Validate depot exists if depotId is provided
+    if (targetDepotId !== undefined && targetDepotId !== null) {
+      const depot = await prisma.depot.findUnique({
+        where: { id: targetDepotId }
+      });
+      if (!depot) {
+        return res.status(400).json({ error: 'Invalid depot specified' });
+      }
+    }
+
+    const updateData = {
+      name,
+      contactName,
+      email,
+      phone,
+      address,
+      city,
+      postalCode,
+      taxNumber,
+      paymentTerms,
+      notes,
+      isActive
+    };
+
+    // Only update depotId if it's provided (for admin) or set it to user's depot (for non-admin)
+    if (targetDepotId !== undefined) {
+      updateData.depotId = targetDepotId;
+    }
     
     const supplier = await prisma.supplier.update({
       where: { id: parseInt(req.params.id) },
-      data: {
-        name,
-        contactName,
-        email,
-        phone,
-        address,
-        city,
-        postalCode,
-        taxNumber,
-        paymentTerms,
-        notes,
-        isActive
-      }
+      data: updateData
     });
 
     res.json(supplier);
@@ -254,17 +426,45 @@ router.patch('/:id/toggle-status', authenticateToken, requireRole(['ADMIN', 'MAN
 // Get supplier summaries for statement
 router.get('/statements/summary', authenticateToken, async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, depotId } = req.query;
+    
+    // Enforce depot isolation
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot suppliers' });
+    }
     
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
+    // Filter suppliers to only show those with expenses in the target depot
+    const suppliersWhere = { isActive: true };
+    if (targetDepotId) {
+      suppliersWhere.expenses = {
+        some: {
+          depotId: targetDepotId
+        }
+      };
+    } else if (req.user?.role !== 'ADMIN') {
+      suppliersWhere.expenses = {
+        some: {
+          depotId: userDepotId
+        }
+      };
+    }
+
     const suppliers = await prisma.supplier.findMany({
-      where: { isActive: true },
+      where: suppliersWhere,
       include: {
         expenses: {
           where: {
+            ...(targetDepotId ? { depotId: targetDepotId } : (req.user?.role !== 'ADMIN' ? { depotId: userDepotId } : {})),
             date: {
               gte: start,
               lte: end
@@ -291,8 +491,16 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
 
     const summaries = await Promise.all(suppliers.map(async (supplier) => {
       // Get ALL expenses and payments for this supplier (not just period ones)
+      // Filter expenses by depotId for isolation
+      const expenseWhere = { supplierId: supplier.id };
+      if (targetDepotId) {
+        expenseWhere.depotId = targetDepotId;
+      } else if (req.user?.role !== 'ADMIN') {
+        expenseWhere.depotId = userDepotId;
+      }
+      
       const allExpenses = await prisma.expense.findMany({
-        where: { supplierId: supplier.id },
+        where: expenseWhere,
         select: { amount: true, isPaid: true, isAdvance: true, notes: true }
       });
       
@@ -386,7 +594,18 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
 router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
   try {
     const { supplierId } = req.params;
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, depotId } = req.query;
+
+    // Enforce depot isolation
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot suppliers' });
+    }
 
     // Get supplier info
     const supplier = await prisma.supplier.findUnique({
@@ -401,12 +620,19 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
 
-    // Get expenses
+    // Get expenses - filter by depotId
+    const expensesWhere = { 
+      supplierId: parseInt(supplierId),
+      date: { gte: start, lte: end }
+    };
+    if (targetDepotId) {
+      expensesWhere.depotId = targetDepotId;
+    } else if (req.user?.role !== 'ADMIN') {
+      expensesWhere.depotId = userDepotId;
+    }
+    
     const expenses = await prisma.expense.findMany({
-      where: { 
-        supplierId: parseInt(supplierId),
-        date: { gte: start, lte: end }
-      },
+      where: expensesWhere,
       include: {
         category: {
           select: {

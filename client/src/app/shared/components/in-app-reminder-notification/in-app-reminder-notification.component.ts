@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, effect, inject, runInInjectionContext, Injector } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RemindersService } from '../../../core/services/reminders.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { Reminder } from '../../../core/models/reminder.model';
 import { VoicePlayerComponent } from '../voice-player/voice-player.component';
 import { interval, Subscription } from 'rxjs';
@@ -105,12 +106,40 @@ export class InAppReminderNotificationComponent implements OnInit, OnDestroy {
   
   private checkInterval: Subscription | null = null;
   private lastCheckTime = 0;
+  private injector = inject(Injector);
 
-  constructor(private remindersService: RemindersService) {}
+  constructor(
+    private remindersService: RemindersService,
+    private authService: AuthService
+  ) {}
 
   ngOnInit(): void {
-    // Check for reminders immediately (for any that are already due)
-    this.checkForReminders();
+    // Watch for auth state changes - use runInInjectionContext for effect
+    runInInjectionContext(this.injector, () => {
+      effect(() => {
+        const isAuthenticated = this.authService.isAuthenticated();
+        if (isAuthenticated) {
+          // Check for reminders when user logs in
+          if (!this.checkInterval) {
+            this.checkForReminders();
+          }
+        } else {
+          // Clear interval if user logs out
+          if (this.checkInterval) {
+            this.checkInterval.unsubscribe();
+            this.checkInterval = null;
+          }
+          this.showNotification.set(false);
+          this.currentReminder.set(null);
+        }
+      });
+    });
+    
+    // Check immediately if already authenticated
+    const token = this.authService.getToken();
+    if (token) {
+      this.checkForReminders();
+    }
     
     // For testing: expose checkForReminders globally
     (window as any).checkReminders = () => this.checkForReminders();
@@ -123,6 +152,12 @@ export class InAppReminderNotificationComponent implements OnInit, OnDestroy {
   }
 
   private checkForReminders(): void {
+    // Only check if user is authenticated
+    const token = this.authService.getToken();
+    if (!token) {
+      return;
+    }
+
     // Only check if we're not already showing a notification
     if (this.showNotification()) {
       return;
@@ -141,23 +176,40 @@ export class InAppReminderNotificationComponent implements OnInit, OnDestroy {
         }
       },
       error: (error) => {
-        console.error('Error checking for reminders:', error);
-        // On error, check again in 5 minutes
-        this.scheduleNextReminderCheck(5 * 60 * 1000);
+        // Only log error if it's not a 401 (unauthorized) - that's expected when not logged in
+        if (error.status !== 401) {
+          console.error('Error checking for reminders:', error);
+        }
+        // On error, check again in 5 minutes (if still authenticated)
+        if (this.authService.getToken()) {
+          this.scheduleNextReminderCheck(5 * 60 * 1000);
+        }
       }
     });
   }
 
   private scheduleNextReminderCheck(delayMs: number = 0): void {
+    // Only schedule if user is authenticated
+    const token = this.authService.getToken();
+    if (!token) {
+      return;
+    }
+
     // Clear any existing timer
     if (this.checkInterval) {
       this.checkInterval.unsubscribe();
+      this.checkInterval = null;
     }
 
     if (delayMs === 0) {
       // Get the next snooze expiration time from backend
       this.remindersService.getNextSnoozeTime().subscribe({
         next: (snoozeInfo) => {
+          // Check if still authenticated before scheduling
+          if (!this.authService.getToken()) {
+            return;
+          }
+
           if (snoozeInfo.nextSnoozeTime) {
             const nextSnoozeTime = new Date(snoozeInfo.nextSnoozeTime);
             const now = new Date();
@@ -179,9 +231,14 @@ export class InAppReminderNotificationComponent implements OnInit, OnDestroy {
           }
         },
         error: (error) => {
-          console.error('Error getting next snooze time:', error);
-          // Fallback: check in 5 minutes
-          this.scheduleNextReminderCheck(5 * 60 * 1000);
+          // Only log error if it's not a 401 (unauthorized)
+          if (error.status !== 401) {
+            console.error('Error getting next snooze time:', error);
+          }
+          // Fallback: check in 5 minutes (if still authenticated)
+          if (this.authService.getToken()) {
+            this.scheduleNextReminderCheck(5 * 60 * 1000);
+          }
         }
       });
     } else {

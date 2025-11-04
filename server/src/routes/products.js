@@ -77,19 +77,28 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const { depotId } = req.query;
     
-    // Build where clause for depot filtering
-    let whereClause = {};
+    // Enforce depot isolation - use user's depotId or provided depotId
+    const userDepotId = req.user?.depotId;
+    const targetDepotId = depotId ? parseInt(depotId) : userDepotId;
     
-    // If depotId is provided, filter products by depot
-    if (depotId) {
-      whereClause = {
-        depotAssignments: {
-          some: {
-            depotId: parseInt(depotId)
-          }
-        }
-      };
+    // For non-admin users, only allow access to their own depot
+    if (req.user?.role !== 'ADMIN' && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot products' });
     }
+    
+    // If no depotId available, return error
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'depotId is required to fetch products' });
+    }
+    
+    // Build where clause for depot filtering - ALWAYS filter by depot for isolation
+    const whereClause = {
+      depotAssignments: {
+        some: {
+          depotId: targetDepotId
+        }
+      }
+    };
     
     const products = await prisma.product.findMany({
       where: whereClause,
@@ -136,16 +145,47 @@ router.get('/familles', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
+    const { depotId } = req.query;
     
     if (isNaN(productId)) {
       return res.status(400).json({ error: 'Invalid product ID' });
     }
     
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot products' });
+    }
+    
+    if (!targetDepotId && req.user?.role !== 'ADMIN') {
+      return res.status(400).json({ error: 'depotId is required to fetch products' });
+    }
+    
+    const product = await prisma.product.findFirst({
+      where: {
+        id: productId,
+        ...(targetDepotId ? {
+          depotAssignments: {
+            some: {
+              depotId: targetDepotId
+            }
+          }
+        } : {})
+      },
       include: {
         famille: true,
         inventory: {
+          where: targetDepotId ? { depotId: targetDepotId } : {},
+          include: {
+            depot: true
+          }
+        },
+        depotAssignments: {
           include: {
             depot: true
           }
@@ -154,7 +194,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     });
     
     if (!product) {
-      return res.status(404).json({ error: 'Produit non trouvé' });
+      return res.status(404).json({ error: 'Produit non trouvé ou non assigné à ce dépôt' });
     }
     
     res.json(product);

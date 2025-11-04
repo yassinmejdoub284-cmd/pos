@@ -489,14 +489,41 @@ export class CaisseComponent implements OnInit, OnDestroy {
       }
     }
     
-    // If user is admin and has no depot ID, show depot selection
-    if (this.authService.isAdmin() && (!this.currentShopDepotId || this.currentShopDepotId === 0)) {
-      this.showDepotSelection = true;
-      this.loadDepots();
-      // Don't load shop name or inventory until depot is selected
-      this.currentShopName = 'Sélection du dépôt...';
+    // If user has no depot ID, show depot selection or use first available depot
+    if (!this.currentShopDepotId || this.currentShopDepotId === 0) {
+      if (this.authService.isAdmin()) {
+        // Admin can select depot
+        this.showDepotSelection = true;
+        this.loadDepots();
+        this.currentShopName = 'Sélection du dépôt...';
+      } else {
+        // Non-admin without depot: try to find first available shop depot
+        this.depotsService.list().subscribe({
+          next: (depots) => {
+            const shopDepot = depots.find((d: any) => d.isActive && (d.type === 'SHOP' || d.type === 'MAIN'));
+            if (shopDepot) {
+              this.currentShopDepotId = shopDepot.id;
+              sessionStorage.setItem('visitingDepotId', shopDepot.id.toString());
+              this.ticketCounterService.setDepotId(this.currentShopDepotId);
+              if (environment.enableRealtime) {
+                this.socketService.connect();
+                this.socketService.joinDepot(this.currentShopDepotId);
+              }
+              this.loadShopName();
+              this.loadShopInventory();
+            } else {
+              this.currentShopName = 'Aucun dépôt disponible';
+              this.showAlertMessage('Aucun dépôt disponible. Veuillez contacter un administrateur.', 'error');
+            }
+          },
+          error: () => {
+            this.currentShopName = 'Erreur de chargement';
+            this.showAlertMessage('Erreur lors du chargement des dépôts', 'error');
+          }
+        });
+      }
     } else {
-      // For regular users or admins with depot, load normally
+      // For users with depot, load normally
       this.loadShopName();
       this.loadShopInventory();
     }
@@ -1321,6 +1348,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   filteredExpenseSuppliers: any[] = [];
   submittingSupplierAction = false;
   remainingCashAfterExpense: number | null = null;
+  editingExpenseField: 'total' | 'paid' | null = null;
 
   openClientSearch(): void {
     this.showClientSearchPopup = true;
@@ -6167,8 +6195,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Numpad methods for expense
   addToExpenseAmount(value: string): void {
-    // Determine which field we're editing based on currentInput
-    const isEditingTotal = this.currentInput === this.expenseTotalAmount;
+    // Determine which field we're editing based on tracking variable
+    const isEditingTotal = this.editingExpenseField === 'total';
     const currentAmount = isEditingTotal ? this.expenseTotalAmount : this.expensePaidAmount;
     
     if (value === '.') {
@@ -6176,6 +6204,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
         if (isEditingTotal) {
           this.expenseTotalAmount += value;
           this.currentInput = this.expenseTotalAmount;
+          // Auto-sync paid amount with total when payNow is true AND paid amount is empty or equal to previous total
+          if (this.expensePayNow && (!this.expensePaidAmount || this.expensePaidAmount === this.currentInput.slice(0, -1))) {
+            this.expensePaidAmount = this.expenseTotalAmount;
+          }
         } else {
           this.expensePaidAmount += value;
           this.currentInput = this.expensePaidAmount;
@@ -6185,7 +6217,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
       if (isEditingTotal) {
         this.expenseTotalAmount += value;
         this.currentInput = this.expenseTotalAmount;
+        // Auto-sync paid amount with total when payNow is true AND paid amount is empty or equal to previous total
+        // This allows user to manually change paid amount independently
+        if (this.expensePayNow && (!this.expensePaidAmount || this.expensePaidAmount === this.currentInput.slice(0, -1))) {
+          this.expensePaidAmount = this.expenseTotalAmount;
+        }
       } else {
+        // When editing paid amount, allow independent modification
         this.expensePaidAmount += value;
         this.currentInput = this.expensePaidAmount;
       }
@@ -6193,13 +6231,42 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   clearExpenseAmount(): void {
-    const isEditingTotal = this.currentInput === this.expenseTotalAmount;
+    // Use tracking variable to determine which field we're editing
+    const isEditingTotal = this.editingExpenseField === 'total';
     if (isEditingTotal) {
+      // Save total amount before clearing to check if paid was synced
+      const totalBeforeClear = this.expenseTotalAmount;
       this.expenseTotalAmount = '';
-      this.currentInput = this.expenseTotalAmount;
+      this.currentInput = '';
+      // Only clear paid amount if payNow is true AND it was auto-synced (equal to total before clearing)
+      if (this.expensePayNow && this.expensePaidAmount === totalBeforeClear) {
+        this.expensePaidAmount = '';
+      }
     } else {
+      // When clearing paid amount, just clear it independently
       this.expensePaidAmount = '';
-      this.currentInput = this.expensePaidAmount;
+      this.currentInput = '';
+    }
+  }
+
+  setExpensePayNow(payNow: boolean): void {
+    const wasPayNow = this.expensePayNow;
+    this.expensePayNow = payNow;
+    
+    if (payNow && !wasPayNow) {
+      // When switching TO "Maintenant", sync paid amount with total amount only if paid is empty
+      // This allows preserving manually entered paid amount
+      if (!this.expensePaidAmount || this.expensePaidAmount === '') {
+        const totalAmount = this.expenseTotalAmount || '';
+        this.expensePaidAmount = totalAmount;
+      }
+    } else if (!payNow && wasPayNow) {
+      // When switching to "Plus Tard", clear paid amount only if it was auto-synced
+      // Check if paid amount equals total amount (likely auto-synced)
+      if (this.expensePaidAmount === this.expenseTotalAmount) {
+        this.expensePaidAmount = '';
+      }
+      // Otherwise keep the manually entered paid amount
     }
   }
 
@@ -6340,6 +6407,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.expenseCollectionDate = new Date().toISOString().split('T')[0];
     this.selectedExpenseCategory = null;
     this.expenseSupplierSearch = '';
+    this.editingExpenseField = null;
   }
 
   getExpenseRemainingAmount(): number {
@@ -6350,15 +6418,17 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   openAmountInput(type: 'total' | 'paid'): void {
     // Set the current input field for the numpad
-    this.currentInput = type === 'total' ? this.expenseTotalAmount : this.expensePaidAmount;
     this.pendingProduct = null;
     this.inputMode = 'price'; // Use 'price' mode for amount input
+    this.editingExpenseField = type; // Track which field we're editing
     
-    // Clear the current input to start fresh
     if (type === 'total') {
-      this.expenseTotalAmount = '';
+      this.currentInput = this.expenseTotalAmount;
+      // Don't clear - allow continuing to edit existing value or start fresh with numpad
     } else {
-      this.expensePaidAmount = '';
+      this.currentInput = this.expensePaidAmount;
+      // Don't clear - allow editing existing paid amount flexibly
+      // User can modify independently from total
     }
   }
 

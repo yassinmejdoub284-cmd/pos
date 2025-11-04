@@ -20,7 +20,7 @@ model User {
   lastLogin                      DateTime?                 @map("last_login")
   createdAt                      DateTime                  @default(now()) @map("created_at")
   updatedAt                      DateTime                  @updatedAt @map("updated_at")
-  pin                            String                    @unique @db.VarChar(8)
+  pin                            String                    @db.VarChar(8)
   token                          String?                   @unique @db.VarChar(50)
   requestedAttendanceCorrections AttendanceCorrection[]    @relation("AttendanceRequestedBy")
   approvedAttendanceCorrections  AttendanceCorrection[]    @relation("AttendanceApprovedBy")
@@ -36,6 +36,7 @@ model User {
   approvedExpenses               Expense[]                 @relation("ExpenseApprover")
   paidExpenses                   Expense[]                 @relation("ExpensePayer")
   expenses                       Expense[]                 @relation("ExpenseCreator")
+  rejectedExpenses               Expense[]                 @relation("ExpenseRejecter")
   inventoryItemsCounted          InventoryItem[]           @relation("InventoryCounter")
   inventorySessionsClosed        InventorySession[]        @relation("InventoryCloser")
   inventorySessionsPosted        InventorySession[]        @relation("InventoryPoster")
@@ -59,6 +60,7 @@ model User {
   updatedReminders               Reminder[]                @relation("ReminderUpdatedBy")
   reminderAssignments            ReminderAssignment[]
 
+  @@unique([pin, depotId], map: "users_pin_depot_id_key")
   @@index([depotId], map: "users_depot_id_fkey")
   @@map("users")
 }
@@ -115,6 +117,7 @@ model Depot {
   toTransfers           StockTransfer[]        @relation("ToDepot")
   users                 User[]                 @relation("DepotUsers")
   releveInventaire      ReleveInventaire[]
+  suppliers             Supplier[]
 
   @@index([companyId], map: "depots_company_id_fkey")
   @@map("depots")
@@ -598,13 +601,16 @@ model Supplier {
   paymentTerms     String?                   @map("payment_terms") @db.VarChar(100)
   notes            String?                   @db.Text
   isActive         Boolean                   @default(true) @map("is_active")
+  depotId           Int?                     @map("depot_id")
   createdAt        DateTime                  @default(now()) @map("created_at")
   updatedAt        DateTime                  @updatedAt @map("updated_at")
   currentDebt      Decimal                   @default(0.000) @map("current_debt") @db.Decimal(12, 3)
   expenses         Expense[]
   debtTransactions SupplierDebtTransaction[]
   payments         SupplierPayment[]
+  depot            Depot?                    @relation(fields: [depotId], references: [id])
 
+  @@index([depotId], map: "suppliers_depot_id_fkey")
   @@map("suppliers")
 }
 
@@ -669,10 +675,15 @@ model Expense {
   paidBy           Int?                      @map("paid_by")
   supplierId       Int?                      @map("supplier_id")
   isAdvance        Boolean                   @default(false) @map("is_advance")
+  isRejected       Boolean                   @default(false) @map("is_rejected")
+  rejectedAt       DateTime?                 @map("rejected_at")
+  rejectionNotes   String?                   @map("rejection_notes") @db.Text
+  rejectedBy       Int?                      @map("rejected_by")
   approver         User?                     @relation("ExpenseApprover", fields: [approvedBy], references: [id])
   category         ExpenseCategory           @relation(fields: [categoryId], references: [id])
   depot            Depot                     @relation(fields: [depotId], references: [id])
   payer            User?                     @relation("ExpensePayer", fields: [paidBy], references: [id])
+  rejecter         User?                     @relation("ExpenseRejecter", fields: [rejectedBy], references: [id])
   supplier         Supplier?                 @relation(fields: [supplierId], references: [id])
   user             User                      @relation("ExpenseCreator", fields: [userId], references: [id])
   debtTransactions SupplierDebtTransaction[]
@@ -683,6 +694,7 @@ model Expense {
   @@index([paidBy], map: "expenses_paid_by_fkey")
   @@index([supplierId], map: "expenses_supplier_id_fkey")
   @@index([userId], map: "expenses_user_id_fkey")
+  @@index([rejectedBy], map: "expenses_rejected_by_fkey")
   @@map("expenses")
 }
 

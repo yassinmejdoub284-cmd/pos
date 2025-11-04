@@ -40,7 +40,7 @@ export class ApprovalsHistoryComponent implements OnInit {
     this.error = '';
     this.salesService.getSales().subscribe({
       next: (sales) => {
-        this.approvedGifts = (sales || []).filter(s => s.status === 'CADEAU');
+        this.approvedGifts = (sales || []).filter(s => s.status === 'CADEAU' || s.status === 'CANCELLED');
         this.loading = false;
       },
       error: () => {

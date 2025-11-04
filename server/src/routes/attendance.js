@@ -250,13 +250,15 @@ router.get('/details/:userId', authenticateToken, async (req, res) => {
 });
 
 // Punch endpoint for login/leave
-router.post('/punch', async (req, res) => {
+router.post('/punch', authenticateToken, async (req, res) => {
   try {
-    const { type, userId } = req.body;
+    const { type } = req.body;
     if (!['CHECK_IN', 'CHECK_OUT'].includes(type)) {
       return res.status(400).json({ error: 'Invalid punch type' });
     }
     
+    // Use authenticated user's ID instead of body userId for security
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(400).json({ error: 'User ID is required' });
     }

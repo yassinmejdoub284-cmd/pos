@@ -7,6 +7,8 @@ import { ApprovalsService, ChangeRequest, ClotureRejectReasonCode } from '../cor
 import { SessionsService, SessionSummary, OpenSessionRequest } from '../core/services/sessions.service';
 import { HttpClient } from '@angular/common/http';
 import { ReturnsService, ReturnRequest } from '../core/services/returns.service';
+import { forkJoin, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 @Component({
@@ -21,12 +23,15 @@ export class ApprovalsComponent implements OnInit {
   allGifts: Sale[] = [];
   pendingGifts: Sale[] = [];
   approvedGifts: Sale[] = [];
+  rejectedGifts: Sale[] = [];
   allExpenses: Expense[] = [];
   pendingExpenses: Expense[] = [];
+  approvedExpensesHistory: Expense[] = [];
+  rejectedExpensesHistory: Expense[] = [];
   varianceRequests: ChangeRequest[] = [];
   historyRequests: ChangeRequest[] = [];
   clotureSummaries: { [sessionId: number]: any } = {};
-  selectedTab: 'ALL' | 'PENDING_ADMIN' | 'CADEAU' | 'EXPENSES' | 'CLOTURE' | 'INVOICES' | 'HISTORY' | 'HISTORY_CLOTURE' | 'RETURNS' | 'REButs' | 'RETURN_HISTORY' = 'ALL';
+  selectedTab: 'ALL' | 'PENDING_ADMIN' | 'CADEAU' | 'CADEAU_REJETES' | 'EXPENSES' | 'CLOTURE' | 'INVOICES' | 'HISTORY' | 'HISTORY_CLOTURE' | 'RETURNS' | 'REButs' | 'RETURN_HISTORY' = 'ALL';
   // Filters removed
   showAlert = false;
   alertMessage = '';
@@ -104,7 +109,7 @@ export class ApprovalsComponent implements OnInit {
     } catch {}
     this.route.queryParamMap.subscribe(params => {
       const tab = params.get('tab') as any;
-      if (tab === 'PENDING_ADMIN' || tab === 'CADEAU' || tab === 'EXPENSES' || tab === 'CLOTURE' || tab === 'INVOICES' || tab === 'ALL' || tab === 'HISTORY' || tab === 'RETURNS') {
+      if (tab === 'PENDING_ADMIN' || tab === 'CADEAU' || tab === 'CADEAU_REJETES' || tab === 'EXPENSES' || tab === 'CLOTURE' || tab === 'INVOICES' || tab === 'ALL' || tab === 'HISTORY' || tab === 'RETURNS') {
         this.selectedTab = tab;
       }
     });
@@ -168,13 +173,40 @@ export class ApprovalsComponent implements OnInit {
   loadGifts(): void {
     this.loading = true;
     this.error = '';
-    this.salesService.getSales().subscribe({
-      next: (sales) => {
-        const gifts = sales.filter(s => s.status === 'PENDING_ADMIN' || s.status === 'CADEAU');
-        this.allGifts = gifts;
-        // derive lists directly
-        this.pendingGifts = this.allGifts.filter(s => s.status === 'PENDING_ADMIN');
-        this.approvedGifts = this.allGifts.filter(s => s.status === 'CADEAU');
+    const pending$ = this.salesService.getSales({ status: 'PENDING_ADMIN' }).pipe(
+      map((sales) => this.filterGiftSales(sales, 'PENDING_ADMIN')),
+      catchError((error) => {
+        console.error('Error loading pending gift sales:', error);
+        return of([] as Sale[]);
+      })
+    );
+
+    const approved$ = this.salesService.getSales({ status: 'CADEAU' }).pipe(
+      map((sales) => this.filterGiftSales(sales, 'CADEAU')),
+      catchError((error) => {
+        console.error('Error loading approved gift sales:', error);
+        return of([] as Sale[]);
+      })
+    );
+
+    const rejected$ = this.salesService.getSales({ status: 'CANCELLED' }).pipe(
+      map((sales) => this.filterGiftSales(sales, 'CANCELLED')),
+      catchError((error) => {
+        console.error('Error loading rejected gift sales:', error);
+        return of([] as Sale[]);
+      })
+    );
+
+    forkJoin({
+      pending: pending$,
+      approved: approved$,
+      rejected: rejected$
+    }).subscribe({
+      next: ({ pending, approved, rejected }) => {
+        this.allGifts = [...pending, ...approved, ...rejected];
+        this.pendingGifts = pending;
+        this.approvedGifts = approved;
+        this.rejectedGifts = rejected;
         this.loading = false;
       },
       error: () => {
@@ -188,7 +220,13 @@ export class ApprovalsComponent implements OnInit {
     this.expenseService.getExpenses().subscribe({
       next: (expenses) => {
         this.allExpenses = expenses;
-        this.pendingExpenses = this.allExpenses.filter(e => !e.isApproved);
+        this.pendingExpenses = this.allExpenses.filter(e => !e.isApproved && !e.isRejected);
+        this.approvedExpensesHistory = this.allExpenses
+          .filter(e => e.isApproved)
+          .sort((a, b) => new Date(b.approvedAt || b.updatedAt || b.date).getTime() - new Date(a.approvedAt || a.updatedAt || a.date).getTime());
+        this.rejectedExpensesHistory = this.allExpenses
+          .filter(e => !!e.isRejected)
+          .sort((a, b) => new Date(b.rejectedAt || b.updatedAt || b.date).getTime() - new Date(a.rejectedAt || a.updatedAt || a.date).getTime());
       },
       error: () => {
         this.error = "Erreur lors du chargement des dépenses";
@@ -464,13 +502,30 @@ export class ApprovalsComponent implements OnInit {
 
   reject(sale: Sale): void {
     this.salesService.rejectGiftSale(sale.id).subscribe({
-      next: () => {
+      next: (updatedSale) => {
         this.showAlertMessage('Cadeau rejeté avec succès', 'success');
+        const rejectedCopy = (updatedSale ? { ...updatedSale } : { ...sale, status: 'CANCELLED' }) as Sale;
+        // Optimistically move to rejected gifts and remove from pending
+        this.pendingGifts = this.pendingGifts.filter(s => s.id !== sale.id);
+        this.rejectedGifts = [rejectedCopy, ...this.rejectedGifts];
+        // Switch to history so the user sees it immediately
+        this.selectedTab = 'HISTORY';
+        this.mainContext = 'HISTORY';
+        // Refresh from server in background
         this.loadGifts();
       },
       error: () => {
         this.showAlertMessage('Erreur lors du rejet du cadeau', 'error');
       }
+    });
+  }
+
+  private filterGiftSales(sales: Sale[], status?: 'PENDING_ADMIN' | 'CADEAU' | 'CANCELLED'): Sale[] {
+    return (sales || []).filter((sale) => {
+      const matchesStatus = !status || sale.status === status;
+      const notes = sale.notes || '';
+      const isGift = notes.startsWith('Cadeau -') || sale.status === 'CADEAU';
+      return matchesStatus && isGift;
     });
   }
 
@@ -486,9 +541,13 @@ export class ApprovalsComponent implements OnInit {
 
   async rejectExpense(expense: Expense): Promise<void> {
     try {
-      await this.expenseService.approveExpense(expense.id, false).toPromise();
+      const rejectionNotes = prompt('Raison du rejet (optionnel):', '')?.trim();
+      await this.expenseService.approveExpense(expense.id, false, { rejectionNotes: rejectionNotes || undefined }).toPromise();
       this.showAlertMessage('Dépense rejetée avec succès', 'success');
       this.loadExpenses();
+      // Navigate to history to show the rejected expense immediately
+      this.selectedTab = 'HISTORY';
+      this.mainContext = 'HISTORY';
     } catch (error) {
       this.showAlertMessage("Erreur lors du rejet de la dépense", 'error');
     }

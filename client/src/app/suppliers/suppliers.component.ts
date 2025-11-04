@@ -3,6 +3,9 @@ import { ActivatedRoute } from '@angular/router';
 import { Router } from '@angular/router';
 import { SupplierService } from '../core/services/supplier.service';
 import { Supplier, CreateSupplierRequest, UpdateSupplierRequest } from '../core/models/supplier.model';
+import { Depot } from '../core/models/depot.model';
+import { DepotsService } from '../core/services/depots.service';
+import { AuthService } from '../core/services/auth.service';
 
 @Component({
   selector: 'app-suppliers',
@@ -21,6 +24,12 @@ export class SuppliersComponent implements OnInit {
   // Filters
   searchQuery = '';
   selectedStatus: string = 'true';
+
+  // Available depots
+  availableDepots: Depot[] = [];
+  
+  // Admin check
+  isAdmin = false;
 
   // Tunisian governorates (24)
   tunisianCities: string[] = [
@@ -52,7 +61,8 @@ export class SuppliersComponent implements OnInit {
     postalCode: '',
     taxNumber: '',
     paymentTerms: '',
-    notes: ''
+    notes: '',
+    depotId: -1 // Default to "Tous les points de vente"
   };
 
   editForm: UpdateSupplierRequest = {
@@ -71,17 +81,35 @@ export class SuppliersComponent implements OnInit {
 
   constructor(
     private supplierService: SupplierService,
+    private depotsService: DepotsService,
+    private authService: AuthService,
     private route: ActivatedRoute,
     private router: Router
   ) {}
 
   ngOnInit(): void {
+    // Check if user is admin
+    const user = this.authService?.currentUser?.();
+    this.isAdmin = user?.role === 'ADMIN';
+    
     this.loadSuppliers();
+    this.loadDepots();
     
     // Check if we should open the add modal
     this.route.queryParams.subscribe(params => {
       if (params['action'] === 'add') {
         this.openCreatePopup();
+      }
+    });
+  }
+
+  loadDepots(): void {
+    this.depotsService.list().subscribe({
+      next: (depots) => {
+        this.availableDepots = depots;
+      },
+      error: (error) => {
+        console.error('Error loading depots:', error);
       }
     });
   }
@@ -101,6 +129,19 @@ export class SuppliersComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  trackByDepotId(index: number, depot: Depot): number {
+    return depot.id;
+  }
+
+  getDepotTypeLabel(type: string): string {
+    switch (type) {
+      case 'PRINCIPAL': return 'Principal';
+      case 'SECONDAIRE': return 'Secondaire';
+      case 'POINT_DE_VENTE': return 'Point de vente';
+      default: return type;
+    }
   }
 
   get filteredSuppliers(): Supplier[] {
@@ -134,6 +175,7 @@ export class SuppliersComponent implements OnInit {
 
   // Popup methods
   openCreatePopup(): void {
+    const user = this.authService?.currentUser?.();
     this.createForm = {
       name: '',
       contactName: '',
@@ -144,7 +186,8 @@ export class SuppliersComponent implements OnInit {
       postalCode: '',
       taxNumber: '',
       paymentTerms: '',
-      notes: ''
+      notes: '',
+      depotId: this.isAdmin ? -1 : (user?.depotId ?? null) // Default to "Tous les points de vente" for admin, user depot for non-admin
     };
     this.showCreatePopup = true;
   }
@@ -193,6 +236,12 @@ export class SuppliersComponent implements OnInit {
     if (!this.createForm.name.trim()) {
       alert('Le nom du fournisseur est requis');
       return;
+    }
+
+    // For non-admin users, use their depotId
+    if (!this.isAdmin) {
+      const user = this.authService?.currentUser?.();
+      this.createForm.depotId = user?.depotId ?? null;
     }
 
     this.loading = true;

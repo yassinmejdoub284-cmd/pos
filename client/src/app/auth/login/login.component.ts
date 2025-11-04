@@ -75,10 +75,32 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.loginThemeService.detectAndSetTheme();
     this.loginThemeService.applyFaviconForLogin();
 
+    // Check if already authenticated - check both signal and sessionStorage
+    const token = sessionStorage.getItem('token');
+    const userStr = sessionStorage.getItem('user');
+    const isAuthenticated = this.authService.isAuthenticated();
+    
+    // If token exists in storage but signal not set, reload auth state
+    if (token && userStr && !isAuthenticated) {
+      try {
+        const user = JSON.parse(userStr);
+        this.authService.currentUser.set(user);
+        this.authService.isAuthenticated.set(true);
+        // Redirect based on role
+        this.redirectBasedOnRole(user.role || '');
+        return;
+      } catch (error) {
+        // If parsing fails, continue to login
+      }
+    }
+
     // Redirect if already authenticated
-    if (this.authService.isAuthenticated()) {
+    if (isAuthenticated || (token && userStr)) {
       // Session restore: show due reminders if any
-      this.tryShowRemindersThenRedirect('SESSION');
+      const currentUser = this.authService.currentUser();
+      if (currentUser) {
+        this.tryShowRemindersThenRedirect('SESSION');
+      }
       return;
     }
 
@@ -122,12 +144,39 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.error = '';
 
     // Prepare login data - use token field for scanner input, pin for manual input
-    const loginData = isToken ? { token: this.credentials.pin } : this.credentials;
+    const loginData: any = isToken ? { token: this.credentials.pin } : this.credentials;
+    
+    // Add depotId if available (from selection or sessionStorage)
+    if (this.selectedDepotId) {
+      loginData.depotId = this.selectedDepotId;
+      console.log('Using selected depotId:', this.selectedDepotId);
+    } else {
+      // Try to get depotId from sessionStorage (from previous session or depot selection)
+      const storedDepotId = sessionStorage.getItem('depotId') || sessionStorage.getItem('visitingDepotId');
+      if (storedDepotId) {
+        loginData.depotId = parseInt(storedDepotId);
+        console.log('Using stored depotId:', storedDepotId);
+      } else {
+        console.log('No depotId available - will try login without depotId');
+      }
+    }
+    
+    console.log('Login attempt:', { 
+      hasPin: !!loginData.pin, 
+      hasToken: !!loginData.token, 
+      hasDepotId: !!loginData.depotId,
+      depotId: loginData.depotId 
+    });
 
     this.authService.login(loginData).subscribe({
       next: async (response) => {
         console.log('Login successful, response:', response);
         this.loading = false;
+        
+        // Save depotId to sessionStorage for future logins
+        if (response.user.depotId) {
+          sessionStorage.setItem('depotId', String(response.user.depotId));
+        }
         
         // Force PIN change if entered PIN starts with '00'
         if (!isToken && this.credentials.pin.startsWith('00')) {
@@ -145,10 +194,52 @@ export class LoginComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Login error:', error);
+        console.error('Error details:', { 
+          status: error.status, 
+          error: error.error,
+          message: error.message 
+        });
         this.loading = false;
-        this.error = isToken ? 
-          (error.error?.error || 'Token de badge invalide') : 
-          (error.error?.error || 'Code PIN invalide');
+        
+        // If depotId is required but missing, show depot selection
+        if (error.status === 400 && (error.error?.error?.includes('depotId') || error.error?.requiresDepotId || error.error?.error?.includes('Plusieurs utilisateurs'))) {
+          this.error = 'Veuillez sélectionner un dépôt';
+          this.showDepotChoice = true;
+          return;
+        }
+        
+        // Show specific error message from server
+        const errorMessage = error.error?.error || error.message || 'Erreur de connexion';
+        this.error = errorMessage;
+        
+        // If it's a 401 and we have a depotId, try removing it and retrying
+        if (error.status === 401 && loginData.depotId && !isToken) {
+          console.log('401 error with depotId, trying without depotId...');
+          // Clear depotId and retry
+          const retryLoginData = { ...loginData };
+          delete retryLoginData.depotId;
+          sessionStorage.removeItem('depotId');
+          sessionStorage.removeItem('visitingDepotId');
+          // Retry login without depotId
+          setTimeout(() => {
+            this.authService.login(retryLoginData).subscribe({
+              next: async (response) => {
+                console.log('Retry login successful:', response);
+                this.loading = false;
+                if (response.user.depotId) {
+                  sessionStorage.setItem('depotId', String(response.user.depotId));
+                }
+                this.postLoginRole = response.user.role;
+                await this.tryShowRemindersThenRedirect('LOGIN');
+              },
+              error: (retryError) => {
+                console.error('Retry login failed:', retryError);
+                this.error = retryError.error?.error || 'Code PIN invalide';
+              }
+            });
+          }, 100);
+          return;
+        }
       }
     });
   }
@@ -405,6 +496,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     }
     // Persist selection for this session and beyond
     sessionStorage.setItem('visitingDepotId', String(this.selectedDepotId));
+    sessionStorage.setItem('depotId', String(this.selectedDepotId));
     localStorage.setItem('visitingDepotId', String(this.selectedDepotId));
 
     // ALWAYS update theme/logo immediately based on selected depot's company
@@ -424,6 +516,13 @@ export class LoginComponent implements OnInit, OnDestroy {
       }
     });
     this.showDepotChoice = false;
+    
+    // If we have a PIN entered but login failed due to missing depotId, retry login
+    if (this.credentials.pin && !this.authService.isAuthenticated()) {
+      this.onSubmit();
+      return;
+    }
+    
     // Proceed to redirect
     const role = this.authService.getCurrentUserRole() || 'ADMIN';
     await this.redirectBasedOnRole(role);

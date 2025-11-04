@@ -114,7 +114,7 @@ router.post('/categories', authenticateToken, async (req, res) => {
       }
     });
 
-    await AuditLogger.logCreate('expense_categories', category.id, category, req.user.id, req);
+    await AuditLogger.logCreate('expense_categories', category.id, category, req.user?.id, req);
 
     res.status(201).json(category);
   } catch (error) {
@@ -144,7 +144,7 @@ router.put('/categories/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER'
       }
     });
 
-    await AuditLogger.logUpdate('expense_categories', category.id, category, req.user.id, req);
+    await AuditLogger.logUpdate('expense_categories', category.id, category, req.user?.id, req);
 
     res.json(category);
   } catch (error) {
@@ -173,7 +173,7 @@ router.delete('/categories/:id', authenticateToken, requireRole(['ADMIN', 'MANAG
       where: { id: parseInt(id) }
     });
 
-    await AuditLogger.logDelete('expense_categories', parseInt(id), req.user.id, req);
+    await AuditLogger.logDelete('expense_categories', parseInt(id), req.user?.id, req);
 
     res.status(204).send();
   } catch (error) {
@@ -197,11 +197,50 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const where = {};
     
-    // Filter by user's depot if not admin/manager
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER') {
-      where.depotId = req.user.depotId;
-    } else if (depotId) {
-      where.depotId = parseInt(depotId);
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: requested > visiting > user's depot
+    let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot (for MANAGER/CASHIER with visiting depot header)
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+        // Allow access for users without assigned depot (like RESPONSABLE_MAGASIN)
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot expenses' });
+      }
+      // Deny if no depot available
+      else if (!targetDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view expenses' });
+      }
+    }
+    
+    if (targetDepotId) {
+      where.depotId = targetDepotId;
+    } else if (req.user?.role !== 'ADMIN') {
+      // Non-admin users without depot assigned cannot view expenses
+      return res.status(400).json({ error: 'User must be assigned to a depot to view expenses' });
     }
     
     if (categoryId) where.categoryId = parseInt(categoryId);
@@ -237,6 +276,14 @@ router.get('/', authenticateToken, async (req, res) => {
               lastName: true,
               username: true
             }
+          },
+          rejecter: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              username: true
+            }
           }
         },
         orderBy: { date: 'desc' },
@@ -264,8 +311,24 @@ router.get('/', authenticateToken, async (req, res) => {
 // Get expense by ID
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const expense = await prisma.expense.findUnique({
-      where: { id: parseInt(req.params.id) },
+    const { depotId } = req.query;
+    
+    // Enforce depot isolation
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot expenses' });
+    }
+    
+    const expense = await prisma.expense.findFirst({
+      where: { 
+        id: parseInt(req.params.id),
+        ...(targetDepotId ? { depotId: targetDepotId } : (req.user?.role === 'ADMIN' ? {} : { depotId: userDepotId }))
+      },
       include: {
         category: true,
         depot: true,
@@ -284,6 +347,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
             lastName: true,
             username: true
           }
+        },
+        rejecter: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            username: true
+          }
         }
       }
     });
@@ -293,7 +364,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check if user has access to this expense
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER' && expense.depotId !== req.user.depotId) {
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER' && expense.depotId !== req.user?.depotId) {
       return res.status(403).json({ error: 'Accès non autorisé' });
     }
 
@@ -316,7 +387,19 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     // Use user's depot if not specified and user is not admin/manager
-    const finalDepotId = depotId ? parseInt(depotId) : req.user.depotId;
+    let finalDepotId;
+    if (depotId) {
+      finalDepotId = parseInt(depotId);
+      if (isNaN(finalDepotId)) {
+        return res.status(400).json({ error: 'ID de dépôt invalide' });
+      }
+    } else {
+      finalDepotId = req.user?.depotId;
+      // Ensure depotId is not null/undefined
+      if (!finalDepotId) {
+        return res.status(400).json({ error: 'Utilisateur non assigné à un dépôt' });
+      }
+    }
 
     // Fetch approval threshold from settings (DB then file fallback)
     const autoApproveThreshold = await getAutoApproveThreshold();
@@ -332,14 +415,14 @@ router.post('/', authenticateToken, async (req, res) => {
           amount: isNaN(numericAmount) ? 0 : numericAmount,
           categoryId: parseInt(categoryId),
           depotId: finalDepotId,
-          userId: req.user.id,
+          userId: req.user?.id,
           date: date ? new Date(date) : new Date(),
           paymentType: paymentType || 'CASH',
           collectionDate: collectionDate ? new Date(collectionDate) : new Date(),
           notes,
           receiptUrl,
           isApproved: isAutoApproved,
-          approvedBy: isAutoApproved ? req.user.id : null,
+          approvedBy: isAutoApproved ? req.user?.id : null,
           approvedAt: isAutoApproved ? new Date() : null,
           // Temporary fallback for legacy schema requiring description
           description: '',
@@ -373,7 +456,7 @@ router.post('/', authenticateToken, async (req, res) => {
         
         if (shouldCreateCashMovement) {
           const activeSession = await tx.sessionCaisse.findFirst({
-            where: { userId: req.user.id, status: 'OPEN' },
+            where: { userId: req.user?.id, status: 'OPEN' },
             orderBy: { openedAt: 'desc' }
           });
           if (activeSession) {
@@ -394,7 +477,7 @@ router.post('/', authenticateToken, async (req, res) => {
                   type: 'SORTIE',
                   amount: cashMovementAmount,
                   reason: `Dépense #${newExpense.id}: ${newExpense.category?.name || 'Divers'}${isAdvance && paidAmount ? ` (Acompte: ${paidAmount}dt)` : ''}`,
-                  createdById: req.user.id
+                  createdById: req.user?.id
                 }
               });
               console.log('[expenses.create] Cash movement created immediately for expense:', newExpense.id, 'amount:', cashMovementAmount);
@@ -410,7 +493,7 @@ router.post('/', authenticateToken, async (req, res) => {
       return newExpense;
     });
 
-    await AuditLogger.logCreate('expenses', expense.id, expense, req.user.id, req);
+    await AuditLogger.logCreate('expenses', expense.id, expense, req.user?.id, req);
 
     // Send push notification for all expenses
     try {
@@ -447,7 +530,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check if user has access to this expense
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER' && existingExpense.depotId !== req.user.depotId) {
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER' && existingExpense.depotId !== req.user?.depotId) {
       return res.status(403).json({ error: 'Accès non autorisé' });
     }
 
@@ -459,7 +542,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     // Only allow user to update their own expenses unless admin/manager
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER' && existingExpense.userId !== req.user.id) {
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER' && existingExpense.userId !== req.user?.id) {
       return res.status(403).json({ 
         error: 'Vous ne pouvez modifier que vos propres dépenses' 
       });
@@ -490,7 +573,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
     });
 
-    await AuditLogger.logUpdate('expenses', expense.id, existingExpense, expense, req.user.id, req);
+    await AuditLogger.logUpdate('expenses', expense.id, existingExpense, expense, req.user?.id, req);
 
     res.json(expense);
   } catch (error) {
@@ -502,11 +585,11 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // Approve/reject expense
 router.patch('/:id/approve', authenticateToken, async (req, res) => {
   try {
-    const { isApproved } = req.body;
+    const { isApproved, rejectionNotes } = req.body;
     const expenseId = parseInt(req.params.id);
 
     // Only admin and manager can approve expenses
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER') {
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER') {
       return res.status(403).json({ 
         error: 'Seuls les administrateurs et managers peuvent approuver les dépenses' 
       });
@@ -521,17 +604,37 @@ router.patch('/:id/approve', authenticateToken, async (req, res) => {
     }
 
     // Check if user has access to this expense's depot
-    if (req.user.role !== 'ADMIN' && existingExpense.depotId !== req.user.depotId) {
+    if (req.user?.role !== 'ADMIN' && existingExpense.depotId !== req.user?.depotId) {
       return res.status(403).json({ error: 'Accès non autorisé' });
+    }
+
+    // Prepare update data
+    const updateData = {
+      isApproved,
+      approvedBy: isApproved ? req.user?.id : null,
+      approvedAt: isApproved ? new Date() : null
+    };
+
+    // If rejecting, set rejection fields
+    if (!isApproved) {
+      updateData.isRejected = true;
+      updateData.rejectedAt = new Date();
+      updateData.rejectedBy = req.user?.id;
+      updateData.rejectionNotes = rejectionNotes || null;
+      // Clear approval fields if rejecting
+      updateData.approvedBy = null;
+      updateData.approvedAt = null;
+    } else {
+      // If approving, clear rejection fields
+      updateData.isRejected = false;
+      updateData.rejectedAt = null;
+      updateData.rejectedBy = null;
+      updateData.rejectionNotes = null;
     }
 
     const expense = await prisma.expense.update({
       where: { id: expenseId },
-      data: {
-        isApproved,
-        approvedBy: isApproved ? req.user.id : null,
-        approvedAt: isApproved ? new Date() : null
-      },
+      data: updateData,
       include: {
         category: true,
         depot: true,
@@ -550,11 +653,19 @@ router.patch('/:id/approve', authenticateToken, async (req, res) => {
             lastName: true,
             username: true
           }
+        },
+        rejecter: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            username: true
+          }
         }
       }
     });
 
-    await AuditLogger.logUpdate('expenses', expense.id, existingExpense, expense, req.user.id, req);
+    await AuditLogger.logUpdate('expenses', expense.id, existingExpense, expense, req.user?.id, req);
 
     // Handle cash movements for rejected expenses
     if (!isApproved && (existingExpense.paymentType || 'CASH').toUpperCase() === 'CASH') {
@@ -608,7 +719,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check if user has access to this expense
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER' && existingExpense.depotId !== req.user.depotId) {
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER' && existingExpense.depotId !== req.user?.depotId) {
       return res.status(403).json({ error: 'Accès non autorisé' });
     }
 
@@ -620,7 +731,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 
     // Only allow user to delete their own expenses unless admin/manager
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER' && existingExpense.userId !== req.user.id) {
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER' && existingExpense.userId !== req.user?.id) {
       return res.status(403).json({ 
         error: 'Vous ne pouvez supprimer que vos propres dépenses' 
       });
@@ -630,7 +741,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       where: { id: expenseId }
     });
 
-    await AuditLogger.logDelete('expenses', expenseId, existingExpense, req.user.id, req);
+    await AuditLogger.logDelete('expenses', expenseId, existingExpense, req.user?.id, req);
 
     res.json({ message: 'Dépense supprimée avec succès' });
   } catch (error) {
@@ -646,11 +757,50 @@ router.get('/stats/summary', authenticateToken, async (req, res) => {
 
     const where = {};
     
-    // Filter by user's depot if not admin/manager
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER') {
-      where.depotId = req.user.depotId;
-    } else if (depotId) {
-      where.depotId = parseInt(depotId);
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: requested > visiting > user's depot
+    let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot (for MANAGER/CASHIER with visiting depot header)
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+        // Allow access for users without assigned depot (like RESPONSABLE_MAGASIN)
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot expenses' });
+      }
+      // Deny if no depot available
+      else if (!targetDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view expenses' });
+      }
+    }
+    
+    if (targetDepotId) {
+      where.depotId = targetDepotId;
+    } else if (req.user?.role !== 'ADMIN') {
+      // Non-admin users without depot assigned cannot view expenses
+      return res.status(400).json({ error: 'User must be assigned to a depot to view expenses' });
     }
     
     if (startDate || endDate) {

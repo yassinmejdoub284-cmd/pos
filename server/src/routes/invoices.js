@@ -165,10 +165,22 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid invoice ID' });
     }
 
+    const { depotId } = req.query;
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot invoices' });
+    }
+
     const invoice = await prisma.invoice.findFirst({
       where: {
         id: invoiceId,
-        depotId: req.user.depotId
+        ...(targetDepotId ? { depotId: targetDepotId } : (req.user?.role === 'ADMIN' ? {} : { depotId: userDepotId }))
       },
       include: {
         client: true,

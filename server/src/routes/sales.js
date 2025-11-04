@@ -1,5 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
+const { authenticateToken } = require('../middleware/auth');
 const { sendPushToAll } = require('../lib/push');
 // Role checks removed - frontend handles access control
 
@@ -14,7 +15,12 @@ router.post('/', async (req, res) => {
     }
 
         // Use user's assigned depot for stock operations
-        const userDepotId = req.user.depotId;
+        const userDepotId = req.user?.depotId;
+        if (!userDepotId) {
+          return res.status(400).json({ error: 'User must be assigned to a depot to create sales' });
+        }
+        
+        const targetDepotId = userDepotId; // Use user's depot for sales
         
         const sale = await prisma.$transaction(async (tx) => {
       
@@ -23,7 +29,7 @@ router.post('/', async (req, res) => {
       // Get the current active session for the depot (no user linkage)
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
-          depotId: userDepotId,
+          depotId: targetDepotId,
           status: 'OPEN'
         }
       });
@@ -63,9 +69,9 @@ router.post('/', async (req, res) => {
             discount: parseFloat(discount || 0),
             finalTotal: parseFloat(finalTotal),
             paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
-            userId: req.user.id,
+            userId: req.user?.id,
             clientId: clientId ? parseInt(clientId) : null,
-            depotId: userDepotId, // Use user's depot for caisse operations
+            depotId: targetDepotId, // Use user's depot for caisse operations
             sessionId: activeSession ? activeSession.id : null,
             status: 'COMPLETED',
             paymentType: paymentType || 'COMPTANT',
@@ -143,7 +149,7 @@ router.post('/', async (req, res) => {
         // Get current inventory quantity first
         const currentInventory = await tx.inventory.findFirst({
           where: {
-            depotId: userDepotId,
+            depotId: targetDepotId,
             productId: item.productId
           }
         });
@@ -161,7 +167,7 @@ router.post('/', async (req, res) => {
           
           await tx.inventory.updateMany({
             where: {
-              depotId: userDepotId,
+              depotId: targetDepotId,
               productId: item.productId
             },
             data: {
@@ -172,13 +178,13 @@ router.post('/', async (req, res) => {
           // If no inventory record exists, create one with negative quantity
           console.log('Creating new inventory record with negative quantity:', {
             productId: item.productId,
-            depotId: userDepotId,
+            depotId: targetDepotId,
             quantity: -actualQuantityToDeduct
           });
           
           await tx.inventory.create({
             data: {
-              depotId: userDepotId,
+              depotId: targetDepotId,
               productId: item.productId,
               quantity: -actualQuantityToDeduct
             }
@@ -188,11 +194,11 @@ router.post('/', async (req, res) => {
         await tx.stockMovement.create({
           data: {
             productId: item.productId,
-            depotId: userDepotId, // Use user's depot for stock movement
+            depotId: targetDepotId, // Use user's depot for stock movement
             quantity: actualQuantityToDeduct,
             type: 'OUT',
             reason: isWholesale && item.isWholesale ? 'Wholesale Sale' : 'Sale',
-            userId: req.user.id
+            userId: req.user?.id
           }
         });
       }
@@ -227,7 +233,7 @@ router.post('/', async (req, res) => {
                   saleId: newSale.id,
                   amount: paidNow,
                   type: 'PAYMENT',
-                  userId: req.user.id,
+                  userId: req.user?.id,
                   notes: 'Advance payment at sale'
                 }
               });
@@ -239,7 +245,7 @@ router.post('/', async (req, res) => {
                   saleId: newSale.id,
                   amount: remaining,
                   type: 'DEBT',
-                  userId: req.user.id,
+                  userId: req.user?.id,
                   notes: 'Debt from credit sale'
                 }
               });
@@ -289,7 +295,7 @@ router.post('/', async (req, res) => {
     // Emit socket notification for real-time ticket synchronization
     if (req.app.get('io')) {
       req.app.get('io').to(`depot_${userDepotId}`).emit('ticket_created', {
-        depotId: userDepotId,
+        depotId: targetDepotId,
         ticketNumber: sale.newSale.dailyTicketNumber,
         sessionId: sale.newSale.sessionId,
         saleId: sale.newSale.id,
@@ -327,7 +333,10 @@ router.post('/temporary', async (req, res) => {
     }
 
     // Use user's assigned depot for stock operations
-    const userDepotId = req.user.depotId;
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to create temporary sales' });
+    }
 
     if (!expectedDate || !expectedTime) {
       return res.status(400).json({ error: 'Expected date and time are required' });
@@ -358,7 +367,7 @@ router.post('/temporary', async (req, res) => {
       // Find active caisse session for cash movements
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
-          depotId: userDepotId,
+          depotId: targetDepotId,
           status: 'OPEN'
         }
       });
@@ -369,9 +378,9 @@ router.post('/temporary', async (req, res) => {
           discount: parseFloat(discount || 0),
           finalTotal: finalTotalAmount,
           paymentMethodId: null,
-          userId: req.user.id,
+          userId: req.user?.id,
           clientId: clientId ? parseInt(clientId) : null,
-          depotId: userDepotId, // Use shop depot for caisse operations
+          depotId: targetDepotId, // Use shop depot for caisse operations
           status: 'TEMPORARY',
           expectedDate: new Date(`${expectedDate}T${expectedTime}`),
           notes: notes || '',
@@ -406,7 +415,7 @@ router.post('/temporary', async (req, res) => {
             amount: advanceAmount,
             reason: `Acompte commande #${newSale.id}`,
             ticketId: null,
-            createdById: req.user.id
+            createdById: req.user?.id
           }
         });
       }
@@ -434,10 +443,13 @@ router.put('/temporary/:id/complete', async (req, res) => {
   try {
     const { id } = req.params;
     const { paymentType, amountPaid, chequeId, encaissementDate, virementNumber } = req.body;
-    const userDepotId = req.user.depotId;
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to complete temporary sales' });
+    }
 
     const temporarySale = await prisma.sale.findFirst({
-      where: { id: parseInt(id), status: 'TEMPORARY', depotId: req.user.depotId },
+      where: { id: parseInt(id), status: 'TEMPORARY', depotId: userDepotId },
       include: { items: true }
     });
 
@@ -497,7 +509,7 @@ router.put('/temporary/:id/complete', async (req, res) => {
         // Get current inventory quantity first
         const currentInventory = await tx.inventory.findFirst({
           where: {
-            depotId: userDepotId,
+            depotId: targetDepotId,
             productId: item.productId
           }
         });
@@ -514,7 +526,7 @@ router.put('/temporary/:id/complete', async (req, res) => {
           // If no inventory record exists, create one with negative quantity
           await tx.inventory.create({
             data: {
-              depotId: userDepotId,
+              depotId: targetDepotId,
               productId: item.productId,
               quantity: -item.quantity
             }
@@ -524,11 +536,11 @@ router.put('/temporary/:id/complete', async (req, res) => {
         await tx.stockMovement.create({
           data: {
             productId: item.productId,
-            depotId: userDepotId, // Use shop depot for caisse operations
+            depotId: targetDepotId, // Use shop depot for caisse operations
             quantity: item.quantity,
             type: 'OUT',
             reason: 'Temporary Sale Completed',
-            userId: req.user.id
+            userId: req.user?.id
           }
         });
       }
@@ -543,7 +555,7 @@ router.put('/temporary/:id/complete', async (req, res) => {
             amount: paidNow,
             reason: `Règlement commande #${updatedSale.id}`,
             ticketId: null,
-            createdById: req.user.id
+            createdById: req.user?.id
           }
         });
       }
@@ -573,7 +585,7 @@ router.put('/temporary/:id/complete', async (req, res) => {
               saleId: updatedSale.id, 
               amount: outstanding, 
               type: 'DEBT', 
-              userId: req.user.id, 
+              userId: req.user?.id, 
               notes: `Debt from temporary sale completion (Advance: ${advancePaid.toFixed(3)}dt, Paid: ${completionPaid.toFixed(3)}dt, Outstanding: ${outstanding.toFixed(3)}dt)` 
             }
           });
@@ -624,8 +636,13 @@ router.put('/temporary/:id/advance', async (req, res) => {
       return res.status(400).json({ error: 'Advance amount must be greater than 0' });
     }
 
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to add advance payment' });
+    }
+
     const temporarySale = await prisma.sale.findFirst({
-      where: { id: parseInt(id), status: 'TEMPORARY', depotId: req.user.depotId }
+      where: { id: parseInt(id), status: 'TEMPORARY', depotId: userDepotId }
     });
     if (!temporarySale) {
       return res.status(404).json({ error: 'Temporary sale not found' });
@@ -649,7 +666,7 @@ router.put('/temporary/:id/advance', async (req, res) => {
 
       // Record cash movement for cash advances in open session
       if (methodId === 1) {
-        const activeSession = await tx.sessionCaisse.findFirst({ where: { depotId: req.user.depotId, status: 'OPEN' } });
+        const activeSession = await tx.sessionCaisse.findFirst({ where: { depotId: userDepotId, status: 'OPEN' } });
         if (activeSession) {
           await tx.cashMovement.create({
             data: {
@@ -658,7 +675,7 @@ router.put('/temporary/:id/advance', async (req, res) => {
               amount: advanceAmount,
               reason: `Acompte commande #${updated.id}`,
               ticketId: null,
-              createdById: req.user.id
+              createdById: req.user?.id
             }
           });
         }
@@ -683,7 +700,10 @@ router.post('/gift', async (req, res) => {
     }
 
     // Use user's assigned depot for stock operations
-    const userDepotId = req.user.depotId;
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to create gift sales' });
+    }
 
     if (!reason || reason.trim() === '') {
       return res.status(400).json({ error: 'Gift reason is required' });
@@ -696,9 +716,9 @@ router.post('/gift', async (req, res) => {
           discount: parseFloat(discount || 0),
           finalTotal: 0,
           paymentMethodId: null,
-          userId: req.user.id,
+          userId: req.user?.id,
           clientId: clientId ? parseInt(clientId) : null,
-          depotId: userDepotId, // Use shop depot for caisse operations
+          depotId: targetDepotId, // Use shop depot for caisse operations
           status: 'PENDING_ADMIN',
           notes: `Cadeau - Raison: ${reason}${recipient ? ` - Destinataire: ${recipient}` : ''}`
         }
@@ -747,10 +767,13 @@ router.post('/gift', async (req, res) => {
 router.put('/gift/:id/approve', async (req, res) => {
   try {
     const { id } = req.params;
-    const userDepotId = req.user.depotId;
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to approve gift sales' });
+    }
 
     const giftSale = await prisma.sale.findFirst({
-      where: { id: parseInt(id), status: 'PENDING_ADMIN', depotId: req.user.depotId },
+      where: { id: parseInt(id), status: 'PENDING_ADMIN', depotId: userDepotId },
       include: { items: true }
     });
 
@@ -768,7 +791,7 @@ router.put('/gift/:id/approve', async (req, res) => {
         // Get current inventory quantity first
         const currentInventory = await tx.inventory.findFirst({
           where: {
-            depotId: userDepotId,
+            depotId: targetDepotId,
             productId: item.productId
           }
         });
@@ -785,7 +808,7 @@ router.put('/gift/:id/approve', async (req, res) => {
           // If no inventory record exists, create one with negative quantity
           await tx.inventory.create({
             data: {
-              depotId: userDepotId,
+              depotId: targetDepotId,
               productId: item.productId,
               quantity: -item.quantity
             }
@@ -795,7 +818,7 @@ router.put('/gift/:id/approve', async (req, res) => {
         await tx.stockMovement.create({
           data: {
             productId: item.productId,
-            depotId: userDepotId, // Use shop depot for caisse operations
+            depotId: targetDepotId, // Use shop depot for caisse operations
             quantity: item.quantity,
             type: 'OUT',
             reason: 'Gift Sale Approved',
@@ -819,33 +842,77 @@ router.put('/gift/:id/approve', async (req, res) => {
 router.put('/gift/:id/reject', async (req, res) => {
   try {
     const { id } = req.params;
+    const where = { id: parseInt(id), status: 'PENDING_ADMIN' };
+    // Restrict by depot for non-admins; allow admins to reject across depots
+    if (req.user && req.user.role !== 'ADMIN' && req.user.depotId) {
+      where.depotId = req.user.depotId;
+    }
 
-    const giftSale = await prisma.sale.findFirst({ where: { id: parseInt(id), status: 'PENDING_ADMIN', depotId: req.user.depotId } });
+    const giftSale = await prisma.sale.findFirst({ where });
 
     if (!giftSale) {
       return res.status(404).json({ error: 'Gift sale not found or already processed' });
     }
 
-    const updatedSale = await prisma.sale.update({ where: { id: parseInt(id) }, data: { status: 'CANCELLED', updatedAt: new Date() } });
+    await prisma.sale.update({ where: { id: parseInt(id) }, data: { status: 'CANCELLED', updatedAt: new Date() } });
 
-    res.json(updatedSale);
+    const saleWithDetails = await prisma.sale.findUnique({ where: { id: parseInt(id) }, include: { items: true, client: { select: { firstName: true, lastName: true, code: true } } } });
+
+    res.json(saleWithDetails);
   } catch (error) {
     console.error('Error rejecting gift sale:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { startDate, endDate, status, paymentMethod, page = 1, limit = 1000, sessionIds } = req.query;
+    const { startDate, endDate, status, paymentMethod, page = 1, limit = 1000, sessionIds, depotId } = req.query;
 
-    // Enforce depot isolation - only show sales from user's depot
-    const userDepotId = req.user.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to view sales' });
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: requested > visiting > user's depot
+    let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot (for MANAGER/CASHIER with visiting depot header)
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+        // Allow access for users without assigned depot (like RESPONSABLE_MAGASIN)
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot sales' });
+      }
+      // Deny if no depot available
+      else if (!targetDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view sales' });
+      }
     }
     
-    const whereClause = { depotId: userDepotId };
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'depotId is required to view sales' });
+    }
+    
+    const whereClause = { depotId: targetDepotId };
 
     // Handle session-based filtering (priority over date filtering)
     if (sessionIds) {
@@ -878,6 +945,9 @@ router.get('/', async (req, res) => {
     });
 
     // Get table sales and convert them to sale format for historique
+    // Note: TableSale doesn't have depotId field, so we'll fetch all table sales
+    // and filter them manually if needed, or skip if depot isolation is critical
+    // For now, we'll fetch all table sales (they may not have depot isolation)
     const tableSalesWhereClause = {};
     
     // Apply same date filtering to table sales
@@ -933,7 +1003,7 @@ router.get('/', async (req, res) => {
       client: null,
       userId: null,
       user: { firstName: 'Table', lastName: 'Service' },
-      depotId: userDepotId,
+      depotId: targetDepotId,
       sessionId: null,
       session: null,
       status: tableSale.status === 'ACTIVE' ? 'PENDING' : tableSale.status,
@@ -977,7 +1047,12 @@ router.get('/', async (req, res) => {
     res.json(allSales);
   } catch (error) {
     console.error('Error fetching sales:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message || 'Unknown error',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -986,7 +1061,7 @@ router.post('/:id/printed', async (req, res) => {
   try {
     const { id } = req.params;
     // Enforce depot isolation
-    const userDepotId = req.user.depotId;
+    const userDepotId = req.user?.depotId;
     if (!userDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot to mark printed' });
     }
@@ -1006,7 +1081,7 @@ router.post('/:id/printed', async (req, res) => {
 router.get('/current-session/tickets', async (req, res) => {
   try {
     // Enforce depot isolation
-    const userDepotId = req.user.depotId;
+    const userDepotId = req.user?.depotId;
     if (!userDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot' });
     }
@@ -1042,18 +1117,56 @@ router.get('/current-session/tickets', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const { depotId } = req.query;
 
-    // Enforce depot isolation for individual sale access
-    const userDepotId = req.user.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to view sales' });
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: requested > visiting > user's depot
+    let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot (for MANAGER/CASHIER with visiting depot header)
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+        // Allow access for users without assigned depot (like RESPONSABLE_MAGASIN)
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot sales' });
+      }
+      // Deny if no depot available
+      else if (!targetDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view sales' });
+      }
+    }
+    
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'depotId is required to view sales' });
     }
     
     const sale = await prisma.sale.findFirst({
-      where: { id: parseInt(id), depotId: userDepotId },
+      where: { id: parseInt(id), depotId: targetDepotId },
       include: {
         paymentMethod: { select: { name: true } },
         advancePaymentMethod: { select: { name: true } },
@@ -1091,7 +1204,10 @@ router.put('/:id/status', async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-  const userDepotId = req.user.depotId;
+  const userDepotId = req.user?.depotId;
+  if (!userDepotId) {
+    return res.status(400).json({ error: 'User must be assigned to a depot to update sale status' });
+  }
   const updated = await prisma.$transaction(async (tx) => {
       // Load sale first to validate depot and current status
       const existing = await tx.sale.findFirst({ where: { id: parseInt(id), depotId: userDepotId } });
@@ -1170,7 +1286,10 @@ router.post('/wholesale', async (req, res) => {
     }
 
     // Use user's assigned depot for stock operations
-    const userDepotId = req.user.depotId;
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to create wholesale sales' });
+    }
 
     // Validate that all items are wholesale items
     for (const item of items) {
@@ -1185,7 +1304,7 @@ router.post('/wholesale', async (req, res) => {
       // Get the current active session for the depot (no user linkage)
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
-          depotId: userDepotId,
+          depotId: targetDepotId,
           status: 'OPEN'
         }
       });
@@ -1198,7 +1317,7 @@ router.post('/wholesale', async (req, res) => {
           paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
           userId: req.user.id,
           clientId: clientId ? parseInt(clientId) : null,
-          depotId: userDepotId, // Use shop depot for caisse operations
+          depotId: targetDepotId, // Use shop depot for caisse operations
           sessionId: activeSession ? activeSession.id : null,
           status: 'COMPLETED',
           paymentType: paymentType || 'COMPTANT',
@@ -1273,7 +1392,7 @@ router.post('/wholesale', async (req, res) => {
         // Get current inventory quantity first
         const currentInventory = await tx.inventory.findFirst({
           where: {
-            depotId: userDepotId,
+            depotId: targetDepotId,
             productId: item.productId
           }
         });
@@ -1291,7 +1410,7 @@ router.post('/wholesale', async (req, res) => {
           
           await tx.inventory.updateMany({
             where: {
-              depotId: userDepotId,
+              depotId: targetDepotId,
               productId: item.productId
             },
             data: {
@@ -1302,13 +1421,13 @@ router.post('/wholesale', async (req, res) => {
           // If no inventory record exists, create one with negative quantity
           console.log('Creating new wholesale inventory record with negative quantity:', {
             productId: item.productId,
-            depotId: userDepotId,
+            depotId: targetDepotId,
             quantity: -actualQuantityToDeduct
           });
           
           await tx.inventory.create({
             data: {
-              depotId: userDepotId,
+              depotId: targetDepotId,
               productId: item.productId,
               quantity: -actualQuantityToDeduct
             }
@@ -1318,7 +1437,7 @@ router.post('/wholesale', async (req, res) => {
         await tx.stockMovement.create({
             data: {
               productId: item.productId,
-              depotId: userDepotId, // Use user's depot for stock movement
+              depotId: targetDepotId, // Use user's depot for stock movement
               quantity: actualQuantityToDeduct,
               type: 'OUT',
               reason: 'Wholesale Sale',
@@ -1337,7 +1456,7 @@ router.post('/wholesale', async (req, res) => {
               amount: paidAmount,
               reason: `Vente gros #${newSale.id}`,
               ticketId: newSale.id,
-              createdById: req.user.id
+              createdById: req.user?.id
             }
           });
         }
@@ -1367,7 +1486,7 @@ router.post('/wholesale', async (req, res) => {
                   saleId: newSale.id,
                   amount: paid,
                   type: 'PAYMENT',
-                  userId: req.user.id,
+                  userId: req.user?.id,
                   notes: 'Payment at wholesale sale (ESP)'
                 }
               });
@@ -1382,7 +1501,7 @@ router.post('/wholesale', async (req, res) => {
                   saleId: newSale.id,
                   amount: paidPart,
                   type: 'PAYMENT',
-                  userId: req.user.id,
+                  userId: req.user?.id,
                   notes: 'Payment at wholesale sale'
                 }
               });
@@ -1397,7 +1516,7 @@ router.post('/wholesale', async (req, res) => {
                   saleId: newSale.id,
                   amount: outstanding,
                   type: 'DEBT',
-                  userId: req.user.id,
+                  userId: req.user?.id,
                   notes: 'Debt from wholesale sale'
                 }
               });
@@ -1484,7 +1603,7 @@ router.post('/wholesale', async (req, res) => {
       // Get the current active session for the depot (no user linkage)
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
-          depotId: userDepotId,
+          depotId: targetDepotId,
           status: 'OPEN'
         }
       });
@@ -1497,7 +1616,7 @@ router.post('/wholesale', async (req, res) => {
           paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
           userId: null, // No user for unauthenticated sales
           clientId: clientId ? parseInt(clientId) : null,
-          depotId: userDepotId,
+          depotId: targetDepotId,
           sessionId: activeSession ? activeSession.id : null,
           status: 'COMPLETED',
           paymentType: paymentType || 'COMPTANT',
@@ -1559,7 +1678,7 @@ router.post('/wholesale', async (req, res) => {
           const newQuantity = existingInventory.quantity - actualQuantityToDeduct;
           console.log('Updating wholesale inventory:', {
             productId: item.productId,
-            depotId: userDepotId,
+            depotId: targetDepotId,
             oldQuantity: existingInventory.quantity,
             quantityToDeduct: actualQuantityToDeduct,
             newQuantity: newQuantity
@@ -1573,14 +1692,14 @@ router.post('/wholesale', async (req, res) => {
           // Create new inventory record with negative quantity
           console.log('Creating new wholesale inventory record with negative quantity:', {
             productId: item.productId,
-            depotId: userDepotId,
+            depotId: targetDepotId,
             quantity: -actualQuantityToDeduct
           });
 
           await tx.inventory.create({
             data: {
               productId: item.productId,
-              depotId: userDepotId,
+              depotId: targetDepotId,
               quantity: -actualQuantityToDeduct
             }
           });

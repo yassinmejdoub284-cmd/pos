@@ -96,7 +96,7 @@ const router = express.Router();
 
 router.post('/login', async (req, res) => {
   try {
-    const { pin, token, username, password } = req.body;
+    const { pin, token, username, password, depotId } = req.body;
 
     // Check if this is enterprise login (username/password)
     if (username && password) {
@@ -109,28 +109,88 @@ router.post('/login', async (req, res) => {
 
     let user;
     if (token) {
-      // Token-based authentication
+      // Token-based authentication (filter by depotId if provided)
+      const whereClause = {
+        token,
+        isActive: true
+      };
+      
+      // If depotId is provided, filter by it to ensure depot isolation
+      if (depotId) {
+        whereClause.depotId = parseInt(depotId);
+      }
+      
       user = await prisma.user.findFirst({
-        where: {
-          token,
-          isActive: true
-        }
+        where: whereClause
       });
       
       if (!user) {
         return res.status(401).json({ error: 'Invalid token' });
       }
     } else {
-      // PIN-based authentication
-      user = await prisma.user.findFirst({
-        where: {
-          pin,
-          isActive: true
-        }
-      });
+      // PIN-based authentication - filter by depotId if provided, otherwise find unique user
+      const pinStr = String(pin).trim();
       
-      if (!user) {
-        return res.status(401).json({ error: 'Invalid PIN' });
+      console.log('PIN login attempt:', { pin: pinStr, depotId, hasDepotId: !!depotId });
+      
+      if (depotId) {
+        // If depotId is provided, filter by it for isolation
+        const targetDepotId = parseInt(depotId);
+        
+        user = await prisma.user.findFirst({
+          where: {
+            pin: pinStr,
+            depotId: targetDepotId,
+            isActive: true
+          }
+        });
+        
+        if (!user) {
+          console.log('User not found with PIN and depotId:', { pin: pinStr, depotId: targetDepotId });
+          // Check if user exists but is inactive or in different depot
+          const inactiveUser = await prisma.user.findFirst({
+            where: { pin: pinStr, depotId: targetDepotId }
+          });
+          if (inactiveUser && !inactiveUser.isActive) {
+            return res.status(401).json({ error: 'Compte utilisateur désactivé' });
+          }
+          return res.status(401).json({ error: 'PIN invalide pour ce dépôt' });
+        }
+      } else {
+        // If no depotId provided, try to find user by PIN
+        // If multiple users exist with same PIN in different depots, return error requiring depotId
+        const users = await prisma.user.findMany({
+          where: {
+            pin: pinStr,
+            isActive: true
+          }
+        });
+        
+        console.log('Users found with PIN (no depotId):', users.length);
+        
+        if (users.length === 0) {
+          // Check if user exists but is inactive
+          const inactiveUser = await prisma.user.findFirst({
+            where: { pin: pinStr }
+          });
+          if (inactiveUser && !inactiveUser.isActive) {
+            return res.status(401).json({ error: 'Compte utilisateur désactivé' });
+          }
+          return res.status(401).json({ error: 'PIN invalide' });
+        }
+        
+        if (users.length > 1) {
+          // Multiple users with same PIN exist in different depots - require depotId
+          console.log('Multiple users found with same PIN:', users.map(u => ({ id: u.id, depotId: u.depotId })));
+          return res.status(400).json({ 
+            error: 'Plusieurs utilisateurs trouvés avec ce PIN. Veuillez spécifier le dépôt',
+            requiresDepotId: true
+          });
+        }
+        
+        // Single user found - use it
+        user = users[0];
+        console.log('Single user found:', { id: user.id, depotId: user.depotId });
       }
     }
 
@@ -178,6 +238,15 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
+    // depotId is required for PIN-based users (isolation by depot)
+    if (!depotId) {
+      return res.status(400).json({ error: 'depotId is required for user registration' });
+    }
+
+    const targetDepotId = parseInt(depotId);
+    const pinStr = pin ? String(pin).trim() : '0000';
+
+    // Check for existing username or email (globally unique)
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
@@ -191,6 +260,18 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Username or email already exists' });
     }
 
+    // Check for existing PIN in the same depot (unique per depot)
+    const existingPinUser = await prisma.user.findFirst({
+      where: {
+        pin: pinStr,
+        depotId: targetDepotId
+      }
+    });
+
+    if (existingPinUser) {
+      return res.status(400).json({ error: `PIN ${pinStr} already exists in this depot` });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const newUser = await prisma.user.create({
@@ -201,8 +282,8 @@ router.post('/register', async (req, res) => {
         firstName,
         lastName,
         role,
-        depotId,
-        pin: pin || '0000'
+        depotId: targetDepotId,
+        pin: pinStr
       }
     });
 

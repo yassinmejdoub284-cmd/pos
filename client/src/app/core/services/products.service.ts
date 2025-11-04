@@ -17,8 +17,18 @@ export class ProductsService {
 
   getProducts(depotId?: number): Observable<Product[]> {
     let params = new HttpParams();
-    if (depotId) {
-      params = params.set('depotId', depotId.toString());
+    
+    // Always include depotId if provided, or try to get from sessionStorage
+    let targetDepotId = depotId;
+    if (!targetDepotId) {
+      const storedDepotId = sessionStorage.getItem('depotId') || sessionStorage.getItem('visitingDepotId');
+      if (storedDepotId) {
+        targetDepotId = parseInt(storedDepotId);
+      }
+    }
+    
+    if (targetDepotId) {
+      params = params.set('depotId', targetDepotId.toString());
     }
     
     return this.http.get<Product[]>(this.apiUrl, { params }).pipe(
