@@ -51,12 +51,49 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER'])
       return res.status(400).json({ error: 'Fournisseur et montant sont requis' });
     }
 
+    // Enforce depot isolation - verify supplier belongs to user's depot
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to create supplier payments' });
+    }
+
+    // Verify supplier belongs to user's depot (unless admin)
+    if (req.user?.role !== 'ADMIN') {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: Number(supplierId) },
+        select: { depotId: true }
+      });
+      
+      if (!supplier) {
+        return res.status(404).json({ error: 'Supplier not found' });
+      }
+      
+      // Allow if supplier has no depot assigned, or if supplier's depot matches user's depot
+      // Also check if supplier has expenses in user's depot
+      if (supplier.depotId !== null && supplier.depotId !== userDepotId) {
+        // Check if supplier has expenses in user's depot
+        const hasExpensesInDepot = await prisma.expense.count({
+          where: {
+            supplierId: Number(supplierId),
+            depotId: userDepotId
+          }
+        });
+        
+        if (hasExpensesInDepot === 0) {
+          return res.status(403).json({ error: 'Access denied: Supplier does not belong to your depot' });
+        }
+      }
+    }
+
     // If paying in CASH, ensure open session to register cash sortie
     let activeSession = null;
     const method = (paymentMethod || 'CASH').toUpperCase();
     if (method === 'CASH') {
       activeSession = await prisma.sessionCaisse.findFirst({
-        where: { userId: req.user.id, status: 'OPEN' }
+        where: { 
+          depotId: userDepotId,
+          status: 'OPEN' 
+        }
       });
       if (!activeSession) {
         return res.status(400).json({ error: 'Aucune session de caisse ouverte pour le règlement en espèces' });

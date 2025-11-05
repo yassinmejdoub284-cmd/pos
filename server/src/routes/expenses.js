@@ -386,19 +386,38 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
-    // Use user's depot if not specified and user is not admin/manager
+    // Enforce depot isolation - use provided depotId for admin, or user's depotId for non-admin
+    const userDepotId = req.user?.depotId;
     let finalDepotId;
-    if (depotId) {
-      finalDepotId = parseInt(depotId);
-      if (isNaN(finalDepotId)) {
-        return res.status(400).json({ error: 'ID de dépôt invalide' });
+    
+    if (req.user?.role === 'ADMIN') {
+      // Admin can choose depotId from request body
+      if (depotId) {
+        finalDepotId = parseInt(depotId);
+        if (isNaN(finalDepotId)) {
+          return res.status(400).json({ error: 'ID de dépôt invalide' });
+        }
+        // Validate depot exists
+        const depot = await prisma.depot.findUnique({
+          where: { id: finalDepotId }
+        });
+        if (!depot) {
+          return res.status(400).json({ error: 'Dépôt spécifié n\'existe pas' });
+        }
+      } else {
+        // Admin without depotId specified uses their assigned depot or returns error
+        if (!userDepotId) {
+          return res.status(400).json({ error: 'Veuillez spécifier un dépôt ou assigner un dépôt à l\'utilisateur' });
+        }
+        finalDepotId = userDepotId;
       }
     } else {
-      finalDepotId = req.user?.depotId;
-      // Ensure depotId is not null/undefined
-      if (!finalDepotId) {
+      // Non-admin users must use their assigned depotId
+      if (!userDepotId) {
         return res.status(400).json({ error: 'Utilisateur non assigné à un dépôt' });
       }
+      // Non-admin users cannot override depotId - always use their assigned depot
+      finalDepotId = userDepotId;
     }
 
     // Fetch approval threshold from settings (DB then file fallback)
@@ -455,8 +474,12 @@ router.post('/', authenticateToken, async (req, res) => {
                                        (req.body.payNow !== false); // Default to true if not specified
         
         if (shouldCreateCashMovement) {
+          // Find active session for the depot (not just user)
           const activeSession = await tx.sessionCaisse.findFirst({
-            where: { userId: req.user?.id, status: 'OPEN' },
+            where: { 
+              depotId: finalDepotId,
+              status: 'OPEN' 
+            },
             orderBy: { openedAt: 'desc' }
           });
           if (activeSession) {

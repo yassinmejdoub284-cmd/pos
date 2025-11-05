@@ -1866,6 +1866,29 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
     
+    // Enforce depot isolation - use user's depotId if not specified
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine target depot: fromDepotId > depotId > visitingDepotId > userDepotId
+    let targetEmetteurId = fromDepotId || depotId || visitingDepotId || userDepotId;
+    let targetDestinataireId = destinationDepotId || depotId || visitingDepotId || userDepotId;
+    
+    // For non-admin users, validate depot access
+    if (req.user?.role !== 'ADMIN') {
+      if (!userDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot to create stock documents' });
+      }
+      // For non-admin, ensure they can only create documents for their depot
+      if (targetEmetteurId && targetEmetteurId !== userDepotId && targetEmetteurId !== visitingDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot create documents for other depots' });
+      }
+      if (targetDestinataireId && targetDestinataireId !== userDepotId && targetDestinataireId !== visitingDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot create documents for other depots' });
+      }
+    }
+    
     const document = await prisma.$transaction(async (tx) => {
       // Create the document
       const doc = await tx.stockDocument.create({
@@ -1873,8 +1896,8 @@ router.post('/', authenticateToken, async (req, res) => {
           numero: documentNumber,
           type,
           status: validatedStatus,
-          emetteurId: fromDepotId || depotId,
-          destinataireId: destinationDepotId || depotId,
+          emetteurId: targetEmetteurId,
+          destinataireId: targetDestinataireId,
           clientId: clientId || null,
           vehicleId: vehicleId || null,
           driverId: driverId || null,

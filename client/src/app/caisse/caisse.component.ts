@@ -6366,10 +6366,20 @@ export class CaisseComponent implements OnInit, OnDestroy {
       notes = `${notes}${notes ? ' | ' : ''}Paiement partiel: ${paidAmount}dt payé, reste ${remainingAmount}dt`;
     }
 
+    // Get current depot ID
+    const currentDepotId = this.currentShopDepotId || this.authService.currentUser()?.depotId;
+    
+    if (!currentDepotId) {
+      this.showAlertMessage('Aucun dépôt sélectionné. Veuillez sélectionner un dépôt.', 'error');
+      this.submittingSupplierAction = false;
+      return;
+    }
+
     const payload: any = {
       amount: totalAmount,
       categoryId: this.selectedExpenseCategory.id,
       supplierId: this.expenseSupplierId,
+      depotId: currentDepotId, // Include depotId to ensure it's saved correctly
       paymentType: this.expensePaymentType,
       date: new Date().toISOString().split('T')[0],
       collectionDate: this.expensePayNow ? new Date().toISOString().split('T')[0] : this.expenseCollectionDate,
@@ -6380,17 +6390,23 @@ export class CaisseComponent implements OnInit, OnDestroy {
       paidAmount: paidAmount // Pass the actual paid amount for cash movement calculation
     };
 
+    console.log('Creating expense with depotId:', currentDepotId, 'Payload:', payload);
+
     this.expenseService.createExpense(payload).subscribe({
-      next: () => {
+      next: (createdExpense) => {
+        console.log('Expense created successfully:', createdExpense);
         this.showAlertMessage('Dépense enregistrée avec succès', 'success');
         this.submittingSupplierAction = false;
         this.showExpenseForm = false;
         this.resetExpenseForm();
+        // Refresh expense list if needed (for components that display expenses)
+        // Note: The expense is saved in the database and will appear in GET requests
       },
       error: (error) => {
         console.error('Error creating expense:', error);
         this.submittingSupplierAction = false;
-        this.showAlertMessage('Erreur lors de l\'enregistrement de la dépense', 'error');
+        const errorMessage = error?.error?.error || 'Erreur lors de l\'enregistrement de la dépense';
+        this.showAlertMessage(errorMessage, 'error');
       }
     });
   }

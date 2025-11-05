@@ -44,9 +44,16 @@ router.get('/', authenticateToken, async (req, res) => {
     const limitNum = parseInt(limit) || 20;
     const offset = (pageNum - 1) * limitNum;
     
-    const where = {
-      depotId: req.user.depotId
-    };
+    // Enforce depot isolation - use user's depotId
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId && req.user?.role !== 'ADMIN') {
+      return res.status(400).json({ error: 'User must be assigned to a depot to view invoices' });
+    }
+    
+    const where = {};
+    if (userDepotId) {
+      where.depotId = userDepotId;
+    }
     
     // Validate enums to avoid Prisma enum errors
     const allowedStatus = ['DRAFT', 'ISSUED', 'CANCELLED'];
@@ -149,7 +156,11 @@ router.get('/requests', authenticateToken, async (req, res) => {
 // Get next invoice number suggestion
 router.get('/next-number', authenticateToken, async (req, res) => {
   try {
-    const nextNumber = await getNextInvoiceNumber(req.user.depotId);
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot' });
+    }
+    const nextNumber = await getNextInvoiceNumber(userDepotId);
     res.json({ nextInvoiceNumber: nextNumber });
   } catch (error) {
     console.error('Error getting next invoice number:', error);
@@ -237,11 +248,17 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Client not found' });
     }
     
+    // Enforce depot isolation - use user's depotId
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to create invoices' });
+    }
+    
     // Get next invoice number
-    const invoiceNumber = await getNextInvoiceNumber(req.user.depotId);
+    const invoiceNumber = await getNextInvoiceNumber(userDepotId);
     
     // Determine issuing company info
-    const depot = await prisma.depot.findUnique({ where: { id: req.user.depotId } });
+    const depot = await prisma.depot.findUnique({ where: { id: userDepotId } });
     const appSettings = await prisma.appSettings.findFirst();
     const company = companyId
       ? await prisma.company.findUnique({ where: { id: Number(companyId) } })
@@ -312,7 +329,7 @@ router.post('/', authenticateToken, async (req, res) => {
             subtotalHTVA,
             totalTVA,
             totalTTC,
-            depotId: req.user.depotId,
+            depotId: userDepotId,
             clientId: client.id,
             companyId: company?.id || null,
             createdById: req.user.id,
@@ -344,7 +361,7 @@ router.post('/', authenticateToken, async (req, res) => {
             throw new Error('Failed to create invoice after multiple attempts due to duplicate invoice numbers');
           }
           // Generate a new invoice number and try again
-          invoiceNumber = await getNextInvoiceNumber(req.user.depotId);
+          invoiceNumber = await getNextInvoiceNumber(userDepotId);
           console.log(`Retrying with new invoice number: ${invoiceNumber}`);
         } else {
           throw error; // Re-throw non-uniqueness errors
@@ -397,9 +414,15 @@ router.post('/from-extract', authenticateToken, async (req, res) => {
       });
     }
     
+    // Enforce depot isolation - use user's depotId
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to create invoices from daily extract' });
+    }
+    
     // Determine issuing company info
     const appSettings = await prisma.appSettings.findFirst();
-    const depot = await prisma.depot.findUnique({ where: { id: req.user.depotId } });
+    const depot = await prisma.depot.findUnique({ where: { id: userDepotId } });
     const company = companyId
       ? await prisma.company.findUnique({ where: { id: Number(companyId) } })
       : null;
@@ -463,7 +486,7 @@ router.post('/from-extract', authenticateToken, async (req, res) => {
         subtotalHTVA,
         totalTVA,
         totalTTC,
-        depotId: req.user.depotId,
+        depotId: userDepotId,
         clientId: customerInfo.clientId || null,
         companyId: company?.id || null,
         createdById: req.user.id,
@@ -497,11 +520,17 @@ router.post('/request-from-ticket', authenticateToken, async (req, res) => {
   try {
     const { saleId, requestNotes } = req.body;
     
+    // Enforce depot isolation - use user's depotId
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to create invoice requests' });
+    }
+    
     // Verify sale exists and belongs to user's depot
     const sale = await prisma.sale.findFirst({
       where: {
         id: saleId,
-        depotId: req.user.depotId,
+        depotId: userDepotId,
         status: 'COMPLETED'
       },
       include: {
@@ -800,10 +829,21 @@ router.patch('/:id/mark-printed', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid invoice ID' });
     }
 
+    // Enforce depot isolation
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = visitingDepotId || userDepotId;
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot invoices' });
+    }
+    
     const invoice = await prisma.invoice.findFirst({
       where: {
         id: invoiceId,
-        depotId: req.user.depotId
+        ...(targetDepotId ? { depotId: targetDepotId } : (req.user?.role === 'ADMIN' ? {} : { depotId: userDepotId }))
       }
     });
     
@@ -839,10 +879,16 @@ router.post('/temp-draft', authenticateToken, async (req, res) => {
       });
     }
 
+    // Enforce depot isolation - use user's depotId
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to create invoice drafts' });
+    }
+    
     // Get next invoice number
     let invoiceNumber;
     try {
-      invoiceNumber = await getNextInvoiceNumber(req.user.depotId);
+      invoiceNumber = await getNextInvoiceNumber(userDepotId);
     } catch (error) {
       // If no series available, use temporary number
       const now = new Date();

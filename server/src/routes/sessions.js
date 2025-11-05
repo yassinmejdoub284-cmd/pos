@@ -124,12 +124,33 @@ router.get('/active-by-depot', authenticateToken, async (req, res) => {
     });
 
     if (!activeSession) {
+      console.log('[active-by-depot] No active session found for depot:', requestedDepotId);
       return res.json(null);
     }
+
+    // Debug logging
+    console.log('[active-by-depot] Session found:', {
+      sessionId: activeSession.id,
+      sessionDepotId: activeSession.depotId,
+      requestedDepotId,
+      userDepotId,
+      visitingDepotId,
+      userId: req.user?.id,
+      userRole: req.user?.role
+    });
 
     // Calculate expected cash from sales and movements
     const sessionSummary = await calculateSessionSummary(activeSession.id);
     activeSession.summary = sessionSummary;
+
+    // Debug logging for summary
+    console.log('[active-by-depot] Session summary calculated:', {
+      sessionId: activeSession.id,
+      expectedCash: sessionSummary?.expectedCash,
+      totalSales: sessionSummary?.totalSales,
+      totalTickets: sessionSummary?.totalTickets,
+      cashSales: sessionSummary?.cashSales
+    });
 
     // Update the session's expectedCash field in the database
     await prisma.sessionCaisse.update({
@@ -511,17 +532,48 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Enforce depot isolation for session summary
-    const userDepotId = req.user.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to view session summaries' });
+    // Enforce depot isolation - use visiting depot or user's depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: visiting > user's depot
+    let targetDepotId = visitingDepotId || userDepotId;
+    
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view session summaries' });
+    }
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
+      }
     }
     
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
-        userId: req.user.id,
-        depotId: userDepotId // Ensure depot isolation
+        depotId: targetDepotId // Ensure depot isolation
       }
     });
 
@@ -547,17 +599,48 @@ router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'C
       return res.status(400).json({ error: 'Espèces comptées requises et doivent être positives' });
     }
 
-    // Enforce depot isolation for session closure
-    const userDepotId = req.user.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to close sessions' });
+    // Enforce depot isolation - use visiting depot or user's depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: visiting > user's depot
+    let targetDepotId = visitingDepotId || userDepotId;
+    
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to close sessions' });
+    }
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot close sessions from other depot' });
+      }
     }
     
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
-        userId: req.user.id,
-        depotId: userDepotId, // Ensure depot isolation
+        depotId: targetDepotId, // Ensure depot isolation
         status: { in: ['OPEN', 'REOPENED'] }
       }
     });
@@ -963,17 +1046,42 @@ router.get('/summaries', authenticateToken, async (req, res) => {
       depotId
     } = req.query;
 
-    // Enforce depot isolation
-    const userDepotId = req.user.depotId;
-    const targetDepotId = parseInt(depotId || userDepotId);
+    // Enforce depot isolation - use visiting depot or user's depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: requested > visiting > user's depot
+    let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
     
     if (!targetDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to view session summaries' });
+      return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view session summaries' });
     }
 
-    // For non-admin users, only allow access to their own depot
-    if (req.user.role !== 'ADMIN' && targetDepotId !== userDepotId) {
-      return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
+      }
     }
     
     const whereClause = {
@@ -1178,15 +1286,47 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { type = 'Z', format = 'html' } = req.query;
 
-    // Enforce depot isolation - all users can only access sessions from their depot
-    const userDepotId = req.user.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to view session reports' });
+    // Enforce depot isolation - use visiting depot or user's depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: visiting > user's depot
+    let targetDepotId = visitingDepotId || userDepotId;
+    
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view session reports' });
+    }
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot session reports' });
+      }
     }
     
     const whereClause = {
       id: parseInt(id),
-      depotId: userDepotId // Always filter by user's depot for isolation
+      depotId: targetDepotId // Always filter by target depot for isolation
     };
 
     const session = await prisma.sessionCaisse.findFirst({
@@ -1232,16 +1372,48 @@ router.post('/:id/reopen', authenticateToken, requireRole(['ADMIN']), async (req
       return res.status(400).json({ error: 'Raison requise pour la réouverture' });
     }
 
-    // Enforce depot isolation for session reopen
-    const userDepotId = req.user.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to reopen sessions' });
+    // Enforce depot isolation - use visiting depot or user's depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: visiting > user's depot
+    let targetDepotId = visitingDepotId || userDepotId;
+    
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to reopen sessions' });
+    }
+    
+    // For non-admin users, check depot access (only admins can reopen)
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot reopen sessions from other depot' });
+      }
     }
     
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
-        depotId: userDepotId, // Ensure depot isolation
+        depotId: targetDepotId, // Ensure depot isolation
         status: 'CLOSED'
       }
     });
@@ -1330,10 +1502,25 @@ router.post('/:id/reopen', authenticateToken, requireRole(['ADMIN']), async (req
 
 // Helper functions
 async function calculateSessionSummary(sessionId) {
+  // First get session to get depotId
+  const sessionInfo = await prisma.sessionCaisse.findUnique({
+    where: { id: sessionId },
+    select: { depotId: true }
+  });
+
+  if (!sessionInfo) return null;
+
+  const sessionDepotId = sessionInfo.depotId;
+  
+  // Load session with sales filtered by depotId
   const session = await prisma.sessionCaisse.findUnique({
     where: { id: sessionId },
     include: {
       sales: {
+        where: {
+          // CRITICAL: Filter sales by session's depotId to ensure depot isolation
+          depotId: sessionDepotId
+        },
         include: {
           paymentMethod: true
         }
@@ -1343,6 +1530,24 @@ async function calculateSessionSummary(sessionId) {
   });
 
   if (!session) return null;
+  
+  // Additional safety: Filter sales by session's depotId after loading (double check)
+  if (sessionDepotId && session.sales) {
+    const originalCount = session.sales.length;
+    session.sales = session.sales.filter(sale => sale.depotId === sessionDepotId);
+    const filteredCount = session.sales.length;
+    if (originalCount !== filteredCount) {
+      console.warn(`[calculateSessionSummary] Filtered sales: ${originalCount} -> ${filteredCount} for session ${sessionId}, depotId: ${sessionDepotId}`);
+    }
+  }
+
+  // Debug logging
+  console.log('[calculateSessionSummary] Session summary:', {
+    sessionId,
+    depotId: sessionDepotId,
+    salesCount: session.sales?.length || 0,
+    openingFund: session.openingFund
+  });
 
   // Calculate cash from sales (exclude refunded)
   const cashSales = session.sales
@@ -1443,54 +1648,86 @@ async function calculateSessionSummary(sessionId) {
   // Include approved CASH expenses within the session timeframe ONLY if no explicit cash movement was created (avoid double subtraction)
   let cashExpenseTotal = 0;
   let expensesDetails = [];
+  let approvedCashExpenses = []; // Declare outside try block for access later
   try {
     const sessionStart = new Date(session.openedAt);
     const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
 
-    // Fetch approved cash expenses in session window - use depot and time-based filtering
+    // Fetch cash expenses in session window - use depot and time-based filtering
+    // For open sessions, include ALL expenses created during session (approved or not)
+    // For closed sessions, only include approved expenses
     // Exclude rejected expenses (isRejected: false or not set)
-    const approvedCashExpenses = await prisma.expense.findMany({
-      where: {
-        isApproved: true,
-        isRejected: false, // Exclude rejected expenses
-        paymentType: 'CASH',
-        depotId: session.depotId, // Filter by depot instead of user
-        OR: [
-          { approvedAt: { gte: sessionStart, lte: sessionEnd } },
-          { createdAt: { gte: sessionStart, lte: sessionEnd } },
-          { date: { gte: sessionStart, lte: sessionEnd } },
-          { collectionDate: { gte: sessionStart, lte: sessionEnd } }
-        ]
-      },
-      select: { id: true, amount: true, approvedAt: true, createdAt: true, date: true, notes: true, category: { select: { name: true } }, supplier: { select: { id: true, name: true } } }
+    const whereClause = {
+      isRejected: false, // Exclude rejected expenses
+      paymentType: 'CASH',
+      depotId: session.depotId, // Filter by depot instead of user
+      createdAt: { gte: sessionStart } // Include all expenses created after session start
+    };
+    
+    // For closed sessions, only include approved expenses
+    // For open sessions, include all expenses (approved or not) to show complete details
+    if (session.status !== 'OPEN') {
+      whereClause.isApproved = true;
+    }
+    
+    approvedCashExpenses = await prisma.expense.findMany({
+      where: whereClause,
+      select: { id: true, amount: true, approvedAt: true, createdAt: true, date: true, notes: true, isApproved: true, category: { select: { name: true } }, supplier: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    console.log('[calculateSessionSummary] Fetched approved cash expenses:', {
+      sessionId,
+      depotId: session.depotId,
+      sessionStart: sessionStart.toISOString(),
+      sessionEnd: sessionEnd.toISOString(),
+      sessionStatus: session.status,
+      expensesCount: approvedCashExpenses.length,
+      expenseIds: approvedCashExpenses.map(e => e.id)
     });
 
     // Build a set of expense IDs that already created a cash movement in this session
     const expenseIdsWithMovement = new Set();
-    const expenseRegex = /Dépense(?: approuvée)? #(\d+)/i;
+    // Match patterns like "Dépense #123" or "Dépense approuvée #123" or "Dépense #123: ..."
+    // Match both "Dépense #123" and "Dépense #123:" (with or without colon)
+    const expenseRegex = /Dépense(?: approuvée)?\s*#(\d+)/i;
     (session.cashMovements || []).forEach(m => {
       const reason = String(m.reason || '');
       const amount = parseFloat(m.amount || 0);
       // Skip rejected movements (marked with [REJETÉ] or amount = 0)
       if (reason.includes('[REJETÉ]') || amount === 0) return;
       
+      // Try to extract expense ID from reason
       const match = reason.match(expenseRegex);
       if (match && match[1]) {
         const idParsed = parseInt(match[1]);
-        if (!isNaN(idParsed)) expenseIdsWithMovement.add(idParsed);
+        if (!isNaN(idParsed)) {
+          expenseIdsWithMovement.add(idParsed);
+          console.log(`[calculateSessionSummary] Found expense #${idParsed} in cash movement: "${reason}"`);
+        }
+      } else {
+        // Debug: log if reason contains "Dépense" but doesn't match
+        if (reason.toLowerCase().includes('dépense')) {
+          console.log(`[calculateSessionSummary] Reason contains "Dépense" but didn't match regex: "${reason}"`);
+        }
       }
     });
+    
+    console.log(`[calculateSessionSummary] Expense IDs with cash movements: [${Array.from(expenseIdsWithMovement).join(', ')}]`);
 
-    // For total calculation, include all approved cash expenses (they should all have cash movements)
-    // The cash movement detection is mainly for UI display purposes
-    cashExpenseTotal = approvedCashExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+    // CRITICAL: Only count expenses that DON'T have a cash movement to avoid double counting
+    // Expenses with cash movements are already counted in the sortie calculation
+    const expensesWithoutMovement = approvedCashExpenses.filter(e => !expenseIdsWithMovement.has(e.id));
+    cashExpenseTotal = expensesWithoutMovement.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
 
-    // Build UI details for ALL approved cash expenses, independent of cash movement, and keep hasCashMovement flag
+    // Build UI details for ALL approved cash expenses (for display purposes)
+    // Show ALL expenses, even if they have cash movements, so user can see complete details
     const allExpenseDetails = approvedCashExpenses
       .map(e => {
         const categoryPart = e.category?.name ? ` · ${e.category.name}` : '';
         const supplierPart = e.supplier?.name ? ` · Fournisseur: ${e.supplier.name}` : '';
         const notesPart = e.notes ? ` · ${e.notes}` : '';
+        const hasMovement = expenseIdsWithMovement.has(e.id);
         return ({
           id: e.id,
           amount: parseFloat(e.amount || 0),
@@ -1499,16 +1736,40 @@ async function calculateSessionSummary(sessionId) {
           categoryName: e.category?.name || null,
           supplierName: e.supplier?.name || null,
           notes: e.notes || null,
-          hasCashMovement: expenseIdsWithMovement.has(e.id)
+          hasCashMovement: hasMovement
         });
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    // Provide details for UI
+    // Provide details for UI - show ALL expenses for display
     expensesDetails = allExpenseDetails;
+    
+    console.log('[calculateSessionSummary] Expenses details:', {
+      sessionId,
+      totalApprovedExpenses: approvedCashExpenses.length,
+      expensesWithMovement: expenseIdsWithMovement.size,
+      expensesWithoutMovement: expensesWithoutMovement.length,
+      expensesDetailsCount: expensesDetails.length,
+      cashExpenseTotal,
+      sampleExpense: expensesDetails[0] || null
+    });
 
-    // expected cash should go down only by expenses without explicit cash movement
+    // CRITICAL FIX: Only subtract expenses that DON'T have a cash movement
+    // Expenses with cash movements are already counted in sortie (cashMovements)
+    // This prevents double subtraction
     expectedCash = expectedCash - cashExpenseTotal;
+    
+    // Debug logging
+    console.log('[calculateSessionSummary] Expenses calculation:', {
+      sessionId,
+      totalApprovedExpenses: approvedCashExpenses.length,
+      expensesWithMovement: expenseIdsWithMovement.size,
+      expensesWithoutMovement: expensesWithoutMovement.length,
+      cashExpenseTotal,
+      sortie,
+      expectedCashBeforeExpenses: expectedCash + cashExpenseTotal,
+      expectedCashAfterExpenses: expectedCash
+    });
   } catch (e) {}
 
   // Supplier payments details (for UI display with supplier name)
@@ -1577,6 +1838,10 @@ async function calculateSessionSummary(sessionId) {
   const cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
   expectedCash = expectedCash + cashFromSalesNetCredit + entree - sortie;
 
+  // Calculate total of ALL expenses for display (not just those without movement)
+  // This is different from cashExpenseTotal which excludes expenses with movements to avoid double counting
+  const allExpensesTotal = approvedCashExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+
   return {
     expectedCash,
     cashSales,
@@ -1591,7 +1856,8 @@ async function calculateSessionSummary(sessionId) {
     creditAdvancePaid,
     clientPaymentsTotal,
     clientPaymentsDetails,
-    expensesTotal: cashExpenseTotal,
+    expensesTotal: allExpensesTotal, // Total of ALL expenses for display
+    expensesTotalForCalculation: cashExpenseTotal, // Only expenses without movement (for cash calculation)
     expensesDetails,
     supplierPaymentsDetails
   };
@@ -1631,6 +1897,11 @@ async function generateZReport(sessionId, closureData = {}) {
       cashMovements: true
     }
   });
+  
+  // CRITICAL: Filter sales by session's depotId to ensure depot isolation
+  if (session && session.depotId && session.sales) {
+    session.sales = session.sales.filter(sale => sale.depotId === session.depotId);
+  }
 
   const summary = await calculateSessionSummary(sessionId);
   // Derive closure amounts from cash movements if not provided (exclude rejected movements)

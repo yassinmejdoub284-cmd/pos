@@ -2248,6 +2248,18 @@ export class InventorySalesReconciliationComponent implements OnInit {
     
     // 8. Crédits manuels
     for (const credit of this.creditEntries) {
+      // Use date from credit entry, with createdAt as fallback
+      let creditDate: Date;
+      if (credit.date instanceof Date) {
+        creditDate = credit.date;
+      } else if (credit.createdAt) {
+        creditDate = new Date(credit.createdAt);
+      } else if (typeof credit.date === 'string') {
+        creditDate = new Date(credit.date);
+      } else {
+        creditDate = new Date(); // Default to now
+      }
+      
       addTransactionIfNotDuplicate({
         id: `manual_${credit.id}`,
         designation: `Crédit Manuel - ${credit.description}`,
@@ -2256,7 +2268,8 @@ export class InventorySalesReconciliationComponent implements OnInit {
         solde: -credit.amount,
         type: 'MANUAL_CREDIT' as const,
         details: `Type: ${this.getCreditTypeLabel(credit.type)}`,
-        date: new Date(credit.createdAt || credit.date) // Use createdAt for proper ordering
+        date: creditDate,
+        createdAt: credit.createdAt ? new Date(credit.createdAt) : creditDate
       });
     }
     
@@ -3184,12 +3197,17 @@ export class InventorySalesReconciliationComponent implements OnInit {
   showAddCreditModal(productId?: number): void {
     this.showAddCreditForm = true;
     this.selectedProductForCredit = productId || null;
+    
+    // Format date as YYYY-MM-DD for input[type="date"]
+    const today = new Date();
+    const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
     this.newCredit = {
       productId: productId || 0,
       amount: 0,
       type: 'SALE',
       description: '',
-      date: new Date()
+      date: dateString as any // Store as string for date input compatibility
     };
   }
 
@@ -3204,20 +3222,41 @@ export class InventorySalesReconciliationComponent implements OnInit {
     }
 
     try {
+      // Format date correctly for API - convert Date or string to ISO string
+      let creditDate: Date;
+      if (this.newCredit.date instanceof Date) {
+        creditDate = this.newCredit.date;
+      } else if (typeof this.newCredit.date === 'string') {
+        creditDate = new Date(this.newCredit.date);
+      } else {
+        creditDate = new Date(); // Default to today
+      }
+      
       // Prepare data for API - ensure productId is null if not set
       const creditData = {
-        productId: this.newCredit.productId || null,
-        amount: this.newCredit.amount,
+        productId: this.newCredit.productId && this.newCredit.productId !== 0 ? this.newCredit.productId : null,
+        amount: parseFloat(this.newCredit.amount.toString()),
         type: this.newCredit.type,
         description: this.newCredit.description,
-        date: this.newCredit.date
+        date: creditDate.toISOString().split('T')[0] // Format as YYYY-MM-DD for API
       };
+
+      console.log('[addCreditEntry] Sending credit data:', creditData);
 
       // Save to database
       const savedCredit = await firstValueFrom(this.http.post<any>(`${environment.apiUrl}/credit-entries`, creditData));
       
+      console.log('[addCreditEntry] Saved credit:', savedCredit);
+      
+      // Convert saved credit date to Date object
+      const savedCreditWithDate = {
+        ...savedCredit,
+        date: savedCredit.date ? new Date(savedCredit.date) : creditDate,
+        createdAt: savedCredit.createdAt ? new Date(savedCredit.createdAt) : new Date()
+      };
+      
       // Add the credit entry to local array
-      this.creditEntries.push({ ...savedCredit });
+      this.creditEntries.push(savedCreditWithDate);
       
       // If in inventory mode and secondary table exists, add to secondary table immediately
       if (this.isInventoryMode && this.secondaryReleveRows.length > 0) {
@@ -3231,9 +3270,9 @@ export class InventorySalesReconciliationComponent implements OnInit {
           credit: savedCredit.amount,
           solde: newSolde,
           type: 'MANUAL_CREDIT',
-          details: `Crédit ajouté manuellement`,
-          date: new Date(savedCredit.date),
-          createdAt: new Date()
+          details: `Crédit ajouté manuellement - ${this.getCreditTypeLabel(savedCredit.type)}`,
+          date: savedCreditWithDate.date,
+          createdAt: savedCreditWithDate.createdAt
         };
         this.secondaryReleveRows.push(creditTransaction);
       }
@@ -3241,9 +3280,24 @@ export class InventorySalesReconciliationComponent implements OnInit {
       // Regenerate the Relevé Inventaire to include the new credit
       await this.generateReleveInventaireFromReconciliationData();
       
+      // Reset form
+      this.newCredit = {
+        productId: this.selectedProductForCredit || 0,
+        amount: 0,
+        type: 'SALE',
+        description: '',
+        date: new Date()
+      };
+      
       this.hideAddCreditModal();
-    } catch (err) {
-      this.error = 'Erreur lors de la sauvegarde du crédit';
+      this.success = 'Crédit ajouté avec succès';
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        this.success = '';
+      }, 3000);
+    } catch (err: any) {
+      this.error = err.error?.error || 'Erreur lors de la sauvegarde du crédit';
       console.error('Error saving credit entry:', err);
     }
   }
@@ -3332,7 +3386,12 @@ export class InventorySalesReconciliationComponent implements OnInit {
   async loadExistingCreditEntries(): Promise<void> {
     try {
       const creditEntries = await firstValueFrom(this.http.get<CreditEntry[]>(`${environment.apiUrl}/credit-entries`));
-      this.creditEntries = creditEntries || [];
+      // Convert date strings to Date objects for proper handling
+      this.creditEntries = (creditEntries || []).map(entry => ({
+        ...entry,
+        date: entry.date ? new Date(entry.date) : new Date(),
+        createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date()
+      }));
     } catch (error: any) {
       console.error('Error loading existing credit entries:', error);
       // If it's a 503 error (table not available), that's expected

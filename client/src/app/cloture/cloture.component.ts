@@ -384,8 +384,15 @@ export class ClotureComponent implements OnInit, OnDestroy {
   recentExpenses(): Array<{ createdAt: string; type: string; reason: string; amount: number; categoryName?: string | null; supplierName?: string | null; notes?: string | null }> {
     // Prefer server-provided details if any
     const details = (this.currentSession()?.summary as any)?.expensesDetails as Array<any> | undefined;
+    console.log('[Cloture] recentExpenses called:', {
+      hasDetails: !!details,
+      detailsCount: details?.length || 0,
+      sessionId: this.currentSession()?.id,
+      summary: this.currentSession()?.summary ? Object.keys(this.currentSession()?.summary) : null
+    });
     if (details && details.length) {
-      return details.slice(0, 10).map(d => {
+      // Return ALL expenses, not just 10, so user can see complete details
+      return details.map(d => {
         const fullReason: string = d.reason || '';
         let categoryName: string | null = null;
         let supplierName: string | null = null;
@@ -588,13 +595,25 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   getExpensesTotal(): number {
-    // Prefer server-provided total if available
+    // Prefer server-provided total if available (this is the total of ALL expenses for display)
     const summary: any = this.currentSession()?.summary || {};
     const fromSummary = parseFloat(summary.expensesTotal || 0) || 0;
-    if (fromSummary > 0) return fromSummary;
-    // Fallback to movements tagged as expenses (exclude rejected)
+    if (fromSummary > 0) {
+      console.log('[Cloture] getExpensesTotal from summary:', fromSummary);
+      return fromSummary;
+    }
+    
+    // Fallback: Calculate from expenses details if available
+    const expensesDetails = (summary.expensesDetails || []) as Array<any>;
+    if (expensesDetails.length > 0) {
+      const totalFromDetails = expensesDetails.reduce((sum, e) => sum + (parseFloat(e.amount || 0) || 0), 0);
+      console.log('[Cloture] getExpensesTotal from details:', totalFromDetails, 'count:', expensesDetails.length);
+      if (totalFromDetails > 0) return totalFromDetails;
+    }
+    
+    // Final fallback: movements tagged as expenses (exclude rejected)
     const movements = this.currentSession()?.cashMovements || [];
-    return movements
+    const totalFromMovements = movements
       .filter(m => {
         const reason = String(m.reason || '');
         const amount = parseFloat((m as any).amount || 0) || 0;
@@ -604,6 +623,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
                amount > 0;
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
+    
+    console.log('[Cloture] getExpensesTotal from movements (fallback):', totalFromMovements);
+    return totalFromMovements;
   }
 
   getComputedExpectedCash(): number {
@@ -830,6 +852,21 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const userDepotId = this.authService.currentUser()?.depotId;
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
+    
+    // Debug logging
+    console.log('[Cloture] Loading session:', {
+      userDepotId,
+      visitingDepotId,
+      currentDepotId,
+      user: this.authService.currentUser()
+    });
+    
+    if (!currentDepotId) {
+      this.error.set('Aucun dépôt sélectionné. Veuillez sélectionner un dépôt.');
+      this.loading.set(false);
+      this.isRefreshing = false;
+      return;
+    }
     
     // Load active session for closure
     this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({

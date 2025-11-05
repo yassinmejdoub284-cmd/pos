@@ -469,19 +469,32 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     }
 
     try {
+      // Get current depot ID (visiting depot or user's depot)
+      const visitingDepotId = sessionStorage.getItem('visitingDepotId');
+      const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (this.currentUser.depotId || null);
+      
+      if (!currentDepotId) {
+        this.error = 'Aucun dépôt sélectionné. Veuillez sélectionner un dépôt.';
+        return;
+      }
+
       const expense = {
         ...this.newExpense,
-        depotId: this.currentUser.depotId || 1,
+        depotId: currentDepotId, // Use current depot ID
         userId: this.currentUser.id,
         payNow: this.payNow // Pass payment timing to server
       };
 
+      console.log('Creating expense with depotId:', currentDepotId, 'Expense:', expense);
+
       await this.expenseService.createExpense(expense).toPromise();
       
       this.closeAddExpenseModal();
+      // Reload data to show the new expense
       this.loadData();
-    } catch (error) {
-      this.error = 'Erreur lors de l\'enregistrement de la dépense';
+    } catch (error: any) {
+      const errorMessage = error?.error?.error || 'Erreur lors de l\'enregistrement de la dépense';
+      this.error = errorMessage;
       console.error('Error saving expense:', error);
     }
   }
