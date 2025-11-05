@@ -109,7 +109,7 @@ export class AuthService {
     if (!this.punchInProgress && currentUser?.userType !== 'enterprise' && token) {
       this.punchInProgress = true;
       try {
-        // Make punch request and clear session after a short delay to ensure request is sent
+        // Make punch request and clear session immediately after request is initiated
         this.attendanceService.punch('CHECK_OUT', currentUser?.id).subscribe({ 
           next: () => {
             console.log('Punch check-out successful');
@@ -124,10 +124,9 @@ export class AuthService {
           }
         });
         
-        // Clear session after a short delay to ensure request is sent with token
-        setTimeout(() => {
-          this.clearSession();
-        }, 100);
+        // Clear session immediately to prevent API calls with invalid token
+        // The punch request is already in flight, so it will use the token from the request
+        this.clearSession();
       } catch (error) {
         console.log('Error calling punch on logout:', error);
         this.punchInProgress = false;

@@ -4,3 +4,6 @@ export const environment = {
   socketUrl: 'https://api.solumove.net/port3255',
   enableRealtime: false
 };
+
+// PRODUCTION ENVIRONMENT - This file is used when building with --configuration production
+console.log('🔴 PRODUCTION ENVIRONMENT LOADED - apiUrl:', environment.apiUrl);

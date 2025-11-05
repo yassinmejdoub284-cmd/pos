@@ -128,29 +128,13 @@ router.get('/active-by-depot', authenticateToken, async (req, res) => {
       return res.json(null);
     }
 
-    // Debug logging
-    console.log('[active-by-depot] Session found:', {
-      sessionId: activeSession.id,
-      sessionDepotId: activeSession.depotId,
-      requestedDepotId,
-      userDepotId,
-      visitingDepotId,
-      userId: req.user?.id,
-      userRole: req.user?.role
-    });
+    // Debug logging removed to reduce console spam
 
     // Calculate expected cash from sales and movements
     const sessionSummary = await calculateSessionSummary(activeSession.id);
     activeSession.summary = sessionSummary;
 
-    // Debug logging for summary
-    console.log('[active-by-depot] Session summary calculated:', {
-      sessionId: activeSession.id,
-      expectedCash: sessionSummary?.expectedCash,
-      totalSales: sessionSummary?.totalSales,
-      totalTickets: sessionSummary?.totalTickets,
-      cashSales: sessionSummary?.cashSales
-    });
+    // Debug logging removed to reduce console spam
 
     // Update the session's expectedCash field in the database
     await prisma.sessionCaisse.update({
@@ -1541,13 +1525,7 @@ async function calculateSessionSummary(sessionId) {
     }
   }
 
-  // Debug logging
-  console.log('[calculateSessionSummary] Session summary:', {
-    sessionId,
-    depotId: sessionDepotId,
-    salesCount: session.sales?.length || 0,
-    openingFund: session.openingFund
-  });
+  // Debug logging removed to reduce console spam
 
   // Calculate cash from sales (exclude refunded)
   const cashSales = session.sales
@@ -1676,15 +1654,7 @@ async function calculateSessionSummary(sessionId) {
       orderBy: { createdAt: 'desc' }
     });
     
-    console.log('[calculateSessionSummary] Fetched approved cash expenses:', {
-      sessionId,
-      depotId: session.depotId,
-      sessionStart: sessionStart.toISOString(),
-      sessionEnd: sessionEnd.toISOString(),
-      sessionStatus: session.status,
-      expensesCount: approvedCashExpenses.length,
-      expenseIds: approvedCashExpenses.map(e => e.id)
-    });
+    // Debug logging removed to reduce console spam
 
     // Build a set of expense IDs that already created a cash movement in this session
     const expenseIdsWithMovement = new Set();
@@ -1703,17 +1673,14 @@ async function calculateSessionSummary(sessionId) {
         const idParsed = parseInt(match[1]);
         if (!isNaN(idParsed)) {
           expenseIdsWithMovement.add(idParsed);
-          console.log(`[calculateSessionSummary] Found expense #${idParsed} in cash movement: "${reason}"`);
+          // Debug logging removed to reduce console spam
         }
       } else {
-        // Debug: log if reason contains "Dépense" but doesn't match
-        if (reason.toLowerCase().includes('dépense')) {
-          console.log(`[calculateSessionSummary] Reason contains "Dépense" but didn't match regex: "${reason}"`);
-        }
+        // Debug logging removed to reduce console spam
       }
     });
     
-    console.log(`[calculateSessionSummary] Expense IDs with cash movements: [${Array.from(expenseIdsWithMovement).join(', ')}]`);
+    // Debug logging removed to reduce console spam
 
     // CRITICAL: Only count expenses that DON'T have a cash movement to avoid double counting
     // Expenses with cash movements are already counted in the sortie calculation
@@ -1744,32 +1711,14 @@ async function calculateSessionSummary(sessionId) {
     // Provide details for UI - show ALL expenses for display
     expensesDetails = allExpenseDetails;
     
-    console.log('[calculateSessionSummary] Expenses details:', {
-      sessionId,
-      totalApprovedExpenses: approvedCashExpenses.length,
-      expensesWithMovement: expenseIdsWithMovement.size,
-      expensesWithoutMovement: expensesWithoutMovement.length,
-      expensesDetailsCount: expensesDetails.length,
-      cashExpenseTotal,
-      sampleExpense: expensesDetails[0] || null
-    });
+    // Debug logging removed to reduce console spam
 
     // CRITICAL FIX: Only subtract expenses that DON'T have a cash movement
     // Expenses with cash movements are already counted in sortie (cashMovements)
     // This prevents double subtraction
     expectedCash = expectedCash - cashExpenseTotal;
     
-    // Debug logging
-    console.log('[calculateSessionSummary] Expenses calculation:', {
-      sessionId,
-      totalApprovedExpenses: approvedCashExpenses.length,
-      expensesWithMovement: expenseIdsWithMovement.size,
-      expensesWithoutMovement: expensesWithoutMovement.length,
-      cashExpenseTotal,
-      sortie,
-      expectedCashBeforeExpenses: expectedCash + cashExpenseTotal,
-      expectedCashAfterExpenses: expectedCash
-    });
+    // Debug logging removed to reduce console spam
   } catch (e) {}
 
   // Supplier payments details (for UI display with supplier name)

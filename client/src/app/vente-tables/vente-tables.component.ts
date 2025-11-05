@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -6,6 +6,10 @@ import { SalonService, Salon, Table } from '../core/services/salon.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
+import { AuthService } from '../core/services/auth.service';
+import { SettingsService, AppSettings } from '../core/services/settings.service';
+import { takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 
 interface ProductCategory {
   id: number;
@@ -46,7 +50,7 @@ interface TableStatus {
   templateUrl: './vente-tables.component.html',
   styleUrl: './vente-tables.component.css'
 })
-export class VenteTablesComponent implements OnInit {
+export class VenteTablesComponent implements OnInit, OnDestroy {
   selectedTable = signal<Table | null>(null);
   selectedSalon = signal<Salon | null>(null);
   salons = signal<Salon[]>([]);
@@ -64,16 +68,59 @@ export class VenteTablesComponent implements OnInit {
   selectedItemsForPayment = signal<Set<number>>(new Set());
   tableStatuses = signal<Map<number, TableStatus>>(new Map());
 
+  // Top bar properties
+  currentUser = signal<any>(null);
+  companyName = signal('PoS Pâtisserie');
+  companyLogo = signal('');
+  logoLoadError = signal(false);
+  appSettings = signal<AppSettings | null>(null);
+  private destroy$ = new Subject<void>();
+
   constructor(
     private router: Router,
     private salonService: SalonService,
-    private http: HttpClient
+    private http: HttpClient,
+    private authService: AuthService,
+    private settingsService: SettingsService
   ) {}
 
   ngOnInit(): void {
+    this.currentUser.set(this.authService.currentUser());
+    this.loadSettings();
     this.loadSalons();
     this.loadTables();
     this.loadProductCategories();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  loadSettings(): void {
+    this.settingsService.getSettings().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(settings => {
+      if (settings) {
+        this.appSettings.set(settings);
+        this.companyName.set(settings.companyName || 'PoS Pâtisserie');
+        this.companyLogo.set(settings.logoUrl ? this.settingsService.getAbsoluteLogoUrl(settings.logoUrl) : '');
+        this.logoLoadError.set(false);
+      }
+    });
+  }
+
+  onLogoError(): void {
+    this.logoLoadError.set(true);
+    this.companyLogo.set('');
+  }
+
+  goBackToHome(): void {
+    this.router.navigate(['/home']);
+  }
+
+  goToTablesSalon(): void {
+    this.router.navigate(['/tables-salon']);
   }
 
   private initializeTableStatuses(): void {
@@ -226,9 +273,6 @@ export class VenteTablesComponent implements OnInit {
     return '📦';
   }
 
-  goBackToHome(): void {
-    this.router.navigate(['/home']);
-  }
 
   startSale(): void {
     if (this.selectedSalon() && this.selectedTable()) {

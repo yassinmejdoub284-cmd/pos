@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, signal, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, signal, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ProductsService } from '../../../core/services/products.service';
 import { Product, ProductFamily } from '../../../core/models/product.model';
@@ -11,7 +11,7 @@ import { Depot } from '../../../core/models/depot.model';
   standalone: false
 
 })
-export class ProductFormComponent implements OnInit {
+export class ProductFormComponent implements OnInit, OnChanges {
   @Input() product: Product | null = null;
   @Output() saved = new EventEmitter<Product>();
   @Output() cancelled = new EventEmitter<void>();
@@ -54,7 +54,18 @@ export class ProductFormComponent implements OnInit {
   ngOnInit(): void {
     this.loadFamilies();
     this.initializeSelectedDepots();
-    
+    this.initializeForm();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['product'] && !changes['product'].firstChange) {
+      // Product input changed, reinitialize depots and form
+      this.initializeSelectedDepots();
+      this.initializeForm();
+    }
+  }
+
+  private initializeForm(): void {
     if (this.product) {
       this.productForm.patchValue({
         ...this.product,
@@ -127,8 +138,12 @@ export class ProductFormComponent implements OnInit {
   }
 
   initializeSelectedDepots(): void {
-    if (this.product && this.product.assignedDepots) {
-      this.selectedDepotIds.set(this.product.assignedDepots.map(depot => depot.id));
+    if (this.product && this.product.assignedDepots && this.product.assignedDepots.length > 0) {
+      const depotIds = this.product.assignedDepots.map(depot => depot.id);
+      this.selectedDepotIds.set(depotIds);
+    } else {
+      // Reset to empty array if no depots assigned
+      this.selectedDepotIds.set([]);
     }
   }
 

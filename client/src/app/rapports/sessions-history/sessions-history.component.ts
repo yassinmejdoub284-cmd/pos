@@ -2235,6 +2235,13 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     return 'Utilisateur inconnu';
   }
 
+  // Get sequential number for a session (1-based index in displayed sessions)
+  getSessionNumber(sessionId: number): number {
+    const sessions = this.sessions();
+    const index = sessions.findIndex(s => s.id === sessionId);
+    return index >= 0 ? index + 1 : 0; // Return 1-based index, or 0 if not found
+  }
+
 
   exportReleveCaisse(): void {
     const entries = this.releveEntries();

@@ -271,13 +271,16 @@
       <span class="text-sm text-slate-600">
         Session {{ currentSessionPage }} sur {{ totalSessions }}
       </span>
-      <div class="flex space-x-1">
+      <div class="flex space-x-1 flex-wrap gap-1">
         <button 
-          *ngFor="let page of [].constructor(totalSessions); let i = index"
-          (click)="changePage(i + 1)"
+          *ngFor="let page of getVisiblePages()"
+          (click)="onPageClick(page)"
+          [disabled]="typeof page === 'string'"
           [class]="'px-3 py-2 rounded-2xl transition-colors ' + 
-                   (currentSessionPage === i + 1 ? 'bg-indigo-600 text-white' : 'bg-slate-100/50 text-slate-800')">
-          {{ i + 1 }}
+                   (typeof page === 'number' && currentSessionPage === page ? 'bg-indigo-600 text-white' : 
+                    typeof page === 'string' ? 'bg-transparent text-slate-400 cursor-default' : 
+                    'bg-slate-100/50 text-slate-800 hover:bg-slate-200/50')">
+          {{ page }}
         </button>
       </div>
     </div>

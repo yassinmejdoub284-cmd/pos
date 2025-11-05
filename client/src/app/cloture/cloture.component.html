@@ -114,7 +114,7 @@
               Encaissement
             </span>
             <span class="text-right text-base md:text-lg font-bold text-emerald-700">{{
-              formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit() +
+                formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + cashFromSalesNetOfCredit() +
               getFundingsTotal())
               }}</span>
           </label>
@@ -235,7 +235,7 @@
                   </svg>
                   Espèces en Caisse
                 </label>
-                <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(getCashFromSalesNetOfCredit())
+                <span class="text-sm font-semibold text-emerald-700">{{ formatCurrency(cashFromSalesNetOfCredit())
                   }}</span>
               </div>
               <div class="mt-2 hidden peer-checked:block schema-detail">
@@ -486,7 +486,7 @@
             Encaissement
           </span>
           <span class="text-right text-base md:text-lg font-bold text-emerald-700">{{
-            formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit())
+            formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + cashFromSalesNetOfCredit())
             }}</span>
         </div>
         <div class="mt-3 relative pl-6">

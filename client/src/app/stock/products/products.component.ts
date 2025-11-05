@@ -58,7 +58,15 @@ export class ProductsComponent implements OnInit {
 
     this.productsService.getProducts(currentDepotId || undefined).subscribe({
       next: (products) => {
-        this.allProducts = products;
+        // Transform depotAssignments to assignedDepots for all products
+        this.allProducts = products.map(product => {
+          if (product.depotAssignments && product.depotAssignments.length > 0 && !product.assignedDepots) {
+            product.assignedDepots = product.depotAssignments
+              .map(assignment => assignment.depot)
+              .filter((depot): depot is NonNullable<typeof depot> => depot !== null && depot !== undefined);
+          }
+          return product;
+        });
         this.applyFilters();
         this.loading = false;
       },
@@ -150,7 +158,14 @@ export class ProductsComponent implements OnInit {
   }
 
   openEditModal(product: Product): void {
-    this.editingProduct = { ...product };
+    // Transform depotAssignments to assignedDepots if needed
+    const editingProduct: Product = { ...product };
+    if (product.depotAssignments && product.depotAssignments.length > 0 && !product.assignedDepots) {
+      editingProduct.assignedDepots = product.depotAssignments
+        .map(assignment => assignment.depot)
+        .filter((depot): depot is NonNullable<typeof depot> => depot !== null && depot !== undefined);
+    }
+    this.editingProduct = editingProduct;
     this.showAddModal = true;
   }
 

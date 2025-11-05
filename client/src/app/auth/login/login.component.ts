@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { RemindersService } from '../../core/services/reminders.service';
 import { Reminder } from '../../core/models/reminder.model';
@@ -59,10 +59,12 @@ export class LoginComponent implements OnInit, OnDestroy {
   readonly SCANNER_ENTER_KEY = 'Enter';
 
   private readonly loginThemeService = inject(LoginThemeService);
+  private returnUrl: string | null = null;
 
   constructor(
     private authService: AuthService,
     private router: Router,
+    private route: ActivatedRoute,
     private http: HttpClient,
     private usersService: UsersService,
     private depotsService: DepotsService,
@@ -75,35 +77,58 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.loginThemeService.detectAndSetTheme();
     this.loginThemeService.applyFaviconForLogin();
 
+    // Get returnUrl from query params if present
+    this.route.queryParams.subscribe((params: any) => {
+      this.returnUrl = params['returnUrl'] || null;
+    });
+
     // Check if already authenticated - check both signal and sessionStorage
     const token = sessionStorage.getItem('token');
     const userStr = sessionStorage.getItem('user');
     const isAuthenticated = this.authService.isAuthenticated();
     
-    // If token exists in storage but signal not set, reload auth state
-    if (token && userStr && !isAuthenticated) {
+    // Only restore auth state if we have both token AND user data AND signal is not set
+    // This prevents redirect loops after logout
+    if (token && token.trim().length > 0 && userStr && !isAuthenticated) {
       try {
         const user = JSON.parse(userStr);
-        this.authService.currentUser.set(user);
-        this.authService.isAuthenticated.set(true);
-        // Redirect based on role
-        this.redirectBasedOnRole(user.role || '');
-        return;
+        // Only restore if user data is valid
+        if (user && user.id) {
+          this.authService.currentUser.set(user);
+          this.authService.isAuthenticated.set(true);
+          // Redirect based on role or returnUrl
+          const role = user.role || '';
+          if (this.returnUrl) {
+            this.router.navigate([this.returnUrl]);
+          } else {
+            this.redirectBasedOnRole(role);
+          }
+          return;
+        }
       } catch (error) {
-        // If parsing fails, continue to login
+        // If parsing fails, clear corrupted data
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('permissions');
       }
     }
 
-    // Redirect if already authenticated
-    if (isAuthenticated || (token && userStr)) {
-      // Session restore: show due reminders if any
+    // Redirect if already authenticated (user logged in before reaching login page)
+    if (isAuthenticated && token && userStr) {
       const currentUser = this.authService.currentUser();
       if (currentUser) {
-        this.tryShowRemindersThenRedirect('SESSION');
+        // Use returnUrl if available, otherwise show reminders and redirect
+        if (this.returnUrl) {
+          this.router.navigate([this.returnUrl]);
+        } else {
+          // Session restore: show due reminders if any
+          this.tryShowRemindersThenRedirect('SESSION');
+        }
       }
       return;
     }
 
+    // Not authenticated - show login screen
     // Setup scanner detection
     this.setupScannerDetection();
 
@@ -247,6 +272,13 @@ export class LoginComponent implements OnInit, OnDestroy {
   private async redirectBasedOnRole(role: string): Promise<void> {
     console.log('Redirecting user with role:', role);
     
+    // Check if returnUrl is set (from auth guard redirect)
+    if (this.returnUrl) {
+      console.log('Using returnUrl:', this.returnUrl);
+      this.router.navigate([this.returnUrl]);
+      return;
+    }
+    
     // For admin users, check depot selection first
     if (role === 'ADMIN') {
       console.log('Admin user, checking depot selection before redirect');
@@ -295,9 +327,28 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   private async tryShowRemindersThenRedirect(source: 'LOGIN' | 'SESSION'): Promise<void> {
     console.log('tryShowRemindersThenRedirect called, source:', source);
+    
+    // Only fetch if user is authenticated (avoid 401 errors after logout)
+    if (!this.authService.isAuthenticated()) {
+      console.log('User not authenticated, skipping reminders/notifications');
+      const role = this.authService.getCurrentUserRole();
+      if (role) {
+        await this.redirectBasedOnRole(role);
+      } else {
+        // No role, just stay on login page
+      }
+      return;
+    }
+    
     // Fetch both reminders and notifications
     this.remindersService.fetchDue().subscribe({
       next: async (list) => {
+        // Check again if still authenticated
+        if (!this.authService.isAuthenticated()) {
+          console.log('User logged out during reminder fetch, skipping');
+          return;
+        }
+        
         console.log('Reminders fetched:', list);
         const due = (list || []).slice(0, 3);
         if (due.length === 0) {
@@ -312,21 +363,45 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.showReminderSurface = !!this.currentReminder;
       },
       error: async (error) => {
+        // If 401, user is logged out, just redirect
+        if (error.status === 401) {
+          console.log('Unauthorized during reminder fetch, user logged out');
+          return;
+        }
         console.error('Error fetching reminders:', error);
-        // On error, fetch notifications and proceed
-        await this.fetchNotificationsAndRedirect();
+        // On error, fetch notifications and proceed only if still authenticated
+        if (this.authService.isAuthenticated()) {
+          await this.fetchNotificationsAndRedirect();
+        }
       }
     });
   }
 
   private async fetchNotificationsAndRedirect(): Promise<void> {
     console.log('fetchNotificationsAndRedirect called, postLoginRole:', this.postLoginRole);
+    
+    // Check if user is still authenticated before making API calls
+    if (!this.authService.isAuthenticated()) {
+      console.log('User not authenticated, skipping notifications');
+      const role = this.postLoginRole || this.authService.getCurrentUserRole();
+      if (role) {
+        await this.redirectBasedOnRole(role);
+      }
+      return;
+    }
+    
     // Fetch notifications after login
     this.notificationsService.updateUnreadCount();
     
     // Log notifications for debugging and show them if they exist
     this.notificationsService.fetchUnread().subscribe({
       next: async (notifications) => {
+        // Check again if still authenticated
+        if (!this.authService.isAuthenticated()) {
+          console.log('User logged out during notification fetch, skipping');
+          return;
+        }
+        
         console.log('Notifications fetched on login:', notifications);
         if (notifications.length > 0) {
           console.log('Found', notifications.length, 'unread notifications, showing notification surface');
@@ -340,9 +415,16 @@ export class LoginComponent implements OnInit, OnDestroy {
         await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
       },
       error: async (error) => {
+        // If 401, user is logged out, don't redirect
+        if (error.status === 401) {
+          console.log('Unauthorized during notification fetch, user logged out');
+          return;
+        }
         console.error('Error fetching notifications on login:', error);
-        // On error, proceed with redirect
-        await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
+        // On error, proceed with redirect only if still authenticated
+        if (this.authService.isAuthenticated()) {
+          await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
+        }
       }
     });
   }

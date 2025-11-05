@@ -230,7 +230,8 @@
       "showCompanyDetails": true,
       "showClientInfo": true,
       "showPaymentMethod": true,
-      "showDiscountDetails": true
+      "showDiscountDetails": true,
+      "doubleImpression": false
     },
     "documentTypeDefaults": {
       "livraison": {
@@ -626,6 +627,20 @@
           },
           "billing-center": {
             "visible": true
+          },
+          "vente-tables": {
+            "visible": true
+          },
+          "tables-salon": {
+            "visible": true
+          },
+          "historique-ventes": {
+            "visible": true,
+            "submodules": {}
+          },
+          "historique-pointage": {
+            "visible": true,
+            "submodules": {}
           }
         },
         "meta": {
