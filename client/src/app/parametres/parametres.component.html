@@ -388,6 +388,11 @@
               <input id="showDiscountDetails" type="checkbox" [(ngModel)]="settings.printSettings.showDiscountDetails" class="h-4 w-4"/>
               <label for="showDiscountDetails" class="text-gray-600">Détails des remises</label>
             </div>
+            <div class="flex items-center gap-3">
+              <input id="doubleImpression" type="checkbox" [(ngModel)]="settings.printSettings.doubleImpression" class="h-4 w-4"/>
+              <label for="doubleImpression" class="text-gray-600">Double impression</label>
+            </div>
+            <p class="text-xs text-gray-500 mt-1 ml-7">Chaque ticket sera imprimé deux fois lorsque cette option est activée</p>
           </div>
         </div>
 

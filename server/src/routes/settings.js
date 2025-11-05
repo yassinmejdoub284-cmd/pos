@@ -109,7 +109,8 @@ function ensureDefaults(data = {}) {
       showCompanyDetails: typeof data.printSettings?.showCompanyDetails === 'boolean' ? data.printSettings.showCompanyDetails : true,
       showClientInfo: typeof data.printSettings?.showClientInfo === 'boolean' ? data.printSettings.showClientInfo : true,
       showPaymentMethod: typeof data.printSettings?.showPaymentMethod === 'boolean' ? data.printSettings.showPaymentMethod : true,
-      showDiscountDetails: typeof data.printSettings?.showDiscountDetails === 'boolean' ? data.printSettings.showDiscountDetails : true
+      showDiscountDetails: typeof data.printSettings?.showDiscountDetails === 'boolean' ? data.printSettings.showDiscountDetails : true,
+      doubleImpression: typeof data.printSettings?.doubleImpression === 'boolean' ? data.printSettings.doubleImpression : false
     },
     // Document type defaults
     documentTypeDefaults: data.documentTypeDefaults || {

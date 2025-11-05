@@ -292,7 +292,7 @@
     "roleAccessConfig": {}
   },
   "4": {
-    "companyName": "",
+    "companyName": "PATISSERIE TUNISIENNE",
     "logoUrl": "",
     "companyAddress": "",
     "companyPhone": "",
@@ -349,7 +349,8 @@
       "showCompanyDetails": true,
       "showClientInfo": true,
       "showPaymentMethod": true,
-      "showDiscountDetails": true
+      "showDiscountDetails": true,
+      "doubleImpression": true
     },
     "documentTypeDefaults": {
       "livraison": {
@@ -474,7 +475,8 @@
       "showCompanyDetails": true,
       "showClientInfo": true,
       "showPaymentMethod": true,
-      "showDiscountDetails": true
+      "showDiscountDetails": true,
+      "doubleImpression": false
     },
     "documentTypeDefaults": {
       "livraison": {

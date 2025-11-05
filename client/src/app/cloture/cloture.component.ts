@@ -388,7 +388,10 @@ export class ClotureComponent implements OnInit, OnDestroy {
       hasDetails: !!details,
       detailsCount: details?.length || 0,
       sessionId: this.currentSession()?.id,
-      summary: this.currentSession()?.summary ? Object.keys(this.currentSession()?.summary) : null
+      summary: (() => {
+        const summary = this.currentSession()?.summary;
+        return summary ? Object.keys(summary) : null;
+      })()
     });
     if (details && details.length) {
       // Return ALL expenses, not just 10, so user can see complete details

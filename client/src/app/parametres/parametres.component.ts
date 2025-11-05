@@ -68,7 +68,8 @@ export class ParametresComponent implements OnInit {
       showCompanyDetails: true,
       showClientInfo: true,
       showPaymentMethod: true,
-      showDiscountDetails: true
+      showDiscountDetails: true,
+      doubleImpression: false
     },
     // Document display settings
     documentDisplaySettings: {
@@ -213,6 +214,34 @@ export class ParametresComponent implements OnInit {
         // Ensure basic company info exists with default values
         if (!this.settings.companyName) {
           this.settings.companyName = 'PATISSERIE TUNISIENNE';
+        }
+        
+        // Ensure printSettings exists with default values including doubleImpression
+        if (!this.settings.printSettings) {
+          this.settings.printSettings = {
+            showLogo: true,
+            logoSize: 'medium',
+            dateFormat: 'dd/mm/yyyy',
+            timeFormat: '24h',
+            currencySymbol: 'dt',
+            currencyPosition: 'after',
+            customTexts: {
+              thankYouMessage: 'Merci de votre visite!',
+              receiptTitle: 'REÇU DE VENTE',
+              companySlogan: 'Votre pâtisserie de confiance',
+              footerMessage: 'Merci pour votre fidélité'
+            },
+            showCompanyDetails: true,
+            showClientInfo: true,
+            showPaymentMethod: true,
+            showDiscountDetails: true,
+            doubleImpression: false
+          };
+        } else {
+          // Ensure doubleImpression exists in printSettings
+          if (this.settings.printSettings.doubleImpression === undefined) {
+            this.settings.printSettings.doubleImpression = false;
+          }
         }
         
         // Ensure devicesConfig exists with default values

@@ -372,19 +372,28 @@ export class PrintService {
   printSaleReceipt(sale: Sale, options?: { openPreviewOnly?: boolean }): void {
     this.settingsService.getSettings().subscribe({
       next: async (settings) => {
+        const doublePrint = settings?.printSettings?.doubleImpression || false;
+        
         // Check if desktop version is enabled
         if (settings?.isDesktopVersion) {
           // Use Tauri direct printing with text format
           const text = this.buildSaleReceiptText(sale, settings);
           try {
             await this.printPlainTextDesktop(text);
+            // Double print if enabled
+            if (doublePrint) {
+              // Small delay between prints
+              setTimeout(async () => {
+                await this.printPlainTextDesktop(text);
+              }, 500);
+            }
           } catch (error) {
             console.error('Tauri print failed, falling back to web print:', error);
-            this.printReceiptInBrowser(sale, settings);
+            this.printReceiptInBrowser(sale, settings, doublePrint);
           }
         } else {
           // Use browser window printing with HTML format
-          this.printReceiptInBrowser(sale, settings);
+          this.printReceiptInBrowser(sale, settings, doublePrint);
         }
       },
       error: () => {
@@ -475,41 +484,53 @@ export class PrintService {
   }
 
   // Browser printing method
-  private printReceiptInBrowser(sale: Sale, settings?: AppSettings | null): void {
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank', 'width=400,height=600');
-    
-    if (!printWindow) {
-      console.error('Could not open print window');
-      return;
-    }
+  private printReceiptInBrowser(sale: Sale, settings?: AppSettings | null, doublePrint: boolean = false): void {
+    const printOnce = () => {
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank', 'width=400,height=600');
+      
+      if (!printWindow) {
+        console.error('Could not open print window');
+        return;
+      }
 
-    // Use the existing HTML receipt builder
-    const htmlContent = this.buildSaleReceiptHtml(sale, settings);
+      // Use the existing HTML receipt builder
+      const htmlContent = this.buildSaleReceiptHtml(sale, settings);
 
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
 
-    // Wait for content to load, then print - but don't auto-close
-    printWindow.onload = () => {
-      // Give more time for content to render, especially on tablets
+      // Wait for content to load, then print - but don't auto-close
+      printWindow.onload = () => {
+        // Give more time for content to render, especially on tablets
+        setTimeout(() => {
+          printWindow.print();
+          // Don't auto-close - let user close manually
+          // This prevents issues on tablets where content might not be fully rendered
+        }, 500);
+      };
+
+      // Fallback: if onload doesn't fire, try after a longer delay
       setTimeout(() => {
-        printWindow.print();
-        // Don't auto-close - let user close manually
-        // This prevents issues on tablets where content might not be fully rendered
-      }, 500);
+        if (printWindow && !printWindow.closed) {
+          try {
+            printWindow.print();
+          } catch (error) {
+            console.error('Print failed:', error);
+          }
+        }
+      }, 1000);
     };
 
-    // Fallback: if onload doesn't fire, try after a longer delay
-    setTimeout(() => {
-      if (printWindow && !printWindow.closed) {
-        try {
-          printWindow.print();
-        } catch (error) {
-          console.error('Print failed:', error);
-        }
-      }
-    }, 1000);
+    // Print first time
+    printOnce();
+
+    // Print second time if double print is enabled
+    if (doublePrint) {
+      setTimeout(() => {
+        printOnce();
+      }, 1000);
+    }
   }
 
 
