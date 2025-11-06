@@ -187,10 +187,11 @@ export class HistoriqueComponent implements OnInit {
       params.startDate = `${this.startDate}T00:00:00.000`;
       params.endDate = `${this.endDate}T23:59:59.999`;
     } else {
-      // If no sessions and no date range, load recent sales (last 7 days)
+      // If no sessions and no date range, use role-based history limit
+      const historyLimitDays = this.getCurrentUserHistoryLimit();
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 7);
+      startDate.setDate(endDate.getDate() - (historyLimitDays - 1));
       params.startDate = startDate.toISOString();
       params.endDate = endDate.toISOString();
     }
@@ -269,8 +270,17 @@ export class HistoriqueComponent implements OnInit {
   }
 
   loadRecentSessions(limit: number, after?: () => void): void {
+    // Calculate date range based on role-based history limit
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - (limit - 1));
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+    
     this.sessionsService.getSessions({ 
-      limit: limit
+      limit: limit,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
     })
       .pipe(takeUntil(this.destroy$))
       .subscribe({

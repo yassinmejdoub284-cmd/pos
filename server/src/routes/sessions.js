@@ -981,9 +981,20 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     if (startDate && endDate) {
+      // Parse dates and set time to start/end of day to ensure proper filtering
+      // If date is in format YYYY-MM-DD, append time to avoid timezone issues
+      const startDateStr = startDate.includes('T') ? startDate : `${startDate}T00:00:00.000`;
+      const endDateStr = endDate.includes('T') ? endDate : `${endDate}T23:59:59.999`;
+      
+      const start = new Date(startDateStr);
+      const end = new Date(endDateStr);
+      
+      console.log('Date range filter - startDate:', startDate, 'parsed as:', start);
+      console.log('Date range filter - endDate:', endDate, 'parsed as:', end);
+      
       whereClause.openedAt = { 
-        gte: new Date(startDate), 
-        lte: new Date(endDate) 
+        gte: start, 
+        lte: end 
       };
     }
 
@@ -1080,9 +1091,20 @@ router.get('/summaries', authenticateToken, async (req, res) => {
     }
 
     if (startDate && endDate) {
+      // Parse dates and set time to start/end of day to ensure proper filtering
+      // If date is in format YYYY-MM-DD, append time to avoid timezone issues
+      const startDateStr = startDate.includes('T') ? startDate : `${startDate}T00:00:00.000`;
+      const endDateStr = endDate.includes('T') ? endDate : `${endDate}T23:59:59.999`;
+      
+      const start = new Date(startDateStr);
+      const end = new Date(endDateStr);
+      
+      console.log('Date range filter - startDate:', startDate, 'parsed as:', start);
+      console.log('Date range filter - endDate:', endDate, 'parsed as:', end);
+      
       whereClause.openedAt = { 
-        gte: new Date(startDate), 
-        lte: new Date(endDate) 
+        gte: start, 
+        lte: end 
       };
     }
 
@@ -1639,7 +1661,7 @@ async function calculateSessionSummary(sessionId) {
       isRejected: false, // Exclude rejected expenses
       paymentType: 'CASH',
       depotId: session.depotId, // Filter by depot instead of user
-      createdAt: { gte: sessionStart } // Include all expenses created after session start
+      createdAt: { gte: sessionStart, lte: sessionEnd } // Restrict to session window
     };
     
     // For closed sessions, only include approved expenses

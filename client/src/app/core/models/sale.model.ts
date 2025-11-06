@@ -42,6 +42,8 @@ export interface Sale {
     paidAmount: number;
     remainingAmount: number;
   };
+  // Paid amount (cash amount paid for this sale)
+  paidAmount?: number;
 }
 
 export interface SaleItem {

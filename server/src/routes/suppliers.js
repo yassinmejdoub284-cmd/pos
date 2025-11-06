@@ -356,23 +356,23 @@ router.put('/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (
     }
 
     const updateData = {
-      name,
-      contactName,
-      email,
-      phone,
-      address,
-      city,
-      postalCode,
-      taxNumber,
-      paymentTerms,
-      notes,
-      isActive
+        name,
+        contactName,
+        email,
+        phone,
+        address,
+        city,
+        postalCode,
+        taxNumber,
+        paymentTerms,
+        notes,
+        isActive
     };
 
     // Only update depotId if it's provided (for admin) or set it to user's depot (for non-admin)
     if (targetDepotId !== undefined) {
       updateData.depotId = targetDepotId;
-    }
+      }
     
     const supplier = await prisma.supplier.update({
       where: { id: parseInt(req.params.id) },
@@ -622,8 +622,8 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
 
     // Get expenses - filter by depotId
     const expensesWhere = { 
-      supplierId: parseInt(supplierId),
-      date: { gte: start, lte: end }
+        supplierId: parseInt(supplierId),
+        date: { gte: start, lte: end }
     };
     if (targetDepotId) {
       expensesWhere.depotId = targetDepotId;

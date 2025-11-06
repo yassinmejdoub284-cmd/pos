@@ -310,7 +310,7 @@
     "auditRetentionDays": 90,
     "historyRetentionDays": 30,
     "roleHistoryLimits": {
-      "ADMIN": 9999,
+      "ADMIN": 1,
       "MANAGER": 30,
       "CASHIER": 5,
       "STOCK_MANAGER": 15
@@ -635,12 +635,10 @@
             "visible": true
           },
           "historique-ventes": {
-            "visible": true,
-            "submodules": {}
+            "visible": true
           },
           "historique-pointage": {
-            "visible": true,
-            "submodules": {}
+            "visible": true
           }
         },
         "meta": {

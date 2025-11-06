@@ -32,6 +32,8 @@ export class DailyMonthlyComponent implements OnInit, AfterViewInit {
   reports: DailyMonthlyReport[] = [];
   chart: Chart.Chart | null = null;
   showChart = false;
+  startDate: string = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  endDate: string = new Date().toISOString().split('T')[0];
   filters: ReportFilters = {
     startDate: '',
     endDate: '',
@@ -53,13 +55,9 @@ export class DailyMonthlyComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit(): void {
-    // Set default date range (last 30 days)
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
-    
-    this.filters.startDate = startDate.toISOString().split('T')[0];
-    this.filters.endDate = endDate.toISOString().split('T')[0];
+    // Initialize filters with default date range (current month)
+    this.filters.startDate = this.startDate;
+    this.filters.endDate = this.endDate;
     
     this.loadReports();
   }
@@ -72,12 +70,12 @@ export class DailyMonthlyComponent implements OnInit, AfterViewInit {
     this.loading = true;
     this.error = '';
     
-    const params = {
-      startDate: this.filters.startDate,
-      endDate: this.filters.endDate,
-      depotId: this.filters.depotId === 'all' ? '' : this.filters.depotId,
-      reportType: this.filters.reportType
-    };
+    // Use startDate and endDate properties (synced with filters)
+    const params: any = {};
+    if (this.startDate) params.startDate = this.startDate;
+    if (this.endDate) params.endDate = this.endDate;
+    if (this.filters.depotId !== 'all') params.depotId = this.filters.depotId;
+    params.reportType = this.filters.reportType;
 
     this.http.get<DailyMonthlyReport[]>(`${environment.apiUrl}/reports/daily-monthly`, { params })
       .subscribe({
@@ -94,6 +92,24 @@ export class DailyMonthlyComponent implements OnInit, AfterViewInit {
           console.error('Error loading daily-monthly report:', error);
         }
       });
+  }
+
+  onDateChange(): void {
+    this.filters.startDate = this.startDate;
+    this.filters.endDate = this.endDate;
+    this.loadReports();
+  }
+
+  onStartDateChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.startDate = input?.value || this.startDate;
+    this.onDateChange();
+  }
+
+  onEndDateChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.endDate = input?.value || this.endDate;
+    this.onDateChange();
   }
 
   onFiltersChange(): void {

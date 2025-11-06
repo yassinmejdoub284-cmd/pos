@@ -223,7 +223,7 @@ router.get('/', authenticateToken, async (req, res) => {
         });
         if (!depot) {
           return res.status(403).json({ error: 'Invalid depot specified' });
-        }
+      }
         // Allow access for users without assigned depot (like RESPONSABLE_MAGASIN)
       }
       // Deny if trying to access different depot
@@ -392,11 +392,11 @@ router.post('/', authenticateToken, async (req, res) => {
     
     if (req.user?.role === 'ADMIN') {
       // Admin can choose depotId from request body
-      if (depotId) {
-        finalDepotId = parseInt(depotId);
-        if (isNaN(finalDepotId)) {
-          return res.status(400).json({ error: 'ID de dépôt invalide' });
-        }
+    if (depotId) {
+      finalDepotId = parseInt(depotId);
+      if (isNaN(finalDepotId)) {
+        return res.status(400).json({ error: 'ID de dépôt invalide' });
+      }
         // Validate depot exists
         const depot = await prisma.depot.findUnique({
           where: { id: finalDepotId }
@@ -404,7 +404,7 @@ router.post('/', authenticateToken, async (req, res) => {
         if (!depot) {
           return res.status(400).json({ error: 'Dépôt spécifié n\'existe pas' });
         }
-      } else {
+    } else {
         // Admin without depotId specified uses their assigned depot or returns error
         if (!userDepotId) {
           return res.status(400).json({ error: 'Veuillez spécifier un dépôt ou assigner un dépôt à l\'utilisateur' });
@@ -806,7 +806,7 @@ router.get('/stats/summary', authenticateToken, async (req, res) => {
         });
         if (!depot) {
           return res.status(403).json({ error: 'Invalid depot specified' });
-        }
+      }
         // Allow access for users without assigned depot (like RESPONSABLE_MAGASIN)
       }
       // Deny if trying to access different depot

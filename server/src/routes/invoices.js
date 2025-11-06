@@ -839,7 +839,7 @@ router.patch('/:id/mark-printed', authenticateToken, async (req, res) => {
     if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
       return res.status(403).json({ error: 'Access denied: Cannot access other depot invoices' });
     }
-    
+
     const invoice = await prisma.invoice.findFirst({
       where: {
         id: invoiceId,
@@ -884,7 +884,7 @@ router.post('/temp-draft', authenticateToken, async (req, res) => {
     if (!userDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot to create invoice drafts' });
     }
-    
+
     // Get next invoice number
     let invoiceNumber;
     try {

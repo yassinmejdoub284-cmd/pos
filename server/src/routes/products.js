@@ -93,12 +93,12 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Build where clause for depot filtering - ALWAYS filter by depot for isolation
     const whereClause = {
-      depotAssignments: {
-        some: {
+        depotAssignments: {
+          some: {
           depotId: targetDepotId
+          }
         }
-      }
-    };
+      };
     
     const products = await prisma.product.findMany({
       where: whereClause,

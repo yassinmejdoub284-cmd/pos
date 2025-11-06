@@ -123,14 +123,14 @@ router.get('/search/pos', authenticateToken, async (req, res) => {
     }
 
     const whereClause = {
-      isActive: true,
-      OR: [
-        { firstName: { contains: q } },
-        { lastName: { contains: q } },
-        { phone: { contains: q } },
-        { code: { contains: q } },
-        { matriculeFiscal: { contains: q } }
-      ]
+        isActive: true,
+        OR: [
+          { firstName: { contains: q } },
+          { lastName: { contains: q } },
+          { phone: { contains: q } },
+          { code: { contains: q } },
+          { matriculeFiscal: { contains: q } }
+        ]
     };
     
     if (requestedDepotId) {
@@ -426,13 +426,13 @@ router.get('/search/pos', authenticateToken, async (req, res) => {
     }
 
     const whereClause = {
-      isActive: true,
-      OR: [
-        { firstName: { contains: q } },
-        { lastName: { contains: q } },
-        { phone: { contains: q } },
-        { code: { contains: q } }
-      ]
+        isActive: true,
+        OR: [
+          { firstName: { contains: q } },
+          { lastName: { contains: q } },
+          { phone: { contains: q } },
+          { code: { contains: q } }
+        ]
     };
     
     if (requestedDepotId) {
