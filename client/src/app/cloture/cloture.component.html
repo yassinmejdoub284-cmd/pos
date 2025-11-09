@@ -58,7 +58,7 @@
           <path d="M19 9l-6 6-4-4" />
         </svg>
         <span>Ventes TTC:</span>
-        <span class="font-semibold">{{ formatCurrency(currentSession()?.summary?.totalSales || 0) }}</span>
+        <span class="font-semibold">{{ formatCurrency(totalSalesTTC()) }}</span>
       </div>
       <div
         class="px-2 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs inline-flex items-center gap-1.5 cursor-pointer select-none">

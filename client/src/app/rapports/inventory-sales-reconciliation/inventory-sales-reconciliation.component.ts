@@ -113,6 +113,20 @@ export interface CreditEntry {
   createdAt?: Date;
 }
 
+// Manual Debit/Credit Entry interface
+export interface ManualEntry {
+  id?: number;
+  entryType: 'DEBIT' | 'CREDIT'; // Type of entry
+  amount: number;
+  description: string;
+  date: Date;
+  createdAt?: Date;
+  positionIndex: number; // Index where this entry should be inserted
+  referenceRowId?: string; // ID of the row after which this should be inserted
+  dateFrom: string; // Start date of the report range
+  dateTo: string; // End date of the report range
+}
+
 export interface ReleveInventaireSummary {
   totalProducts: number;
   totalDebut: number;
@@ -170,9 +184,24 @@ export class InventorySalesReconciliationComponent implements OnInit {
   releveInventaireData: ReleveInventaireRow[] = [];
   releveInventaireSummary: ReleveInventaireSummary | null = null;
   creditEntries: CreditEntry[] = [];
+  manualEntries: ManualEntry[] = []; // Manual debit/credit entries
   expandedBonEntree: Set<string> = new Set();
   expandedEcartGros: Set<string> = new Set();
   isInventoryMode: boolean = false; // Track if we're showing inventory-based data
+  
+  // Manual entry modal state
+  isManualEntryModalOpen = false;
+  selectedRowIndex: number | null = null;
+  selectedRowId: string | null = null;
+  newManualEntry: ManualEntry = {
+    entryType: 'DEBIT',
+    amount: 0,
+    description: '',
+    date: new Date(),
+    positionIndex: 0,
+    dateFrom: '',
+    dateTo: ''
+  };
   // Snapshot and chaining state
   lastInventorySolde: number = 0;
   secondaryReleveRows: ReleveInventaireRow[] = [];
@@ -192,23 +221,15 @@ export class InventorySalesReconciliationComponent implements OnInit {
   error = '';
   success = '';
   showReport = false;
-  showAddCreditForm = false;
   showInactiveProducts = false; // Option to show inactive products
   totalProducts = 0;
   depotId: number | null = null;
   activeProducts = 0;
   
-  // Form for adding credit
-  newCredit: CreditEntry = {
-    productId: 0,
-    amount: 0,
-    type: 'SALE',
-    description: '',
-    date: new Date()
-  };
-
-  // Track which product's credit modal is open
-  selectedProductForCredit: number | null = null;
+  // Collapse state for tables
+  isReconciliationTableCollapsed = true; // Collapsed by default
+  isReleveInventaireTableCollapsed = true; // Collapsed by default
+  isGlobalEcartTableCollapsed = true; // Collapsed by default
   
   constructor(
     private http: HttpClient,
@@ -1906,6 +1927,9 @@ export class InventorySalesReconciliationComponent implements OnInit {
     // Load existing credit entries to avoid duplicates
     await this.loadExistingCreditEntries();
     
+    // Load existing manual entries
+    await this.loadExistingManualEntries();
+    
     // 1. Calculer le total des entrées pour référence (pas affiché)
     const totalDebut = await this.calculateTotalDebut();
 
@@ -2079,25 +2103,25 @@ export class InventorySalesReconciliationComponent implements OnInit {
       });
     }
     
-    // 2. Lignes CRÉDIT - Clôtures de caisse
+    // 2. Lignes CRÉDIT - Retraits de caisse
     const cashClosures = await this.getCashClosuresDetails();
     for (const closure of cashClosures) {
       const closureDate = new Date(closure.createdAt || closure.date);
-      console.log(`🔍 Cash Closure #${closure.sessionNumber}:`, {
+      console.log(`🔍 Cash Withdrawal #${closure.sessionNumber}:`, {
         createdAt: closure.createdAt,
         date: closure.date,
         finalDate: closureDate,
-        designation: `Clôture Caisse #${closure.sessionNumber} - ${closure.date.toLocaleDateString()}`
+        designation: `Retrait Caisse #${closure.sessionNumber} - ${closure.date.toLocaleDateString()}`
       });
       
       addTransactionIfNotDuplicate({
-        id: `closure_${closure.id}`,
-        designation: `Clôture Caisse #${closure.sessionNumber} - ${closure.date.toLocaleDateString()}`,
+        id: `retrait_${closure.id}`,
+        designation: `Retrait Caisse #${closure.sessionNumber} - ${closure.date.toLocaleDateString()}`,
         debut: 0,
         credit: closure.amount,
         solde: -closure.amount,
         type: 'CREDIT' as const,
-        details: `Session: ${closure.sessionId}, Variance: ${closure.variance}`,
+        details: `Session: ${closure.sessionId}${closure.reason ? ` - ${closure.reason}` : ''}`,
         date: closureDate, // Use createdAt for proper ordering
         createdAt: closureDate // Ensure createdAt is set for sorting
       });
@@ -2325,6 +2349,9 @@ export class InventorySalesReconciliationComponent implements OnInit {
     // Add sorted transactions to releveRows after inventory
     releveRows.push(...allTransactions);
     
+    // Insert manual entries at their correct positions
+    this.insertManualEntries(releveRows);
+    
     // Log summary of documents & inventories gathered
     const dateFrom = new Date(this.startDate);
     const dateTo = new Date(this.endDate);
@@ -2534,53 +2561,91 @@ export class InventorySalesReconciliationComponent implements OnInit {
 
       const sessionsArray = Array.isArray(sessions) ? sessions : [];
       // Filter for CLOSED sessions within the date range based on closed_at
-      const closures = sessionsArray
-        .filter(s => {
-          if (s.status !== 'CLOSED' || !s.closedAt) return false;
+      const closedSessions = sessionsArray.filter(s => {
+        if (s.status !== 'CLOSED' || !s.closedAt) return false;
+        
+        const closedDate = new Date(s.closedAt);
+        return closedDate >= dateFrom && closedDate <= dateTo;
+      });
+
+      // Calculate withdrawals from cash movements (same logic as sessions-history)
+      const withdrawals: Array<{
+        id: string;
+        sessionId: number;
+        sessionNumber: number | string;
+        amount: number;
+        variance: number;
+        date: Date;
+        createdAt: string | Date;
+        details: string;
+        reason: string;
+      }> = [];
+      for (const session of closedSessions) {
+        try {
+          // Fetch session report to get cash movements (same as sessions-history)
+          const sessionReport = await firstValueFrom(
+            this.sessionsService.getSessionReport(session.id, 'Z')
+          );
           
-          const closedDate = new Date(s.closedAt);
-          return closedDate >= dateFrom && closedDate <= dateTo;
-        })
-        .flatMap(s => {
-          const expected = Number(s.expectedCash ?? 0);
-          const closedAt = s.closedAt || s.updatedAt || s.createdAt;
-          const closures = [];
+          const fullSession = sessionReport.session || session;
+          const closedAt = fullSession.closedAt || fullSession.updatedAt || fullSession.createdAt;
           
-          // Add the main closure entry
-          closures.push({
-            id: s.id,
-            sessionId: s.id,
-            sessionNumber: s.zSeq || s.xSeq || s.id,
-            amount: expected,
-            variance: Number(s.variance ?? 0),
-            date: new Date(closedAt),
-            createdAt: s.closedAt, // Use closedAt for proper ordering (when session was closed)
-            details: `Session ${s.id} - Attendu: ${expected} DT`
+          // Get all RETRAIT_CENTRALE movements from cash movements - always grab them, no conditions
+          const cashMovements = fullSession.cashMovements || [];
+          
+          console.log(`🔍 Session ${fullSession.id} - Cash movements:`, cashMovements.length);
+          console.log(`🔍 RETRAIT_CENTRALE movements:`, cashMovements.filter((m: any) => m.type === 'RETRAIT_CENTRALE'));
+          
+          cashMovements.forEach((movement: any) => {
+            // Always grab RETRAIT_CENTRALE movements, no conditions
+            if (movement.type === 'RETRAIT_CENTRALE') {
+              const withdrawalAmount = parseFloat(movement.amount || 0) || 0;
+              console.log(`✅ Adding RETRAIT_CENTRALE: ${withdrawalAmount} DT from session ${fullSession.id}`);
+              withdrawals.push({
+                id: `retrait_${fullSession.id}_${movement.id}`,
+                sessionId: fullSession.id,
+                sessionNumber: fullSession.zSeq || fullSession.xSeq || fullSession.id,
+                amount: withdrawalAmount,
+                variance: Number(fullSession.variance ?? 0),
+                date: new Date(movement.createdAt || closedAt),
+                createdAt: movement.createdAt || fullSession.closedAt, // Use movement createdAt for proper ordering
+                details: `Session ${fullSession.id} - Retrait: ${withdrawalAmount} DT`,
+                reason: movement.reason || 'Retrait vers Caisse Centrale'
+              });
+            }
           });
-          
-          // If there's a variance (discount), add it as a separate entry
-          const variance = Number(s.variance ?? 0);
-          if (variance !== 0) {
-            closures.push({
-              id: `variance_${s.id}`,
-              sessionId: s.id,
-              sessionNumber: s.zSeq || s.xSeq || s.id,
-              amount: Math.abs(variance),
-              variance: 0,
-              date: new Date(closedAt),
-              createdAt: s.closedAt, // Use closedAt for proper ordering (when session was closed)
-              details: `Ajustement Session ${s.id} - Variance: ${variance >= 0 ? '+' : ''}${variance} DT`,
-              isVariance: true
+        } catch (err) {
+          console.error(`Error fetching session ${session.id} report:`, err);
+          // Fallback: try to use cashMovements from the session if available
+          if (session.cashMovements) {
+            const closedAt = session.closedAt || session.updatedAt || session.createdAt;
+            
+            // Always grab RETRAIT_CENTRALE movements, no conditions
+            session.cashMovements.forEach((movement: any) => {
+              if (movement.type === 'RETRAIT_CENTRALE') {
+                const withdrawalAmount = parseFloat(movement.amount || 0) || 0;
+                withdrawals.push({
+                  id: `retrait_${session.id}_${movement.id}`,
+                  sessionId: session.id,
+                  sessionNumber: session.zSeq || session.xSeq || session.id,
+                  amount: withdrawalAmount,
+                  variance: Number(session.variance ?? 0),
+                  date: new Date(movement.createdAt || closedAt),
+                  createdAt: movement.createdAt || session.closedAt,
+                  details: `Session ${session.id} - Retrait: ${withdrawalAmount} DT`,
+                  reason: movement.reason || 'Retrait vers Caisse Centrale'
+                });
+              }
             });
           }
-          
-          return closures;
-        })
-        .filter(closure => closure.amount > 0); // Only include closures with positive amounts
+        }
+      }
+      
+      console.log(`📊 Total withdrawals found: ${withdrawals.length}`, withdrawals);
 
-      return closures;
+      return withdrawals;
     } catch (err) {
-      console.error('Error getting cash closures details:', err);
+      console.error('Error getting cash withdrawals details:', err);
       return [];
     }
   }
@@ -3194,113 +3259,6 @@ export class InventorySalesReconciliationComponent implements OnInit {
     };
   }
 
-  showAddCreditModal(productId?: number): void {
-    this.showAddCreditForm = true;
-    this.selectedProductForCredit = productId || null;
-    
-    // Format date as YYYY-MM-DD for input[type="date"]
-    const today = new Date();
-    const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    
-    this.newCredit = {
-      productId: productId || 0,
-      amount: 0,
-      type: 'SALE',
-      description: '',
-      date: dateString as any // Store as string for date input compatibility
-    };
-  }
-
-  hideAddCreditModal(): void {
-    this.showAddCreditForm = false;
-  }
-
-  async addCreditEntry(): Promise<void> {
-    if (!this.newCredit.amount || !this.newCredit.description) {
-      this.error = 'Veuillez remplir tous les champs obligatoires';
-      return;
-    }
-
-    try {
-      // Format date correctly for API - convert Date or string to ISO string
-      let creditDate: Date;
-      if (this.newCredit.date instanceof Date) {
-        creditDate = this.newCredit.date;
-      } else if (typeof this.newCredit.date === 'string') {
-        creditDate = new Date(this.newCredit.date);
-      } else {
-        creditDate = new Date(); // Default to today
-      }
-      
-      // Prepare data for API - ensure productId is null if not set
-      const creditData = {
-        productId: this.newCredit.productId && this.newCredit.productId !== 0 ? this.newCredit.productId : null,
-        amount: parseFloat(this.newCredit.amount.toString()),
-        type: this.newCredit.type,
-        description: this.newCredit.description,
-        date: creditDate.toISOString().split('T')[0] // Format as YYYY-MM-DD for API
-      };
-
-      console.log('[addCreditEntry] Sending credit data:', creditData);
-
-      // Save to database
-      const savedCredit = await firstValueFrom(this.http.post<any>(`${environment.apiUrl}/credit-entries`, creditData));
-      
-      console.log('[addCreditEntry] Saved credit:', savedCredit);
-      
-      // Convert saved credit date to Date object
-      const savedCreditWithDate = {
-        ...savedCredit,
-        date: savedCredit.date ? new Date(savedCredit.date) : creditDate,
-        createdAt: savedCredit.createdAt ? new Date(savedCredit.createdAt) : new Date()
-      };
-      
-      // Add the credit entry to local array
-      this.creditEntries.push(savedCreditWithDate);
-      
-      // If in inventory mode and secondary table exists, add to secondary table immediately
-      if (this.isInventoryMode && this.secondaryReleveRows.length > 0) {
-        const lastSecondarySolde = this.secondaryReleveRows[this.secondaryReleveRows.length - 1]?.solde || 0;
-        const newSolde = lastSecondarySolde - savedCredit.amount;
-        
-        const creditTransaction: ReleveInventaireRow = {
-          id: `manual_${savedCredit.id}`,
-          designation: `Crédit Manuel - ${savedCredit.description}`,
-          debut: 0,
-          credit: savedCredit.amount,
-          solde: newSolde,
-          type: 'MANUAL_CREDIT',
-          details: `Crédit ajouté manuellement - ${this.getCreditTypeLabel(savedCredit.type)}`,
-          date: savedCreditWithDate.date,
-          createdAt: savedCreditWithDate.createdAt
-        };
-        this.secondaryReleveRows.push(creditTransaction);
-      }
-      
-      // Regenerate the Relevé Inventaire to include the new credit
-      await this.generateReleveInventaireFromReconciliationData();
-      
-      // Reset form
-      this.newCredit = {
-        productId: this.selectedProductForCredit || 0,
-        amount: 0,
-        type: 'SALE',
-        description: '',
-        date: new Date()
-      };
-      
-      this.hideAddCreditModal();
-      this.success = 'Crédit ajouté avec succès';
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        this.success = '';
-      }, 3000);
-    } catch (err: any) {
-      this.error = err.error?.error || 'Erreur lors de la sauvegarde du crédit';
-      console.error('Error saving credit entry:', err);
-    }
-  }
 
   async removeCreditEntry(index: number): Promise<void> {
     const entry = this.creditEntries[index];
@@ -3400,6 +3358,236 @@ export class InventorySalesReconciliationComponent implements OnInit {
       }
       this.creditEntries = []; // Initialize as empty array if loading fails
     }
+  }
+
+  async loadExistingManualEntries(): Promise<void> {
+    try {
+      const dateFrom = this.startDate;
+      const dateTo = this.endDate;
+      
+      const manualEntries = await firstValueFrom(
+        this.http.get<ManualEntry[]>(`${environment.apiUrl}/manual-entries`, {
+          params: { dateFrom, dateTo }
+        })
+      );
+      
+      // Convert date strings to Date objects (but keep date as string for date input compatibility)
+      this.manualEntries = (manualEntries || []).map(entry => {
+        const entryDate = entry.date ? (typeof entry.date === 'string' ? entry.date : new Date(entry.date).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
+        return {
+          ...entry,
+          date: entryDate as any, // Keep as string for date input
+          createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date()
+        };
+      });
+    } catch (error: any) {
+      console.error('Error loading existing manual entries:', error);
+      // If it's a 503 error (table not available), that's expected
+      if (error.status === 503 || error.status === 404) {
+        console.log('Manual entries table not available yet, continuing without existing entries');
+      }
+      this.manualEntries = []; // Initialize as empty array if loading fails
+    }
+  }
+
+  private insertManualEntries(releveRows: ReleveInventaireRow[]): void {
+    const dateFrom = this.startDate;
+    const dateTo = this.endDate;
+    
+    // Filter manual entries for current date range
+    const relevantEntries = this.manualEntries.filter(entry => 
+      entry.dateFrom === dateFrom && entry.dateTo === dateTo
+    );
+    
+    if (relevantEntries.length === 0) return;
+    
+    // Sort entries by positionIndex (ascending) and then by createdAt for consistent ordering
+    relevantEntries.sort((a, b) => {
+      if (a.positionIndex !== b.positionIndex) {
+        return a.positionIndex - b.positionIndex;
+      }
+      // If same position, sort by creation date
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateA - dateB;
+    });
+    
+    // Insert entries at their positions (insert from end to start to preserve indices)
+    // This ensures that when multiple entries have the same positionIndex, they're inserted correctly
+    for (let i = relevantEntries.length - 1; i >= 0; i--) {
+      const entry = relevantEntries[i];
+      // Ensure positionIndex is within valid range
+      const positionIndex = Math.max(0, Math.min(entry.positionIndex, releveRows.length));
+      
+      // Create ReleveInventaireRow from ManualEntry
+      const entryDate = typeof entry.date === 'string' ? new Date(entry.date) : (entry.date || new Date());
+      const row: ReleveInventaireRow = {
+        id: `manual_${entry.id || Date.now()}_${i}`,
+        designation: entry.description || `${entry.entryType === 'DEBIT' ? 'Débit' : 'Crédit'} Manuel`,
+        debut: entry.entryType === 'DEBIT' ? entry.amount : 0,
+        credit: entry.entryType === 'CREDIT' ? entry.amount : 0,
+        solde: 0, // Will be calculated later
+        type: entry.entryType === 'DEBIT' ? 'ENTRY' : 'CREDIT',
+        details: `Entrée manuelle - ${entry.entryType === 'DEBIT' ? 'Débit' : 'Crédit'}`,
+        date: entryDate,
+        createdAt: entry.createdAt || entryDate,
+        isInventory: false
+      };
+      
+      // Insert at the specified position
+      releveRows.splice(positionIndex, 0, row);
+    }
+  }
+
+  showManualEntryModal(rowIndex: number, rowId: string): void {
+    this.selectedRowIndex = rowIndex;
+    this.selectedRowId = rowId;
+    this.isManualEntryModalOpen = true;
+    
+    // Initialize new manual entry
+    const today = new Date();
+    const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    // Count existing manual entries at the same position to adjust positionIndex
+    const existingEntriesAtPosition = this.manualEntries.filter(entry => 
+      entry.dateFrom === this.startDate && 
+      entry.dateTo === this.endDate && 
+      entry.positionIndex === rowIndex + 1
+    ).length;
+    
+    this.newManualEntry = {
+      entryType: 'DEBIT',
+      amount: 0,
+      description: '',
+      date: dateString as any, // Store as string for date input compatibility
+      positionIndex: rowIndex + 1 + existingEntriesAtPosition, // Insert after the selected row, accounting for existing entries
+      referenceRowId: rowId,
+      dateFrom: this.startDate,
+      dateTo: this.endDate
+    };
+  }
+
+  hideManualEntryModal(): void {
+    this.isManualEntryModalOpen = false;
+    this.selectedRowIndex = null;
+    this.selectedRowId = null;
+  }
+
+  async saveManualEntry(): Promise<void> {
+    if (!this.newManualEntry.amount || !this.newManualEntry.description) {
+      this.error = 'Veuillez remplir tous les champs obligatoires';
+      return;
+    }
+
+    if (this.selectedRowIndex === null) {
+      this.error = 'Erreur: position de ligne non définie';
+      return;
+    }
+
+    try {
+      // Prepare data for API
+      let entryDate: string;
+      if (this.newManualEntry.date instanceof Date) {
+        entryDate = this.newManualEntry.date.toISOString().split('T')[0];
+      } else if (typeof this.newManualEntry.date === 'string') {
+        entryDate = this.newManualEntry.date;
+      } else {
+        entryDate = new Date().toISOString().split('T')[0];
+      }
+      
+      const entryData = {
+        entryType: this.newManualEntry.entryType,
+        amount: parseFloat(this.newManualEntry.amount.toString()),
+        description: this.newManualEntry.description,
+        date: entryDate,
+        positionIndex: this.newManualEntry.positionIndex, // Use the calculated positionIndex from modal initialization
+        referenceRowId: this.selectedRowId,
+        dateFrom: this.startDate,
+        dateTo: this.endDate
+      };
+
+      console.log('[saveManualEntry] Sending entry data:', entryData);
+
+      // Save to database
+      const savedEntry = await firstValueFrom(
+        this.http.post<ManualEntry>(`${environment.apiUrl}/manual-entries`, entryData)
+      );
+      
+      console.log('[saveManualEntry] Saved entry:', savedEntry);
+      
+      // Convert saved entry date to Date object
+      const savedEntryWithDate = {
+        ...savedEntry,
+        date: savedEntry.date ? new Date(savedEntry.date) : new Date(),
+        createdAt: savedEntry.createdAt ? new Date(savedEntry.createdAt) : new Date()
+      };
+      
+      // Add the entry to local array (avoid duplicates)
+      const existingIndex = this.manualEntries.findIndex(e => e.id === savedEntryWithDate.id);
+      if (existingIndex === -1) {
+        this.manualEntries.push(savedEntryWithDate);
+      } else {
+        this.manualEntries[existingIndex] = savedEntryWithDate;
+      }
+      
+      // Regenerate the Relevé Inventaire to include the new entry
+      await this.generateReleveInventaireFromReconciliationData();
+      
+      // Reset form
+      this.newManualEntry = {
+        entryType: 'DEBIT',
+        amount: 0,
+        description: '',
+        date: new Date(),
+        positionIndex: 0,
+        dateFrom: '',
+        dateTo: ''
+      };
+      
+      this.hideManualEntryModal();
+      this.success = 'Entrée ajoutée avec succès';
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        this.success = '';
+      }, 3000);
+    } catch (err: any) {
+      this.error = err.error?.error || 'Erreur lors de la sauvegarde de l\'entrée';
+      console.error('Error saving manual entry:', err);
+    }
+  }
+
+  async removeManualEntry(entryId: number): Promise<void> {
+    try {
+      // Remove from database
+      await firstValueFrom(this.http.delete(`${environment.apiUrl}/manual-entries/${entryId}`));
+      
+      // Remove from local array
+      this.manualEntries = this.manualEntries.filter(entry => entry.id !== entryId);
+      
+      // Regenerate the Relevé Inventaire
+      await this.generateReleveInventaireFromReconciliationData();
+      
+      this.success = 'Entrée supprimée avec succès';
+      setTimeout(() => {
+        this.success = '';
+      }, 3000);
+    } catch (err) {
+      this.error = 'Erreur lors de la suppression de l\'entrée';
+      console.error('Error removing manual entry:', err);
+    }
+  }
+
+  async deleteManualEntryFromRow(row: ReleveInventaireRow): Promise<void> {
+    // Extract entry ID from row.id (format: manual_<id>_<index>)
+    const match = row.id.match(/^manual_(\d+)_/);
+    if (!match) {
+      this.error = 'Impossible d\'identifier l\'entrée à supprimer';
+      return;
+    }
+    
+    const entryId = parseInt(match[1]);
+    await this.removeManualEntry(entryId);
   }
 
   async cleanupOldInventoryEcartCredits(): Promise<void> {
@@ -3809,6 +3997,18 @@ export class InventorySalesReconciliationComponent implements OnInit {
 
   toggleInactiveProducts(): void {
     this.showInactiveProducts = !this.showInactiveProducts;
+  }
+
+  toggleReconciliationTable(): void {
+    this.isReconciliationTableCollapsed = !this.isReconciliationTableCollapsed;
+  }
+
+  toggleReleveInventaireTable(): void {
+    this.isReleveInventaireTableCollapsed = !this.isReleveInventaireTableCollapsed;
+  }
+
+  toggleGlobalEcartTable(): void {
+    this.isGlobalEcartTableCollapsed = !this.isGlobalEcartTableCollapsed;
   }
 
   getFilteringSummary(): string {

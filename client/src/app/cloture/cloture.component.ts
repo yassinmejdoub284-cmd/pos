@@ -46,6 +46,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
   sessionTickets = signal<Array<{ id: number; amount: number; totalAmount?: number; createdAt?: string | Date }>>([]);
   ticketsMoreFlag = false;
   ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => sum + t.amount, 0));
+  
+  // Store Z report sales data for totalSalesTTC calculation
+  private zReportSales = signal<Array<any>>([]);
 
   // Cash sales detail state
   cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number; status?: string; dailyTicketNumber?: number | string }[]>([]);
@@ -568,6 +571,21 @@ export class ClotureComponent implements OnInit, OnDestroy {
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 
+  // Computed signal for total sales (sum of all ticket totals) - matches tickets modal calculation
+  totalSalesTTC = computed(() => {
+    // Use Z report sales data (same as tickets modal) if available, otherwise fall back to session sales
+    const zSales = this.zReportSales();
+    const session = this.currentSession();
+    const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
+    
+    // Sum up all ticket amounts using same logic as tickets modal: paidAmount ?? finalTotal ?? amount ?? 0
+    return sales.reduce((total: number, sale: any) => {
+      // Use same calculation as openTicketsModal: paidAmount ?? finalTotal ?? amount ?? 0
+      const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
+      return total + amount;
+    }, 0);
+  });
+
   // Computed signal for cash from sales - pure function, no side effects
   cashFromSalesNetOfCredit = computed(() => {
     const session = this.currentSession();
@@ -651,30 +669,36 @@ export class ClotureComponent implements OnInit, OnDestroy {
     return parseFloat((this.currentSession()?.openingFund as any) || 0) || 0;
   }
 
-  // Get user sales summary for display under solde de caisse
+  // Get user sales summary for display under solde de caisse - uses same logic as tickets modal
   getUserSalesSummary(): Array<{ userName: string; totalSales: number }> {
     const session = this.currentSession();
     if (!session) return [];
 
-    // Get sales data from session report if available
-    const sales = (session as any).sales || [];
+    // Use Z report sales data (same as tickets modal) if available, otherwise fall back to session sales
+    const zSales = this.zReportSales();
+    const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
     if (!sales.length) return [];
 
-    // Group sales by user
+    // Group sales by user - use EXACT same calculation as tickets modal
     const userSalesMap = new Map<string, number>();
     
     sales.forEach((sale: any) => {
-      const status = String(sale.status || '').toUpperCase();
-      if (status === 'CANCELLED' || status === 'REFUNDED') {
-        return; // Exclude cancelled/refunded from user totals
+      // Use EXACT same calculation as openTicketsModal: paidAmount ?? finalTotal ?? amount ?? 0
+      const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
+      
+      // Get user name - handle cases where user might be missing
+      let userName = 'Utilisateur inconnu';
+      if (sale.user) {
+        const firstName = sale.user.firstName || '';
+        const lastName = sale.user.lastName || '';
+        userName = `${firstName} ${lastName}`.trim() || 'Utilisateur inconnu';
       }
-      const userName = sale.user ? `${sale.user.firstName} ${sale.user.lastName}` : 'Utilisateur inconnu';
-      const saleAmount = parseFloat(sale.finalTotal || sale.total || 0) || 0;
 
+      // Sum up amounts per user (include all sales, even without user)
       if (userSalesMap.has(userName)) {
-        userSalesMap.set(userName, userSalesMap.get(userName)! + saleAmount);
+        userSalesMap.set(userName, userSalesMap.get(userName)! + amount);
       } else {
-        userSalesMap.set(userName, saleAmount);
+        userSalesMap.set(userName, amount);
       }
     });
 
@@ -692,6 +716,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (report: any) => {
         const sales = (report?.session?.sales || []) as Array<any>;
+        // Store Z report sales for totalSalesTTC calculation
+        this.zReportSales.set(sales);
         this.sessionTickets.set(sales.map(s => ({
           id: s.id,
           amount: parseFloat((s.paidAmount ?? s.finalTotal ?? s.amount ?? 0) as any) || 0,
@@ -706,6 +732,19 @@ export class ClotureComponent implements OnInit, OnDestroy {
       error: () => {
         this.error.set('Erreur lors du chargement des tickets');
         this.loading.set(false);
+      }
+    });
+  }
+  
+  // Load Z report sales data for totalSalesTTC (called when session loads)
+  private loadZReportSalesData(sessionId: number): void {
+    this.sessionsService.getSessionReport(sessionId, 'Z').subscribe({
+      next: (report: any) => {
+        const sales = (report?.session?.sales || []) as Array<any>;
+        this.zReportSales.set(sales);
+      },
+      error: () => {
+        // Silently fail - will retry when tickets modal is opened
       }
     });
   }
@@ -933,6 +972,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
           this.requestedSalesDataForSessionId = null;
           this.lastLoadedSessionId = null; // Reset when session changes
           this.lastLoadCashSalesSessionId = null; // Reset cash sales session tracking
+          this.zReportSales.set([]); // Reset Z report sales when session changes
         }
         
         // Only load sales data if session ID changed or if we don't have sales data yet
@@ -947,6 +987,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
           if (needsSalesData && !this.isLoadingSalesData && this.lastLoadedSessionId !== session.id) {
             this.requestedSalesDataForSessionId = session.id;
             this.loadSessionSalesData(session.id);
+          }
+          
+          // Load Z report sales data for totalSalesTTC calculation
+          if (this.zReportSales().length === 0 || (currentSession && currentSession.id !== session.id)) {
+            this.loadZReportSalesData(session.id);
           }
           
           // Only load cash details if we don't have them yet or session changed
@@ -996,6 +1041,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
           this.requestedSalesDataForSessionId = null;
           this.lastLoadedSessionId = null; // Reset when session changes
           this.lastLoadCashSalesSessionId = null; // Reset cash sales session tracking
+          this.zReportSales.set([]); // Reset Z report sales when session changes
         }
         
         // Only load sales data if session ID changed or if we don't have sales data yet
@@ -1010,6 +1056,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
           if (needsSalesData && !this.isLoadingSalesData && this.lastLoadedSessionId !== session.id) {
             this.requestedSalesDataForSessionId = session.id;
             this.loadSessionSalesData(session.id);
+          }
+          
+          // Load Z report sales data for totalSalesTTC calculation
+          if (this.zReportSales().length === 0 || (currentSession && currentSession.id !== session.id)) {
+            this.loadZReportSalesData(session.id);
           }
           
           // Only load cash details if we don't have them yet or session changed

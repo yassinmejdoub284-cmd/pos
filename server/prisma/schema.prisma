@@ -1605,6 +1605,24 @@ model CreditEntry {
   @@map("credit_entries")
 }
 
+model ManualEntry {
+  id            Int      @id @default(autoincrement())
+  entryType     String   @map("entry_type") @db.VarChar(20) // DEBIT or CREDIT
+  amount        Decimal  @db.Decimal(10, 2)
+  description   String   @db.VarChar(255)
+  date          DateTime
+  positionIndex Int      @map("position_index") // Index where entry should be inserted
+  referenceRowId String? @map("reference_row_id") @db.VarChar(255) // ID of the row after which to insert
+  dateFrom      String   @map("date_from") @db.VarChar(10) // Start date of report range (YYYY-MM-DD)
+  dateTo        String   @map("date_to") @db.VarChar(10) // End date of report range (YYYY-MM-DD)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  @@map("manual_entries")
+  @@index([dateFrom, dateTo])
+  @@index([positionIndex])
+}
+
 model ReleveInventaire {
   id          Int      @id @default(autoincrement())
   depotId     Int      @map("depot_id")

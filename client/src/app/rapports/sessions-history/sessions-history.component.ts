@@ -1543,43 +1543,48 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   }
 
   private processReleveData(sessionsInRange: SessionCaisse[], sales: Sale[], entries: ReleveEntry[], runningBalance: number, fromDate: Date, toDate: Date, expenses: Expense[] = []): void {
-    // Reset balance per session to avoid cumulative totals across sessions
+    // Determine initial balance: use first session's opening fund
+    let initialBalance = 0;
+    if (sessionsInRange.length > 0) {
+      initialBalance = parseFloat((sessionsInRange[0].openingFund as any) || 0) || 0;
+    }
+    
+    // Add "Solde initial" entry at the beginning
+    let currentBalance = initialBalance;
+    if (sessionsInRange.length > 0) {
+      const firstSession = sessionsInRange[0];
+      entries.push({
+        date: new Date(firstSession.openedAt),
+        designation: 'Solde initial',
+        debit: initialBalance,
+        credit: 0,
+        solde: initialBalance,
+        sessionId: firstSession.id
+      });
+    }
+    
+    // Collect all entries first, then sort by date (no session grouping)
+    const allEntries: Array<{ date: Date; designation: string; debit: number; credit: number; sessionId?: number }> = [];
+    
     sessionsInRange.forEach(session => {
-      let currentBalance = 0;
-
-      // Add opening fund entry if any
-      if (session.openingFund > 0) {
-        currentBalance = this.addReleveEntry(
-          entries,
-          currentBalance,
-          session.openedAt,
-          'Alimentation caisse',
-          session.openingFund,
-          0,
-          session.id
-        );
-      }
-
-      // Add detailed sales for this session only
+      // Add detailed sales for this session
       const sessionSales = sales.filter(sale => sale.sessionId === session.id);
       sessionSales
         .sort((a, b) => new Date(a.createdAt as any).getTime() - new Date(b.createdAt as any).getTime())
         .forEach(sale => {
           const amount = parseFloat(String(sale.paidAmount ?? 0)) || 0;
           if (amount > 0) {
-            currentBalance = this.addReleveEntry(
-              entries,
-              currentBalance,
-              sale.createdAt as any,
-              `Vente ticket #${sale.dailyTicketNumber || sale.id}`,
-              amount,
-              0,
-              session.id
-            );
+            allEntries.push({
+              date: new Date(sale.createdAt as any),
+              designation: `Vente ticket #${sale.dailyTicketNumber || sale.id}`,
+              debit: amount,
+              credit: 0,
+              sessionId: session.id
+            });
           }
         });
 
-      // Add expenses for this session only (fallback path with expenses list)
+      // Add expenses for this session (fallback path with expenses list)
       if (expenses && expenses.length) {
         const sessionStart = new Date(session.openedAt);
         const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date(toDate);
@@ -1591,15 +1596,13 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         sessionExpenses
           .sort((a: any, b: any) => new Date(a.createdAt || a.approvedAt || a.date).getTime() - new Date(b.createdAt || b.approvedAt || b.date).getTime())
           .forEach((e: any) => {
-            currentBalance = this.addReleveEntry(
-              entries,
-              currentBalance,
-              (e.createdAt || e.approvedAt || e.date),
-              `Dépense${e.id ? ' #' + e.id : ''}${e.notes ? ': ' + e.notes : ''}`,
-              0,
-              parseFloat(e.amount || 0) || 0,
-              session.id
-            );
+            allEntries.push({
+              date: new Date((e.createdAt || e.approvedAt || e.date)),
+              designation: `Dépense${e.id ? ' #' + e.id : ''}${e.notes ? ': ' + e.notes : ''}`,
+              debit: 0,
+              credit: parseFloat(e.amount || 0) || 0,
+              sessionId: session.id
+            });
           });
       }
 
@@ -1618,57 +1621,68 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
             switch (movement.type) {
               case 'ENTREE':
-                debit = movement.amount;
+                debit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Entrée - ${movement.reason}`;
                 break;
               case 'SORTIE':
-                credit = movement.amount;
+                credit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Sortie - ${movement.reason}`;
                 break;
               case 'DEPOT_COFFRE':
-                credit = movement.amount;
+                credit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Dépôt coffre - ${movement.reason}`;
                 break;
               case 'RETRAIT_CENTRALE':
-                credit = movement.amount;
+                credit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Retrait centrale - ${movement.reason}`;
                 break;
               case 'AJUSTEMENT':
-                if (movement.amount > 0) {
-                  debit = movement.amount;
+                const amount = parseFloat(String(movement.amount || 0)) || 0;
+                if (amount > 0) {
+                  debit = amount;
                   designation = `Ajustement + - ${movement.reason}`;
                 } else {
-                  credit = Math.abs(movement.amount);
+                  credit = Math.abs(amount);
                   designation = `Ajustement - - ${movement.reason}`;
                 }
                 break;
             }
 
-            currentBalance = this.addReleveEntry(
-              entries,
-              currentBalance,
-              movement.createdAt,
+            allEntries.push({
+              date: new Date(movement.createdAt),
               designation,
               debit,
               credit,
-              session.id
-            );
+              sessionId: session.id
+            });
           });
       }
     });
 
     // Sort all entries by date
-    entries.sort((a, b) => a.date.getTime() - b.date.getTime());
+    allEntries.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    // Add entries in chronological order with running balance
+    allEntries.forEach(entry => {
+      currentBalance = this.addReleveEntry(
+        entries,
+        currentBalance,
+        entry.date,
+        entry.designation,
+        entry.debit,
+        entry.credit,
+        entry.sessionId
+      );
+    });
 
     this.releveEntries.set(entries);
   }
 
   private processReleveDataWithSummaries(sessionsInRange: SessionCaisse[], entries: ReleveEntry[], runningBalance: number, fromDate: Date, toDate: Date): void {
-    // Calculate session balances first to determine opening funds for next sessions
+    // Calculate session balances first to determine the initial balance
     const sessionBalances: Map<number, number> = new Map();
     
     // First pass: Calculate final balance for each session
-    // Use session summary if available, otherwise calculate from cash movements
     sessionsInRange.forEach((session, index) => {
       let sessionBalance = 0;
       
@@ -1719,54 +1733,45 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       sessionBalances.set(session.id, sessionBalance);
     });
     
-    // Second pass: Generate entries with correct opening funds
-    sessionsInRange.forEach((session, index) => {
-      // Determine opening fund: use previous session's balance, or session's openingFund for first session
-      let openingFund = 0;
-      if (index === 0) {
-        // First session uses its own openingFund
-        openingFund = parseFloat((session.openingFund as any) || 0) || 0;
-      } else {
-        // Subsequent sessions use previous session's balance as opening fund
-        const previousSession = sessionsInRange[index - 1];
-        openingFund = sessionBalances.get(previousSession.id) || 0;
-      }
-      
-      // Start with opening fund as initial balance (not 0)
-      let currentBalance = openingFund;
-      
-      // Add opening fund entry (alimentation caisse) - always show if there's a balance to carry forward
-      // or if it's the first session with an opening fund
-      // Note: This is just for display - the balance is already openingFund, so we don't add it again
-      if (openingFund > 0) {
-        // Add entry for display - balance is already openingFund, so we show it as is
-        entries.push({
-          date: new Date(session.openedAt),
-          designation: 'Alimentation caisse',
-          debit: openingFund,
-          credit: 0,
-          solde: openingFund, // Balance is already openingFund
-          sessionId: session.id
-        });
-        // Balance remains openingFund (not doubled)
-        currentBalance = openingFund;
-      }
-
+    // Determine initial balance: use first session's opening fund (starting balance for the period)
+    let initialBalance = 0;
+    if (sessionsInRange.length > 0) {
+      // Use the first session's opening fund as the initial balance
+      initialBalance = parseFloat((sessionsInRange[0].openingFund as any) || 0) || 0;
+    }
+    
+    // Add "Solde initial" entry at the beginning
+    let currentBalance = initialBalance;
+    if (sessionsInRange.length > 0) {
+      const firstSession = sessionsInRange[0];
+      entries.push({
+        date: new Date(firstSession.openedAt),
+        designation: 'Solde initial',
+        debit: initialBalance,
+        credit: 0,
+        solde: initialBalance,
+        sessionId: firstSession.id
+      });
+    }
+    
+    // Second pass: Generate entries for all sessions in chronological order (no session grouping)
+    // Collect all entries first, then sort by date
+    const allEntries: Array<{ date: Date; designation: string; debit: number; credit: number; sessionId?: number }> = [];
+    
+    sessionsInRange.forEach((session) => {
       // Add sales entries from session summary
       if (session.salesSummary?.cashSales) {
         const cashSales = typeof session.salesSummary.cashSales === 'number' 
           ? session.salesSummary.cashSales 
           : parseFloat(String(session.salesSummary.cashSales)) || 0;
         if (cashSales > 0) {
-          currentBalance = this.addReleveEntry(
-            entries,
-            currentBalance,
-            session.openedAt,
-            `Ventes espèces (${session.salesSummary.salesCount || 0} tickets)`,
-            cashSales,
-            0,
-            session.id
-          );
+          allEntries.push({
+            date: new Date(session.openedAt),
+            designation: `Ventes espèces (${session.salesSummary.salesCount || 0} tickets)`,
+            debit: cashSales,
+            credit: 0,
+            sessionId: session.id
+          });
         }
       }
 
@@ -1798,15 +1803,13 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
               }
             }
 
-            currentBalance = this.addReleveEntry(
-              entries,
-              currentBalance,
-              movement.createdAt,
-              `Dépense #${movement.id}: ${note}`,
-              0,
-              movement.amount as any,
-              session.id
-            );
+            allEntries.push({
+              date: new Date(movement.createdAt),
+              designation: `Dépense #${movement.id}: ${note}`,
+              debit: 0,
+              credit: parseFloat(String(movement.amount || 0)) || 0,
+              sessionId: session.id
+            });
           });
       }
 
@@ -1825,47 +1828,59 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
             switch (movement.type) {
               case 'ENTREE':
-                debit = movement.amount;
+                debit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Entrée - ${movement.reason}`;
                 break;
               case 'SORTIE':
-                credit = movement.amount;
+                credit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Sortie - ${movement.reason}`;
                 break;
               case 'DEPOT_COFFRE':
-                credit = movement.amount;
+                credit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Dépôt coffre - ${movement.reason}`;
                 break;
               case 'RETRAIT_CENTRALE':
-                credit = movement.amount;
+                credit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Retrait centrale - ${movement.reason}`;
                 break;
               case 'AJUSTEMENT':
-                if (movement.amount > 0) {
-                  debit = movement.amount;
+                const amount = parseFloat(String(movement.amount || 0)) || 0;
+                if (amount > 0) {
+                  debit = amount;
                   designation = `Ajustement + - ${movement.reason}`;
                 } else {
-                  credit = Math.abs(movement.amount);
+                  credit = Math.abs(amount);
                   designation = `Ajustement - - ${movement.reason}`;
                 }
                 break;
             }
 
-            currentBalance = this.addReleveEntry(
-              entries,
-              currentBalance,
-              movement.createdAt,
+            allEntries.push({
+              date: new Date(movement.createdAt),
               designation,
               debit,
               credit,
-              session.id
-            );
+              sessionId: session.id
+            });
           });
       }
     });
 
     // Sort all entries by date
-    entries.sort((a, b) => a.date.getTime() - b.date.getTime());
+    allEntries.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    // Add entries in chronological order with running balance
+    allEntries.forEach(entry => {
+      currentBalance = this.addReleveEntry(
+        entries,
+        currentBalance,
+        entry.date,
+        entry.designation,
+        entry.debit,
+        entry.credit,
+        entry.sessionId
+      );
+    });
 
     this.releveEntries.set(entries);
   }
@@ -1933,36 +1948,41 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   }
 
   private processReleveDataFallback(sessionsInRange: SessionCaisse[], entries: ReleveEntry[], runningBalance: number, fromDate: Date, toDate: Date): void {
-    // Reset balance per session to avoid cumulative totals across sessions
+    // Determine initial balance: use first session's opening fund
+    let initialBalance = 0;
+    if (sessionsInRange.length > 0) {
+      initialBalance = parseFloat((sessionsInRange[0].openingFund as any) || 0) || 0;
+    }
+    
+    // Add "Solde initial" entry at the beginning
+    let currentBalance = initialBalance;
+    if (sessionsInRange.length > 0) {
+      const firstSession = sessionsInRange[0];
+      entries.push({
+        date: new Date(firstSession.openedAt),
+        designation: 'Solde initial',
+        debit: initialBalance,
+        credit: 0,
+        solde: initialBalance,
+        sessionId: firstSession.id
+      });
+    }
+    
+    // Collect all entries first, then sort by date (no session grouping)
+    const allEntries: Array<{ date: Date; designation: string; debit: number; credit: number; sessionId?: number }> = [];
+    
     sessionsInRange.forEach(session => {
-      let currentBalance = 0;
-
-      // Opening fund
-      if (session.openingFund > 0) {
-        currentBalance = this.addReleveEntry(
-          entries,
-          currentBalance,
-          session.openedAt,
-          'Alimentation caisse',
-          session.openingFund,
-          0,
-          session.id
-        );
-      }
-
       // Sales from summary (fallback)
       if ((session as any).summary?.cashSales) {
         const cashSales = parseFloat(((session as any).summary.cashSales as any) || 0) || 0;
         if (cashSales > 0) {
-          currentBalance = this.addReleveEntry(
-            entries,
-            currentBalance,
-            session.openedAt,
-            'Ventes espèces (récapitulatif)',
-            cashSales,
-            0,
-            session.id
-          );
+          allEntries.push({
+            date: new Date(session.openedAt),
+            designation: 'Ventes espèces (récapitulatif)',
+            debit: cashSales,
+            credit: 0,
+            sessionId: session.id
+          });
         }
       }
 
@@ -1981,47 +2001,59 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
             switch (movement.type) {
               case 'ENTREE':
-                debit = movement.amount;
+                debit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Entrée - ${movement.reason}`;
                 break;
               case 'SORTIE':
-                credit = movement.amount;
+                credit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Sortie - ${movement.reason}`;
                 break;
               case 'DEPOT_COFFRE':
-                credit = movement.amount;
+                credit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Dépôt coffre - ${movement.reason}`;
                 break;
               case 'RETRAIT_CENTRALE':
-                credit = movement.amount;
+                credit = parseFloat(String(movement.amount || 0)) || 0;
                 designation = `Retrait centrale - ${movement.reason}`;
                 break;
               case 'AJUSTEMENT':
-                if (movement.amount > 0) {
-                  debit = movement.amount;
+                const amount = parseFloat(String(movement.amount || 0)) || 0;
+                if (amount > 0) {
+                  debit = amount;
                   designation = `Ajustement + - ${movement.reason}`;
                 } else {
-                  credit = Math.abs(movement.amount);
+                  credit = Math.abs(amount);
                   designation = `Ajustement - - ${movement.reason}`;
                 }
                 break;
             }
 
-            currentBalance = this.addReleveEntry(
-              entries,
-              currentBalance,
-              movement.createdAt,
+            allEntries.push({
+              date: new Date(movement.createdAt),
               designation,
               debit,
               credit,
-              session.id
-            );
+              sessionId: session.id
+            });
           });
       }
     });
 
     // Sort all entries by date
-    entries.sort((a, b) => a.date.getTime() - b.date.getTime());
+    allEntries.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    // Add entries in chronological order with running balance
+    allEntries.forEach(entry => {
+      currentBalance = this.addReleveEntry(
+        entries,
+        currentBalance,
+        entry.date,
+        entry.designation,
+        entry.debit,
+        entry.credit,
+        entry.sessionId
+      );
+    });
 
     this.releveEntries.set(entries);
   }

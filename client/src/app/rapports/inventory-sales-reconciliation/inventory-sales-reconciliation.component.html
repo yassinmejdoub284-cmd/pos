@@ -381,7 +381,30 @@
 
     <!-- Report Results -->
     <div *ngIf="showReport && reconciliationData.length > 0" class="space-y-6">
-      <div *ngFor="let data of reconciliationData" class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <!-- Reconciliation Table Header with Collapse Button -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-gray-900">📊 Tableau de Réconciliation Inventaire & Ventes</h2>
+              <p class="text-sm text-gray-600">Données détaillées de réconciliation pour tous les produits</p>
+            </div>
+            <button 
+              (click)="toggleReconciliationTable()"
+              class="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+              <svg class="w-4 h-4 transition-transform duration-200" 
+                   [class.rotate-180]="!isReconciliationTableCollapsed"
+                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+              <span>{{ isReconciliationTableCollapsed ? 'Afficher' : 'Masquer' }}</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Reconciliation Table Content -->
+        <div *ngIf="!isReconciliationTableCollapsed">
+          <div *ngFor="let data of reconciliationData" class="border-t border-gray-200">
         <!-- Product Header -->
         <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
           <h3 class="text-lg font-semibold text-gray-900">{{ data.productName }}</h3>
@@ -508,14 +531,6 @@
                 <h3 class="text-lg font-semibold text-emerald-900">📊 Relevé Inventaire - {{ data.productName }}</h3>
                 <p class="text-sm text-emerald-700">Désignation, Début, Crédit et Solde pour cet article</p>
               </div>
-              <button 
-                (click)="showAddCreditModal(data.productId)" 
-                class="bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center text-sm">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                Ajouter Crédit
-              </button>
             </div>
           </div>
           
@@ -624,15 +639,33 @@
           </div>
         </div>
       </div>
+        </div>
+      </div>
 
       <!-- Global Écart Summary Table -->
       <div *ngIf="globalEcartSummary" class="bg-white rounded-lg shadow-sm border border-gray-200">
         <div class="bg-purple-50 px-6 py-4 border-b border-gray-200">
-          <h3 class="text-xl font-bold text-purple-900">📈 Tableau Global des Écarts</h3>
-          <p class="text-sm text-purple-700">Résumé détaillé de tous les écarts par produit</p>
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xl font-bold text-purple-900">📈 Tableau Global des Écarts</h3>
+              <p class="text-sm text-purple-700">Résumé détaillé de tous les écarts par produit</p>
+            </div>
+            <button 
+              (click)="toggleGlobalEcartTable()"
+              class="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+              <svg class="w-4 h-4 transition-transform duration-200" 
+                   [class.rotate-180]="!isGlobalEcartTableCollapsed"
+                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+              <span>{{ isGlobalEcartTableCollapsed ? 'Afficher' : 'Masquer' }}</span>
+            </button>
+          </div>
         </div>
         
-        <div class="overflow-x-auto">
+        <!-- Global Écart Table Content -->
+        <div *ngIf="!isGlobalEcartTableCollapsed">
+          <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead class="bg-purple-50">
               <tr>
@@ -729,6 +762,7 @@
             </div>
           </div>
         </div>
+        </div>
       </div>
 
       <!-- Relevé Inventaire Table -->
@@ -741,29 +775,23 @@
             </div>
             <div class="flex items-center gap-2">
               <button 
-                (click)="saveCurrentReleve()" 
-                class="bg-slate-600 text-white px-3 py-2 rounded-lg hover:bg-slate-700 transition-colors text-sm">
-                Sauvegarder
-              </button>
-              <button 
-                (click)="startNewReleveFromLastSolde()" 
-                class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                Nouveau relevé (solde inventaire précédent)
-              </button>
-              <button 
-                (click)="showAddCreditModal()" 
-                class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                (click)="toggleReleveInventaireTable()"
+                class="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors">
+                <svg class="w-4 h-4 transition-transform duration-200" 
+                     [class.rotate-180]="!isReleveInventaireTableCollapsed"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
-                Ajouter Crédit
+                <span>{{ isReleveInventaireTableCollapsed ? 'Afficher' : 'Masquer' }}</span>
               </button>
             </div>
           </div>
         </div>
         
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
+        <!-- Relevé Inventaire Table Content -->
+        <div *ngIf="!isReleveInventaireTableCollapsed">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
             <thead class="bg-emerald-50">
               <tr>
                 <th class="px-4 py-3 text-left font-semibold text-emerald-900 border-r border-emerald-200">Désignation</th>
@@ -789,7 +817,15 @@
                     [class.text-gray-600]="isInventoryMode && !row.isInventory"
                     [class.cursor-pointer]="row.id.startsWith('bon_entree_') || row.isExpandable"
                     (click)="row.id.startsWith('bon_entree_') ? toggleBonEntreeExpansion(row.id) : (row.isExpandable ? toggleEcartGrosExpansion(row.expandableId || '') : null)">
-                  <div class="flex items-center">
+                  <div class="flex items-center gap-2">
+                    <!-- Add Manual Entry Button -->
+                    <button 
+                      *ngIf="!row.isInventory && !isBonEntreeItem(row) && !isEcartGrosChild(row)"
+                      (click)="showManualEntryModal(i, row.id); $event.stopPropagation()"
+                      class="w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-xs font-bold transition-colors shadow-sm"
+                      title="Ajouter un débit/crédit">
+                      +
+                    </button>
                     <!-- Bon Entree Expansion -->
                     <svg *ngIf="row.id.startsWith('bon_entree_')" 
                          class="w-4 h-4 mr-2 transition-transform duration-200"
@@ -834,11 +870,19 @@
                     [class.text-green-700]="row.isInventory">
                   {{ formatNumber(row.credit) }}
                 </td>
-                <td class="px-4 py-3 text-right font-bold text-lg" 
+                <td class="px-4 py-3 text-right font-bold text-lg relative" 
                     [class.text-green-600]="row.solde >= 0 && !row.isInventory"
                     [class.text-red-600]="row.solde < 0 && !row.isInventory"
                     [class.text-green-800]="row.isInventory">
                   {{ formatNumber(row.solde) }}
+                  <!-- Delete Manual Entry Button -->
+                  <button 
+                    *ngIf="row.id.startsWith('manual_') && !row.isInventory"
+                    (click)="deleteManualEntryFromRow(row); $event.stopPropagation()"
+                    class="absolute left-2 top-1/2 transform -translate-y-1/2 w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-xs font-bold transition-colors shadow-sm"
+                    title="Supprimer cette entrée manuelle">
+                    ×
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -871,6 +915,7 @@
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       </div>
 
@@ -963,47 +1008,27 @@
         </div>
       </div>
 
-      <!-- Add Credit Modal -->
-      <div *ngIf="showAddCreditForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <!-- Manual Entry Modal -->
+      <div *ngIf="isManualEntryModalOpen" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
           <div class="px-6 py-4 border-b border-gray-200">
             <h3 class="text-lg font-semibold text-gray-900">
-              Ajouter une Entrée de Crédit
-              <span *ngIf="selectedProductForCredit" class="text-sm font-normal text-gray-600">
-                - {{ getProductName(selectedProductForCredit) }}
-              </span>
+              Ajouter un Débit/Crédit
             </h3>
+            <p class="text-sm text-gray-600 mt-1">
+              L'entrée sera insérée après la ligne sélectionnée
+            </p>
           </div>
           
-          <form (ngSubmit)="addCreditEntry()" class="px-6 py-4 space-y-4">
+          <form (ngSubmit)="saveManualEntry()" class="px-6 py-4 space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Produit</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Type d'Entrée</label>
               <select 
-                [(ngModel)]="newCredit.productId" 
-                name="productId"
-                [disabled]="selectedProductForCredit !== null"
-                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                [class.bg-gray-100]="selectedProductForCredit !== null">
-                <option value="">Sélectionner un produit...</option>
-                <option *ngFor="let product of products" [value]="product.id">
-                  {{ product.name }}
-                </option>
-              </select>
-              <p *ngIf="selectedProductForCredit" class="text-xs text-gray-500 mt-1">
-                Produit pré-sélectionné: {{ getProductName(selectedProductForCredit) }}
-              </p>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Type de Crédit</label>
-              <select 
-                [(ngModel)]="newCredit.type" 
-                name="type"
+                [(ngModel)]="newManualEntry.entryType" 
+                name="entryType"
                 class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                <option value="SALE">Vente</option>
-                <option value="FREE_ITEM">Gratuité</option>
-                <option value="EXIT_VOUCHER">Bon de sortie</option>
-                <option value="WHOLESALE_DIFFERENCE">Différence gros</option>
+                <option value="DEBIT">Débit (Ajoute au solde)</option>
+                <option value="CREDIT">Crédit (Soustrait du solde)</option>
               </select>
             </div>
             
@@ -1011,37 +1036,38 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">Montant (dt)</label>
               <input 
                 type="number" 
-                [(ngModel)]="newCredit.amount" 
+                [(ngModel)]="newManualEntry.amount" 
                 name="amount"
                 step="0.01"
                 min="0"
+                required
                 class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
             
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
               <textarea 
-                [(ngModel)]="newCredit.description" 
+                [(ngModel)]="newManualEntry.description" 
                 name="description"
                 rows="3"
+                required
                 class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
             </div>
             
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Date de saisie *</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
               <input 
                 type="date" 
-                [(ngModel)]="newCredit.date" 
+                [(ngModel)]="newManualEntry.date" 
                 name="date"
                 required
                 class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <p class="text-xs text-gray-500 mt-1">La date de saisie sera utilisée pour le tri et l'affichage dans le relevé</p>
             </div>
             
             <div class="flex justify-end space-x-3 pt-4">
               <button 
                 type="button" 
-                (click)="hideAddCreditModal()"
+                (click)="hideManualEntryModal()"
                 class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 Annuler
               </button>

@@ -38,6 +38,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   activeFilter = 'all';
   selectedSupplierFilter: number | null = null;
   selectedCategoryFilter: number | null = null;
+  expensesViewMode: 'grid' | 'table' = 'table';
   // Wizard state
   addExpenseStep: 'category' | 'payment' | 'supplier' | 'notes' = 'category';
   payNow = true;

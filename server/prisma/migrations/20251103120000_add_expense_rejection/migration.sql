@@ -10,3 +10,8 @@ ALTER TABLE `expenses`
   ADD CONSTRAINT `expenses_rejected_by_fkey`
   FOREIGN KEY (`rejected_by`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
+
+
+
+
+
