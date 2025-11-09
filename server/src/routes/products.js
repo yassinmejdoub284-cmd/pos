@@ -228,9 +228,10 @@ router.get('/transfer-history', authenticateToken, async (req, res) => {
       });
     }
 
-    // Filter to only vrac products
+    // Show all transfers - don't filter by isVrac since transfers can be to any product type
+    // The history should show all product conversions, not just to vrac
     inMovements = inMovements.filter(movement => {
-      return movement.product && movement.product.isVrac === true;
+      return movement.product !== null; // Only filter out movements without products
     });
 
     // Apply pagination after filtering
@@ -1550,9 +1551,10 @@ router.get('/transfer-history', authenticateToken, async (req, res) => {
       });
     }
 
-    // Filter to only vrac products
+    // Show all transfers - don't filter by isVrac since transfers can be to any product type
+    // The history should show all product conversions, not just to vrac
     inMovements = inMovements.filter(movement => {
-      return movement.product && movement.product.isVrac === true;
+      return movement.product !== null; // Only filter out movements without products
     });
 
     // Apply pagination after filtering
