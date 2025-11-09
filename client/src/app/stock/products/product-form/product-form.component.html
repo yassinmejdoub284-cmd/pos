@@ -1,9 +1,9 @@
 <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
   <div class="bg-white rounded-2xl border border-indigo-100/50 w-full max-w-2xl max-h-[95vh] flex flex-col">
     <div class="flex justify-between items-center p-4 border-b border-indigo-100/50">
-      <h3 class="text-lg font-semibold text-slate-800">
+      <span class="text-lg font-semibold text-slate-800 block">
         {{ product ? 'Modifier le Produit' : 'Nouveau Produit' }}
-      </h3>
+      </span>
       <button (click)="onCancel()" class="text-slate-500" title="Fermer">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -114,7 +114,7 @@
 
         <!-- Product Configuration Section -->
         <div class="lg:col-span-2 configuration-section">
-          <h4 class="text-md font-semibold text-slate-800 mb-3 border-b border-slate-200/50 pb-2">Configuration du Produit</h4>
+          <span class="text-md font-semibold text-slate-800 mb-3 border-b border-slate-200/50 pb-2 block">Configuration du Produit</span>
           
           <div class="checkbox-container">
             <input type="checkbox" formControlName="isVraguable" (change)="onVraguableChange()" id="isVraguable">
@@ -123,7 +123,7 @@
             </label>
             <div class="status-indicator bg-orange-400"></div>
           </div>
-          <p class="text-xs text-slate-500 mt-1 ml-7">Ce produit peut être converti en version vrac</p>
+          <span class="text-xs text-slate-500 mt-1 ml-7 block">Ce produit peut être converti en version vrac</span>
 
           <div class="checkbox-container">
             <input type="checkbox" formControlName="isStockable" (change)="onStockableChange()" id="isStockable">
@@ -132,7 +132,7 @@
             </label>
             <div class="status-indicator bg-green-400"></div>
           </div>
-          <p class="text-xs text-slate-500 mt-1 ml-7">Ce produit peut être géré en stock avec quantités</p>
+          <span class="text-xs text-slate-500 mt-1 ml-7 block">Ce produit peut être géré en stock avec quantités</span>
 
           <div class="checkbox-container">
             <input type="checkbox" formControlName="isWholesale" (change)="onWholesaleChange()" id="isWholesale">
@@ -141,12 +141,12 @@
             </label>
             <div class="status-indicator bg-violet-400"></div>
           </div>
-          <p class="text-xs text-slate-500 mt-1 ml-7">Ce produit peut être vendu par fardeaux/bundles</p>
+          <span class="text-xs text-slate-500 mt-1 ml-7 block">Ce produit peut être vendu par fardeaux/bundles</span>
         </div>
 
         <!-- Wholesale Configuration Section -->
         <div *ngIf="productForm.get('isWholesale')?.value" class="lg:col-span-2 wholesale-section">
-          <h4 class="text-md font-semibold text-slate-800 mb-3 border-b border-slate-200/50 pb-2">Configuration Gros</h4>
+          <span class="text-md font-semibold text-slate-800 mb-3 border-b border-slate-200/50 pb-2 block">Configuration Gros</span>
           
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
@@ -154,7 +154,7 @@
               <input type="number" formControlName="bundleSize" min="1"
                 class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
                 placeholder="Nombre d'unités par fardeau">
-              <p class="text-xs text-slate-500 mt-1">Ex: 6 unités par fardeau</p>
+              <span class="text-xs text-slate-500 mt-1 block">Ex: 6 unités par fardeau</span>
             </div>
 
             <div>
@@ -162,7 +162,7 @@
               <input type="number" formControlName="bundlePrice" step="0.01" min="0"
                 class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
                 placeholder="Prix par fardeau">
-              <p class="text-xs text-slate-500 mt-1">Ex: 55.000 dt par fardeau</p>
+              <span class="text-xs text-slate-500 mt-1 block">Ex: 55.000 dt par fardeau</span>
             </div>
 
           </div>
@@ -170,11 +170,11 @@
           <!-- Wholesale Preview -->
           <div *ngIf="productForm.get('bundleSize')?.value && productForm.get('bundlePrice')?.value" 
                class="mt-4 p-3 bg-violet-50 border border-violet-200 rounded-2xl">
-            <h5 class="text-sm font-semibold text-violet-800 mb-2">Aperçu Vente Gros</h5>
+            <span class="text-sm font-semibold text-violet-800 mb-2 block">Aperçu Vente Gros</span>
             <div class="text-sm text-violet-700">
-              <p><strong>1 fardeau</strong> = {{ productForm.get('bundleSize')?.value }} unités</p>
-              <p><strong>Prix fardeau:</strong> {{ productForm.get('bundlePrice')?.value | number:'1.3-3' }} dt</p>
-              <p><strong>Prix unitaire:</strong> {{ (productForm.get('bundlePrice')?.value / productForm.get('bundleSize')?.value) | number:'1.3-3' }} dt</p>
+              <span class="block"><strong>1 fardeau</strong> = {{ productForm.get('bundleSize')?.value }} unités</span>
+              <span class="block"><strong>Prix fardeau:</strong> {{ productForm.get('bundlePrice')?.value | number:'1.3-3' }} dt</span>
+              <span class="block"><strong>Prix unitaire:</strong> {{ (productForm.get('bundlePrice')?.value / productForm.get('bundleSize')?.value) | number:'1.3-3' }} dt</span>
             </div>
           </div>
         </div>

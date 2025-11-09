@@ -19,8 +19,8 @@
           </svg>
         </div>
         <div>
-          <h1 class="text-2xl font-bold text-slate-800">Stock & Multi-Dépôts</h1>
-          <p class="text-slate-600 font-medium">Gestion des produits et inventaires</p>
+          <span class="text-2xl font-bold text-slate-800 block">Stock & Multi-Dépôts</span>
+          <span class="text-slate-600 font-medium block">Gestion des produits et inventaires</span>
         </div>
       </div>
       <div class="flex items-center gap-3">
@@ -68,8 +68,8 @@
           <svg fill="#ffffff" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <circle cx="16.5" cy="18.5" r="1.5"></circle> <circle cx="9.5" cy="18.5" r="1.5"></circle> <path d="M18 16H8a1 1 0 0 1-.958-.713L4.256 6H3a1 1 0 0 1 0-2h2a1 1 0 0 1 .958.713L6.344 6H21a1 1 0 0 1 .937 1.352l-3 8A1 1 0 0 1 18 16zm-9.256-2h8.563l2.25-6H6.944z"></path> </g></svg>
         </div>
         
-        <h3 class="text-lg font-bold text-slate-800 mb-2">Ventes et Livraisons</h3>
-        <p class="text-slate-500 text-sm">Génération de ventes et livraisons</p>
+        <span class="text-lg font-bold text-slate-800 mb-2 block">Ventes et Livraisons</span>
+        <span class="text-slate-500 text-sm block">Génération de ventes et livraisons</span>
       </div>
     </a>
     <div *ngFor="let card of actionCards" 
@@ -83,8 +83,8 @@
           </svg>
         </div>
         
-        <h3 class="text-lg font-bold text-slate-800 mb-2">{{ card.title }}</h3>
-        <p class="text-slate-500 text-sm">{{ card.description }}</p>
+        <span class="text-lg font-bold text-slate-800 mb-2 block">{{ card.title }}</span>
+        <span class="text-slate-500 text-sm block">{{ card.description }}</span>
       </div>
     </div>
     <!-- Produits de Stock Card -->
@@ -96,8 +96,8 @@
           </svg>
         </div>
         
-        <h3 class="text-lg font-bold text-slate-800 mb-2">Produits de Stock</h3>
-        <p class="text-slate-500 text-sm">Sous-produits de stock</p>
+        <span class="text-lg font-bold text-slate-800 mb-2 block">Produits de Stock</span>
+        <span class="text-slate-500 text-sm block">Sous-produits de stock</span>
       </div>
     </a>
     
@@ -117,8 +117,22 @@
           </svg>
         </div>
         
-        <h3 class="text-lg font-bold text-slate-800 mb-2">Produits</h3>
-        <p class="text-slate-500 text-sm">Gestion des produits pâtisserie</p>
+        <span class="text-lg font-bold text-slate-800 mb-2 block">Produits</span>
+        <span class="text-slate-500 text-sm block">Gestion des produits pâtisserie</span>
+      </div>
+    </a>
+
+    <!-- Transfer vers Vrag Card -->
+    <a routerLink="/stock/transfer-vers-vrag">
+      <div class="bg-white/80 rounded-2xl border border-slate-200/50 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+          </svg>
+        </div>
+        
+        <span class="text-lg font-bold text-slate-800 mb-2 block">Transfer vers Vrag</span>
+        <span class="text-slate-500 text-sm block">Produits pouvant être convertis en vrag</span>
       </div>
     </a>
 
@@ -130,8 +144,8 @@
           </svg>
         </div>
         
-        <h3 class="text-lg font-semibold text-slate-800 mb-2">Produits en Gros</h3>
-        <p class="text-slate-500">Fardeaux & marges</p>
+        <span class="text-lg font-semibold text-slate-800 mb-2 block">Produits en Gros</span>
+        <span class="text-slate-500 block">Fardeaux & marges</span>
       </div>
     </a>
   </div>

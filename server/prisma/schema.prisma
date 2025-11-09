@@ -190,6 +190,7 @@ model Product {
   isStockable              Boolean               @default(true) @map("is_stockable")
   originalProductId        Int?                  @map("original_product_id")
   isVrac                   Boolean               @default(false) @map("is_vrac")
+  isVraguable              Boolean               @default(false) @map("is_vraguable")
   displayIndex             Int?                  @map("display_index")
   bundlePrice              Decimal?              @map("bundle_price") @db.Decimal(10, 2)
   bundleSize               Int?                  @map("bundle_size")

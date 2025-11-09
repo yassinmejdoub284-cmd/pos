@@ -16,7 +16,7 @@
   <div *ngIf="loading" class="flex items-center justify-center h-64">
     <div class="text-center">
       <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-t-4 border-indigo-600 mx-auto mb-6"></div>
-      <p class="text-indigo-700 font-medium">Chargement des produits...</p>
+      <span class="text-indigo-700 font-medium block">Chargement des produits...</span>
     </div>
   </div>
 
@@ -26,7 +26,7 @@
       <svg class="w-6 h-6 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
       </svg>
-      <p class="font-medium">{{ error }}</p>
+      <span class="font-medium block">{{ error }}</span>
     </div>
   </div>
 
@@ -37,8 +37,8 @@
     <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl p-6 shadow-lg">
       <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
         <div>
-          <h1 class="text-3xl font-bold text-white mb-1">Gestion des Produits</h1>
-          <p class="text-indigo-100">Gérez votre catalogue de produits et leurs propriétés</p>
+          <span class="text-3xl font-bold text-white mb-1 block">Gestion des Produits</span>
+          <span class="text-indigo-100 block">Gérez votre catalogue de produits et leurs propriétés</span>
         </div>
         
         <div class="flex flex-wrap gap-3">
@@ -249,6 +249,13 @@
                     </svg>
                   </button>
                   
+                  <button (click)="openTransferModal(product)" 
+                    class="p-2 bg-indigo-50 text-indigo-700 rounded-lg transition-colors" title="Transférer vers autre produit">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                    </svg>
+                  </button>
+                  
                   <button (click)="deleteProduct(product)" 
                     class="p-2 bg-red-50 text-red-700 rounded-lg transition-colors" title="Supprimer">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -304,7 +311,7 @@
 
             <!-- Product Info -->
             <div class="p-4">
-              <h3 class="text-lg font-semibold text-indigo-800 mb-2 line-clamp-2">{{ product.name }}</h3>
+              <span class="text-lg font-semibold text-indigo-800 mb-2 line-clamp-2 block">{{ product.name }}</span>
               
               <!-- Barcode -->
               <div class="text-sm text-slate-600 mb-2 font-mono bg-slate-100 py-1 px-2 rounded">
@@ -350,6 +357,10 @@
                   class="flex-1 bg-purple-50 text-purple-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium">
                   Dupliquer
                 </button>
+                <button (click)="openTransferModal(product)" 
+                  class="flex-1 bg-indigo-50 text-indigo-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium">
+                  Transférer
+                </button>
                 <button (click)="deleteProduct(product)" 
                   class="bg-red-50 text-red-700 py-2 px-3 rounded-lg transition-colors"
                   title="Supprimer">
@@ -370,8 +381,8 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
           </svg>
         </div>
-        <h3 class="text-xl font-bold text-indigo-800 mb-2">Aucun produit trouvé</h3>
-        <p class="text-indigo-600 mb-6">Essayez de modifier vos critères de recherche ou ajoutez un nouveau produit</p>
+        <span class="text-xl font-bold text-indigo-800 mb-2 block">Aucun produit trouvé</span>
+        <span class="text-indigo-600 mb-6 block">Essayez de modifier vos critères de recherche ou ajoutez un nouveau produit</span>
         <button (click)="openAddModal()" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-2.5 rounded-xl shadow-md transition-all">
           <span class="flex items-center">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -425,12 +436,12 @@
 <div *ngIf="showVracModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-indigo-200">
     <div class="flex items-center justify-between mb-5">
-      <h3 class="text-2xl font-bold text-indigo-800 flex items-center">
+      <span class="text-2xl font-bold text-indigo-800 flex items-center block">
         <svg class="w-7 h-7 mr-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
         </svg>
         Convertir en Vrac
-      </h3>
+      </span>
       <button title="Fermer" (click)="closeVracModal()" class="text-gray-400 transition-colors">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -439,8 +450,8 @@
     </div>
     
     <div class="mb-6 bg-amber-50 p-4 rounded-2xl border border-amber-200">
-      <p class="text-amber-800 font-medium mb-2">Produit à convertir :</p>
-      <p class="text-indigo-800 text-lg font-bold">{{ selectedProductForVrac?.name }}</p>
+      <span class="text-amber-800 font-medium mb-2 block">Produit à convertir :</span>
+      <span class="text-indigo-800 text-lg font-bold block">{{ selectedProductForVrac?.name }}</span>
     </div>
     
     <app-vrac-conversion-form
@@ -448,5 +459,35 @@
       (converted)="convertToVrac($event)"
       (cancelled)="closeVracModal()">
     </app-vrac-conversion-form>
+  </div>
+</div>
+
+<!-- Transfer Modal -->
+<div *ngIf="showTransferModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-indigo-200 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-5">
+      <span class="text-2xl font-bold text-indigo-800 flex items-center block">
+        <svg class="w-7 h-7 mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+        </svg>
+        Transférer Produit
+      </span>
+      <button title="Fermer" (click)="closeTransferModal()" class="text-gray-400 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <div class="mb-6 bg-blue-50 p-4 rounded-2xl border border-blue-200">
+      <span class="text-blue-800 font-medium mb-2 block">Produit Source :</span>
+      <span class="text-indigo-800 text-lg font-bold block">{{ selectedProductForTransfer?.name }}</span>
+    </div>
+    
+    <app-product-transfer-form
+      [sourceProduct]="selectedProductForTransfer"
+      (transferred)="onProductTransferred($event)"
+      (cancelled)="closeTransferModal()">
+    </app-product-transfer-form>
   </div>
 </div>
