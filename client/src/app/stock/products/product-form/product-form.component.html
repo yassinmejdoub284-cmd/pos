@@ -1,9 +1,9 @@
 <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
   <div class="bg-white rounded-2xl border border-indigo-100/50 w-full max-w-2xl max-h-[95vh] flex flex-col">
     <div class="flex justify-between items-center p-4 border-b border-indigo-100/50">
-      <h3 class="text-lg font-semibold text-slate-800">
+      <span class="text-lg font-semibold text-slate-800 block">
         {{ product ? 'Modifier le Produit' : 'Nouveau Produit' }}
-      </h3>
+      </span>
       <button (click)="onCancel()" class="text-slate-500" title="Fermer">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -104,17 +104,44 @@
 
         <!-- Depot Selection -->
         <div class="lg:col-span-2">
-          <app-multi-depot-selector 
-            [selectedDepotIds]="selectedDepotIds()"
-            [allowedDepotTypes]="['SHOP']"
-            [required]="true"
-            (depotsSelected)="onDepotsSelected($event)">
-          </app-multi-depot-selector>
+          <div *ngIf="isAdmin()">
+            <app-multi-depot-selector 
+              [selectedDepotIds]="selectedDepotIds()"
+              [allowedDepotTypes]="['SHOP']"
+              [required]="true"
+              (depotsSelected)="onDepotsSelected($event)">
+            </app-multi-depot-selector>
+          </div>
+          <div *ngIf="!isAdmin()" class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <span class="text-sm font-semibold text-slate-700 mb-2 block">Dépôt Assigné</span>
+            <span class="text-sm text-slate-600">{{ getDepotName(selectedDepotIds()[0]) || 'Votre dépôt' }}</span>
+          </div>
+        </div>
+
+        <!-- Depot Prices Section -->
+        <div *ngIf="selectedDepotIds().length > 0" class="lg:col-span-2">
+          <span class="text-md font-semibold text-slate-800 mb-3 border-b border-slate-200/50 pb-2 block">Prix par Dépôt</span>
+          <div class="space-y-3">
+            <div *ngFor="let depotId of selectedDepotIds()" class="flex items-center gap-3">
+              <label class="w-32 text-sm font-medium text-slate-600">
+                {{ getDepotName(depotId) }}:
+              </label>
+              <input 
+                type="number" 
+                [value]="getDepotPrice(depotId)"
+                (input)="onDepotPriceChange(depotId, +$any($event.target).value)"
+                min="0"
+                step="0.01"
+                [readonly]="!isAdmin()"
+                [class]="'flex-1 px-4 py-2 border rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all ' + (isAdmin() ? 'bg-slate-100/50 border-slate-200/50' : 'bg-slate-200/50 border-slate-300/50 cursor-not-allowed')">
+              <span class="text-sm text-slate-500">TND</span>
+            </div>
+          </div>
         </div>
 
         <!-- Product Configuration Section -->
         <div class="lg:col-span-2 configuration-section">
-          <h4 class="text-md font-semibold text-slate-800 mb-3 border-b border-slate-200/50 pb-2">Configuration du Produit</h4>
+          <span class="text-md font-semibold text-slate-800 mb-3 border-b border-slate-200/50 pb-2 block">Configuration du Produit</span>
           
           <div class="checkbox-container">
             <input type="checkbox" formControlName="isVraguable" (change)="onVraguableChange()" id="isVraguable">
@@ -123,7 +150,41 @@
             </label>
             <div class="status-indicator bg-orange-400"></div>
           </div>
-          <p class="text-xs text-slate-500 mt-1 ml-7">Ce produit peut être converti en version vrac</p>
+          <span class="text-xs text-slate-500 mt-1 ml-7 block">Ce produit peut être converti en version vrac</span>
+
+          <!-- Conversion Ratio Input (shown when Convertible en Vrac is checked) -->
+          <div *ngIf="productForm.get('isVraguable')?.value" class="mt-3 ml-7 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-2">Ratio de Conversion *</label>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-slate-600">1 article =</span>
+                <input type="number" formControlName="conversionRatio" step="0.001" min="0.001"
+                  class="flex-1 px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+                  placeholder="Ex: 200">
+                <span class="text-sm text-slate-600">articles cibles</span>
+              </div>
+              <span class="text-xs text-slate-500 mt-1 block">Exemple: 1 JUS 1L = 200 JUS Vrac</span>
+            </div>
+
+            <!-- Vrac Prices Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2 border-t border-slate-200/50">
+              <div>
+                <label class="block text-sm font-medium text-slate-600 mb-2">Prix de Vente en Vrac</label>
+                <input type="number" formControlName="prix_vente_vrac" step="0.01" min="0"
+                  class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+                  placeholder="0.00">
+                <span class="text-xs text-slate-500 mt-1 block">Prix de vente pour la version vrac</span>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-slate-600 mb-2">Prix d'Achat en Vrac</label>
+                <input type="number" formControlName="prix_achat_vrac" step="0.001" min="0"
+                  class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+                  placeholder="0.000">
+                <span class="text-xs text-slate-500 mt-1 block">Prix d'achat pour la version vrac</span>
+              </div>
+            </div>
+          </div>
 
           <div class="checkbox-container">
             <input type="checkbox" formControlName="isStockable" (change)="onStockableChange()" id="isStockable">
@@ -132,7 +193,7 @@
             </label>
             <div class="status-indicator bg-green-400"></div>
           </div>
-          <p class="text-xs text-slate-500 mt-1 ml-7">Ce produit peut être géré en stock avec quantités</p>
+          <span class="text-xs text-slate-500 mt-1 ml-7 block">Ce produit peut être géré en stock avec quantités</span>
 
           <div class="checkbox-container">
             <input type="checkbox" formControlName="isWholesale" (change)="onWholesaleChange()" id="isWholesale">
@@ -141,12 +202,12 @@
             </label>
             <div class="status-indicator bg-violet-400"></div>
           </div>
-          <p class="text-xs text-slate-500 mt-1 ml-7">Ce produit peut être vendu par fardeaux/bundles</p>
+          <span class="text-xs text-slate-500 mt-1 ml-7 block">Ce produit peut être vendu par fardeaux/bundles</span>
         </div>
 
         <!-- Wholesale Configuration Section -->
         <div *ngIf="productForm.get('isWholesale')?.value" class="lg:col-span-2 wholesale-section">
-          <h4 class="text-md font-semibold text-slate-800 mb-3 border-b border-slate-200/50 pb-2">Configuration Gros</h4>
+          <span class="text-md font-semibold text-slate-800 mb-3 border-b border-slate-200/50 pb-2 block">Configuration Gros</span>
           
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
@@ -154,7 +215,7 @@
               <input type="number" formControlName="bundleSize" min="1"
                 class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
                 placeholder="Nombre d'unités par fardeau">
-              <p class="text-xs text-slate-500 mt-1">Ex: 6 unités par fardeau</p>
+              <span class="text-xs text-slate-500 mt-1 block">Ex: 6 unités par fardeau</span>
             </div>
 
             <div>
@@ -162,7 +223,7 @@
               <input type="number" formControlName="bundlePrice" step="0.01" min="0"
                 class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
                 placeholder="Prix par fardeau">
-              <p class="text-xs text-slate-500 mt-1">Ex: 55.000 dt par fardeau</p>
+              <span class="text-xs text-slate-500 mt-1 block">Ex: 55.000 dt par fardeau</span>
             </div>
 
           </div>
@@ -170,11 +231,11 @@
           <!-- Wholesale Preview -->
           <div *ngIf="productForm.get('bundleSize')?.value && productForm.get('bundlePrice')?.value" 
                class="mt-4 p-3 bg-violet-50 border border-violet-200 rounded-2xl">
-            <h5 class="text-sm font-semibold text-violet-800 mb-2">Aperçu Vente Gros</h5>
+            <span class="text-sm font-semibold text-violet-800 mb-2 block">Aperçu Vente Gros</span>
             <div class="text-sm text-violet-700">
-              <p><strong>1 fardeau</strong> = {{ productForm.get('bundleSize')?.value }} unités</p>
-              <p><strong>Prix fardeau:</strong> {{ productForm.get('bundlePrice')?.value | number:'1.3-3' }} dt</p>
-              <p><strong>Prix unitaire:</strong> {{ (productForm.get('bundlePrice')?.value / productForm.get('bundleSize')?.value) | number:'1.3-3' }} dt</p>
+              <span class="block"><strong>1 fardeau</strong> = {{ productForm.get('bundleSize')?.value }} unités</span>
+              <span class="block"><strong>Prix fardeau:</strong> {{ productForm.get('bundlePrice')?.value | number:'1.3-3' }} dt</span>
+              <span class="block"><strong>Prix unitaire:</strong> {{ (productForm.get('bundlePrice')?.value / productForm.get('bundleSize')?.value) | number:'1.3-3' }} dt</span>
             </div>
           </div>
         </div>

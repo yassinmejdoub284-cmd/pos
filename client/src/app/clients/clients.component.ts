@@ -5,6 +5,7 @@ import { ClientsService } from '../core/services/clients.service';
 import { Client, ClientType, CreateClientRequest, UpdateClientRequest } from '../core/models/client.model';
 import { Depot, DepotType } from '../core/models/depot.model';
 import { DepotsService } from '../core/services/depots.service';
+import { AuthService } from '../core/services/auth.service';
 import { Subject, takeUntil, debounceTime, distinctUntilChanged } from 'rxjs';
 
 @Component({
@@ -87,15 +88,23 @@ export class ClientsComponent implements OnInit, OnDestroy {
   alertMessage = '';
   alertType: 'success' | 'error' | 'info' = 'info';
 
+  // Admin check
+  isAdmin = false;
+
   constructor(
     private clientsService: ClientsService,
     private depotsService: DepotsService,
     private route: ActivatedRoute,
     private router: Router,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
+    // Check if user is admin
+    const user = this.authService?.currentUser?.();
+    this.isAdmin = user?.role === 'ADMIN';
+    
     this.setupSearchDebounce();
     this.loadClients();
     this.loadDepots();
@@ -214,7 +223,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
       address: '',
       matriculeFiscal: '',
       clientType: 'INDIVIDUAL',
-      depotId: -1, // Default to "Tout" (any depot)
+      depotId: this.isAdmin ? -1 : (this.authService?.currentUser?.()?.depotId ?? null), // Default to "Tout" for admin, user depot for non-admin
       pictureUrl: '',
       notes: '',
       allowDebt: true,
@@ -279,6 +288,12 @@ export class ClientsComponent implements OnInit, OnDestroy {
     if (!this.createForm.firstName || !this.createForm.lastName) {
       this.showAlertMessage('Le prénom et le nom sont obligatoires', 'error');
       return;
+    }
+
+    // For non-admin users, use their depotId
+    if (!this.isAdmin) {
+      const user = this.authService?.currentUser?.();
+      this.createForm.depotId = user?.depotId ?? null;
     }
 
     // Validate depot selection

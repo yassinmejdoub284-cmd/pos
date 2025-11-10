@@ -1,40 +1,9 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { ExpenseService, Expense, ExpenseCategory, ExpenseStats } from '../../core/services/expense.service';
+import { AuthService } from '../../core/services/auth.service';
 import Chart from 'chart.js/auto';
-
-interface Expense {
-  id: number;
-  amount: number;
-  date: string;
-  isApproved: boolean;
-  isPaid?: boolean;
-  paidAt?: string;
-  category: {
-    id: number;
-    name: string;
-  };
-  depot: {
-    id: number;
-    name: string;
-  };
-  user: {
-    id: number;
-    firstName: string;
-    lastName: string;
-  };
-  approver?: {
-    id: number;
-    firstName: string;
-    lastName: string;
-  };
-  payer?: {
-    id: number;
-    firstName: string;
-    lastName: string;
-  };
-}
+import { PrintService } from '../../core/services/print.service';
 
 interface ExpenseFilters {
   startDate: string;
@@ -53,12 +22,14 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
   @ViewChild('chartCanvas', { static: false }) chartCanvas!: ElementRef<HTMLCanvasElement>;
   
   expenses: Expense[] = [];
-  categories: any[] = [];
+  categories: ExpenseCategory[] = [];
   depots: any[] = [];
+  stats: ExpenseStats | null = null;
   loading = false;
   error: string | null = null;
   chart: Chart | null = null;
   showChart = false;
+  currentUser: any = null;
 
   filters: ExpenseFilters = {
     startDate: '',
@@ -68,16 +39,24 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
     status: ''
   };
 
+  private readonly printService = inject(PrintService);
+
   constructor(
     private router: Router,
-    private http: HttpClient
+    private expenseService: ExpenseService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
     this.setDefaultDates();
-    this.loadCategories();
-    this.loadDepots();
-    this.loadExpenses();
+    this.loadCurrentUser();
+    this.loadData();
+  }
+
+  loadCurrentUser() {
+    this.authService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+    });
   }
 
   ngAfterViewInit(): void {
@@ -92,31 +71,7 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
     this.filters.endDate = today.toISOString().split('T')[0];
   }
 
-  loadCategories(): void {
-    this.http.get<any[]>(`${environment.apiUrl}/expenses/categories`)
-      .subscribe({
-        next: (categories) => {
-          this.categories = categories;
-        },
-        error: (error) => {
-          console.error('Error loading categories:', error);
-        }
-      });
-  }
-
-  loadDepots(): void {
-    this.http.get<any[]>(`${environment.apiUrl}/depots`)
-      .subscribe({
-        next: (depots) => {
-          this.depots = depots;
-        },
-        error: (error) => {
-          console.error('Error loading depots:', error);
-        }
-      });
-  }
-
-  loadExpenses(): void {
+  loadData() {
     this.loading = true;
     this.error = null;
 
@@ -127,25 +82,43 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
     if (this.filters.depotId) params.depotId = this.filters.depotId;
     if (this.filters.status) params.status = this.filters.status;
 
-    this.http.get<{expenses: Expense[]}>(`${environment.apiUrl}/expenses`, { params })
-      .subscribe({
-        next: (response) => {
-          this.expenses = response.expenses;
-          this.loading = false;
-          if (this.showChart) {
-            this.createChart();
-          }
-        },
-        error: (error) => {
-          console.error('Error loading expenses:', error);
-          this.error = 'Erreur lors du chargement des dépenses';
-          this.loading = false;
-        }
-      });
+    Promise.all([
+      this.expenseService.getCategories().toPromise(),
+      this.expenseService.getExpenses(params).toPromise(),
+      this.expenseService.getStats(params).toPromise(),
+      this.loadDepots()
+    ]).then(([categories, expenses, stats, depots]) => {
+      this.categories = categories || [];
+      this.expenses = expenses || [];
+      this.stats = stats || null;
+      this.depots = depots || [];
+      this.loading = false;
+      if (this.showChart) {
+        this.createChart();
+      }
+    }).catch(error => {
+      console.error('Error loading data:', error);
+      this.error = 'Erreur lors du chargement des données';
+      this.loading = false;
+    });
+  }
+
+  loadDepots(): Promise<any[]> {
+    return new Promise((resolve) => {
+      // Use hardcoded depots like other components
+      const depots = [
+        { id: 'all', name: 'Tous' },
+        { id: '1', name: 'Pt Vte Sfax' },
+        { id: '2', name: 'Pt Vte Tunis' },
+        { id: '3', name: 'Atelier' },
+        { id: '4', name: 'Dépôt Tunis' }
+      ];
+      resolve(depots);
+    });
   }
 
   onFiltersChange(): void {
-    this.loadExpenses();
+    this.loadData();
   }
 
   toggleChart(): void {
@@ -171,7 +144,7 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
 
     // Group expenses by category
     const categoryData = this.expenses.reduce((acc, expense) => {
-      const categoryName = expense.category.name;
+      const categoryName = expense.category?.name || 'Inconnu';
       if (!acc[categoryName]) {
         acc[categoryName] = { total: 0, count: 0, approved: 0, pending: 0 };
       }
@@ -237,27 +210,29 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
   }
 
   getTotalAmount(): number {
-    return this.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    if (!this.stats || !this.stats.total) return 0;
+    const amount = this.stats.total.amount;
+    return typeof amount === 'number' ? amount : 0;
   }
 
   getApprovedAmount(): number {
-    return this.expenses
-      .filter(expense => expense.isApproved)
-      .reduce((sum, expense) => sum + expense.amount, 0);
+    if (!this.stats || !this.stats.approved) return 0;
+    const amount = this.stats.approved.amount;
+    return typeof amount === 'number' ? amount : 0;
   }
 
   getPendingAmount(): number {
-    return this.expenses
-      .filter(expense => !expense.isApproved)
-      .reduce((sum, expense) => sum + expense.amount, 0);
+    if (!this.stats || !this.stats.pending) return 0;
+    const amount = this.stats.pending.amount;
+    return typeof amount === 'number' ? amount : 0;
   }
 
   getApprovedCount(): number {
-    return this.expenses.filter(expense => expense.isApproved).length;
+    return this.stats?.approved.count || 0;
   }
 
   getPendingCount(): number {
-    return this.expenses.filter(expense => !expense.isApproved).length;
+    return this.stats?.pending.count || 0;
   }
 
   getStatusLabel(isApproved: boolean): string {
@@ -272,9 +247,9 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
 
   payExpense(expense: Expense): void {
     if (!expense || expense.isPaid) { return; }
-    this.http.patch(`${environment.apiUrl}/expenses/${expense.id}/pay`, {})
+    this.expenseService.updateExpense(expense.id, { isPaid: true })
       .subscribe({
-        next: () => this.loadExpenses(),
+        next: () => this.loadData(),
         error: (error) => {
           console.error('Error paying expense:', error);
           this.error = error?.error?.error || 'Erreur lors du paiement de la dépense';
@@ -299,11 +274,11 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
     const headers = ['Date', 'Catégorie', 'Dépôt', 'Montant', 'Statut', 'Utilisateur'];
     const rows = this.expenses.map(expense => [
       new Date(expense.date).toLocaleDateString('fr-FR'),
-      expense.category.name,
-      expense.depot.name,
+      expense.category?.name || 'Inconnu',
+      expense.depot?.name || 'Inconnu',
       expense.amount.toFixed(2),
       this.getStatusLabel(expense.isApproved),
-      `${expense.user.firstName} ${expense.user.lastName}`
+      `${expense.user?.firstName || ''} ${expense.user?.lastName || ''}`
     ]);
 
     return [headers, ...rows].map(row => 
@@ -312,7 +287,51 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
   }
 
   printA4(): void {
-    window.print();
+    const totalAmount = Number(this.getTotalAmount()) || 0;
+    const approvedAmount = Number(this.getApprovedAmount()) || 0;
+    const pendingAmount = Number(this.getPendingAmount()) || 0;
+    const title = 'État Dépenses';
+    
+    const htmlContent = `
+      <div class="header">
+        <div class="title">${title}</div>
+        <div class="subtitle">Période: ${this.filters.startDate} au ${this.filters.endDate}</div>
+      </div>
+      
+      <div class="summary">
+        <p><strong>Total Dépenses:</strong> ${totalAmount.toFixed(2)} dt</p>
+        <p><strong>Approuvées:</strong> ${approvedAmount.toFixed(2)} dt (${this.getApprovedCount()})</p>
+        <p><strong>En Attente:</strong> ${pendingAmount.toFixed(2)} dt (${this.getPendingCount()})</p>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Catégorie</th>
+            <th style="text-align: right;">Montant</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${this.expenses.map(expense => `
+            <tr>
+              <td>${new Date(expense.date).toLocaleDateString('fr-FR')}</td>
+              <td>${expense.category?.name || 'Inconnu'}</td>
+              <td style="text-align: right;">${(Number(expense.amount) || 0).toFixed(2)}</td>
+              <td>${this.getStatusLabel(expense.isApproved)}</td>
+            </tr>
+          `).join('')}
+          <tr class="total-row">
+            <td colspan="2"><strong>TOTAL</strong></td>
+            <td style="text-align: right;"><strong>${totalAmount.toFixed(2)}</strong></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    
+    this.printService.printA4Report(htmlContent, title);
   }
 
   print80mm(): void {
@@ -370,7 +389,7 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
             ${this.expenses.map(expense => `
               <tr>
                 <td>${new Date(expense.date).toLocaleDateString('fr-FR')}</td>
-                <td>${expense.category.name}</td>
+                <td>${expense.category?.name || 'Inconnu'}</td>
                 <td>${expense.amount.toFixed(2)}</td>
                 <td>${this.getStatusLabel(expense.isApproved)}</td>
               </tr>

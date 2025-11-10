@@ -46,6 +46,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
   sessionTickets = signal<Array<{ id: number; amount: number; totalAmount?: number; createdAt?: string | Date }>>([]);
   ticketsMoreFlag = false;
   ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => sum + t.amount, 0));
+  
+  // Store Z report sales data for totalSalesTTC calculation
+  private zReportSales = signal<Array<any>>([]);
 
   // Cash sales detail state
   cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number; status?: string; dailyTicketNumber?: number | string }[]>([]);
@@ -199,30 +202,34 @@ export class ClotureComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Règlements fournisseur (from cash movements)
+    // Règlements fournisseur (from cash movements) - exclude rejected
     const movements = (session.cashMovements || []) as Array<any>;
     for (const m of movements) {
-      const reasonLower = (m.reason || '').toLowerCase();
+      const reason = String(m.reason || '');
+      const reasonLower = reason.toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
       const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
-      if (m.type === 'SORTIE' && isSupplierPayment && amount > 0) {
+      // Exclude rejected movements
+      if (m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]')) {
         rows.push({
           createdAt: m.createdAt,
-          label: (m.reason || 'Règlement fournisseur').replace(/#\d+\s*\(FOURN:\d+\)/i, '').trim(),
+          label: reason.replace(/#\d+\s*\(FOURN:\d+\)/i, '').trim(),
           amount: amount
         });
       }
     }
 
-    // Remboursements (from cash movements)
+    // Remboursements (from cash movements) - exclude rejected
     for (const m of movements) {
-      const reasonLower = (m.reason || '').toLowerCase();
+      const reason = String(m.reason || '');
+      const reasonLower = reason.toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
       const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
-      if (m.type === 'SORTIE' && isRefund && amount > 0) {
+      // Exclude rejected movements
+      if (m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]')) {
         rows.push({
           createdAt: m.createdAt,
-          label: m.reason || 'Remboursement',
+          label: reason || 'Remboursement',
           amount: amount
         });
       }
@@ -317,6 +324,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
   // Snapshot to avoid unnecessary UI updates
   private lastSessionSnapshot: string | null = null;
   private lastSalesSnapshot: string | null = null;
+  private requestedSalesDataForSessionId: number | null = null;
+  private lastLoadedSessionId: number | null = null;
 
   // Crédit and supplier payments helpers
   getCreditAmount(): number {
@@ -381,7 +390,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
     // Prefer server-provided details if any
     const details = (this.currentSession()?.summary as any)?.expensesDetails as Array<any> | undefined;
     if (details && details.length) {
-      return details.slice(0, 10).map(d => {
+      // Return ALL expenses, not just 10, so user can see complete details
+      return details.map(d => {
         const fullReason: string = d.reason || '';
         let categoryName: string | null = null;
         let supplierName: string | null = null;
@@ -425,8 +435,15 @@ export class ClotureComponent implements OnInit, OnDestroy {
         });
       });
     }
-    // Fallback to movements with expense-like reason
-    return this.getRecentMovements(10, (m: any) => m.type === 'SORTIE' && (((m.reason || '').toLowerCase().includes('dépense')) || ((m.reason || '').toLowerCase().includes('depense'))));
+    // Fallback to movements with expense-like reason (exclude rejected)
+    return this.getRecentMovements(10, (m: any) => {
+      const reason = String(m.reason || '');
+      const amount = parseFloat(m.amount || 0) || 0;
+      return m.type === 'SORTIE' && 
+             (reason.toLowerCase().includes('dépense') || reason.toLowerCase().includes('depense')) &&
+             !reason.includes('[REJETÉ]') && 
+             amount > 0;
+    });
   }
 
   recentSupplierPayments(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
@@ -436,10 +453,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
     return movements
       .filter(m => {
-        const reasonLower = (m.reason || '').toLowerCase();
+        const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isSupplierPayment && amount > 0;
+        return m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]');
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10)
@@ -480,10 +498,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const movements = this.currentSession()?.cashMovements || [];
     return movements
       .filter(m => {
-        const reasonLower = (m.reason || '').toLowerCase();
+        const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isSupplierPayment && amount > 0;
+        return m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]');
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
@@ -493,10 +512,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const movements = (this.currentSession()?.cashMovements || []) as any[];
     return movements
       .filter(m => {
-        const reasonLower = (m.reason || '').toLowerCase();
+        const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isRefund && amount > 0;
+        return m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]');
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10)
@@ -512,10 +532,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const movements = this.currentSession()?.cashMovements || [];
     return movements
       .filter(m => {
-        const reasonLower = (m.reason || '').toLowerCase();
+        const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isRefund && amount > 0;
+        return m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]');
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
@@ -550,28 +571,87 @@ export class ClotureComponent implements OnInit, OnDestroy {
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 
+  // Computed signal for total sales (sum of all ticket totals) - matches tickets modal calculation
+  totalSalesTTC = computed(() => {
+    // Use Z report sales data (same as tickets modal) if available, otherwise fall back to session sales
+    const zSales = this.zReportSales();
+    const session = this.currentSession();
+    const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
+    
+    // Sum up all ticket amounts using same logic as tickets modal: paidAmount ?? finalTotal ?? amount ?? 0
+    return sales.reduce((total: number, sale: any) => {
+      // Use same calculation as openTicketsModal: paidAmount ?? finalTotal ?? amount ?? 0
+      const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
+      return total + amount;
+    }, 0);
+  });
+
+  // Computed signal for cash from sales - pure function, no side effects
+  cashFromSalesNetOfCredit = computed(() => {
+    const session = this.currentSession();
+    if (!session) return 0;
+    
+    // Get sales data from session
+    const sales = (session as any)?.sales || [];
+    
+    // Sum up all paid amounts (cash portions of sales)
+    return sales.reduce((total: number, sale: any) => {
+      const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
+      return total + paidAmount;
+    }, 0);
+  });
+
+  // Keep method for backward compatibility but use computed signal
   getCashFromSalesNetOfCredit(): number {
-    const summary: any = this.currentSession()?.summary || {};
-    const totalSales = parseFloat(summary.totalSales || 0) || 0;
-    const credit = this.getCreditAmount();
-    return Math.max(0, totalSales - credit);
+    // Request sales data if missing (but only once per session ID)
+    const session = this.currentSession();
+    if (session && !(session as any)?.sales?.length && session.id && 
+        session.id !== this.requestedSalesDataForSessionId && !this.isLoadingSalesData) {
+      this.requestedSalesDataForSessionId = session.id;
+      setTimeout(() => {
+        const currentSession = this.currentSession();
+        if (currentSession && currentSession.id === session.id && !((currentSession as any)?.sales?.length)) {
+          this.loadSessionSalesData(session.id);
+        }
+      }, 0);
+    }
+    return this.cashFromSalesNetOfCredit();
   }
 
   getExpensesTotal(): number {
-    // Prefer server-provided total if available
+    // Prefer server-provided total if available (this is the total of ALL expenses for display)
     const summary: any = this.currentSession()?.summary || {};
     const fromSummary = parseFloat(summary.expensesTotal || 0) || 0;
-    if (fromSummary > 0) return fromSummary;
-    // Fallback to movements tagged as expenses
+    if (fromSummary > 0) {
+      return fromSummary;
+    }
+    
+    // Fallback: Calculate from expenses details if available
+    const expensesDetails = (summary.expensesDetails || []) as Array<any>;
+    if (expensesDetails.length > 0) {
+      const totalFromDetails = expensesDetails.reduce((sum, e) => sum + (parseFloat(e.amount || 0) || 0), 0);
+      if (totalFromDetails > 0) return totalFromDetails;
+    }
+    
+    // Final fallback: movements tagged as expenses (exclude rejected)
     const movements = this.currentSession()?.cashMovements || [];
-    return movements
-      .filter(m => m.type === 'SORTIE' && ((m.reason || '').toLowerCase().includes('dépense') || (m.reason || '').toLowerCase().includes('depense')))
+    const totalFromMovements = movements
+      .filter(m => {
+        const reason = String(m.reason || '');
+        const amount = parseFloat((m as any).amount || 0) || 0;
+        return m.type === 'SORTIE' && 
+               (reason.toLowerCase().includes('dépense') || reason.toLowerCase().includes('depense')) &&
+               !reason.includes('[REJETÉ]') && 
+               amount > 0;
+      })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
+    
+    return totalFromMovements;
   }
 
   getComputedExpectedCash(): number {
     const opening = parseFloat((this.currentSession()?.openingFund as any) || 0) || 0;
-    const cashFromSales = this.getCashFromSalesNetOfCredit();
+    const cashFromSales = this.cashFromSalesNetOfCredit(); // Use computed signal directly
     const clientPayments = this.getClientPaymentsTotal();
     const orderAdvances = this.getTotalOrderAdvances();
     const expenses = this.getExpensesTotal();
@@ -580,34 +660,45 @@ export class ClotureComponent implements OnInit, OnDestroy {
     return opening + cashFromSales + clientPayments + orderAdvances - expenses - supplierRegs - refunds;
   }
 
+  // Get the actual expected cash from the session (not calculated)
+  getSessionExpectedCash(): number {
+    return parseFloat((this.currentSession()?.expectedCash as any) || 0) || 0;
+  }
+
   getOpeningFund(): number {
     return parseFloat((this.currentSession()?.openingFund as any) || 0) || 0;
   }
 
-  // Get user sales summary for display under solde de caisse
+  // Get user sales summary for display under solde de caisse - uses same logic as tickets modal
   getUserSalesSummary(): Array<{ userName: string; totalSales: number }> {
     const session = this.currentSession();
     if (!session) return [];
 
-    // Get sales data from session report if available
-    const sales = (session as any).sales || [];
+    // Use Z report sales data (same as tickets modal) if available, otherwise fall back to session sales
+    const zSales = this.zReportSales();
+    const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
     if (!sales.length) return [];
 
-    // Group sales by user
+    // Group sales by user - use EXACT same calculation as tickets modal
     const userSalesMap = new Map<string, number>();
     
     sales.forEach((sale: any) => {
-      const status = String(sale.status || '').toUpperCase();
-      if (status === 'CANCELLED' || status === 'REFUNDED') {
-        return; // Exclude cancelled/refunded from user totals
+      // Use EXACT same calculation as openTicketsModal: paidAmount ?? finalTotal ?? amount ?? 0
+      const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
+      
+      // Get user name - handle cases where user might be missing
+      let userName = 'Utilisateur inconnu';
+      if (sale.user) {
+        const firstName = sale.user.firstName || '';
+        const lastName = sale.user.lastName || '';
+        userName = `${firstName} ${lastName}`.trim() || 'Utilisateur inconnu';
       }
-      const userName = sale.user ? `${sale.user.firstName} ${sale.user.lastName}` : 'Utilisateur inconnu';
-      const saleAmount = parseFloat(sale.finalTotal || sale.total || 0) || 0;
 
+      // Sum up amounts per user (include all sales, even without user)
       if (userSalesMap.has(userName)) {
-        userSalesMap.set(userName, userSalesMap.get(userName)! + saleAmount);
+        userSalesMap.set(userName, userSalesMap.get(userName)! + amount);
       } else {
-        userSalesMap.set(userName, saleAmount);
+        userSalesMap.set(userName, amount);
       }
     });
 
@@ -625,6 +716,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (report: any) => {
         const sales = (report?.session?.sales || []) as Array<any>;
+        // Store Z report sales for totalSalesTTC calculation
+        this.zReportSales.set(sales);
         this.sessionTickets.set(sales.map(s => ({
           id: s.id,
           amount: parseFloat((s.paidAmount ?? s.finalTotal ?? s.amount ?? 0) as any) || 0,
@@ -642,11 +735,50 @@ export class ClotureComponent implements OnInit, OnDestroy {
       }
     });
   }
+  
+  // Load Z report sales data for totalSalesTTC (called when session loads)
+  private loadZReportSalesData(sessionId: number): void {
+    this.sessionsService.getSessionReport(sessionId, 'Z').subscribe({
+      next: (report: any) => {
+        const sales = (report?.session?.sales || []) as Array<any>;
+        this.zReportSales.set(sales);
+      },
+      error: () => {
+        // Silently fail - will retry when tickets modal is opened
+      }
+    });
+  }
 
+  private lastCashSalesSnapshot: string | null = null;
+  private lastLoadCashSalesSessionId: number | null = null;
+  private loadCashSalesTimeout: any = null;
   loadCashSalesDetails(): void {
     const session = this.currentSession();
     if (!session || this.cashSalesLoading()) return;
+    
+    // Prevent loading if already loaded for this session
+    if (this.lastLoadCashSalesSessionId === session.id && this.cashSalesDetails().length > 0) {
+      return; // Already have data for this session
+    }
+    
+    // Debounce rapid calls (e.g., from multiple checkbox changes)
+    if (this.loadCashSalesTimeout) {
+      clearTimeout(this.loadCashSalesTimeout);
+    }
+    
+    this.loadCashSalesTimeout = setTimeout(() => {
+      this.loadCashSalesTimeout = null;
+      this.performLoadCashSalesDetails();
+    }, 100);
+  }
+  
+  private performLoadCashSalesDetails(): void {
+    const session = this.currentSession();
+    if (!session || this.cashSalesLoading()) return;
+    
+    // Prevent multiple simultaneous calls
     this.cashSalesLoading.set(true);
+    this.lastLoadCashSalesSessionId = session.id;
     this.sessionsService.getSessionReport(session.id, 'X').subscribe({
       next: (report: any) => {
         const sales = (report?.session?.sales || []) as Array<any>;
@@ -655,6 +787,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
           const paid = parseFloat(s.paidAmount ?? 0) || 0;
           const total = parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0;
           const hasCredit = total - paid > 0;
+          
+          // Debug log for wholesale sales
+          if (s.isWholesale) {
+            console.log('Wholesale sale in closure:', {
+              id: s.id,
+              paymentType: s.paymentType,
+              method: method,
+              paid: paid,
+              total: total,
+              hasCredit: hasCredit,
+              paidAmount: s.paidAmount,
+              finalTotal: s.finalTotal,
+              totalAmount: s.totalAmount
+            });
+          }
+          
           // Include all cash-related tickets; we'll style struck for cancelled/refunded
           return (method === 'CASH' || paid > 0 || hasCredit);
         });
@@ -676,10 +824,24 @@ export class ClotureComponent implements OnInit, OnDestroy {
           if (tb !== ta) return tb - ta;
           return (b.id || 0) - (a.id || 0);
         });
-        this.cashSalesDetails.set(rows);
+        
+        // Check if cash sales data actually changed before updating
+        const newCashSalesSnapshot = JSON.stringify({
+          len: rows.length,
+          total: rows.reduce((sum: number, r: any) => sum + (r.totalAmount || 0), 0),
+          lastId: rows.length ? rows[0].id : null
+        });
+        
+        // Only update if cash sales data changed
+        if (this.lastCashSalesSnapshot !== newCashSalesSnapshot) {
+          this.cashSalesDetails.set(rows);
+          this.lastCashSalesSnapshot = newCashSalesSnapshot;
+        }
+        
         this.cashSalesLoading.set(false);
       },
       error: () => {
+        this.lastLoadCashSalesSessionId = null; // Reset on error to allow retry
         this.cashSalesLoading.set(false);
       }
     });
@@ -773,6 +935,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
     
+    // Debug logging
+    console.log('[Cloture] Loading session:', {
+      userDepotId,
+      visitingDepotId,
+      currentDepotId,
+      user: this.authService.currentUser()
+    });
+    
+    if (!currentDepotId) {
+      this.error.set('Aucun dépôt sélectionné. Veuillez sélectionner un dépôt.');
+      this.loading.set(false);
+      this.isRefreshing = false;
+      return;
+    }
+    
+    // Load active session for closure
     this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({
       next: (session) => {
         // Build a compact snapshot to detect meaningful changes
@@ -787,12 +965,111 @@ export class ClotureComponent implements OnInit, OnDestroy {
         if (this.lastSessionSnapshot !== snapshot) {
           this.currentSession.set(session);
           this.lastSessionSnapshot = snapshot;
-          // Load sales data for user summary if session exists
-        if (session) {
-          this.loadSessionSalesData(session.id);
-          // Ensure cash details are refreshed so the list shows immediately
-          this.loadCashSalesDetails();
         }
+        
+        // Reset requested flag when session changes
+        if (session && this.requestedSalesDataForSessionId !== session.id) {
+          this.requestedSalesDataForSessionId = null;
+          this.lastLoadedSessionId = null; // Reset when session changes
+          this.lastLoadCashSalesSessionId = null; // Reset cash sales session tracking
+          this.zReportSales.set([]); // Reset Z report sales when session changes
+        }
+        
+        // Only load sales data if session ID changed or if we don't have sales data yet
+        if (session) {
+          const currentSession = this.currentSession();
+          const hasSalesData = (currentSession as any)?.sales?.length > 0;
+          const needsSalesData = !currentSession || 
+            !hasSalesData ||
+            currentSession.id !== session.id;
+          
+          // Only load if we actually need it and haven't already loaded it
+          if (needsSalesData && !this.isLoadingSalesData && this.lastLoadedSessionId !== session.id) {
+            this.requestedSalesDataForSessionId = session.id;
+            this.loadSessionSalesData(session.id);
+          }
+          
+          // Load Z report sales data for totalSalesTTC calculation
+          if (this.zReportSales().length === 0 || (currentSession && currentSession.id !== session.id)) {
+            this.loadZReportSalesData(session.id);
+          }
+          
+          // Only load cash details if we don't have them yet or session changed
+          const needsCashDetails = !this.cashSalesDetails().length || 
+            (currentSession && currentSession.id !== session.id);
+          
+          if (needsCashDetails && !this.cashSalesLoading()) {
+            this.loadCashSalesDetails();
+          }
+        }
+        
+        if (!silent) this.loading.set(false);
+        this.isRefreshing = false;
+      },
+      error: (error) => {
+        this.error.set('Erreur lors du chargement de la session');
+        if (!silent) this.loading.set(false);
+        this.isRefreshing = false;
+      }
+    });
+  }
+
+  // Load specific session by ID
+  loadSessionById(sessionId: number, silent: boolean = false): void {
+    if (this.isRefreshing) return;
+    this.isRefreshing = true;
+    if (!silent) this.loading.set(true);
+    
+    this.sessionsService.getSessionById(sessionId).subscribe({
+      next: (session) => {
+        // Build a compact snapshot to detect meaningful changes
+        const snapshot = session ? JSON.stringify({
+          id: session.id,
+          expectedCash: (session as any)?.summary?.expectedCash ?? null,
+          totalSales: (session as any)?.summary?.totalSales ?? null,
+          totalTickets: (session as any)?.summary?.totalTickets ?? null,
+          cmLen: (session as any)?.cashMovements?.length ?? 0
+        }) : 'null';
+
+        if (this.lastSessionSnapshot !== snapshot) {
+          this.currentSession.set(session);
+          this.lastSessionSnapshot = snapshot;
+        }
+        
+        // Reset requested flag when session changes
+        if (session && this.requestedSalesDataForSessionId !== session.id) {
+          this.requestedSalesDataForSessionId = null;
+          this.lastLoadedSessionId = null; // Reset when session changes
+          this.lastLoadCashSalesSessionId = null; // Reset cash sales session tracking
+          this.zReportSales.set([]); // Reset Z report sales when session changes
+        }
+        
+        // Only load sales data if session ID changed or if we don't have sales data yet
+        if (session) {
+          const currentSession = this.currentSession();
+          const hasSalesData = (currentSession as any)?.sales?.length > 0;
+          const needsSalesData = !currentSession || 
+            !hasSalesData ||
+            currentSession.id !== session.id;
+          
+          // Only load if we actually need it and haven't already loaded it
+          if (needsSalesData && !this.isLoadingSalesData && this.lastLoadedSessionId !== session.id) {
+            this.requestedSalesDataForSessionId = session.id;
+            this.loadSessionSalesData(session.id);
+          }
+          
+          // Load Z report sales data for totalSalesTTC calculation
+          if (this.zReportSales().length === 0 || (currentSession && currentSession.id !== session.id)) {
+            this.loadZReportSalesData(session.id);
+          }
+          
+          // Only load cash details if we don't have them yet or session changed
+          const needsCashDetails = !this.cashSalesDetails().length || 
+            (currentSession && currentSession.id !== session.id);
+          
+          if (needsCashDetails && !this.cashSalesLoading()) {
+            this.loadCashSalesDetails();
+          }
         }
         
         if (!silent) this.loading.set(false);
@@ -807,31 +1084,42 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   // Load session sales data for user summary
+  private isLoadingSalesData = false;
   private loadSessionSalesData(sessionId: number): void {
+    // Prevent multiple simultaneous calls
+    if (this.isLoadingSalesData) return;
+    
+    this.isLoadingSalesData = true;
     this.sessionsService.getSessionReport(sessionId, 'X').subscribe({
       next: (report: any) => {
         const currentSession = this.currentSession();
-        if (currentSession && report?.session?.sales) {
-          // Only update if sales snapshot changed to avoid re-render flicker
-          const sales = report.session.sales as any[];
+        if (currentSession && report?.session) {
+          // Always update session with sales data, regardless of snapshot changes
+          const sales = report.session.sales || [];
+          
+          // Check if sales data actually changed before updating
           const newSalesSnapshot = JSON.stringify({
             len: sales.length,
             lastId: sales.length ? sales[sales.length - 1].id : null,
             lastUpdated: sales.length ? sales[sales.length - 1].updatedAt || sales[sales.length - 1].createdAt : null
           });
+          
+          // Only update if sales data changed
           if (this.lastSalesSnapshot !== newSalesSnapshot) {
             const updatedSession = {
               ...currentSession,
-              sales: report.session.sales
+              sales: sales
             } as any;
             this.currentSession.set(updatedSession);
             this.lastSalesSnapshot = newSalesSnapshot;
           }
         }
+        this.isLoadingSalesData = false;
       },
       error: (error) => {
         // Silently fail - user summary is not critical
         console.debug('Failed to load sales data for user summary:', error);
+        this.isLoadingSalesData = false;
       }
     });
   }
@@ -1274,7 +1562,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
             totalOrderAdvances: this.getTotalOrderAdvances(),
             expensesTotal: this.getExpensesTotal(),
             supplierPaymentsTotal: this.getSupplierPaymentsTotal(),
-            cashFromSales: this.getCashFromSalesNetOfCredit()
+            cashFromSales: this.cashFromSalesNetOfCredit()
           },
           sales: sessionReport.session?.sales || [],
           cashMovements: sessionReport.session?.cashMovements || [],

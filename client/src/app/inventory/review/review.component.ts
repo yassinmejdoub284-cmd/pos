@@ -52,8 +52,14 @@ export class ReviewComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading session:', error);
-        this.error = 'Erreur lors du chargement de la session';
-      this.loading = false;
+        if (error.status === 404) {
+          this.error = 'Session d\'inventaire introuvable. Vérifiez que l\'ID de session est correct.';
+          // Try to find available sessions for this depot
+          this.findAvailableSessions();
+        } else {
+          this.error = 'Erreur lors du chargement de la session';
+        }
+        this.loading = false;
       }
     });
   }
@@ -70,6 +76,24 @@ export class ReviewComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  findAvailableSessions(): void {
+    const depotId = this.route.snapshot.paramMap.get('depotId');
+    if (depotId) {
+      this.inventoryService.getSessions(undefined, parseInt(depotId)).subscribe({
+        next: (sessions) => {
+          if (sessions.length > 0) {
+            // Redirect to the first available session
+            const firstSession = sessions[0];
+            this.router.navigate(['/inventory', depotId, firstSession.id, 'review']);
+          }
+        },
+        error: (error) => {
+          console.error('Error finding available sessions:', error);
+        }
+      });
+    }
   }
 
   convertSessionItemsToInventoryItems(session: any): InventoryItem[] {
@@ -192,6 +216,19 @@ export class ReviewComponent implements OnInit {
       currency: 'TND',
       minimumFractionDigits: 2
     }).format(amount);
+  }
+
+  getTotalStockValue(): number {
+    if (!this.session || !this.session.items) {
+      return 0;
+    }
+
+    return this.session.items.reduce((total, item) => {
+      // Use counted quantity after inventory (if undefined/null, treat as 0)
+      const counted = typeof item.countedQuantity === 'string' ? parseFloat(item.countedQuantity) : (item.countedQuantity || 0);
+      const unitPrice = typeof item.product?.prix_vente_TTC === 'string' ? parseFloat(item.product.prix_vente_TTC) : (item.product?.prix_vente_TTC || 0);
+      return total + (counted * unitPrice);
+    }, 0);
   }
 
   editItem(item: InventoryItem): void {

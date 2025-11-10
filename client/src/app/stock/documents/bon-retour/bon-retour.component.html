@@ -1,0 +1,339 @@
+<div class="p-4">
+  <!-- Header -->
+  <div class="bg-white rounded-xl border border-red-200 p-4 mb-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m5 14v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2h8a2 2 0 002-2z"></path>
+            </svg>
+          </div>
+          <div>
+            <span class="text-lg font-bold text-red-800">Bon de Retour</span>
+            <div class="text-sm text-red-600">Retour de produits vers le fournisseur</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button (click)="startCreate()" 
+                class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+          Nouveau Retour
+        </button>
+        <button (click)="goBack()" 
+                class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">
+          Retour
+        </button>
+      </div>
+    </div>
+    
+    <!-- Success/Error Messages -->
+    <div *ngIf="success" class="mt-3 p-3 bg-green-100 text-green-800 rounded-lg">
+      {{ success }}
+    </div>
+    <div *ngIf="error" class="mt-3 p-3 bg-red-100 text-red-800 rounded-lg">
+      {{ error }}
+    </div>
+  </div>
+
+  <!-- Document List View -->
+  <div *ngIf="!isEditMode && !showDocumentDetails" class="bg-white rounded-xl border border-gray-200 p-4">
+    <h3 class="text-lg font-semibold text-gray-800 mb-4">Liste des Bons de Retour</h3>
+    
+    <div *ngIf="loading" class="text-center py-8">
+      <div class="text-gray-500">Chargement...</div>
+    </div>
+    
+    <div *ngIf="!loading && documents.length === 0" class="text-center py-8 text-gray-500">
+      <div class="text-4xl mb-2">📤</div>
+      <div>Aucun bon de retour trouvé</div>
+    </div>
+    
+    <div *ngIf="!loading && documents.length > 0" class="space-y-3">
+      <div *ngFor="let doc of documents" 
+           class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m5 14v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2h8a2 2 0 002-2z"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="font-semibold text-gray-800">{{ doc.numero }}</div>
+                <div class="text-sm text-gray-600">
+                  {{ formatDate(doc.createdAt) }} • 
+                  Dépôt {{ doc.destinataireId || 'inconnu' }} • 
+                  {{ doc.items?.length || 0 }} articles
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button (click)="viewDocument(doc)" 
+                    class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+              Voir
+            </button>
+            <button (click)="editDocumentFromList(doc)" 
+                    class="text-green-600 hover:text-green-800 text-sm font-medium">
+              Modifier
+            </button>
+            <button (click)="printDocument(doc)" 
+                    class="text-purple-600 hover:text-purple-800 text-sm font-medium">
+              Imprimer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Details Modal -->
+  <div *ngIf="showDocumentDetails && selectedDocument" 
+       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-semibold text-gray-800">Détails du Bon de Retour</h3>
+        <button (click)="closeDocumentDetails()" 
+                class="text-gray-500 hover:text-gray-700">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium text-gray-700">Référence</label>
+            <div class="text-gray-900">{{ selectedDocument.numero }}</div>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-700">Date</label>
+            <div class="text-gray-900">{{ formatDate(selectedDocument.createdAt) }}</div>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-700">Dépôt</label>
+            <div class="text-gray-900">Dépôt {{ selectedDocument.destinataireId || 'N/A' }}</div>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-700">Fournisseur</label>
+            <div class="text-gray-900">{{ selectedDocument.emetteur?.name || 'N/A' }}</div>
+          </div>
+        </div>
+        
+        <div *ngIf="selectedDocument.notes">
+          <label class="text-sm font-medium text-gray-700">Notes</label>
+          <div class="text-gray-900">{{ selectedDocument.notes }}</div>
+        </div>
+        
+        <div>
+          <label class="text-sm font-medium text-gray-700">Articles</label>
+          <div class="mt-2 space-y-2">
+            <div *ngFor="let item of selectedDocument.items" 
+                 class="border border-gray-200 rounded-lg p-3">
+              <div class="flex justify-between items-start">
+                <div>
+                  <div class="font-medium text-gray-800">{{ item.product?.name || 'Produit inconnu' }}</div>
+                  <div class="text-sm text-gray-600">
+                    Quantité: {{ getAbsQuantity(item.quantity) }} • 
+                    Prix: {{ item.purchasePrice }} TND • 
+                    Total: {{ getAbsQuantity(item.quantity * (item.purchasePrice || 0)) }} TND
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex justify-end gap-3 mt-6">
+        <button (click)="printDocument(selectedDocument)" 
+                class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+          Imprimer
+        </button>
+        <button (click)="closeDocumentDetails()" 
+                class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create/Edit Form -->
+  <div *ngIf="isEditMode || showDocumentDetails === false" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <!-- Form Section -->
+    <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-4">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4">
+        {{ isEditMode ? 'Modifier le Bon de Retour' : 'Nouveau Bon de Retour' }}
+      </h3>
+      
+      <!-- Depot Selection -->
+      <div class="mb-4">
+        <label class="text-sm font-medium text-gray-700 mb-1 block">Dépôt</label>
+        <select [(ngModel)]="selectedDepot" 
+                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500">
+          <option [value]="null">Sélectionner un dépôt</option>
+          <option *ngFor="let depot of depots" [ngValue]="depot">
+            {{ depot.name }}
+          </option>
+        </select>
+      </div>
+      
+      <!-- Supplier Selection -->
+      <div class="mb-4">
+        <label class="text-sm font-medium text-gray-700 mb-1 block">Fournisseur (optionnel)</label>
+        <select [(ngModel)]="selectedSupplier" 
+                class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500">
+          <option [value]="null">Aucun fournisseur</option>
+          <option *ngFor="let supplier of suppliers" [ngValue]="supplier">
+            {{ supplier.name }}
+          </option>
+        </select>
+      </div>
+      
+      <!-- Items Section -->
+      <div class="mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <label class="text-sm font-medium text-gray-700">Articles à retourner</label>
+          <button (click)="addItem()" 
+                  class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors">
+            + Ajouter Article
+          </button>
+        </div>
+        
+        <div *ngIf="items.length === 0" class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg">
+          <div class="text-4xl mb-2">📦</div>
+          <div>Aucun article sélectionné</div>
+          <div class="text-sm">Cliquez sur "Ajouter Article" pour commencer</div>
+        </div>
+        
+        <div *ngIf="items.length > 0" class="space-y-3">
+          <div *ngFor="let item of items; let i = index" 
+               class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <div class="flex items-center justify-between mb-3">
+              <span class="font-medium text-gray-800">Article {{ i + 1 }}</span>
+              <button (click)="removeItem(i)" 
+                      class="text-red-600 hover:text-red-800 text-sm font-medium">
+                ✕ Supprimer
+              </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="text-sm font-medium text-gray-700 mb-1 block">Produit</label>
+                <select [(ngModel)]="item.productId" 
+                        (change)="onProductSelect(item, getProductById(item.productId))"
+                        class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                  <option value="0">Sélectionner un produit</option>
+                  <option *ngFor="let product of products" [value]="product.id">
+                    {{ product.name }} ({{ product.barcode || 'N/A' }})
+                  </option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="text-sm font-medium text-gray-700 mb-1 block">Quantité à retourner</label>
+                <input type="number" 
+                       [(ngModel)]="item.quantity" 
+                       min="0.001" 
+                       step="0.001" 
+                       placeholder="0.000" 
+                       class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500" />
+              </div>
+              
+              <div>
+                <label class="text-sm font-medium text-gray-700 mb-1 block">Prix d'achat</label>
+                <input type="number" 
+                       [(ngModel)]="item.purchasePrice" 
+                       min="0" 
+                       step="0.001" 
+                       placeholder="0.000" 
+                       class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500" />
+              </div>
+              
+              <div>
+                <label class="text-sm font-medium text-gray-700 mb-1 block">Numéro de lot</label>
+                <input type="text" 
+                       [(ngModel)]="item.batch" 
+                       placeholder="Référence du lot" 
+                       class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500" />
+              </div>
+            </div>
+            
+            <div class="mt-2">
+              <label class="text-sm font-medium text-gray-700 mb-1 block">Notes</label>
+              <input type="text" 
+                     [(ngModel)]="item.notes" 
+                     placeholder="Raison du retour..." 
+                     class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500" />
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Notes -->
+      <div class="mb-4">
+        <label class="text-sm font-medium text-gray-700 mb-1 block">Notes générales</label>
+        <textarea [(ngModel)]="notes" 
+                  placeholder="Notes sur le retour..." 
+                  rows="3" 
+                  class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"></textarea>
+      </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="bg-white rounded-xl border border-red-200 p-4">
+      <div class="mb-4">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
+            <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-red-800">Résumé du retour</h3>
+        </div>
+        
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-600">Articles à retourner:</span>
+            <span class="font-medium text-red-600">{{ items.length }}</span>
+          </div>
+          
+          <div class="flex justify-between">
+            <span class="text-gray-600">Total quantités:</span>
+            <span class="font-medium text-red-600">{{ getTotalQuantity() }}</span>
+          </div>
+          
+          <div class="flex justify-between font-semibold text-lg border-t pt-2">
+            <span class="text-gray-800">Valeur totale:</span>
+            <span class="text-red-600">{{ calculateTotal().toFixed(3) }} TND</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="border-t pt-3">
+        <div class="text-xs text-gray-500 space-y-1">
+          <div>⚠️ Les quantités seront soustraites de l'inventaire</div>
+          <div>📦 Aucun paiement requis pour le retour</div>
+          <div>✅ Le document sera automatiquement validé</div>
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex gap-3 mt-4">
+        <button (click)="saveDocument()" 
+                [disabled]="loading || items.length === 0 || !selectedDepot" 
+                class="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-700 transition-colors">
+          {{ loading ? 'Sauvegarde...' : (isEditMode ? 'Modifier' : 'Créer le bon de retour') }}
+        </button>
+        <button (click)="resetForm()" 
+                [disabled]="loading" 
+                class="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-medium disabled:opacity-50 hover:bg-gray-300 transition-colors">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

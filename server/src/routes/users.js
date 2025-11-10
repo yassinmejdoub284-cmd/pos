@@ -138,9 +138,34 @@ router.put('/:id/pin', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'PIN invalide (4-8 chiffres requis)' });
     }
 
+    // Get current user to check depotId (PIN must be unique per depot)
+    const currentUser = await prisma.user.findUnique({
+      where: { id: parseInt(id) },
+      select: { depotId: true }
+    });
+
+    if (!currentUser || !currentUser.depotId) {
+      return res.status(400).json({ error: 'User must have a depotId to set PIN' });
+    }
+
+    const pinStr = String(pin).trim();
+
+    // Check if PIN already exists in the same depot (for another user)
+    const existingPinUser = await prisma.user.findFirst({
+      where: {
+        pin: pinStr,
+        depotId: currentUser.depotId,
+        id: { not: parseInt(id) }
+      }
+    });
+
+    if (existingPinUser) {
+      return res.status(400).json({ error: `PIN ${pinStr} already exists in this depot` });
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(id) },
-      data: { pin: String(pin) },
+      data: { pin: pinStr },
       select: {
         id: true,
         username: true,

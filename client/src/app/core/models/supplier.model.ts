@@ -37,6 +37,7 @@ export interface CreateSupplierRequest {
   taxNumber?: string;
   paymentTerms?: string;
   notes?: string;
+  depotId?: number | null;
 }
 
 export interface UpdateSupplierRequest {

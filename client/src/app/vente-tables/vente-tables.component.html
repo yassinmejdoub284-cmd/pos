@@ -1,113 +1,188 @@
-<div class="h-screen overflow-y-auto bg-purple-50">
+<div class="min-h-[100dvh] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] bg-gradient-to-br from-purple-50 via-pink-50 to-violet-50 relative">
+  <!-- Background Orbs -->
+  <div class="absolute inset-0 overflow-hidden h-full">
+    <div class="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-purple-300/20 via-pink-300/20 to-violet-300/20 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-violet-300/20 via-purple-300/20 to-pink-300/20 rounded-full blur-3xl"></div>
+  </div>
+
   <!-- Header -->
-  <div class="bg-pink-100 border-b border-purple-200 sticky top-0 z-10">
-    <div class="mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-20">
-        <div class="flex items-center space-x-4">
-          <button (click)="goBackToHome()" 
-            class="w-16 h-16 bg-purple-400 rounded-2xl flex items-center justify-center cursor-pointer">
-            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-            </svg>
-          </button>
-          <div>
-            <h1 class="text-3xl font-bold text-purple-600">
-              🛒 Vente Tables
-            </h1>
-            <p class="text-sm text-pink-600 font-medium">✨ Gérer les ventes par table</p>
-          </div>
-        </div>
-      </div>
+  <div class="sticky top-0 z-10 bg-white/80 border-b border-slate-200 px-3 md:px-6 py-3 flex items-center justify-between">
+    <div class="min-w-0">
+      <span class="text-lg md:text-xl font-bold text-slate-800">Vente Tables</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button (click)="goBackToHome()"
+        class="bg-blue-400 p-2 text-white rounded-full shadow-2xl transition-all duration-300 transform flex items-center justify-center"
+        title="Accueil">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+          </path>
+        </svg>
+      </button>
     </div>
   </div>
 
   <!-- Main Content -->
-  <div class="mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+  <div class="relative z-10 w-full p-4 sm:p-6">
     
     <!-- Salons Selection -->
     <div class="mb-8">
-      <h2 class="text-2xl font-bold text-purple-600 mb-6 flex items-center">
-        <span class="mr-3">🏢</span> Étape 1: Choisir une Catégorie (Salon)
-      </h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        @for (salon of salons(); track salon.id) {
-          <div class="rounded-2xl border-2 p-6 cursor-pointer"
-            [style.background-color]="getDominantColorForSalon(salon.id)"
-            [style.border-color]="getDominantColorForSalon(salon.id)"
-            [class.border-opacity-60]="selectedSalon()?.id !== salon.id"
-            [class.border-opacity-100]="selectedSalon()?.id === salon.id"
-            [class.opacity-80]="selectedSalon()?.id !== salon.id"
-            [class.opacity-100]="selectedSalon()?.id === salon.id"
-            (click)="selectSalon(salon)">
-            <div class="mb-4">
-              <h3 class="text-lg font-bold text-gray-800 mb-1 drop-shadow-sm">{{ salon.name }}</h3>
-              <span class="text-sm text-gray-700 font-medium drop-shadow-sm">{{ salon.location }}</span>
-            </div>
-            
-            <!-- Salon Stats -->
-            <div class="mb-4">
-              <div class="flex justify-between text-sm text-gray-700 mb-2 font-medium drop-shadow-sm">
-                <span>Tables disponibles</span>
-                <span>{{ getTablesCountBySalon(salon.id) }} / {{ salon.maxTables }}</span>
-              </div>
-              <div class="w-full bg-white bg-opacity-30 rounded-full h-3">
-                <div class="bg-white bg-opacity-70 h-3 rounded-full"
-                  [style.width.%]="(getTablesCountBySalon(salon.id) / salon.maxTables) * 100"></div>
-              </div>
-            </div>
-            
-            @if (salon.description) {
-              <p class="text-sm text-gray-700 italic drop-shadow-sm">{{ salon.description }}</p>
-            }
+      <div class="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-purple-200/50 shadow-xl">
+        <div class="flex items-center gap-4 mb-6">
+          <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+            <span class="text-white font-bold text-lg">1</span>
           </div>
-        } @empty {
-          <p class="text-gray-500 col-span-full">Aucun salon disponible. Créez-en un dans la gestion des tables !</p>
-        }
+          <div class="flex-1">
+            <h2 class="text-xl font-bold text-slate-800 mb-1">Choisir une Catégorie (Salon)</h2>
+            <p class="text-sm text-slate-500">Sélectionnez le salon où se trouve la table</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            @for (salon of salons(); track salon.id) {
+            <div class="rounded-xl border-2 p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:-translate-y-1"
+              [style.background-color]="getDominantColorForSalon(salon.id)"
+              [style.border-color]="getDominantColorForSalon(salon.id)"
+              [class.border-opacity-60]="selectedSalon()?.id !== salon.id"
+              [class.border-opacity-100]="selectedSalon()?.id === salon.id"
+              [class.ring-2]="selectedSalon()?.id === salon.id"
+              [class.ring-purple-300]="selectedSalon()?.id === salon.id"
+              [class.ring-opacity-50]="selectedSalon()?.id === salon.id"
+              [class.opacity-80]="selectedSalon()?.id !== salon.id"
+              [class.opacity-100]="selectedSalon()?.id === salon.id"
+              (click)="selectSalon(salon)">
+              <div class="mb-4">
+                <h3 class="text-lg font-bold text-gray-900 mb-1">{{ salon.name }}</h3>
+                <span class="text-sm text-gray-600 font-medium">{{ salon.location }}</span>
+              </div>
+              
+              <div class="mb-4">
+                <div class="flex justify-between text-xs text-gray-600 mb-2 font-medium">
+                  <span>Tables disponibles</span>
+                  <span class="font-bold">{{ getTablesCountBySalon(salon.id) }} / {{ salon.maxTables }}</span>
+                </div>
+                <div class="w-full bg-white/50 rounded-full h-2 overflow-hidden shadow-inner">
+                  <div class="bg-gradient-to-r from-white/80 to-white h-2 rounded-full transition-all duration-500 shadow-sm"
+                    [style.width.%]="(getTablesCountBySalon(salon.id) / salon.maxTables) * 100"></div>
+                </div>
+              </div>
+              
+              @if (salon.description) {
+                <p class="text-xs text-gray-600 italic leading-relaxed">{{ salon.description }}</p>
+              }
+            </div>
+          } @empty {
+            <div class="col-span-full">
+              <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-2 border-dashed border-purple-300 p-12 text-center">
+                <div class="max-w-md mx-auto">
+                  <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                  </div>
+                  <h3 class="text-xl font-bold text-slate-800 mb-2">Aucun salon disponible</h3>
+                  <p class="text-slate-600 mb-6">Créez votre premier salon pour commencer à gérer les tables</p>
+                  <button (click)="goToTablesSalon()" 
+                    class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    <span>Créer un salon</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
       </div>
     </div>
 
     <!-- Tables Selection -->
     @if (selectedSalon()) {
       <div class="mb-8">
-        <h2 class="text-2xl font-bold text-blue-600 mb-6 flex items-center">
-          <span class="mr-3">🪑</span> Étape 2: Choisir une Table - {{ selectedSalon()?.name }}
-        </h2>
-        
-        <div class="bg-blue-50 border-2 border-dashed border-purple-200 rounded-2xl p-8 min-h-[250px]">
-          <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-4">
-            @for (table of getTablesBySalon(selectedSalon()!.id); track table.id) {
-              <div class="relative border-2 rounded-xl p-3 cursor-pointer transition-all duration-300"
-                [class.border-purple-400]="selectedTable()?.id === table.id && !hasTableItems(table.id)"
-                [class.bg-purple-100]="selectedTable()?.id === table.id && !hasTableItems(table.id)"
-                [class.bg-red-100]="hasTableItems(table.id)"
-                [class.border-red-400]="hasTableItems(table.id)"
-                [class.bg-green-100]="!hasTableItems(table.id) && selectedTable()?.id !== table.id"
-                [class.border-green-400]="!hasTableItems(table.id) && selectedTable()?.id !== table.id"
-                (click)="selectTable(table)">
-                
-                <!-- Table Number -->
-                <div class="text-center mb-2">
-                  <div class="w-12 h-12 mx-auto rounded-xl flex items-center justify-center text-white font-bold text-sm transition-all duration-300"
-                    [style.background-color]="getTableBackgroundColor(table)">
-                    {{ table.number }}
+        <div class="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-blue-200/50 shadow-xl">
+          <div class="flex items-center gap-4 mb-6">
+            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-lg">
+              <span class="text-white font-bold text-lg">2</span>
+            </div>
+            <div class="flex-1">
+              <h2 class="text-xl font-bold text-slate-800 mb-1">Choisir une Table</h2>
+              <p class="text-sm text-slate-500">Salon: <span class="font-semibold text-blue-600">{{ selectedSalon()?.name }}</span></p>
+            </div>
+          </div>
+          
+          <div class="bg-gradient-to-br from-blue-50/80 to-indigo-50/80 border border-blue-200/60 rounded-2xl p-8 min-h-[250px] shadow-inner">
+            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-4">
+              @for (table of getTablesBySalon(selectedSalon()!.id); track table.id) {
+                <div class="relative border-2 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl hover:-translate-y-1"
+                  [class.border-purple-400]="selectedTable()?.id === table.id && !hasTableItems(table.id)"
+                  [class.bg-gradient-to-br]="selectedTable()?.id === table.id && !hasTableItems(table.id)"
+                  [class.from-purple-50]="selectedTable()?.id === table.id && !hasTableItems(table.id)"
+                  [class.to-purple-100]="selectedTable()?.id === table.id && !hasTableItems(table.id)"
+                  [class.bg-gradient-to-br]="hasTableItems(table.id)"
+                  [class.from-red-50]="hasTableItems(table.id)"
+                  [class.to-red-100]="hasTableItems(table.id)"
+                  [class.border-red-400]="hasTableItems(table.id)"
+                  [class.bg-gradient-to-br]="!hasTableItems(table.id) && selectedTable()?.id !== table.id"
+                  [class.from-green-50]="!hasTableItems(table.id) && selectedTable()?.id !== table.id"
+                  [class.to-green-100]="!hasTableItems(table.id) && selectedTable()?.id !== table.id"
+                  [class.border-green-400]="!hasTableItems(table.id) && selectedTable()?.id !== table.id"
+                  [class.ring-2]="selectedTable()?.id === table.id"
+                  [class.ring-blue-300]="selectedTable()?.id === table.id"
+                  [class.ring-opacity-50]="selectedTable()?.id === table.id"
+                  (click)="selectTable(table)">
+                  
+                  <div class="text-center mb-3">
+                    <div class="w-14 h-14 mx-auto rounded-xl flex items-center justify-center text-white font-bold text-base transition-all duration-300 shadow-lg ring-2 ring-white/30"
+                      [style.background-color]="getTableBackgroundColor(table)">
+                      {{ table.number }}
+                    </div>
+                  </div>
+                  
+                  <div class="text-center">
+                    <h3 class="font-bold text-slate-800 text-xs mb-2 truncate">{{ table.name }}</h3>
+                    @if (getTableStatus(table.id)?.remainingAmount && getTableStatus(table.id)!.remainingAmount > 0) {
+                      <div class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 border border-red-200">
+                        <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                        <p class="text-xs font-bold text-red-600">À payer: {{ getTableStatus(table.id)?.remainingAmount?.toFixed(2) }} DT</p>
+                      </div>
+                    } @else if (getTableStatus(table.id)?.paidAmount && getTableStatus(table.id)!.paidAmount > 0) {
+                      <div class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-50 border border-green-200">
+                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                        <p class="text-xs font-bold text-green-600">Payé: {{ getTableStatus(table.id)?.paidAmount?.toFixed(2) }} DT</p>
+                      </div>
+                    } @else {
+                      <div class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <p class="text-xs font-semibold text-emerald-600">Libre</p>
+                      </div>
+                    }
                   </div>
                 </div>
-                
-                <!-- Table Info -->
-                <div class="text-center">
-                  <h3 class="font-bold text-purple-800 text-xs mb-1 truncate">{{ table.name }}</h3>
-                  @if (getTableStatus(table.id)?.remainingAmount && getTableStatus(table.id)!.remainingAmount > 0) {
-                    <p class="text-xs font-bold text-red-600">À payer: {{ getTableStatus(table.id)?.remainingAmount?.toFixed(2) }} DT</p>
-                  } @else if (getTableStatus(table.id)?.paidAmount && getTableStatus(table.id)!.paidAmount > 0) {
-                    <p class="text-xs font-bold text-green-600">Payé: {{ getTableStatus(table.id)?.paidAmount?.toFixed(2) }} DT</p>
-                  } @else {
-                    <p class="text-xs font-medium text-green-600">Libre</p>
-                  }
+              } @empty {
+                <div class="col-span-full">
+                  <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border-2 border-dashed border-blue-300 p-12 text-center">
+                    <div class="max-w-md mx-auto">
+                      <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-lg">
+                        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                      </div>
+                      <h3 class="text-xl font-bold text-slate-800 mb-2">Aucune table disponible</h3>
+                      <p class="text-slate-600 mb-2">Le salon <span class="font-semibold text-blue-600">{{ selectedSalon()?.name }}</span> n'a pas encore de tables.</p>
+                      <p class="text-sm text-slate-500 mb-6">Créez des tables pour commencer à prendre des commandes</p>
+                      <button (click)="goToTablesSalon()" 
+                        class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        <span>Créer des tables</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            } @empty {
-              <p class="text-gray-500 col-span-full text-center p-4">Aucune table disponible dans ce salon.</p>
-            }
+              }
+            </div>
           </div>
         </div>
       </div>
@@ -117,8 +192,8 @@
 
   <!-- Product Categories Interface -->
   @if (showProductCategories()) {
-    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
         <!-- Header -->
         <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-6 text-white">
           <div class="flex items-center justify-between">
@@ -129,7 +204,7 @@
               <p class="text-purple-100">Choisissez une catégorie de produits</p>
             </div>
             <button (click)="goBackToTableSelection()" 
-              class="bg-white bg-opacity-20 hover:bg-opacity-30 p-3 rounded-xl">
+              class="bg-white bg-opacity-20 hover:bg-opacity-30 p-3 rounded-xl transition-all">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -141,18 +216,16 @@
         <div class="p-8 overflow-y-auto max-h-[calc(90vh-120px)]">
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
             @for (category of productCategories(); track category.id) {
-              <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 cursor-pointer hover:border-purple-300 hover:shadow-lg"
+              <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 cursor-pointer hover:border-purple-300 hover:shadow-lg transition-all duration-300 hover:scale-105"
                 (click)="selectProductCategory(category)">
                 
-                <!-- Category Icon -->
                 <div class="text-center mb-4">
-                  <div class="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center text-4xl"
+                  <div class="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center text-4xl shadow-md"
                     [style.background-color]="category.color">
                     {{ category.icon }}
                   </div>
                 </div>
                 
-                <!-- Category Info -->
                 <div class="text-center">
                   <h3 class="font-bold text-gray-800 text-lg mb-2">{{ category.name }}</h3>
                   @if (category.description) {
@@ -173,8 +246,8 @@
 
   <!-- Products Interface -->
   @if (showProducts()) {
-    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-7xl w-full max-h-[95vh] overflow-hidden flex">
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl max-w-7xl w-full max-h-[95vh] overflow-hidden flex shadow-2xl">
         
         <!-- Left Side - Cart -->
         <div class="w-1/3 bg-gray-50 border-r border-gray-200 flex flex-col">
@@ -189,7 +262,7 @@
             @if (cart().length > 0) {
               <div class="space-y-3">
                 @for (item of cart(); track item.product.id) {
-                  <div class="rounded-lg p-3 border cursor-pointer hover:shadow-md transition-shadow"
+                  <div class="rounded-lg p-3 border cursor-pointer hover:shadow-md transition-all duration-300"
                     [class.bg-white]="!item.isPaid"
                     [class.bg-green-50]="item.isPaid"
                     [class.border-gray-200]="!item.isPaid"
@@ -242,11 +315,11 @@
             
             <div class="space-y-2">
               <button (click)="validateOrder()" 
-                class="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold">
+                class="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold hover:bg-blue-600 transition-all">
                 ✅ Valider
               </button>
               <button (click)="openPaymentDialog()" 
-                class="w-full bg-emerald-500 text-white py-3 rounded-xl font-semibold"
+                class="w-full bg-emerald-500 text-white py-3 rounded-xl font-semibold hover:bg-emerald-600 transition-all"
                 [disabled]="getUnpaidTotal() === 0">
                 💰 Payer
               </button>
@@ -264,11 +337,11 @@
             </div>
             <div class="flex space-x-2">
               <button (click)="removeLastProduct()" 
-                class="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg text-2xl">
+                class="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg text-2xl transition-all">
                 ➖
               </button>
               <button (click)="goBackToCategories()" 
-                class="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg">
+                class="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-all">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                 </svg>
@@ -278,34 +351,32 @@
           
           <!-- Products Grid -->
           <div class="flex-1 p-6 overflow-y-auto">
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  @for (product of products(); track product.id) {
-                    <div class="bg-white rounded-xl border-2 border-gray-200 p-4 hover:border-purple-300 hover:shadow-lg">
-                      
-                      <!-- Product Image/Icon -->
-                      <div class="text-center mb-3">
-                        <div class="w-16 h-16 mx-auto rounded-xl flex items-center justify-center text-2xl bg-gray-100 cursor-pointer hover:bg-gray-200"
-                          (click)="removeProductUnit(product)">
-                          @if (product.photo) {
-                            <img [src]="product.photo" [alt]="product.name" class="w-full h-full object-cover rounded-xl">
-                          } @else {
-                            {{ selectedCategory()?.icon || '📦' }}
-                          }
-                        </div>
-                      </div>
-                      
-                      <!-- Product Info -->
-                      <div class="text-center">
-                        <h3 class="font-bold text-gray-800 text-sm mb-1 truncate">{{ product.name }}</h3>
-                        <p class="text-lg font-bold text-emerald-600">{{ product.prix_vente_TTC.toFixed(2) }} DT</p>
-                        <p class="text-xs text-gray-500">{{ product.unite }}</p>
-                        <button (click)="addProductToCart(product)" 
-                          class="mt-2 w-full bg-emerald-500 text-white py-2 rounded-lg text-sm font-semibold hover:bg-emerald-600">
-                          + Ajouter
-                        </button>
-                      </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              @for (product of products(); track product.id) {
+                <div class="bg-white rounded-xl border-2 border-gray-200 p-4 hover:border-purple-300 hover:shadow-lg transition-all duration-300">
+                  
+                  <div class="text-center mb-3">
+                    <div class="w-16 h-16 mx-auto rounded-xl flex items-center justify-center text-2xl bg-gray-100 cursor-pointer hover:bg-gray-200 transition-all"
+                      (click)="removeProductUnit(product)">
+                      @if (product.photo) {
+                        <img [src]="product.photo" [alt]="product.name" class="w-full h-full object-cover rounded-xl">
+                      } @else {
+                        {{ selectedCategory()?.icon || '📦' }}
+                      }
                     </div>
-                  } @empty {
+                  </div>
+                  
+                  <div class="text-center">
+                    <h3 class="font-bold text-gray-800 text-sm mb-1 truncate">{{ product.name }}</h3>
+                    <p class="text-lg font-bold text-emerald-600">{{ product.prix_vente_TTC.toFixed(2) }} DT</p>
+                    <p class="text-xs text-gray-500">{{ product.unite }}</p>
+                    <button (click)="addProductToCart(product)" 
+                      class="mt-2 w-full bg-emerald-500 text-white py-2 rounded-lg text-sm font-semibold hover:bg-emerald-600 transition-all">
+                      + Ajouter
+                    </button>
+                  </div>
+                </div>
+              } @empty {
                 <div class="col-span-full text-center py-12">
                   <p class="text-gray-500 text-lg">Aucun produit disponible dans cette catégorie</p>
                 </div>
@@ -319,7 +390,7 @@
 
   <!-- Payment Dialog -->
   @if (showPaymentDialog()) {
-    <div class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
       <div class="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl">
         <!-- Header -->
         <div class="bg-gradient-to-r from-emerald-500 to-green-600 p-6 text-white">
@@ -344,7 +415,7 @@
             <h3 class="text-lg font-semibold text-gray-800 mb-4">Choisir le type de paiement</h3>
             <div class="grid grid-cols-2 gap-4">
               <button (click)="setPaymentType('byProduct')" 
-                class="p-4 rounded-xl border-2 transition-all"
+                class="p-4 rounded-xl border-2 transition-all hover:scale-105"
                 [class.border-emerald-500]="paymentType() === 'byProduct'"
                 [class.bg-emerald-50]="paymentType() === 'byProduct'"
                 [class.border-gray-200]="paymentType() !== 'byProduct'"
@@ -357,7 +428,7 @@
               </button>
               
               <button (click)="setPaymentType('byTotal')" 
-                class="p-4 rounded-xl border-2 transition-all"
+                class="p-4 rounded-xl border-2 transition-all hover:scale-105"
                 [class.border-emerald-500]="paymentType() === 'byTotal'"
                 [class.bg-emerald-50]="paymentType() === 'byTotal'"
                 [class.border-gray-200]="paymentType() !== 'byTotal'"
@@ -377,7 +448,7 @@
               <h3 class="text-lg font-semibold text-gray-800 mb-4">Sélectionner les produits à payer</h3>
               <div class="space-y-3 max-h-60 overflow-y-auto">
                 @for (item of getUnpaidItems(); track item.product.id) {
-                  <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all">
                     <div class="flex items-center space-x-3">
                       <input type="checkbox" 
                         [checked]="isItemSelectedForPayment(item.product.id)"
@@ -411,7 +482,8 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">Montant reçu</label>
                 <div class="relative">
                   <input type="number" 
-                    [(ngModel)]="amountReceived"
+                    [value]="amountReceived()"
+                    (input)="amountReceived.set(+$any($event.target).value || 0)"
                     class="w-full px-4 py-3 border border-gray-300 rounded-xl text-lg font-semibold text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     placeholder="0.00"
                     step="0.01"

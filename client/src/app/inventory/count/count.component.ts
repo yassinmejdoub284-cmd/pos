@@ -8,6 +8,8 @@ import { ProduitDeStock } from '../../core/models/produit-de-caisse.model';
 import { DepotsService } from '../../core/services/depots.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Subject, takeUntil } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 interface CountItem {
   product: Product;
@@ -76,6 +78,7 @@ export class CountComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private http: HttpClient,
     private inventoryService: InventoryService,
     private productsService: ProductsService,
     private produitsDeStockService: ProduitsDeStockService,
@@ -173,7 +176,7 @@ export class CountComponent implements OnInit, OnDestroy {
           const prod = this.getProductById(ci.product.id);
           return {
             ...ci,
-            purchasePrice: ci.purchasePrice || (prod?.prix_achat ?? 0),
+            purchasePrice: ci.purchasePrice || (prod?.prix_achat ?? (prod?.prix_vente_TTC ?? ci.product.prix_vente_TTC ?? 0) * 0.7),
             salePrice: ci.salePrice || (prod?.prix_vente_TTC ?? ci.product.prix_vente_TTC ?? 0)
           };
         });
@@ -309,7 +312,7 @@ export class CountComponent implements OnInit, OnDestroy {
         countedQuantity: item.countedQuantity,
         isConfirmed: item.countedQuantity !== null,
         inventoryItemId: item.id,
-          purchasePrice: productData.prix_achat ?? 0,
+          purchasePrice: productData.prix_achat ?? (productData.prix_vente_TTC * 0.7), // Default to 70% of sale price if no purchase price
           salePrice: productData.prix_vente_TTC ?? 0
         } as CountItem;
       });
@@ -420,7 +423,7 @@ export class CountComponent implements OnInit, OnDestroy {
       countedQuantity: null,
       isConfirmed: false,
       inventoryItemId: existingItem?.id,
-      purchasePrice: productData.prix_achat || 0,
+      purchasePrice: productData.prix_achat ?? (productData.prix_vente_TTC * 0.7), // Default to 70% of sale price if no purchase price
       salePrice: productData.prix_vente_TTC || 0
     };
     
@@ -734,6 +737,12 @@ export class CountComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Check if session is already posted
+    if (this.session.status === 'POSTED') {
+      this.error = 'Cette session d\'inventaire a déjà été finalisée';
+      return;
+    }
+
     this.saving = true;
     this.error = '';
 
@@ -742,25 +751,50 @@ export class CountComponent implements OnInit, OnDestroy {
       // First close the session, then post it
       this.inventoryService.updateSessionStatus(this.session.id, 'CLOSED').subscribe({
         next: (closedSession) => {
-          // Now post the closed session
-          this.inventoryService.postSession(this.session!.id).subscribe({
-            next: (result) => {
-              this.saving = false;
-              this.success = 'Inventaire terminé et stock mis à jour avec succès!';
-              
-              // Update session status
-              this.session!.status = 'POSTED';
-            
-            // Show success message and redirect after delay
-            setTimeout(() => {
-              this.success = '';
-              this.router.navigate(['/inventory', this.depotId]);
-            }, 3000);
+          // Update local session status
+          this.session!.status = 'CLOSED';
+          
+          // Refresh session from server to ensure we have the latest status
+          this.inventoryService.getSession(this.session!.id).subscribe({
+            next: (refreshedSession) => {
+              // Now post the closed session
+              this.inventoryService.postSession(this.session!.id).subscribe({
+                next: (result) => {
+                  this.saving = false;
+                  this.success = 'Inventaire terminé et stock mis à jour avec succès!';
+                  
+                  // Update session status
+                  this.session!.status = 'POSTED';
+
+                  // Save an inventory line into tableau de relevé inventaire
+                  try {
+                    this.http.post(`${environment.apiUrl}/releve-inventaire/from-session/${this.session!.id}`, {
+                      depotId: this.depotId
+                    }, { withCredentials: true }).subscribe({
+                      next: () => {},
+                      error: (e) => console.error('Error saving inventory to releve:', e)
+                    });
+                  } catch (e) {
+                    console.error('Error triggering releve save:', e);
+                  }
+                
+                // Show success message and redirect after delay
+                setTimeout(() => {
+                  this.success = '';
+                  this.router.navigate(['/inventory', this.depotId]);
+                }, 3000);
+              },
+              error: (err) => {
+                this.saving = false;
+                this.error = err.error?.error || 'Erreur lors de la finalisation de l\'inventaire';
+                console.error('Error posting inventory session:', err);
+              }
+            });
           },
-          error: (err) => {
+          error: (refreshErr) => {
             this.saving = false;
-            this.error = err.error?.error || 'Erreur lors de la finalisation de l\'inventaire';
-            console.error('Error posting inventory session:', err);
+            this.error = 'Erreur lors de la mise à jour de la session';
+            console.error('Error refreshing session:', refreshErr);
           }
         });
       },
@@ -770,7 +804,7 @@ export class CountComponent implements OnInit, OnDestroy {
         console.error('Error closing inventory session:', err);
       }
     });
-    } else {
+    } else if (this.session.status === 'CLOSED') {
       // Session is already closed, just post it
       this.inventoryService.postSession(this.session.id).subscribe({
         next: (result) => {
@@ -792,6 +826,9 @@ export class CountComponent implements OnInit, OnDestroy {
           console.error('Error posting inventory session:', err);
         }
       });
+    } else {
+      this.saving = false;
+      this.error = `Impossible de finaliser une session avec le statut: ${this.session.status}`;
     }
   }
 

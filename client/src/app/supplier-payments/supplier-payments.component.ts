@@ -55,7 +55,7 @@ export class SupplierPaymentsComponent implements OnInit {
     this.loadSuppliers();
     this.loadSupplierDebts();
     this.loadPayments();
-    this.sessionsService.getActiveSession().subscribe(session => {
+    this.sessionsService.getActiveSessionByDepot().subscribe(session => {
       this.currentSession = session;
       this.updateRemainingCash();
     });

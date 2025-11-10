@@ -355,6 +355,16 @@
             </svg>
             {{ loading ? 'Génération...' : 'Générer le Rapport' }}
           </button>
+          
+          <button 
+            (click)="saveInventoryToReleveInventaire()" 
+            [disabled]="loading"
+            class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg transform disabled:transform-none flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+            </svg>
+            Sauvegarder Inventaire
+          </button>
         </div>
       </div>
     </div>
@@ -371,11 +381,37 @@
 
     <!-- Report Results -->
     <div *ngIf="showReport && reconciliationData.length > 0" class="space-y-6">
-      <div *ngFor="let data of reconciliationData" class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <!-- Reconciliation Table Header with Collapse Button -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-gray-900">📊 Tableau de Réconciliation Inventaire & Ventes</h2>
+              <p class="text-sm text-gray-600">Données détaillées de réconciliation pour tous les produits</p>
+            </div>
+            <button 
+              (click)="toggleReconciliationTable()"
+              class="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+              <svg class="w-4 h-4 transition-transform duration-200" 
+                   [class.rotate-180]="!isReconciliationTableCollapsed"
+                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+              <span>{{ isReconciliationTableCollapsed ? 'Afficher' : 'Masquer' }}</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Reconciliation Table Content -->
+        <div *ngIf="!isReconciliationTableCollapsed">
+          <div *ngFor="let data of reconciliationData" class="border-t border-gray-200">
         <!-- Product Header -->
         <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
           <h3 class="text-lg font-semibold text-gray-900">{{ data.productName }}</h3>
           <p class="text-sm text-gray-600">Produit ID: {{ data.productId }}</p>
+          <div *ngIf="data.rows.length === 0" class="text-xs text-orange-600 mt-1">
+            ⚠️ Aucun mouvement trouvé pour cette période
+          </div>
         </div>
 
         <!-- Multi-level Table -->
@@ -438,6 +474,15 @@
               </tr>
             </tbody>
           </table>
+          
+          <!-- No Data Message -->
+          <div *ngIf="data.rows.length === 0" class="text-center py-8 text-gray-500">
+            <svg class="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <p class="text-lg font-medium">Aucun mouvement trouvé</p>
+            <p class="text-sm">Ce produit n'a pas de mouvements d'achat ou de vente pour la période sélectionnée</p>
+          </div>
         </div>
 
         <!-- Summary Footer -->
@@ -475,6 +520,43 @@
                 Mode de valorisation: {{ getValuationModeLabel(valuationMode) }}
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Relevé Inventaire Table for this product -->
+        <div *ngIf="data.releveInventaire" class="bg-white border-t border-gray-200">
+          <div class="bg-emerald-50 px-6 py-3 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-semibold text-emerald-900">📊 Relevé Inventaire - {{ data.productName }}</h3>
+                <p class="text-sm text-emerald-700">Désignation, Début, Crédit et Solde pour cet article</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-emerald-50">
+                <tr>
+                  <th class="px-4 py-3 text-left font-semibold text-emerald-900 border-r border-emerald-200">Désignation</th>
+                  <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Début (dt)</th>
+                  <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Crédit (dt)</th>
+                  <th class="px-4 py-3 text-right font-semibold text-emerald-900">Solde (dt)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                  <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ data.releveInventaire.designation }}</td>
+                  <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-blue-600">{{ formatNumber(data.releveInventaire.debut) }}</td>
+                  <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-red-600">{{ formatNumber(data.releveInventaire.credit) }}</td>
+                  <td class="px-4 py-3 text-right font-bold text-lg" 
+                      [class.text-green-600]="data.releveInventaire.solde >= 0"
+                      [class.text-red-600]="data.releveInventaire.solde < 0">
+                    {{ formatNumber(data.releveInventaire.solde) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -557,6 +639,447 @@
           </div>
         </div>
       </div>
+        </div>
+      </div>
+
+      <!-- Global Écart Summary Table -->
+      <div *ngIf="globalEcartSummary" class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="bg-purple-50 px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xl font-bold text-purple-900">📈 Tableau Global des Écarts</h3>
+              <p class="text-sm text-purple-700">Résumé détaillé de tous les écarts par produit</p>
+            </div>
+            <button 
+              (click)="toggleGlobalEcartTable()"
+              class="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+              <svg class="w-4 h-4 transition-transform duration-200" 
+                   [class.rotate-180]="!isGlobalEcartTableCollapsed"
+                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+              <span>{{ isGlobalEcartTableCollapsed ? 'Afficher' : 'Masquer' }}</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Global Écart Table Content -->
+        <div *ngIf="!isGlobalEcartTableCollapsed">
+          <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-purple-50">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-purple-900 border-r border-purple-200">Produit</th>
+                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Qté Vendue</th>
+                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Prix Unitaire</th>
+                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">CA Théorique</th>
+                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">CA Réalisé</th>
+                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart Gros</th>
+                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart Gratuité</th>
+                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart Remise</th>
+                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart Global</th>
+                <th class="px-4 py-3 text-center font-semibold text-purple-900">Déférence</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let product of globalEcartSummary.products; let i = index" 
+                  class="border-b border-gray-200"
+                  [class.bg-white]="i % 2 === 0"
+                  [class.bg-gray-50]="i % 2 === 1">
+                <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ product.productName }}</td>
+                <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatQuantity(product.qtyVendu) }}</td>
+                <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatNumber(product.prixVenteUnitaire) }} dt</td>
+                <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-green-600">{{ formatNumber(product.chiffreAffaireTheorique) }} dt</td>
+                <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-blue-600">{{ formatNumber(product.chiffreAffaireRealise) }} dt</td>
+                <td class="px-4 py-3 text-center border-r border-gray-200" [class]="product.ecartVenteGros < 0 ? 'text-red-600' : 'text-orange-600'">
+                  {{ formatNumber(product.ecartVenteGros) }} dt
+                </td>
+                <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{ formatNumber(product.ecartGratuite) }} dt</td>
+                <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{ formatNumber(product.ecartRemise) }} dt</td>
+                <td class="px-4 py-3 text-center border-r border-gray-200 font-bold" [class]="product.ecartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
+                  {{ formatNumber(product.ecartGlobal) }} dt
+                </td>
+                <td class="px-4 py-3 text-center font-bold" [class]="product.deferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
+                  {{ formatNumber(product.deferenceEcart) }} dt
+                </td>
+              </tr>
+            </tbody>
+            <!-- Total Row -->
+            <tfoot class="bg-purple-100">
+              <tr class="border-t-2 border-purple-300">
+                <td class="px-4 py-4 text-left border-r border-purple-200 font-bold text-purple-900">TOTAL GLOBAL</td>
+                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-purple-900">{{ formatQuantity(globalEcartSummary.totalQtyVendu) }}</td>
+                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-purple-900">-</td>
+                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-green-600">{{ formatNumber(globalEcartSummary.totalChiffreAffaireTheorique) }} dt</td>
+                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-blue-600">{{ formatNumber(globalEcartSummary.totalChiffreAffaireRealise) }} dt</td>
+                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold" [class]="globalEcartSummary.totalEcartVenteGros < 0 ? 'text-red-600' : 'text-orange-600'">
+                  {{ formatNumber(globalEcartSummary.totalEcartVenteGros) }} dt
+                </td>
+                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-red-600">{{ formatNumber(globalEcartSummary.totalEcartGratuite) }} dt</td>
+                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-red-600">{{ formatNumber(globalEcartSummary.totalEcartRemise) }} dt</td>
+                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-lg" [class]="globalEcartSummary.totalEcartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
+                  {{ formatNumber(globalEcartSummary.totalEcartGlobal) }} dt
+                </td>
+                <td class="px-4 py-4 text-center font-bold text-lg" [class]="globalEcartSummary.totalDeferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
+                  {{ formatNumber(globalEcartSummary.totalDeferenceEcart) }} dt
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        
+        <!-- Global Summary Cards -->
+        <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+            <div class="text-center">
+              <h4 class="font-semibold text-gray-900 mb-1">Produits</h4>
+              <p class="text-lg font-bold text-purple-600">{{ globalEcartSummary.totalProducts }}</p>
+              <p class="text-xs text-gray-500">Total produits</p>
+            </div>
+            <div class="text-center">
+              <h4 class="font-semibold text-gray-900 mb-1">CA Théorique</h4>
+              <p class="text-lg font-bold text-green-600">{{ formatNumber(globalEcartSummary.totalChiffreAffaireTheorique) }} dt</p>
+              <p class="text-xs text-gray-500">Total théorique</p>
+            </div>
+            <div class="text-center">
+              <h4 class="font-semibold text-gray-900 mb-1">CA Réalisé</h4>
+              <p class="text-lg font-bold text-blue-600">{{ formatNumber(globalEcartSummary.totalChiffreAffaireRealise) }} dt</p>
+              <p class="text-xs text-gray-500">Total réalisé</p>
+            </div>
+            <div class="text-center">
+              <h4 class="font-semibold text-gray-900 mb-1">Écart Global</h4>
+              <p class="text-lg font-bold" [class]="globalEcartSummary.totalEcartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
+                {{ formatNumber(globalEcartSummary.totalEcartGlobal) }} dt
+              </p>
+              <p class="text-xs text-gray-500">Différence totale</p>
+            </div>
+            <div class="text-center">
+              <h4 class="font-semibold text-gray-900 mb-1">Déférence</h4>
+              <p class="text-lg font-bold" [class]="globalEcartSummary.totalDeferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
+                {{ formatNumber(globalEcartSummary.totalDeferenceEcart) }} dt
+              </p>
+              <p class="text-xs text-gray-500">Déférence totale</p>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <!-- Relevé Inventaire Table -->
+      <div *ngIf="releveInventaireData.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div class="bg-emerald-50 px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-emerald-900">📊 Relevé Inventaire</h2>
+              <p class="text-sm text-emerald-700">Désignation, Début, Crédit et Solde pour chaque article</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button 
+                (click)="toggleReleveInventaireTable()"
+                class="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors">
+                <svg class="w-4 h-4 transition-transform duration-200" 
+                     [class.rotate-180]="!isReleveInventaireTableCollapsed"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+                <span>{{ isReleveInventaireTableCollapsed ? 'Afficher' : 'Masquer' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Relevé Inventaire Table Content -->
+        <div *ngIf="!isReleveInventaireTableCollapsed">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+            <thead class="bg-emerald-50">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-emerald-900 border-r border-emerald-200">Désignation</th>
+                <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Débit (dt)</th>
+                <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Crédit (dt)</th>
+                <th class="px-4 py-3 text-right font-semibold text-emerald-900">Solde (dt)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of releveInventaireData; let i = index" 
+                  class="border-b border-gray-200 hover:bg-gray-50"
+                  [class.bg-white]="i % 2 === 0 && !row.isInventory && !isInventoryMode"
+                  [class.bg-gray-50]="i % 2 === 1 && !row.isInventory && !isInventoryMode"
+                  [class.bg-green-100]="row.isInventory"
+                  [class.bg-gray-200]="isInventoryMode && !row.isInventory"
+                  [class.text-gray-600]="isInventoryMode && !row.isInventory"
+                  [class.hidden]="(isBonEntreeItem(row) && !isBonEntreeExpanded(getBonEntreeIdFromItem(row.id))) || (isEcartGrosChild(row) && !isEcartGrosExpanded(getEcartGrosParentId(row)))"
+                  [class]="getEcartRowClass(row)"
+                  (click)="onEcartRowClick(row)">
+                <td class="px-4 py-3 text-left border-r border-gray-200 font-medium" 
+                    [class.text-green-800]="row.isInventory"
+                    [class.font-bold]="row.isInventory"
+                    [class.text-gray-600]="isInventoryMode && !row.isInventory"
+                    [class.cursor-pointer]="row.id.startsWith('bon_entree_') || row.isExpandable"
+                    (click)="row.id.startsWith('bon_entree_') ? toggleBonEntreeExpansion(row.id) : (row.isExpandable ? toggleEcartGrosExpansion(row.expandableId || '') : null)">
+                  <div class="flex items-center gap-2">
+                    <!-- Add Manual Entry Button -->
+                    <button 
+                      *ngIf="!row.isInventory && !isBonEntreeItem(row) && !isEcartGrosChild(row)"
+                      (click)="showManualEntryModal(i, row.id); $event.stopPropagation()"
+                      class="w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-xs font-bold transition-colors shadow-sm"
+                      title="Ajouter un débit/crédit">
+                      +
+                    </button>
+                    <!-- Bon Entree Expansion -->
+                    <svg *ngIf="row.id.startsWith('bon_entree_')" 
+                         class="w-4 h-4 mr-2 transition-transform duration-200"
+                         [class.rotate-90]="isBonEntreeExpanded(row.id)"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    
+                    <!-- Ecart Gros Expansion -->
+                    <svg *ngIf="row.isExpandable" 
+                         class="w-4 h-4 mr-2 transition-transform duration-200"
+                         [class.rotate-90]="isEcartGrosExpanded(row.expandableId || '')"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    
+                    <span [class.ml-6]="isBonEntreeItem(row) || isEcartGrosChild(row)">
+                      <!-- Handle wholesale sales with clickable "ventes gros" text -->
+                      <span *ngIf="row.wholesaleSales">
+                        {{ getTextBeforeWholesaleSales(row.designation) }}
+                        <span class="wholesale-sales-link" (click)="showWholesaleSalesDialog(row)">
+                          {{ getWholesaleSalesText(row.designation) }}
+                        </span>
+                        {{ getTextAfterWholesaleSales(row.designation) }}
+                      </span>
+                      <!-- Regular designation for non-wholesale rows -->
+                      <span *ngIf="!row.wholesaleSales">{{ row.designation }}</span>
+                    </span>
+                  </div>
+                  <span *ngIf="row.isInventory" class="text-xs text-green-600 ml-2">(Inventaire)</span>
+                  <div *ngIf="row.details" class="text-xs text-gray-500 mt-1">
+                    {{ row.details }}
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold" 
+                    [class.text-blue-600]="!row.isInventory"
+                    [class.text-green-700]="row.isInventory">
+                  {{ formatNumber(row.debut) }}
+                </td>
+                <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold" 
+                    [class.text-red-600]="!row.isInventory"
+                    [class.text-green-700]="row.isInventory">
+                  {{ formatNumber(row.credit) }}
+                </td>
+                <td class="px-4 py-3 text-right font-bold text-lg relative" 
+                    [class.text-green-600]="row.solde >= 0 && !row.isInventory"
+                    [class.text-red-600]="row.solde < 0 && !row.isInventory"
+                    [class.text-green-800]="row.isInventory">
+                  {{ formatNumber(row.solde) }}
+                  <!-- Delete Manual Entry Button -->
+                  <button 
+                    *ngIf="row.id.startsWith('manual_') && !row.isInventory"
+                    (click)="deleteManualEntryFromRow(row); $event.stopPropagation()"
+                    class="absolute left-2 top-1/2 transform -translate-y-1/2 w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-xs font-bold transition-colors shadow-sm"
+                    title="Supprimer cette entrée manuelle">
+                    ×
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Relevé Inventaire Summary -->
+        <div *ngIf="releveInventaireSummary" class="bg-emerald-100 border-t border-emerald-200">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-emerald-100">
+                <tr>
+                  <th class="px-4 py-3 text-left font-semibold text-emerald-900 border-r border-emerald-200">Produits</th>
+                  <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Total Débit</th>
+                  <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Total Crédit</th>
+                  <th class="px-4 py-3 text-right font-semibold text-emerald-900">Total Solde</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="bg-emerald-200 border-t-2 border-emerald-300">
+                  <td class="px-4 py-4 text-left border-r border-emerald-200 font-bold text-emerald-900">TOTAL GLOBAL</td>
+                  <td class="px-4 py-4 text-right border-r border-emerald-200 font-bold text-blue-600 text-lg">{{ formatNumber(releveInventaireSummary.totalDebut) }}</td>
+                  <td class="px-4 py-4 text-right border-r border-emerald-200 font-bold text-red-600 text-lg">{{ formatNumber(releveInventaireSummary.totalCredit) }}</td>
+                  <td class="px-4 py-4 text-right font-bold text-xl" 
+                      [class.text-green-600]="releveInventaireSummary.totalSolde >= 0"
+                      [class.text-red-600]="releveInventaireSummary.totalSolde < 0">
+                    {{ formatNumber(releveInventaireSummary.totalSolde) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <!-- Secondary Relevé (chained) -->
+      <div *ngIf="secondaryReleveRows.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div class="bg-blue-50 px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-blue-900">📊 Relevé Inventaire (Nouveau)</h2>
+              <p class="text-sm text-blue-700">Première ligne = solde inventaire du relevé précédent</p>
+            </div>
+            <button 
+              (click)="clearSecondaryReleve()" 
+              class="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm">
+              Effacer
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-blue-50">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-blue-900 border-r border-blue-200">Désignation</th>
+                <th class="px-4 py-3 text-right font-semibold text-blue-900 border-r border-blue-200">Débit (dt)</th>
+                <th class="px-4 py-3 text-right font-semibold text-blue-900 border-r border-blue-200">Crédit (dt)</th>
+                <th class="px-4 py-3 text-right font-semibold text-blue-900">Solde (dt)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of secondaryReleveRows; let i = index" 
+                  class="border-b border-gray-200"
+                  [class.bg-blue-50]="row.isInventory">
+                <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ row.designation }}</td>
+                <td class="px-4 py-3 text-right border-r border-gray-200">{{ formatNumber(row.debut) }}</td>
+                <td class="px-4 py-3 text-right border-r border-gray-200">{{ formatNumber(row.credit) }}</td>
+                <td class="px-4 py-3 text-right font-bold">{{ formatNumber(row.solde) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Credit Entries -->
+      <div *ngIf="creditEntries.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div class="bg-orange-50 px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-orange-900">Entrées de Crédit Ajoutées</h2>
+          <p class="text-sm text-orange-700">Crédits manuellement ajoutés par l'utilisateur</p>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-orange-50">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-orange-900 border-r border-orange-200">Produit</th>
+                <th class="px-4 py-3 text-center font-semibold text-orange-900 border-r border-orange-200">Type</th>
+                <th class="px-4 py-3 text-right font-semibold text-orange-900 border-r border-orange-200">Montant</th>
+                <th class="px-4 py-3 text-left font-semibold text-orange-900 border-r border-orange-200">Description</th>
+                <th class="px-4 py-3 text-center font-semibold text-orange-900 border-r border-orange-200">Date</th>
+                <th class="px-4 py-3 text-center font-semibold text-orange-900">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let entry of creditEntries; let i = index" 
+                  class="border-b border-gray-200 hover:bg-gray-50"
+                  [class.bg-white]="i % 2 === 0"
+                  [class.bg-gray-50]="i % 2 === 1">
+                <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">
+                  {{ getProductName(entry.productId) }}
+                </td>
+                <td class="px-4 py-3 text-center border-r border-gray-200">
+                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ getCreditTypeLabel(entry.type) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-red-600">{{ formatNumber(entry.amount) }} dt</td>
+                <td class="px-4 py-3 text-left border-r border-gray-200">{{ entry.description }}</td>
+                <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatDate(entry.date) }}</td>
+                <td class="px-4 py-3 text-center">
+                  <button 
+                    (click)="removeCreditEntry(i)"
+                    class="text-red-600 hover:text-red-800 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Manual Entry Modal -->
+      <div *ngIf="isManualEntryModalOpen" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">
+              Ajouter un Débit/Crédit
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">
+              L'entrée sera insérée après la ligne sélectionnée
+            </p>
+          </div>
+          
+          <form (ngSubmit)="saveManualEntry()" class="px-6 py-4 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Type d'Entrée</label>
+              <select 
+                [(ngModel)]="newManualEntry.entryType" 
+                name="entryType"
+                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="DEBIT">Débit (Ajoute au solde)</option>
+                <option value="CREDIT">Crédit (Soustrait du solde)</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Montant (dt)</label>
+              <input 
+                type="number" 
+                [(ngModel)]="newManualEntry.amount" 
+                name="amount"
+                step="0.01"
+                min="0"
+                required
+                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <textarea 
+                [(ngModel)]="newManualEntry.description" 
+                name="description"
+                rows="3"
+                required
+                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+              <input 
+                type="date" 
+                [(ngModel)]="newManualEntry.date" 
+                name="date"
+                required
+                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div class="flex justify-end space-x-3 pt-4">
+              <button 
+                type="button" 
+                (click)="hideManualEntryModal()"
+                class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                Annuler
+              </button>
+              <button 
+                type="submit"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                Ajouter
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       <!-- Export Actions -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -592,6 +1115,133 @@
       </svg>
       <h3 class="text-lg font-semibold text-gray-900 mb-2">Aucune donnée trouvée</h3>
       <p class="text-gray-600">Aucun mouvement n'a été trouvé pour les critères sélectionnés.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- Wholesale Sales Dialog -->
+<div *ngIf="showWholesaleDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+  <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+    <div class="bg-green-50 px-6 py-4 border-b border-gray-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-semibold text-green-900">
+            Ventes Gros - {{ selectedWholesaleProduct }}
+          </h3>
+          <p class="text-sm text-green-700">
+            {{ selectedWholesaleSales.length }} ventes gros trouvées
+          </p>
+          <div *ngIf="selectedWholesaleSales.length > 0" class="mt-2">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div class="bg-red-50 p-2 rounded-lg">
+                <span class="font-medium text-red-600">Perte Totale:</span>
+                <p class="text-lg font-bold text-red-600">
+                  {{ formatNumber(calculateTotalLoss()) }} DT
+                </p>
+              </div>
+              <div class="bg-blue-50 p-2 rounded-lg">
+                <span class="font-medium text-blue-600">Vente Gros:</span>
+                <p class="text-lg font-bold text-blue-600">
+                  {{ formatNumber(calculateTotalWholesale()) }} DT
+                </p>
+              </div>
+              <div class="bg-green-50 p-2 rounded-lg">
+                <span class="font-medium text-green-600">Vente Détail:</span>
+                <p class="text-lg font-bold text-green-600">
+                  {{ formatNumber(calculateTotalRetail()) }} DT
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button 
+          (click)="closeWholesaleDialog()"
+          class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <div class="p-6 overflow-y-auto max-h-[70vh]">
+      <!-- Wholesale Sales List -->
+      <div *ngIf="selectedWholesaleSales.length > 0" class="space-y-4">
+        <div *ngFor="let sale of selectedWholesaleSales; let i = index" 
+             class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                <span class="text-green-600 font-semibold text-sm">{{ i + 1 }}</span>
+              </div>
+              <div>
+                <h4 class="font-semibold text-gray-900">
+                  Vente #{{ sale.id }}
+                </h4>
+                <p class="text-sm text-gray-600">
+                  {{ sale.createdAt | date:'dd/MM/yyyy HH:mm' }}
+                </p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-lg font-bold text-green-600">
+                {{ formatNumber(sale.itemDetails?.total || 0) }} DT
+              </p>
+              <p class="text-sm text-gray-500">
+                Qty: {{ sale.itemDetails?.quantity || 0 }}
+              </p>
+              <p class="text-sm text-red-600 font-semibold">
+                Perte: {{ formatNumber(calculateSaleLoss(sale)) }} DT
+              </p>
+            </div>
+          </div>
+          
+          <!-- Sale Details -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span class="font-medium text-gray-600">Produit:</span>
+              <p class="text-gray-900">{{ getProductName(sale.itemDetails?.productId) }}</p>
+            </div>
+            <div>
+              <span class="font-medium text-gray-600">Prix Unitaire:</span>
+              <p class="text-gray-900">{{ formatNumber(sale.itemDetails?.unitPrice || 0) }} DT</p>
+            </div>
+            <div>
+              <span class="font-medium text-gray-600">Bundle:</span>
+              <p class="text-gray-900">{{ sale.itemDetails?.bundleSize || 'N/A' }}</p>
+            </div>
+          </div>
+          
+          <!-- Wholesale Indicators -->
+          <div class="mt-3 flex items-center space-x-2">
+            <span *ngIf="sale.itemDetails?.isWholesale" 
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              GROS
+            </span>
+            <span *ngIf="sale.itemDetails?.bundleSize" 
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+              Bundle: {{ sale.itemDetails.bundleSize }}
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      <div *ngIf="selectedWholesaleSales.length === 0" class="text-center py-8">
+        <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Aucune vente gros trouvée</h3>
+        <p class="text-gray-600">Aucune vente gros n'a été trouvée pour ce produit.</p>
+      </div>
+    </div>
+    
+    <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end">
+      <button 
+        (click)="closeWholesaleDialog()"
+        class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+        Fermer
+      </button>
     </div>
   </div>
 </div>

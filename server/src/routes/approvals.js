@@ -39,10 +39,9 @@ router.get('/change-requests', authenticateToken, async (req, res) => {
           }
         });
         // Only include the change request if the session exists
+        // Silently skip orphaned change requests that reference deleted sessions
         if (session) {
           enriched.push({ ...cr, session });
-        } else {
-          console.warn(`Change request ${cr.id} references non-existent session ${cr.entityId}`);
         }
       } else {
         enriched.push(cr);

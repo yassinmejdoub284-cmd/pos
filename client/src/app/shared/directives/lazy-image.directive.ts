@@ -8,8 +8,8 @@ import { NgOptimizedImage } from '@angular/common';
 export class LazyImageDirective implements OnInit, OnDestroy {
   @Input() appLazyImage: string = '';
   @Input() alt: string = '';
-  @Input() fallbackSrc: string = '/assets/images/placeholder-product.svg';
-  @Input() loadingSrc: string = '/assets/images/loading-placeholder.svg';
+  @Input() fallbackSrc: string = '/images/placeholder-product.svg';
+  @Input() loadingSrc: string = '/images/loading-placeholder.svg';
 
   private elementRef = inject(ElementRef);
   private cdr = inject(ChangeDetectorRef);

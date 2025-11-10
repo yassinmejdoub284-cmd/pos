@@ -84,6 +84,7 @@
           <div>
             <p class="text-sm font-medium text-gray-600">Total Dépenses</p>
             <p class="text-2xl font-bold text-gray-900">{{ getTotalAmount() | number:'1.2-2' }} dt</p>
+            <p class="text-xs text-gray-500">{{ (stats?.total?.count || 0) }} dépenses</p>
           </div>
           <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
             <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,10 +220,13 @@
                 {{ expense.date | date:'dd/MM/yyyy' }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {{ expense.category.name }}
+                {{ expense.notes || expense.description || '-' }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {{ expense.depot.name }}
+                {{ expense.category?.name || '-' }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ expense.depot?.name || '-' }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 {{ expense.amount | number:'1.2-2' }} dt
@@ -236,17 +240,22 @@
                   <span *ngIf="expense.isPaid" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                     Payée
                   </span>
+                  <span *ngIf="expense.isAdvance" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                    Acompte
+                  </span>
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {{ expense.user.firstName }} {{ expense.user.lastName }}
+                {{ expense.user?.firstName }} {{ expense.user?.lastName }}
               </td>
               <!-- Actions -->
               <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                <button *ngIf="!expense.isPaid" (click)="payExpense(expense)" title="Payer"
+                <button *ngIf="!expense.isPaid && !expense.isAdvance" (click)="payExpense(expense)" title="Payer"
                         class="inline-flex items-center px-3 py-1.5 rounded-md text-white bg-blue-600 shadow">
                   Payer
                 </button>
+                <span *ngIf="expense.isPaid" class="text-green-600 text-sm font-medium">Payée</span>
+                <span *ngIf="expense.isAdvance" class="text-purple-600 text-sm font-medium">Acompte</span>
               </td>
             </tr>
           </tbody>

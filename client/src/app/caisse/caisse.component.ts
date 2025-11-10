@@ -123,7 +123,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Product catalog
   allProducts: Product[] = [];
   filteredProducts: Product[] = [];
-  productCategories: string[] = ['Tous', 'Importés'];
+  productCategories: string[] = ['Tous'];
   selectedCategory: string = 'Tous';
   searchQuery: string = '';
   productFamilies: any[] = [];
@@ -489,14 +489,41 @@ export class CaisseComponent implements OnInit, OnDestroy {
       }
     }
     
-    // If user is admin and has no depot ID, show depot selection
-    if (this.authService.isAdmin() && (!this.currentShopDepotId || this.currentShopDepotId === 0)) {
-      this.showDepotSelection = true;
-      this.loadDepots();
-      // Don't load shop name or inventory until depot is selected
-      this.currentShopName = 'Sélection du dépôt...';
+    // If user has no depot ID, show depot selection or use first available depot
+    if (!this.currentShopDepotId || this.currentShopDepotId === 0) {
+      if (this.authService.isAdmin()) {
+        // Admin can select depot
+        this.showDepotSelection = true;
+        this.loadDepots();
+        this.currentShopName = 'Sélection du dépôt...';
+      } else {
+        // Non-admin without depot: try to find first available shop depot
+        this.depotsService.list().subscribe({
+          next: (depots) => {
+            const shopDepot = depots.find((d: any) => d.isActive && (d.type === 'SHOP' || d.type === 'MAIN'));
+            if (shopDepot) {
+              this.currentShopDepotId = shopDepot.id;
+              sessionStorage.setItem('visitingDepotId', shopDepot.id.toString());
+              this.ticketCounterService.setDepotId(this.currentShopDepotId);
+              if (environment.enableRealtime) {
+                this.socketService.connect();
+                this.socketService.joinDepot(this.currentShopDepotId);
+              }
+              this.loadShopName();
+              this.loadShopInventory();
+            } else {
+              this.currentShopName = 'Aucun dépôt disponible';
+              this.showAlertMessage('Aucun dépôt disponible. Veuillez contacter un administrateur.', 'error');
+            }
+          },
+          error: () => {
+            this.currentShopName = 'Erreur de chargement';
+            this.showAlertMessage('Erreur lors du chargement des dépôts', 'error');
+          }
+        });
+      }
     } else {
-      // For regular users or admins with depot, load normally
+      // For users with depot, load normally
       this.loadShopName();
       this.loadShopInventory();
     }
@@ -827,24 +854,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
       next: (families) => {
         this.productFamilies = families;
         
-        // Separate families into those with multiple products and those with 1 or fewer
-        const familiesWithMultipleProducts = families.filter(family => {
-          const productCount = this.allProducts.filter(product => product.famille?.id === family.id).length;
-          return productCount > 1;
-        });
-        
-        const familiesWithFewProducts = families.filter(family => {
-          const productCount = this.allProducts.filter(product => product.famille?.id === family.id).length;
-          return productCount <= 1;
-        });
-        
-        // Build categories: "Tous", special tags, families with multiple products, and "Autres" if there are families with few products
-        const categories = ['Tous', 'Import', 'Local', ...familiesWithMultipleProducts.map(family => family.name)];
-        
-        // Add "Autres" category if there are families with 1 or fewer products
-        if (familiesWithFewProducts.length > 0) {
-          categories.push('Autres');
-        }
+        // Build categories: only "Tous" and actual family names
+        const categories = ['Tous', ...families.map(family => family.name)];
         
         this.productCategories = categories;
         
@@ -858,7 +869,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error loading product families:', error);
         // Fallback to default categories if API fails
-        this.productCategories = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrac', 'Pâtisserie Tunisienne', 'Jus et Smoothies'];
+        this.productCategories = ['Tous'];
       }
     });
   }
@@ -907,29 +918,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
   filterProducts(): void {
     let filtered = this.allProducts;
     
-    // Filter by category
+    // Filter by famille only
     if (this.selectedCategory !== 'Tous') {
-      if (this.selectedCategory === 'Autres') {
-        // For "Autres", show products from families that have 1 or fewer products
-        const familiesWithFewProducts = this.productFamilies.filter(family => {
-          const productCount = this.allProducts.filter(product => product.famille?.id === family.id).length;
-          return productCount <= 1;
-        });
-        
-        const familyIdsWithFewProducts = familiesWithFewProducts.map(family => family.id);
-        filtered = filtered.filter(product => 
-          product.famille?.id && familyIdsWithFewProducts.includes(product.famille.id)
-        );
-      } else if (this.selectedCategory === 'Import') {
-        // Tag category: products whose name contains "import"
-        filtered = filtered.filter(product => product.name && product.name.toLowerCase().includes('import'));
-      } else if (this.selectedCategory === 'Local') {
-        // Tag category: products whose name contains "local"
-        filtered = filtered.filter(product => product.name && product.name.toLowerCase().includes('local'));
-      } else {
-        // For specific family categories, show products from that family
-        filtered = filtered.filter(p => p.famille?.name === this.selectedCategory);
-      }
+      // Filter products by their famille name
+      filtered = filtered.filter(p => p.famille?.name === this.selectedCategory);
     }
     
     // Filter by search query
@@ -1321,6 +1313,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   filteredExpenseSuppliers: any[] = [];
   submittingSupplierAction = false;
   remainingCashAfterExpense: number | null = null;
+  editingExpenseField: 'total' | 'paid' | null = null;
 
   openClientSearch(): void {
     this.showClientSearchPopup = true;
@@ -2011,6 +2004,16 @@ export class CaisseComponent implements OnInit, OnDestroy {
       paymentType: this.salePaymentType
     };
 
+    // Debug log for wholesale sales
+    if (this.isWholesaleSale()) {
+      console.log('Wholesale sale data:', {
+        paymentType: this.salePaymentType,
+        paymentMethodId: saleData.paymentMethodId,
+        amountPaid: saleData.amountPaid,
+        isWholesale: saleData.isWholesale
+      });
+    }
+
     this.salesService.createSale(saleData).subscribe({
       next: (savedSale: any) => {
         const loyaltyEarned = savedSale?.loyaltyPointsEarned || 0;
@@ -2033,6 +2036,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
         // Print receipt if requested
         if (shouldPrintReceipt) {
           this.printReceipt();
+        }
+        
+        // Open cash drawer for cash payments (espèces)
+        if (this.paymentType === 'cash' && this.salePaymentType === 'COMPTANT') {
+          this.printService.openCashDrawer();
         }
         
         // Update ticket counter with actual ticket number from server
@@ -3290,7 +3298,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
         if (this.inputMode === 'quantity') {
           value = 1; // Default quantity
         } else if (this.inputMode === 'price') {
-          value = Number(this.pendingProduct.prix_vente_TTC); // Default price
+          value = this.getEffectiveUnitPrice(this.pendingProduct); // Default price
         }
       }
       
@@ -3637,21 +3645,27 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Product Modal Methods
   onProductModalModeChange(): void {
     if (this.productModalMode === 'quantity') {
-      this.productModalAmount = this.productModalQuantity * Number(this.selectedProduct?.prix_vente_TTC || 0);
+      const unitPrice = this.selectedProduct ? this.getEffectiveUnitPrice(this.selectedProduct) : 0;
+      this.productModalAmount = this.productModalQuantity * unitPrice;
     } else {
-      this.productModalQuantity = this.productModalAmount / Number(this.selectedProduct?.prix_vente_TTC || 1);
+      const unitPrice = this.selectedProduct ? this.getEffectiveUnitPrice(this.selectedProduct) : 1;
+      this.productModalQuantity = this.productModalAmount / unitPrice;
     }
   }
 
   onProductModalQuantityChange(): void {
     if (this.selectedProduct) {
-      this.productModalAmount = this.productModalQuantity * Number(this.selectedProduct.prix_vente_TTC);
+      const unitPrice = this.getEffectiveUnitPrice(this.selectedProduct);
+      this.productModalAmount = this.productModalQuantity * unitPrice;
     }
   }
 
   onProductModalAmountChange(): void {
-    if (this.selectedProduct && this.selectedProduct.prix_vente_TTC > 0) {
-      this.productModalQuantity = this.productModalAmount / Number(this.selectedProduct.prix_vente_TTC);
+    if (this.selectedProduct) {
+      const unitPrice = this.getEffectiveUnitPrice(this.selectedProduct);
+      if (unitPrice > 0) {
+        this.productModalQuantity = this.productModalAmount / unitPrice;
+      }
     }
   }
 
@@ -3877,6 +3891,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Auto-submit the sale with ESP payment method and exact pricing
     this.paymentType = 'cash';
     this.amountPaid = activeCart.netTotal;
+    this.salePaymentType = 'COMPTANT'; // Explicitly set to cash payment
     this.confirmPayment();
   }
 
@@ -3896,6 +3911,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Auto-submit the sale with ESP payment method and exact pricing, with print
     this.paymentType = 'cash';
     this.amountPaid = activeCart.netTotal;
+    this.salePaymentType = 'COMPTANT'; // Explicitly set to cash payment
     this.processPaymentWithReceipt();
   }
 
@@ -3915,6 +3931,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Auto-submit the sale with ESP payment method and exact pricing, without print
     this.paymentType = 'cash';
     this.amountPaid = activeCart.netTotal;
+    this.salePaymentType = 'COMPTANT'; // Explicitly set to cash payment
     this.processPaymentWithoutReceipt();
   }
 
@@ -3924,14 +3941,18 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getProductModalCalculatedAmount(): number {
     if (this.selectedProduct && this.productModalMode === 'quantity') {
-      return this.productModalQuantity * Number(this.selectedProduct.prix_vente_TTC);
+      const unitPrice = this.getEffectiveUnitPrice(this.selectedProduct);
+      return this.productModalQuantity * unitPrice;
     }
     return this.productModalAmount;
   }
 
   getProductModalCalculatedQuantity(): number {
-    if (this.selectedProduct && this.productModalMode === 'amount' && this.selectedProduct.prix_vente_TTC > 0) {
-      return this.productModalAmount / Number(this.selectedProduct.prix_vente_TTC);
+    if (this.selectedProduct && this.productModalMode === 'amount') {
+      const unitPrice = this.getEffectiveUnitPrice(this.selectedProduct);
+      if (unitPrice > 0) {
+        return this.productModalAmount / unitPrice;
+      }
     }
     return this.productModalQuantity;
   }
@@ -5230,7 +5251,16 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   getWholesaleUnitPrice(product: any): number {
-    const baseUnit = Number(product.prix_vente_TTC) || 0;
+    // Use depot-specific price if available, otherwise use default price
+    const depotId = this.currentShopDepotId;
+    let baseUnit = Number(product.prix_vente_TTC) || 0;
+    
+    if (depotId && product.depotPrices && product.depotPrices.length > 0) {
+      const depotPrice = product.depotPrices.find((dp: any) => dp.depotId === depotId);
+      if (depotPrice) {
+        baseUnit = Number(depotPrice.prix_vente_TTC) || 0;
+      }
+    }
     const bundlePrice = Number(product.bundlePrice) || 0;
     const bundleSize = Number(product.bundleSize) || 0;
 
@@ -5252,7 +5282,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getEffectiveUnitPrice(product: any): number {
     const isWholesaleContext = this.isWholesaleMode || (this.selectedClient?.clientType === 'WHOLESALE');
-    return isWholesaleContext ? this.getWholesaleUnitPrice(product) : (Number(product.prix_vente_TTC) || 0);
+    if (isWholesaleContext) {
+      return this.getWholesaleUnitPrice(product);
+    }
+    
+    // Use depot-specific price if available
+    const depotId = this.currentShopDepotId;
+    if (depotId && product.depotPrices && product.depotPrices.length > 0) {
+      const depotPrice = product.depotPrices.find((dp: any) => dp.depotId === depotId);
+      if (depotPrice) {
+        return Number(depotPrice.prix_vente_TTC) || 0;
+      }
+    }
+    
+    // Fallback to default price
+    return Number(product.prix_vente_TTC) || 0;
   }
 
   getItemDisplayName(item: any): string {
@@ -6154,8 +6198,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Numpad methods for expense
   addToExpenseAmount(value: string): void {
-    // Determine which field we're editing based on currentInput
-    const isEditingTotal = this.currentInput === this.expenseTotalAmount;
+    // Determine which field we're editing based on tracking variable
+    const isEditingTotal = this.editingExpenseField === 'total';
     const currentAmount = isEditingTotal ? this.expenseTotalAmount : this.expensePaidAmount;
     
     if (value === '.') {
@@ -6163,6 +6207,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
         if (isEditingTotal) {
           this.expenseTotalAmount += value;
           this.currentInput = this.expenseTotalAmount;
+          // Auto-sync paid amount with total when payNow is true AND paid amount is empty or equal to previous total
+          if (this.expensePayNow && (!this.expensePaidAmount || this.expensePaidAmount === this.currentInput.slice(0, -1))) {
+            this.expensePaidAmount = this.expenseTotalAmount;
+          }
         } else {
           this.expensePaidAmount += value;
           this.currentInput = this.expensePaidAmount;
@@ -6172,7 +6220,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
       if (isEditingTotal) {
         this.expenseTotalAmount += value;
         this.currentInput = this.expenseTotalAmount;
+        // Auto-sync paid amount with total when payNow is true AND paid amount is empty or equal to previous total
+        // This allows user to manually change paid amount independently
+        if (this.expensePayNow && (!this.expensePaidAmount || this.expensePaidAmount === this.currentInput.slice(0, -1))) {
+          this.expensePaidAmount = this.expenseTotalAmount;
+        }
       } else {
+        // When editing paid amount, allow independent modification
         this.expensePaidAmount += value;
         this.currentInput = this.expensePaidAmount;
       }
@@ -6180,13 +6234,42 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   clearExpenseAmount(): void {
-    const isEditingTotal = this.currentInput === this.expenseTotalAmount;
+    // Use tracking variable to determine which field we're editing
+    const isEditingTotal = this.editingExpenseField === 'total';
     if (isEditingTotal) {
+      // Save total amount before clearing to check if paid was synced
+      const totalBeforeClear = this.expenseTotalAmount;
       this.expenseTotalAmount = '';
-      this.currentInput = this.expenseTotalAmount;
+      this.currentInput = '';
+      // Only clear paid amount if payNow is true AND it was auto-synced (equal to total before clearing)
+      if (this.expensePayNow && this.expensePaidAmount === totalBeforeClear) {
+        this.expensePaidAmount = '';
+      }
     } else {
+      // When clearing paid amount, just clear it independently
       this.expensePaidAmount = '';
-      this.currentInput = this.expensePaidAmount;
+      this.currentInput = '';
+    }
+  }
+
+  setExpensePayNow(payNow: boolean): void {
+    const wasPayNow = this.expensePayNow;
+    this.expensePayNow = payNow;
+    
+    if (payNow && !wasPayNow) {
+      // When switching TO "Maintenant", sync paid amount with total amount only if paid is empty
+      // This allows preserving manually entered paid amount
+      if (!this.expensePaidAmount || this.expensePaidAmount === '') {
+        const totalAmount = this.expenseTotalAmount || '';
+        this.expensePaidAmount = totalAmount;
+      }
+    } else if (!payNow && wasPayNow) {
+      // When switching to "Plus Tard", clear paid amount only if it was auto-synced
+      // Check if paid amount equals total amount (likely auto-synced)
+      if (this.expensePaidAmount === this.expenseTotalAmount) {
+        this.expensePaidAmount = '';
+      }
+      // Otherwise keep the manually entered paid amount
     }
   }
 
@@ -6286,10 +6369,20 @@ export class CaisseComponent implements OnInit, OnDestroy {
       notes = `${notes}${notes ? ' | ' : ''}Paiement partiel: ${paidAmount}dt payé, reste ${remainingAmount}dt`;
     }
 
+    // Get current depot ID
+    const currentDepotId = this.currentShopDepotId || this.authService.currentUser()?.depotId;
+    
+    if (!currentDepotId) {
+      this.showAlertMessage('Aucun dépôt sélectionné. Veuillez sélectionner un dépôt.', 'error');
+      this.submittingSupplierAction = false;
+      return;
+    }
+
     const payload: any = {
       amount: totalAmount,
       categoryId: this.selectedExpenseCategory.id,
       supplierId: this.expenseSupplierId,
+      depotId: currentDepotId, // Include depotId to ensure it's saved correctly
       paymentType: this.expensePaymentType,
       date: new Date().toISOString().split('T')[0],
       collectionDate: this.expensePayNow ? new Date().toISOString().split('T')[0] : this.expenseCollectionDate,
@@ -6300,17 +6393,23 @@ export class CaisseComponent implements OnInit, OnDestroy {
       paidAmount: paidAmount // Pass the actual paid amount for cash movement calculation
     };
 
+    console.log('Creating expense with depotId:', currentDepotId, 'Payload:', payload);
+
     this.expenseService.createExpense(payload).subscribe({
-      next: () => {
+      next: (createdExpense) => {
+        console.log('Expense created successfully:', createdExpense);
         this.showAlertMessage('Dépense enregistrée avec succès', 'success');
         this.submittingSupplierAction = false;
         this.showExpenseForm = false;
         this.resetExpenseForm();
+        // Refresh expense list if needed (for components that display expenses)
+        // Note: The expense is saved in the database and will appear in GET requests
       },
       error: (error) => {
         console.error('Error creating expense:', error);
         this.submittingSupplierAction = false;
-        this.showAlertMessage('Erreur lors de l\'enregistrement de la dépense', 'error');
+        const errorMessage = error?.error?.error || 'Erreur lors de l\'enregistrement de la dépense';
+        this.showAlertMessage(errorMessage, 'error');
       }
     });
   }
@@ -6327,6 +6426,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.expenseCollectionDate = new Date().toISOString().split('T')[0];
     this.selectedExpenseCategory = null;
     this.expenseSupplierSearch = '';
+    this.editingExpenseField = null;
   }
 
   getExpenseRemainingAmount(): number {
@@ -6337,15 +6437,17 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   openAmountInput(type: 'total' | 'paid'): void {
     // Set the current input field for the numpad
-    this.currentInput = type === 'total' ? this.expenseTotalAmount : this.expensePaidAmount;
     this.pendingProduct = null;
     this.inputMode = 'price'; // Use 'price' mode for amount input
+    this.editingExpenseField = type; // Track which field we're editing
     
-    // Clear the current input to start fresh
     if (type === 'total') {
-      this.expenseTotalAmount = '';
+      this.currentInput = this.expenseTotalAmount;
+      // Don't clear - allow continuing to edit existing value or start fresh with numpad
     } else {
-      this.expensePaidAmount = '';
+      this.currentInput = this.expensePaidAmount;
+      // Don't clear - allow editing existing paid amount flexibly
+      // User can modify independently from total
     }
   }
 

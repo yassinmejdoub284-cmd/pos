@@ -95,6 +95,19 @@
           <span class="stat-label">Valeur Écart</span>
         </div>
       </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-blue">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            <path d="M3 6h18l-2 13H5L3 6z"/>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <span class="stat-value">{{ formatCurrency(getTotalStockValue()) }}</span>
+          <span class="stat-label">Valeur Stock Actuel</span>
+        </div>
+      </div>
     </div>
   </section>
 

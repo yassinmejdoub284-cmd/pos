@@ -45,6 +45,29 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Client et montant sont requis' });
     }
 
+    // Enforce depot isolation - verify client belongs to user's depot
+    const userDepotId = req.user?.depotId;
+    if (!userDepotId) {
+      return res.status(400).json({ error: 'User must be assigned to a depot to create client payments' });
+    }
+
+    // Verify client belongs to user's depot (unless admin)
+    if (req.user?.role !== 'ADMIN') {
+      const client = await prisma.client.findUnique({
+        where: { id: Number(clientId) },
+        select: { depotId: true }
+      });
+      
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+      
+      // Allow if client has no depot assigned, or if client's depot matches user's depot
+      if (client.depotId !== null && client.depotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Client does not belong to your depot' });
+      }
+    }
+
     const payment = await prisma.$transaction(async (tx) => {
       // Create the payment transaction (Débit entry)
       const paymentTransaction = await tx.clientDebtTransaction.create({

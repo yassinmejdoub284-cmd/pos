@@ -23,7 +23,23 @@ export class AuthService {
   public currentUser = signal<User | null>(null);
 
   constructor(private http: HttpClient, private attendanceService: AttendanceService, private depotsService: DepotsService, private loginThemeService: LoginThemeService) {
+    // Load auth state immediately on service initialization
     this.loadStoredAuth();
+    
+    // Also ensure token is set if available (double-check for reliability)
+    const token = this.getToken();
+    if (token && !this.isAuthenticated()) {
+      const userStr = sessionStorage.getItem('user');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          this.currentUser.set(user);
+          this.isAuthenticated.set(true);
+        } catch (error) {
+          // If parsing fails, loadStoredAuth will handle it
+        }
+      }
+    }
   }
 
   login(credentials: LoginRequest): Observable<AuthResponse> {
@@ -88,27 +104,43 @@ export class AuthService {
   logout(): void {
     // Fire check-out punch before clearing session (best effort) - only for patisserie users
     const currentUser = this.currentUser();
-    if (!this.punchInProgress && currentUser?.userType !== 'enterprise') {
+    const token = this.getToken();
+    
+    if (!this.punchInProgress && currentUser?.userType !== 'enterprise' && token) {
       this.punchInProgress = true;
       try {
+        // Make punch request and clear session immediately after request is initiated
         this.attendanceService.punch('CHECK_OUT', currentUser?.id).subscribe({ 
           next: () => {
             console.log('Punch check-out successful');
             this.punchInProgress = false;
           }, 
           error: (err) => {
-            console.log('Punch check-out failed:', err);
+            // Only log if it's not a 401 (token might already be invalid)
+            if (err.status !== 401) {
+              console.log('Punch check-out failed:', err);
+            }
             this.punchInProgress = false;
           }
         });
+        
+        // Clear session immediately to prevent API calls with invalid token
+        // The punch request is already in flight, so it will use the token from the request
+        this.clearSession();
       } catch (error) {
         console.log('Error calling punch on logout:', error);
         this.punchInProgress = false;
+        this.clearSession();
       }
-    } else if (currentUser?.userType === 'enterprise') {
-      console.log('Enterprise user logout - skipping attendance punch');
+    } else {
+      if (currentUser?.userType === 'enterprise') {
+        console.log('Enterprise user logout - skipping attendance punch');
+      }
+      this.clearSession();
     }
-    
+  }
+
+  private clearSession(): void {
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('permissions');
@@ -198,13 +230,20 @@ export class AuthService {
     const permissionsStr = sessionStorage.getItem('permissions');
 
     if (token && userStr && permissionsStr) {
-      const user = JSON.parse(userStr);
-      const permissions = JSON.parse(permissionsStr);
-      
-      this.currentUserSubject.next(user);
-      this.permissionsSubject.next(permissions);
-      this.isAuthenticated.set(true);
-      this.currentUser.set(user);
+      try {
+        const user = JSON.parse(userStr);
+        const permissions = JSON.parse(permissionsStr);
+        
+        this.currentUserSubject.next(user);
+        this.permissionsSubject.next(permissions);
+        this.isAuthenticated.set(true);
+        this.currentUser.set(user);
+      } catch (error) {
+        // If parsing fails, clear corrupted data
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('permissions');
+      }
     }
   }
 

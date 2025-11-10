@@ -38,6 +38,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   activeFilter = 'all';
   selectedSupplierFilter: number | null = null;
   selectedCategoryFilter: number | null = null;
+  expensesViewMode: 'grid' | 'table' = 'table';
   // Wizard state
   addExpenseStep: 'category' | 'payment' | 'supplier' | 'notes' = 'category';
   payNow = true;
@@ -120,16 +121,33 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     this.loading = true;
     this.error = '';
 
-    Promise.all([
+    // Get current user from auth service directly
+    const user = this.authService.currentUser();
+    const isAdminUser = user?.role === 'ADMIN';
+    
+    const promises: Promise<any>[] = [
       this.expenseService.getCategories().toPromise(),
       this.expenseService.getExpenses().toPromise(),
-      this.expenseService.getStats().toPromise(),
       this.supplierService.getSuppliers().toPromise()
-    ]).then(([categories, expenses, stats, suppliers]) => {
-      this.categories = categories || [];
-      this.expenses = expenses || [];
-      this.stats = stats || null;
-      this.suppliers = (suppliers || []).filter((s: any) => s.isActive !== false);
+    ];
+
+    // Only load stats for admin users
+    if (isAdminUser) {
+      promises.push(this.expenseService.getStats().toPromise());
+    }
+
+    Promise.all(promises).then((results) => {
+      this.categories = results[0] || [];
+      this.expenses = results[1] || [];
+      this.suppliers = (results[2] || []).filter((s: any) => s.isActive !== false);
+      
+      // Stats are only loaded for admin users
+      if (isAdminUser && results.length > 3) {
+        this.stats = results[3] || null;
+      } else {
+        this.stats = null;
+      }
+      
       this.pendingExpenses = this.expenses.filter(e => !e.isApproved);
       this.loading = false;
     }).catch(error => {
@@ -225,6 +243,10 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   }
 
   openApprovalModal() {
+    if (!this.isAdmin()) {
+      this.error = 'Accès réservé aux administrateurs';
+      return;
+    }
     this.showApprovalModal = true;
   }
 
@@ -233,6 +255,10 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   }
 
   openStatsModal() {
+    if (!this.isAdmin()) {
+      this.error = 'Accès réservé aux administrateurs';
+      return;
+    }
     this.showStatsModal = true;
     setTimeout(() => {
       this.initializeCharts();
@@ -469,19 +495,32 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     }
 
     try {
+      // Get current depot ID (visiting depot or user's depot)
+      const visitingDepotId = sessionStorage.getItem('visitingDepotId');
+      const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (this.currentUser.depotId || null);
+      
+      if (!currentDepotId) {
+        this.error = 'Aucun dépôt sélectionné. Veuillez sélectionner un dépôt.';
+        return;
+      }
+
       const expense = {
         ...this.newExpense,
-        depotId: this.currentUser.depotId || 1,
+        depotId: currentDepotId, // Use current depot ID
         userId: this.currentUser.id,
         payNow: this.payNow // Pass payment timing to server
       };
 
+      console.log('Creating expense with depotId:', currentDepotId, 'Expense:', expense);
+
       await this.expenseService.createExpense(expense).toPromise();
       
       this.closeAddExpenseModal();
+      // Reload data to show the new expense
       this.loadData();
-    } catch (error) {
-      this.error = 'Erreur lors de l\'enregistrement de la dépense';
+    } catch (error: any) {
+      const errorMessage = error?.error?.error || 'Erreur lors de l\'enregistrement de la dépense';
+      this.error = errorMessage;
       console.error('Error saving expense:', error);
     }
   }
@@ -509,6 +548,11 @@ export class ChargesComponent implements OnInit, AfterViewInit {
       return;
     }
 
+    if (!this.isAdmin()) {
+      this.error = 'Accès réservé aux administrateurs';
+      return;
+    }
+
     try {
       await this.expenseService.approveExpense(expense.id, isApproved).toPromise();
       this.loadData();
@@ -532,6 +576,11 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
   getCurrentUserRole(): string {
     return this.currentUser?.role || 'Unknown';
+  }
+
+  isAdmin(): boolean {
+    const user = this.authService.currentUser();
+    return user?.role === 'ADMIN';
   }
 
   getPaymentTypeIcon(paymentType: PaymentType): string {
@@ -563,7 +612,9 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   }
 
   getDisplayedExpenses(): Expense[] {
-    return this.expenses.slice(0, 5);
+    // Use filtered expenses to respect category filter
+    const filtered = this.getFilteredExpenses();
+    return filtered.slice(0, 5);
   }
 
   getFilteredExpenses(): Expense[] {
@@ -640,8 +691,15 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   // Category action methods
   showCategoryActions(category: ExpenseCategory, event: Event) {
     event.stopPropagation();
+    event.preventDefault();
     this.selectedCategoryForAction = category;
     this.showCategoryActionMenu = true;
+  }
+
+  // Direct click on category to consult expenses
+  consultCategoryDirectly(category: ExpenseCategory) {
+    this.selectedCategoryForAction = category;
+    this.consultCategory();
   }
 
   hideCategoryActions() {
@@ -658,6 +716,15 @@ export class ChargesComponent implements OnInit, AfterViewInit {
       this.activeFilter = 'all';
       this.searchQuery = ''; // Clear search query to show all expenses for this category
       this.hideCategoryActions();
+      // Open the all expenses modal to show filtered expenses
+      this.openAllExpensesModal();
+      // Scroll to expenses section after a short delay to ensure modal is rendered
+      setTimeout(() => {
+        const expensesSection = document.querySelector('.flex-1.overflow-y-auto');
+        if (expensesSection) {
+          expensesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
     }
   }
 

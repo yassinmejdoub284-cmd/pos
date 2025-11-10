@@ -2,6 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { ProductsService } from '../../core/services/products.service';
 import { Product, ProductFamily } from '../../core/models/product.model';
 import { AuthService } from '../../core/services/auth.service';
+import { DepotsService } from '../../core/services/depots.service';
+import { Depot } from '../../core/models/depot.model';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-products',
@@ -24,11 +27,15 @@ export class ProductsComponent implements OnInit {
   showImportModal = false;
   showImageUploadModal = false;
   showVracModal = false;
+  showTransferModal = false;
   editingProduct: Product | null = null;
   selectedProductForImage: Product | null = null;
   selectedProductForVrac: Product | null = null;
+  selectedProductForTransfer: Product | null = null;
   families: ProductFamily[] = [];
   viewMode: 'table' | 'grid' = 'table';
+  depots: Depot[] = [];
+  selectedDepotId: number | null = null;
 
   // Palette classes for family badges (light vibrant colors)
   private familyColorClasses: string[] = [
@@ -40,33 +47,157 @@ export class ProductsComponent implements OnInit {
     'bg-gradient-to-r from-cyan-100 to-sky-200 text-cyan-800 border border-cyan-200'
   ];
 
-  constructor(private productsService: ProductsService, private authService: AuthService) {}
+  constructor(
+    private productsService: ProductsService,
+    private authService: AuthService,
+    private depotsService: DepotsService
+  ) {}
 
   ngOnInit(): void {
-    this.loadProducts();
+    this.loadDepots();
     this.loadFamilies();
+  }
+
+  loadDepots(): void {
+    const isAdmin = this.authService.isAdmin();
+    const currentUser = this.authService.currentUser();
+    
+    if (isAdmin) {
+      // Admin can see and select all depots
+      this.depotsService.list().subscribe({
+        next: (depots) => {
+          this.depots = depots.filter(d => d.isActive);
+          // Initialize selected depot from session or user's depot
+          const userDepotId = currentUser?.depotId || 0;
+          const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
+          const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
+          this.selectedDepotId = currentDepotId || null;
+          this.loadProducts();
+        },
+        error: (error) => {
+          console.error('Error loading depots:', error);
+          this.error = 'Erreur lors du chargement des dépôts';
+          this.loading = false;
+        }
+      });
+    } else {
+      // Non-admin users can only see their assigned depot
+      const userDepotId = currentUser?.depotId;
+      if (userDepotId) {
+        this.depotsService.get(userDepotId).subscribe({
+          next: (depot) => {
+            this.depots = [depot];
+            this.selectedDepotId = userDepotId;
+            this.loadProducts();
+          },
+          error: (error) => {
+            console.error('Error loading user depot:', error);
+            this.error = 'Erreur lors du chargement de votre dépôt';
+            this.loading = false;
+          }
+        });
+      } else {
+        this.error = 'Aucun dépôt assigné à votre compte';
+        this.loading = false;
+      }
+    }
+  }
+
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
+  onDepotChange(): void {
+    this.currentPage = 1;
+    this.loadProducts();
   }
 
   loadProducts(): void {
     this.loading = true;
     this.error = '';
 
-    // Determine current depot like in caisse: visitingDepotId overrides user's depotId
-    const userDepotId = this.authService.currentUser()?.depotId || 0;
-    const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
-    const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
-
-    this.productsService.getProducts(currentDepotId || undefined).subscribe({
-      next: (products) => {
-        this.allProducts = products;
-        this.applyFilters();
+    if (this.selectedDepotId === null) {
+      // Load products from all depots
+      const activeDepots = this.depots.filter(d => d.isActive);
+      if (activeDepots.length === 0) {
+        this.error = 'Aucun dépôt actif trouvé';
         this.loading = false;
-      },
-      error: (error) => {
-        this.error = 'Erreur lors du chargement des produits';
-        this.loading = false;
+        return;
       }
-    });
+
+      const productRequests = activeDepots.map(depot =>
+        this.productsService.getProducts(depot.id)
+      );
+
+      forkJoin(productRequests).subscribe({
+        next: (productsArrays) => {
+          // Combine all products and remove duplicates by product ID
+          const productMap = new Map<number, Product>();
+          
+          productsArrays.forEach(products => {
+            products.forEach(product => {
+              if (!productMap.has(product.id)) {
+                // Transform depotAssignments to assignedDepots
+                if (product.depotAssignments && product.depotAssignments.length > 0 && !product.assignedDepots) {
+                  product.assignedDepots = product.depotAssignments
+                    .map(assignment => assignment.depot)
+                    .filter((depot): depot is NonNullable<typeof depot> => depot !== null && depot !== undefined);
+                }
+                productMap.set(product.id, product);
+              } else {
+                // Merge depot assignments if product already exists
+                const existingProduct = productMap.get(product.id)!;
+                if (product.depotAssignments && product.depotAssignments.length > 0) {
+                  const newDepots = product.depotAssignments
+                    .map(assignment => assignment.depot)
+                    .filter((depot): depot is NonNullable<typeof depot> => depot !== null && depot !== undefined);
+                  
+                  if (existingProduct.assignedDepots) {
+                    const existingDepotIds = existingProduct.assignedDepots.map(d => d.id);
+                    newDepots.forEach(depot => {
+                      if (!existingDepotIds.includes(depot.id)) {
+                        existingProduct.assignedDepots!.push(depot);
+                      }
+                    });
+                  } else {
+                    existingProduct.assignedDepots = newDepots;
+                  }
+                }
+              }
+            });
+          });
+
+          this.allProducts = Array.from(productMap.values());
+          this.applyFilters();
+          this.loading = false;
+        },
+        error: (error) => {
+          this.error = 'Erreur lors du chargement des produits';
+          this.loading = false;
+        }
+      });
+    } else {
+      // Load products from selected depot
+      this.productsService.getProducts(this.selectedDepotId).subscribe({
+        next: (products) => {
+          // Transform depotAssignments to assignedDepots for all products
+          this.allProducts = products.map(product => {
+            if (product.depotAssignments && product.depotAssignments.length > 0 && !product.assignedDepots) {
+              product.assignedDepots = product.depotAssignments
+                .map(assignment => assignment.depot)
+                .filter((depot): depot is NonNullable<typeof depot> => depot !== null && depot !== undefined);
+            }
+            return product;
+          });
+          this.applyFilters();
+          this.loading = false;
+        },
+        error: (error) => {
+          this.error = 'Erreur lors du chargement des produits';
+          this.loading = false;
+        }
+      });
+    }
   }
 
   loadFamilies(): void {
@@ -150,7 +281,14 @@ export class ProductsComponent implements OnInit {
   }
 
   openEditModal(product: Product): void {
-    this.editingProduct = { ...product };
+    // Transform depotAssignments to assignedDepots if needed
+    const editingProduct: Product = { ...product };
+    if (product.depotAssignments && product.depotAssignments.length > 0 && !product.assignedDepots) {
+      editingProduct.assignedDepots = product.depotAssignments
+        .map(assignment => assignment.depot)
+        .filter((depot): depot is NonNullable<typeof depot> => depot !== null && depot !== undefined);
+    }
+    this.editingProduct = editingProduct;
     this.showAddModal = true;
   }
 
@@ -162,8 +300,58 @@ export class ProductsComponent implements OnInit {
     this.showAddModal = false;
     this.showImportModal = false;
     this.showVracModal = false;
+    this.showTransferModal = false;
     this.editingProduct = null;
     this.selectedProductForVrac = null;
+    this.selectedProductForTransfer = null;
+  }
+
+  openTransferModal(product: Product): void {
+    this.selectedProductForTransfer = product;
+    this.showTransferModal = true;
+  }
+
+  closeTransferModal(): void {
+    this.showTransferModal = false;
+    this.selectedProductForTransfer = null;
+  }
+
+  onProductTransferred(transferData: {
+    targetProductId: number;
+    quantity: number;
+    conversionRatio: number;
+    targetType: string;
+  }): void {
+    if (!this.selectedProductForTransfer) return;
+
+    this.loading = true;
+    this.error = '';
+
+    const userDepotId = this.authService.currentUser()?.depotId || 0;
+    const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
+    const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
+
+    const transferPayload = {
+      sourceProductId: this.selectedProductForTransfer.id,
+      targetProductId: transferData.targetProductId,
+      quantity: parseFloat(transferData.quantity.toString()),
+      conversionRatio: parseFloat(transferData.conversionRatio.toString()),
+      depotId: currentDepotId
+    };
+
+    console.log('Transfer payload:', transferPayload);
+
+    this.productsService.transferProduct(transferPayload).subscribe({
+      next: () => {
+        this.closeTransferModal();
+        this.loadProducts();
+        this.loading = false;
+      },
+      error: (error) => {
+        this.error = error.error?.error || 'Erreur lors du transfert du produit';
+        this.loading = false;
+      }
+    });
   }
 
   onProductSaved(): void {

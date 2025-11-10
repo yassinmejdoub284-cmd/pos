@@ -1,13 +1,61 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
+const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
 // Get all clients with optional search and filters
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 50, active, q, search, type } = req.query;
+    const { page = 1, limit = 50, active, q, search, type, depotId } = req.query;
 
     const where = {};
+    
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine which depot to use: requested > visiting > user's depot
+    let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot (for MANAGER/CASHIER with visiting depot header)
+      else if (targetDepotId && visitingDepotId && targetDepotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Allow if user has no depot assigned but valid depot is requested
+      else if (!userDepotId && targetDepotId) {
+        // Check if depot exists and is active
+        const depot = await prisma.depot.findFirst({
+          where: { id: targetDepotId, isActive: true }
+        });
+        if (!depot) {
+          return res.status(403).json({ error: 'Invalid depot specified' });
+        }
+        // Allow access for users without assigned depot (like RESPONSABLE_MAGASIN)
+      }
+      // Deny if trying to access different depot
+      else if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot clients' });
+      }
+      // Deny if no depot available
+      else if (!targetDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view clients' });
+      }
+    }
+    
+    if (targetDepotId) {
+      where.depotId = targetDepotId;
+    } else if (req.user?.role !== 'ADMIN') {
+      // Non-admin users without depot assigned cannot view clients
+      return res.status(400).json({ error: 'User must be assigned to a depot to view clients' });
+    }
+    
     if (active !== undefined && active !== '') where.isActive = active === 'true';
 
     // Support both q and search as the search term
@@ -57,16 +105,24 @@ router.get('/', async (req, res) => {
 });
 
 // Search clients for POS (put before :id)
-router.get('/search/pos', async (req, res) => {
+router.get('/search/pos', authenticateToken, async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, depotId } = req.query;
     
     if (!q || q.length < 2) {
       return res.json({ clients: [] });
     }
 
-    const clients = await prisma.client.findMany({
-      where: {
+    // Enforce depot isolation - filter by user's depot
+    const userDepotId = req.user?.depotId;
+    const requestedDepotId = depotId ? parseInt(depotId) : userDepotId;
+    
+    // For non-admin users, only allow access to their own depot
+    if (req.user?.role !== 'ADMIN' && requestedDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot clients' });
+    }
+
+    const whereClause = {
         isActive: true,
         OR: [
           { firstName: { contains: q } },
@@ -75,7 +131,17 @@ router.get('/search/pos', async (req, res) => {
           { code: { contains: q } },
           { matriculeFiscal: { contains: q } }
         ]
-      },
+    };
+    
+    if (requestedDepotId) {
+      whereClause.depotId = requestedDepotId;
+    } else if (req.user?.role !== 'ADMIN') {
+      // Non-admin users without depot assigned cannot view clients
+      return res.status(400).json({ error: 'User must be assigned to a depot to view clients' });
+    }
+
+    const clients = await prisma.client.findMany({
+      where: whereClause,
       select: {
         id: true,
         code: true,
@@ -108,11 +174,30 @@ router.get('/search/pos', async (req, res) => {
 });
 
 // Get client by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const { depotId } = req.query;
+    
+    // Enforce depot isolation - filter by user's depot
+    const userDepotId = req.user?.depotId;
+    const requestedDepotId = depotId ? parseInt(depotId) : userDepotId;
+    
+    // For non-admin users, only allow access to their own depot
+    if (req.user?.role !== 'ADMIN' && requestedDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot clients' });
+    }
+    
+    const whereClause = { id: parseInt(id) };
+    if (requestedDepotId) {
+      whereClause.depotId = requestedDepotId;
+    } else if (req.user?.role !== 'ADMIN') {
+      // Non-admin users without depot assigned cannot view clients
+      return res.status(400).json({ error: 'User must be assigned to a depot to view clients' });
+    }
+    
     const client = await prisma.client.findUnique({
-      where: { id: parseInt(id) },
+      where: whereClause,
       include: {
         depot: {
           select: {
@@ -122,6 +207,7 @@ router.get('/:id', async (req, res) => {
           }
         },
         sales: {
+          where: requestedDepotId ? { depotId: requestedDepotId } : (req.user?.role !== 'ADMIN' ? { depotId: userDepotId } : {}),
           include: {
             items: {
               include: {
@@ -150,9 +236,24 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create new client
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { firstName, lastName, phone, city, address, matriculeFiscal, clientType, depotId, notes, maxDebt, allowDebt, pictureUrl } = req.body;
+
+    // Enforce depot isolation - use provided depotId for admin, or user's depotId for non-admin
+    const userDepotId = req.user?.depotId;
+    let targetDepotId = null;
+    
+    if (req.user?.role === 'ADMIN') {
+      // Admin can choose depotId from request body
+      targetDepotId = depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null;
+    } else {
+      // Non-admin users must use their assigned depotId
+      if (!userDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot to create clients' });
+      }
+      targetDepotId = userDepotId;
+    }
 
     let defaultMax = null;
     try {
@@ -177,7 +278,7 @@ router.post('/', async (req, res) => {
           pictureUrl,
           matriculeFiscal,
           clientType: clientType || 'INDIVIDUAL',
-          depotId: depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null,
+          depotId: targetDepotId,
           notes,
           maxDebt: maxDebt !== undefined ? parseFloat(maxDebt) : defaultMax,
           allowDebt: allowDebt !== undefined ? !!allowDebt : true
@@ -307,16 +408,24 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Search clients for POS
-router.get('/search/pos', async (req, res) => {
+router.get('/search/pos', authenticateToken, async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, depotId } = req.query;
     
     if (!q || q.length < 2) {
       return res.json({ clients: [] });
     }
 
-    const clients = await prisma.client.findMany({
-      where: {
+    // Enforce depot isolation - filter by user's depot
+    const userDepotId = req.user?.depotId;
+    const requestedDepotId = depotId ? parseInt(depotId) : userDepotId;
+    
+    // For non-admin users, only allow access to their own depot
+    if (req.user?.role !== 'ADMIN' && requestedDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot clients' });
+    }
+
+    const whereClause = {
         isActive: true,
         OR: [
           { firstName: { contains: q } },
@@ -324,7 +433,17 @@ router.get('/search/pos', async (req, res) => {
           { phone: { contains: q } },
           { code: { contains: q } }
         ]
-      },
+    };
+    
+    if (requestedDepotId) {
+      whereClause.depotId = requestedDepotId;
+    } else if (req.user?.role !== 'ADMIN') {
+      // Non-admin users without depot assigned cannot view clients
+      return res.status(400).json({ error: 'User must be assigned to a depot to view clients' });
+    }
+
+    const clients = await prisma.client.findMany({
+      where: whereClause,
       select: {
         id: true,
         code: true,

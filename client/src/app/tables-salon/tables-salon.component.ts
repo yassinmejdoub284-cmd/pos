@@ -258,6 +258,115 @@ export class TablesSalonComponent implements OnInit {
     return this.getTablesBySalon(salonId).length;
   }
 
+  getDominantColorForSalon(salonId: number): string {
+    const tables = this.getTablesBySalon(salonId);
+    if (tables.length === 0) return '#F3E8FF'; // Default light purple
+
+    // Count color occurrences
+    const colorCount: { [key: string]: number } = {};
+    tables.forEach(table => {
+      colorCount[table.color] = (colorCount[table.color] || 0) + 1;
+    });
+
+    // Find the most frequent color
+    let dominantColor = '#F3E8FF';
+    let maxCount = 0;
+    for (const [color, count] of Object.entries(colorCount)) {
+      if (count > maxCount) {
+        maxCount = count;
+        dominantColor = color;
+      }
+    }
+
+    // Convert to pastel vibrant version
+    return this.convertToPastelVibrant(dominantColor);
+  }
+
+  private convertToPastelVibrant(hexColor: string): string {
+    // Remove # if present
+    const hex = hexColor.replace('#', '');
+    
+    // Convert to RGB
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Convert to HSL for easier manipulation
+    const hsl = this.rgbToHsl(r, g, b);
+    
+    // Make it more vibrant and pastel
+    const vibrantHsl = {
+      h: hsl.h,
+      s: Math.min(85, hsl.s + 20), // Increase saturation but keep it pastel
+      l: Math.min(85, hsl.l + 15)  // Increase lightness for pastel effect
+    };
+    
+    // Convert back to RGB and then to hex
+    const rgb = this.hslToRgb(vibrantHsl.h, vibrantHsl.s, vibrantHsl.l);
+    return this.rgbToHex(rgb.r, rgb.g, rgb.b);
+  }
+
+  private rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    
+    return { h: h * 360, s: s * 100, l: l * 100 };
+  }
+
+  private hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
+    h /= 360;
+    s /= 100;
+    l /= 100;
+    
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    
+    let r, g, b;
+    
+    if (s === 0) {
+      r = g = b = l; // achromatic
+    } else {
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1/3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1/3);
+    }
+    
+    return {
+      r: Math.round(r * 255),
+      g: Math.round(g * 255),
+      b: Math.round(b * 255)
+    };
+  }
+
+  private rgbToHex(r: number, g: number, b: number): string {
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
+
   // Drag and drop functionality
   onTableDragStart(event: DragEvent, table: Table): void {
     if (event.dataTransfer) {

@@ -1,8 +1,9 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import Chart from 'chart.js/auto';
+import { PrintService } from '../../core/services/print.service';
 
 interface DashboardData {
   sales: {
@@ -25,6 +26,13 @@ interface DashboardData {
     monthly: number;
     yearly: number;
   };
+  stockValue: number;
+  resultStockOnly?: { daily: number; monthly: number; yearly: number };
+  resultTotal?: { daily: number; monthly: number; yearly: number };
+  finalResult?: { daily: number; monthly: number; yearly: number };
+  discounts?: { daily: number; monthly: number; yearly: number };
+  freeItems?: { daily: number; monthly: number; yearly: number };
+  expenses?: { daily: number; monthly: number; yearly: number };
 }
 
 interface ChartData {
@@ -45,7 +53,19 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   
   loading = false;
   error = '';
-  dashboardData: DashboardData | null = null;
+  dashboardData: DashboardData = {
+    sales: { daily: 0, monthly: 0, yearly: 0 },
+    purchases: { daily: 0, monthly: 0, yearly: 0 },
+    indicators: { newClients: 0, newNegotiations: 0, paymentDelays: 0 },
+    results: { daily: 0, monthly: 0, yearly: 0 },
+    stockValue: 0,
+    resultStockOnly: { daily: 0, monthly: 0, yearly: 0 },
+    resultTotal: { daily: 0, monthly: 0, yearly: 0 },
+    finalResult: { daily: 0, monthly: 0, yearly: 0 },
+    discounts: { daily: 0, monthly: 0, yearly: 0 },
+    freeItems: { daily: 0, monthly: 0, yearly: 0 },
+    expenses: { daily: 0, monthly: 0, yearly: 0 }
+  };
   
   // Charts
   salesChart: Chart | null = null;
@@ -56,6 +76,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   // Chart visibility
   showCharts = true;
   selectedPeriod = 'monthly'; // daily, monthly, yearly
+  startDate: string = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  endDate: string = new Date().toISOString().split('T')[0];
+
+  private readonly printService = inject(PrintService);
 
   constructor(
     private router: Router,
@@ -74,10 +98,29 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.loading = true;
     this.error = '';
 
-    this.http.get<DashboardData>(`${environment.apiUrl}/reports/dashboard`)
+    const params: any = {};
+    if (this.startDate) params.startDate = this.startDate;
+    if (this.endDate) params.endDate = this.endDate;
+
+    this.http.get<DashboardData>(`${environment.apiUrl}/reports/dashboard`, { params })
       .subscribe({
         next: (data) => {
-          this.dashboardData = data;
+          // Merge API data over safe defaults to avoid undefined nested objects
+          this.dashboardData = {
+            ...this.dashboardData,
+            ...data,
+            sales: { ...(this.dashboardData.sales || { daily: 0, monthly: 0, yearly: 0 }), ...(data?.sales || {}) },
+            purchases: { ...(this.dashboardData.purchases || { daily: 0, monthly: 0, yearly: 0 }), ...(data?.purchases || {}) },
+            indicators: { ...(this.dashboardData.indicators || { newClients: 0, newNegotiations: 0, paymentDelays: 0 }), ...(data?.indicators || {}) },
+            results: { ...(this.dashboardData.results || { daily: 0, monthly: 0, yearly: 0 }), ...(data?.results || {}) },
+            stockValue: data?.stockValue || 0,
+            resultStockOnly: { ...(this.dashboardData.resultStockOnly || { daily: 0, monthly: 0, yearly: 0 }), ...(data?.resultStockOnly || {}) },
+            resultTotal: { ...(this.dashboardData.resultTotal || { daily: 0, monthly: 0, yearly: 0 }), ...(data?.resultTotal || {}) },
+            finalResult: { ...(this.dashboardData.finalResult || { daily: 0, monthly: 0, yearly: 0 }), ...(data?.finalResult || {}) },
+            discounts: { ...(this.dashboardData.discounts || { daily: 0, monthly: 0, yearly: 0 }), ...(data?.discounts || {}) },
+            freeItems: { ...(this.dashboardData.freeItems || { daily: 0, monthly: 0, yearly: 0 }), ...(data?.freeItems || {}) },
+            expenses: { ...(this.dashboardData.expenses || { daily: 0, monthly: 0, yearly: 0 }), ...(data?.expenses || {}) }
+          };
           this.loading = false;
           if (this.showCharts) {
             setTimeout(() => this.createAllCharts(), 100);
@@ -89,6 +132,22 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           console.error('Error loading dashboard:', error);
         }
       });
+  }
+
+  onDateChange(): void {
+    this.loadDashboardData();
+  }
+
+  onStartDateChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.startDate = input?.value || this.startDate;
+    this.onDateChange();
+  }
+
+  onEndDateChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.endDate = input?.value || this.endDate;
+    this.onDateChange();
   }
 
   toggleCharts(): void {
@@ -144,6 +203,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const ctx = this.salesChartCanvas.nativeElement.getContext('2d');
     if (!ctx) return;
 
+    if (!this.dashboardData?.sales) return;
     const data = this.dashboardData.sales;
     const labels = ['Journalier', 'Mensuel', 'Annuel'];
     const values = [data.daily, data.monthly, data.yearly];
@@ -204,6 +264,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const ctx = this.resultsChartCanvas.nativeElement.getContext('2d');
     if (!ctx) return;
 
+    if (!this.dashboardData?.results) return;
     const data = this.dashboardData.results;
     const labels = ['Journalier', 'Mensuel', 'Annuel'];
     const values = [data.daily, data.monthly, data.yearly];
@@ -253,6 +314,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const ctx = this.indicatorsChartCanvas.nativeElement.getContext('2d');
     if (!ctx) return;
 
+    if (!this.dashboardData?.indicators) return;
     const data = this.dashboardData.indicators;
     const labels = ['Nouveaux Clients', 'Nouvelles Négociations', 'Retards Paiement'];
     const values = [data.newClients, data.newNegotiations, data.paymentDelays];
@@ -314,8 +376,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       labels.push(date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
       
       // Simulate daily data based on monthly averages
-      const dailySales = this.dashboardData.sales.monthly / 30 + (Math.random() - 0.5) * 100;
-      const dailyPurchases = this.dashboardData.purchases.monthly / 30 + (Math.random() - 0.5) * 50;
+      const dailySales = (this.dashboardData?.sales?.monthly || 0) / 30 + (Math.random() - 0.5) * 100;
+      const dailyPurchases = (this.dashboardData?.purchases?.monthly || 0) / 30 + (Math.random() - 0.5) * 50;
       
       salesData.push(Math.max(0, dailySales));
       purchasesData.push(Math.max(0, dailyPurchases));
@@ -380,14 +442,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   getSalesGrowth(): number {
-    if (!this.dashboardData) return 0;
+    if (!this.dashboardData?.sales) return 0;
     const monthly = this.dashboardData.sales.monthly;
     const daily = this.dashboardData.sales.daily;
     return monthly > 0 ? ((daily * 30 - monthly) / monthly) * 100 : 0;
   }
 
   getResultsGrowth(): number {
-    if (!this.dashboardData) return 0;
+    if (!this.dashboardData?.results) return 0;
     const monthly = this.dashboardData.results.monthly;
     const daily = this.dashboardData.results.daily;
     return monthly > 0 ? ((daily * 30 - monthly) / monthly) * 100 : 0;
@@ -422,15 +484,21 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   generateDashboardCSV(): string {
     if (!this.dashboardData) return '';
-
+    
     const headers = ['Métrique', 'Journalier', 'Mensuel', 'Annuel'];
     const rows = [
-      ['Ventes (dt)', this.dashboardData.sales.daily.toFixed(2), this.dashboardData.sales.monthly.toFixed(2), this.dashboardData.sales.yearly.toFixed(2)],
-      ['Achats (dt)', this.dashboardData.purchases.daily.toFixed(2), this.dashboardData.purchases.monthly.toFixed(2), this.dashboardData.purchases.yearly.toFixed(2)],
-      ['Résultats (dt)', this.dashboardData.results.daily.toFixed(2), this.dashboardData.results.monthly.toFixed(2), this.dashboardData.results.yearly.toFixed(2)],
-      ['Nouveaux Clients', '', this.dashboardData.indicators.newClients.toString(), ''],
-      ['Nouvelles Négociations', '', this.dashboardData.indicators.newNegotiations.toString(), ''],
-      ['Retards Paiement', '', this.dashboardData.indicators.paymentDelays.toString(), '']
+      ['Ventes (dt)', (this.dashboardData.sales?.daily || 0).toFixed(2), (this.dashboardData.sales?.monthly || 0).toFixed(2), (this.dashboardData.sales?.yearly || 0).toFixed(2)],
+      ['Achats (dt)', (this.dashboardData.purchases?.daily || 0).toFixed(2), (this.dashboardData.purchases?.monthly || 0).toFixed(2), (this.dashboardData.purchases?.yearly || 0).toFixed(2)],
+      ['Valeur Stock CMUP (dt)', '', '', (this.dashboardData.stockValue || 0).toFixed(2)],
+      ['Résultat stock vendu (dt)', (this.dashboardData.resultStockOnly?.daily || 0).toFixed(2), (this.dashboardData.resultStockOnly?.monthly || 0).toFixed(2), (this.dashboardData.resultStockOnly?.yearly || 0).toFixed(2)],
+      ['Résultat total (dt)', (this.dashboardData.resultTotal?.daily || 0).toFixed(2), (this.dashboardData.resultTotal?.monthly || 0).toFixed(2), (this.dashboardData.resultTotal?.yearly || 0).toFixed(2)],
+      ['Résultat final (dt)', (this.dashboardData.finalResult?.daily || 0).toFixed(2), (this.dashboardData.finalResult?.monthly || 0).toFixed(2), (this.dashboardData.finalResult?.yearly || 0).toFixed(2)],
+      ['Remises (dt)', (this.dashboardData.discounts?.daily || 0).toFixed(2), (this.dashboardData.discounts?.monthly || 0).toFixed(2), (this.dashboardData.discounts?.yearly || 0).toFixed(2)],
+      ['Gratuits (dt)', (this.dashboardData.freeItems?.daily || 0).toFixed(2), (this.dashboardData.freeItems?.monthly || 0).toFixed(2), (this.dashboardData.freeItems?.yearly || 0).toFixed(2)],
+      ['Dépenses (dt)', (this.dashboardData.expenses?.daily || 0).toFixed(2), (this.dashboardData.expenses?.monthly || 0).toFixed(2), (this.dashboardData.expenses?.yearly || 0).toFixed(2)],
+      ['Nouveaux Clients', '', (this.dashboardData.indicators?.newClients || 0).toString(), ''],
+      ['Nouvelles Négociations', '', (this.dashboardData.indicators?.newNegotiations || 0).toString(), ''],
+      ['Retards Paiement', '', (this.dashboardData.indicators?.paymentDelays || 0).toString(), '']
     ];
 
     return [headers, ...rows].map(row => 
@@ -439,7 +507,31 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   printDashboard(): void {
-    window.print();
+    const title = 'Dashboard';
+    const htmlContent = `
+      <div class="header">
+        <div class="title">${title}</div>
+        <div class="subtitle">Date: ${new Date().toLocaleDateString('fr-FR')}</div>
+      </div>
+      
+      <div class="summary">
+        <p><strong>Ventes Journalières:</strong> ${this.dashboardData.sales.daily.toFixed(3)} dt</p>
+        <p><strong>Ventes Mensuelles:</strong> ${this.dashboardData.sales.monthly.toFixed(3)} dt</p>
+        <p><strong>Ventes Annuelles:</strong> ${this.dashboardData.sales.yearly.toFixed(3)} dt</p>
+        <p><strong>Achats Journaliers:</strong> ${this.dashboardData.purchases.daily.toFixed(3)} dt</p>
+        <p><strong>Achats Mensuels:</strong> ${this.dashboardData.purchases.monthly.toFixed(3)} dt</p>
+        <p><strong>Achats Annuels:</strong> ${this.dashboardData.purchases.yearly.toFixed(3)} dt</p>
+        <p><strong>Résultat Journalier:</strong> ${this.dashboardData.results.daily.toFixed(3)} dt</p>
+        <p><strong>Résultat Mensuel:</strong> ${this.dashboardData.results.monthly.toFixed(3)} dt</p>
+        <p><strong>Résultat Annuel:</strong> ${this.dashboardData.results.yearly.toFixed(3)} dt</p>
+        <p><strong>Valeur Stock:</strong> ${this.dashboardData.stockValue.toFixed(3)} dt</p>
+        <p><strong>Nouveaux Clients:</strong> ${this.dashboardData.indicators.newClients}</p>
+        <p><strong>Nouvelles Négociations:</strong> ${this.dashboardData.indicators.newNegotiations}</p>
+        <p><strong>Retards de Paiement:</strong> ${this.dashboardData.indicators.paymentDelays}</p>
+      </div>
+    `;
+    
+    this.printService.printA4Report(htmlContent, title);
   }
 
   goBack(): void {

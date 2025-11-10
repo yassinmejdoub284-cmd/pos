@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { DepotsService } from '../../core/services/depots.service';
 import { Depot } from '../../core/models/depot.model';
 
@@ -12,6 +12,7 @@ export class DepotSelectionComponent implements OnInit {
   depots: Depot[] = [];
   loading = false;
   error = '';
+  isReturnMode = false;
   
   // Dialog state
   showOptionsDialog = false;
@@ -19,11 +20,16 @@ export class DepotSelectionComponent implements OnInit {
 
   constructor(
     private router: Router,
+    private route: ActivatedRoute,
     private depotsService: DepotsService
   ) {}
 
   ngOnInit(): void {
     this.loadDepots();
+    // Check if we're in return mode
+    this.route.queryParams.subscribe(params => {
+      this.isReturnMode = params['type'] === 'return';
+    });
   }
 
   loadDepots(): void {
@@ -62,7 +68,11 @@ export class DepotSelectionComponent implements OnInit {
 
   goToEntryManagement(): void {
     if (this.selectedDepot) {
-      this.router.navigate(['/stock-management/entry-options', this.selectedDepot.id]);
+      if (this.isReturnMode) {
+        this.router.navigate(['/stock-management/new-return', this.selectedDepot.id]);
+      } else {
+        this.router.navigate(['/stock-management/entry-options', this.selectedDepot.id]);
+      }
     }
   }
 

@@ -104,6 +104,7 @@ export interface SessionFilters {
   endDate?: string;
   userId?: number;
   posId?: number;
+  depotId?: number;
   status?: string;
   hasVariance?: boolean;
   page?: number;
@@ -143,11 +144,6 @@ export class SessionsService {
     };
   }
 
-  // Get active session for current user (DEPRECATED - use getActiveSessionByDepot instead)
-  getActiveSession(posId?: number, depotId?: number): Observable<SessionCaisse | null> {
-    console.warn('getActiveSession is deprecated. Use getActiveSessionByDepot instead for depot-only sessions.');
-    return this.getActiveSessionByDepot(posId, depotId);
-  }
 
   // Get active session by depot only (no user linkage)
   getActiveSessionByDepot(posId?: number, depotId?: number): Observable<SessionCaisse | null> {
@@ -242,6 +238,11 @@ export class SessionsService {
       params,
       ...this.getRequestOptions()
     });
+  }
+
+  // Get session by ID
+  getSessionById(sessionId: number): Observable<SessionCaisse> {
+    return this.http.get<SessionCaisse>(`${this.API_URL}/${sessionId}`, this.getRequestOptions());
   }
 
   // Get session report (X or Z)

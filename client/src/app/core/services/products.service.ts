@@ -17,8 +17,18 @@ export class ProductsService {
 
   getProducts(depotId?: number): Observable<Product[]> {
     let params = new HttpParams();
-    if (depotId) {
-      params = params.set('depotId', depotId.toString());
+    
+    // Always include depotId if provided, or try to get from sessionStorage
+    let targetDepotId = depotId;
+    if (!targetDepotId) {
+      const storedDepotId = sessionStorage.getItem('depotId') || sessionStorage.getItem('visitingDepotId');
+      if (storedDepotId) {
+        targetDepotId = parseInt(storedDepotId);
+      }
+    }
+    
+    if (targetDepotId) {
+      params = params.set('depotId', targetDepotId.toString());
     }
     
     return this.http.get<Product[]>(this.apiUrl, { params }).pipe(
@@ -122,5 +132,39 @@ export class ProductsService {
 
   updateProductOrder(updates: { id: number; displayIndex: number }[]): Observable<any> {
     return this.http.put<any>(`${this.apiUrl}/order`, { updates });
+  }
+
+  transferProduct(transferData: {
+    sourceProductId: number;
+    targetProductId: number;
+    quantity: number;
+    conversionRatio: number;
+    depotId: number;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/transfer`, transferData);
+  }
+
+  getTransferHistory(params: {
+    depotId: number;
+    page?: number;
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+  }): Observable<any> {
+    let httpParams = new HttpParams();
+    httpParams = httpParams.set('depotId', params.depotId.toString());
+    if (params.page) {
+      httpParams = httpParams.set('page', params.page.toString());
+    }
+    if (params.limit) {
+      httpParams = httpParams.set('limit', params.limit.toString());
+    }
+    if (params.startDate) {
+      httpParams = httpParams.set('startDate', params.startDate);
+    }
+    if (params.endDate) {
+      httpParams = httpParams.set('endDate', params.endDate);
+    }
+    return this.http.get<any>(`${this.apiUrl}/transfer-history`, { params: httpParams });
   }
 } 

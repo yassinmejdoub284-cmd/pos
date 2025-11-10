@@ -32,6 +32,10 @@ export interface Expense {
   isApproved: boolean;
   isPaid: boolean;
   isAdvance: boolean;
+  isRejected?: boolean;
+  rejectedAt?: string;
+  rejectionNotes?: string;
+  rejectedBy?: number;
   paidAmount?: number;
   approvedBy?: number;
   approvedAt?: string;
@@ -42,6 +46,7 @@ export interface Expense {
   user?: any;
   supplier?: any;
   approver?: any;
+  rejecter?: any;
 }
 
 export type PaymentType = 'CASH' | 'CHECK' | 'BANK_TRANSFER' | 'WIRE_TRANSFER';
@@ -115,8 +120,12 @@ export class ExpenseService extends BaseApiService {
     return this.http.put<Expense>(`${this.expensesUrl}/${id}`, expense, this.getRequestOptions());
   }
 
-  approveExpense(id: number, isApproved: boolean): Observable<Expense> {
-    return this.http.patch<Expense>(`${this.expensesUrl}/${id}/approve`, { isApproved }, this.getRequestOptions());
+  approveExpense(id: number, isApproved: boolean, options?: { rejectionNotes?: string }): Observable<Expense> {
+    const payload: any = { isApproved };
+    if (!isApproved && options?.rejectionNotes !== undefined) {
+      payload.rejectionNotes = options.rejectionNotes;
+    }
+    return this.http.patch<Expense>(`${this.expensesUrl}/${id}/approve`, payload, this.getRequestOptions());
   }
 
   deleteExpense(id: number): Observable<void> {

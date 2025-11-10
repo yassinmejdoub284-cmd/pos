@@ -173,67 +173,7 @@
     }
   },
   "3": {
-    "companyName": "DEPOT PRINCIPALE",
-    "logoUrl": "http://localhost:3000/uploads/logos/logo-1758811488772-388234320.webp",
-    "companyAddress": "123 Avenue Habib Bourguiba, Tunis 1000",
-    "companyPhone": "+216 71 123 456",
-    "companyEmail": "contact@henteti-group.tn",
-    "companyRC": "RC123456",
-    "companyMF": "1260304/S/A/M/000",
-    "loyaltyEnabled": false,
-    "loyaltyRate": 1,
-    "maxDiscountPercent": 50,
-    "defaultClientMaxDebt": 0,
-    "keyboardShortcuts": {},
-    "devicesConfig": {
-      "printer": "POS-80C",
-      "customPrinterName": "",
-      "enableDrawer": true,
-      "autoCut": true,
-      "printLogo": true
-    },
-    "isDesktopVersion": true,
-    "auditRetentionDays": 90,
-    "historyRetentionDays": 10,
-    "varianceThreshold": 5,
-    "defaultFonds": 50,
-    "denominations": [
-      50,
-      20,
-      10,
-      5,
-      2,
-      1,
-      0.5,
-      0.2,
-      0.1,
-      0.05
-    ],
-    "requireApprovalForVariance": true,
-    "ticketWidth": 58,
-    "droitDeTimbre": false,
-    "autoApproveExpenseBelow": 0,
-    "printSettings": {
-      "showLogo": true,
-      "logoSize": "medium",
-      "dateFormat": "dd/mm/yyyy",
-      "timeFormat": "24h",
-      "currencySymbol": "dt",
-      "currencyPosition": "after",
-      "customTexts": {
-        "thankYouMessage": "Merci de votre visite!",
-        "receiptTitle": "REÇU DE VENTE",
-        "companySlogan": "Votre pâtisserie de confiance",
-        "footerMessage": "Merci pour votre fidélité"
-      },
-      "showCompanyDetails": true,
-      "showClientInfo": true,
-      "showPaymentMethod": true,
-      "showDiscountDetails": true
-    }
-  },
-  "4": {
-    "companyName": "PATISSERIE TUNISIENNE",
+    "companyName": "",
     "logoUrl": "",
     "companyAddress": "",
     "companyPhone": "",
@@ -273,7 +213,7 @@
     "ticketWidth": 58,
     "droitDeTimbre": false,
     "autoApproveExpenseBelow": 0,
-    "allowNegativeStock": true,
+    "allowNegativeStock": false,
     "printSettings": {
       "showLogo": true,
       "logoSize": "medium",
@@ -290,7 +230,8 @@
       "showCompanyDetails": true,
       "showClientInfo": true,
       "showPaymentMethod": true,
-      "showDiscountDetails": true
+      "showDiscountDetails": true,
+      "doubleImpression": false
     },
     "documentTypeDefaults": {
       "livraison": {
@@ -336,7 +277,127 @@
     },
     "documentDisplaySettings": {
       "livraison": {
-        "showPackageCount": false
+        "showPackageCount": true
+      },
+      "sortie": {
+        "showPackageCount": true
+      },
+      "transfert": {
+        "showPackageCount": true
+      },
+      "facture": {
+        "showPackageCount": true,
+        "timbrePrice": 1
+      }
+    },
+    "roleAccessConfig": {}
+  },
+  "4": {
+    "companyName": "",
+    "logoUrl": "",
+    "companyAddress": "",
+    "companyPhone": "",
+    "companyEmail": "",
+    "companyRC": "",
+    "companyMF": "",
+    "loyaltyEnabled": false,
+    "loyaltyRate": 1,
+    "maxDiscountPercent": 50,
+    "defaultClientMaxDebt": 0,
+    "keyboardShortcuts": {},
+    "devicesConfig": {},
+    "isDesktopVersion": true,
+    "auditRetentionDays": 90,
+    "historyRetentionDays": 30,
+    "roleHistoryLimits": {
+      "ADMIN": 9999,
+      "MANAGER": 30,
+      "CASHIER": 5,
+      "STOCK_MANAGER": 15
+    },
+    "varianceThreshold": 5,
+    "defaultFonds": 50,
+    "denominations": [
+      50,
+      20,
+      10,
+      5,
+      2,
+      1,
+      0.5,
+      0.2,
+      0.1,
+      0.05
+    ],
+    "requireApprovalForVariance": true,
+    "ticketWidth": 58,
+    "droitDeTimbre": false,
+    "autoApproveExpenseBelow": 0,
+    "allowNegativeStock": false,
+    "printSettings": {
+      "showLogo": true,
+      "logoSize": "medium",
+      "dateFormat": "dd/mm/yyyy",
+      "timeFormat": "24h",
+      "currencySymbol": "dt",
+      "currencyPosition": "after",
+      "customTexts": {
+        "thankYouMessage": "Merci de votre visite!",
+        "receiptTitle": "REÇU DE VENTE",
+        "companySlogan": "Votre pâtisserie de confiance",
+        "footerMessage": "Merci pour votre fidélité"
+      },
+      "showCompanyDetails": true,
+      "showClientInfo": true,
+      "showPaymentMethod": true,
+      "showDiscountDetails": true,
+      "doubleImpression": false
+    },
+    "documentTypeDefaults": {
+      "livraison": {
+        "client": true,
+        "depot": false,
+        "vehicle": true,
+        "driver": true,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "sortie": {
+        "client": false,
+        "depot": true,
+        "vehicle": false,
+        "driver": false,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "transfert": {
+        "client": false,
+        "depot": true,
+        "vehicle": true,
+        "driver": true,
+        "manualDestination": false,
+        "autoInvoice": false,
+        "tvaAndPrix": true,
+        "validity": false
+      },
+      "facture": {
+        "client": true,
+        "depot": false,
+        "vehicle": false,
+        "driver": false,
+        "manualDestination": false,
+        "autoInvoice": true,
+        "tvaAndPrix": true,
+        "validity": false
+      }
+    },
+    "documentDisplaySettings": {
+      "livraison": {
+        "showPackageCount": true
       },
       "sortie": {
         "showPackageCount": true
@@ -415,7 +476,8 @@
       "showCompanyDetails": true,
       "showClientInfo": true,
       "showPaymentMethod": true,
-      "showDiscountDetails": true
+      "showDiscountDetails": true,
+      "doubleImpression": false
     },
     "documentTypeDefaults": {
       "livraison": {
@@ -565,6 +627,18 @@
           },
           "billing-center": {
             "visible": true
+          },
+          "vente-tables": {
+            "visible": true
+          },
+          "tables-salon": {
+            "visible": true
+          },
+          "historique-ventes": {
+            "visible": true
+          },
+          "historique-pointage": {
+            "visible": true
           }
         },
         "meta": {
@@ -606,6 +680,63 @@
           "color": "#1096b7",
           "icon": "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
         }
+      },
+      "RESPONSABLE_MAGASIN": {
+        "blocks": {
+          "caisse": {
+            "visible": true
+          },
+          "cloture": {
+            "visible": true
+          },
+          "invoices": {
+            "visible": true
+          },
+          "charges": {
+            "visible": true,
+            "submodules": {
+              "depenses-consulter": true,
+              "depenses-ajouter": true,
+              "depenses-categorie": true
+            }
+          },
+          "suppliers": {
+            "visible": true,
+            "submodules": {
+              "fournisseurs-consulter": true,
+              "fournisseurs-ajouter": true,
+              "fournisseurs-releve": true,
+              "fournisseurs-reglement": true
+            }
+          },
+          "clients": {
+            "visible": true,
+            "submodules": {
+              "clients-consulter": true,
+              "clients-ajouter": true,
+              "clients-releve": true,
+              "clients-reglement": true
+            }
+          },
+          "historique": {
+            "visible": true,
+            "submodules": {
+              "VENTES": true,
+              "POINTAGE": true
+            }
+          },
+          "stock": {
+            "visible": true,
+            "submodules": {
+              "stock-produits": true
+            }
+          }
+        },
+        "meta": {
+          "label": "Responsable Magasin",
+          "color": "#10b981",
+          "icon": "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+        }
       }
     }
   },
@@ -618,5 +749,49 @@
         "auth": "WBS3qMyvv5NJHqBptFy5Rg"
       }
     }
-  ]
+  ],
+  "roleAccessConfig": {
+    "RESPONSABLE_MAGASIN": {
+      "blocks": {
+        "caisse": {
+          "visible": true
+        },
+        "historique": {
+          "visible": true,
+          "submodules": {
+            "VENTES": true,
+            "POINTAGE": true
+          }
+        },
+        "cloture": {
+          "visible": true
+        },
+        "stock": {
+          "visible": true
+        },
+        "parametres": {
+          "visible": true
+        },
+        "rapports": {
+          "visible": true
+        },
+        "home": {
+          "visible": true
+        }
+      }
+    },
+    "CASHIER": {
+      "blocks": {
+        "caisse": {
+          "visible": true
+        },
+        "historique": {
+          "visible": true
+        },
+        "cloture": {
+          "visible": true
+        }
+      }
+    }
+  }
 }

@@ -109,11 +109,6 @@ export const routes: Routes = [
     loadChildren: () => import('./supplier-payments/supplier-payments.module').then(m => m.SupplierPaymentsModule) 
   },
   { 
-    path: 'invoices', 
-    canActivate: [authGuard],
-    loadChildren: () => import('./invoices/invoices.module').then(m => m.InvoicesModule) 
-  },
-  { 
     path: 'stock-management', 
     canActivate: [authGuard],
     loadChildren: () => import('./stock-management/stock-management.module').then(m => m.StockManagementModule) 
@@ -122,11 +117,6 @@ export const routes: Routes = [
     path: 'enterprise', 
     canActivate: [authGuard],
     loadChildren: () => import('./enterprise/enterprise.module').then(m => m.EnterpriseModule) 
-  },
-  { 
-    path: 'billing-center', 
-    redirectTo: '/invoices',
-    pathMatch: 'full'
   },
   { 
     path: 'scanning', 
@@ -147,5 +137,10 @@ export const routes: Routes = [
     path: 'vente-tables', 
     canActivate: [authGuard],
     loadChildren: () => import('./vente-tables/vente-tables.module').then(m => m.VenteTablesModule) 
+  },
+  { 
+    path: 'factures', 
+    canActivate: [authGuard],
+    loadChildren: () => import('./factures/factures.module').then(m => m.FacturesModule) 
   }
 ];

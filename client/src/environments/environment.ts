@@ -1,9 +1,26 @@
-export const environment = {
-  production: false,
+ export const environment = {
+   production: false,
   apiUrl: 'https://localhost:3255/api',
-  socketUrl: 'https://localhost:3255',
-  enableRealtime: false
-};
+     socketUrl: 'https://localhost:3255',
+     enableRealtime: false
+  };
+
+// DEVELOPMENT ENVIRONMENT - This file is used in development mode
+console.log('🟢 DEVELOPMENT ENVIRONMENT LOADED - apiUrl:', environment.apiUrl);
+
+// export const environment = {
+//   production: false,
+//   apiUrl: 'https://api.solumove.net/port3255/api',
+//   socketUrl: 'https://api.solumove.net/port3255',
+//   enableRealtime: false
+// };
+
+// export const environment = {
+  //production: false,
+//   apiUrl: 'https://192.168.1.15:3255/api',
+//   socketUrl: 'https://192.168.1.15:3255',
+//   enableRealtime: false
+// };
 
 // export const environment = {
 //   production: false,
@@ -51,13 +68,6 @@ export const environment = {
 //   production: false,
 //   apiUrl: 'https://192.168.169.108:3255/api',
 //   socketUrl: 'https://192.168.169.108:3255'
-// };
-
-// export const environment = {
-//   production: false,
-//   apiUrl: 'https://api.solumove.net/port3255/api',
-//   socketUrl: 'https://api.solumove.net/port3255',
-//   enableRealtime: false
 // };
 
 // export const environment = {

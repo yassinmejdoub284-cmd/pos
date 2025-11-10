@@ -187,10 +187,11 @@ export class HistoriqueComponent implements OnInit {
       params.startDate = `${this.startDate}T00:00:00.000`;
       params.endDate = `${this.endDate}T23:59:59.999`;
     } else {
-      // If no sessions and no date range, load recent sales (last 7 days)
+      // If no sessions and no date range, use role-based history limit
+      const historyLimitDays = this.getCurrentUserHistoryLimit();
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 7);
+      startDate.setDate(endDate.getDate() - (historyLimitDays - 1));
       params.startDate = startDate.toISOString();
       params.endDate = endDate.toISOString();
     }
@@ -269,8 +270,17 @@ export class HistoriqueComponent implements OnInit {
   }
 
   loadRecentSessions(limit: number, after?: () => void): void {
+    // Calculate date range based on role-based history limit
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - (limit - 1));
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+    
     this.sessionsService.getSessions({ 
-      limit: limit
+      limit: limit,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
     })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -556,11 +566,65 @@ export class HistoriqueComponent implements OnInit {
     return this.totalSessions;
   }
 
+  // Get visible page numbers for pagination (max 7 pages around current)
+  getVisiblePages(): (number | string)[] {
+    const total = this.totalSessions;
+    const current = this.currentSessionPage;
+    const pages: (number | string)[] = [];
+    const maxVisible = 7; // Show max 7 page numbers
+    
+    if (total <= maxVisible) {
+      // If total pages <= maxVisible, show all
+      for (let i = 1; i <= total; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Calculate start and end
+      let start = Math.max(1, current - Math.floor(maxVisible / 2));
+      let end = Math.min(total, start + maxVisible - 1);
+      
+      // Adjust if we're near the end
+      if (end - start < maxVisible - 1) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+      
+      // Add first page and ellipsis if needed
+      if (start > 1) {
+        pages.push(1);
+        if (start > 2) {
+          pages.push('...');
+        }
+      }
+      
+      // Add visible pages
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      
+      // Add ellipsis and last page if needed
+      if (end < total) {
+        if (end < total - 1) {
+          pages.push('...');
+        }
+        pages.push(total);
+      }
+    }
+    
+    return pages;
+  }
+
   changePage(page: number): void {
     if (page >= 1 && page <= this.totalSessions) {
       this.currentSessionPage = page;
       // Reload sales for the new session
       this.loadSales();
+    }
+  }
+
+  // Helper method for template to handle page navigation
+  onPageClick(page: number | string): void {
+    if (typeof page === 'number') {
+      this.changePage(page);
     }
   }
 

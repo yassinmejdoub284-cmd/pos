@@ -89,7 +89,6 @@ const router = express.Router();
 async function generateDocumentNumber(type) {
   const prefix = type === 'BON_EXPEDITION' ? 'BS' : 
                  type === 'BON_ENTREE_DEPOT' ? 'BE' :
-                 type === 'BON_RETOUR_DEPOT' ? 'BR' :
                  type === 'BON_TRANSFERT' ? 'BT' :
                  type === 'BON_ENTREE_MAGASIN' ? 'BL' :
                  type === 'FACTURE' ? 'FAC' : 'DOC';
@@ -110,7 +109,6 @@ async function getNextDocumentId(type) {
     // Get the highest sequence number from existing document numbers of this type
     const prefix = type === 'BON_EXPEDITION' ? 'BS' : 
                    type === 'BON_ENTREE_DEPOT' ? 'BE' :
-                   type === 'BON_RETOUR_DEPOT' ? 'BR' :
                    type === 'BON_TRANSFERT' ? 'BT' :
                    type === 'BON_ENTREE_MAGASIN' ? 'BL' :
                    type === 'FACTURE' ? 'FAC' : 'DOC';
@@ -166,25 +164,24 @@ function parseQuantity(q) {
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 20, type, status, depotId, clientId, dateFrom, dateTo, fromDepotOnly } = req.query;
+    const { page = 1, limit = 20, type, status, depotId, clientId, dateFrom, dateTo, fromDepotOnly, toDepotOnly } = req.query;
     const skip = (page - 1) * limit;
         
     const where = {};
     
     if (type) {
-      // Map frontend type values to DocumentType enum values
-      const typeMapping = {
-        'entry': 'BON_ENTREE_DEPOT',
-        'sortie': 'BON_EXPEDITION', 
-        'transfert': 'BON_TRANSFERT',
-        'livraison': 'BON_ENTREE_MAGASIN',
-        // Also handle direct enum values
-        'BON_ENTREE_DEPOT': 'BON_ENTREE_DEPOT',
-        'BON_EXPEDITION': 'BON_EXPEDITION',
-        'BON_TRANSFERT': 'BON_TRANSFERT',
-        'BON_ENTREE_MAGASIN': 'BON_ENTREE_MAGASIN'
-      };
-      where.type = typeMapping[type] || type;
+      // Only allow valid DocumentType enum values
+      const validTypes = ['BON_EXPEDITION', 'BON_ENTREE_DEPOT', 'BON_TRANSFERT', 'BON_ENTREE_MAGASIN', 'FACTURE'];
+      
+      if (!validTypes.includes(type)) {
+        console.log(`Invalid document type: ${type}. Valid types are: ${validTypes.join(', ')}`);
+        return res.status(400).json({ 
+          error: `Invalid document type: ${type}. Valid types are: ${validTypes.join(', ')}`,
+          validTypes 
+        });
+      }
+      
+      where.type = type;
     }
     
     if (status) {
@@ -192,12 +189,15 @@ router.get('/', authenticateToken, async (req, res) => {
     }
     
     if (depotId) {
+      const depotIdNum = parseInt(depotId);
       if (String(fromDepotOnly).toLowerCase() === 'true') {
-        where.emetteurId = parseInt(depotId);
+        where.emetteurId = depotIdNum;
+      } else if (String(toDepotOnly).toLowerCase() === 'true') {
+        where.destinataireId = depotIdNum;
       } else {
         where.OR = [
-          { emetteurId: parseInt(depotId) },
-          { destinataireId: parseInt(depotId) }
+          { emetteurId: depotIdNum },
+          { destinataireId: depotIdNum }
         ];
       }
     }
@@ -211,7 +211,7 @@ router.get('/', authenticateToken, async (req, res) => {
       if (dateTo) where.createdAt.lte = new Date(dateTo);
     }
     
-    console.log('Stock documents query:', { where, skip, limit, type, status, depotId, fromDepotOnly });
+    console.log('Stock documents query:', { where, skip, limit, type, status, depotId, fromDepotOnly, toDepotOnly });
     
     const [documents, total] = await Promise.all([
       prisma.stockDocument.findMany({
@@ -280,8 +280,34 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-  const document = await prisma.stockDocument.findUnique({
-      where: { id: parseInt(req.params.id) },
+    const { depotId } = req.query;
+    
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot documents' });
+    }
+    
+    const document = await prisma.stockDocument.findFirst({
+      where: {
+        id: parseInt(req.params.id),
+        ...(targetDepotId ? {
+          OR: [
+            { emetteurId: targetDepotId },
+            { destinataireId: targetDepotId }
+          ]
+        } : (req.user?.role === 'ADMIN' ? {} : {
+          OR: [
+            { emetteurId: userDepotId },
+            { destinataireId: userDepotId }
+          ]
+        }))
+      },
       include: {
       emetteur: { include: { company: true } },
       destinataire: { include: { company: true } },
@@ -705,8 +731,8 @@ router.post('/entry', authenticateToken, async (req, res) => {
       // 3. The purchase price entered may be different from the product's selling price
     }
 
-    // We only persist prisma type as BON_ENTREE_DEPOT (enum-limited), but use a separate numbering prefix for returns
-    const numberType = isReturn ? 'BON_RETOUR_DEPOT' : 'BON_ENTREE_DEPOT';
+    // Use valid DocumentType enum values only
+    const numberType = isReturn ? 'BON_EXPEDITION' : 'BON_ENTREE_DEPOT';
     const numero = await generateDocumentNumber(numberType);
 
     // If paying cash, we must have an open caisse session
@@ -725,7 +751,7 @@ router.post('/entry', authenticateToken, async (req, res) => {
       const doc = await tx.stockDocument.create({
         data: {
           numero,
-          type: 'BON_ENTREE_DEPOT',
+          type: isReturn ? 'BON_EXPEDITION' : 'BON_ENTREE_DEPOT',
           status: 'RECEIVED',
           // Schema requires depots; we set both to the receiving depot
           emetteurId: parseInt(depotId),
@@ -768,11 +794,23 @@ router.post('/entry', authenticateToken, async (req, res) => {
         });
 
         if (inventory) {
+          const currentQuantity = parseFloat(inventory.quantity);
+          const newQuantity = isReturn ? (currentQuantity - Math.abs(quantity)) : (currentQuantity + quantity);
+          
+          // For returns, ensure we don't go below zero
+          if (isReturn && newQuantity < 0) {
+            throw new Error(`Cannot return ${Math.abs(quantity)} units of product ${productId}: only ${currentQuantity} units available`);
+          }
+          
           await tx.inventory.update({
             where: { id: inventory.id },
-            data: { quantity: (parseFloat(inventory.quantity) + quantity) }
+            data: { quantity: newQuantity }
           });
         } else {
+          // For returns, if no inventory exists, we can't return items
+          if (isReturn) {
+            throw new Error(`Cannot return product ${productId}: no inventory found`);
+          }
           await tx.inventory.create({
             data: { depotId: depotIdInt, productId, quantity }
           });
@@ -1828,6 +1866,29 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
     
+    // Enforce depot isolation - use user's depotId if not specified
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // Determine target depot: fromDepotId > depotId > visitingDepotId > userDepotId
+    let targetEmetteurId = fromDepotId || depotId || visitingDepotId || userDepotId;
+    let targetDestinataireId = destinationDepotId || depotId || visitingDepotId || userDepotId;
+    
+    // For non-admin users, validate depot access
+    if (req.user?.role !== 'ADMIN') {
+      if (!userDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot to create stock documents' });
+      }
+      // For non-admin, ensure they can only create documents for their depot
+      if (targetEmetteurId && targetEmetteurId !== userDepotId && targetEmetteurId !== visitingDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot create documents for other depots' });
+      }
+      if (targetDestinataireId && targetDestinataireId !== userDepotId && targetDestinataireId !== visitingDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot create documents for other depots' });
+      }
+    }
+    
     const document = await prisma.$transaction(async (tx) => {
       // Create the document
       const doc = await tx.stockDocument.create({
@@ -1835,8 +1896,8 @@ router.post('/', authenticateToken, async (req, res) => {
           numero: documentNumber,
           type,
           status: validatedStatus,
-          emetteurId: fromDepotId || depotId,
-          destinataireId: destinationDepotId || depotId,
+          emetteurId: targetEmetteurId,
+          destinataireId: targetDestinataireId,
           clientId: clientId || null,
           vehicleId: vehicleId || null,
           driverId: driverId || null,
@@ -2231,5 +2292,97 @@ async function updateInventoryForProduct(depotId, productId, quantityChange, isO
     throw error;
   }
 }
+
+// Create Bon de Retour (Return Document)
+router.post('/return', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, supplierId, items, notes } = req.body;
+    const userId = req.user.id;
+
+    if (!depotId || !items || items.length === 0) {
+      return res.status(400).json({ error: 'Dépôt et articles requis' });
+    }
+
+    // Generate document reference
+    const depot = await prisma.depot.findUnique({ where: { id: depotId } });
+    if (!depot) {
+      return res.status(404).json({ error: 'Dépôt non trouvé' });
+    }
+
+    const currentYear = new Date().getFullYear();
+    const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+    
+    const lastDoc = await prisma.stockDocument.findFirst({
+      where: {
+        type: 'BON_EXPEDITION',
+        reference: { startsWith: `BR-${currentYear}${currentMonth}` }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    let nextNumber = 1;
+    if (lastDoc) {
+      const lastNumber = parseInt(lastDoc.reference.split('-').pop());
+      nextNumber = lastNumber + 1;
+    }
+
+    const reference = `BR-${currentYear}${currentMonth}-${String(nextNumber).padStart(4, '0')}`;
+
+    // Create the return document
+    const document = await prisma.stockDocument.create({
+      data: {
+        reference,
+        type: 'BON_EXPEDITION',
+        status: 'RECEIVED', // Auto-validate returns
+        depotId: depotId,
+        emetteurId: supplierId,
+        destinataireId: depotId,
+        notes: notes || 'Bon de retour',
+        createdBy: userId,
+        validatedBy: userId,
+        validatedAt: new Date(),
+        items: {
+          create: items.map(item => ({
+            productId: item.productId,
+            famille: item.famille || 'Divers',
+            quantity: -Math.abs(item.quantity), // Negative quantity for returns
+            purchasePrice: item.purchasePrice || 0,
+            batch: item.batch || null,
+            notes: item.notes || null
+          }))
+        }
+      },
+      include: {
+        depot: true,
+        emetteur: true,
+        items: {
+          include: {
+            product: true
+          }
+        }
+      }
+    });
+
+    // Update inventory for each item (reduce stock)
+    for (const item of items) {
+      const quantity = Math.abs(item.quantity); // Use positive quantity for calculation
+      await updateInventory(depotId, item.productId, -quantity); // Negative to reduce stock
+    }
+
+    // Log audit
+    await logAudit(userId, 'CREATE', 'StockDocument', document.id, {
+      type: 'BON_EXPEDITION',
+      depotId: depotId,
+      itemsCount: items.length,
+      totalValue: items.reduce((sum, item) => sum + (Math.abs(item.quantity) * (item.purchasePrice || 0)), 0)
+    });
+
+    res.json(document);
+
+  } catch (error) {
+    console.error('Error creating bon de retour:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du bon de retour' });
+  }
+});
 
 module.exports = router; 

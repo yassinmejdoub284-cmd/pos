@@ -44,7 +44,9 @@ function shouldSkipLoading(request: HttpRequest<unknown>): boolean {
   const skipPatterns = [
     '/health',
     '/ping',
-    '/status'
+    '/status',
+    '/active-by-depot',  // Skip for frequently polled session endpoint
+    '/sessions/active-by-depot'  // Alternative path format
   ];
   
   // Skip loading for requests with specific headers

@@ -33,16 +33,16 @@ const routes: Routes = [
     loadChildren: () => import('./inventory-sales-reconciliation/inventory-sales-reconciliation.module').then(m => m.InventorySalesReconciliationModule)
   },
   { 
-    path: 'invoice-extracts', 
-    loadChildren: () => import('./invoice-extracts/invoice-extracts.module').then(m => m.InvoiceExtractsModule)
-  },
-  { 
     path: 'etat-mvt-stock', 
     loadChildren: () => import('./etat-mvt-stock/etat-mvt-stock.module').then(m => m.EtatMvtStockModule)
   },
   { 
     path: 'sessions-history', 
     loadChildren: () => import('./sessions-history/sessions-history.module').then(m => m.SessionsHistoryModule)
+  },
+  { 
+    path: 'inventory-balance', 
+    loadChildren: () => import('./inventory-balance/inventory-balance.module').then(m => m.InventoryBalanceModule)
   }
 ];
 

@@ -59,6 +59,7 @@ export interface AppSettings {
     showClientInfo: boolean;
     showPaymentMethod: boolean;
     showDiscountDetails: boolean;
+    doubleImpression: boolean;
   };
   // Document display settings
   documentDisplaySettings: {

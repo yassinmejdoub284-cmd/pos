@@ -1,8 +1,10 @@
-import { Component, Input, Output, EventEmitter, OnInit, signal, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, signal, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ProductsService } from '../../../core/services/products.service';
-import { Product, ProductFamily } from '../../../core/models/product.model';
+import { Product, ProductFamily, ProductDepotPrice } from '../../../core/models/product.model';
 import { Depot } from '../../../core/models/depot.model';
+import { DepotsService } from '../../../core/services/depots.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-product-form',
@@ -11,7 +13,7 @@ import { Depot } from '../../../core/models/depot.model';
   standalone: false
 
 })
-export class ProductFormComponent implements OnInit {
+export class ProductFormComponent implements OnInit, OnChanges {
   @Input() product: Product | null = null;
   @Output() saved = new EventEmitter<Product>();
   @Output() cancelled = new EventEmitter<void>();
@@ -22,12 +24,16 @@ export class ProductFormComponent implements OnInit {
   selectedFile: File | null = null;
   imagePreview: string | null = null;
   families: ProductFamily[] = [];
+  depots: Depot[] = [];
   imageInputType: 'file' | 'url' = 'file';
   selectedDepotIds = signal<number[]>([]);
+  depotPrices = signal<Map<number, number>>(new Map()); // Map<depotId, price>
 
   constructor(
     private fb: FormBuilder,
-    private productsService: ProductsService
+    private productsService: ProductsService,
+    private depotsService: DepotsService,
+    private authService: AuthService
   ) {
     this.productForm = this.fb.group({
       name: ['', Validators.required],
@@ -41,6 +47,9 @@ export class ProductFormComponent implements OnInit {
       tva: [19, [Validators.required, Validators.min(0), Validators.max(100)]],
       duree_conservation: [null],
       isVraguable: [false],
+      conversionRatio: [null],
+      prix_vente_vrac: [0, [Validators.min(0)]],
+      prix_achat_vrac: [0, [Validators.min(0)]],
       isStockable: [false],
       // Wholesale fields
       isWholesale: [false],
@@ -53,14 +62,31 @@ export class ProductFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadFamilies();
+    this.loadDepots();
     this.initializeSelectedDepots();
-    
+    this.initializeDepotPrices();
+    this.initializeForm();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['product'] && !changes['product'].firstChange) {
+      // Product input changed, reinitialize depots and form
+      this.initializeSelectedDepots();
+      this.initializeDepotPrices();
+      this.initializeForm();
+    }
+  }
+
+  private initializeForm(): void {
     if (this.product) {
       this.productForm.patchValue({
         ...this.product,
         familleId: this.product.familleId,
         designation_legale: this.product.designation_legale || '',
         isVraguable: this.product.isVraguable || false,
+        conversionRatio: this.product.conversionRatio || null,
+        prix_vente_vrac: this.product.prix_vente_vrac || 0,
+        prix_achat_vrac: this.product.prix_achat_vrac || 0,
         isStockable: this.product.isStockable || false,
         // Wholesale fields
         isWholesale: this.product.isWholesale || false,
@@ -71,11 +97,15 @@ export class ProductFormComponent implements OnInit {
       // Set initial disabled state based on vraguable status
       const isVraguable = this.product.isVraguable || false;
       const stockableControl = this.productForm.get('isStockable');
+      const conversionRatioControl = this.productForm.get('conversionRatio');
       if (!isVraguable) {
         stockableControl?.disable();
+        conversionRatioControl?.clearValidators();
       } else {
         stockableControl?.enable();
+        conversionRatioControl?.setValidators([Validators.required, Validators.min(0.001)]);
       }
+      conversionRatioControl?.updateValueAndValidity();
       
       if (this.product.photo) {
         this.imagePreview = this.product.photo;
@@ -103,6 +133,45 @@ export class ProductFormComponent implements OnInit {
     });
   }
 
+  loadDepots(): void {
+    const isAdmin = this.authService.isAdmin();
+    const currentUser = this.authService.currentUser();
+    
+    if (isAdmin) {
+      // Admin can see and select all depots
+      this.depotsService.list().subscribe({
+        next: (depots) => {
+          this.depots = depots.filter(d => d.isActive && d.type === 'SHOP');
+        },
+        error: (error) => {
+          console.error('Error loading depots:', error);
+        }
+      });
+    } else {
+      // Non-admin users can only see their assigned depot
+      const userDepotId = currentUser?.depotId;
+      if (userDepotId) {
+        this.depotsService.get(userDepotId).subscribe({
+          next: (depot) => {
+            this.depots = [depot];
+            // Auto-assign user's depot if no depots are selected
+            if (this.selectedDepotIds().length === 0) {
+              this.selectedDepotIds.set([userDepotId]);
+              this.initializeDepotPrices();
+            }
+          },
+          error: (error) => {
+            console.error('Error loading user depot:', error);
+          }
+        });
+      }
+    }
+  }
+
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
   onFileSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
@@ -127,13 +196,100 @@ export class ProductFormComponent implements OnInit {
   }
 
   initializeSelectedDepots(): void {
-    if (this.product && this.product.assignedDepots) {
-      this.selectedDepotIds.set(this.product.assignedDepots.map(depot => depot.id));
+    const isAdmin = this.authService.isAdmin();
+    const currentUser = this.authService.currentUser();
+    
+    if (this.product && this.product.assignedDepots && this.product.assignedDepots.length > 0) {
+      const depotIds = this.product.assignedDepots.map(depot => depot.id);
+      if (isAdmin) {
+        // Admin can see all assigned depots
+        this.selectedDepotIds.set(depotIds);
+      } else {
+        // Non-admin can only see their own depot
+        const userDepotId = currentUser?.depotId;
+        if (userDepotId && depotIds.includes(userDepotId)) {
+          this.selectedDepotIds.set([userDepotId]);
+        } else {
+          this.selectedDepotIds.set([]);
+        }
+      }
+    } else {
+      // For new products, auto-assign user's depot for non-admins
+      if (!isAdmin && currentUser?.depotId) {
+        this.selectedDepotIds.set([currentUser.depotId]);
+      } else {
+        this.selectedDepotIds.set([]);
+      }
     }
   }
 
   onDepotsSelected(depotIds: number[]): void {
+    // Only allow depot selection for admins
+    if (!this.authService.isAdmin()) {
+      return;
+    }
+    
     this.selectedDepotIds.set(depotIds);
+    // Initialize prices for newly selected depots if not already set
+    const currentPrices = this.depotPrices();
+    const defaultPrice = this.productForm.get('prix_vente_TTC')?.value || 0;
+    const newPrices = new Map(currentPrices);
+    
+    depotIds.forEach(depotId => {
+      if (!newPrices.has(depotId)) {
+        newPrices.set(depotId, defaultPrice);
+      }
+    });
+    
+    // Remove prices for unselected depots
+    Array.from(newPrices.keys()).forEach(depotId => {
+      if (!depotIds.includes(depotId)) {
+        newPrices.delete(depotId);
+      }
+    });
+    
+    this.depotPrices.set(newPrices);
+  }
+
+  initializeDepotPrices(): void {
+    const pricesMap = new Map<number, number>();
+    
+    if (this.product && this.product.depotPrices && this.product.depotPrices.length > 0) {
+      this.product.depotPrices.forEach(depotPrice => {
+        pricesMap.set(depotPrice.depotId, depotPrice.prix_vente_TTC);
+      });
+    }
+    
+    // If no depot prices exist, use default price for selected depots
+    if (pricesMap.size === 0 && this.selectedDepotIds().length > 0) {
+      const defaultPrice = this.product?.prix_vente_TTC || this.productForm.get('prix_vente_TTC')?.value || 0;
+      this.selectedDepotIds().forEach(depotId => {
+        pricesMap.set(depotId, defaultPrice);
+      });
+    }
+    
+    this.depotPrices.set(pricesMap);
+  }
+
+  onDepotPriceChange(depotId: number, price: number): void {
+    // Only allow price changes for admins
+    if (!this.authService.isAdmin()) {
+      return;
+    }
+    
+    const currentPrices = this.depotPrices();
+    const newPrices = new Map(currentPrices);
+    newPrices.set(depotId, price);
+    this.depotPrices.set(newPrices);
+  }
+
+  getDepotPrice(depotId: number): number {
+    return this.depotPrices().get(depotId) || this.productForm.get('prix_vente_TTC')?.value || 0;
+  }
+
+  getDepotName(depotId: number): string {
+    const depot = this.depots.find(d => d.id === depotId);
+    return depot ? depot.name : `Dépôt ${depotId}`;
   }
 
   onSubmit(): void {
@@ -143,7 +299,40 @@ export class ProductFormComponent implements OnInit {
 
       // Get all form values including disabled controls
       const formData = this.productForm.getRawValue();
-      formData.depotIds = this.selectedDepotIds();
+      
+      // Only allow depot and price modifications for admins
+      if (this.authService.isAdmin()) {
+        formData.depotIds = this.selectedDepotIds();
+        
+        // Add depot prices
+        const depotPricesArray = Array.from(this.depotPrices().entries()).map(([depotId, prix_vente_TTC]) => ({
+          depotId,
+          prix_vente_TTC
+        }));
+        formData.depotPrices = depotPricesArray;
+      } else {
+        // Non-admins cannot modify depot assignments or prices
+        // Keep existing depot assignments and prices from the product
+        if (this.product) {
+          formData.depotIds = this.product.assignedDepots?.map(d => d.id) || [];
+          formData.depotPrices = this.product.depotPrices?.map(dp => ({
+            depotId: dp.depotId,
+            prix_vente_TTC: dp.prix_vente_TTC
+          })) || [];
+        } else {
+          // For new products, use user's depot
+          const userDepotId = this.authService.currentUser()?.depotId;
+          if (userDepotId) {
+            formData.depotIds = [userDepotId];
+            const defaultPrice = this.productForm.get('prix_vente_TTC')?.value || 0;
+            formData.depotPrices = [{
+              depotId: userDepotId,
+              prix_vente_TTC: defaultPrice
+            }];
+          }
+        }
+      }
+      
       console.log('Form data being sent:', formData);
 
       const saveProduct = () => {
@@ -208,13 +397,22 @@ export class ProductFormComponent implements OnInit {
   onVraguableChange(): void {
     const isVraguable = this.productForm.get('isVraguable')?.value;
     const stockableControl = this.productForm.get('isStockable');
+    const conversionRatioControl = this.productForm.get('conversionRatio');
     
     if (!isVraguable) {
-      this.productForm.patchValue({ isStockable: false });
+      this.productForm.patchValue({ 
+        isStockable: false, 
+        conversionRatio: null,
+        prix_vente_vrac: 0,
+        prix_achat_vrac: 0
+      });
       stockableControl?.disable();
+      conversionRatioControl?.clearValidators();
     } else {
       stockableControl?.enable();
+      conversionRatioControl?.setValidators([Validators.required, Validators.min(0.001)]);
     }
+    conversionRatioControl?.updateValueAndValidity();
   }
 
   onStockableChange(): void {

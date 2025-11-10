@@ -1,5 +1,6 @@
 import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../core/services/auth.service';
 import { SalesService } from '../core/services/sales.service';
 import { ExpenseService } from '../core/services/expense.service';
@@ -11,6 +12,7 @@ import { SettingsService, AppSettings } from '../core/services/settings.service'
 import { FullscreenService } from '../core/services/fullscreen.service';
 import { Subject, forkJoin, timer, of } from 'rxjs';
 import { takeUntil, catchError, shareReplay, debounceTime } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 interface DashboardStats {
   todaySales: number;
@@ -56,11 +58,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   showClientActionDialog = signal(false);
   showApprovalsActionDialog = signal(false);
   showSupplierActionDialog = signal(false);
-  showBillingCenterActionDialog = signal(false);
   showSettingsActionDialog = signal(false);
   showEnterpriseActionDialog = signal(false);
   showHistoriqueChoiceDialog = signal(false);
-  showErpUnlockDialog = signal(false);
   showCompanySwitchDialog = signal(false);
   companySwitchData = signal<{ companyName: string; logoUrl?: string | null } | null>(null);
   
@@ -70,12 +70,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   companyLogo = signal('');
   logoLoadError = signal(false);
   
-  // ERP Token properties
-  erpToken = '';
-  erpErrorMessage = '';
-  erpLoading = false;
-  
-  
   // Pending breakdown
   private pendingGiftCount = 0;
   private pendingExpenseCount = 0;
@@ -84,6 +78,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   // Day-over-day deltas
   salesVsYesterdayPct: number = 0;
   transactionsVsYesterdayPct: number = 0;
+
+  // Invoiced sales
+  invoicedSales = signal<any[]>([]);
+  loadingInvoices = signal(false);
   
   // Performance optimization
   private destroy$ = new Subject<void>();
@@ -105,23 +103,13 @@ export class HomeComponent implements OnInit, OnDestroy {
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
     },
     {
-      id: 'vente-tables',
-      title: 'Vente Tables',
-      description: 'Ventes par table',
-      route: '/vente-tables',
-      icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
-      color: 'from-purple-500 to-pink-600',
-      gradient: 'from-purple-50 to-pink-100',
-      roles: ['ADMIN', 'MANAGER', 'CASHIER']
-    },
-    {
-      id: 'historique',
-      title: 'Historique',
+      id: 'historique-ventes',
+      title: 'Historique Ventes',
       description: 'Transactions',
       route: '/historique',
-      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-      color: 'from-slate-500 to-gray-600',
-      gradient: 'from-slate-50 to-gray-100',
+      icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
+      color: 'from-sky-500 to-cyan-600',
+      gradient: 'from-sky-50 to-cyan-100',
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
     },
     {
@@ -204,12 +192,13 @@ export class HomeComponent implements OnInit, OnDestroy {
       roles: ['ADMIN', 'MANAGER']
     },
     {
-      id: 'invoices',
-      title: 'Ventes Facturées',
-      route: '/invoices',
-      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-      color: 'from-teal-500 to-cyan-600',
-      gradient: 'from-teal-50 to-cyan-100',
+      id: 'vente-tables',
+      title: 'Vente Tables',
+      description: 'Ventes par table',
+      route: '/vente-tables',
+      icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
+      color: 'from-purple-500 to-pink-600',
+      gradient: 'from-purple-50 to-pink-100',
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
     },
     {
@@ -258,6 +247,26 @@ export class HomeComponent implements OnInit, OnDestroy {
       gradient: 'from-indigo-50 to-purple-100',
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
     },
+    {
+      id: 'historique-pointage',
+      title: 'Historique Pointage',
+      description: 'Entrée/Sortie',
+      route: '/pointage',
+      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+      color: 'from-slate-500 to-gray-600',
+      gradient: 'from-slate-50 to-gray-100',
+      roles: ['ADMIN', 'MANAGER', 'CASHIER']
+    },
+    {
+      id: 'factures',
+      title: 'Factures',
+      description: 'Ventes facturées',
+      route: '/factures',
+      icon: 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z',
+      color: 'from-indigo-500 to-blue-600',
+      gradient: 'from-indigo-50 to-blue-100',
+      roles: ['ADMIN', 'MANAGER', 'CASHIER']
+    },
     // {
     //   id: 'stock-management',
     //   title: 'Gestion de Stock',
@@ -267,7 +276,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     //   color: 'from-emerald-500 to-teal-600',
     //   gradient: 'from-emerald-50 to-teal-100',
     //   roles: ['ADMIN', 'MANAGER']
-    // },
+    // }
   ];
 
   constructor(
@@ -281,7 +290,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     private enterpriseService: EnterpriseService,
     private fullscreenService: FullscreenService,
     private router: Router,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -333,7 +343,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           return of([]);
         })
       ),
-      session: this.sessionsService.getActiveSession().pipe(
+      session: this.sessionsService.getActiveSessionByDepot().pipe(
         takeUntil(this.destroy$),
         catchError(error => {
           console.error('Error loading session:', error);
@@ -433,6 +443,44 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.updatePendingApprovals();
   }
 
+  loadInvoicedSales(): void {
+    this.loadingInvoices.set(true);
+    const userDepotId = this.currentUser()?.depotId;
+    const url = `${environment.apiUrl}/invoices?status=ISSUED&limit=10${userDepotId ? '&depotId=' + userDepotId : ''}`;
+    
+    this.http.get(url, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    }).pipe(
+      takeUntil(this.destroy$),
+      catchError(error => {
+        console.error('Error loading invoiced sales:', error);
+        return of({ invoices: [] });
+      })
+    ).subscribe({
+      next: (response: any) => {
+        this.invoicedSales.set(response.invoices || []);
+        this.loadingInvoices.set(false);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.invoicedSales.set([]);
+        this.loadingInvoices.set(false);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  formatInvoiceDate(date: string | Date): string {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  }
+
   private processNonCriticalData(data: any): void {
     const { expenses, varianceRequests } = data;
     
@@ -473,10 +521,17 @@ export class HomeComponent implements OnInit, OnDestroy {
         // Strict: only show modules explicitly marked visible for this role key
         const visibleIds = Object.keys(roleAccessBlocks).filter(k => roleAccessBlocks[k]?.visible === true);
         this._cachedFilteredActions = this.quickActions.filter(a => visibleIds.includes(a.id));
+        console.log('Filtered actions (roleAccessConfig):', this._cachedFilteredActions.map(a => a.id), 'visibleIds:', visibleIds);
         this.cdr.detectChanges();
       } else {
-        // Fallback: if no config exists for this role, show nothing (explicit policy)
-        this._cachedFilteredActions = [];
+        // Fallback: filter by roles defined in each action
+        const userRole = currentUser?.role || '';
+        this._cachedFilteredActions = this.quickActions.filter(a => {
+          if (!a.roles || a.roles.length === 0) return true;
+          return a.roles.includes(userRole);
+        });
+        console.log('Filtered actions (fallback):', this._cachedFilteredActions.map(a => a.id));
+        this.cdr.detectChanges();
       }
     }
 
@@ -544,18 +599,11 @@ export class HomeComponent implements OnInit, OnDestroy {
       this.showSettingsActionDialog.set(true);
       this.cdr.detectChanges();
     } else if (route === '/historique') {
-      const allowed = this.getAllowedSubmodules('historique');
-      const opts: ('VENTES'|'POINTAGE')[] = [];
-      if (allowed.has('VENTES')) opts.push('VENTES');
-      if (allowed.has('POINTAGE')) opts.push('POINTAGE');
-      if (opts.length === 0) return;
-      if (opts.length === 1) { this.onHistoriqueChoiceSelected(opts[0]); return; }
-      this.showHistoriqueChoiceDialog.set(true);
-      this.cdr.detectChanges();
-    } else if (route === '/billing-center') {
-      // Show ERP unlock dialog first, then billing center dialog
-      this.showErpUnlockDialog.set(true);
-      this.cdr.detectChanges();
+      // Direct navigation to historique ventes (no dialog)
+      this.router.navigate(['/historique']);
+    } else if (route === '/pointage') {
+      // Direct navigation to historique pointage (no dialog)
+      this.router.navigate(['/pointage']);
     } else {
       this.router.navigate([route]);
     }
@@ -659,28 +707,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.showSupplierActionDialog.set(false);
   }
 
-  onBillingCenterActionSelected(actionId: string): void {
-    this.showBillingCenterActionDialog.set(false);
-    
-    switch (actionId) {
-      case 'add-invoice':
-        this.router.navigate(['/invoices'], { queryParams: { action: 'add' } });
-        break;
-      case 'manage-invoices':
-        this.router.navigate(['/invoices']);
-        break;
-      case 'invoice-extracts':
-        this.router.navigate(['/rapports/invoice-extracts']);
-        break;
-      case 'stock-management':
-        this.router.navigate(['/stock-management']);
-        break;
-    }
-  }
-
-  onBillingCenterDialogClosed(): void {
-    this.showBillingCenterActionDialog.set(false);
-  }
 
   onSettingsActionSelected(actionId: string): void {
     this.showSettingsActionDialog.set(false);
@@ -724,21 +750,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.showEnterpriseActionDialog.set(false);
   }
 
-  onErpTokenValidated(isValid: boolean): void {
-    this.showErpUnlockDialog.set(false);
-    if (isValid) {
-      // Show billing center action dialog after successful authentication
-      this.showBillingCenterActionDialog.set(true);
-    }
-  }
-
-  onErpDialogClosed(): void {
-    this.showErpUnlockDialog.set(false);
-    this.erpToken = '';
-    this.erpErrorMessage = '';
-    this.erpLoading = false;
-  }
-
   private checkCompanySwitchInfo(): void {
     try {
       const infoRaw = sessionStorage.getItem('companySwitchInfo');
@@ -751,26 +762,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     } catch {}
   }
 
-  validateErpToken(): void {
-    if (!this.erpToken.trim()) {
-      this.erpErrorMessage = 'Veuillez entrer un jeton';
-      return;
-    }
-
-    this.erpLoading = true;
-    this.erpErrorMessage = '';
-
-    // Simulate validation delay
-    setTimeout(() => {
-      if (this.erpToken.trim() === 'achraf2025') {
-        this.onErpTokenValidated(true);
-      } else {
-        this.erpErrorMessage = 'Jeton invalide. Veuillez réessayer.';
-        this.erpToken = '';
-      }
-      this.erpLoading = false;
-    }, 500);
-  }
 
 
 
@@ -794,7 +785,14 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   logout(): void {
+    // Stop all pending API calls
+    this.destroy$.next();
+    this.destroy$.complete();
+    
+    // Clear session and redirect
     this.authService.logout();
+    
+    // Navigate immediately - auth service will handle session clearing
     this.router.navigate(['/auth/login']);
   }
 

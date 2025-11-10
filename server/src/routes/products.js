@@ -77,19 +77,28 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const { depotId } = req.query;
     
-    // Build where clause for depot filtering
-    let whereClause = {};
+    // Enforce depot isolation - use user's depotId or provided depotId
+    const userDepotId = req.user?.depotId;
+    const targetDepotId = depotId ? parseInt(depotId) : userDepotId;
     
-    // If depotId is provided, filter products by depot
-    if (depotId) {
-      whereClause = {
+    // For non-admin users, only allow access to their own depot
+    if (req.user?.role !== 'ADMIN' && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot products' });
+    }
+    
+    // If no depotId available, return error
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'depotId is required to fetch products' });
+    }
+    
+    // Build where clause for depot filtering - ALWAYS filter by depot for isolation
+    const whereClause = {
         depotAssignments: {
           some: {
-            depotId: parseInt(depotId)
+          depotId: targetDepotId
           }
         }
       };
-    }
     
     const products = await prisma.product.findMany({
       where: whereClause,
@@ -105,6 +114,11 @@ router.get('/', authenticateToken, async (req, res) => {
           }
         },
         depotAssignments: {
+          include: {
+            depot: true
+          }
+        },
+        depotPrices: {
           include: {
             depot: true
           }
@@ -133,19 +147,234 @@ router.get('/familles', authenticateToken, async (req, res) => {
   }
 });
 
+// IMPORTANT: Specific routes must come BEFORE parameterized routes like /:id
+// Get transfer history to vrac
+router.get('/transfer-history', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, startDate, endDate, page = 1, limit = 50 } = req.query;
+    
+    // Get depotId - use query param if provided, otherwise use user's depot
+    let currentDepotId;
+    if (depotId) {
+      currentDepotId = Number(depotId);
+      if (isNaN(currentDepotId) || currentDepotId <= 0) {
+        return res.status(400).json({ error: 'Dépôt invalide dans la requête' });
+      }
+    } else if (req.user?.depotId) {
+      currentDepotId = Number(req.user.depotId);
+      if (isNaN(currentDepotId) || currentDepotId <= 0) {
+        currentDepotId = 1; // Fallback to default
+      }
+    } else {
+      currentDepotId = 1; // Default depot
+    }
+
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) {
+      const start = new Date(startDate);
+      if (!isNaN(start.getTime())) {
+        dateFilter.gte = start;
+      }
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      if (!isNaN(end.getTime())) {
+        end.setHours(23, 59, 59, 999);
+        dateFilter.lte = end;
+      }
+    }
+
+    // Build where clause
+    const whereClause = {
+      reason: 'PRODUCT_CONVERSION',
+      type: 'IN',
+      depotId: currentDepotId
+    };
+
+    if (Object.keys(dateFilter).length > 0) {
+      whereClause.date = dateFilter;
+    }
+
+    // Get IN movements (target products) with product info
+    let inMovements;
+    try {
+      inMovements = await prisma.stockMovement.findMany({
+        where: whereClause,
+        include: {
+          product: {
+            include: {
+              famille: true
+            }
+          },
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              username: true
+            }
+          },
+          depot: {
+            select: {
+              name: true,
+              code: true
+            }
+          }
+        },
+        orderBy: {
+          date: 'desc'
+        }
+      });
+    } catch (prismaError) {
+      console.error('Prisma query error:', prismaError);
+      return res.status(500).json({ 
+        error: 'Erreur lors de la requête à la base de données',
+        details: prismaError.message 
+      });
+    }
+
+    // Show all transfers - don't filter by isVrac since transfers can be to any product type
+    // The history should show all product conversions, not just to vrac
+    inMovements = inMovements.filter(movement => {
+      return movement.product !== null; // Only filter out movements without products
+    });
+
+    // Apply pagination after filtering
+    const pageNum = parseInt(page.toString());
+    const limitNum = parseInt(limit.toString());
+    const totalCount = inMovements.length;
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = startIndex + limitNum;
+    inMovements = inMovements.slice(startIndex, endIndex);
+
+    // Get corresponding OUT movements (source products) to get full transfer details
+    const transferHistory = await Promise.all(inMovements.map(async (inMovement) => {
+      // Parse reference to extract source product name
+      const referenceMatch = inMovement.reference?.match(/Transfer (.+?) -> (.+)/);
+      const sourceProductName = referenceMatch ? referenceMatch[1] : null;
+      const targetProductName = referenceMatch ? referenceMatch[2] : null;
+
+      // Find corresponding OUT movement (source product)
+      const outMovement = await prisma.stockMovement.findFirst({
+        where: {
+          reason: 'PRODUCT_CONVERSION',
+          type: 'OUT',
+          depotId: currentDepotId,
+          date: inMovement.date,
+          reference: inMovement.reference
+        },
+        include: {
+          product: {
+            include: {
+              famille: true
+            }
+          }
+        }
+      });
+
+      // Calculate conversion ratio
+      const sourceQuantity = outMovement ? Math.abs(parseFloat(outMovement.quantity)) : 0;
+      const targetQuantity = parseFloat(inMovement.quantity);
+      const conversionRatio = sourceQuantity > 0 ? targetQuantity / sourceQuantity : 0;
+
+      return {
+        id: inMovement.id,
+        date: inMovement.date,
+        sourceProduct: outMovement ? {
+          id: outMovement.productId,
+          name: outMovement.product.name,
+          famille: outMovement.product.famille,
+          quantity: sourceQuantity,
+          unite: outMovement.product.unite
+        } : {
+          id: null,
+          name: sourceProductName || 'Produit inconnu',
+          famille: null,
+          quantity: sourceQuantity,
+          unite: null
+        },
+        targetProduct: {
+          id: inMovement.productId,
+          name: inMovement.product.name,
+          famille: inMovement.product.famille,
+          quantity: targetQuantity,
+          unite: inMovement.product.unite,
+          isVrac: inMovement.product.isVrac
+        },
+        conversionRatio: conversionRatio,
+        depot: inMovement.depot,
+        user: inMovement.user,
+        reference: inMovement.reference
+      };
+    }));
+
+    res.json({
+      data: transferHistory,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching transfer history:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de la récupération de l\'historique des transferts',
+      details: error.message 
+    });
+  }
+});
+
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
+    const { depotId } = req.query;
     
     if (isNaN(productId)) {
       return res.status(400).json({ error: 'Invalid product ID' });
     }
     
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
+    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+      return res.status(403).json({ error: 'Access denied: Cannot access other depot products' });
+    }
+    
+    if (!targetDepotId && req.user?.role !== 'ADMIN') {
+      return res.status(400).json({ error: 'depotId is required to fetch products' });
+    }
+    
+    const product = await prisma.product.findFirst({
+      where: {
+        id: productId,
+        ...(targetDepotId ? {
+          depotAssignments: {
+            some: {
+              depotId: targetDepotId
+            }
+          }
+        } : {})
+      },
       include: {
         famille: true,
         inventory: {
+          where: targetDepotId ? { depotId: targetDepotId } : {},
+          include: {
+            depot: true
+          }
+        },
+        depotAssignments: {
+          include: {
+            depot: true
+          }
+        },
+        depotPrices: {
           include: {
             depot: true
           }
@@ -154,7 +383,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     });
     
     if (!product) {
-      return res.status(404).json({ error: 'Produit non trouvé' });
+      return res.status(404).json({ error: 'Produit non trouvé ou non assigné à ce dépôt' });
     }
     
     res.json(product);
@@ -175,10 +404,15 @@ router.post('/', authenticateToken, async (req, res) => {
       barcode,
       unite,
       prix_vente_TTC,
+      prix_achat,
       tva,
       duree_conservation,
       photo,
       isVrac,
+      isVraguable,
+      conversionRatio,
+      prix_vente_vrac,
+      prix_achat_vrac,
       originalProductId,
       isStockable,
       // Wholesale fields
@@ -241,10 +475,15 @@ router.post('/', authenticateToken, async (req, res) => {
       barcode: barcode || null,
       unite: unite || 'pcs',
       prix_vente_TTC: parseFloat(prix_vente_TTC),
+      prix_achat: prix_achat ? parseFloat(prix_achat) : null,
       tva: tva ? parseFloat(tva) : 19,
       duree_conservation: duree_conservation ? parseInt(duree_conservation) : null,
       photo: photo || null,
       isVrac: isVrac || false,
+      isVraguable: isVraguable !== undefined ? isVraguable : false,
+      conversionRatio: conversionRatio ? parseFloat(conversionRatio) : null,
+      prix_vente_vrac: prix_vente_vrac !== undefined ? parseFloat(prix_vente_vrac) : 0,
+      prix_achat_vrac: prix_achat_vrac !== undefined ? parseFloat(prix_achat_vrac) : 0,
       originalProductId: originalProductId ? parseInt(originalProductId) : null,
       isStockable: isStockable !== undefined ? isStockable : true,
       // Wholesale fields
@@ -267,6 +506,17 @@ router.post('/', authenticateToken, async (req, res) => {
         data: depotIds.map(depotId => ({
           productId: product.id,
           depotId: parseInt(depotId)
+        }))
+      });
+    }
+    
+    // Handle depot prices if provided
+    if (depotPrices && Array.isArray(depotPrices) && depotPrices.length > 0) {
+      await prisma.productDepotPrice.createMany({
+        data: depotPrices.map(({ depotId, prix_vente_TTC }) => ({
+          productId: product.id,
+          depotId: parseInt(depotId),
+          prix_vente_TTC: parseFloat(prix_vente_TTC)
         }))
       });
     }
@@ -359,10 +609,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
       barcode,
       unite,
       prix_vente_TTC,
+      prix_achat,
       tva,
       duree_conservation,
       photo,
       isVrac,
+      isVraguable,
+      conversionRatio,
+      prix_vente_vrac,
+      prix_achat_vrac,
       originalProductId,
       isStockable,
       // Wholesale fields
@@ -371,7 +626,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       bundlePrice,
       minMargin,
       requiresApproval,
-      depotIds
+      depotIds,
+      depotPrices
     } = req.body;
     
     if (prix_vente_TTC !== undefined && prix_vente_TTC < 0) {
@@ -415,10 +671,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (barcode !== undefined) updateData.barcode = barcode;
     if (unite !== undefined) updateData.unite = unite;
     if (prix_vente_TTC !== undefined) updateData.prix_vente_TTC = parseFloat(prix_vente_TTC);
+    if (prix_achat !== undefined) updateData.prix_achat = prix_achat ? parseFloat(prix_achat) : null;
     if (tva !== undefined) updateData.tva = parseFloat(tva);
     if (duree_conservation !== undefined) updateData.duree_conservation = duree_conservation ? parseInt(duree_conservation) : null;
     if (photo !== undefined) updateData.photo = photo || null;
     if (isVrac !== undefined) updateData.isVrac = isVrac;
+    if (isVraguable !== undefined) updateData.isVraguable = isVraguable;
+    if (conversionRatio !== undefined) updateData.conversionRatio = conversionRatio ? parseFloat(conversionRatio) : null;
+    if (prix_vente_vrac !== undefined) updateData.prix_vente_vrac = prix_vente_vrac !== undefined ? parseFloat(prix_vente_vrac) : 0;
+    if (prix_achat_vrac !== undefined) updateData.prix_achat_vrac = prix_achat_vrac !== undefined ? parseFloat(prix_achat_vrac) : 0;
     if (originalProductId !== undefined) updateData.originalProductId = originalProductId ? parseInt(originalProductId) : null;
     if (isStockable !== undefined) updateData.isStockable = isStockable;
     // Wholesale fields
@@ -448,6 +709,25 @@ router.put('/:id', authenticateToken, async (req, res) => {
           data: depotIds.map(depotId => ({
             productId: productId,
             depotId: parseInt(depotId)
+          }))
+        });
+      }
+    }
+    
+    // Handle depot prices if provided
+    if (depotPrices !== undefined) {
+      // Remove existing depot prices
+      await prisma.productDepotPrice.deleteMany({
+        where: { productId: productId }
+      });
+      
+      // Add new depot prices
+      if (depotPrices && Array.isArray(depotPrices) && depotPrices.length > 0) {
+        await prisma.productDepotPrice.createMany({
+          data: depotPrices.map(({ depotId, prix_vente_TTC }) => ({
+            productId: productId,
+            depotId: parseInt(depotId),
+            prix_vente_TTC: parseFloat(prix_vente_TTC)
           }))
         });
       }
@@ -1040,6 +1320,386 @@ router.get('/vrac/statistics', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching vrac statistics:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des statistiques vrac' });
+  }
+});
+
+// Transfer/Convert product to another product type
+router.post('/transfer', authenticateToken, async (req, res) => {
+  try {
+    console.log('Transfer request body:', req.body);
+    const { sourceProductId, targetProductId, quantity, conversionRatio, depotId } = req.body;
+
+    // Validate required fields
+    if (!sourceProductId || !targetProductId || quantity === undefined || quantity === null || conversionRatio === undefined || conversionRatio === null || !depotId) {
+      console.log('Missing fields:', {
+        sourceProductId,
+        targetProductId,
+        quantity,
+        conversionRatio,
+        depotId
+      });
+      return res.status(400).json({ 
+        error: 'Tous les champs sont requis',
+        received: {
+          sourceProductId: !!sourceProductId,
+          targetProductId: !!targetProductId,
+          quantity: quantity !== undefined && quantity !== null,
+          conversionRatio: conversionRatio !== undefined && conversionRatio !== null,
+          depotId: !!depotId
+        }
+      });
+    }
+
+    // Validate quantity and conversion ratio are positive
+    if (parseFloat(quantity) <= 0) {
+      return res.status(400).json({ error: 'La quantité doit être positive' });
+    }
+    if (parseFloat(conversionRatio) <= 0) {
+      return res.status(400).json({ error: 'Le ratio de conversion doit être positif' });
+    }
+
+    const sourceProduct = await prisma.product.findUnique({
+      where: { id: parseInt(sourceProductId) }
+    });
+
+    const targetProduct = await prisma.product.findUnique({
+      where: { id: parseInt(targetProductId) }
+    });
+
+    if (!sourceProduct || !targetProduct) {
+      return res.status(404).json({ error: 'Produit non trouvé' });
+    }
+
+    // Validate that target product is vrac (for transfer to vrac)
+    if (!targetProduct.isVrac) {
+      console.log('Warning: Target product is not vrac:', targetProduct.name, 'isVrac:', targetProduct.isVrac);
+      // Allow transfer but log warning
+    }
+
+    const depotIdInt = parseInt(depotId);
+    const sourceQuantity = parseFloat(quantity);
+    const ratio = parseFloat(conversionRatio);
+    const targetQuantity = sourceQuantity * ratio;
+
+    // Validate calculated quantities
+    if (isNaN(sourceQuantity) || isNaN(targetQuantity) || isNaN(ratio)) {
+      return res.status(400).json({ error: 'Quantités ou ratio invalides' });
+    }
+
+    // Check if source product has enough inventory
+    const sourceInventory = await prisma.inventory.findUnique({
+      where: {
+        depotId_productId: {
+          depotId: depotIdInt,
+          productId: parseInt(sourceProductId)
+        }
+      }
+    });
+
+    const currentSourceQuantity = sourceInventory ? parseFloat(sourceInventory.quantity) : 0;
+    
+    // Allow transfer even if inventory doesn't exist or is insufficient (can go negative)
+    // This allows flexibility for product conversions
+    if (currentSourceQuantity < sourceQuantity && sourceInventory) {
+      console.log(`Warning: Insufficient stock. Available: ${currentSourceQuantity}, Requested: ${sourceQuantity}`);
+      // Continue with transfer - allow negative inventory
+    }
+
+    // Perform transfer in transaction
+    await prisma.$transaction(async (tx) => {
+      // Reduce source product inventory
+      if (sourceInventory) {
+        const newSourceQuantity = currentSourceQuantity - sourceQuantity;
+        await tx.inventory.update({
+          where: { id: sourceInventory.id },
+          data: { quantity: newSourceQuantity }
+        });
+      } else {
+        // Create inventory record with negative quantity if it doesn't exist
+        await tx.inventory.create({
+          data: {
+            depotId: depotIdInt,
+            productId: parseInt(sourceProductId),
+            quantity: -sourceQuantity
+          }
+        });
+      }
+
+      // Add target product inventory
+      const targetInventory = await tx.inventory.findUnique({
+        where: {
+          depotId_productId: {
+            depotId: depotIdInt,
+            productId: parseInt(targetProductId)
+          }
+        }
+      });
+
+      if (targetInventory) {
+        const currentTargetQuantity = parseFloat(targetInventory.quantity) || 0;
+        await tx.inventory.update({
+          where: { id: targetInventory.id },
+          data: { quantity: currentTargetQuantity + targetQuantity }
+        });
+      } else {
+        await tx.inventory.create({
+          data: {
+            depotId: depotIdInt,
+            productId: parseInt(targetProductId),
+            quantity: targetQuantity
+          }
+        });
+      }
+
+      // Create stock movement records with detailed reference
+      const referenceText = `Transfer ${sourceProduct.name} -> ${targetProduct.name} (${sourceQuantity} x ${ratio} = ${targetQuantity})`;
+      
+      const outMovement = await tx.stockMovement.create({
+        data: {
+          productId: parseInt(sourceProductId),
+          depotId: depotIdInt,
+          quantity: -sourceQuantity,
+          type: 'OUT',
+          reason: 'PRODUCT_CONVERSION',
+          reference: referenceText,
+          userId: req.user.id
+        }
+      });
+
+      const inMovement = await tx.stockMovement.create({
+        data: {
+          productId: parseInt(targetProductId),
+          depotId: depotIdInt,
+          quantity: targetQuantity,
+          type: 'IN',
+          reason: 'PRODUCT_CONVERSION',
+          reference: referenceText,
+          userId: req.user.id
+        }
+      });
+
+      console.log('Transfer saved:', {
+        outMovementId: outMovement.id,
+        inMovementId: inMovement.id,
+        sourceProduct: sourceProduct.name,
+        targetProduct: targetProduct.name,
+        sourceQuantity,
+        targetQuantity,
+        ratio,
+        depotId: depotIdInt,
+        userId: req.user.id
+      });
+    });
+
+    await logAudit(req.user.id, 'products', parseInt(sourceProductId), 'TRANSFER', null, {
+      sourceProductId,
+      targetProductId,
+      quantity: sourceQuantity,
+      conversionRatio: ratio,
+      targetQuantity
+    });
+
+    res.json({ 
+      success: true,
+      message: `Transfert réussi: ${sourceQuantity} ${sourceProduct.name} -> ${targetQuantity} ${targetProduct.name}`
+    });
+  } catch (error) {
+    console.error('Error transferring product:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta
+    });
+    res.status(500).json({ 
+      error: 'Erreur lors du transfert du produit',
+      details: error.message 
+    });
+  }
+});
+
+// IMPORTANT: This route must come BEFORE router.get('/:id') to avoid route conflicts
+// Get transfer history to vrac
+router.get('/transfer-history', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, startDate, endDate, page = 1, limit = 50 } = req.query;
+    
+    // Get depotId - use query param if provided, otherwise use user's depot
+    let currentDepotId;
+    if (depotId) {
+      currentDepotId = Number(depotId);
+      if (isNaN(currentDepotId) || currentDepotId <= 0) {
+        return res.status(400).json({ error: 'Dépôt invalide dans la requête' });
+      }
+    } else if (req.user?.depotId) {
+      currentDepotId = Number(req.user.depotId);
+      if (isNaN(currentDepotId) || currentDepotId <= 0) {
+        currentDepotId = 1; // Fallback to default
+      }
+    } else {
+      currentDepotId = 1; // Default depot
+    }
+
+    // Build date filter
+    const dateFilter = {};
+    if (startDate) {
+      const start = new Date(startDate);
+      if (!isNaN(start.getTime())) {
+        dateFilter.gte = start;
+      }
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      if (!isNaN(end.getTime())) {
+        end.setHours(23, 59, 59, 999);
+        dateFilter.lte = end;
+      }
+    }
+
+    // Build where clause
+    const whereClause = {
+      reason: 'PRODUCT_CONVERSION',
+      type: 'IN',
+      depotId: currentDepotId
+    };
+
+    if (Object.keys(dateFilter).length > 0) {
+      whereClause.date = dateFilter;
+    }
+
+    // Get IN movements (target products) with product info
+    // First, get all movements matching the criteria
+    let inMovements;
+    try {
+      inMovements = await prisma.stockMovement.findMany({
+        where: whereClause,
+        include: {
+          product: {
+            include: {
+              famille: true
+            }
+          },
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              username: true
+            }
+          },
+          depot: {
+            select: {
+              name: true,
+              code: true
+            }
+          }
+        },
+        orderBy: {
+          date: 'desc'
+        }
+      });
+    } catch (prismaError) {
+      console.error('Prisma query error:', prismaError);
+      return res.status(500).json({ 
+        error: 'Erreur lors de la requête à la base de données',
+        details: prismaError.message 
+      });
+    }
+
+    // Show all transfers - don't filter by isVrac since transfers can be to any product type
+    // The history should show all product conversions, not just to vrac
+    inMovements = inMovements.filter(movement => {
+      return movement.product !== null; // Only filter out movements without products
+    });
+
+    // Apply pagination after filtering
+    const pageNum = parseInt(page.toString());
+    const limitNum = parseInt(limit.toString());
+    const totalCount = inMovements.length;
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = startIndex + limitNum;
+    inMovements = inMovements.slice(startIndex, endIndex);
+
+    // Get corresponding OUT movements (source products) to get full transfer details
+    const transferHistory = await Promise.all(inMovements.map(async (inMovement) => {
+      // Parse reference to extract source product name
+      const referenceMatch = inMovement.reference?.match(/Transfer (.+?) -> (.+)/);
+      const sourceProductName = referenceMatch ? referenceMatch[1] : null;
+      const targetProductName = referenceMatch ? referenceMatch[2] : null;
+
+      // Find corresponding OUT movement (source product)
+      const outMovement = await prisma.stockMovement.findFirst({
+        where: {
+          reason: 'PRODUCT_CONVERSION',
+          type: 'OUT',
+          depotId: currentDepotId,
+          date: inMovement.date,
+          reference: inMovement.reference
+        },
+        include: {
+          product: {
+            include: {
+              famille: true
+            }
+          }
+        }
+      });
+
+      // Calculate conversion ratio
+      const sourceQuantity = outMovement ? Math.abs(parseFloat(outMovement.quantity)) : 0;
+      const targetQuantity = parseFloat(inMovement.quantity);
+      const conversionRatio = sourceQuantity > 0 ? targetQuantity / sourceQuantity : 0;
+
+      return {
+        id: inMovement.id,
+        date: inMovement.date,
+        sourceProduct: outMovement ? {
+          id: outMovement.productId,
+          name: outMovement.product.name,
+          famille: outMovement.product.famille,
+          quantity: sourceQuantity,
+          unite: outMovement.product.unite
+        } : {
+          id: null,
+          name: sourceProductName || 'Produit inconnu',
+          famille: null,
+          quantity: sourceQuantity,
+          unite: null
+        },
+        targetProduct: {
+          id: inMovement.productId,
+          name: inMovement.product.name,
+          famille: inMovement.product.famille,
+          quantity: targetQuantity,
+          unite: inMovement.product.unite,
+          isVrac: inMovement.product.isVrac
+        },
+        conversionRatio: conversionRatio,
+        depot: inMovement.depot,
+        user: inMovement.user,
+        reference: inMovement.reference
+      };
+    }));
+
+    res.json({
+      data: transferHistory,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching transfer history:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      error: 'Erreur lors de la récupération de l\'historique des transferts',
+      details: error.message 
+    });
   }
 });
 

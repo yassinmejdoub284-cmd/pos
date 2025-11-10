@@ -112,11 +112,11 @@ router.post('/', async (req, res) => {
         escalateToUserId: body.escalateToUserId || null,
         allowVoiceResponses: body.allowVoiceResponses ?? false,
         status: 'ACTIVE',
-        createdById: req.user.id,
+        createdById: req.user?.id,
         roleTargets: body.roles && body.roles.length ? {
           create: body.roles.map(r => ({ role: r }))
         } : undefined,
-        assignments: getAssignmentData(body, req.user.id)
+        assignments: getAssignmentData(body, req.user?.id)
       },
       include: { roleTargets: true }
     });
@@ -165,7 +165,7 @@ router.put('/:id', async (req, res) => {
         escalateToRole: body.escalateToRole,
         escalateToUserId: body.escalateToUserId,
         allowVoiceResponses: body.allowVoiceResponses,
-        updatedById: req.user.id
+        updatedById: req.user?.id
       }
     });
     res.json(updated);
@@ -201,9 +201,12 @@ router.post('/:id/action', async (req, res) => {
 });
 
 // End-user: get due reminders (max 3) - for login flow (ignores snooze)
-router.get('/me/due', async (req, res) => {
+router.get('/me/due', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     const now = new Date();
     
     // For login flow, show ALL active reminders regardless of snooze status
@@ -220,7 +223,7 @@ router.get('/me/due', async (req, res) => {
     });
 
     // role-based
-    const role = req.user.role;
+    const role = req.user?.role;
     const roleDue = await prisma.reminder.findMany({
       where: {
         status: 'ACTIVE',
@@ -252,9 +255,12 @@ router.get('/me/due', async (req, res) => {
 });
 
 // End-user: get due reminders (max 3) - for in-app use (respects snooze)
-router.get('/me/due-respect-snooze', async (req, res) => {
+router.get('/me/due-respect-snooze', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     const now = new Date();
     
     // Get all reminders that are due and active
@@ -266,7 +272,7 @@ router.get('/me/due-respect-snooze', async (req, res) => {
           // Direct assignments
           { assignments: { some: { userId } } },
           // Role-based reminders
-          { roleTargets: { some: { role: req.user.role } } },
+          { roleTargets: { some: { role: req.user?.role } } },
           // Company-wide reminders
           { targetType: 'ALL_COMPANY' }
         ]
@@ -317,9 +323,12 @@ router.get('/me/due-respect-snooze', async (req, res) => {
 });
 
 // Get next snooze expiration time for scheduling
-router.get('/me/next-snooze', async (req, res) => {
+router.get('/me/next-snooze', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     const now = new Date();
     
     // Find the earliest snooze expiration time
@@ -348,10 +357,13 @@ router.get('/me/next-snooze', async (req, res) => {
 });
 
 // End-user: mark as read
-router.post('/:id/read', async (req, res) => {
+router.post('/:id/read', authenticateToken, async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     // if assignment exists, mark read else create a read assignment to prevent re-show
     const existing = await prisma.reminderAssignment.findFirst({ where: { reminderId: id, userId } });
     let result;
@@ -367,10 +379,13 @@ router.post('/:id/read', async (req, res) => {
 });
 
 // End-user: snooze
-router.post('/:id/snooze', async (req, res) => {
+router.post('/:id/snooze', authenticateToken, async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     const { minutes, demainMatin } = req.body || {};
     const reminder = await prisma.reminder.findUnique({ where: { id } });
     if (!reminder) return res.status(404).json({ error: 'Rappel introuvable' });
@@ -422,10 +437,13 @@ router.post('/:id/voice', upload.single('voice'), async (req, res) => {
 });
 
 // End-user: post voice response
-router.post('/:id/voice-response', upload.single('voice'), async (req, res) => {
+router.post('/:id/voice-response', authenticateToken, upload.single('voice'), async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     if (!req.file) {
       return res.status(400).json({ error: 'Fichier vocal requis' });
     }

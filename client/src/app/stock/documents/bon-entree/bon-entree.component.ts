@@ -426,10 +426,10 @@ export class BonEntreeComponent implements OnInit {
     return dateObj.toLocaleDateString('fr-FR');
   }
 
-  // Helpers to distinguish returns vs entries (when saved via negative quantities)
+  // Helpers to distinguish returns vs entries
   isReturnDocument(doc: StockDocument): boolean {
-    const items: any[] = (doc as any).items || [];
-    return Array.isArray(items) && items.some((i: any) => Number(i.quantity) < 0);
+    // Check if it's a BON_EXPEDITION type (which is used for returns in the backend)
+    return doc.type === 'BON_EXPEDITION';
   }
 
   getDocumentTypeLabel(doc: StockDocument): string {

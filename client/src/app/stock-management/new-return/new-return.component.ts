@@ -44,6 +44,13 @@ export class NewReturnComponent implements OnInit {
     return product ? (product.name || `Produit #${productId}`) : `Produit #${productId}`;
   }
 
+  getTotalQuantity(): number {
+    return this.itemsArray.controls.reduce((total, ctrl) => {
+      const quantity = ctrl.get('quantity')?.value || 0;
+      return total + (Number(quantity) || 0);
+    }, 0);
+  }
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -117,7 +124,18 @@ export class NewReturnComponent implements OnInit {
 
   submit(): void {
     if (this.itemsArray.length === 0) {
-      this.error = 'Ajouter au moins un produit';
+      this.error = 'Veuillez ajouter au moins un produit à retourner';
+      return;
+    }
+
+    // Validate that all items have quantities
+    const invalidItems = this.itemsArray.controls.filter(ctrl => {
+      const quantity = ctrl.get('quantity')?.value;
+      return !quantity || Number(quantity) <= 0;
+    });
+
+    if (invalidItems.length > 0) {
+      this.error = 'Tous les produits doivent avoir une quantité valide à retourner';
       return;
     }
 
@@ -132,24 +150,25 @@ export class NewReturnComponent implements OnInit {
     const items: ReturnItemForm[] = this.itemsArray.controls.map((ctrl) => ({
       productId: ctrl.get('productId')?.value || 0,
       famille: ctrl.get('famille')?.value || 'Divers',
-      quantity: -Math.abs(ctrl.get('quantity')?.value || 0),
+      quantity: Math.abs(ctrl.get('quantity')?.value || 0), // Keep positive quantity, backend will handle the negative
       purchasePrice: ctrl.get('unitPrice')?.value || null,
       batch: ctrl.get('batch')?.value || null,
       notes: ctrl.get('notes')?.value || null
     }));
 
-    this.stockDocs.createEntry(this.depotId, null, items, 'Bon de retour').subscribe({
+    this.stockDocs.createEntry(this.depotId, null, items, 'Bon de retour', true).subscribe({
       next: () => {
         this.loading = false;
-        this.success = `Bon de retour créé avec succès`;
-        setTimeout(() => this.router.navigate(['/stock/documents/bon-entree', this.depotId]), 1500);
+        this.success = `Bon de retour créé avec succès - Les quantités ont été soustraites de l'inventaire`;
+        setTimeout(() => this.router.navigate(['/stock/documents/bon-retour', this.depotId]), 1500);
       },
       error: (err) => {
         this.loading = false;
         this.error = err.error?.error || 'Erreur lors de la création du bon de retour';
+        console.error('Error creating return:', err);
       }
     });
   }
 
-  cancel(): void { this.router.navigate(['/stock/documents/bon-entree', this.depotId]); }
+  cancel(): void { this.router.navigate(['/stock/documents/bon-retour', this.depotId]); }
 }

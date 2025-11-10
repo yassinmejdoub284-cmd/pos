@@ -19,8 +19,8 @@ export class DocumentsReceptionComponent implements OnInit {
   documents = signal<StockDocument[]>([]);
   filtered = computed(() => {
     const list = this.documents();
-    // Include all document types that can be received (SENT or PREPARED status)
-    return list.filter(d => d.status === 'SENT' || d.status === 'PREPARED');
+    // Show all destinataire documents (all statuses)
+    return list;
   });
 
   // Depot scoping
@@ -28,6 +28,7 @@ export class DocumentsReceptionComponent implements OnInit {
   depots: any[] = [];
   isAdmin = false;
   showDepotSelector = false;
+  manualDepotSelection = false;
 
   // Details modal
   showDetailsModal = false;
@@ -78,7 +79,7 @@ export class DocumentsReceptionComponent implements OnInit {
     // Watch for session depot changes
     this.sessionsService.currentSession$?.subscribe({
       next: (sess: any) => {
-        if (sess?.depotId && this.currentDepotId !== sess.depotId) {
+        if (!this.manualDepotSelection && sess?.depotId && this.currentDepotId !== sess.depotId) {
           this.currentDepotId = sess.depotId;
           this.loadDocuments();
         }
@@ -108,15 +109,18 @@ export class DocumentsReceptionComponent implements OnInit {
     this.error = '';
     const depotId = this.getScopedDepotId();
     console.log('Loading documents for depot ID:', depotId);
-    // Load all document types with SENT status
-    this.stockDocs.getDocuments(1, 50, undefined, 'SENT', depotId).subscribe({
+    // Load all document types (filter statuses client-side)
+    this.stockDocs.getDocuments(1, 50, undefined, undefined, depotId, undefined, undefined, false, true).subscribe({
       next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data ?? []);
         console.log('Raw documents loaded:', data.length);
+        const selectedDepotName = this.getCurrentDepotName();
         // Filter for documents destined to this depot (all types)
-        const filteredData = data.filter((doc: any) => 
-          doc.destinataireId === depotId
-        );
+        const filteredData = data.filter((doc: any) => {
+          const byId = doc?.destinataireId === depotId || doc?.destinataire?.id === depotId;
+          const byName = !!selectedDepotName && (doc?.destinataire?.name === selectedDepotName);
+          return byId || byName;
+        });
         console.log('Filtered documents for depot', depotId, ':', filteredData.length);
         this.documents.set(filteredData);
         this.loading = false;
@@ -139,9 +143,11 @@ export class DocumentsReceptionComponent implements OnInit {
   }
 
   selectDepot(depotId: number): void {
+    this.manualDepotSelection = true;
     this.currentDepotId = depotId;
     this.showDepotSelector = false;
-    this.loadDocuments();
+    // Reflect selection in URL so route guard/subscriptions re-load properly
+    this.router.navigate(['/documents-reception', depotId]);
   }
 
   getDocumentTypeLabel(type: string): string {
@@ -253,6 +259,10 @@ export class DocumentsReceptionComponent implements OnInit {
     const depotId = this.getScopedDepotId();
     if (!depotId) {
       this.error = 'Dépôt cible introuvable';
+      return;
+    }
+    if (doc.status !== 'SENT') {
+      this.error = `Le document ${doc.numero} n'est pas prêt pour approbation (statut: ${doc.status}).`;
       return;
     }
     this.loading = true;

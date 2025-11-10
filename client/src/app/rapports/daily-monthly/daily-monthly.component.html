@@ -36,13 +36,13 @@
         <!-- Date Range -->
         <div>
           <label class="block text-sm text-gray-600 mb-1">Du</label>
-          <input type="date" [(ngModel)]="filters.startDate" (change)="onFiltersChange()"
+          <input type="date" [value]="startDate" (change)="onStartDateChange($event)"
             class="w-full bg-white/80 border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:border-blue-400">
         </div>
         
         <div>
           <label class="block text-sm text-gray-600 mb-1">Au</label>
-          <input type="date" [(ngModel)]="filters.endDate" (change)="onFiltersChange()"
+          <input type="date" [value]="endDate" (change)="onEndDateChange($event)"
             class="w-full bg-white/80 border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:border-blue-400">
         </div>
 
