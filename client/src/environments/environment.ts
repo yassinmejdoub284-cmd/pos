@@ -24,6 +24,13 @@ console.log('🟢 DEVELOPMENT ENVIRONMENT LOADED - apiUrl:', environment.apiUrl)
 
 // export const environment = {
 //   production: false,
+//   apiUrl: 'https://192.168.1.15:3255/api',
+//   socketUrl: 'https://192.168.1.15:3255',
+//   enableRealtime: false
+// };
+
+// export const environment = {
+//   production: false,
 //   apiUrl: 'https://192.168.1.18:3255/api',
 //   socketUrl: 'https://192.168.1.18:3255',
 //   enableRealtime: false
