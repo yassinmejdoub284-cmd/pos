@@ -260,9 +260,14 @@ export class ShopTransferComponent implements OnInit {
   private loadSalesData(depotId: number): Promise<any[]> {
     return this.salesService.getSales().toPromise()
       .then(sales => {
-        // Filter sales by depot if needed, or return all sales
-        // For now, returning all sales as the service doesn't have depot filtering
-        return sales || [];
+        // Filter sales by depot and exclude canceled/refunded tickets
+        const filteredSales = (sales || []).filter((sale: any) => {
+          const status = (sale.status || '').toUpperCase();
+          const isCanceled = status === 'CANCELLED' || status === 'REFUNDED';
+          const matchesDepot = sale.depotId === depotId;
+          return matchesDepot && !isCanceled && (status === 'COMPLETED' || status === 'CMD_TERMINEE');
+        });
+        return filteredSales;
       })
       .catch(() => []);
   }
@@ -306,26 +311,24 @@ export class ShopTransferComponent implements OnInit {
     return { totalQuantity, totalValue };
   }
 
-  // Calculate per-product entries (current inventory + exits = total entries)
+  // Calculate per-product entries (from entry documents only)
   getProductEntries(productId: number): { totalQuantity: number; totalValue: number } {
     let totalQuantity = 0;
     let totalValue = 0;
 
-    // Get current inventory quantity
-    const inventoryItem = this.inventory.find(item => item.productId === productId);
-    const currentQuantity = inventoryItem ? Number(inventoryItem.quantity) : 0;
-    
-    // Get total exits (sales)
-    const exits = this.getProductExits(productId);
-    
-    // Total entries = current quantity + exits (what was sold)
-    totalQuantity = currentQuantity + exits.totalQuantity;
-    
-    // Calculate value based on purchase price
-    if (inventoryItem) {
-      const unitPrice = this.getPurchaseUnitPrice(inventoryItem);
-      totalValue = totalQuantity * unitPrice;
-    }
+    // Calculate entries ONLY from entry documents (bon d'entrée)
+    this.entryDocuments.forEach(doc => {
+      if (doc.items) {
+        doc.items.forEach((item: any) => {
+          if (item.productId === productId) {
+            const quantity = Number(item.quantity || 0);
+            const purchasePrice = Number(item.purchasePrice || 0);
+            totalQuantity += quantity;
+            totalValue += quantity * purchasePrice;
+          }
+        });
+      }
+    });
 
     return { totalQuantity, totalValue };
   }
@@ -339,9 +342,12 @@ export class ShopTransferComponent implements OnInit {
       if (sale.items) {
         sale.items.forEach((item: any) => {
           if (item.productId === productId) {
-            const quantity = Number(item.quantity) || 0;
+            // Handle wholesale bundle quantities
+            const actualQuantity = sale.isWholesale && item.isWholesale && item.bundleSize
+              ? (Number(item.bundleQuantity || item.quantity || 0)) * Number(item.bundleSize || 1)
+              : Number(item.quantity || 0);
             const total = Number(item.total) || 0;
-            totalQuantity += quantity;
+            totalQuantity += actualQuantity;
             totalValue += total;
           }
         });

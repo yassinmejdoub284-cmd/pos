@@ -20,6 +20,7 @@ import { ExpenseService } from '../core/services/expense.service';
 import { ImagePreloadService } from '../core/services/image-preload.service';
 import { TicketCounterService } from '../core/services/ticket-counter.service';
 import { SocketService } from '../core/services/socket.service';
+import { InventoryService } from '../core/services/inventory.service';
 import { Product } from '../core/models/product.model';
 import { Sale } from '../core/models/sale.model';
 import { Client } from '../core/models/client.model';
@@ -466,7 +467,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private expenseService: ExpenseService,
     private imagePreloadService: ImagePreloadService,
     private ticketCounterService: TicketCounterService,
-    private socketService: SocketService
+    private socketService: SocketService,
+    private inventoryService: InventoryService
   ) {}
 
   ngOnInit(): void {
@@ -828,23 +830,109 @@ export class CaisseComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Load products filtered by current depot
-    this.productsService.getProducts(this.currentShopDepotId).subscribe({
-      next: (products) => {
-        // Sort products by displayIndex (null values go to end)
-        this.allProducts = products.sort((a, b) => {
-          if ((a.displayIndex === null || a.displayIndex === undefined) && (b.displayIndex === null || b.displayIndex === undefined)) return 0;
-          if (a.displayIndex === null || a.displayIndex === undefined) return 1;
-          if (b.displayIndex === null || b.displayIndex === undefined) return -1;
-          return a.displayIndex! - b.displayIndex!;
-        });
+    // If wholesale mode is enabled and a client is selected, load all products (including variants) like client-gros
+    if (this.isWholesaleMode && this.selectedClient) {
+      this.loadAllProductsForWholesale();
+    } else {
+      // Load products filtered by current depot (parent products only)
+      this.productsService.getProducts(this.currentShopDepotId).subscribe({
+        next: (products) => {
+          // Sort products by displayIndex (null values go to end)
+          this.allProducts = products.sort((a, b) => {
+            if ((a.displayIndex === null || a.displayIndex === undefined) && (b.displayIndex === null || b.displayIndex === undefined)) return 0;
+            if (a.displayIndex === null || a.displayIndex === undefined) return 1;
+            if (b.displayIndex === null || b.displayIndex === undefined) return -1;
+            return a.displayIndex! - b.displayIndex!;
+          });
+          
+          this.loadProductSalesData();
+          // Load families after products are loaded so we can filter by product count
+          this.loadProductFamilies();
+        },
+        error: (error) => {
+          console.error('Error loading products:', error);
+        }
+      });
+    }
+  }
+
+  loadAllProductsForWholesale(): void {
+    // Load all products (including variants) from inventory service, same as client-gros
+    this.inventoryService.getProductsForDepot(this.currentShopDepotId, 'NOT_SHOP').subscribe({
+      next: (subProducts) => {
+        // Map sub-products to Product format
+        const allProducts: Product[] = subProducts.map((sp: any) => ({
+          id: sp.id,
+          name: sp.name,
+          prix_vente_TTC: Number(sp.prix_vente_TTC) || 0,
+          familleId: sp.familleId || sp.famille?.id || 0,
+          famille: sp.famille,
+          barcode: sp.barcode || null,
+          photo: sp.photo || null,
+          unite: sp.unite || 'unité',
+          tva: sp.tva || 0,
+          createdAt: sp.createdAt || new Date(),
+          updatedAt: sp.updatedAt || new Date(),
+          parentProductId: sp.parentProductId ?? null,
+          isWholesale: (sp as any).isWholesale || false,
+          bundleSize: (sp as any).bundleSize || null,
+          bundlePrice: (sp as any).bundlePrice || null,
+          displayIndex: (sp as any).displayIndex || null,
+          depotPrices: (sp as any).depotPrices || []
+        } as Product));
         
-        this.loadProductSalesData();
-        // Load families after products are loaded so we can filter by product count
-        this.loadProductFamilies();
+        // Also load parent products to ensure we have all products
+        this.productsService.getProducts(this.currentShopDepotId).subscribe({
+          next: (parentProducts) => {
+            // Merge parent products with sub-products, avoiding duplicates
+            const parentIds = new Set(allProducts.map(p => p.id));
+            const additionalParents = parentProducts.filter(p => !parentIds.has(p.id));
+            const mergedProducts = [...allProducts, ...additionalParents];
+            
+            // Sort products by displayIndex (null values go to end)
+            this.allProducts = mergedProducts.sort((a, b) => {
+              if ((a.displayIndex === null || a.displayIndex === undefined) && (b.displayIndex === null || b.displayIndex === undefined)) return 0;
+              if (a.displayIndex === null || a.displayIndex === undefined) return 1;
+              if (b.displayIndex === null || b.displayIndex === undefined) return -1;
+              return a.displayIndex! - b.displayIndex!;
+            });
+            
+            this.loadProductSalesData();
+            // Load families after products are loaded so we can filter by product count
+            this.loadProductFamilies();
+          },
+          error: (error) => {
+            console.error('Error loading parent products:', error);
+            // Use sub-products only if parent load fails
+            this.allProducts = allProducts.sort((a, b) => {
+              if ((a.displayIndex === null || a.displayIndex === undefined) && (b.displayIndex === null || b.displayIndex === undefined)) return 0;
+              if (a.displayIndex === null || a.displayIndex === undefined) return 1;
+              if (b.displayIndex === null || b.displayIndex === undefined) return -1;
+              return a.displayIndex! - b.displayIndex!;
+            });
+            this.loadProductSalesData();
+            this.loadProductFamilies();
+          }
+        });
       },
       error: (error) => {
-        console.error('Error loading products:', error);
+        console.error('Error loading all products for wholesale:', error);
+        // Fallback to regular product loading
+        this.productsService.getProducts(this.currentShopDepotId).subscribe({
+          next: (products) => {
+            this.allProducts = products.sort((a, b) => {
+              if ((a.displayIndex === null || a.displayIndex === undefined) && (b.displayIndex === null || b.displayIndex === undefined)) return 0;
+              if (a.displayIndex === null || a.displayIndex === undefined) return 1;
+              if (b.displayIndex === null || b.displayIndex === undefined) return -1;
+              return a.displayIndex! - b.displayIndex!;
+            });
+            this.loadProductSalesData();
+            this.loadProductFamilies();
+          },
+          error: (err) => {
+            console.error('Error loading products (fallback):', err);
+          }
+        });
       }
     });
   }
@@ -1141,8 +1229,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.pendingWholesaleToggle = false;
     // Clear current cart when switching modes
     this.clearReceipt();
-    // Refresh product listing to reflect mode change (show all when off)
-    this.filterProducts();
+    // Reload products to get all products (including variants) when enabling wholesale mode
+    if (this.isWholesaleMode && this.selectedClient) {
+      this.loadProducts();
+    } else {
+      // Refresh product listing to reflect mode change (show all when off)
+      this.filterProducts();
+    }
   }
 
   toggleDragMode(): void {
@@ -1209,6 +1302,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   selectedClient: Client | null = null;
   selectedClientId: number | null = null;
   searchingClients = false;
+  
+  // Client-specific prices cache (from client-gros)
+  clientPrices: Map<number, number> = new Map(); // Map<productId, prix_vente_TTC>
 
   // Payment confirmation dialog
   showPaymentConfirmationDialog = false;
@@ -1419,6 +1515,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
+    // Clear existing client prices first
+    this.clientPrices.clear();
+    
     this.selectedClient = client;
     this.selectedClientId = client.id;
     this.currentCustomer = `${client.firstName} ${client.lastName}`;
@@ -1427,6 +1526,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     activeCart.client = client;
     activeCart.clientId = client.id;
     activeCart.clientName = `${client.firstName} ${client.lastName}`;
+    
+    // Load client-specific prices from client-gros endpoint
+    this.loadClientPrices(client.id);
     
     // If we were waiting for client selection to enable wholesale mode, do it now
     if (this.pendingWholesaleToggle) {
@@ -1440,8 +1542,38 @@ export class CaisseComponent implements OnInit, OnDestroy {
     }
     
     this.showClientSearchPopup = false;
-    // Refresh product list according to mode
-    this.filterProducts();
+    // Reload products to get all products (including variants) when in wholesale mode
+    if (this.isWholesaleMode && this.selectedClient) {
+      this.loadProducts();
+    } else {
+      // Refresh product list according to mode
+      this.filterProducts();
+    }
+  }
+
+  loadClientPrices(clientId: number): void {
+    // Load client-specific prices from client-gros endpoint
+    this.http.get<any[]>(`${environment.apiUrl}/clients/${clientId}/product-prices`, { withCredentials: true }).subscribe({
+      next: (clientPrices: any[]) => {
+        // Load client prices into cache
+        this.clientPrices.clear();
+        clientPrices.forEach((cp: any) => {
+          // Use productId from the product relation if available, otherwise from direct field
+          const productId = cp.product?.id || cp.productId;
+          const price = Number(cp.prix_vente_TTC);
+          if (productId && price > 0) {
+            this.clientPrices.set(productId, price);
+          }
+        });
+        // Refresh product prices display
+        this.calculateTotals();
+      },
+      error: (error: any) => {
+        // If endpoint doesn't exist yet or no prices found, just clear the cache
+        // This means we'll use default/wholesale prices
+        this.clientPrices.clear();
+      }
+    });
   }
 
   // Client selection dialog methods
@@ -1525,6 +1657,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   private clearClientSelection(): void {
+    // Clear client prices cache
+    this.clientPrices.clear();
+    
     const activeCart = this.getActiveCart();
     if (activeCart) {
       activeCart.client = undefined;
@@ -5251,6 +5386,20 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   getWholesaleUnitPrice(product: any): number {
+    // First check if there's a client-specific price for the selected client
+    if (this.selectedClient && this.clientPrices.has(product.id)) {
+      const clientPrice = this.clientPrices.get(product.id)!;
+      // Apply wholesale rules if any
+      const rule = this.findRuleForProduct(product.id);
+      if (rule) {
+        const val = Number(rule.value) || 0;
+        if (rule.ruleType === 'percentage') return clientPrice * (1 - val / 100);
+        if (rule.ruleType === 'fixed') return val;
+        if (rule.ruleType === 'discount') return Math.max(0, clientPrice - val);
+      }
+      return clientPrice;
+    }
+    
     // Use depot-specific price if available, otherwise use default price
     const depotId = this.currentShopDepotId;
     let baseUnit = Number(product.prix_vente_TTC) || 0;
@@ -5281,6 +5430,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   getEffectiveUnitPrice(product: any): number {
+    // First check if there's a client-specific price (from client-gros)
+    if (this.selectedClient && this.clientPrices.has(product.id)) {
+      return this.clientPrices.get(product.id)!;
+    }
+    
     const isWholesaleContext = this.isWholesaleMode || (this.selectedClient?.clientType === 'WHOLESALE');
     if (isWholesaleContext) {
       return this.getWholesaleUnitPrice(product);

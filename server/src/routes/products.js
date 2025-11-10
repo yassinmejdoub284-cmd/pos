@@ -421,7 +421,8 @@ router.post('/', authenticateToken, async (req, res) => {
       bundlePrice,
       minMargin,
       requiresApproval,
-      depotIds
+      depotIds,
+      depotPrices
     } = req.body;
     
     if (!name || !prix_vente_TTC || !familleId) {

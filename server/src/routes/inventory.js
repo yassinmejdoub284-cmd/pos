@@ -799,65 +799,104 @@ router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGE
         }
       });
 
-      // Helper function to update inventory for a depot
-      const updateInventoryForDepot = async (depotId, productId, ecartQuantity) => {
+      // Recalculate stock from entry documents and sales for each item
+      for (const item of session.items) {
+        const productId = item.productId;
+        const countedQuantity = parseFloat(item.countedQuantity ?? item.theoreticalQuantity ?? 0);
+        
+        // Calculate total entries from entry documents (BON_ENTREE_DEPOT, BON_ENTREE_MAGASIN) for this depot
+        const entryDocuments = await tx.stockDocument.findMany({
+          where: {
+            destinataireId: session.depotId,
+            type: { in: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'] },
+            status: 'RECEIVED'
+          },
+          include: {
+            items: {
+              where: {
+                productId: productId
+              }
+            }
+          }
+        });
+        
+        let totalEntries = 0;
+        entryDocuments.forEach(doc => {
+          doc.items.forEach(docItem => {
+            totalEntries += parseFloat(docItem.quantity || 0);
+          });
+        });
+        
+        // Calculate total exits from sales (COMPLETED, not CANCELLED) for this depot
+        const sales = await tx.sale.findMany({
+          where: {
+            depotId: session.depotId,
+            status: { in: ['COMPLETED', 'CMD_TERMINEE'] }
+          },
+          include: {
+            items: {
+              where: {
+                productId: productId
+              }
+            }
+          }
+        });
+        
+        let totalExits = 0;
+        sales.forEach(sale => {
+          sale.items.forEach(saleItem => {
+            // Handle wholesale bundle quantities
+            const actualQuantity = sale.isWholesale && saleItem.isWholesale && saleItem.bundleSize
+              ? (parseFloat(saleItem.bundleQuantity || saleItem.quantity || 0)) * parseFloat(saleItem.bundleSize || 1)
+              : parseFloat(saleItem.quantity || 0);
+            totalExits += actualQuantity;
+          });
+        });
+        
+        // Stock should be: entries - exits
+        // But we use the counted quantity from inventory session
+        const newStockQuantity = countedQuantity;
+        
+        // Update inventory for session depot
         const inventory = await tx.inventory.findUnique({
           where: {
             depotId_productId: {
-              depotId: depotId,
+              depotId: session.depotId,
               productId: productId
             }
           }
         });
 
         if (inventory) {
-          const newQuantity = parseFloat(inventory.quantity) + parseFloat(ecartQuantity);
           await tx.inventory.update({
             where: { id: inventory.id },
-            data: { quantity: newQuantity }
+            data: { quantity: newStockQuantity }
           });
         } else {
           // Create new inventory entry if it doesn't exist
           await tx.inventory.create({
             data: {
-              depotId: depotId,
+              depotId: session.depotId,
               productId: productId,
-              quantity: parseFloat(ecartQuantity)
+              quantity: newStockQuantity
             }
           });
         }
 
-        // Create stock movement record
-        await tx.stockMovement.create({
-          data: {
-            productId: productId,
-            depotId: depotId,
-            quantity: parseFloat(ecartQuantity),
-            type: parseFloat(ecartQuantity) > 0 ? 'IN' : 'OUT',
-            reason: 'INVENTORY_ADJUSTMENT',
-            reference: session.numero,
-            userId: req.user.id
-          }
-        });
-      };
-
-      // Apply stock adjustments for items with écart
-      // Note: Session depot stock is already updated when inventory items are modified,
-      // so we only update other depots (SHOP and MAIN) here
-      for (const item of itemsWithEcart) {
-        if (item.ecartQuantity !== 0) {
-          // Skip session depot - it was already updated when inventory items were modified
-          // Only update other depots (SHOP and MAIN) to keep them in sync
-          
-          // Update inventory for SHOP depot (caisse) if it exists and is different from session depot
-          if (shopDepot && shopDepot.id !== session.depotId) {
-            await updateInventoryForDepot(shopDepot.id, item.productId, item.ecartQuantity);
-          }
-
-          // Update inventory for MAIN/WAREHOUSE depot (general stock) if it exists and is different from session depot
-          if (mainDepot && mainDepot.id !== session.depotId) {
-            await updateInventoryForDepot(mainDepot.id, item.productId, item.ecartQuantity);
-          }
+        // Create stock movement record for inventory adjustment
+        const ecartQuantity = countedQuantity - (totalEntries - totalExits);
+        if (Math.abs(ecartQuantity) > 0.001) {
+          await tx.stockMovement.create({
+            data: {
+              productId: productId,
+              depotId: session.depotId,
+              quantity: Math.abs(ecartQuantity),
+              type: ecartQuantity > 0 ? 'IN' : 'OUT',
+              reason: 'INVENTORY_ADJUSTMENT',
+              reference: session.numero,
+              userId: req.user.id
+            }
+          });
         }
       }
 

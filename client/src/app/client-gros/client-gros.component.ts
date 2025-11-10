@@ -1,5 +1,8 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import { ProductsService } from '../core/services/products.service';
 import { ProduitsDeCaisseService } from '../core/services/produits-de-caisse.service';
 import { DepotsService } from '../core/services/depots.service';
@@ -76,9 +79,12 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
   // Grouping behavior: true => group by parent; false => flat list
   shouldGroupByParent = false;
 
+  // Client-specific prices cache
+  clientPrices: Map<number, number> = new Map(); // Map<productId, prix_vente_TTC>
 
   constructor(
     private route: ActivatedRoute,
+    private http: HttpClient,
     private productsService: ProductsService,
     private produitsDeCaisseService: ProduitsDeCaisseService,
     private clientsService: ClientsService,
@@ -97,10 +103,16 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       if (id) {
         const clientId = Number(id);
         if (!Number.isNaN(clientId)) {
+          // Clear any existing client prices first
+          this.clientPrices.clear();
           this.clientsService.getClient(clientId).subscribe({
             next: (client: Client) => {
               this.selectedCustomer = client;
               this.showCustomerDialog = false;
+              // Load client-specific prices for this specific client
+              this.loadClientPrices(client.id);
+              // Reload products after client is selected to ensure correct prices
+              this.loadProducts();
             },
             error: (_err: unknown) => {
               // If fetch fails, keep dialog open so user can pick manually
@@ -243,8 +255,12 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
   }
 
   onCustomerSelected(customer: Client): void {
+    // Clear existing prices first
+    this.clientPrices.clear();
     this.selectedCustomer = customer;
     this.showCustomerDialog = false;
+    // Load client-specific prices for this specific client
+    this.loadClientPrices(customer.id);
     // Reload products constrained to the customer's depot when available
     this.loadProducts();
   }
@@ -480,18 +496,122 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Create wholesale sales for each applied rule
+    // Track all products that need price updates
+    const productsToUpdate: { productId: number; newPrice: number }[] = [];
+
+    // Create wholesale sales for each applied rule and collect price updates
+    const salePromises: Promise<any>[] = [];
+    
     this.appliedRules.forEach(appliedRule => {
-      this.createWholesaleSale(appliedRule.rule, appliedRule.productIds);
+      const selectedProducts = this.products.filter(p => appliedRule.productIds.includes(p.id));
+      
+      // Calculate new prices for each product
+      selectedProducts.forEach(product => {
+        let finalPrice = Number(this.getWholesalePrice(product)) || 0;
+        
+        // Apply rule pricing
+        if (appliedRule.rule.ruleType === 'percentage') {
+          finalPrice = finalPrice * (1 - (Number(appliedRule.rule.value) || 0) / 100);
+        } else if (appliedRule.rule.ruleType === 'fixed') {
+          finalPrice = Number(appliedRule.rule.value) || 0;
+        } else if (appliedRule.rule.ruleType === 'discount') {
+          finalPrice = Math.max(0, finalPrice - (Number(appliedRule.rule.value) || 0));
+        }
+
+        // Store the new price for this product
+        productsToUpdate.push({
+          productId: product.id,
+          newPrice: finalPrice
+        });
+      });
+
+      // Create sale
+      salePromises.push(
+        new Promise<void>((resolve, reject) => {
+          this.createWholesaleSale(appliedRule.rule, appliedRule.productIds, () => resolve(), reject);
+        })
+      );
+    });
+
+    // Wait for all sales to be created, then update product prices
+    Promise.all(salePromises).then(() => {
+      // Update product prices in database
+      this.updateProductPrices(productsToUpdate);
+    }).catch((error) => {
+      console.error('Error creating sales:', error);
+      alert('Erreur lors de la création des ventes');
     });
 
     // Clear applied rules after saving
     this.appliedRules = [];
   }
 
-  createWholesaleSale(rule: WholesaleRule, productIds: number[]): void {
+  updateProductPrices(productsToUpdate: { productId: number; newPrice: number }[]): void {
     if (!this.selectedCustomer) {
       console.error('No customer selected');
+      return;
+    }
+
+    // Remove duplicates (same product might appear in multiple rules)
+    const uniqueProducts = new Map<number, number>();
+    productsToUpdate.forEach(({ productId, newPrice }) => {
+      // Keep the lowest price if product appears multiple times
+      if (!uniqueProducts.has(productId) || uniqueProducts.get(productId)! > newPrice) {
+        uniqueProducts.set(productId, newPrice);
+      }
+    });
+
+    // Prepare prices array for bulk update
+    const prices = Array.from(uniqueProducts.entries()).map(([productId, prix_vente_TTC]) => ({
+      productId,
+      prix_vente_TTC
+    }));
+
+    // Update client-specific prices using bulk endpoint
+    this.http.post(`${environment.apiUrl}/clients/${this.selectedCustomer.id}/product-prices`, {
+      prices
+    }, { withCredentials: true }).subscribe({
+      next: (response: any) => {
+        alert(`Prix clients mis à jour avec succès pour ${uniqueProducts.size} produit(s)!`);
+        // Reload client prices cache
+        this.loadClientPrices(this.selectedCustomer!.id);
+        // Reload products to reflect updated prices
+        this.loadProducts();
+      },
+      error: (error: any) => {
+        console.error('Error updating client prices:', error);
+        alert('Erreur lors de la mise à jour des prix clients');
+      }
+    });
+  }
+
+  loadClientPrices(clientId: number): void {
+    // Load all client-specific prices for this specific client
+    this.http.get<any[]>(`${environment.apiUrl}/clients/${clientId}/product-prices`, { withCredentials: true }).subscribe({
+      next: (clientPrices: any[]) => {
+        // Load client prices into cache
+        this.clientPrices.clear();
+        clientPrices.forEach((cp: any) => {
+          // Use productId from the product relation if available, otherwise from direct field
+          const productId = cp.product?.id || cp.productId;
+          const price = Number(cp.prix_vente_TTC);
+          if (productId && price > 0) {
+            this.clientPrices.set(productId, price);
+          }
+        });
+      },
+      error: (error: any) => {
+        // If endpoint doesn't exist yet or no prices found, just clear the cache
+        // This means we'll use default/wholesale prices
+        this.clientPrices.clear();
+      }
+    });
+  }
+
+  createWholesaleSale(rule: WholesaleRule, productIds: number[], onSuccess?: () => void, onError?: (error: any) => void): void {
+    if (!this.selectedCustomer) {
+      console.error('No customer selected');
+      if (onError) onError(new Error('No customer selected'));
       return;
     }
 
@@ -536,13 +656,11 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
 
     this.salesService.createWholesaleSalePublic(wholesaleSaleData).subscribe({
       next: (response: unknown) => {
-        alert(`Vente en gros créée avec succès! Total: ${total.toFixed(3)} dt`);
-        // Success feedback - no need to clear selections since they're already cleared
+        if (onSuccess) onSuccess();
       },
       error: (error: unknown) => {
         console.error('Error creating wholesale sale:', error);
-        alert('Erreur lors de la création de la vente en gros');
-        // Error handling - no need to remove applied rules since we don't track them anymore
+        if (onError) onError(error);
       }
     });
   }
@@ -633,6 +751,19 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
   }
 
   getWholesalePrice(product: ClientGrosItem): number {
+    // First check if there's a client-specific price for the selected client
+    if (this.selectedCustomer) {
+      // Check for direct product ID match
+      if (this.clientPrices.has(product.id)) {
+        return this.clientPrices.get(product.id)!;
+      }
+      
+      // Also check for parent product ID if this is a variant
+      if (product.parentProductId && product.parentProductId > 0 && this.clientPrices.has(product.parentProductId)) {
+        return this.clientPrices.get(product.parentProductId)!;
+      }
+    }
+
     // Always use wholesale pricing in client-gros module
     // Resolve the base product that carries bundle configuration
     const baseProductId = (product.parentProductId && product.parentProductId > 0)

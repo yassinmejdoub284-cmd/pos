@@ -621,4 +621,78 @@ router.post('/:id/solde/init', async (req, res) => {
   }
 });
 
+// Get client product prices
+router.get('/:id/product-prices', authenticateToken, async (req, res) => {
+  try {
+    const clientId = parseInt(req.params.id);
+    
+    const clientPrices = await prisma.clientProductPrice.findMany({
+      where: { clientId },
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            barcode: true
+          }
+        }
+      }
+    });
+
+    res.json(clientPrices);
+  } catch (error) {
+    console.error('Error fetching client product prices:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des prix clients' });
+  }
+});
+
+// Create or update client product prices (bulk)
+router.post('/:id/product-prices', authenticateToken, async (req, res) => {
+  try {
+    const clientId = parseInt(req.params.id);
+    const { prices } = req.body; // Array of { productId, prix_vente_TTC }
+
+    if (!Array.isArray(prices)) {
+      return res.status(400).json({ error: 'Prices must be an array' });
+    }
+
+    // Verify client exists
+    const client = await prisma.client.findUnique({
+      where: { id: clientId }
+    });
+
+    if (!client) {
+      return res.status(404).json({ error: 'Client non trouvé' });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const upsertPromises = prices.map(({ productId, prix_vente_TTC }) => {
+        return tx.clientProductPrice.upsert({
+          where: {
+            clientId_productId: {
+              clientId: clientId,
+              productId: parseInt(productId)
+            }
+          },
+          update: {
+            prix_vente_TTC: parseFloat(prix_vente_TTC)
+          },
+          create: {
+            clientId: clientId,
+            productId: parseInt(productId),
+            prix_vente_TTC: parseFloat(prix_vente_TTC)
+          }
+        });
+      });
+
+      return Promise.all(upsertPromises);
+    });
+
+    res.json({ message: 'Prix clients mis à jour avec succès', count: result.length });
+  } catch (error) {
+    console.error('Error updating client product prices:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour des prix clients' });
+  }
+});
+
 module.exports = router; 

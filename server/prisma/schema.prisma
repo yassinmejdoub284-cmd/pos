@@ -225,6 +225,7 @@ model Product {
   vracPrices               VracPrice[]
   creditEntries           CreditEntry[]
   releveInventaire        ReleveInventaire[]
+  clientProductPrices     ClientProductPrice[]
 
   @@index([familleId], map: "products_famille_id_fkey")
   @@index([originalProductId], map: "products_original_product_id_fkey")
@@ -400,7 +401,24 @@ model Client {
   stockDocuments   StockDocument[]
 
   @@index([depotId], map: "clients_depot_id_fkey")
+  clientProductPrices ClientProductPrice[]
   @@map("clients")
+}
+
+model ClientProductPrice {
+  id        Int      @id @default(autoincrement())
+  clientId  Int      @map("client_id")
+  productId Int      @map("product_id")
+  prix_vente_TTC Decimal @map("prix_vente_ttc") @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, productId])
+  @@index([clientId], map: "client_product_prices_client_id_fkey")
+  @@index([productId], map: "client_product_prices_product_id_fkey")
+  @@map("client_product_prices")
 }
 
 model ClientDebtTransaction {

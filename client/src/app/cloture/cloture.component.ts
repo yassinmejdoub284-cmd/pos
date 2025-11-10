@@ -163,8 +163,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Espèces en Caisse: list each cash-paid ticket (paidAmount)
+    // Espèces en Caisse: list each cash-paid ticket (paidAmount), excluding canceled tickets
     for (const t of this.cashSalesDetails()) {
+      const status = (t.status || '').toUpperCase();
+      // Exclude canceled and refunded tickets from encaissement
+      if ((status === 'CANCELLED' || status === 'REFUNDED')) {
+        continue;
+      }
       if ((t.paidAmount || 0) > 0) {
         rows.push({
           createdAt: new Date(this.currentSession()!.openedAt).toISOString(),
@@ -579,7 +584,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
     
     // Sum up all ticket amounts using same logic as tickets modal: paidAmount ?? finalTotal ?? amount ?? 0
+    // Exclude canceled and refunded tickets from total sales
     return sales.reduce((total: number, sale: any) => {
+      const status = (sale.status || '').toUpperCase();
+      // Exclude canceled and refunded tickets from total sales TTC
+      if (status === 'CANCELLED' || status === 'REFUNDED') {
+        return total;
+      }
       // Use same calculation as openTicketsModal: paidAmount ?? finalTotal ?? amount ?? 0
       const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
       return total + amount;
@@ -594,8 +605,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
     // Get sales data from session
     const sales = (session as any)?.sales || [];
     
-    // Sum up all paid amounts (cash portions of sales)
+    // Sum up all paid amounts (cash portions of sales), excluding canceled tickets
     return sales.reduce((total: number, sale: any) => {
+      const status = (sale.status || '').toUpperCase();
+      // Exclude canceled and refunded tickets from encaissement
+      if (status === 'CANCELLED' || status === 'REFUNDED') {
+        return total;
+      }
       const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
       return total + paidAmount;
     }, 0);
@@ -683,6 +699,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const userSalesMap = new Map<string, number>();
     
     sales.forEach((sale: any) => {
+      const status = (sale.status || '').toUpperCase();
+      // Exclude canceled and refunded tickets from user sales summary
+      if (status === 'CANCELLED' || status === 'REFUNDED') {
+        return;
+      }
+      
       // Use EXACT same calculation as openTicketsModal: paidAmount ?? finalTotal ?? amount ?? 0
       const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
       

@@ -1209,8 +1209,11 @@ router.put('/:id/status', async (req, res) => {
     return res.status(400).json({ error: 'User must be assigned to a depot to update sale status' });
   }
   const updated = await prisma.$transaction(async (tx) => {
-      // Load sale first to validate depot and current status
-      const existing = await tx.sale.findFirst({ where: { id: parseInt(id), depotId: userDepotId } });
+      // Load sale first to validate depot and current status, include items for stock restoration
+      const existing = await tx.sale.findFirst({ 
+        where: { id: parseInt(id), depotId: userDepotId },
+        include: { items: true, paymentMethod: true, session: true }
+      });
       if (!existing) {
         throw new Error('Sale not found');
       }
@@ -1220,12 +1223,97 @@ router.put('/:id/status', async (req, res) => {
         return existing;
       }
 
+      const previousStatus = (existing.status || '').toUpperCase();
       const sale = await tx.sale.update({ where: { id: parseInt(id), depotId: userDepotId }, data: { status } });
 
-      // Do not create cash movements on CANCELLED; sales summary excludes CANCELLED to avoid double subtraction
-      // Also revert any legacy cancellation movements by marking them as rejected and restoring expected cash
+      // When canceling a COMPLETED sale, restore stock and create refund cash movement
+      if (status === 'CANCELLED' && previousStatus === 'COMPLETED') {
+        // Restore stock for all items
+        for (const item of existing.items) {
+          // Calculate actual quantity to restore (handle wholesale bundle quantities)
+          const actualQuantityToRestore = (existing.isWholesale && item.isWholesale && item.bundleSize)
+            ? (item.bundleQuantity || item.quantity) * item.bundleSize
+            : item.quantity;
+
+          // Get current inventory
+          const currentInventory = await tx.inventory.findFirst({
+            where: {
+              depotId: userDepotId,
+              productId: item.productId
+            }
+          });
+
+          if (currentInventory) {
+            // Restore quantity by adding it back
+            const newQuantity = parseFloat(currentInventory.quantity) + actualQuantityToRestore;
+            await tx.inventory.updateMany({
+              where: {
+                depotId: userDepotId,
+                productId: item.productId
+              },
+              data: {
+                quantity: newQuantity
+              }
+            });
+          } else {
+            // If no inventory record exists, create one with the restored quantity
+            await tx.inventory.create({
+              data: {
+                depotId: userDepotId,
+                productId: item.productId,
+                quantity: actualQuantityToRestore
+              }
+            });
+          }
+
+          // Create stock movement to record the restoration
+          await tx.stockMovement.create({
+            data: {
+              productId: item.productId,
+              depotId: userDepotId,
+              quantity: actualQuantityToRestore,
+              type: 'IN',
+              reason: `Remboursement - Ticket annulé #${sale.id}`,
+              userId: req.user?.id
+            }
+          });
+        }
+
+        // Create cash refund movement if it was a cash sale
+        const paymentMethodType = existing.paymentMethod?.type || '';
+        const isCashSale = paymentMethodType.toUpperCase() === 'CASH' || 
+                          (existing.paymentType || '').toUpperCase() === 'COMPTANT' ||
+                          (existing.paymentType || '').toUpperCase() === 'CASH';
+        
+        if (isCashSale && existing.finalTotal > 0 && existing.session) {
+          // Check if a refund movement already exists
+          const existingRefunds = await tx.cashMovement.findMany({
+            where: {
+              ticketId: sale.id,
+              type: 'SORTIE'
+            }
+          });
+          const hasRefund = existingRefunds.some(m => 
+            String(m.reason || '').includes('Remboursement')
+          );
+
+          if (!hasRefund) {
+            await tx.cashMovement.create({
+              data: {
+                sessionId: existing.session.id,
+                type: 'SORTIE',
+                amount: parseFloat(existing.finalTotal),
+                reason: `Remboursement - Ticket annulé #${sale.id}`,
+                ticketId: sale.id,
+                createdById: req.user?.id
+              }
+            });
+          }
+        }
+      }
+
+      // Revert any legacy cancellation movements by marking them as rejected
       if (status === 'CANCELLED') {
-        // Find any previous cancellation movements tied to this sale and mark them rejected
         const movements = await tx.cashMovement.findMany({
           where: {
             ticketId: sale.id,
@@ -1233,11 +1321,15 @@ router.put('/:id/status', async (req, res) => {
           }
         });
         for (const m of movements) {
-          const alreadyRejected = String(m.reason || '').includes('[REJETÉ]');
-          if (!alreadyRejected) {
+          const reason = String(m.reason || '');
+          const alreadyRejected = reason.includes('[REJETÉ]');
+          const isRefund = reason.includes('Remboursement');
+          
+          // Only mark legacy movements as rejected, not the new refund movements
+          if (!alreadyRejected && !isRefund) {
             await tx.cashMovement.update({
               where: { id: m.id },
-              data: { reason: `${m.reason || ''} [REJETÉ]` }
+              data: { reason: `${reason} [REJETÉ]` }
             });
             // Restore expected cash on the movement's session
             await tx.sessionCaisse.update({
@@ -1268,8 +1360,8 @@ router.get('/payment-methods/all', async (req, res) => {
   }
 });
 
-// Wholesale sales endpoint
-router.post('/wholesale', async (req, res) => {
+// Wholesale sales endpoint (authenticated)
+router.post('/wholesale', authenticateToken, async (req, res) => {
   try {
     const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, paymentType } = req.body;
     
@@ -1304,7 +1396,7 @@ router.post('/wholesale', async (req, res) => {
       // Get the current active session for the depot (no user linkage)
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
-          depotId: targetDepotId,
+          depotId: userDepotId,
           status: 'OPEN'
         }
       });
@@ -1317,7 +1409,7 @@ router.post('/wholesale', async (req, res) => {
           paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
           userId: req.user.id,
           clientId: clientId ? parseInt(clientId) : null,
-          depotId: targetDepotId, // Use shop depot for caisse operations
+          depotId: userDepotId, // Use user's depot for wholesale operations
           sessionId: activeSession ? activeSession.id : null,
           status: 'COMPLETED',
           paymentType: paymentType || 'COMPTANT',
@@ -1392,7 +1484,7 @@ router.post('/wholesale', async (req, res) => {
         // Get current inventory quantity first
         const currentInventory = await tx.inventory.findFirst({
           where: {
-            depotId: targetDepotId,
+            depotId: userDepotId,
             productId: item.productId
           }
         });
@@ -1410,7 +1502,7 @@ router.post('/wholesale', async (req, res) => {
           
           await tx.inventory.updateMany({
             where: {
-              depotId: targetDepotId,
+              depotId: userDepotId,
               productId: item.productId
             },
             data: {
@@ -1421,13 +1513,13 @@ router.post('/wholesale', async (req, res) => {
           // If no inventory record exists, create one with negative quantity
           console.log('Creating new wholesale inventory record with negative quantity:', {
             productId: item.productId,
-            depotId: targetDepotId,
+            depotId: userDepotId,
             quantity: -actualQuantityToDeduct
           });
           
           await tx.inventory.create({
             data: {
-              depotId: targetDepotId,
+              depotId: userDepotId,
               productId: item.productId,
               quantity: -actualQuantityToDeduct
             }
@@ -1437,18 +1529,18 @@ router.post('/wholesale', async (req, res) => {
         await tx.stockMovement.create({
             data: {
               productId: item.productId,
-              depotId: targetDepotId, // Use user's depot for stock movement
+              depotId: userDepotId, // Use user's depot for stock movement
               quantity: actualQuantityToDeduct,
               type: 'OUT',
               reason: 'Wholesale Sale',
               userId: req.user.id
             }
           });
-        }
+      }
 
-        // Record cash movement for cash payments in wholesale sales
-        const paidAmount = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : parseFloat(finalTotal);
-        if (paidAmount > 0 && String(paymentType).toLowerCase() === 'cash' && activeSession) {
+      // Record cash movement for cash payments in wholesale sales
+      const paidAmount = amountPaid !== undefined && amountPaid !== null ? parseFloat(amountPaid) : parseFloat(finalTotal);
+      if (paidAmount > 0 && String(paymentType).toLowerCase() === 'cash' && activeSession) {
           await tx.cashMovement.create({
             data: {
               sessionId: activeSession.id,
@@ -1461,7 +1553,7 @@ router.post('/wholesale', async (req, res) => {
           });
         }
 
-        let loyaltyPointsEarned = 0;
+      let loyaltyPointsEarned = 0;
 
       if (clientId) {
         let settings = null;
@@ -1603,7 +1695,7 @@ router.post('/wholesale', async (req, res) => {
       // Get the current active session for the depot (no user linkage)
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
-          depotId: targetDepotId,
+          depotId: userDepotId,
           status: 'OPEN'
         }
       });
@@ -1616,7 +1708,7 @@ router.post('/wholesale', async (req, res) => {
           paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
           userId: null, // No user for unauthenticated sales
           clientId: clientId ? parseInt(clientId) : null,
-          depotId: targetDepotId,
+          depotId: userDepotId,
           sessionId: activeSession ? activeSession.id : null,
           status: 'COMPLETED',
           paymentType: paymentType || 'COMPTANT',
@@ -1678,7 +1770,7 @@ router.post('/wholesale', async (req, res) => {
           const newQuantity = existingInventory.quantity - actualQuantityToDeduct;
           console.log('Updating wholesale inventory:', {
             productId: item.productId,
-            depotId: targetDepotId,
+            depotId: userDepotId,
             oldQuantity: existingInventory.quantity,
             quantityToDeduct: actualQuantityToDeduct,
             newQuantity: newQuantity
@@ -1692,14 +1784,14 @@ router.post('/wholesale', async (req, res) => {
           // Create new inventory record with negative quantity
           console.log('Creating new wholesale inventory record with negative quantity:', {
             productId: item.productId,
-            depotId: targetDepotId,
+            depotId: userDepotId,
             quantity: -actualQuantityToDeduct
           });
 
           await tx.inventory.create({
             data: {
               productId: item.productId,
-              depotId: targetDepotId,
+              depotId: userDepotId,
               quantity: -actualQuantityToDeduct
             }
           });

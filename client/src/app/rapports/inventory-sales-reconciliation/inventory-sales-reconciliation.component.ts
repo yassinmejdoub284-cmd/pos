@@ -1,4 +1,4 @@
-   import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ViewChild, ViewContainerRef, AfterViewInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
@@ -10,6 +10,8 @@ import { ProductsService } from '../../core/services/products.service';
 import { Product, ProductFamily } from '../../core/models/product.model';
 import { Sale, SaleItem } from '../../core/models/sale.model';
 import { PrintService } from '../../core/services/print.service';
+import { DialogService } from '../../shared/services/dialog.service';
+import { ErrorDialogData } from '../../core/services/error-handling.service';
 
 export interface ReconciliationRow {
   date: Date;
@@ -158,7 +160,7 @@ interface SaleLayer {
   styleUrls: ['./inventory-sales-reconciliation.component.css'],
   standalone: false
 })
-export class InventorySalesReconciliationComponent implements OnInit {
+export class InventorySalesReconciliationComponent implements OnInit, AfterViewInit {
   // Range selectors
   rangeMode: RangeMode = 'DATE';
   startDate = '';
@@ -233,6 +235,9 @@ export class InventorySalesReconciliationComponent implements OnInit {
   isGlobalEcartTableCollapsed = true; // Collapsed by default
   
   private readonly printService = inject(PrintService);
+  private readonly dialogService = inject(DialogService);
+
+  @ViewChild('dialogContainer', { read: ViewContainerRef }) dialogContainer!: ViewContainerRef;
 
   constructor(
     private http: HttpClient,
@@ -251,6 +256,32 @@ export class InventorySalesReconciliationComponent implements OnInit {
     this.route.params.subscribe(params => {
       this.depotId = params['depotId'] ? parseInt(params['depotId']) : null;
     });
+  }
+
+  ngAfterViewInit(): void {
+    if (this.dialogContainer) {
+      this.dialogService.setViewContainerRef(this.dialogContainer);
+    }
+  }
+
+  // Dialog helper methods
+  showDialog(title: string, message: string, type: 'error' | 'warning' | 'info' = 'info', onClose?: () => void): void {
+    const data: ErrorDialogData = {
+      title,
+      message,
+      type,
+      primaryAction: {
+        label: 'Fermer',
+        action: () => {
+          if (onClose) onClose();
+        }
+      }
+    };
+    this.dialogService.showErrorDialog(data);
+  }
+
+  showConfirmationDialog(title: string, message: string, onConfirm: () => void, onCancel?: () => void): void {
+    this.dialogService.showConfirmationDialog(title, message, onConfirm, onCancel);
   }
 
   setDefaultDateRange(): void {

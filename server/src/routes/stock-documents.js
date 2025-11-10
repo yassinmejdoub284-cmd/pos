@@ -1168,11 +1168,126 @@ router.post('/scan-transfer', authenticateToken, async (req, res) => {
   }
 });
 
-// Get inventory for a depot
+// Get inventory for a depot - calculates current stock from last POSTED inventory + entries - exits
 router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
   try {
     const depotId = parseInt(req.params.depotId);
     
+    // Get depot info to determine product source
+    const depot = await prisma.depot.findUnique({
+      where: { id: depotId },
+      select: { type: true }
+    });
+    
+    if (!depot) {
+      return res.status(404).json({ error: 'Depot not found' });
+    }
+    
+    // Get the last POSTED inventory session for this depot
+    const lastPostedSession = await prisma.inventorySession.findFirst({
+      where: {
+        depotId: depotId,
+        status: 'POSTED'
+      },
+      include: {
+        items: true
+      },
+      orderBy: {
+        postedAt: 'desc'
+      }
+    });
+    
+    const inventoryPostedAt = lastPostedSession?.postedAt || new Date(0);
+    
+    // If we have a POSTED inventory session, calculate current stock from it
+    if (lastPostedSession && lastPostedSession.items && lastPostedSession.items.length > 0) {
+      // Load products and calculate current stock for each item
+      const inventoryWithCurrentStock = await Promise.all(
+        lastPostedSession.items.map(async (item) => {
+          let product = null;
+          
+          if (depot.type === 'SHOP') {
+            product = await prisma.product.findUnique({
+              where: { id: item.productId }
+            });
+          } else {
+            product = await prisma.produitDeCaisse.findUnique({
+              where: { id: item.productId }
+            });
+          }
+          
+          // Base quantity from last POSTED inventory
+          const baseQuantity = parseFloat(item.countedQuantity ?? item.theoreticalQuantity ?? 0);
+          
+          // Calculate entries (entry documents) since last inventory POST
+          const entryDocuments = await prisma.stockDocument.findMany({
+            where: {
+              destinataireId: depotId,
+              type: { in: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'] },
+              status: 'RECEIVED',
+              createdAt: { gte: inventoryPostedAt }
+            },
+            include: {
+              items: {
+                where: {
+                  productId: item.productId
+                }
+              }
+            }
+          });
+          
+          let totalEntries = 0;
+          entryDocuments.forEach(doc => {
+            doc.items.forEach(docItem => {
+              totalEntries += parseFloat(docItem.quantity || 0);
+            });
+          });
+          
+          // Calculate exits (sales) since last inventory POST - exclude canceled/refunded
+          const sales = await prisma.sale.findMany({
+            where: {
+              depotId: depotId,
+              status: { in: ['COMPLETED', 'CMD_TERMINEE'] },
+              createdAt: { gte: inventoryPostedAt }
+            },
+            include: {
+              items: {
+                where: {
+                  productId: item.productId
+                }
+              }
+            }
+          });
+          
+          let totalExits = 0;
+          sales.forEach(sale => {
+            sale.items.forEach(saleItem => {
+              // Handle wholesale bundle quantities
+              const actualQuantity = sale.isWholesale && saleItem.isWholesale && saleItem.bundleSize
+                ? (parseFloat(saleItem.bundleQuantity || saleItem.quantity || 0)) * parseFloat(saleItem.bundleSize || 1)
+                : parseFloat(saleItem.quantity || 0);
+              totalExits += actualQuantity;
+            });
+          });
+          
+          // Current stock = base quantity + entries - exits
+          const currentStock = baseQuantity + totalEntries - totalExits;
+          
+          return {
+            id: item.id,
+            depotId: depotId,
+            productId: item.productId,
+            quantity: currentStock,
+            purchasePrice: product?.prix_achat ?? null,
+            product: product
+          };
+        })
+      );
+      
+      return res.json(inventoryWithCurrentStock);
+    }
+    
+    // Otherwise, fall back to current inventory
     const inventory = await prisma.inventory.findMany({
       where: { depotId },
       include: {
