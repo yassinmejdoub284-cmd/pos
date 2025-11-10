@@ -137,5 +137,10 @@ export const routes: Routes = [
     path: 'vente-tables', 
     canActivate: [authGuard],
     loadChildren: () => import('./vente-tables/vente-tables.module').then(m => m.VenteTablesModule) 
+  },
+  { 
+    path: 'factures', 
+    canActivate: [authGuard],
+    loadChildren: () => import('./factures/factures.module').then(m => m.FacturesModule) 
   }
 ];

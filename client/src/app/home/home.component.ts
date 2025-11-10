@@ -1,5 +1,6 @@
 import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../core/services/auth.service';
 import { SalesService } from '../core/services/sales.service';
 import { ExpenseService } from '../core/services/expense.service';
@@ -11,6 +12,7 @@ import { SettingsService, AppSettings } from '../core/services/settings.service'
 import { FullscreenService } from '../core/services/fullscreen.service';
 import { Subject, forkJoin, timer, of } from 'rxjs';
 import { takeUntil, catchError, shareReplay, debounceTime } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 interface DashboardStats {
   todaySales: number;
@@ -76,6 +78,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   // Day-over-day deltas
   salesVsYesterdayPct: number = 0;
   transactionsVsYesterdayPct: number = 0;
+
+  // Invoiced sales
+  invoicedSales = signal<any[]>([]);
+  loadingInvoices = signal(false);
   
   // Performance optimization
   private destroy$ = new Subject<void>();
@@ -251,6 +257,16 @@ export class HomeComponent implements OnInit, OnDestroy {
       gradient: 'from-slate-50 to-gray-100',
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
     },
+    {
+      id: 'factures',
+      title: 'Factures',
+      description: 'Ventes facturées',
+      route: '/factures',
+      icon: 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z',
+      color: 'from-indigo-500 to-blue-600',
+      gradient: 'from-indigo-50 to-blue-100',
+      roles: ['ADMIN', 'MANAGER', 'CASHIER']
+    },
     // {
     //   id: 'stock-management',
     //   title: 'Gestion de Stock',
@@ -274,7 +290,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     private enterpriseService: EnterpriseService,
     private fullscreenService: FullscreenService,
     private router: Router,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -426,6 +443,44 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.updatePendingApprovals();
   }
 
+  loadInvoicedSales(): void {
+    this.loadingInvoices.set(true);
+    const userDepotId = this.currentUser()?.depotId;
+    const url = `${environment.apiUrl}/invoices?status=ISSUED&limit=10${userDepotId ? '&depotId=' + userDepotId : ''}`;
+    
+    this.http.get(url, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    }).pipe(
+      takeUntil(this.destroy$),
+      catchError(error => {
+        console.error('Error loading invoiced sales:', error);
+        return of({ invoices: [] });
+      })
+    ).subscribe({
+      next: (response: any) => {
+        this.invoicedSales.set(response.invoices || []);
+        this.loadingInvoices.set(false);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.invoicedSales.set([]);
+        this.loadingInvoices.set(false);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  formatInvoiceDate(date: string | Date): string {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  }
+
   private processNonCriticalData(data: any): void {
     const { expenses, varianceRequests } = data;
     
@@ -466,10 +521,17 @@ export class HomeComponent implements OnInit, OnDestroy {
         // Strict: only show modules explicitly marked visible for this role key
         const visibleIds = Object.keys(roleAccessBlocks).filter(k => roleAccessBlocks[k]?.visible === true);
         this._cachedFilteredActions = this.quickActions.filter(a => visibleIds.includes(a.id));
+        console.log('Filtered actions (roleAccessConfig):', this._cachedFilteredActions.map(a => a.id), 'visibleIds:', visibleIds);
         this.cdr.detectChanges();
       } else {
-        // Fallback: if no config exists for this role, show nothing (explicit policy)
-        this._cachedFilteredActions = [];
+        // Fallback: filter by roles defined in each action
+        const userRole = currentUser?.role || '';
+        this._cachedFilteredActions = this.quickActions.filter(a => {
+          if (!a.roles || a.roles.length === 0) return true;
+          return a.roles.includes(userRole);
+        });
+        console.log('Filtered actions (fallback):', this._cachedFilteredActions.map(a => a.id));
+        this.cdr.detectChanges();
       }
     }
 

@@ -103,6 +103,7 @@ model Depot {
   invoices              Invoice[]
   productConservation   ProductConservation[]
   productAssignments    ProductDepot[]
+  productDepotPrices    ProductDepotPrice[]
   produitDeCaisseDepots ProduitDeCaisseDepot[]
   rebutRecords          RebutRecord[]
   returnRequests        ReturnRequest[]
@@ -191,6 +192,9 @@ model Product {
   originalProductId        Int?                  @map("original_product_id")
   isVrac                   Boolean               @default(false) @map("is_vrac")
   isVraguable              Boolean               @default(false) @map("is_vraguable")
+  conversionRatio          Decimal?              @map("conversion_ratio") @db.Decimal(10, 3)
+  prix_vente_vrac          Decimal?              @map("prix_vente_vrac") @db.Decimal(10, 2) @default(0)
+  prix_achat_vrac          Decimal?              @map("prix_achat_vrac") @db.Decimal(10, 3) @default(0)
   displayIndex             Int?                  @map("display_index")
   bundlePrice              Decimal?              @map("bundle_price") @db.Decimal(10, 2)
   bundleSize               Int?                  @map("bundle_size")
@@ -205,6 +209,7 @@ model Product {
   invoiceLines             InvoiceLine[]
   conservation             ProductConservation[]
   depotAssignments         ProductDepot[]
+  depotPrices              ProductDepotPrice[]
   famille                  ProductFamily         @relation(fields: [familleId], references: [id])
   originalProduct          Product?              @relation("VracProducts", fields: [originalProductId], references: [id])
   vracProducts             Product[]             @relation("VracProducts")
@@ -239,6 +244,22 @@ model ProductDepot {
   @@index([productId], map: "product_depots_product_id_fkey")
   @@index([depotId], map: "product_depots_depot_id_fkey")
   @@map("product_depots")
+}
+
+model ProductDepotPrice {
+  id        Int      @id @default(autoincrement())
+  productId Int      @map("product_id")
+  depotId   Int      @map("depot_id")
+  prix_vente_TTC Decimal @map("prix_vente_ttc") @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  depot     Depot    @relation(fields: [depotId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, depotId])
+  @@index([productId], map: "product_depot_prices_product_id_fkey")
+  @@index([depotId], map: "product_depot_prices_depot_id_fkey")
+  @@map("product_depot_prices")
 }
 
 model ProductConservation {

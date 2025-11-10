@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { PrintService } from '../../core/services/print.service';
 
 interface Client {
   id: number;
@@ -119,6 +120,8 @@ export class FinanceComponent implements OnInit {
     { id: '4', name: 'Dépôt Tunis' }
   ];
 
+  private readonly printService = inject(PrintService);
+
   constructor(
     private router: Router,
     private http: HttpClient
@@ -233,7 +236,96 @@ export class FinanceComponent implements OnInit {
   }
 
   printStatement(): void {
-    window.print();
+    let htmlContent = '';
+    let title = 'Relevé';
+    
+    if (this.activeTab === 'client' && this.clientStatement) {
+      title = `Relevé Client - ${this.clientStatement.client.name}`;
+      htmlContent = `
+        <div class="header">
+          <div class="title">${title}</div>
+          <div class="subtitle">Période: ${this.startDate} au ${this.endDate}</div>
+          <div class="subtitle">Client: ${this.clientStatement.client.name} (${this.clientStatement.client.code})</div>
+        </div>
+        
+        <div class="summary">
+          <p><strong>Total Ventes:</strong> ${this.clientStatement.summary.totalSales.toFixed(3)} dt</p>
+          <p><strong>Total Payé:</strong> ${this.clientStatement.summary.totalPaid.toFixed(3)} dt</p>
+          <p><strong>Total Dette:</strong> ${this.clientStatement.summary.totalDebt.toFixed(3)} dt</p>
+          <p><strong>Solde:</strong> ${this.clientStatement.summary.balance.toFixed(3)} dt</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Description</th>
+              <th style="text-align: right;">Montant</th>
+              <th style="text-align: right;">Solde</th>
+              <th>Site</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${this.clientStatement.transactions.map(t => `
+              <tr>
+                <td>${new Date(t.date).toLocaleDateString('fr-FR')}</td>
+                <td>${t.type}</td>
+                <td>${t.description}</td>
+                <td style="text-align: right;">${t.amount.toFixed(3)}</td>
+                <td style="text-align: right;">${t.balance.toFixed(3)}</td>
+                <td>${t.depot}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } else if (this.activeTab === 'supplier' && this.supplierStatement) {
+      title = `Relevé Fournisseur - ${this.supplierStatement.supplier.name}`;
+      htmlContent = `
+        <div class="header">
+          <div class="title">${title}</div>
+          <div class="subtitle">Période: ${this.startDate} au ${this.endDate}</div>
+          <div class="subtitle">Fournisseur: ${this.supplierStatement.supplier.name}</div>
+        </div>
+        
+        <div class="summary">
+          <p><strong>Total Achats:</strong> ${this.supplierStatement.summary.totalExpenses.toFixed(3)} dt</p>
+          <p><strong>Total Payé:</strong> ${this.supplierStatement.summary.totalPaid.toFixed(3)} dt</p>
+          <p><strong>Total Dû:</strong> ${this.supplierStatement.summary.totalUnpaid.toFixed(3)} dt</p>
+          <p><strong>Solde:</strong> ${this.supplierStatement.summary.balance.toFixed(3)} dt</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Description</th>
+              <th style="text-align: right;">Montant</th>
+              <th>Statut</th>
+              <th>Site</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${this.supplierStatement.transactions.map(t => `
+              <tr>
+                <td>${new Date(t.date).toLocaleDateString('fr-FR')}</td>
+                <td>${t.type}</td>
+                <td>${t.description}</td>
+                <td style="text-align: right;">${t.amount.toFixed(3)}</td>
+                <td>${t.isPaid ? 'Payé' : 'En attente'}</td>
+                <td>${t.depot}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } else {
+      return;
+    }
+    
+    this.printService.printA4Report(htmlContent, title);
   }
 
   exportToExcel(): void {

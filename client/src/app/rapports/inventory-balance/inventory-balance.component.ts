@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -6,6 +6,7 @@ import { InventoryService } from '../../core/services/inventory.service';
 import { SalesService } from '../../core/services/sales.service';
 import { ProductsService } from '../../core/services/products.service';
 import { Product } from '../../core/models/product.model';
+import { PrintService } from '../../core/services/print.service';
 
 export interface InventoryBalanceRow {
   productId: number;
@@ -286,5 +287,62 @@ export class InventoryBalanceReportComponent implements OnInit {
   getProductName(productId: number): string {
     const product = this.products.find(p => p.id === productId);
     return product?.name || 'Produit inconnu';
+  }
+
+  private readonly printService = inject(PrintService);
+
+  printA4(): void {
+    const title = 'Tableau de Balance Inventaire';
+    
+    let htmlContent = `
+      <div class="header">
+        <div class="title">${title}</div>
+        <div class="subtitle">Date: ${new Date().toLocaleDateString('fr-FR')}</div>
+      </div>
+    `;
+
+    if (this.summary) {
+      htmlContent += `
+        <div class="summary">
+          <p><strong>Total Produits:</strong> ${this.summary.totalProducts}</p>
+          <p><strong>Total Début:</strong> ${this.formatNumber(this.summary.totalDebut)} dt</p>
+          <p><strong>Total Crédit:</strong> ${this.formatNumber(this.summary.totalCredit)} dt</p>
+          <p><strong>Total Solde:</strong> ${this.formatNumber(this.summary.totalSolde)} dt</p>
+        </div>
+      `;
+    }
+    
+    htmlContent += `
+      <table>
+        <thead>
+          <tr>
+            <th>Désignation</th>
+            <th style="text-align: right;">Début (dt)</th>
+            <th style="text-align: right;">Crédit (dt)</th>
+            <th style="text-align: right;">Solde (dt)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${this.balanceData.map(row => `
+            <tr>
+              <td>${row.designation}</td>
+              <td style="text-align: right;">${this.formatNumber(row.debut)}</td>
+              <td style="text-align: right;">${this.formatNumber(row.credit)}</td>
+              <td style="text-align: right;">${this.formatNumber(row.solde)}</td>
+            </tr>
+          `).join('')}
+          ${this.summary ? `
+            <tr class="total-row">
+              <td><strong>TOTAL</strong></td>
+              <td style="text-align: right;"><strong>${this.formatNumber(this.summary.totalDebut)}</strong></td>
+              <td style="text-align: right;"><strong>${this.formatNumber(this.summary.totalCredit)}</strong></td>
+              <td style="text-align: right;"><strong>${this.formatNumber(this.summary.totalSolde)}</strong></td>
+            </tr>
+          ` : ''}
+        </tbody>
+      </table>
+    `;
+    
+    this.printService.printA4Report(htmlContent, title);
   }
 }

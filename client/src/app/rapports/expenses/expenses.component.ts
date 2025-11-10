@@ -1,8 +1,9 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ExpenseService, Expense, ExpenseCategory, ExpenseStats } from '../../core/services/expense.service';
 import { AuthService } from '../../core/services/auth.service';
 import Chart from 'chart.js/auto';
+import { PrintService } from '../../core/services/print.service';
 
 interface ExpenseFilters {
   startDate: string;
@@ -37,6 +38,8 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
     depotId: '',
     status: ''
   };
+
+  private readonly printService = inject(PrintService);
 
   constructor(
     private router: Router,
@@ -101,20 +104,16 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
   }
 
   loadDepots(): Promise<any[]> {
-    return new Promise((resolve, reject) => {
-      // Use a simple HTTP call since we can't access protected methods
-      fetch('/api/depots', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      .then(response => response.json())
-      .then(depots => resolve(depots))
-      .catch(error => {
-        console.error('Error loading depots:', error);
-        resolve([]);
-      });
+    return new Promise((resolve) => {
+      // Use hardcoded depots like other components
+      const depots = [
+        { id: 'all', name: 'Tous' },
+        { id: '1', name: 'Pt Vte Sfax' },
+        { id: '2', name: 'Pt Vte Tunis' },
+        { id: '3', name: 'Atelier' },
+        { id: '4', name: 'Dépôt Tunis' }
+      ];
+      resolve(depots);
     });
   }
 
@@ -211,15 +210,21 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
   }
 
   getTotalAmount(): number {
-    return this.stats?.total.amount || 0;
+    if (!this.stats || !this.stats.total) return 0;
+    const amount = this.stats.total.amount;
+    return typeof amount === 'number' ? amount : 0;
   }
 
   getApprovedAmount(): number {
-    return this.stats?.approved.amount || 0;
+    if (!this.stats || !this.stats.approved) return 0;
+    const amount = this.stats.approved.amount;
+    return typeof amount === 'number' ? amount : 0;
   }
 
   getPendingAmount(): number {
-    return this.stats?.pending.amount || 0;
+    if (!this.stats || !this.stats.pending) return 0;
+    const amount = this.stats.pending.amount;
+    return typeof amount === 'number' ? amount : 0;
   }
 
   getApprovedCount(): number {
@@ -282,7 +287,51 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
   }
 
   printA4(): void {
-    window.print();
+    const totalAmount = Number(this.getTotalAmount()) || 0;
+    const approvedAmount = Number(this.getApprovedAmount()) || 0;
+    const pendingAmount = Number(this.getPendingAmount()) || 0;
+    const title = 'État Dépenses';
+    
+    const htmlContent = `
+      <div class="header">
+        <div class="title">${title}</div>
+        <div class="subtitle">Période: ${this.filters.startDate} au ${this.filters.endDate}</div>
+      </div>
+      
+      <div class="summary">
+        <p><strong>Total Dépenses:</strong> ${totalAmount.toFixed(2)} dt</p>
+        <p><strong>Approuvées:</strong> ${approvedAmount.toFixed(2)} dt (${this.getApprovedCount()})</p>
+        <p><strong>En Attente:</strong> ${pendingAmount.toFixed(2)} dt (${this.getPendingCount()})</p>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Catégorie</th>
+            <th style="text-align: right;">Montant</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${this.expenses.map(expense => `
+            <tr>
+              <td>${new Date(expense.date).toLocaleDateString('fr-FR')}</td>
+              <td>${expense.category?.name || 'Inconnu'}</td>
+              <td style="text-align: right;">${(Number(expense.amount) || 0).toFixed(2)}</td>
+              <td>${this.getStatusLabel(expense.isApproved)}</td>
+            </tr>
+          `).join('')}
+          <tr class="total-row">
+            <td colspan="2"><strong>TOTAL</strong></td>
+            <td style="text-align: right;"><strong>${totalAmount.toFixed(2)}</strong></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    
+    this.printService.printA4Report(htmlContent, title);
   }
 
   print80mm(): void {

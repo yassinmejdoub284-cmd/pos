@@ -737,6 +737,12 @@ export class CountComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Check if session is already posted
+    if (this.session.status === 'POSTED') {
+      this.error = 'Cette session d\'inventaire a déjà été finalisée';
+      return;
+    }
+
     this.saving = true;
     this.error = '';
 
@@ -745,37 +751,50 @@ export class CountComponent implements OnInit, OnDestroy {
       // First close the session, then post it
       this.inventoryService.updateSessionStatus(this.session.id, 'CLOSED').subscribe({
         next: (closedSession) => {
-          // Now post the closed session
-          this.inventoryService.postSession(this.session!.id).subscribe({
-            next: (result) => {
-              this.saving = false;
-              this.success = 'Inventaire terminé et stock mis à jour avec succès!';
-              
-              // Update session status
-              this.session!.status = 'POSTED';
+          // Update local session status
+          this.session!.status = 'CLOSED';
+          
+          // Refresh session from server to ensure we have the latest status
+          this.inventoryService.getSession(this.session!.id).subscribe({
+            next: (refreshedSession) => {
+              // Now post the closed session
+              this.inventoryService.postSession(this.session!.id).subscribe({
+                next: (result) => {
+                  this.saving = false;
+                  this.success = 'Inventaire terminé et stock mis à jour avec succès!';
+                  
+                  // Update session status
+                  this.session!.status = 'POSTED';
 
-              // Save an inventory line into tableau de relevé inventaire
-              try {
-                this.http.post(`${environment.apiUrl}/releve-inventaire/from-session/${this.session!.id}`, {
-                  depotId: this.depotId
-                }, { withCredentials: true }).subscribe({
-                  next: () => {},
-                  error: (e) => console.error('Error saving inventory to releve:', e)
-                });
-              } catch (e) {
-                console.error('Error triggering releve save:', e);
+                  // Save an inventory line into tableau de relevé inventaire
+                  try {
+                    this.http.post(`${environment.apiUrl}/releve-inventaire/from-session/${this.session!.id}`, {
+                      depotId: this.depotId
+                    }, { withCredentials: true }).subscribe({
+                      next: () => {},
+                      error: (e) => console.error('Error saving inventory to releve:', e)
+                    });
+                  } catch (e) {
+                    console.error('Error triggering releve save:', e);
+                  }
+                
+                // Show success message and redirect after delay
+                setTimeout(() => {
+                  this.success = '';
+                  this.router.navigate(['/inventory', this.depotId]);
+                }, 3000);
+              },
+              error: (err) => {
+                this.saving = false;
+                this.error = err.error?.error || 'Erreur lors de la finalisation de l\'inventaire';
+                console.error('Error posting inventory session:', err);
               }
-            
-            // Show success message and redirect after delay
-            setTimeout(() => {
-              this.success = '';
-              this.router.navigate(['/inventory', this.depotId]);
-            }, 3000);
+            });
           },
-          error: (err) => {
+          error: (refreshErr) => {
             this.saving = false;
-            this.error = err.error?.error || 'Erreur lors de la finalisation de l\'inventaire';
-            console.error('Error posting inventory session:', err);
+            this.error = 'Erreur lors de la mise à jour de la session';
+            console.error('Error refreshing session:', refreshErr);
           }
         });
       },
@@ -785,7 +804,7 @@ export class CountComponent implements OnInit, OnDestroy {
         console.error('Error closing inventory session:', err);
       }
     });
-    } else {
+    } else if (this.session.status === 'CLOSED') {
       // Session is already closed, just post it
       this.inventoryService.postSession(this.session.id).subscribe({
         next: (result) => {
@@ -807,6 +826,9 @@ export class CountComponent implements OnInit, OnDestroy {
           console.error('Error posting inventory session:', err);
         }
       });
+    } else {
+      this.saving = false;
+      this.error = `Impossible de finaliser une session avec le statut: ${this.session.status}`;
     }
   }
 

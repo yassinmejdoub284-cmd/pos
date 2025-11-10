@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ProductsService } from '../../../core/services/products.service';
 import { Product, ProductFamily } from '../../../core/models/product.model';
@@ -8,7 +8,7 @@ import { Product, ProductFamily } from '../../../core/models/product.model';
   templateUrl: './product-transfer-form.component.html',
   standalone: false
 })
-export class ProductTransferFormComponent implements OnInit {
+export class ProductTransferFormComponent implements OnInit, OnChanges {
   @Input() sourceProduct: Product | null = null;
   @Output() transferred = new EventEmitter<{
     targetProductId: number;
@@ -41,6 +41,13 @@ export class ProductTransferFormComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Initialize conversion ratio from source product if available
+    if (this.sourceProduct?.conversionRatio) {
+      this.transferForm.patchValue({ conversionRatio: this.sourceProduct.conversionRatio });
+      // Disable the conversion ratio field when pre-filled from product
+      this.transferForm.get('conversionRatio')?.disable();
+    }
+    
     this.loadFamilies();
     this.loadTargetProducts();
     this.transferForm.get('targetType')?.valueChanges.subscribe(type => {
@@ -130,7 +137,8 @@ export class ProductTransferFormComponent implements OnInit {
     }
     
     if (this.transferForm.valid) {
-      const formValue = this.transferForm.value;
+      // Get form value including disabled controls
+      const formValue = this.transferForm.getRawValue();
       this.transferred.emit({
         targetProductId: formValue.targetProductId,
         quantity: formValue.quantity,
@@ -155,6 +163,17 @@ export class ProductTransferFormComponent implements OnInit {
     if (!targetProductId) return '';
     const product = this.targetProducts.find(p => p.id === targetProductId);
     return product?.unite || '';
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['sourceProduct'] && this.sourceProduct?.conversionRatio) {
+      this.transferForm.patchValue({ conversionRatio: this.sourceProduct.conversionRatio });
+      // Disable the conversion ratio field when pre-filled from product
+      this.transferForm.get('conversionRatio')?.disable();
+    } else if (changes['sourceProduct'] && !this.sourceProduct?.conversionRatio) {
+      // Enable the field if product doesn't have conversion ratio
+      this.transferForm.get('conversionRatio')?.enable();
+    }
   }
 }
 

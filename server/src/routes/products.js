@@ -117,6 +117,11 @@ router.get('/', authenticateToken, async (req, res) => {
           include: {
             depot: true
           }
+        },
+        depotPrices: {
+          include: {
+            depot: true
+          }
         }
       }
     });
@@ -368,6 +373,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
           include: {
             depot: true
           }
+        },
+        depotPrices: {
+          include: {
+            depot: true
+          }
         }
       }
     });
@@ -400,6 +410,9 @@ router.post('/', authenticateToken, async (req, res) => {
       photo,
       isVrac,
       isVraguable,
+      conversionRatio,
+      prix_vente_vrac,
+      prix_achat_vrac,
       originalProductId,
       isStockable,
       // Wholesale fields
@@ -468,6 +481,9 @@ router.post('/', authenticateToken, async (req, res) => {
       photo: photo || null,
       isVrac: isVrac || false,
       isVraguable: isVraguable !== undefined ? isVraguable : false,
+      conversionRatio: conversionRatio ? parseFloat(conversionRatio) : null,
+      prix_vente_vrac: prix_vente_vrac !== undefined ? parseFloat(prix_vente_vrac) : 0,
+      prix_achat_vrac: prix_achat_vrac !== undefined ? parseFloat(prix_achat_vrac) : 0,
       originalProductId: originalProductId ? parseInt(originalProductId) : null,
       isStockable: isStockable !== undefined ? isStockable : true,
       // Wholesale fields
@@ -490,6 +506,17 @@ router.post('/', authenticateToken, async (req, res) => {
         data: depotIds.map(depotId => ({
           productId: product.id,
           depotId: parseInt(depotId)
+        }))
+      });
+    }
+    
+    // Handle depot prices if provided
+    if (depotPrices && Array.isArray(depotPrices) && depotPrices.length > 0) {
+      await prisma.productDepotPrice.createMany({
+        data: depotPrices.map(({ depotId, prix_vente_TTC }) => ({
+          productId: product.id,
+          depotId: parseInt(depotId),
+          prix_vente_TTC: parseFloat(prix_vente_TTC)
         }))
       });
     }
@@ -588,6 +615,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
       photo,
       isVrac,
       isVraguable,
+      conversionRatio,
+      prix_vente_vrac,
+      prix_achat_vrac,
       originalProductId,
       isStockable,
       // Wholesale fields
@@ -596,7 +626,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       bundlePrice,
       minMargin,
       requiresApproval,
-      depotIds
+      depotIds,
+      depotPrices
     } = req.body;
     
     if (prix_vente_TTC !== undefined && prix_vente_TTC < 0) {
@@ -646,6 +677,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (photo !== undefined) updateData.photo = photo || null;
     if (isVrac !== undefined) updateData.isVrac = isVrac;
     if (isVraguable !== undefined) updateData.isVraguable = isVraguable;
+    if (conversionRatio !== undefined) updateData.conversionRatio = conversionRatio ? parseFloat(conversionRatio) : null;
+    if (prix_vente_vrac !== undefined) updateData.prix_vente_vrac = prix_vente_vrac !== undefined ? parseFloat(prix_vente_vrac) : 0;
+    if (prix_achat_vrac !== undefined) updateData.prix_achat_vrac = prix_achat_vrac !== undefined ? parseFloat(prix_achat_vrac) : 0;
     if (originalProductId !== undefined) updateData.originalProductId = originalProductId ? parseInt(originalProductId) : null;
     if (isStockable !== undefined) updateData.isStockable = isStockable;
     // Wholesale fields
@@ -675,6 +709,25 @@ router.put('/:id', authenticateToken, async (req, res) => {
           data: depotIds.map(depotId => ({
             productId: productId,
             depotId: parseInt(depotId)
+          }))
+        });
+      }
+    }
+    
+    // Handle depot prices if provided
+    if (depotPrices !== undefined) {
+      // Remove existing depot prices
+      await prisma.productDepotPrice.deleteMany({
+        where: { productId: productId }
+      });
+      
+      // Add new depot prices
+      if (depotPrices && Array.isArray(depotPrices) && depotPrices.length > 0) {
+        await prisma.productDepotPrice.createMany({
+          data: depotPrices.map(({ depotId, prix_vente_TTC }) => ({
+            productId: productId,
+            depotId: parseInt(depotId),
+            prix_vente_TTC: parseFloat(prix_vente_TTC)
           }))
         });
       }

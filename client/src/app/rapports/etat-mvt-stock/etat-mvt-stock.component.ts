@@ -1,9 +1,10 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
+import { PrintService } from '../../core/services/print.service';
 
 interface StockMovementData {
   id: number;
@@ -108,6 +109,8 @@ export class EtatMvtStockComponent implements OnInit {
       return dateMatch && articleMatch;
     });
   });
+
+  private readonly printService = inject(PrintService);
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -698,5 +701,56 @@ export class EtatMvtStockComponent implements OnInit {
 
   navigateToHome() {
     this.router.navigate(['/rapports']);
+  }
+
+  printA4(): void {
+    const title = 'État MVT STOCK';
+    const rows = this.filteredRows();
+    
+    let htmlContent = `
+      <div class="header">
+        <div class="title">${title}</div>
+        <div class="subtitle">Date: ${new Date().toLocaleDateString('fr-FR')}</div>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Date PJ</th>
+            <th>Article</th>
+            <th style="text-align: right;">Entrée Qty</th>
+            <th style="text-align: right;">Entrée PU</th>
+            <th style="text-align: right;">Entrée Total</th>
+            <th style="text-align: right;">Sortie Qty</th>
+            <th style="text-align: right;">Sortie PU</th>
+            <th style="text-align: right;">Sortie Total</th>
+            <th style="text-align: right;">Stock Qty</th>
+            <th style="text-align: right;">Stock PU</th>
+            <th style="text-align: right;">Stock Total</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(row => `
+            <tr>
+              <td>${row.datePj}</td>
+              <td>${row.article}</td>
+              <td style="text-align: right;">${row.entreeQte?.toFixed(3) || '—'}</td>
+              <td style="text-align: right;">${row.entreePu?.toFixed(3) || '—'}</td>
+              <td style="text-align: right;">${row.entreeTotal?.toFixed(3) || '—'}</td>
+              <td style="text-align: right;">${row.sortieQte?.toFixed(3) || '—'}</td>
+              <td style="text-align: right;">${row.sortiePu?.toFixed(3) || '—'}</td>
+              <td style="text-align: right;">${row.sortieTotal?.toFixed(3) || '—'}</td>
+              <td style="text-align: right;">${row.stockQte.toFixed(3)}</td>
+              <td style="text-align: right;">${row.stockPu.toFixed(3)}</td>
+              <td style="text-align: right;">${row.stockTotal.toFixed(3)}</td>
+              <td>${row.notes || ''}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    
+    this.printService.printA4Report(htmlContent, title);
   }
 }

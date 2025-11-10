@@ -1,8 +1,9 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import * as Chart from 'chart.js/auto';
+import { PrintService } from '../../core/services/print.service';
 
 interface CategoryReport {
   id: number;
@@ -51,6 +52,8 @@ export class SalesByCategoryComponent implements OnInit, AfterViewInit {
     { id: '3', name: 'Atelier' },
     { id: '4', name: 'Dépôt Tunis' }
   ];
+
+  private readonly printService = inject(PrintService);
 
   constructor(
     private router: Router,
@@ -252,7 +255,56 @@ export class SalesByCategoryComponent implements OnInit, AfterViewInit {
   }
 
   printA4(): void {
-    window.print();
+    const depotName = this.depots.find(d => d.id === this.filters.depotId)?.name || 'Tous';
+    const reportType = this.filters.reportType === 'sales' ? 'Ventes' : 'Achats';
+    const filterTypeLabel = this.getFilterTypeLabel();
+    const title = `Rapport ${reportType} par ${filterTypeLabel}`;
+    
+    const htmlContent = `
+      <div class="header">
+        <div class="title">${title}</div>
+        <div class="subtitle">Période: ${this.filters.startDate} au ${this.filters.endDate} | Site: ${depotName}</div>
+      </div>
+      
+      <div class="summary">
+        <p><strong>Quantité Total:</strong> ${this.getTotalQuantity().toFixed(3)}</p>
+        <p><strong>Total TTC:</strong> ${this.getTotalTTC().toFixed(3)} dt</p>
+        <p><strong>Prix Achat Total:</strong> ${this.getTotalAchat().toFixed(3)} dt</p>
+        <p><strong>Résultat Total:</strong> ${this.getTotalResultat().toFixed(3)} dt</p>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>${filterTypeLabel}</th>
+            <th style="text-align: right;">Qté</th>
+            <th style="text-align: right;">Total TTC</th>
+            <th style="text-align: right;">Prix Achat</th>
+            <th style="text-align: right;">Résultat</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${this.reports.map(r => `
+            <tr>
+              <td>${r.name}</td>
+              <td style="text-align: right;">${r.quantity.toFixed(3)}</td>
+              <td style="text-align: right;">${r.totalTTC.toFixed(3)}</td>
+              <td style="text-align: right;">${r.prixAchat.toFixed(3)}</td>
+              <td style="text-align: right;">${r.resultat.toFixed(3)}</td>
+            </tr>
+          `).join('')}
+          <tr class="total-row">
+            <td><strong>TOTAL</strong></td>
+            <td style="text-align: right;"><strong>${this.getTotalQuantity().toFixed(3)}</strong></td>
+            <td style="text-align: right;"><strong>${this.getTotalTTC().toFixed(3)}</strong></td>
+            <td style="text-align: right;"><strong>${this.getTotalAchat().toFixed(3)}</strong></td>
+            <td style="text-align: right;"><strong>${this.getTotalResultat().toFixed(3)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    
+    this.printService.printA4Report(htmlContent, title);
   }
 
   print80mm(): void {

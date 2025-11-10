@@ -1,8 +1,9 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import * as Chart from 'chart.js/auto';
+import { PrintService } from '../../core/services/print.service';
 
 interface DailyMonthlyReport {
   date: string;
@@ -48,6 +49,8 @@ export class DailyMonthlyComponent implements OnInit, AfterViewInit {
     { id: '3', name: 'Atelier' },
     { id: '4', name: 'Dépôt Tunis' }
   ];
+
+  private readonly printService = inject(PrintService);
 
   constructor(
     private router: Router,
@@ -241,7 +244,53 @@ export class DailyMonthlyComponent implements OnInit, AfterViewInit {
   }
 
   printA4(): void {
-    window.print();
+    const depotName = this.depots.find(d => d.id === this.filters.depotId)?.name || 'Tous';
+    const reportType = this.filters.reportType === 'daily' ? 'Journalier' : 'Mensuel';
+    const title = `Rapport ${reportType}`;
+    
+    const htmlContent = `
+      <div class="header">
+        <div class="title">${title}</div>
+        <div class="subtitle">Période: ${this.filters.startDate} au ${this.filters.endDate} | Site: ${depotName}</div>
+      </div>
+      
+      <div class="summary">
+        <p><strong>CA Vente Total:</strong> ${this.getTotalCA().toFixed(3)} dt</p>
+        <p><strong>Prix Achat Total:</strong> ${this.getTotalAchat().toFixed(3)} dt</p>
+        <p><strong>Résultat Total:</strong> ${this.getTotalResultat().toFixed(3)} dt</p>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Site</th>
+            <th style="text-align: right;">CA Vente</th>
+            <th style="text-align: right;">Prix Achat</th>
+            <th style="text-align: right;">Résultat</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${this.reports.map(r => `
+            <tr>
+              <td>${new Date(r.date).toLocaleDateString('fr-FR')}</td>
+              <td>${r.depotName}</td>
+              <td style="text-align: right;">${r.caVente.toFixed(3)}</td>
+              <td style="text-align: right;">${r.prixAchat.toFixed(3)}</td>
+              <td style="text-align: right;">${r.resultat.toFixed(3)}</td>
+            </tr>
+          `).join('')}
+          <tr class="total-row">
+            <td colspan="2"><strong>TOTAL</strong></td>
+            <td style="text-align: right;"><strong>${this.getTotalCA().toFixed(3)}</strong></td>
+            <td style="text-align: right;"><strong>${this.getTotalAchat().toFixed(3)}</strong></td>
+            <td style="text-align: right;"><strong>${this.getTotalResultat().toFixed(3)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    
+    this.printService.printA4Report(htmlContent, title);
   }
 
   print80mm(): void {

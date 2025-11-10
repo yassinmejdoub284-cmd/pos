@@ -28,8 +28,11 @@ export class PrintService {
   // Method to check if Tauri is receiving orders
   async checkTauriStatus(): Promise<string> {
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      const status = await invoke<string>('check_tauri_status');
+      const tauriCore = await import('@tauri-apps/api/core');
+      if (!tauriCore || !tauriCore.invoke) {
+        return 'Tauri not available';
+      }
+      const status = await tauriCore.invoke<string>('check_tauri_status');
       console.log('Tauri Status:', status);
       return status;
     } catch (error) {
@@ -69,9 +72,17 @@ export class PrintService {
   }
 
   private async printPlainTextDesktop(text: string): Promise<void> {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('print_text_direct', { text });
-    console.log('Tauri print successful');
+    try {
+      const tauriCore = await import('@tauri-apps/api/core');
+      if (!tauriCore || !tauriCore.invoke) {
+        throw new Error('Tauri invoke is not available');
+      }
+      await tauriCore.invoke('print_text_direct', { text });
+      console.log('Tauri print successful');
+    } catch (error) {
+      console.error('Tauri print error:', error);
+      throw error;
+    }
   }
 
   private printPlainTextWeb(text: string): void {
@@ -151,8 +162,17 @@ export class PrintService {
   }
 
   private async printHtmlDesktop(html: string): Promise<void> {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('print_html', { html });
+    try {
+      const tauriCore = await import('@tauri-apps/api/core');
+      if (!tauriCore || !tauriCore.invoke) {
+        throw new Error('Tauri invoke is not available');
+      }
+      await tauriCore.invoke('print_html', { html });
+      console.log('Tauri HTML print successful');
+    } catch (error) {
+      console.error('Tauri HTML print error:', error);
+      throw error;
+    }
   }
 
   private printHtmlWeb(html: string): void {
@@ -200,11 +220,15 @@ export class PrintService {
 
   private async printPdfDesktop(pdfBase64: string): Promise<void> {
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('print_pdf', { pdfBase64: pdfBase64 });
+      const tauriCore = await import('@tauri-apps/api/core');
+      if (!tauriCore || !tauriCore.invoke) {
+        throw new Error('Tauri invoke is not available');
+      }
+      await tauriCore.invoke('print_pdf', { pdfBase64: pdfBase64 });
+      console.log('Tauri PDF print successful');
     } catch (error) {
-      console.error('Tauri PDF print failed, falling back to web print:', error);
-      this.printPdfWeb(pdfBase64);
+      console.error('Tauri PDF print error:', error);
+      throw error;
     }
   }
 
@@ -245,9 +269,17 @@ export class PrintService {
   }
 
   private async printEscPosDesktop(escposData: string): Promise<void> {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const base64 = this.toBase64(this.stringToBytes(escposData));
-    await invoke('print_raw_bytes', { data_base64: base64 });
+    try {
+      const tauriCore = await import('@tauri-apps/api/core');
+      if (!tauriCore || !tauriCore.invoke) {
+        throw new Error('Tauri invoke is not available');
+      }
+      const base64 = this.toBase64(this.stringToBytes(escposData));
+      await tauriCore.invoke('print_raw_bytes', { data_base64: base64 });
+    } catch (error) {
+      console.error('Tauri ESC/POS print error:', error);
+      throw error;
+    }
   }
 
   private async printEscPosWeb(escposData: string): Promise<void> {
@@ -274,8 +306,12 @@ export class PrintService {
 
   private async openCashDrawerDesktop(): Promise<void> {
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('open_cash_drawer');
+      const tauriCore = await import('@tauri-apps/api/core');
+      if (!tauriCore || !tauriCore.invoke) {
+        throw new Error('Tauri invoke is not available');
+      }
+      await tauriCore.invoke('open_cash_drawer');
+      console.log('Tauri cash drawer opened successfully');
     } catch (error) {
       console.error('Tauri cash drawer failed:', error);
       this.openCashDrawerWebPrinter();
@@ -449,8 +485,11 @@ export class PrintService {
 
   private async getAvailablePrintersDesktop(): Promise<Array<{ name: string; isDefault: boolean }>> {
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      return invoke('get_available_printers');
+      const tauriCore = await import('@tauri-apps/api/core');
+      if (!tauriCore || !tauriCore.invoke) {
+        throw new Error('Tauri invoke is not available');
+      }
+      return tauriCore.invoke('get_available_printers');
     } catch (error) {
       console.error('Tauri get printers failed:', error);
       return [];
@@ -474,8 +513,11 @@ export class PrintService {
 
   private async setDefaultPrinterDesktop(printerName: string): Promise<boolean> {
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      const res = await invoke<{ success: boolean; message: string }>('set_default_printer', { printer_name: printerName });
+      const tauriCore = await import('@tauri-apps/api/core');
+      if (!tauriCore || !tauriCore.invoke) {
+        throw new Error('Tauri invoke is not available');
+      }
+      const res = await tauriCore.invoke<{ success: boolean; message: string }>('set_default_printer', { printer_name: printerName });
       return !!res?.success;
     } catch (error) {
       console.error('Tauri set printer failed:', error);
@@ -1351,6 +1393,12 @@ export class PrintService {
     text += ESC + '\x69'; // Full cut
     text += ESC + '\x64\x01'; // Feed 6 lines before cutting
     
+    // Open cash drawer for cash payments (espèces)
+    if (sale.paymentType === 'COMPTANT' && sale.paymentMethod?.id === 1) {
+      // ESC/POS command to open cash drawer: ESC p 0 25 250
+      text += ESC + '\x70\x00\x19\xFA'; // Open drawer command
+    }
+    
     return text;
   }
 
@@ -1591,25 +1639,75 @@ export class PrintService {
     const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
     const lines = invoice.lines || [];
+    let calculatedSubtotalHTVA = 0;
+    let calculatedTotalTVA = 0;
+    let calculatedTotalTTC = 0;
+    
     const itemsRows = lines.map((line: any) => {
       const name = line.productName || line.name || 'Produit';
-      const qty = Number(line.quantity || 0).toString();
-      const unitPrice = Number(line.prixVenteTTC || line.unitPrice || 0).toFixed(3);
-      const total = Number(line.total || line.amount || 0).toFixed(3);
+      const qty = Number(line.quantity || 0);
+      let unitPriceTTC = Number(line.prixVenteTTC || line.unitPrice || 0);
+      let tvaPercent = Number(line.tvaPercent || 0);
+      
+      // Get TVA from product if not in line
+      if (tvaPercent === 0 || !tvaPercent) {
+        if (line.product?.tva) {
+          tvaPercent = Number(line.product.tva);
+        } else if (line.product?.tvaPercent) {
+          tvaPercent = Number(line.product.tvaPercent);
+        } else {
+          // Default to 19% if no TVA info found
+          tvaPercent = 19;
+        }
+      }
+      
+      // Calculate HTVA and TVA if not provided
+      let prixVenteHTVA = Number(line.prixVenteHTVA || 0);
+      let montantTVA = Number(line.montantTVA || 0);
+      
+      // Always recalculate if we have TTC price and TVA percentage
+      if (unitPriceTTC > 0 && tvaPercent > 0) {
+        if (prixVenteHTVA === 0 || !prixVenteHTVA) {
+          // Calculate HTVA from TTC: HTVA = TTC / (1 + TVA%)
+          prixVenteHTVA = unitPriceTTC / (1 + tvaPercent / 100);
+        }
+        // Always recalculate TVA amount
+        montantTVA = unitPriceTTC - prixVenteHTVA;
+      } else if (prixVenteHTVA > 0 && montantTVA === 0) {
+        // If we have HTVA but no TTC, calculate TTC and TVA
+        if (tvaPercent > 0) {
+          unitPriceTTC = prixVenteHTVA * (1 + tvaPercent / 100);
+          montantTVA = unitPriceTTC - prixVenteHTVA;
+        } else {
+          montantTVA = 0;
+        }
+      } else if (unitPriceTTC > 0 && (tvaPercent === 0 || !tvaPercent)) {
+        // If no TVA info, assume HTVA = TTC (0% VAT)
+        prixVenteHTVA = unitPriceTTC;
+        montantTVA = 0;
+      }
+      
+      const sousTotalTTC = Number(line.sousTotalTTC || (qty * unitPriceTTC) || 0);
+      
+      // Calculate totals from line
+      calculatedSubtotalHTVA += qty * prixVenteHTVA;
+      calculatedTotalTVA += qty * montantTVA;
+      calculatedTotalTTC += sousTotalTTC;
       
       return `
         <tr>
           <td class="name">${this.escapeHtml(name)}</td>
           <td class="qty">${qty}</td>
-          <td class="price">${unitPrice}</td>
-          <td class="total">${total}</td>
+          <td class="price">${unitPriceTTC.toFixed(3)}</td>
+          <td class="total">${sousTotalTTC.toFixed(3)}</td>
         </tr>
       `;
     }).join('');
 
-    const totalHT = Number(invoice.totalHT || 0).toFixed(3);
-    const totalTVA = Number(invoice.totalTVA || 0).toFixed(3);
-    const totalTTC = Number(invoice.total || 0).toFixed(3);
+    // Totals - use invoice totals if available, otherwise calculate from lines
+    const totalHT = Number(invoice.subtotalHTVA || calculatedSubtotalHTVA || 0).toFixed(3);
+    const totalTVA = Number(invoice.totalTVA || calculatedTotalTVA || 0).toFixed(3);
+    const totalTTC = Number(invoice.totalTTC || calculatedTotalTTC || 0).toFixed(3);
     
     const clientName = invoice.client ? `${invoice.client.firstName || ''} ${invoice.client.lastName || ''}`.trim() : 'Client anonyme';
     const clientMatricule = invoice.client?.matriculeFiscal || '';
@@ -1674,10 +1772,13 @@ export class PrintService {
         <body>
           <div class="ticket">
             ${logoHtml}
-            <div class="center bold">${this.escapeHtml(companyName)}</div>
-            <div class="center muted">${this.escapeHtml(companyAddress)}</div>
-            <div class="center muted">${this.escapeHtml(companyPhone)}</div>
-            <div class="double-line"></div>
+            <div class="center bold" style="margin-bottom: 8px;">${this.escapeHtml(companyName)}</div>
+            ${settings?.companyAddress ? `<div class="center muted" style="margin-bottom: 4px;">${this.escapeHtml(settings.companyAddress)}</div>` : ''}
+            ${settings?.companyRC ? `<div class="center muted" style="margin-bottom: 4px;">R.C: ${this.escapeHtml(settings.companyRC)}</div>` : ''}
+            ${settings?.companyMF ? `<div class="center muted" style="margin-bottom: 4px;">M.F: ${this.escapeHtml(settings.companyMF)}</div>` : ''}
+            ${settings?.companyPhone ? `<div class="center muted" style="margin-bottom: 4px;">Tel: ${this.escapeHtml(settings.companyPhone)}</div>` : ''}
+            ${settings?.companyEmail ? `<div class="center muted" style="margin-bottom: 4px;">${this.escapeHtml(settings.companyEmail)}</div>` : ''}
+            <div class="double-line" style="margin-top: 8px;"></div>
             
             <div class="invoice-header center bold">FACTURE</div>
             <div>N° Facture: ${invoice.invoiceNumber || `FAC-${invoice.id}`}</div>
@@ -1746,17 +1847,26 @@ export class PrintService {
     // Company name (double bold and centered)
     const companyName = this.sanitizeForThermalPrinter(settings?.companyName || 'PATISSERIE MODERNE');
     text += centerAlign + boldOn + boldOn + companyName + boldOff + boldOff + normalSize + '\n';
+    text += '\n'; // Add spacing after company name
     
-    // Company details (centered)
-    if (settings?.printSettings?.showCompanyDetails) {
-      if (settings?.companyAddress) {
-        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyAddress) + '\n';
-      }
-      if (settings?.companyPhone) {
-        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyPhone) + '\n';
-      }
+    // Company details (centered) - always show on invoices
+    if (settings?.companyAddress) {
+      text += centerAlign + this.sanitizeForThermalPrinter(settings.companyAddress) + '\n';
+    }
+    if (settings?.companyRC) {
+      text += centerAlign + 'R.C: ' + this.sanitizeForThermalPrinter(settings.companyRC) + '\n';
+    }
+    if (settings?.companyMF) {
+      text += centerAlign + 'M.F: ' + this.sanitizeForThermalPrinter(settings.companyMF) + '\n';
+    }
+    if (settings?.companyPhone) {
+      text += centerAlign + 'Tel: ' + this.sanitizeForThermalPrinter(settings.companyPhone) + '\n';
+    }
+    if (settings?.companyEmail) {
+      text += centerAlign + this.sanitizeForThermalPrinter(settings.companyEmail) + '\n';
     }
     
+    text += '\n'; // Add spacing before separator
     text += leftAlign + '==================\n\n';
     
     // Invoice header
@@ -1785,23 +1895,72 @@ export class PrintService {
     text += '-------------------------------\n';
     
     const lines = invoice.lines || [];
+    let calculatedSubtotalHTVA = 0;
+    let calculatedTotalTVA = 0;
+    let calculatedTotalTTC = 0;
+    
     lines.forEach((line: any) => {
       const name = this.sanitizeForThermalPrinter(line.productName || line.name || 'Produit');
-      const qty = Number(line.quantity || 0).toString();
-      const unitPrice = Number(line.prixVenteTTC || line.unitPrice || 0).toFixed(3);
-      const total = Number(line.total || line.amount || 0).toFixed(3);
+      const qty = Number(line.quantity || 0);
+      let unitPriceTTC = Number(line.prixVenteTTC || line.unitPrice || 0);
+      let tvaPercent = Number(line.tvaPercent || 0);
+      
+      // Get TVA from product if not in line
+      if (tvaPercent === 0 || !tvaPercent) {
+        if (line.product?.tva) {
+          tvaPercent = Number(line.product.tva);
+        } else if (line.product?.tvaPercent) {
+          tvaPercent = Number(line.product.tvaPercent);
+        } else {
+          // Default to 19% if no TVA info found
+          tvaPercent = 19;
+        }
+      }
+      
+      // Calculate HTVA and TVA if not provided
+      let prixVenteHTVA = Number(line.prixVenteHTVA || 0);
+      let montantTVA = Number(line.montantTVA || 0);
+      
+      // Always recalculate if we have TTC price and TVA percentage
+      if (unitPriceTTC > 0 && tvaPercent > 0) {
+        if (prixVenteHTVA === 0 || !prixVenteHTVA) {
+          // Calculate HTVA from TTC: HTVA = TTC / (1 + TVA%)
+          prixVenteHTVA = unitPriceTTC / (1 + tvaPercent / 100);
+        }
+        // Always recalculate TVA amount
+        montantTVA = unitPriceTTC - prixVenteHTVA;
+      } else if (prixVenteHTVA > 0 && montantTVA === 0) {
+        // If we have HTVA but no TTC, calculate TTC and TVA
+        if (tvaPercent > 0) {
+          unitPriceTTC = prixVenteHTVA * (1 + tvaPercent / 100);
+          montantTVA = unitPriceTTC - prixVenteHTVA;
+        } else {
+          montantTVA = 0;
+        }
+      } else if (unitPriceTTC > 0 && (tvaPercent === 0 || !tvaPercent)) {
+        // If no TVA info, assume HTVA = TTC (0% VAT)
+        prixVenteHTVA = unitPriceTTC;
+        montantTVA = 0;
+      }
+      
+      const sousTotalTTC = Number(line.sousTotalTTC || (qty * unitPriceTTC) || 0);
+      
+      // Calculate totals from line
+      calculatedSubtotalHTVA += qty * prixVenteHTVA;
+      calculatedTotalTVA += qty * montantTVA;
+      calculatedTotalTTC += sousTotalTTC;
       
       // Simple formatting for thermal printer
       const nameTruncated = name.length > 20 ? name.substring(0, 17) + '...' : name;
-      text += nameTruncated.padEnd(20) + qty.padStart(3) + unitPrice.padStart(8) + total.padStart(8) + '\n';
+      text += nameTruncated.padEnd(20) + qty.toString().padStart(3) + unitPriceTTC.toFixed(3).padStart(8) + sousTotalTTC.toFixed(3).padStart(8) + '\n';
     });
     
     text += '-------------------------------\n';
     
-    // Totals
-    const totalHT = Number(invoice.totalHT || 0).toFixed(3);
-    const totalTVA = Number(invoice.totalTVA || 0).toFixed(3);
-    const totalTTC = Number(invoice.total || 0).toFixed(3);
+    // Totals - use invoice totals if available, otherwise calculate from lines
+    const totalHT = Number(invoice.subtotalHTVA || calculatedSubtotalHTVA || 0).toFixed(3);
+    const totalTVA = Number(invoice.totalTVA || calculatedTotalTVA || 0).toFixed(3);
+    const totalTTC = Number(invoice.totalTTC || calculatedTotalTTC || 0).toFixed(3);
     
     text += 'Total HT'.padEnd(20) + totalHT.padStart(19) + ' dt\n';
     text += 'TVA'.padEnd(20) + totalTVA.padStart(19) + ' dt\n';
@@ -2953,6 +3112,175 @@ export class PrintService {
 
     html += `</body></html>`;
     return html;
+  }
+
+  /**
+   * Print A4 formatted report from HTML content or selector
+   * @param content HTML content string or CSS selector
+   * @param title Report title
+   */
+  printA4Report(content: string | HTMLElement, title: string = 'Rapport'): void {
+    let htmlContent = '';
+
+    if (typeof content === 'string') {
+      // If it's a selector, get the element
+      if (content.startsWith('#')) {
+        const element = document.querySelector(content);
+        if (element) {
+          htmlContent = element.innerHTML;
+        } else {
+          // If selector not found, treat as HTML string
+          htmlContent = content;
+        }
+      } else {
+        // Treat as HTML string
+        htmlContent = content;
+      }
+    } else {
+      // It's an HTMLElement
+      htmlContent = content.innerHTML;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      return;
+    }
+
+    const printHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 0.5cm;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+            width: 100%;
+            min-height: 100vh;
+            color: #000;
+            background: #fff;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+          }
+          .title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+          }
+          .subtitle {
+            font-size: 12px;
+            color: #333;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            page-break-inside: avoid;
+          }
+          th, td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 11px;
+          }
+          th {
+            background-color: #e0e0e0;
+            font-weight: bold;
+            text-align: center;
+            font-size: 11px;
+          }
+          .total-row {
+            font-weight: bold;
+            background-color: #f0f0f0;
+          }
+          .summary {
+            margin-bottom: 16px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+          }
+          .summary p {
+            margin: 4px 0;
+            font-size: 11px;
+          }
+          @media print {
+            @page {
+              size: A4 !important;
+              margin: 0.5cm !important;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            body {
+              font-size: 12px !important;
+              padding: 8px !important;
+              margin: 0 !important;
+              width: 100% !important;
+              min-height: 100vh !important;
+              transform: scale(1) !important;
+            }
+            html {
+              width: 100% !important;
+              height: 100% !important;
+            }
+            th, td {
+              padding: 6px 8px !important;
+              font-size: 11px !important;
+            }
+            table {
+              width: 100% !important;
+              page-break-inside: avoid !important;
+            }
+            .no-print {
+              display: none !important;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        ${htmlContent}
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    };
+
+    setTimeout(() => {
+      if (printWindow && !printWindow.closed) {
+        try {
+          printWindow.print();
+        } catch (error) {
+          console.error('Print failed:', error);
+        }
+      }
+    }, 1000);
   }
 
 }

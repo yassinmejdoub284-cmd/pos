@@ -1,4 +1,4 @@
-   import { Component, OnInit } from '@angular/core';
+   import { Component, OnInit, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
@@ -9,6 +9,7 @@ import { SessionsService } from '../../core/services/sessions.service';
 import { ProductsService } from '../../core/services/products.service';
 import { Product, ProductFamily } from '../../core/models/product.model';
 import { Sale, SaleItem } from '../../core/models/sale.model';
+import { PrintService } from '../../core/services/print.service';
 
 export interface ReconciliationRow {
   date: Date;
@@ -231,6 +232,8 @@ export class InventorySalesReconciliationComponent implements OnInit {
   isReleveInventaireTableCollapsed = true; // Collapsed by default
   isGlobalEcartTableCollapsed = true; // Collapsed by default
   
+  private readonly printService = inject(PrintService);
+
   constructor(
     private http: HttpClient,
     private route: ActivatedRoute,
@@ -4303,5 +4306,93 @@ export class InventorySalesReconciliationComponent implements OnInit {
       console.error('Error getting stock returns for product:', productId, err);
       return 0;
     }
+  }
+
+  printA4(): void {
+    const title = 'Réconciliation Inventaire & Ventes';
+    const period = this.rangeMode === 'DATE' 
+      ? `Période: ${this.startDate} au ${this.endDate}`
+      : this.rangeMode === 'INVENTORY'
+      ? `Inventaire: ${this.startInventoryId} → ${this.endInventoryId}`
+      : 'Dernier → Avant Dernier';
+    
+    let htmlContent = `
+      <div class="header">
+        <div class="title">${title}</div>
+        <div class="subtitle">${period} | Mode: ${this.valuationMode}</div>
+      </div>
+    `;
+
+    if (this.globalEcartSummary) {
+      htmlContent += `
+        <div class="summary">
+          <p><strong>Total Produits:</strong> ${this.globalEcartSummary.totalProducts}</p>
+          <p><strong>Quantité Vendue:</strong> ${this.formatQuantity(this.globalEcartSummary.totalQtyVendu)}</p>
+          <p><strong>CA Théorique:</strong> ${this.formatNumber(this.globalEcartSummary.totalChiffreAffaireTheorique)} dt</p>
+          <p><strong>CA Réalisé:</strong> ${this.formatNumber(this.globalEcartSummary.totalChiffreAffaireRealise)} dt</p>
+          <p><strong>Écart Global:</strong> ${this.formatNumber(this.globalEcartSummary.totalEcartGlobal)} dt</p>
+        </div>
+      `;
+    }
+
+    this.reconciliationData.forEach((data, index) => {
+      htmlContent += `
+        <h2 style="margin-top: 20px; margin-bottom: 10px; font-size: 14px; font-weight: bold;">${data.productName}</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Désignation</th>
+              <th>Achat Entrée Qty</th>
+              <th>Achat Entrée PU</th>
+              <th>Achat Entrée Total</th>
+              <th>Achat Sortie Qty</th>
+              <th>Achat Sortie PU</th>
+              <th>Achat Sortie Total</th>
+              <th>Achat Solde Qty</th>
+              <th>Achat Solde PU</th>
+              <th>Achat Solde Total</th>
+              <th>Vente Entrée Qty</th>
+              <th>Vente Entrée PU</th>
+              <th>Vente Entrée Total</th>
+              <th>Vente Sortie Qty</th>
+              <th>Vente Sortie PU</th>
+              <th>Vente Sortie Total</th>
+              <th>Vente Solde Qty</th>
+              <th>Vente Solde PU</th>
+              <th>Vente Solde Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.rows.map(row => `
+              <tr>
+                <td>${new Date(row.date).toLocaleDateString('fr-FR')}</td>
+                <td>${row.designation}</td>
+                <td style="text-align: right;">${this.formatQuantity(row.achat.entree.qty)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.achat.entree.pu)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.achat.entree.totale)}</td>
+                <td style="text-align: right;">${this.formatQuantity(row.achat.sortie.qty)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.achat.sortie.pu)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.achat.sortie.totale)}</td>
+                <td style="text-align: right;">${this.formatQuantity(row.achat.solde.qty)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.achat.solde.pu)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.achat.solde.totale)}</td>
+                <td style="text-align: right;">${this.formatQuantity(row.vente.entree.qty)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.vente.entree.pu)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.vente.entree.totale)}</td>
+                <td style="text-align: right;">${this.formatQuantity(row.vente.sortie.qty)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.vente.sortie.pu)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.vente.sortie.totale)}</td>
+                <td style="text-align: right;">${this.formatQuantity(row.vente.solde.qty)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.vente.solde.pu)}</td>
+                <td style="text-align: right;">${this.formatNumber(row.vente.solde.totale)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    });
+
+    this.printService.printA4Report(htmlContent, title);
   }
 }

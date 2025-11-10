@@ -601,12 +601,16 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
     });
 
     // Calculate écart
-    const ecartQuantity = countedQuantity !== null ? countedQuantity - item.theoreticalQuantity : null;
-    const ecartValue = ecartQuantity !== null ? ecartQuantity * parseFloat(item.product.prix_vente_TTC) : null;
+    const oldEcartQuantity = item.ecartQuantity ? parseFloat(item.ecartQuantity) : 0;
+    const newEcartQuantity = countedQuantity !== null ? parseFloat(countedQuantity) - parseFloat(item.theoreticalQuantity) : null;
+    const ecartValue = newEcartQuantity !== null ? newEcartQuantity * parseFloat(item.product.prix_vente_TTC) : null;
+
+    // Calculate the difference in écart to apply to stock
+    const ecartDifference = newEcartQuantity !== null ? newEcartQuantity - oldEcartQuantity : -oldEcartQuantity;
 
     const updateData = {
       countedQuantity,
-      ecartQuantity,
+      ecartQuantity: newEcartQuantity,
       ecartValue,
       reason: reason || 'PHYSICAL_COUNT_DIFFERENCE',
       notes: notes || null,
@@ -615,45 +619,105 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
     };
 
     console.log('Updating with data:', updateData);
+    console.log('Ecart difference to apply:', ecartDifference);
 
-    const updatedItem = await prisma.inventoryItem.update({
-      where: { id: itemId },
-      data: updateData,
-      include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            barcode: true,
-            unite: true,
-            prix_vente_TTC: true,
-            famille: {
-              select: {
-                name: true
+    // Update inventory item and stock in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Update inventory item
+      const updatedItem = await tx.inventoryItem.update({
+        where: { id: itemId },
+        data: updateData,
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              barcode: true,
+              unite: true,
+              prix_vente_TTC: true,
+              famille: {
+                select: {
+                  name: true
+                }
               }
             }
-          }
-        },
-        counter: {
-          select: {
-            firstName: true,
-            lastName: true,
-            username: true
+          },
+          counter: {
+            select: {
+              firstName: true,
+              lastName: true,
+              username: true
+            }
           }
         }
+      });
+
+      // Update stock immediately if there's a change in écart
+      if (Math.abs(ecartDifference) > 0.001) {
+        // Get session depot
+        const sessionDepot = await tx.depot.findUnique({
+          where: { id: session.depotId }
+        });
+
+        if (sessionDepot) {
+          // Update inventory for the session depot
+          const inventory = await tx.inventory.findUnique({
+            where: {
+              depotId_productId: {
+                depotId: session.depotId,
+                productId: item.productId
+              }
+            }
+          });
+
+          if (inventory) {
+            const currentQuantity = parseFloat(inventory.quantity);
+            const newQuantity = currentQuantity + ecartDifference;
+            await tx.inventory.update({
+              where: { id: inventory.id },
+              data: { quantity: newQuantity }
+            });
+            console.log(`Updated inventory for depot ${session.depotId}, product ${item.productId}: ${currentQuantity} -> ${newQuantity}`);
+          } else {
+            // Create new inventory entry if it doesn't exist
+            await tx.inventory.create({
+              data: {
+                depotId: session.depotId,
+                productId: item.productId,
+                quantity: ecartDifference
+              }
+            });
+            console.log(`Created new inventory for depot ${session.depotId}, product ${item.productId}: ${ecartDifference}`);
+          }
+
+          // Create stock movement record
+          await tx.stockMovement.create({
+            data: {
+              productId: item.productId,
+              depotId: session.depotId,
+              quantity: ecartDifference,
+              type: ecartDifference > 0 ? 'IN' : 'OUT',
+              reason: 'INVENTORY_ADJUSTMENT',
+              reference: session.numero,
+              userId: req.user.id
+            }
+          });
+        }
       }
+
+      return updatedItem;
     });
 
     console.log('Successfully updated inventory item:', {
-      itemId: updatedItem.id,
-      countedQuantity: updatedItem.countedQuantity,
-      ecartQuantity: updatedItem.ecartQuantity,
-      ecartValue: updatedItem.ecartValue
+      itemId: result.id,
+      countedQuantity: result.countedQuantity,
+      ecartQuantity: result.ecartQuantity,
+      ecartValue: result.ecartValue
     });
 
-    await logAudit(req.user.id, 'inventory_items', itemId, 'UPDATE', item, updatedItem);
+    await logAudit(req.user.id, 'inventory_items', itemId, 'UPDATE', item, result);
 
-    res.json(updatedItem);
+    res.json(result);
   } catch (error) {
     console.error('Error updating inventory item:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -681,13 +745,46 @@ router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGE
     }
 
     if (session.status !== 'CLOSED') {
-      return res.status(400).json({ error: 'Can only post closed inventory sessions' });
+      return res.status(400).json({ 
+        error: 'Can only post closed inventory sessions',
+        currentStatus: session.status,
+        sessionId: sessionId
+      });
     }
 
     // Calculate totals
     const itemsWithEcart = session.items.filter(item => item.ecartQuantity !== null && item.ecartQuantity !== 0);
     const totalEcartValue = itemsWithEcart.reduce((sum, item) => sum + parseFloat(item.ecartValue || 0), 0);
     const totalEcartQty = itemsWithEcart.reduce((sum, item) => sum + parseFloat(item.ecartQuantity || 0), 0);
+
+    // Get session depot info to find related depots
+    const sessionDepot = await prisma.depot.findUnique({
+      where: { id: session.depotId }
+    });
+
+    // Find primary SHOP depot (caisse) - get the first active SHOP depot
+    const shopDepot = await prisma.depot.findFirst({
+      where: {
+        type: 'SHOP',
+        isActive: true
+      },
+      orderBy: { id: 'asc' }
+    });
+
+    // Find primary MAIN/WAREHOUSE depot (general stock) - prefer MAIN, then WAREHOUSE
+    const mainDepot = await prisma.depot.findFirst({
+      where: {
+        type: 'MAIN',
+        isActive: true
+      },
+      orderBy: { id: 'asc' }
+    }) || await prisma.depot.findFirst({
+      where: {
+        type: 'WAREHOUSE',
+        isActive: true
+      },
+      orderBy: { id: 'asc' }
+    });
 
     const result = await prisma.$transaction(async (tx) => {
       // Update session with totals and mark as posted
@@ -702,48 +799,65 @@ router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGE
         }
       });
 
+      // Helper function to update inventory for a depot
+      const updateInventoryForDepot = async (depotId, productId, ecartQuantity) => {
+        const inventory = await tx.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: depotId,
+              productId: productId
+            }
+          }
+        });
+
+        if (inventory) {
+          const newQuantity = parseFloat(inventory.quantity) + parseFloat(ecartQuantity);
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: { quantity: newQuantity }
+          });
+        } else {
+          // Create new inventory entry if it doesn't exist
+          await tx.inventory.create({
+            data: {
+              depotId: depotId,
+              productId: productId,
+              quantity: parseFloat(ecartQuantity)
+            }
+          });
+        }
+
+        // Create stock movement record
+        await tx.stockMovement.create({
+          data: {
+            productId: productId,
+            depotId: depotId,
+            quantity: parseFloat(ecartQuantity),
+            type: parseFloat(ecartQuantity) > 0 ? 'IN' : 'OUT',
+            reason: 'INVENTORY_ADJUSTMENT',
+            reference: session.numero,
+            userId: req.user.id
+          }
+        });
+      };
+
       // Apply stock adjustments for items with écart
+      // Note: Session depot stock is already updated when inventory items are modified,
+      // so we only update other depots (SHOP and MAIN) here
       for (const item of itemsWithEcart) {
         if (item.ecartQuantity !== 0) {
-          // Update inventory
-          const inventory = await tx.inventory.findUnique({
-            where: {
-              depotId_productId: {
-                depotId: session.depotId,
-                productId: item.productId
-              }
-            }
-          });
-
-          if (inventory) {
-            const newQuantity = parseFloat(inventory.quantity) + parseFloat(item.ecartQuantity);
-            await tx.inventory.update({
-              where: { id: inventory.id },
-              data: { quantity: newQuantity }
-            });
-          } else {
-            // Create new inventory entry if it doesn't exist
-            await tx.inventory.create({
-              data: {
-                depotId: session.depotId,
-                productId: item.productId,
-                quantity: parseFloat(item.ecartQuantity)
-              }
-            });
+          // Skip session depot - it was already updated when inventory items were modified
+          // Only update other depots (SHOP and MAIN) to keep them in sync
+          
+          // Update inventory for SHOP depot (caisse) if it exists and is different from session depot
+          if (shopDepot && shopDepot.id !== session.depotId) {
+            await updateInventoryForDepot(shopDepot.id, item.productId, item.ecartQuantity);
           }
 
-          // Create stock movement record
-          await tx.stockMovement.create({
-            data: {
-              productId: item.productId,
-              depotId: session.depotId,
-              quantity: parseFloat(item.ecartQuantity),
-              type: parseFloat(item.ecartQuantity) > 0 ? 'IN' : 'OUT',
-              reason: 'INVENTORY_ADJUSTMENT',
-              reference: session.numero,
-              userId: req.user.id
-            }
-          });
+          // Update inventory for MAIN/WAREHOUSE depot (general stock) if it exists and is different from session depot
+          if (mainDepot && mainDepot.id !== session.depotId) {
+            await updateInventoryForDepot(mainDepot.id, item.productId, item.ecartQuantity);
+          }
         }
       }
 

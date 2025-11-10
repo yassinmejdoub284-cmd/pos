@@ -65,11 +65,16 @@
       <div class="flex items-center gap-2">
         <span class="text-sm text-slate-600">1 produit source =</span>
         <input type="number" formControlName="conversionRatio" step="0.001" min="0.001"
-          class="flex-1 px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all"
+          [class.bg-slate-200]="transferForm.get('conversionRatio')?.disabled"
+          [class.cursor-not-allowed]="transferForm.get('conversionRatio')?.disabled"
+          class="flex-1 px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all disabled:opacity-70"
           placeholder="200">
         <span class="text-sm text-slate-600">produit cible</span>
       </div>
-      <span class="text-xs text-slate-500 mt-1 block">
+      <span *ngIf="sourceProduct?.conversionRatio" class="text-xs text-blue-600 mt-1 block">
+        <span class="font-semibold">Ratio pré-rempli depuis le produit (non modifiable):</span> 1 article = {{ sourceProduct?.conversionRatio }} articles cibles
+      </span>
+      <span *ngIf="!sourceProduct?.conversionRatio" class="text-xs text-slate-500 mt-1 block">
         Exemple: 1 JUS 1L = 200 JUS Vrac
       </span>
     </div>

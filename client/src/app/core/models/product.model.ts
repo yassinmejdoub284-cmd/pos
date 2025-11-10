@@ -19,6 +19,9 @@ export interface Product {
   isStockable?: boolean;
   // New configuration fields
   isVraguable?: boolean;
+  conversionRatio?: number;
+  prix_vente_vrac?: number;
+  prix_achat_vrac?: number;
   initialStock?: number;
   minStock?: number;
   maxStock?: number;
@@ -30,6 +33,7 @@ export interface Product {
   // Depot assignment fields
   depotAssignments?: ProductDepot[];
   assignedDepots?: Depot[]; // Computed field for easier access
+  depotPrices?: ProductDepotPrice[]; // Depot-specific prices
   createdAt: Date;
   updatedAt: Date;
   inventory?: Inventory[];
@@ -81,6 +85,16 @@ export interface ProductDepot {
   id: number;
   productId: number;
   depotId: number;
+  createdAt: Date;
+  updatedAt: Date;
+  depot?: Depot;
+}
+
+export interface ProductDepotPrice {
+  id: number;
+  productId: number;
+  depotId: number;
+  prix_vente_TTC: number;
   createdAt: Date;
   updatedAt: Date;
   depot?: Depot;

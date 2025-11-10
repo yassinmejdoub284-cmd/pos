@@ -1,8 +1,9 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import * as Chart from 'chart.js/auto';
+import { PrintService } from '../../core/services/print.service';
 
 interface CreditSale {
   clientId: number;
@@ -60,6 +61,8 @@ export class CreditSalesComponent implements OnInit, AfterViewInit {
     { id: '3', name: 'Atelier' },
     { id: '4', name: 'Dépôt Tunis' }
   ];
+
+  private readonly printService = inject(PrintService);
 
   constructor(
     private router: Router,
@@ -269,7 +272,46 @@ export class CreditSalesComponent implements OnInit, AfterViewInit {
   }
 
   printA4(): void {
-    window.print();
+    const depotName = this.depots.find(d => d.id === this.filters.depotId)?.name || 'Tous';
+    const title = 'Rapport Ventes à Crédit';
+    
+    const htmlContent = `
+      <div class="header">
+        <div class="title">${title}</div>
+        <div class="subtitle">Période: ${this.filters.startDate} au ${this.filters.endDate} | Site: ${depotName}</div>
+      </div>
+      
+      <div class="summary">
+        <p><strong>Total Dû:</strong> ${this.getTotalDue().toFixed(3)} dt</p>
+        <p><strong>Nombre de Clients:</strong> ${this.reports.length}</p>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th style="text-align: right;">Montant Dû</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${this.reports.map(r => `
+            <tr>
+              <td>${r.clientName}</td>
+              <td style="text-align: right;">${r.totalDue.toFixed(3)}</td>
+              <td>${r.isOverdue ? 'En Retard' : (r.totalDue > 0 ? 'En Attente' : 'Payé')}</td>
+            </tr>
+          `).join('')}
+          <tr class="total-row">
+            <td><strong>TOTAL</strong></td>
+            <td style="text-align: right;"><strong>${this.getTotalDue().toFixed(3)}</strong></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    
+    this.printService.printA4Report(htmlContent, title);
   }
 
   print80mm(): void {

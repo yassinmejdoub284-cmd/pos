@@ -123,7 +123,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Product catalog
   allProducts: Product[] = [];
   filteredProducts: Product[] = [];
-  productCategories: string[] = ['Tous', 'Importés'];
+  productCategories: string[] = ['Tous'];
   selectedCategory: string = 'Tous';
   searchQuery: string = '';
   productFamilies: any[] = [];
@@ -854,24 +854,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
       next: (families) => {
         this.productFamilies = families;
         
-        // Separate families into those with multiple products and those with 1 or fewer
-        const familiesWithMultipleProducts = families.filter(family => {
-          const productCount = this.allProducts.filter(product => product.famille?.id === family.id).length;
-          return productCount > 1;
-        });
-        
-        const familiesWithFewProducts = families.filter(family => {
-          const productCount = this.allProducts.filter(product => product.famille?.id === family.id).length;
-          return productCount <= 1;
-        });
-        
-        // Build categories: "Tous", special tags, families with multiple products, and "Autres" if there are families with few products
-        const categories = ['Tous', 'Import', 'Local', ...familiesWithMultipleProducts.map(family => family.name)];
-        
-        // Add "Autres" category if there are families with 1 or fewer products
-        if (familiesWithFewProducts.length > 0) {
-          categories.push('Autres');
-        }
+        // Build categories: only "Tous" and actual family names
+        const categories = ['Tous', ...families.map(family => family.name)];
         
         this.productCategories = categories;
         
@@ -885,7 +869,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error loading product families:', error);
         // Fallback to default categories if API fails
-        this.productCategories = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrac', 'Pâtisserie Tunisienne', 'Jus et Smoothies'];
+        this.productCategories = ['Tous'];
       }
     });
   }
@@ -934,29 +918,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
   filterProducts(): void {
     let filtered = this.allProducts;
     
-    // Filter by category
+    // Filter by famille only
     if (this.selectedCategory !== 'Tous') {
-      if (this.selectedCategory === 'Autres') {
-        // For "Autres", show products from families that have 1 or fewer products
-        const familiesWithFewProducts = this.productFamilies.filter(family => {
-          const productCount = this.allProducts.filter(product => product.famille?.id === family.id).length;
-          return productCount <= 1;
-        });
-        
-        const familyIdsWithFewProducts = familiesWithFewProducts.map(family => family.id);
-        filtered = filtered.filter(product => 
-          product.famille?.id && familyIdsWithFewProducts.includes(product.famille.id)
-        );
-      } else if (this.selectedCategory === 'Import') {
-        // Tag category: products whose name contains "import"
-        filtered = filtered.filter(product => product.name && product.name.toLowerCase().includes('import'));
-      } else if (this.selectedCategory === 'Local') {
-        // Tag category: products whose name contains "local"
-        filtered = filtered.filter(product => product.name && product.name.toLowerCase().includes('local'));
-      } else {
-        // For specific family categories, show products from that family
-        filtered = filtered.filter(p => p.famille?.name === this.selectedCategory);
-      }
+      // Filter products by their famille name
+      filtered = filtered.filter(p => p.famille?.name === this.selectedCategory);
     }
     
     // Filter by search query
@@ -2071,6 +2036,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
         // Print receipt if requested
         if (shouldPrintReceipt) {
           this.printReceipt();
+        }
+        
+        // Open cash drawer for cash payments (espèces)
+        if (this.paymentType === 'cash' && this.salePaymentType === 'COMPTANT') {
+          this.printService.openCashDrawer();
         }
         
         // Update ticket counter with actual ticket number from server
@@ -3328,7 +3298,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
         if (this.inputMode === 'quantity') {
           value = 1; // Default quantity
         } else if (this.inputMode === 'price') {
-          value = Number(this.pendingProduct.prix_vente_TTC); // Default price
+          value = this.getEffectiveUnitPrice(this.pendingProduct); // Default price
         }
       }
       
@@ -3675,21 +3645,27 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Product Modal Methods
   onProductModalModeChange(): void {
     if (this.productModalMode === 'quantity') {
-      this.productModalAmount = this.productModalQuantity * Number(this.selectedProduct?.prix_vente_TTC || 0);
+      const unitPrice = this.selectedProduct ? this.getEffectiveUnitPrice(this.selectedProduct) : 0;
+      this.productModalAmount = this.productModalQuantity * unitPrice;
     } else {
-      this.productModalQuantity = this.productModalAmount / Number(this.selectedProduct?.prix_vente_TTC || 1);
+      const unitPrice = this.selectedProduct ? this.getEffectiveUnitPrice(this.selectedProduct) : 1;
+      this.productModalQuantity = this.productModalAmount / unitPrice;
     }
   }
 
   onProductModalQuantityChange(): void {
     if (this.selectedProduct) {
-      this.productModalAmount = this.productModalQuantity * Number(this.selectedProduct.prix_vente_TTC);
+      const unitPrice = this.getEffectiveUnitPrice(this.selectedProduct);
+      this.productModalAmount = this.productModalQuantity * unitPrice;
     }
   }
 
   onProductModalAmountChange(): void {
-    if (this.selectedProduct && this.selectedProduct.prix_vente_TTC > 0) {
-      this.productModalQuantity = this.productModalAmount / Number(this.selectedProduct.prix_vente_TTC);
+    if (this.selectedProduct) {
+      const unitPrice = this.getEffectiveUnitPrice(this.selectedProduct);
+      if (unitPrice > 0) {
+        this.productModalQuantity = this.productModalAmount / unitPrice;
+      }
     }
   }
 
@@ -3965,14 +3941,18 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getProductModalCalculatedAmount(): number {
     if (this.selectedProduct && this.productModalMode === 'quantity') {
-      return this.productModalQuantity * Number(this.selectedProduct.prix_vente_TTC);
+      const unitPrice = this.getEffectiveUnitPrice(this.selectedProduct);
+      return this.productModalQuantity * unitPrice;
     }
     return this.productModalAmount;
   }
 
   getProductModalCalculatedQuantity(): number {
-    if (this.selectedProduct && this.productModalMode === 'amount' && this.selectedProduct.prix_vente_TTC > 0) {
-      return this.productModalAmount / Number(this.selectedProduct.prix_vente_TTC);
+    if (this.selectedProduct && this.productModalMode === 'amount') {
+      const unitPrice = this.getEffectiveUnitPrice(this.selectedProduct);
+      if (unitPrice > 0) {
+        return this.productModalAmount / unitPrice;
+      }
     }
     return this.productModalQuantity;
   }
@@ -5271,7 +5251,16 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   getWholesaleUnitPrice(product: any): number {
-    const baseUnit = Number(product.prix_vente_TTC) || 0;
+    // Use depot-specific price if available, otherwise use default price
+    const depotId = this.currentShopDepotId;
+    let baseUnit = Number(product.prix_vente_TTC) || 0;
+    
+    if (depotId && product.depotPrices && product.depotPrices.length > 0) {
+      const depotPrice = product.depotPrices.find((dp: any) => dp.depotId === depotId);
+      if (depotPrice) {
+        baseUnit = Number(depotPrice.prix_vente_TTC) || 0;
+      }
+    }
     const bundlePrice = Number(product.bundlePrice) || 0;
     const bundleSize = Number(product.bundleSize) || 0;
 
@@ -5293,7 +5282,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getEffectiveUnitPrice(product: any): number {
     const isWholesaleContext = this.isWholesaleMode || (this.selectedClient?.clientType === 'WHOLESALE');
-    return isWholesaleContext ? this.getWholesaleUnitPrice(product) : (Number(product.prix_vente_TTC) || 0);
+    if (isWholesaleContext) {
+      return this.getWholesaleUnitPrice(product);
+    }
+    
+    // Use depot-specific price if available
+    const depotId = this.currentShopDepotId;
+    if (depotId && product.depotPrices && product.depotPrices.length > 0) {
+      const depotPrice = product.depotPrices.find((dp: any) => dp.depotId === depotId);
+      if (depotPrice) {
+        return Number(depotPrice.prix_vente_TTC) || 0;
+      }
+    }
+    
+    // Fallback to default price
+    return Number(product.prix_vente_TTC) || 0;
   }
 
   getItemDisplayName(item: any): string {

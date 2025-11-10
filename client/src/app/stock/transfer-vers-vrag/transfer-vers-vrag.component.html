@@ -76,7 +76,7 @@
             <div class="grid grid-cols-2 gap-2 mt-3">
               <div class="bg-white rounded-xl p-2 border border-slate-200">
                 <div class="text-[11px] text-slate-500">Prix Vente</div>
-                <div class="text-sm font-semibold text-slate-800">{{ product.prix_vente_TTC | number:'1.2-2' }} DT</div>
+                <div class="text-sm font-semibold text-slate-800">{{ (product.prix_vente_vrac || product.prix_vente_TTC) | number:'1.2-2' }} DT</div>
               </div>
               <div class="bg-white rounded-xl p-2 border border-slate-200">
                 <div class="text-[11px] text-slate-500">Unité</div>
@@ -84,9 +84,9 @@
               </div>
             </div>
 
-            <div *ngIf="product.prix_achat" class="mt-2 bg-white rounded-xl p-2 border border-slate-200">
+            <div *ngIf="product.prix_achat_vrac || product.prix_achat" class="mt-2 bg-white rounded-xl p-2 border border-slate-200">
               <div class="text-[11px] text-slate-500">Prix Achat</div>
-              <div class="text-sm font-semibold text-slate-800">{{ product.prix_achat | number:'1.2-2' }} DT</div>
+              <div class="text-sm font-semibold text-slate-800">{{ (product.prix_achat_vrac || product.prix_achat) | number:'1.2-2' }} DT</div>
             </div>
 
             <button (click)="openTransferModal(product)" 
@@ -119,10 +119,10 @@
                   <span class="text-sm text-slate-600">{{ product.famille?.name || '-' }}</span>
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <span class="text-sm text-slate-800">{{ product.prix_achat ? (product.prix_achat | number:'1.2-2') + ' DT' : '-' }}</span>
+                  <span class="text-sm text-slate-800">{{ (product.prix_achat_vrac || product.prix_achat) ? ((product.prix_achat_vrac || product.prix_achat) | number:'1.2-2') + ' DT' : '-' }}</span>
                 </td>
                 <td class="px-4 py-3 text-right">
-                  <span class="text-sm font-semibold text-slate-800">{{ product.prix_vente_TTC | number:'1.2-2' }} DT</span>
+                  <span class="text-sm font-semibold text-slate-800">{{ (product.prix_vente_vrac || product.prix_vente_TTC) | number:'1.2-2' }} DT</span>
                 </td>
                 <td class="px-4 py-3 text-right">
                   <span class="text-sm text-slate-600">{{ product.unite }}</span>

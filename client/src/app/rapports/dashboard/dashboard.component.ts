@@ -1,8 +1,9 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import Chart from 'chart.js/auto';
+import { PrintService } from '../../core/services/print.service';
 
 interface DashboardData {
   sales: {
@@ -77,6 +78,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   selectedPeriod = 'monthly'; // daily, monthly, yearly
   startDate: string = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   endDate: string = new Date().toISOString().split('T')[0];
+
+  private readonly printService = inject(PrintService);
 
   constructor(
     private router: Router,
@@ -504,7 +507,31 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   printDashboard(): void {
-    window.print();
+    const title = 'Dashboard';
+    const htmlContent = `
+      <div class="header">
+        <div class="title">${title}</div>
+        <div class="subtitle">Date: ${new Date().toLocaleDateString('fr-FR')}</div>
+      </div>
+      
+      <div class="summary">
+        <p><strong>Ventes Journalières:</strong> ${this.dashboardData.sales.daily.toFixed(3)} dt</p>
+        <p><strong>Ventes Mensuelles:</strong> ${this.dashboardData.sales.monthly.toFixed(3)} dt</p>
+        <p><strong>Ventes Annuelles:</strong> ${this.dashboardData.sales.yearly.toFixed(3)} dt</p>
+        <p><strong>Achats Journaliers:</strong> ${this.dashboardData.purchases.daily.toFixed(3)} dt</p>
+        <p><strong>Achats Mensuels:</strong> ${this.dashboardData.purchases.monthly.toFixed(3)} dt</p>
+        <p><strong>Achats Annuels:</strong> ${this.dashboardData.purchases.yearly.toFixed(3)} dt</p>
+        <p><strong>Résultat Journalier:</strong> ${this.dashboardData.results.daily.toFixed(3)} dt</p>
+        <p><strong>Résultat Mensuel:</strong> ${this.dashboardData.results.monthly.toFixed(3)} dt</p>
+        <p><strong>Résultat Annuel:</strong> ${this.dashboardData.results.yearly.toFixed(3)} dt</p>
+        <p><strong>Valeur Stock:</strong> ${this.dashboardData.stockValue.toFixed(3)} dt</p>
+        <p><strong>Nouveaux Clients:</strong> ${this.dashboardData.indicators.newClients}</p>
+        <p><strong>Nouvelles Négociations:</strong> ${this.dashboardData.indicators.newNegotiations}</p>
+        <p><strong>Retards de Paiement:</strong> ${this.dashboardData.indicators.paymentDelays}</p>
+      </div>
+    `;
+    
+    this.printService.printA4Report(htmlContent, title);
   }
 
   goBack(): void {
