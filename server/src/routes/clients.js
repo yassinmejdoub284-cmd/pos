@@ -240,19 +240,54 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { firstName, lastName, phone, city, address, matriculeFiscal, clientType, depotId, notes, maxDebt, allowDebt, pictureUrl } = req.body;
 
+    // Validate required fields
+    if (!firstName || typeof firstName !== 'string' || firstName.trim().length === 0) {
+      return res.status(400).json({ error: 'Le prénom est obligatoire' });
+    }
+    if (!lastName || typeof lastName !== 'string' || lastName.trim().length === 0) {
+      return res.status(400).json({ error: 'Le nom est obligatoire' });
+    }
+
+    // Validate clientType if provided
+    if (clientType && !['INDIVIDUAL', 'BUSINESS', 'WHOLESALE'].includes(clientType)) {
+      return res.status(400).json({ error: 'Type de client invalide' });
+    }
+
+    // Validate maxDebt if provided
+    let parsedMaxDebt = null;
+    if (maxDebt !== undefined && maxDebt !== null && maxDebt !== '') {
+      parsedMaxDebt = parseFloat(maxDebt);
+      if (isNaN(parsedMaxDebt) || parsedMaxDebt < 0) {
+        return res.status(400).json({ error: 'Le montant maximum de crédit doit être un nombre positif' });
+      }
+    }
+
     // Enforce depot isolation - use provided depotId for admin, or user's depotId for non-admin
     const userDepotId = req.user?.depotId;
     let targetDepotId = null;
     
     if (req.user?.role === 'ADMIN') {
       // Admin can choose depotId from request body
-      targetDepotId = depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null;
+      if (depotId !== undefined && depotId !== null && depotId !== '') {
+        const parsedDepotId = parseInt(depotId);
+        targetDepotId = parsedDepotId === -1 ? null : (isNaN(parsedDepotId) ? null : parsedDepotId);
+      }
     } else {
       // Non-admin users must use their assigned depotId
       if (!userDepotId) {
         return res.status(400).json({ error: 'User must be assigned to a depot to create clients' });
       }
       targetDepotId = userDepotId;
+    }
+
+    // Validate depot exists if targetDepotId is provided
+    if (targetDepotId !== null) {
+      const depot = await prisma.depot.findUnique({
+        where: { id: targetDepotId }
+      });
+      if (!depot) {
+        return res.status(400).json({ error: 'Point de vente invalide' });
+      }
     }
 
     let defaultMax = null;
@@ -270,17 +305,17 @@ router.post('/', authenticateToken, async (req, res) => {
       return await tx.client.create({
         data: {
           code,
-          firstName,
-          lastName,
-          phone,
-          city,
-          address,
-          pictureUrl,
-          matriculeFiscal,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone?.trim() || null,
+          city: city?.trim() || null,
+          address: address?.trim() || null,
+          pictureUrl: pictureUrl?.trim() || null,
+          matriculeFiscal: matriculeFiscal?.trim() || null,
           clientType: clientType || 'INDIVIDUAL',
           depotId: targetDepotId,
-          notes,
-          maxDebt: maxDebt !== undefined ? parseFloat(maxDebt) : defaultMax,
+          notes: notes?.trim() || null,
+          maxDebt: parsedMaxDebt !== null ? parsedMaxDebt : defaultMax,
           allowDebt: allowDebt !== undefined ? !!allowDebt : true
         }
       });
@@ -293,10 +328,16 @@ router.post('/', authenticateToken, async (req, res) => {
       if (error.meta?.target?.includes('code')) {
         return res.status(400).json({ error: 'Code client déjà utilisé. Veuillez réessayer.' });
       }
+      if (error.meta?.target?.includes('email')) {
+        return res.status(400).json({ error: 'Email déjà utilisé' });
+      }
       return res.status(400).json({ error: 'Champ unique dupliqué' });
     }
     if (error.code === 'P2003') {
       return res.status(400).json({ error: 'Point de vente invalide' });
+    }
+    if (error.name === 'PrismaClientValidationError') {
+      return res.status(400).json({ error: 'Données invalides. Veuillez vérifier les champs requis.' });
     }
     res.status(500).json({ error: 'Erreur interne du serveur' });
   }

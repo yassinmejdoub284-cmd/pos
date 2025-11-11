@@ -62,7 +62,8 @@ export class SuppliersComponent implements OnInit {
     taxNumber: '',
     paymentTerms: '',
     notes: '',
-    depotId: -1 // Default to "Tous les points de vente"
+    depotId: -1, // Default to "Tous les points de vente"
+    currentDebt: 0
   };
 
   editForm: UpdateSupplierRequest = {
@@ -187,7 +188,8 @@ export class SuppliersComponent implements OnInit {
       taxNumber: '',
       paymentTerms: '',
       notes: '',
-      depotId: this.isAdmin ? -1 : (user?.depotId ?? null) // Default to "Tous les points de vente" for admin, user depot for non-admin
+      depotId: this.isAdmin ? -1 : (user?.depotId ?? null), // Default to "Tous les points de vente" for admin, user depot for non-admin
+      currentDebt: 0
     };
     this.showCreatePopup = true;
   }

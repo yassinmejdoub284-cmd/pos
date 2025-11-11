@@ -257,7 +257,7 @@
                     </svg>
                   </button>
                   
-                  <button (click)="openTransferModal(product)" 
+                  <button *ngIf="product.isVraguable" (click)="openTransferModal(product)" 
                     class="p-2 bg-indigo-50 text-indigo-700 rounded-lg transition-colors" title="Transférer vers autre produit">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
@@ -365,7 +365,7 @@
                   class="flex-1 bg-purple-50 text-purple-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium">
                   Dupliquer
                 </button>
-                <button (click)="openTransferModal(product)" 
+                <button *ngIf="product.isVraguable" (click)="openTransferModal(product)" 
                   class="flex-1 bg-indigo-50 text-indigo-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium">
                   Transférer
                 </button>

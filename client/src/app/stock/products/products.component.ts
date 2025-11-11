@@ -477,7 +477,13 @@ export class ProductsComponent implements OnInit {
     this.selectedProductForVrac = null;
   }
 
-  convertToVrac(vracData: { isStockable: boolean; price: number }): void {
+  convertToVrac(vracData: { 
+    isStockable: boolean; 
+    price: number; 
+    conversionRatio: number;
+    prix_vente_vrac: number;
+    prix_achat_vrac: number;
+  }): void {
     if (!this.selectedProductForVrac) return;
 
     // Find the vrac family
@@ -486,6 +492,9 @@ export class ProductsComponent implements OnInit {
       this.error = 'Famille Vrac non trouvée';
       return;
     }
+
+    this.loading = true;
+    this.error = '';
 
     const vracProduct = {
       name: `${this.selectedProductForVrac.name} (Vrac)`,
@@ -499,16 +508,40 @@ export class ProductsComponent implements OnInit {
       duree_conservation: this.selectedProductForVrac.duree_conservation,
       isVrac: true,
       originalProductId: this.selectedProductForVrac.id,
-      isStockable: vracData.isStockable
+      isStockable: vracData.isStockable,
+      conversionRatio: vracData.conversionRatio,
+      prix_vente_vrac: vracData.prix_vente_vrac || 0,
+      prix_achat_vrac: vracData.prix_achat_vrac || 0
     };
 
     this.productsService.createProduct(vracProduct).subscribe({
       next: () => {
-        this.closeVracModal();
-        this.loadProducts();
+        if (!this.selectedProductForVrac) return;
+        
+        // Update the source product with the conversion ratio and vrac prices
+        const updatedSourceProduct = {
+          ...this.selectedProductForVrac,
+          conversionRatio: vracData.conversionRatio,
+          isVraguable: true,
+          prix_vente_vrac: vracData.prix_vente_vrac || 0,
+          prix_achat_vrac: vracData.prix_achat_vrac || 0
+        };
+        
+        this.productsService.updateProduct(this.selectedProductForVrac.id, updatedSourceProduct).subscribe({
+          next: () => {
+            this.closeVracModal();
+            this.loadProducts();
+            this.loading = false;
+          },
+          error: (error) => {
+            this.error = 'Erreur lors de la mise à jour du produit source';
+            this.loading = false;
+          }
+        });
       },
       error: (error) => {
-        this.error = 'Erreur lors de la création du produit vrac';
+        this.error = error.error?.error || 'Erreur lors de la création du produit vrac';
+        this.loading = false;
       }
     });
   }

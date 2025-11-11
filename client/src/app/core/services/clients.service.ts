@@ -42,7 +42,9 @@ export class ClientsService {
   }
 
   createClient(clientData: CreateClientRequest): Observable<Client> {
-    return this.http.post<Client>(this.apiUrl, clientData);
+    return this.http.post<Client>(this.apiUrl, clientData).pipe(
+      catchError((error) => throwError(() => error))
+    );
   }
 
   updateClient(id: number, clientData: UpdateClientRequest): Observable<Client> {

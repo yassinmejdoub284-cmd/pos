@@ -203,7 +203,7 @@ router.get('/', authenticateToken, async (req, res) => {
         ...supplier,
         totalExpenses: allExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0),
         totalPayments: allPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0),
-        currentDebt: currentDebt, // Use the calculated balance from statement logic
+        currentDebt: parseFloat(supplier.currentDebt) || 0, // Use the actual currentDebt from database (includes initial solde)
         recentExpenses: supplier.expenses.map(expense => ({
           ...expense,
           amount: Number(expense.amount),
@@ -271,7 +271,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new supplier
 router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
   try {
-    const { name, contactName, email, phone, address, city, postalCode, taxNumber, paymentTerms, notes, depotId } = req.body;
+    const { name, contactName, email, phone, address, city, postalCode, taxNumber, paymentTerms, notes, depotId, currentDebt } = req.body;
     
     if (!name) {
       return res.status(400).json({ error: 'Le nom du fournisseur est requis' });
@@ -302,20 +302,49 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (re
       }
     }
 
-    const supplier = await prisma.supplier.create({
-      data: {
-        name,
-        contactName,
-        email,
-        phone,
-        address,
-        city,
-        postalCode,
-        taxNumber,
-        paymentTerms,
-        notes,
-        depotId: targetDepotId
+    // Parse and validate currentDebt
+    const initialDebt = currentDebt !== undefined && currentDebt !== null ? parseFloat(currentDebt) : 0;
+    if (isNaN(initialDebt)) {
+      return res.status(400).json({ error: 'Solde initial invalide' });
+    }
+
+    // Create supplier with initial debt
+    const supplier = await prisma.$transaction(async (tx) => {
+      const newSupplier = await tx.supplier.create({
+        data: {
+          name,
+          contactName,
+          email,
+          phone,
+          address,
+          city,
+          postalCode,
+          taxNumber,
+          paymentTerms,
+          notes,
+          depotId: targetDepotId,
+          currentDebt: initialDebt
+        }
+      });
+
+      // Create a debt transaction to record the initial balance if not zero
+      if (initialDebt !== 0) {
+        const transactionType = initialDebt > 0 ? 'DEBT' : 'PAYMENT';
+        const transactionAmount = Math.abs(initialDebt);
+        
+        await tx.supplierDebtTransaction.create({
+          data: { 
+            supplierId: newSupplier.id, 
+            expenseId: null, 
+            amount: transactionAmount, 
+            type: transactionType, 
+            notes: 'Solde de départ',
+            userId: req.user?.id || null
+          }
+        });
       }
+
+      return newSupplier;
     });
 
     res.status(201).json(supplier);

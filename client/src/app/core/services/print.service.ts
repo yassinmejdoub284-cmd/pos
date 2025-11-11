@@ -3283,4 +3283,125 @@ export class PrintService {
     }, 1000);
   }
 
+  // Build thermal text for supplier statement (80mm width = 48 characters)
+  buildSupplierStatementText(
+    statement: any,
+    supplier: any,
+    startDate: string | null,
+    endDate: string | null
+  ): string {
+    let text = '';
+    const LINE_WIDTH = 48; // 80mm thermal printer width
+    
+    // ESC/POS commands for formatting
+    const ESC = '\x1B';
+    const centerAlign = ESC + '\x61\x01'; // Center alignment
+    const leftAlign = ESC + '\x61\x00';   // Left alignment
+    const boldOn = ESC + '\x45\x01';      // Bold on
+    const boldOff = ESC + '\x45\x00';     // Bold off
+    const normalSize = ESC + '\x21\x00';  // Normal size
+    const monospaceFont = ESC + '\x4D\x00'; // Select font A (monospace)
+    const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
+    const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
+    
+    // Eliminate margins and set monospace font
+    text += noTopMargin + noBottomMargin + monospaceFont;
+    
+    // Header - 48 characters wide
+    text += '='.repeat(LINE_WIDTH) + '\n';
+    text += centerAlign + boldOn + 'RELEVE FOURNISSEUR' + boldOff + '\n';
+    text += leftAlign + '='.repeat(LINE_WIDTH) + '\n\n';
+    
+    // Supplier information
+    text += leftAlign + boldOn + 'FOURNISSEUR:' + boldOff + '\n';
+    const supplierName = this.sanitizeForThermalPrinter(supplier.name || 'N/A');
+    text += supplierName.substring(0, LINE_WIDTH) + '\n';
+    if (supplier.contactName) {
+      const contact = 'Contact: ' + this.sanitizeForThermalPrinter(supplier.contactName);
+      text += contact.substring(0, LINE_WIDTH) + '\n';
+    }
+    if (supplier.phone) {
+      text += 'Tel: ' + this.sanitizeForThermalPrinter(supplier.phone) + '\n';
+    }
+    if (supplier.email) {
+      const email = 'Email: ' + this.sanitizeForThermalPrinter(supplier.email);
+      text += email.substring(0, LINE_WIDTH) + '\n';
+    }
+    
+    // Period
+    const periodStart = startDate ? new Date(startDate).toLocaleDateString('fr-FR') : 'Début';
+    const periodEnd = endDate ? new Date(endDate).toLocaleDateString('fr-FR') : 'Aujourd\'hui';
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    const periodLine = 'Periode: ' + periodStart + ' - ' + periodEnd;
+    text += periodLine.substring(0, LINE_WIDTH) + '\n';
+    text += 'Date: ' + new Date().toLocaleDateString('fr-FR') + '\n';
+    text += '-'.repeat(LINE_WIDTH) + '\n\n';
+    
+    // Summary
+    text += boldOn + 'RESUME:' + boldOff + '\n';
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    
+    const totalDebit = Number(statement.totalDebit || 0).toFixed(3);
+    const debitLine = 'Total Debit'.padEnd(25) + totalDebit.padStart(12) + ' dt';
+    text += debitLine.substring(0, LINE_WIDTH) + '\n';
+    
+    const totalCredit = Number(statement.totalCredit || 0).toFixed(3);
+    const creditLine = 'Total Credit'.padEnd(25) + totalCredit.padStart(12) + ' dt';
+    text += creditLine.substring(0, LINE_WIDTH) + '\n';
+    
+    const balance = Number(statement.currentBalance || 0);
+    const balanceValue = balance.toFixed(3).padStart(12) + ' dt';
+    const balanceLine = 'Solde Actuel'.padEnd(25) + balanceValue;
+    text += boldOn + balanceLine.substring(0, LINE_WIDTH) + boldOff + '\n';
+    text += '-'.repeat(LINE_WIDTH) + '\n\n';
+    
+    // Transactions
+    text += boldOn + 'DETAIL DES OPERATIONS:' + boldOff + '\n';
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    
+    if (!statement.statement || statement.statement.length === 0) {
+      text += 'Aucune operation pour cette periode\n';
+    } else {
+      // Header row - optimized for 48 chars
+      text += 'Date  Type      Ref       Debit     Credit    Solde\n';
+      text += '-'.repeat(LINE_WIDTH) + '\n';
+      
+      statement.statement.forEach((item: any) => {
+        const date = new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+        const type = this.getTransactionTypeLabelShort(item.type).substring(0, 8).padEnd(8);
+        const ref = (item.reference || '').substring(0, 8).padEnd(8);
+        const debit = item.debit > 0 ? item.debit.toFixed(3).padStart(8) : ''.padStart(8);
+        const credit = item.credit > 0 ? item.credit.toFixed(3).padStart(8) : ''.padStart(8);
+        const balance = item.balance.toFixed(3).padStart(8);
+        
+        // Format: Date(6) + Type(8) + Ref(8) + Debit(8) + Credit(8) + Solde(8) = 46 chars
+        const line = date.padEnd(6) + type + ref + debit + credit + balance;
+        text += line.substring(0, LINE_WIDTH) + '\n';
+      });
+    }
+    
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    text += centerAlign + 'Merci!' + '\n';
+    text += leftAlign + '='.repeat(LINE_WIDTH) + '\n\n\n\n';
+    
+    // Cut paper
+    text += '\x1D\x56\x00';
+    
+    return text;
+  }
+
+  private getTransactionTypeLabelShort(type: string): string {
+    const types: { [key: string]: string } = {
+      'expense': 'Depense',
+      'payment': 'Reglement',
+      'bon_entree': 'Bon Entree',
+      'credit': 'Credit',
+      'advance': 'Acompte',
+      'paid': 'Paye',
+      'unpaid': 'Impaye',
+      'debt': 'Dette'
+    };
+    return types[type] || type.substring(0, 12);
+  }
+
 }

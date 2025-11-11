@@ -942,8 +942,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
       next: (families) => {
         this.productFamilies = families;
         
-        // Build categories: only "Tous" and actual family names
-        const categories = ['Tous', ...families.map(family => family.name)];
+        // Filter families to only include those that have products in allProducts
+        const familiesWithProducts = families.filter(family => 
+          this.allProducts.some(product => product.famille?.name === family.name)
+        );
+        
+        // Build categories: only "Tous" and actual family names that have products
+        const categories = ['Tous', ...familiesWithProducts.map(family => family.name)];
         
         this.productCategories = categories;
         
@@ -1694,45 +1699,98 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.showQuickAddClientPopup = false;
   }
 
+  validateQuickClientForm(): { isValid: boolean; missingFields: string[] } {
+    const missingFields: string[] = [];
+
+    // Check required fields
+    if (!this.quickAddForm.firstName || this.quickAddForm.firstName.trim().length === 0) {
+      missingFields.push('Prénom');
+    }
+
+    if (!this.quickAddForm.lastName || this.quickAddForm.lastName.trim().length === 0) {
+      missingFields.push('Nom');
+    }
+
+    // Validate client type
+    if (!this.quickAddForm.clientType || !['INDIVIDUAL', 'BUSINESS', 'WHOLESALE'].includes(this.quickAddForm.clientType)) {
+      missingFields.push('Type de client');
+    }
+
+    // Validate depotId - must be a specific depot (not 0, null, or undefined)
+    if (!this.quickAddForm.depotId || this.quickAddForm.depotId === 0 || this.quickAddForm.depotId === null || this.quickAddForm.depotId === undefined) {
+      missingFields.push('Point de vente (vous devez sélectionner un point de vente spécifique)');
+    }
+
+    // Validate maxDebt if allowDebt is true
+    if (this.quickAddForm.allowDebt && this.quickAddForm.maxDebt !== null && this.quickAddForm.maxDebt !== undefined) {
+      const maxDebtValue = parseFloat(String(this.quickAddForm.maxDebt));
+      if (isNaN(maxDebtValue) || maxDebtValue < 0) {
+        missingFields.push('Plafond de crédit (doit être un nombre positif)');
+      }
+    }
+
+    return {
+      isValid: missingFields.length === 0,
+      missingFields
+    };
+  }
+
   createQuickClient(): void {
-    if (!this.quickAddForm.firstName || !this.quickAddForm.lastName) {
-      this.showAlertMessage('Le prénom et le nom sont obligatoires', 'error');
+    // Smart validation with detailed feedback
+    const validation = this.validateQuickClientForm();
+    
+    if (!validation.isValid) {
+      let errorMessage = '⚠️ Formulaire incomplet. Veuillez remplir les champs suivants :\n\n';
+      validation.missingFields.forEach((field, index) => {
+        errorMessage += `${index + 1}. ${field}\n`;
+      });
+      errorMessage += '\nTous les champs marqués (*) sont obligatoires.';
+      this.showAlertMessage(errorMessage, 'error');
       return;
     }
 
     const createRequest = {
-      firstName: this.quickAddForm.firstName,
-      lastName: this.quickAddForm.lastName,
-      phone: this.quickAddForm.phone || '',
-      city: this.quickAddForm.city,
-      address: this.quickAddForm.address || '',
-      matriculeFiscal: this.quickAddForm.matriculeFiscal || '',
+      firstName: this.quickAddForm.firstName.trim(),
+      lastName: this.quickAddForm.lastName.trim(),
+      phone: this.quickAddForm.phone?.trim() || '',
+      city: this.quickAddForm.city || '',
+      address: this.quickAddForm.address?.trim() || '',
+      matriculeFiscal: this.quickAddForm.matriculeFiscal?.trim() || '',
       clientType: this.quickAddForm.clientType,
       depotId: this.quickAddForm.depotId,
-      notes: this.quickAddForm.notes || '',
+      notes: this.quickAddForm.notes?.trim() || '',
       allowDebt: this.quickAddForm.allowDebt,
       maxDebt: this.quickAddForm.maxDebt
     };
-
-    console.log('Creating client with current depot ID:', this.quickAddForm.depotId, 'Full form:', this.quickAddForm);
 
     this.clientsService.createClient(createRequest).subscribe({
       next: (newClient) => {
         this.showAlertMessage(`Client ${newClient.firstName} ${newClient.lastName} créé avec succès`, 'success');
         this.closeQuickAddClient();
         
-        // Refresh the client cache and search results
-        this.allClientsCache = [];
+        // Add the new client directly to cache if it matches shop criteria
+        const shouldShowInShop = !newClient.depotId || newClient.depotId === -1 || 
+          (newClient.depot && newClient.depot.type === 'SHOP');
+        
+        if (shouldShowInShop) {
+          // Add to cache if not already present
+          const exists = this.allClientsCache.find(c => c.id === newClient.id);
+          if (!exists) {
+            this.allClientsCache.unshift(newClient); // Add at the beginning
+          }
+        }
+        
+        // Refresh the full client list in background
         this.fetchAllClients();
         
-        // Auto-select the newly created client
+        // Auto-select the newly created client immediately
         setTimeout(() => {
           this.selectClient(newClient);
-        }, 500);
+        }, 100);
       },
       error: (error) => {
-        this.showAlertMessage('Erreur lors de la création du client', 'error');
-        console.error('Error creating client:', error);
+        const errorMessage = error?.error?.error || 'Erreur lors de la création du client';
+        this.showAlertMessage(errorMessage, 'error');
       }
     });
   }
@@ -2373,17 +2431,42 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.temporarySaleCustomerResults = [];
   }
 
+  validateTemporarySaleNewCustomerForm(): { isValid: boolean; missingFields: string[] } {
+    const missingFields: string[] = [];
+
+    if (!this.temporarySaleNewCustomer.firstName || this.temporarySaleNewCustomer.firstName.trim().length === 0) {
+      missingFields.push('Prénom');
+    }
+
+    if (!this.temporarySaleNewCustomer.lastName || this.temporarySaleNewCustomer.lastName.trim().length === 0) {
+      missingFields.push('Nom');
+    }
+
+    return {
+      isValid: missingFields.length === 0,
+      missingFields
+    };
+  }
+
   createTemporarySaleNewCustomer(): void {
-    if (!this.temporarySaleNewCustomer.firstName || !this.temporarySaleNewCustomer.lastName) {
-      this.showAlertMessage('Prénom et nom sont requis', 'error');
+    // Smart validation with detailed feedback
+    const validation = this.validateTemporarySaleNewCustomerForm();
+    
+    if (!validation.isValid) {
+      let errorMessage = '⚠️ Formulaire incomplet. Veuillez remplir les champs suivants :\n\n';
+      validation.missingFields.forEach((field, index) => {
+        errorMessage += `${index + 1}. ${field}\n`;
+      });
+      errorMessage += '\nTous les champs marqués (*) sont obligatoires.';
+      this.showAlertMessage(errorMessage, 'error');
       return;
     }
 
     const newCustomerData = {
-      firstName: this.temporarySaleNewCustomer.firstName,
-      lastName: this.temporarySaleNewCustomer.lastName,
-      phone: this.temporarySaleNewCustomer.phone || undefined,
-      email: this.temporarySaleNewCustomer.email || undefined,
+      firstName: this.temporarySaleNewCustomer.firstName.trim(),
+      lastName: this.temporarySaleNewCustomer.lastName.trim(),
+      phone: this.temporarySaleNewCustomer.phone?.trim() || undefined,
+      email: this.temporarySaleNewCustomer.email?.trim() || undefined,
       clientType: 'INDIVIDUAL' as const
     };
 
@@ -2391,10 +2474,27 @@ export class CaisseComponent implements OnInit, OnDestroy {
       next: (newCustomer) => {
         this.temporarySaleSelectedCustomer = newCustomer;
         this.showAlertMessage(`Nouveau client créé: ${newCustomer.firstName} ${newCustomer.lastName}`, 'success');
+        
+        // Add the new client directly to cache if it matches shop criteria
+        const shouldShowInShop = !newCustomer.depotId || newCustomer.depotId === -1 || 
+          (newCustomer.depot && newCustomer.depot.type === 'SHOP');
+        
+        if (shouldShowInShop) {
+          // Add to cache if not already present
+          const exists = this.allClientsCache.find(c => c.id === newCustomer.id);
+          if (!exists) {
+            this.allClientsCache.unshift(newCustomer); // Add at the beginning
+          }
+        }
+        
+        // Refresh the full client list in background
+        this.fetchAllClients();
+        
         this.resetTemporarySaleNewCustomerForm();
       },
       error: (error) => {
-        this.showAlertMessage('Erreur lors de la création du client', 'error');
+        const errorMessage = error?.error?.error || 'Erreur lors de la création du client';
+        this.showAlertMessage(errorMessage, 'error');
       }
     });
   }

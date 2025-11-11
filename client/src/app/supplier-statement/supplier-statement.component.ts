@@ -5,6 +5,7 @@ import { environment } from '../../environments/environment';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupplierService } from '../core/services/supplier.service';
+import { PrintService } from '../core/services/print.service';
 import { 
   Supplier, 
   SupplierStatement, 
@@ -36,7 +37,8 @@ export class SupplierStatementComponent implements OnInit {
   constructor(
     private http: HttpClient, 
     private router: Router,
-    private supplierService: SupplierService
+    private supplierService: SupplierService,
+    private printService: PrintService
   ) {}
 
   ngOnInit(): void {
@@ -200,6 +202,57 @@ export class SupplierStatementComponent implements OnInit {
         this.loading = false;
         alert('Erreur lors du chargement du relevé pour impression');
       }
+    });
+  }
+
+  printStatementThermal(): void {
+    if (!this.filters.supplierId) {
+      alert('Veuillez sélectionner un fournisseur');
+      return;
+    }
+
+    const useCurrent = this.statement && this.selectedSupplier && this.selectedSupplier.id === this.filters.supplierId;
+    if (useCurrent) {
+      this.printThermalStatement();
+      return;
+    }
+
+    this.loading = true;
+    this.supplierService.getSupplierStatement(
+      this.filters.supplierId,
+      this.filters.startDate,
+      this.filters.endDate
+    ).subscribe({
+      next: (statement) => {
+        this.statement = statement;
+        this.selectedSupplier = statement.supplier;
+        this.loading = false;
+        this.printThermalStatement();
+      },
+      error: (error) => {
+        console.error('Error loading statement for print:', error);
+        this.loading = false;
+        alert('Erreur lors du chargement du relevé pour impression');
+      }
+    });
+  }
+
+  private printThermalStatement(): void {
+    if (!this.statement || !this.selectedSupplier) {
+      alert('Aucun relevé à imprimer');
+      return;
+    }
+
+    const text = this.printService.buildSupplierStatementText(
+      this.statement,
+      this.selectedSupplier,
+      this.filters.startDate,
+      this.filters.endDate
+    );
+
+    this.printService.printPlainText(text).catch(error => {
+      console.error('Error printing statement:', error);
+      alert('Erreur lors de l\'impression: ' + (error.message || 'Erreur inconnue'));
     });
   }
 

@@ -1657,11 +1657,17 @@ async function calculateSessionSummary(sessionId) {
     // For open sessions, include ALL expenses created during session (approved or not)
     // For closed sessions, only include approved expenses
     // Exclude rejected expenses (isRejected: false or not set)
+    // CRITICAL: Include PAID expenses (isPaid = true) AND partial payments (isAdvance = true)
+    // Credit expenses (isPaid = false AND isAdvance = false) should NOT affect cash register closure
     const whereClause = {
       isRejected: false, // Exclude rejected expenses
       paymentType: 'CASH',
       depotId: session.depotId, // Filter by depot instead of user
-      createdAt: { gte: sessionStart, lte: sessionEnd } // Restrict to session window
+      createdAt: { gte: sessionStart, lte: sessionEnd }, // Restrict to session window
+      OR: [
+        { isPaid: true }, // Fully paid expenses
+        { isAdvance: true } // Partial payments (advance)
+      ]
     };
     
     // For closed sessions, only include approved expenses
@@ -1672,7 +1678,7 @@ async function calculateSessionSummary(sessionId) {
     
     approvedCashExpenses = await prisma.expense.findMany({
       where: whereClause,
-      select: { id: true, amount: true, approvedAt: true, createdAt: true, date: true, notes: true, isApproved: true, category: { select: { name: true } }, supplier: { select: { id: true, name: true } } },
+      select: { id: true, amount: true, approvedAt: true, createdAt: true, date: true, notes: true, isApproved: true, isPaid: true, isAdvance: true, category: { select: { name: true } }, supplier: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' }
     });
     
@@ -1706,8 +1712,23 @@ async function calculateSessionSummary(sessionId) {
 
     // CRITICAL: Only count expenses that DON'T have a cash movement to avoid double counting
     // Expenses with cash movements are already counted in the sortie calculation
+    // For partial payments (isAdvance = true), only count the paid amount (extracted from notes)
     const expensesWithoutMovement = approvedCashExpenses.filter(e => !expenseIdsWithMovement.has(e.id));
-    cashExpenseTotal = expensesWithoutMovement.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+    cashExpenseTotal = expensesWithoutMovement.reduce((sum, e) => {
+      const totalAmount = parseFloat(e.amount || 0);
+      
+      // For partial payments (advance), extract paid amount from notes
+      if (e.isAdvance && e.notes && e.notes.includes('Paiement partiel:')) {
+        const match = e.notes.match(/Paiement partiel:\s*(\d+(?:\.\d+)?)dt payé/);
+        if (match) {
+          const paidAmount = parseFloat(match[1]);
+          return sum + paidAmount; // Only count the paid portion
+        }
+      }
+      
+      // For fully paid expenses, count the full amount
+      return sum + totalAmount;
+    }, 0);
 
     // Build UI details for ALL approved cash expenses (for display purposes)
     // Show ALL expenses, even if they have cash movements, so user can see complete details

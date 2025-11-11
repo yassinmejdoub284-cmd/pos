@@ -70,7 +70,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
     address: '',
     matriculeFiscal: '',
     clientType: 'INDIVIDUAL',
-    depotId: -1, // Default to "Tout" (any depot)
+    depotId: null, // Must be selected by user
     pictureUrl: '',
     notes: '',
     allowDebt: true,
@@ -149,16 +149,18 @@ export class ClientsComponent implements OnInit, OnDestroy {
       active
     ).pipe(takeUntil(this.destroy$)).subscribe({
       next: (response) => {
-        this.clients = response.clients;
-        this.totalClients = response.pagination.total ?? response.clients.length;
-        this.totalPages = response.pagination.pages ?? Math.max(1, Math.ceil(this.totalClients / this.itemsPerPage));
+        // Create a new array reference to trigger change detection
+        this.clients = [...(response.clients || [])];
+        this.totalClients = response.pagination?.total ?? response.clients?.length ?? 0;
+        this.totalPages = response.pagination?.pages ?? Math.max(1, Math.ceil(this.totalClients / this.itemsPerPage));
         this.loading = false;
-        this.cdr.markForCheck();
+        // Force change detection
+        this.cdr.detectChanges();
       },
       error: (error) => {
         this.error = 'Erreur lors du chargement des clients';
         this.loading = false;
-        this.cdr.markForCheck();
+        this.cdr.detectChanges();
         console.error('Error loading clients:', error);
       }
     });
@@ -215,6 +217,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
   }
 
   openCreatePopup(): void {
+    const user = this.authService?.currentUser?.();
     this.createForm = {
       firstName: '',
       lastName: '',
@@ -223,7 +226,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
       address: '',
       matriculeFiscal: '',
       clientType: 'INDIVIDUAL',
-      depotId: this.isAdmin ? -1 : (this.authService?.currentUser?.()?.depotId ?? null), // Default to "Tout" for admin, user depot for non-admin
+      depotId: this.isAdmin ? null : (user?.depotId ?? null), // Must be selected for admin, user depot for non-admin
       pictureUrl: '',
       notes: '',
       allowDebt: true,
@@ -284,9 +287,61 @@ export class ClientsComponent implements OnInit, OnDestroy {
     this.initSoldeNotes = '';
   }
 
+  validateClientForm(): { isValid: boolean; missingFields: string[] } {
+    const missingFields: string[] = [];
+
+    // Check required fields
+    if (!this.createForm.firstName || this.createForm.firstName.trim().length === 0) {
+      missingFields.push('Prénom');
+    }
+
+    if (!this.createForm.lastName || this.createForm.lastName.trim().length === 0) {
+      missingFields.push('Nom');
+    }
+
+    // Validate client type
+    if (!this.createForm.clientType || !['INDIVIDUAL', 'BUSINESS', 'WHOLESALE'].includes(this.createForm.clientType)) {
+      missingFields.push('Type de client');
+    }
+
+    // Validate depot selection - must be a specific depot (not -1 or null)
+    if (this.isAdmin) {
+      if (this.createForm.depotId === -1 || this.createForm.depotId === null || this.createForm.depotId === undefined || this.createForm.depotId === 0) {
+        missingFields.push('Point de vente (vous devez sélectionner un point de vente spécifique)');
+      }
+    } else {
+      // For non-admin, depotId should be set automatically, but validate it exists
+      const user = this.authService?.currentUser?.();
+      if (!user?.depotId) {
+        missingFields.push('Point de vente (vous devez être assigné à un dépôt)');
+      }
+    }
+
+    // Validate maxDebt if allowDebt is true
+    if (this.createForm.allowDebt && this.createForm.maxDebt !== null && this.createForm.maxDebt !== undefined) {
+      const maxDebtValue = parseFloat(String(this.createForm.maxDebt));
+      if (isNaN(maxDebtValue) || maxDebtValue < 0) {
+        missingFields.push('Plafond de crédit (doit être un nombre positif)');
+      }
+    }
+
+    return {
+      isValid: missingFields.length === 0,
+      missingFields
+    };
+  }
+
   createClient(): void {
-    if (!this.createForm.firstName || !this.createForm.lastName) {
-      this.showAlertMessage('Le prénom et le nom sont obligatoires', 'error');
+    // Smart validation with detailed feedback
+    const validation = this.validateClientForm();
+    
+    if (!validation.isValid) {
+      let errorMessage = '⚠️ Formulaire incomplet. Veuillez remplir les champs suivants :\n\n';
+      validation.missingFields.forEach((field, index) => {
+        errorMessage += `${index + 1}. ${field}\n`;
+      });
+      errorMessage += '\nTous les champs marqués (*) sont obligatoires.';
+      this.showAlertMessage(errorMessage, 'error');
       return;
     }
 
@@ -296,21 +351,30 @@ export class ClientsComponent implements OnInit, OnDestroy {
       this.createForm.depotId = user?.depotId ?? null;
     }
 
-    // Validate depot selection
-    if (!this.isDepotSelectionValid(this.createForm.depotId)) {
-      this.showAlertMessage('Veuillez sélectionner un point de vente', 'error');
-      return;
-    }
-
     this.clientsService.createClient(this.createForm).pipe(takeUntil(this.destroy$)).subscribe({
       next: (client) => {
         this.showAlertMessage('Client créé avec succès', 'success');
         this.closePopups();
-        this.loadClients();
+        
+        // Reset all filters FIRST to ensure the new client is visible
+        this.searchQuery = '';
+        this.selectedType = '';
+        this.selectedStatus = 'true';
+        this.currentPage = 1;
+        
+        // Force change detection after resetting filters
+        this.cdr.markForCheck();
+        
+        // Small delay to ensure server has processed the creation
+        // Then reload clients list with reset filters
+        setTimeout(() => {
+          this.loadClients();
+        }, 100);
       },
       error: (error) => {
-        this.showAlertMessage('Erreur lors de la création du client', 'error');
-        console.error('Error creating client:', error);
+        const errorMessage = error?.error?.error || 'Erreur lors de la création du client';
+        this.showAlertMessage(errorMessage, 'error');
+        this.cdr.detectChanges();
       }
     });
   }

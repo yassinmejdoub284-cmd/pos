@@ -3,26 +3,10 @@
     <div class="bg-white rounded-2xl p-4 border border-indigo-100/50">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <span class="text-2xl font-semibold text-slate-800 block">Transfer vers Vrag</span>
-          <span class="text-slate-600 text-xs block">Produits pouvant être convertis en vrag</span>
+          <span class="text-2xl font-semibold text-slate-800 block">Transférer vers JUS VRAC</span>
+          <span class="text-slate-600 text-xs block">Sélectionnez un produit source pour transférer vers la famille JUS VRAC</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="bg-slate-100 rounded-xl p-1 border border-slate-200">
-            <button 
-              (click)="toggleViewMode()"
-              [class.bg-white]="viewMode==='table'"
-              class="px-2.5 py-1 rounded-lg text-xs transition-colors"
-            >
-              Table
-            </button>
-            <button 
-              (click)="toggleViewMode()"
-              [class.bg-white]="viewMode==='grid'"
-              class="px-2.5 py-1 rounded-lg text-xs transition-colors"
-            >
-              Grid
-            </button>
-          </div>
           <button 
             [routerLink]="['/stock/transfer-vers-vrag/history']"
             class="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-sm font-medium transition-colors hover:bg-indigo-700"
@@ -54,91 +38,53 @@
 
       <div *ngIf="!loading && !error" class="space-y-4">
         <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3">
-          <span class="text-sm font-semibold text-blue-800">Total produits vraguables: </span>
+          <span class="text-sm font-semibold text-blue-800">Total produits convertibles: </span>
           <span class="text-lg font-bold text-blue-900">{{ vraguableProducts.length }}</span>
         </div>
 
         <div *ngIf="vraguableProducts.length === 0" class="text-center py-12">
-          <span class="text-slate-500 text-lg">Aucun produit vraguable trouvé</span>
+          <span class="text-slate-500 text-lg">Aucun produit convertible trouvé</span>
         </div>
 
-        <div *ngIf="vraguableProducts.length > 0 && viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div *ngFor="let product of vraguableProducts; trackBy: trackByProduct" class="bg-slate-100 rounded-2xl p-4 border border-slate-200">
+        <div *ngIf="vraguableProducts.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div *ngFor="let product of vraguableProducts; trackBy: trackByProduct" 
+               (click)="openTransferModal(product)"
+               class="bg-white rounded-2xl p-4 border-2 border-indigo-200 cursor-pointer transition-all hover:border-indigo-400 hover:shadow-lg">
             <div class="flex items-start justify-between mb-3">
               <div class="flex-1">
                 <span class="font-semibold text-slate-800 text-base mb-1 block">{{ product.name }}</span>
                 <span *ngIf="product.designation_legale" class="text-xs text-slate-500 mb-1 block">{{ product.designation_legale }}</span>
                 <span *ngIf="product.famille" class="text-xs text-slate-400 block">{{ product.famille.name }}</span>
               </div>
-              <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Vraguable</span>
+              <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Convertible</span>
             </div>
             
             <div class="grid grid-cols-2 gap-2 mt-3">
-              <div class="bg-white rounded-xl p-2 border border-slate-200">
+              <div class="bg-slate-50 rounded-xl p-2 border border-slate-200">
                 <div class="text-[11px] text-slate-500">Prix Vente</div>
                 <div class="text-sm font-semibold text-slate-800">{{ (product.prix_vente_vrac || product.prix_vente_TTC) | number:'1.2-2' }} DT</div>
               </div>
-              <div class="bg-white rounded-xl p-2 border border-slate-200">
+              <div class="bg-slate-50 rounded-xl p-2 border border-slate-200">
                 <div class="text-[11px] text-slate-500">Unité</div>
                 <div class="text-sm font-semibold text-slate-800">{{ product.unite }}</div>
               </div>
             </div>
 
-            <div *ngIf="product.prix_achat_vrac || product.prix_achat" class="mt-2 bg-white rounded-xl p-2 border border-slate-200">
+            <div *ngIf="product.conversionRatio" class="mt-2 bg-indigo-50 rounded-xl p-2 border border-indigo-200">
+              <div class="text-[11px] text-indigo-600">Ratio de Conversion</div>
+              <div class="text-sm font-semibold text-indigo-800">1 = {{ product.conversionRatio | number:'1.0-3' }}</div>
+            </div>
+
+            <div *ngIf="product.prix_achat_vrac || product.prix_achat" class="mt-2 bg-slate-50 rounded-xl p-2 border border-slate-200">
               <div class="text-[11px] text-slate-500">Prix Achat</div>
               <div class="text-sm font-semibold text-slate-800">{{ (product.prix_achat_vrac || product.prix_achat) | number:'1.2-2' }} DT</div>
             </div>
 
-            <button (click)="openTransferModal(product)" 
-              class="mt-3 w-full bg-indigo-600 text-white py-2 px-3 rounded-xl text-sm font-medium transition-colors hover:bg-indigo-700">
-              Transférer
+            <button (click)="openTransferModal(product); $event.stopPropagation()" 
+              class="mt-3 w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2 px-3 rounded-xl text-sm font-medium transition-colors hover:from-indigo-600 hover:to-purple-700">
+              Transférer vers JUS VRAC
             </button>
           </div>
-        </div>
-
-        <div *ngIf="vraguableProducts.length > 0 && viewMode === 'table'" class="overflow-auto rounded-2xl border border-slate-200">
-          <table class="min-w-full divide-y divide-slate-200">
-            <thead class="bg-slate-50">
-              <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Produit</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Famille</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Prix Achat</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Prix Vente</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Unité</th>
-                <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Statut</th>
-                <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-slate-100">
-              <tr *ngFor="let product of vraguableProducts; trackBy: trackByProduct" class="odd:bg-white even:bg-slate-50 hover:bg-slate-100">
-                <td class="px-4 py-3">
-                  <div class="text-slate-800 font-medium text-sm">{{ product.name }}</div>
-                  <div *ngIf="product.designation_legale" class="text-xs text-slate-500">{{ product.designation_legale }}</div>
-                </td>
-                <td class="px-4 py-3">
-                  <span class="text-sm text-slate-600">{{ product.famille?.name || '-' }}</span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <span class="text-sm text-slate-800">{{ (product.prix_achat_vrac || product.prix_achat) ? ((product.prix_achat_vrac || product.prix_achat) | number:'1.2-2') + ' DT' : '-' }}</span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <span class="text-sm font-semibold text-slate-800">{{ (product.prix_vente_vrac || product.prix_vente_TTC) | number:'1.2-2' }} DT</span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <span class="text-sm text-slate-600">{{ product.unite }}</span>
-                </td>
-                <td class="px-4 py-3 text-center">
-                  <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Vraguable</span>
-                </td>
-                <td class="px-4 py-3 text-center">
-                  <button (click)="openTransferModal(product)" 
-                    class="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-medium transition-colors hover:bg-indigo-700">
-                    Transférer
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
@@ -147,9 +93,9 @@
 
 <!-- Transfer Modal -->
 <div *ngIf="showTransferModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-indigo-200 max-h-[90vh] overflow-y-auto">
+  <div class="bg-white rounded-3xl p-6 w-full max-w-4xl shadow-2xl border border-indigo-200 max-h-[90vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-5">
-      <span class="text-2xl font-bold text-slate-800 flex items-center block">
+      <span class="text-2xl font-bold text-indigo-800 flex items-center block">
         <svg class="w-7 h-7 mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
         </svg>
@@ -164,14 +110,98 @@
     
     <div class="mb-6 bg-blue-50 p-4 rounded-2xl border border-blue-200">
       <span class="text-blue-800 font-medium mb-2 block">Produit Source :</span>
-      <span class="text-slate-800 text-lg font-bold block">{{ selectedProductForTransfer?.name }}</span>
+      <span class="text-indigo-800 text-lg font-bold block">{{ selectedProductForTransfer?.name }}</span>
     </div>
-    
-    <app-product-transfer-form
-      [sourceProduct]="selectedProductForTransfer"
-      (transferred)="onProductTransferred($event)"
-      (cancelled)="closeTransferModal()">
-    </app-product-transfer-form>
+
+    <div class="mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+      <div class="mb-3">
+        <span class="text-sm font-semibold text-slate-700 block mb-2">Type de Produit Cible *</span>
+        <div class="bg-white rounded-xl p-3 border-2 border-slate-300 cursor-not-allowed opacity-75">
+          <span class="text-slate-800 font-medium">Par Famille</span>
+        </div>
+      </div>
+      <div>
+        <span class="text-sm font-semibold text-slate-700 block mb-2">Famille de Produit *</span>
+        <div class="bg-white rounded-xl p-3 border-2 border-slate-300 cursor-not-allowed opacity-75">
+          <span class="text-slate-800 font-medium">JUS VRAC</span>
+        </div>
+      </div>
+      <div class="mt-2 text-xs text-slate-500 italic">
+        <span>Ces valeurs sont fixes et ne peuvent pas être modifiées</span>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <span class="text-sm font-semibold text-slate-700 mb-3 block">Sélectionnez un produit de la famille JUS VRAC :</span>
+      
+      <div *ngIf="juscVracProducts.length === 0" class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+        <span class="text-slate-500">Aucun produit de la famille JUS VRAC trouvé</span>
+      </div>
+
+      <div *ngIf="juscVracProducts.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+        <div *ngFor="let product of juscVracProducts" 
+             (click)="selectTargetProduct(product)"
+             [class.border-indigo-500]="selectedTargetProduct?.id === product.id"
+             [class.bg-indigo-50]="selectedTargetProduct?.id === product.id"
+             class="bg-white rounded-xl p-4 border-2 cursor-pointer transition-all hover:border-indigo-300 hover:shadow-md"
+             [class.border-slate-200]="selectedTargetProduct?.id !== product.id">
+          <div class="font-semibold text-slate-800 mb-1">{{ product.name }}</div>
+          <div class="text-xs text-slate-500 mb-2">{{ product.famille?.name }}</div>
+          <div class="text-sm font-bold text-indigo-700">{{ product.prix_vente_TTC | number:'1.2-2' }} DT</div>
+          <div class="text-xs text-slate-600 mt-1">Unité: {{ product.unite }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="selectedTargetProduct" class="space-y-4">
+      <div class="bg-green-50 border border-green-200 rounded-xl p-4">
+        <span class="text-sm font-semibold text-green-800 block mb-1">Produit Cible Sélectionné :</span>
+        <span class="text-lg font-bold text-green-900">{{ selectedTargetProduct.name }}</span>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-slate-600 mb-2">Quantité Source *</label>
+        <input type="number" [(ngModel)]="transferQuantity" step="0.001" min="0.001"
+               class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all"
+               placeholder="Quantité à transférer">
+      </div>
+
+      <div *ngIf="selectedProductForTransfer && selectedProductForTransfer.conversionRatio" class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+        <span class="text-sm font-semibold text-slate-700 block mb-1">Ratio de Conversion</span>
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-slate-600">1 produit source =</span>
+          <span class="text-sm font-bold text-slate-800">{{ selectedProductForTransfer.conversionRatio | number:'1.0-3' }}</span>
+          <span class="text-sm text-slate-600">produit cible</span>
+        </div>
+        <span class="text-xs text-slate-500 mt-1 block">
+          Ratio pré-configuré depuis le produit source (non modifiable)
+        </span>
+      </div>
+
+      <div *ngIf="transferQuantity > 0 && selectedProductForTransfer && selectedProductForTransfer.conversionRatio && selectedTargetProduct" class="bg-green-50 border border-green-200 rounded-xl p-3">
+        <span class="text-sm font-semibold text-green-800 block mb-1">Quantité Cible Calculée</span>
+        <span class="text-lg font-bold text-green-900">
+          {{ (transferQuantity * (selectedProductForTransfer.conversionRatio || 1)) | number:'1.0-3' }} {{ selectedTargetProduct.unite }}
+        </span>
+      </div>
+
+      <div class="flex space-x-3 pt-4">
+        <button type="button" (click)="closeTransferModal()"
+                class="flex-1 bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-xl transition-all">
+          Annuler
+        </button>
+        <button type="button" (click)="onProductTransferred()" 
+                [disabled]="!selectedTargetProduct || transferQuantity <= 0 || loading"
+                class="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          <span *ngIf="loading">Transfert...</span>
+          <span *ngIf="!loading">Transférer</span>
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="!selectedTargetProduct && juscVracProducts.length > 0" class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+      <span class="text-sm text-amber-800">Veuillez sélectionner un produit cible de la famille JUS VRAC</span>
+    </div>
   </div>
 </div>
 

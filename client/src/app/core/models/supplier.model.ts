@@ -38,6 +38,7 @@ export interface CreateSupplierRequest {
   paymentTerms?: string;
   notes?: string;
   depotId?: number | null;
+  currentDebt?: number;
 }
 
 export interface UpdateSupplierRequest {

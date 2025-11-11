@@ -1,4 +1,13 @@
 require('dotenv').config();
+
+// Suppress HTTP/2 status message warning (harmless, HTTP/2 doesn't support status messages)
+process.on('warning', (warning) => {
+  if (warning.name === 'UnsupportedWarning' && warning.message.includes('Status message is not supported by HTTP/2')) {
+    return; // Suppress this specific warning
+  }
+  console.warn(warning.name, warning.message);
+});
+
 const express = require('express');
 const cors = require('cors');
 const http = require('http');

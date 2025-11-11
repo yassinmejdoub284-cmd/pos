@@ -522,7 +522,6 @@ export class HomeComponent implements OnInit, OnDestroy {
         const visibleIds = Object.keys(roleAccessBlocks).filter(k => roleAccessBlocks[k]?.visible === true);
         this._cachedFilteredActions = this.quickActions.filter(a => visibleIds.includes(a.id));
         console.log('Filtered actions (roleAccessConfig):', this._cachedFilteredActions.map(a => a.id), 'visibleIds:', visibleIds);
-        this.cdr.detectChanges();
       } else {
         // Fallback: filter by roles defined in each action
         const userRole = currentUser?.role || '';
@@ -531,7 +530,6 @@ export class HomeComponent implements OnInit, OnDestroy {
           return a.roles.includes(userRole);
         });
         console.log('Filtered actions (fallback):', this._cachedFilteredActions.map(a => a.id));
-        this.cdr.detectChanges();
       }
     }
 

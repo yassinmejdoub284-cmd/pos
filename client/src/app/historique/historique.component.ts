@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
-import { filter, takeUntil } from 'rxjs/operators';
-import { Subject } from 'rxjs';
+import { filter, takeUntil, catchError } from 'rxjs/operators';
+import { Subject, forkJoin, of } from 'rxjs';
 import { SalesService } from '../core/services/sales.service';
 import { Sale } from '../core/models/sale.model';
 import { PrintService } from '../core/services/print.service';
@@ -241,14 +241,24 @@ export class HistoriqueComponent implements OnInit {
       .subscribe({
         next: (settings: any) => {
           this.appSettings = settings;
-          // Load sessions based on role-based history limits
-          const sessionLimit = this.getHistoryLimitForCurrentUser(settings);
-          this.loadRecentSessions(sessionLimit, after);
+          // Check if user is admin
+          if (this.authService.isAdmin()) {
+            // Admin: load all sessions
+            const sessionLimit = this.getHistoryLimitForCurrentUser(settings);
+            this.loadRecentSessions(sessionLimit, after);
+          } else {
+            // Non-admin: only load current and last session
+            this.loadCurrentAndLastSession(after);
+          }
         },
         error: (error) => {
           console.error('Error loading settings:', error);
-          // Fallback to default session limit
-          this.loadRecentSessions(10, after);
+          // Fallback based on role
+          if (this.authService.isAdmin()) {
+            this.loadRecentSessions(10, after);
+          } else {
+            this.loadCurrentAndLastSession(after);
+          }
         }
       });
   }
@@ -321,6 +331,82 @@ export class HistoriqueComponent implements OnInit {
           if (after) after();
         }
       });
+  }
+
+  loadCurrentAndLastSession(after?: () => void): void {
+    const currentUser = this.authService.currentUser();
+    const depotId = currentUser?.depotId;
+    
+    if (!depotId) {
+      console.error('No depot ID found for user');
+      this.allSessions = [];
+      this.sessionIds = [];
+      this.totalSessions = 0;
+      this.currentSessionPage = 1;
+      if (after) after();
+      return;
+    }
+
+    // Get current session (OPEN) - handle null case
+    const currentSession$ = this.sessionsService.getActiveSessionByDepot(1, depotId).pipe(
+      catchError(() => of(null))
+    );
+    
+    // Get last closed session
+    const lastClosedSession$ = this.sessionsService.getSessions({
+      depotId: depotId,
+      status: 'CLOSED',
+      limit: 1
+    }).pipe(
+      catchError(() => of([]))
+    );
+
+    // Combine both requests
+    forkJoin({
+      currentSession: currentSession$,
+      closedSessions: lastClosedSession$
+    }).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: ({ currentSession, closedSessions }) => {
+        const sessions: any[] = [];
+        
+        // Add current session if exists
+        if (currentSession) {
+          sessions.push(currentSession);
+        }
+        
+        // Add last closed session if exists and different from current
+        if (closedSessions && closedSessions.length > 0) {
+          const lastClosed = closedSessions[0];
+          // Only add if it's different from current session
+          if (!currentSession || currentSession.id !== lastClosed.id) {
+            sessions.push(lastClosed);
+          }
+        }
+        
+        // Sort by openedAt/createdAt (newest first)
+        const sorted = sessions.sort((a: any, b: any) => {
+          const aTime = new Date(a.openedAt ?? a.createdAt).getTime();
+          const bTime = new Date(b.openedAt ?? b.createdAt).getTime();
+          return bTime - aTime;
+        });
+
+        this.allSessions = sorted;
+        this.sessionIds = sorted.map((s: any) => s.id);
+        this.totalSessions = this.allSessions.length;
+        this.currentSessionPage = 1;
+        if (after) after();
+      },
+      error: (error) => {
+        console.error('Error loading sessions:', error);
+        this.allSessions = [];
+        this.sessionIds = [];
+        this.totalSessions = 0;
+        this.currentSessionPage = 1;
+        if (after) after();
+      }
+    });
   }
 
   applyFilters(): void {

@@ -1201,72 +1201,106 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
     
     // If we have a POSTED inventory session, calculate current stock from it
     if (lastPostedSession && lastPostedSession.items && lastPostedSession.items.length > 0) {
-      // Load products and calculate current stock for each item
+      // Get all unique product IDs from inventory session (deduplicate in case of any duplicates)
+      const inventoryProductIds = new Set(
+        lastPostedSession.items
+          .filter(item => item.productId != null)
+          .map(item => item.productId)
+      );
+      
+      // Find all products with entries (entry documents) since last inventory
+      const entryDocuments = await prisma.stockDocument.findMany({
+        where: {
+          destinataireId: depotId,
+          type: { in: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'] },
+          status: 'RECEIVED',
+          createdAt: { gte: inventoryPostedAt }
+        },
+        include: {
+          items: true
+        }
+      });
+      
+      // Find all products with exits (sales) since last inventory
+      const sales = await prisma.sale.findMany({
+        where: {
+          depotId: depotId,
+          status: { in: ['COMPLETED', 'CMD_TERMINEE'] },
+          createdAt: { gte: inventoryPostedAt }
+        },
+        include: {
+          items: true
+        }
+      });
+      
+      // Collect all product IDs from entries and exits (only valid product IDs)
+      entryDocuments.forEach(doc => {
+        if (doc.items) {
+          doc.items.forEach(item => {
+            if (item.productId != null) {
+              inventoryProductIds.add(item.productId);
+            }
+          });
+        }
+      });
+      
+      sales.forEach(sale => {
+        if (sale.items) {
+          sale.items.forEach(item => {
+            if (item.productId != null) {
+              inventoryProductIds.add(item.productId);
+            }
+          });
+        }
+      });
+      
+      // Load products and calculate current stock for each product
       const inventoryWithCurrentStock = await Promise.all(
-        lastPostedSession.items.map(async (item) => {
+        Array.from(inventoryProductIds).map(async (productId) => {
           let product = null;
           
           if (depot.type === 'SHOP') {
             product = await prisma.product.findUnique({
-              where: { id: item.productId }
+              where: { id: productId }
             });
           } else {
             product = await prisma.produitDeCaisse.findUnique({
-              where: { id: item.productId }
+              where: { id: productId }
             });
           }
           
-          // Base quantity from last POSTED inventory
-          const baseQuantity = parseFloat(item.countedQuantity ?? item.theoreticalQuantity ?? 0);
+          // Skip if product doesn't exist
+          if (!product) {
+            return null;
+          }
+          
+          // Find base quantity from last POSTED inventory (0 if not in inventory session)
+          const inventoryItem = lastPostedSession.items.find(item => item.productId === productId);
+          const baseQuantity = inventoryItem 
+            ? parseFloat(inventoryItem.countedQuantity ?? inventoryItem.theoreticalQuantity ?? 0)
+            : 0;
           
           // Calculate entries (entry documents) since last inventory POST
-          const entryDocuments = await prisma.stockDocument.findMany({
-            where: {
-              destinataireId: depotId,
-              type: { in: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'] },
-              status: 'RECEIVED',
-              createdAt: { gte: inventoryPostedAt }
-            },
-            include: {
-              items: {
-                where: {
-                  productId: item.productId
-                }
-              }
-            }
-          });
-          
           let totalEntries = 0;
           entryDocuments.forEach(doc => {
             doc.items.forEach(docItem => {
-              totalEntries += parseFloat(docItem.quantity || 0);
+              if (docItem.productId === productId) {
+                totalEntries += parseFloat(docItem.quantity || 0);
+              }
             });
           });
           
-          // Calculate exits (sales) since last inventory POST - exclude canceled/refunded
-          const sales = await prisma.sale.findMany({
-            where: {
-              depotId: depotId,
-              status: { in: ['COMPLETED', 'CMD_TERMINEE'] },
-              createdAt: { gte: inventoryPostedAt }
-            },
-            include: {
-              items: {
-                where: {
-                  productId: item.productId
-                }
-              }
-            }
-          });
-          
+          // Calculate exits (sales) since last inventory POST
           let totalExits = 0;
           sales.forEach(sale => {
             sale.items.forEach(saleItem => {
-              // Handle wholesale bundle quantities
-              const actualQuantity = sale.isWholesale && saleItem.isWholesale && saleItem.bundleSize
-                ? (parseFloat(saleItem.bundleQuantity || saleItem.quantity || 0)) * parseFloat(saleItem.bundleSize || 1)
-                : parseFloat(saleItem.quantity || 0);
-              totalExits += actualQuantity;
+              if (saleItem.productId === productId) {
+                // Handle wholesale bundle quantities
+                const actualQuantity = sale.isWholesale && saleItem.isWholesale && saleItem.bundleSize
+                  ? (parseFloat(saleItem.bundleQuantity || saleItem.quantity || 0)) * parseFloat(saleItem.bundleSize || 1)
+                  : parseFloat(saleItem.quantity || 0);
+                totalExits += actualQuantity;
+              }
             });
           });
           
@@ -1274,9 +1308,9 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           const currentStock = baseQuantity + totalEntries - totalExits;
           
           return {
-            id: item.id,
+            id: inventoryItem?.id || null,
             depotId: depotId,
-            productId: item.productId,
+            productId: productId,
             quantity: currentStock,
             purchasePrice: product?.prix_achat ?? null,
             product: product
@@ -1284,7 +1318,30 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
         })
       );
       
-      return res.json(inventoryWithCurrentStock);
+      // Filter out null entries and ensure uniqueness by productId
+      const inventoryMap = new Map();
+      
+      inventoryWithCurrentStock.forEach(item => {
+        if (item === null) return;
+        
+        const existing = inventoryMap.get(item.productId);
+        if (!existing) {
+          // First occurrence of this product
+          inventoryMap.set(item.productId, item);
+        } else {
+          // Product already exists - keep the one with inventory item id if available
+          if (item.id && !existing.id) {
+            inventoryMap.set(item.productId, item);
+          }
+          // Otherwise keep existing (prefer items from inventory session)
+        }
+      });
+      
+      // Convert map to array and sort by productId for consistent ordering
+      const uniqueInventory = Array.from(inventoryMap.values())
+        .sort((a, b) => a.productId - b.productId);
+      
+      return res.json(uniqueInventory);
     }
     
     // Otherwise, fall back to current inventory
@@ -1295,7 +1352,18 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
       }
     });
     
-    res.json(inventory);
+    // Ensure uniqueness by productId (in case of any duplicates)
+    const inventoryMap = new Map();
+    inventory.forEach(item => {
+      if (item.productId != null && !inventoryMap.has(item.productId)) {
+        inventoryMap.set(item.productId, item);
+      }
+    });
+    
+    const uniqueInventoryFallback = Array.from(inventoryMap.values())
+      .sort((a, b) => a.productId - b.productId);
+    
+    res.json(uniqueInventoryFallback);
   } catch (error) {
     console.error('Error fetching inventory:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération de l\'inventaire' });

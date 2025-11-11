@@ -1373,8 +1373,18 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
       clientId
     });
 
-    if (!items || items.length === 0) {
+    // Validate required fields
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Wholesale sale must have at least one item' });
+    }
+
+    // Validate numeric values
+    const numericTotal = parseFloat(total);
+    const numericDiscount = parseFloat(discount || 0);
+    const numericFinalTotal = parseFloat(finalTotal);
+    
+    if (isNaN(numericTotal) || isNaN(numericDiscount) || isNaN(numericFinalTotal)) {
+      return res.status(400).json({ error: 'Invalid numeric values for total, discount, or finalTotal' });
     }
 
     // Use user's assigned depot for stock operations
@@ -1383,10 +1393,18 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'User must be assigned to a depot to create wholesale sales' });
     }
 
-    // Validate that all items are wholesale items
+    // Validate items
     for (const item of items) {
       if (!item.isWholesale) {
         return res.status(400).json({ error: 'All items must be wholesale items for wholesale sales' });
+      }
+      if (!item.productId || !item.productName) {
+        return res.status(400).json({ error: 'Each item must have productId and productName' });
+      }
+      const itemQuantity = parseFloat(item.quantity || item.bundleQuantity || 0);
+      const itemUnitPrice = parseFloat(item.unitPrice || item.bundlePrice || 0);
+      if (isNaN(itemQuantity) || isNaN(itemUnitPrice) || itemQuantity <= 0 || itemUnitPrice < 0) {
+        return res.status(400).json({ error: 'Invalid quantity or unitPrice for item' });
       }
     }
 
@@ -1436,7 +1454,11 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
           where: { id: item.productId }
         });
 
-        if (product && product.bundlePrice && product.minMargin) {
+        if (!product) {
+          throw new Error(`Product with id ${item.productId} not found`);
+        }
+
+        if (product.bundlePrice && product.minMargin) {
           const expectedBundleTotal = item.bundleQuantity * product.bundlePrice;
           const actualTotal = parseFloat(item.total);
           const discountAmount = expectedBundleTotal - actualTotal;
@@ -1470,7 +1492,15 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
         });
 
         // For wholesale items, calculate the actual quantity to deduct (bundleQuantity * bundle size)
-        const actualQuantityToDeduct = item.bundleSize ? (item.bundleQuantity || item.quantity) * item.bundleSize : item.quantity;
+        const bundleSize = parseFloat(item.bundleSize || product.bundleSize || 1);
+        if (isNaN(bundleSize) || bundleSize <= 0) {
+          throw new Error(`Invalid bundleSize for product ${item.productId}`);
+        }
+        const bundleQuantity = parseFloat(item.bundleQuantity || item.quantity || 0);
+        if (isNaN(bundleQuantity) || bundleQuantity <= 0) {
+          throw new Error(`Invalid bundleQuantity for product ${item.productId}`);
+        }
+        const actualQuantityToDeduct = bundleQuantity * bundleSize;
 
         console.log('Deducting inventory for wholesale sale:', {
           productId: item.productId,
@@ -1653,10 +1683,20 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
       }
     });
 
+    if (!saleWithDetails) {
+      return res.status(500).json({ error: 'Sale created but could not be retrieved' });
+    }
+
     res.status(201).json({ ...saleWithDetails, loyaltyPointsEarned: sale.loyaltyPointsEarned });
   } catch (error) {
     console.error('Error creating wholesale sale:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    const errorMessage = error.message || 'Internal server error';
+    console.error('Error details:', {
+      message: errorMessage,
+      stack: error.stack,
+      body: req.body
+    });
+    res.status(500).json({ error: errorMessage });
   }
 });
 
@@ -1665,8 +1705,33 @@ router.post('/wholesale', async (req, res) => {
   try {
     const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, paymentType } = req.body;
 
-    if (!items || items.length === 0) {
+    // Validate required fields
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Wholesale sale must have at least one item' });
+    }
+
+    // Validate numeric values
+    const numericTotal = parseFloat(total);
+    const numericDiscount = parseFloat(discount || 0);
+    const numericFinalTotal = parseFloat(finalTotal);
+    
+    if (isNaN(numericTotal) || isNaN(numericDiscount) || isNaN(numericFinalTotal)) {
+      return res.status(400).json({ error: 'Invalid numeric values for total, discount, or finalTotal' });
+    }
+
+    // Validate items
+    for (const item of items) {
+      if (!item.isWholesale) {
+        return res.status(400).json({ error: 'All items must be wholesale items for wholesale sales' });
+      }
+      if (!item.productId || !item.productName) {
+        return res.status(400).json({ error: 'Each item must have productId and productName' });
+      }
+      const itemQuantity = parseFloat(item.quantity);
+      const itemUnitPrice = parseFloat(item.unitPrice);
+      if (isNaN(itemQuantity) || isNaN(itemUnitPrice) || itemQuantity <= 0 || itemUnitPrice < 0) {
+        return res.status(400).json({ error: 'Invalid quantity or unitPrice for item' });
+      }
     }
 
     // For unauthenticated requests, use a default depot or the first available depot
@@ -1676,17 +1741,13 @@ router.post('/wholesale', async (req, res) => {
         where: { isActive: true },
         orderBy: { id: 'asc' }
       });
-      userDepotId = defaultDepot ? defaultDepot.id : 1;
+      if (!defaultDepot) {
+        return res.status(500).json({ error: 'No active depot found. Please contact administrator.' });
+      }
+      userDepotId = defaultDepot.id;
     } catch (error) {
       console.error('Error finding default depot:', error);
-      userDepotId = 1; // Fallback to depot 1
-    }
-
-    // Validate that all items are wholesale items
-    for (const item of items) {
-      if (!item.isWholesale) {
-        return res.status(400).json({ error: 'All items must be wholesale items for wholesale sales' });
-      }
+      return res.status(500).json({ error: 'Error finding default depot: ' + error.message });
     }
 
     const sale = await prisma.$transaction(async (tx) => {
@@ -1737,25 +1798,30 @@ router.post('/wholesale', async (req, res) => {
           where: { id: item.productId }
         });
 
-        if (product) {
-          const costPrice = parseFloat(product.prix_achat_HT || 0);
-          const sellingPrice = parseFloat(item.unitPrice);
-          const margin = sellingPrice - costPrice;
-          const marginPercentage = costPrice > 0 ? (margin / costPrice) * 100 : 0;
-
-          await tx.saleItem.update({
-            where: { id: saleItem.id },
-            data: {
-              costPrice: costPrice,
-              margin: margin,
-              marginPercentage: marginPercentage
-            }
-          });
+        if (!product) {
+          throw new Error(`Product with id ${item.productId} not found`);
         }
+
+        const costPrice = parseFloat(product.prix_achat_HT || 0);
+        const sellingPrice = parseFloat(item.unitPrice);
+        const margin = sellingPrice - costPrice;
+        const marginPercentage = costPrice > 0 ? (margin / costPrice) * 100 : 0;
+
+        await tx.saleItem.update({
+          where: { id: saleItem.id },
+          data: {
+            costPrice: costPrice,
+            margin: margin,
+            marginPercentage: marginPercentage
+          }
+        });
 
         // For wholesale items, calculate the actual quantity to deduct (bundleQuantity * bundle size)
         const bundleQuantity = parseFloat(item.quantity);
-        const bundleSize = parseFloat(product?.bundleSize || 1);
+        const bundleSize = parseFloat(product.bundleSize || 1);
+        if (isNaN(bundleSize) || bundleSize <= 0) {
+          throw new Error(`Invalid bundleSize for product ${item.productId}`);
+        }
         const actualQuantityToDeduct = bundleQuantity * bundleSize;
 
         // Check if inventory exists for this product in this depot
@@ -1813,29 +1879,47 @@ router.post('/wholesale', async (req, res) => {
         });
       }
 
-      // Handle payment
-      if (amountPaid && amountPaid > 0) {
-        await tx.payment.create({
-          data: {
-            saleId: newSale.id,
-            amount: parseFloat(amountPaid),
-            paymentMethodId: paymentMethodId ? parseInt(paymentMethodId) : null,
-            notes: 'Payment at wholesale sale'
-          }
-        });
-      }
+      // Payment is already recorded in the Sale model via paymentMethodId
+      // No need to create a separate Payment record
 
       // Handle debt if amount paid is less than final total
       const remainingAmount = parseFloat(finalTotal) - parseFloat(amountPaid || 0);
       if (remainingAmount > 0 && clientId) {
-        await tx.debt.create({
-          data: {
-            clientId: parseInt(clientId),
-            amount: remainingAmount,
-            saleId: newSale.id,
-            notes: 'Debt from wholesale sale'
+        // Get client to update currentDebt
+        const client = await tx.client.findUnique({ where: { id: parseInt(clientId) } });
+        if (client) {
+          const newDebt = parseFloat(client.currentDebt || 0) + remainingAmount;
+          await tx.client.update({
+            where: { id: client.id },
+            data: { currentDebt: newDebt }
+          });
+          
+          // Create debt transaction (userId is required, use null or find a system user)
+          // For public sales, we'll use null userId if allowed, otherwise find a system user
+          let systemUserId = null;
+          try {
+            const systemUser = await tx.user.findFirst({
+              where: { role: 'ADMIN' },
+              orderBy: { id: 'asc' }
+            });
+            systemUserId = systemUser ? systemUser.id : null;
+          } catch (e) {
+            console.warn('Could not find system user for debt transaction:', e);
           }
-        });
+          
+          if (systemUserId) {
+            await tx.clientDebtTransaction.create({
+              data: {
+                clientId: parseInt(clientId),
+                saleId: newSale.id,
+                amount: remainingAmount,
+                type: 'DEBT',
+                userId: systemUserId,
+                notes: 'Debt from public wholesale sale'
+              }
+            });
+          }
+        }
       }
 
       return newSale;
@@ -1852,10 +1936,20 @@ router.post('/wholesale', async (req, res) => {
       }
     });
 
-    res.status(201).json({ ...saleWithDetails, loyaltyPointsEarned: sale.loyaltyPointsEarned });
+    if (!saleWithDetails) {
+      return res.status(500).json({ error: 'Sale created but could not be retrieved' });
+    }
+
+    res.status(201).json(saleWithDetails);
   } catch (error) {
     console.error('Error creating public wholesale sale:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    const errorMessage = error.message || 'Internal server error';
+    console.error('Error details:', {
+      message: errorMessage,
+      stack: error.stack,
+      body: req.body
+    });
+    res.status(500).json({ error: errorMessage });
   }
 });
 
