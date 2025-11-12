@@ -50,6 +50,11 @@ export class SuppliersComponent implements OnInit {
   initSoldeAmount: number | null = null;
   initSoldeNotes = '';
 
+  // Alert notification
+  showAlert = false;
+  alertMessage = '';
+  alertType: 'success' | 'error' | 'info' = 'info';
+
   // Form data
   createForm: CreateSupplierRequest = {
     name: '',
@@ -62,7 +67,7 @@ export class SuppliersComponent implements OnInit {
     taxNumber: '',
     paymentTerms: '',
     notes: '',
-    depotId: -1, // Default to "Tous les points de vente"
+    depotId: null, // Must select a depot
     currentDebt: 0
   };
 
@@ -188,7 +193,7 @@ export class SuppliersComponent implements OnInit {
       taxNumber: '',
       paymentTerms: '',
       notes: '',
-      depotId: this.isAdmin ? -1 : (user?.depotId ?? null), // Default to "Tous les points de vente" for admin, user depot for non-admin
+      depotId: this.isAdmin ? null : (user?.depotId ?? null), // Must select a depot
       currentDebt: 0
     };
     this.showCreatePopup = true;
@@ -236,7 +241,13 @@ export class SuppliersComponent implements OnInit {
   // CRUD operations
   createSupplier(): void {
     if (!this.createForm.name.trim()) {
-      alert('Le nom du fournisseur est requis');
+      this.showAlertMessage('Le nom du fournisseur est requis', 'error');
+      return;
+    }
+
+    // Validate depot selection - must select a depot (not null or -1)
+    if (!this.createForm.depotId || this.createForm.depotId === -1) {
+      this.showAlertMessage('Veuillez sélectionner un point de vente', 'error');
       return;
     }
 
@@ -244,6 +255,10 @@ export class SuppliersComponent implements OnInit {
     if (!this.isAdmin) {
       const user = this.authService?.currentUser?.();
       this.createForm.depotId = user?.depotId ?? null;
+      if (!this.createForm.depotId) {
+        this.showAlertMessage('Vous devez être associé à un point de vente pour créer un fournisseur', 'error');
+        return;
+      }
     }
 
     this.loading = true;
@@ -252,19 +267,19 @@ export class SuppliersComponent implements OnInit {
         this.loadSuppliers();
         this.closePopups();
         this.loading = false;
-        alert('Fournisseur créé avec succès');
+        this.showAlertMessage('Fournisseur créé avec succès', 'success');
       },
       error: (error) => {
         console.error('Error creating supplier:', error);
         this.loading = false;
-        alert('Erreur lors de la création du fournisseur');
+        this.showAlertMessage('Erreur lors de la création du fournisseur', 'error');
       }
     });
   }
 
   updateSupplier(): void {
     if (!this.selectedSupplier || !this.editForm.name?.trim()) {
-      alert('Le nom du fournisseur est requis');
+      this.showAlertMessage('Le nom du fournisseur est requis', 'error');
       return;
     }
 
@@ -274,12 +289,12 @@ export class SuppliersComponent implements OnInit {
         this.loadSuppliers();
         this.closePopups();
         this.loading = false;
-        alert('Fournisseur mis à jour avec succès');
+        this.showAlertMessage('Fournisseur mis à jour avec succès', 'success');
       },
       error: (error) => {
         console.error('Error updating supplier:', error);
         this.loading = false;
-        alert('Erreur lors de la mise à jour du fournisseur');
+        this.showAlertMessage('Erreur lors de la mise à jour du fournisseur', 'error');
       }
     });
   }
@@ -293,12 +308,12 @@ export class SuppliersComponent implements OnInit {
         this.loadSuppliers();
         this.closePopups();
         this.loading = false;
-        alert('Fournisseur supprimé avec succès');
+        this.showAlertMessage('Fournisseur supprimé avec succès', 'success');
       },
       error: (error) => {
         console.error('Error deleting supplier:', error);
         this.loading = false;
-        alert('Erreur lors de la suppression du fournisseur');
+        this.showAlertMessage('Erreur lors de la suppression du fournisseur', 'error');
       }
     });
   }
@@ -313,7 +328,7 @@ export class SuppliersComponent implements OnInit {
       error: (error) => {
         console.error('Error toggling supplier status:', error);
         this.loading = false;
-        alert('Erreur lors de la modification du statut du fournisseur');
+        this.showAlertMessage('Erreur lors de la modification du statut du fournisseur', 'error');
       }
     });
   }
@@ -362,7 +377,7 @@ export class SuppliersComponent implements OnInit {
 
   initializeSolde(): void {
     if (!this.selectedSupplier || this.initSoldeAmount === null || this.initSoldeAmount === undefined) {
-      alert('Veuillez entrer un montant valide');
+      this.showAlertMessage('Veuillez entrer un montant valide', 'error');
       return;
     }
 
@@ -372,12 +387,12 @@ export class SuppliersComponent implements OnInit {
         this.loadSuppliers();
         this.closePopups();
         this.loading = false;
-        alert('Solde défini avec succès');
+        this.showAlertMessage('Solde défini avec succès', 'success');
       },
       error: (error) => {
         console.error('Error setting supplier solde:', error);
         this.loading = false;
-        alert('Erreur lors de la définition du solde');
+        this.showAlertMessage('Erreur lors de la définition du solde', 'error');
       }
     });
   }
@@ -394,4 +409,26 @@ export class SuppliersComponent implements OnInit {
 
   // Math utility for template
   Math = Math;
+
+  // Alert notification methods
+  showAlertMessage(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+    this.alertMessage = message;
+    this.alertType = type;
+    this.showAlert = true;
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      this.hideAlert();
+    }, 5000);
+  }
+
+  hideAlert(): void {
+    this.showAlert = false;
+    this.alertMessage = '';
+  }
+
+  // Check if create button should be disabled
+  canCreateSupplier(): boolean {
+    return !!(this.createForm.name.trim() && this.createForm.depotId && this.createForm.depotId !== -1);
+  }
 }

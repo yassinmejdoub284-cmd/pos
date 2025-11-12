@@ -6,7 +6,7 @@ const router = express.Router();
 // Get all clients with optional search and filters
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 50, active, q, search, type, depotId } = req.query;
+    const { page = 1, limit = 50, active, q, search, type, depotId, sortBy, sortOrder } = req.query;
 
     const where = {};
     
@@ -75,6 +75,27 @@ router.get('/', authenticateToken, async (req, res) => {
       where.clientType = type;
     }
 
+    // Get total count for pagination
+    const total = await prisma.client.count({ where });
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    // Determine sort field and order
+    let orderByField = 'id';
+    let orderByDirection = 'asc';
+    
+    // Validate and set sort field
+    if (sortBy) {
+      const validSortFields = ['id', 'code', 'firstName', 'lastName', 'currentDebt', 'totalSpent', 'createdAt'];
+      if (validSortFields.includes(sortBy)) {
+        orderByField = sortBy;
+      }
+    }
+    
+    // Validate and set sort order
+    if (sortOrder && (sortOrder === 'asc' || sortOrder === 'desc')) {
+      orderByDirection = sortOrder;
+    }
+
     const clients = await prisma.client.findMany({
       where,
       include: {
@@ -92,12 +113,20 @@ router.get('/', authenticateToken, async (req, res) => {
           }
         }
       },
-      orderBy: { totalSpent: 'desc' },
+      orderBy: { [orderByField]: orderByDirection },
       skip: (parseInt(page) - 1) * parseInt(limit),
       take: parseInt(limit)
     });
 
-    res.json({ clients, pagination: { page: parseInt(page), limit: parseInt(limit) } });
+    res.json({ 
+      clients, 
+      pagination: { 
+        page: parseInt(page), 
+        limit: parseInt(limit),
+        total: total,
+        pages: totalPages
+      } 
+    });
   } catch (error) {
     console.error('Error fetching clients:', error);
     res.status(500).json({ error: 'Internal server error' });

@@ -30,7 +30,11 @@ export class ClientsComponent implements OnInit, OnDestroy {
   // Filters
   searchQuery = '';
   selectedType: string = '';
-  selectedStatus: string = 'true';
+  selectedStatus: string = ''; // Show all clients by default
+  
+  // Sorting
+  sortBy: string = 'id';
+  sortOrder: 'asc' | 'desc' = 'asc';
   
   // View mode
   viewMode: 'grid' | 'table' = 'table';
@@ -146,7 +150,9 @@ export class ClientsComponent implements OnInit, OnDestroy {
       this.itemsPerPage,
       this.searchQuery,
       this.selectedType,
-      active
+      active,
+      this.sortBy,
+      this.sortOrder
     ).pipe(takeUntil(this.destroy$)).subscribe({
       next: (response) => {
         // Create a new array reference to trigger change detection
@@ -573,5 +579,32 @@ export class ClientsComponent implements OnInit, OnDestroy {
   // View mode methods
   toggleViewMode(): void {
     this.viewMode = this.viewMode === 'grid' ? 'table' : 'grid';
+  }
+
+  // Pagination helpers
+  getStartIndex(): number {
+    return ((this.currentPage - 1) * this.itemsPerPage) + 1;
+  }
+
+  getEndIndex(): number {
+    return Math.min(this.currentPage * this.itemsPerPage, this.totalClients);
+  }
+
+  // Sorting methods
+  sortByField(field: string): void {
+    if (this.sortBy === field) {
+      // Toggle sort order if clicking the same field
+      this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      // Set new sort field with default order
+      this.sortBy = field;
+      this.sortOrder = 'asc';
+    }
+    this.currentPage = 1;
+    this.loadClients();
+  }
+
+  isSortActive(field: string): boolean {
+    return this.sortBy === field;
   }
 } 

@@ -287,11 +287,33 @@
           <table class="w-full">
             <thead class="bg-gradient-to-r from-purple-50 to-pink-50">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Client</th>
+                <th (click)="sortByField('id')" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-purple-100 transition-colors select-none group">
+                  <div class="flex items-center gap-2">
+                    <span>Client</span>
+                    <svg *ngIf="isSortActive('id')" class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path *ngIf="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                      <path *ngIf="sortOrder === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                    <svg *ngIf="!isSortActive('id')" class="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                    </svg>
+                  </div>
+                </th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Téléphone</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ville</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Dette</th>
+                <th (click)="sortByField('currentDebt')" class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-purple-100 transition-colors select-none group">
+                  <div class="flex items-center gap-2">
+                    <span>Dette</span>
+                    <svg *ngIf="isSortActive('currentDebt')" class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path *ngIf="sortOrder === 'asc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                      <path *ngIf="sortOrder === 'desc'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                    <svg *ngIf="!isSortActive('currentDebt')" class="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                    </svg>
+                  </div>
+                </th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
               </tr>
@@ -382,30 +404,37 @@
     </div>
 
     <!-- Modern Pagination -->
-    <div *ngIf="totalPages > 1" class="flex justify-center items-center gap-3 mt-8">
-      <button (click)="changePage(currentPage - 1)" [disabled]="currentPage === 1"
-        class="px-4 py-2 bg-white/80 border border-gray-200/50 text-gray-700 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-        </svg>
-        <span class="font-semibold">Précédent</span>
-      </button>
+    <div *ngIf="totalClients > 0" class="mt-8">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+        <div class="text-sm text-gray-600">
+          <span class="font-semibold">Affichage de {{ getStartIndex() }} à {{ getEndIndex() }} sur {{ totalClients }} client{{ totalClients > 1 ? 's' : '' }}</span>
+        </div>
+      </div>
+      <div *ngIf="totalPages > 1" class="flex justify-center items-center gap-3">
+        <button (click)="changePage(currentPage - 1)" [disabled]="currentPage === 1"
+          class="px-4 py-2 bg-white/80 border border-gray-200/50 text-gray-700 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          <span class="font-semibold">Précédent</span>
+        </button>
 
-      <div class="flex gap-2">
-        <button *ngFor="let page of [].constructor(totalPages); let i = index; trackBy: trackByPage" (click)="changePage(i + 1)"
-          [class]="'w-10 h-10 rounded-2xl flex items-center justify-center font-semibold shadow-lg ' + 
-                   (currentPage === i + 1 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : 'bg-white/80 border border-gray-200/50 text-gray-700')">
-          {{ i + 1 }}
+        <div class="flex gap-2">
+          <button *ngFor="let page of [].constructor(totalPages); let i = index; trackBy: trackByPage" (click)="changePage(i + 1)"
+            [class]="'w-10 h-10 rounded-2xl flex items-center justify-center font-semibold shadow-lg ' + 
+                     (currentPage === i + 1 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : 'bg-white/80 border border-gray-200/50 text-gray-700')">
+            {{ i + 1 }}
+          </button>
+        </div>
+
+        <button (click)="changePage(currentPage + 1)" [disabled]="currentPage === totalPages"
+          class="px-4 py-2 bg-white/80 border border-gray-200/50 text-gray-700 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg">
+          <span class="font-semibold">Suivant</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
         </button>
       </div>
-
-      <button (click)="changePage(currentPage + 1)" [disabled]="currentPage === totalPages"
-        class="px-4 py-2 bg-white/80 border border-gray-200/50 text-gray-700 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg">
-        <span class="font-semibold">Suivant</span>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-        </svg>
-      </button>
     </div>
   </div>
 </div>

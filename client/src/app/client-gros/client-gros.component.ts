@@ -26,6 +26,10 @@ export interface ClientGrosItem {
   barcode?: string | null;
   photo?: string | null;
   parentProductId?: number | null;
+  bundlePrice?: number;
+  bundleSize?: number;
+  isWholesale?: boolean;
+  prix_achat?: number;
 }
 
 export interface SelectedProduct {
@@ -162,18 +166,24 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
   private loadParentProducts(depotId?: number): void {
     this.productsService.getProducts(depotId).subscribe({
       next: (products: Product[]) => {
+        // Filter only wholesale products
+        const wholesaleProducts = products.filter(p => p.isWholesale === true);
         // Fill parent products cache
         this.parentProductsCache.clear();
-        products.forEach(p => this.parentProductsCache.set(p.id, p));
-        // Map to unified item type
-        this.products = products.map(p => ({
+        wholesaleProducts.forEach(p => this.parentProductsCache.set(p.id, p));
+        // Map to unified item type, include wholesale config fields
+        this.products = wholesaleProducts.map(p => ({
           id: p.id,
           name: p.name,
           prix_vente_TTC: Number(p.prix_vente_TTC) || 0,
           famille: p.famille,
-          barcode: (p as any).barcode || null,
-          photo: (p as any).photo || null,
-          parentProductId: null
+          barcode: p.barcode || null,
+          photo: p.photo || null,
+          parentProductId: null,
+          bundlePrice: p.bundlePrice ? Number(p.bundlePrice) : undefined,
+          bundleSize: p.bundleSize || undefined,
+          isWholesale: p.isWholesale,
+          prix_achat: p.prix_achat ? Number(p.prix_achat) : undefined
         }));
         this.filteredProducts = this.products;
         this.selectedProductIds.clear();
@@ -190,24 +200,30 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     // Use inventory service to fetch produits-de-caisse filtered by depot
     this.inventoryService.getProductsForDepot(depotId, 'NOT_SHOP').subscribe({
       next: (subs) => {
+        // Filter only wholesale products
+        const wholesaleSubs = subs.filter((sp: any) => sp.isWholesale === true);
         // subs already include prix_vente_TTC and famille
-        this.products = subs.map(sp => ({
+        this.products = wholesaleSubs.map((sp: any) => ({
           id: sp.id,
           name: sp.name,
           prix_vente_TTC: Number(sp.prix_vente_TTC) || 0,
           famille: sp.famille,
           barcode: sp.barcode || null,
           photo: sp.photo || null,
-          parentProductId: (sp as any).parentProductId ?? null
+          parentProductId: sp.parentProductId ?? null,
+          bundlePrice: sp.bundlePrice ? Number(sp.bundlePrice) : undefined,
+          bundleSize: sp.bundleSize || undefined,
+          isWholesale: sp.isWholesale,
+          prix_achat: sp.prix_achat ? Number(sp.prix_achat) : undefined
         }));
         this.filteredProducts = this.products;
         this.selectedProductIds.clear();
         this.loading = false;
-        // Warm parent products cache in background
+        // Warm parent products cache in background (only wholesale products)
         this.productsService.getProducts().subscribe({
           next: (parents: Product[]) => {
             this.parentProductsCache.clear();
-            parents.forEach(p => this.parentProductsCache.set(p.id, p));
+            parents.filter(p => p.isWholesale === true).forEach(p => this.parentProductsCache.set(p.id, p));
           },
           error: () => {}
         });
@@ -323,17 +339,9 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     this.appliedRules.forEach(appliedRule => {
       const products = this.products.filter(p => appliedRule.productIds.includes(p.id));
       products.forEach(product => {
-        const basePrice = Number(this.getWholesalePrice(product)) || 0;
-        const ruleVal = Number(appliedRule.rule.value) || 0;
-        let finalPrice = basePrice;
-        if (appliedRule.rule.ruleType === 'percentage') {
-          finalPrice = basePrice * (1 - ruleVal / 100);
-        } else if (appliedRule.rule.ruleType === 'fixed') {
-          finalPrice = ruleVal;
-        } else if (appliedRule.rule.ruleType === 'discount') {
-          finalPrice = Math.max(0, basePrice - ruleVal);
-        }
-        total += Number(finalPrice) || 0;
+        // Calculate final price per bundle (fardeau) with discount applied on margin
+        const finalBundlePrice = this.calculateDiscountedBundlePrice(product, appliedRule.rule);
+        total += Number(finalBundlePrice) || 0;
       });
     });
     return total;
@@ -344,8 +352,9 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     this.appliedRules.forEach(appliedRule => {
       const products = this.products.filter(p => appliedRule.productIds.includes(p.id));
       products.forEach(product => {
-        const basePrice = Number(this.getWholesalePrice(product)) || 0;
-        total += basePrice;
+        // Use bundle price for original total (per bundle/fardeau)
+        const config = this.getBundleConfig(product);
+        total += config.bundlePrice;
       });
     });
     return total;
@@ -358,17 +367,38 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       .join(', ');
   }
 
-  getCalculatedPrice(product: ClientGrosItem, rule: WholesaleRule): number {
-    const basePrice = Number(this.getWholesalePrice(product)) || 0;
+  // Calculate discounted bundle price (per fardeau) based on rule type
+  calculateDiscountedBundlePrice(product: ClientGrosItem, rule: WholesaleRule): number {
+    const config = this.getBundleConfig(product);
     const ruleVal = Number(rule.value) || 0;
+
     if (rule.ruleType === 'percentage') {
-      return basePrice * (1 - ruleVal / 100);
+      // Percentage discount is calculated on the wholesale margin
+      // Formula: bundlePrice - (margin * discount_percentage / 100)
+      const margin = this.getWholesaleMargin(product);
+      const discountOnMargin = margin * (ruleVal / 100);
+      return Math.max(0, config.bundlePrice - discountOnMargin);
     } else if (rule.ruleType === 'fixed') {
+      // Fixed price per bundle (fardeau)
       return ruleVal;
     } else if (rule.ruleType === 'discount') {
-      return Math.max(0, basePrice - ruleVal);
+      // Discount amount per bundle (fardeau)
+      return Math.max(0, config.bundlePrice - ruleVal);
     }
-    return basePrice;
+    
+    // No rule or unknown type: return original bundle price
+    return config.bundlePrice;
+  }
+
+  // Get calculated price per unit (for display)
+  getCalculatedPrice(product: ClientGrosItem, rule: WholesaleRule): number {
+    // Calculate discounted bundle price, then convert to unit price
+    const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, rule);
+    const config = this.getBundleConfig(product);
+    if (config.bundleSize > 0) {
+      return discountedBundlePrice / config.bundleSize;
+    }
+    return discountedBundlePrice;
   }
 
   openNewRuleDialog(): void {
@@ -505,23 +535,22 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     this.appliedRules.forEach(appliedRule => {
       const selectedProducts = this.products.filter(p => appliedRule.productIds.includes(p.id));
       
-      // Calculate new prices for each product
+      // Calculate new prices for each product (per bundle/fardeau)
       selectedProducts.forEach(product => {
-        let finalPrice = Number(this.getWholesalePrice(product)) || 0;
+        // Calculate discounted bundle price (discount applied on margin for percentage)
+        const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, appliedRule.rule);
         
-        // Apply rule pricing
-        if (appliedRule.rule.ruleType === 'percentage') {
-          finalPrice = finalPrice * (1 - (Number(appliedRule.rule.value) || 0) / 100);
-        } else if (appliedRule.rule.ruleType === 'fixed') {
-          finalPrice = Number(appliedRule.rule.value) || 0;
-        } else if (appliedRule.rule.ruleType === 'discount') {
-          finalPrice = Math.max(0, finalPrice - (Number(appliedRule.rule.value) || 0));
-        }
+        // Convert to unit price for storage (price per unit after discount)
+        const config = this.getBundleConfig(product);
+        const finalUnitPrice = config.bundleSize > 0 
+          ? discountedBundlePrice / config.bundleSize 
+          : discountedBundlePrice;
 
-        // Store the new price for this product
+        // Store the new price for this product (will be saved to client-specific prices only)
+        // This is the unit price after discount
         productsToUpdate.push({
           productId: product.id,
-          newPrice: finalPrice
+          newPrice: finalUnitPrice
         });
       });
 
@@ -552,16 +581,25 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Remove duplicates (same product might appear in multiple rules)
+    // Remove duplicates and handle parent products
+    // If a product has a parentProductId, save the price to the parent product ID
     const uniqueProducts = new Map<number, number>();
     productsToUpdate.forEach(({ productId, newPrice }) => {
+      // Find the product to check if it has a parent
+      const product = this.products.find(p => p.id === productId);
+      // Use parent product ID if exists, otherwise use the product ID itself
+      const targetProductId = (product?.parentProductId && product.parentProductId > 0) 
+        ? product.parentProductId 
+        : productId;
+      
       // Keep the lowest price if product appears multiple times
-      if (!uniqueProducts.has(productId) || uniqueProducts.get(productId)! > newPrice) {
-        uniqueProducts.set(productId, newPrice);
+      if (!uniqueProducts.has(targetProductId) || uniqueProducts.get(targetProductId)! > newPrice) {
+        uniqueProducts.set(targetProductId, newPrice);
       }
     });
 
     // Prepare prices array for bulk update
+    // These prices are saved to ClientProductPrice table, NOT to Product table
     const prices = Array.from(uniqueProducts.entries()).map(([productId, prix_vente_TTC]) => ({
       productId,
       prix_vente_TTC
@@ -617,26 +655,27 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
 
     const selectedProducts = this.products.filter(p => productIds.includes(p.id));
     
-    // Create sale items with wholesale pricing
+    // Create sale items with wholesale pricing (per bundle/fardeau)
     const items = selectedProducts.map(product => {
-      let finalPrice = Number(this.getWholesalePrice(product)) || 0;
+      // Calculate discounted bundle price (discount applied on margin for percentage)
+      const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, rule);
       
-      // Apply rule pricing
-      if (rule.ruleType === 'percentage') {
-        finalPrice = finalPrice * (1 - (Number(rule.value) || 0) / 100);
-      } else if (rule.ruleType === 'fixed') {
-        finalPrice = Number(rule.value) || 0;
-      } else if (rule.ruleType === 'discount') {
-        finalPrice = Math.max(0, finalPrice - (Number(rule.value) || 0));
-      }
+      // Convert to unit price for sale item
+      const config = this.getBundleConfig(product);
+      const finalUnitPrice = config.bundleSize > 0 
+        ? discountedBundlePrice / config.bundleSize 
+        : discountedBundlePrice;
 
       return {
         productId: product.id,
         productName: product.name,
-        quantity: 1, // Default quantity for wholesale
-        unitPrice: Number(finalPrice) || 0,
-        total: Number(finalPrice) || 0,
-        isWholesale: true
+        quantity: config.bundleSize || 1, // Quantity per bundle (fardeau)
+        unitPrice: Number(finalUnitPrice) || 0,
+        total: Number(discountedBundlePrice) || 0, // Total per bundle
+        isWholesale: true,
+        bundleQuantity: 1, // 1 bundle
+        bundleSize: config.bundleSize,
+        bundlePrice: discountedBundlePrice
       };
     });
 
@@ -750,6 +789,71 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     return true;
   }
 
+  // Get bundle price and size from product configuration
+  getBundleConfig(product: ClientGrosItem): { bundlePrice: number; bundleSize: number; prix_achat: number } {
+    // Resolve the base product that carries bundle configuration
+    const baseProductId = (product.parentProductId && product.parentProductId > 0)
+      ? product.parentProductId
+      : product.id;
+
+    let bundlePrice = 0;
+    let bundleSize = 0;
+    let prix_achat = 0;
+
+    // Try parent products cache first (warmed in background)
+    const cachedBase = this.parentProductsCache.get(baseProductId as number);
+    if (cachedBase) {
+      bundlePrice = Number(cachedBase.bundlePrice || 0);
+      bundleSize = Number(cachedBase.bundleSize || 0);
+      prix_achat = Number(cachedBase.prix_achat || 0);
+      if (bundlePrice > 0 && bundleSize > 0) {
+        return { bundlePrice, bundleSize, prix_achat };
+      }
+    }
+
+    // Fallback to currently loaded list (may include parents when SHOP, or subs when NOT_SHOP)
+    const listBase = this.products.find(p => p.id === baseProductId);
+    if (listBase) {
+      bundlePrice = Number(listBase.bundlePrice || 0);
+      bundleSize = Number(listBase.bundleSize || 0);
+      prix_achat = Number(listBase.prix_achat || 0);
+      if (bundlePrice > 0 && bundleSize > 0) {
+        return { bundlePrice, bundleSize, prix_achat };
+      }
+    }
+
+    // As a final fallback, try bundle config on the displayed product itself
+    bundlePrice = Number(product.bundlePrice || 0);
+    bundleSize = Number(product.bundleSize || 0);
+    prix_achat = Number(product.prix_achat || 0);
+    if (bundlePrice > 0 && bundleSize > 0) {
+      return { bundlePrice, bundleSize, prix_achat };
+    }
+
+    // No bundle info: return defaults
+    return { bundlePrice: 0, bundleSize: 1, prix_achat: 0 };
+  }
+
+  // Get wholesale margin: bundlePrice - (bundleSize * prix_achat)
+  getWholesaleMargin(product: ClientGrosItem): number {
+    const config = this.getBundleConfig(product);
+    const cost = config.bundleSize * config.prix_achat;
+    return config.bundlePrice - cost;
+  }
+
+  // Get base wholesale price from product configuration (for calculations)
+  getBaseWholesalePrice(product: ClientGrosItem): number {
+    // Always use base wholesale price from product configuration (bundlePrice / bundleSize)
+    // This is the price BEFORE any discount rules are applied
+    const config = this.getBundleConfig(product);
+    if (config.bundlePrice > 0 && config.bundleSize > 0) {
+      return config.bundlePrice / config.bundleSize;
+    }
+    // No bundle info anywhere: use original unit price
+    return Number(product.prix_vente_TTC) || 0;
+  }
+
+  // Get wholesale price for display (shows client-specific price if exists, otherwise base wholesale price)
   getWholesalePrice(product: ClientGrosItem): number {
     // First check if there's a client-specific price for the selected client
     if (this.selectedCustomer) {
@@ -764,37 +868,8 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Always use wholesale pricing in client-gros module
-    // Resolve the base product that carries bundle configuration
-    const baseProductId = (product.parentProductId && product.parentProductId > 0)
-      ? product.parentProductId
-      : product.id;
-
-    // Try parent products cache first (warmed in background)
-    const cachedBase = this.parentProductsCache.get(baseProductId as number) as any | undefined;
-    const cachedBundlePrice = Number(cachedBase?.bundlePrice || 0);
-    const cachedBundleSize = Number(cachedBase?.bundleSize || 0);
-    if (cachedBundlePrice > 0 && cachedBundleSize > 0) {
-      return cachedBundlePrice / cachedBundleSize;
-    }
-
-    // Fallback to currently loaded list (may include parents when SHOP, or subs when NOT_SHOP)
-    const listBase = this.products.find(p => p.id === baseProductId) as any | undefined;
-    const listBundlePrice = Number(listBase?.bundlePrice || 0);
-    const listBundleSize = Number(listBase?.bundleSize || 0);
-    if (listBundlePrice > 0 && listBundleSize > 0) {
-      return listBundlePrice / listBundleSize;
-    }
-
-    // As a final fallback, try bundle config on the displayed product itself
-    const selfBundlePrice = Number((product as any)?.bundlePrice || 0);
-    const selfBundleSize = Number((product as any)?.bundleSize || 0);
-    if (selfBundlePrice > 0 && selfBundleSize > 0) {
-      return selfBundlePrice / selfBundleSize;
-    }
-
-    // No bundle info anywhere: use original unit price
-    return Number(product.prix_vente_TTC) || 0;
+    // No client-specific price, use base wholesale price
+    return this.getBaseWholesalePrice(product);
   }
 
   hasWholesalePrice(product: ClientGrosItem): boolean {
@@ -802,17 +877,17 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       ? product.parentProductId
       : product.id;
 
-    const cachedBase = this.parentProductsCache.get(baseProductId as number) as any | undefined;
-    if (Number(cachedBase?.bundlePrice || 0) > 0 && Number(cachedBase?.bundleSize || 0) > 0) {
+    const cachedBase = this.parentProductsCache.get(baseProductId as number);
+    if (cachedBase && Number(cachedBase.bundlePrice || 0) > 0 && Number(cachedBase.bundleSize || 0) > 0) {
       return true;
     }
 
-    const listBase = this.products.find(p => p.id === baseProductId) as any | undefined;
-    if (Number(listBase?.bundlePrice || 0) > 0 && Number(listBase?.bundleSize || 0) > 0) {
+    const listBase = this.products.find(p => p.id === baseProductId);
+    if (listBase && Number(listBase.bundlePrice || 0) > 0 && Number(listBase.bundleSize || 0) > 0) {
       return true;
     }
 
-    if (Number((product as any)?.bundlePrice || 0) > 0 && Number((product as any)?.bundleSize || 0) > 0) {
+    if (Number(product.bundlePrice || 0) > 0 && Number(product.bundleSize || 0) > 0) {
       return true;
     }
 

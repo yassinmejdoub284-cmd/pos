@@ -136,6 +136,14 @@ export class CaisseComponent implements OnInit, OnDestroy {
   currentPage: number = 0;
   productsPerPage: number = 20; // Adjust based on screen size
   totalPages: number = 0;
+  showProductsPerPageMenu: boolean = false;
+  productsPerPageOptions: number[] = [5, 10, 15, 20];
+  
+  // Products selection per page
+  pageProductsMap: Map<number, number[]> = new Map(); // Map<pageNumber, productIds[]>
+  showProductSelectorModal: boolean = false;
+  selectedProductsForPage: number[] = []; // Product IDs selected for current page
+  shuffledProductsForWholesale: Product[] = []; // Shuffled products for wholesale mode
 
   // Shop inventory
   shopInventory: any[] = [];
@@ -546,6 +554,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadInvoiceRequests(); // Load existing invoice requests
     this.loadPendingReturnRequests(); // Load pending return requests
     this.loadSettings();
+    
+    // Load products per page preference
+    this.loadProductsPerPagePreference();
+    
+    // Load page products map
+    this.loadPageProductsMap();
     
     // Load session state and auto-open if none exists
     this.loadCurrentSession();
@@ -1028,11 +1042,38 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     // If wholesale mode is enabled, show only wholesale-capable products (fradeau/bundle)
     if (this.isWholesaleMode) {
-      filtered = filtered.filter(p => p.isWholesale && Number(p.bundleSize) > 0 && Number(p.bundlePrice) > 0);
+      filtered = filtered.filter(p => {
+        // Check if product itself is wholesale-capable
+        if (p.isWholesale && Number(p.bundleSize) > 0 && Number(p.bundlePrice) > 0) {
+          return true;
+        }
+        
+        // For sub-products (variants), check parent product
+        const parentProductId = (p as any).parentProductId;
+        if (parentProductId) {
+          const parentProduct = this.allProducts.find(pp => pp.id === parentProductId);
+          if (parentProduct && parentProduct.isWholesale && Number(parentProduct.bundleSize) > 0 && Number(parentProduct.bundlePrice) > 0) {
+            return true;
+          }
+        }
+        
+        // Also check if product has wholesale rules (alternative way to be wholesale)
+        const rule = this.findRuleForProduct(p.id);
+        if (rule) {
+          return true;
+        }
+        
+        return false;
+      });
     }
     
     // Store all filtered results
     this.filteredProducts = filtered;
+    
+    // Reset shuffled products for wholesale mode when products are filtered
+    if (this.isWholesaleMode) {
+      this.shuffledProductsForWholesale = [];
+    }
     
     // Update pagination
     this.updatePagination();
@@ -1072,9 +1113,222 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   getCurrentPageProducts(): Product[] {
+    // In wholesale mode, ignore product selection per page and use random order
+    if (this.isWholesaleMode) {
+      // Use shuffled products for wholesale mode
+      if (this.shuffledProductsForWholesale.length === 0 || this.shuffledProductsForWholesale.length !== this.filteredProducts.length) {
+        // Shuffle filtered products for wholesale mode
+        this.shuffledProductsForWholesale = this.shuffleArray([...this.filteredProducts]);
+      }
+      
+      // Use pagination on shuffled products
+      const startIndex = this.currentPage * this.productsPerPage;
+      const endIndex = startIndex + this.productsPerPage;
+      return this.shuffledProductsForWholesale.slice(startIndex, endIndex);
+    }
+    
+    // Normal mode: check if this page has custom product selection
+    const pageProductIds = this.pageProductsMap.get(this.currentPage);
+    
+    if (pageProductIds && pageProductIds.length > 0) {
+      // Get selected products from allProducts (not filteredProducts) to work in both modes
+      const selectedProducts = this.allProducts.filter(p => pageProductIds.includes(p.id));
+      // Show all selected products in normal mode
+      return selectedProducts;
+    }
+    
+    // Default: use pagination
     const startIndex = this.currentPage * this.productsPerPage;
     const endIndex = startIndex + this.productsPerPage;
     return this.filteredProducts.slice(startIndex, endIndex);
+  }
+
+  shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  loadProductsPerPagePreference(): void {
+    const saved = localStorage.getItem('caisse_productsPerPage');
+    if (saved) {
+      const value = parseInt(saved, 10);
+      if (value >= 5 && value <= 20) {
+        this.productsPerPage = value;
+        this.updatePagination();
+      }
+    }
+  }
+
+  toggleProductsPerPageMenu(): void {
+    this.showProductsPerPageMenu = !this.showProductsPerPageMenu;
+  }
+
+  closeProductsPerPageMenu(): void {
+    this.showProductsPerPageMenu = false;
+  }
+
+  setProductsPerPage(value: number): void {
+    if (value >= 5 && value <= 20) {
+      this.productsPerPage = value;
+      localStorage.setItem('caisse_productsPerPage', value.toString());
+      this.updatePagination();
+      this.closeProductsPerPageMenu();
+      this.showAlertMessage(`${value} produits par page`, 'success');
+    }
+  }
+
+  openProductSelectorForPage(): void {
+    // Load current page's selected products
+    const currentPageProducts = this.pageProductsMap.get(this.currentPage) || [];
+    this.selectedProductsForPage = [...currentPageProducts];
+    this.showProductSelectorModal = true;
+  }
+
+  closeProductSelectorModal(): void {
+    this.showProductSelectorModal = false;
+    this.selectedProductsForPage = [];
+  }
+
+  toggleProductSelection(productId: number): void {
+    const index = this.selectedProductsForPage.indexOf(productId);
+    if (index > -1) {
+      // Remove if already selected for current page
+      this.selectedProductsForPage.splice(index, 1);
+    } else {
+      // Check if product is already used in another page
+      const usedInOtherPage = this.isProductUsedInOtherPage(productId);
+      if (usedInOtherPage) {
+        this.showAlertMessage('Ce produit est déjà sélectionné pour une autre page', 'warning');
+        return;
+      }
+      
+      // Add if not selected and under limit
+      if (this.selectedProductsForPage.length < 20) {
+        this.selectedProductsForPage.push(productId);
+      } else {
+        this.showAlertMessage('Maximum 20 produits par page', 'warning');
+      }
+    }
+  }
+
+  isProductSelected(productId: number): boolean {
+    return this.selectedProductsForPage.includes(productId);
+  }
+
+  isProductUsedInOtherPage(productId: number): boolean {
+    // Check if product is selected in any other page (not current page)
+    for (const [pageNumber, productIds] of this.pageProductsMap.entries()) {
+      if (pageNumber !== this.currentPage && productIds.includes(productId)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  getProductUsedInPage(productId: number): number | null {
+    // Return the page number where this product is used, or null if not used
+    for (const [pageNumber, productIds] of this.pageProductsMap.entries()) {
+      if (pageNumber !== this.currentPage && productIds.includes(productId)) {
+        return pageNumber;
+      }
+    }
+    return null;
+  }
+
+  isProductAvailableInCurrentMode(product: Product): boolean {
+    // Check if product is available in current mode (wholesale or normal)
+    if (this.isWholesaleMode) {
+      // Check if product itself is wholesale-capable
+      if (product.isWholesale && Number(product.bundleSize) > 0 && Number(product.bundlePrice) > 0) {
+        return true;
+      }
+      
+      // For sub-products (variants), check parent product
+      const parentProductId = (product as any).parentProductId;
+      if (parentProductId) {
+        const parentProduct = this.allProducts.find(pp => pp.id === parentProductId);
+        if (parentProduct && parentProduct.isWholesale && Number(parentProduct.bundleSize) > 0 && Number(parentProduct.bundlePrice) > 0) {
+          return true;
+        }
+      }
+      
+      // Also check if product has wholesale rules
+      const rule = this.findRuleForProduct(product.id);
+      if (rule) {
+        return true;
+      }
+      
+      return false;
+    }
+    return true; // All products available in normal mode
+  }
+
+  saveProductsForCurrentPage(): void {
+    if (this.selectedProductsForPage.length === 0) {
+      // Remove page selection if empty
+      this.pageProductsMap.delete(this.currentPage);
+    } else {
+      // Remove products from other pages if they were moved to current page
+      const previousPageProducts = this.pageProductsMap.get(this.currentPage) || [];
+      const newProducts = this.selectedProductsForPage.filter(id => !previousPageProducts.includes(id));
+      
+      // Remove new products from all other pages
+      for (const [pageNumber, productIds] of this.pageProductsMap.entries()) {
+        if (pageNumber !== this.currentPage) {
+          const filteredIds = productIds.filter(id => !newProducts.includes(id));
+          if (filteredIds.length === 0) {
+            this.pageProductsMap.delete(pageNumber);
+          } else {
+            this.pageProductsMap.set(pageNumber, filteredIds);
+          }
+        }
+      }
+      
+      // Save selected products for current page (max 20)
+      const productsToSave = this.selectedProductsForPage.slice(0, 20);
+      this.pageProductsMap.set(this.currentPage, productsToSave);
+    }
+    
+    // Save to localStorage
+    this.savePageProductsMap();
+    
+    this.closeProductSelectorModal();
+    this.showAlertMessage(`${this.selectedProductsForPage.length} produit(s) sélectionné(s) pour cette page`, 'success');
+  }
+
+  clearProductsForCurrentPage(): void {
+    this.pageProductsMap.delete(this.currentPage);
+    this.savePageProductsMap();
+    this.closeProductSelectorModal();
+    this.showAlertMessage('Sélection de produits effacée pour cette page', 'info');
+  }
+
+  savePageProductsMap(): void {
+    const mapData: { [key: number]: number[] } = {};
+    this.pageProductsMap.forEach((productIds, pageNumber) => {
+      mapData[pageNumber] = productIds;
+    });
+    localStorage.setItem('caisse_pageProductsMap', JSON.stringify(mapData));
+  }
+
+  loadPageProductsMap(): void {
+    const saved = localStorage.getItem('caisse_pageProductsMap');
+    if (saved) {
+      try {
+        const mapData: { [key: number]: number[] } = JSON.parse(saved);
+        this.pageProductsMap.clear();
+        Object.keys(mapData).forEach(key => {
+          const pageNumber = parseInt(key, 10);
+          this.pageProductsMap.set(pageNumber, mapData[pageNumber]);
+        });
+      } catch (error) {
+        console.error('Error loading page products map:', error);
+      }
+    }
   }
 
   trackByProduct(index: number, product: Product): number {
@@ -1234,6 +1488,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.pendingWholesaleToggle = false;
     // Clear current cart when switching modes
     this.clearReceipt();
+    // Reset shuffled products when switching modes
+    this.shuffledProductsForWholesale = [];
     // Reload products to get all products (including variants) when enabling wholesale mode
     if (this.isWholesaleMode && this.selectedClient) {
       this.loadProducts();
@@ -1244,12 +1500,38 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   toggleDragMode(): void {
-    this.dragModeEnabled = !this.dragModeEnabled;
-    
-    // If disabling drag mode and currently dragging, cancel the drag
-    if (!this.dragModeEnabled && this.isDragMode) {
-      this.dragDropService.cancelDrag();
+    // If currently enabled and we're about to disable, complete any active drag operation
+    if (this.dragModeEnabled && this.isDragMode) {
+      const dragState = this.dragDropService.getCurrentDragState();
+      if (dragState.targetGlobalIndex !== null && dragState.targetGlobalIndex !== dragState.fromGlobalIndex) {
+        // Calculate source and destination pages
+        const fromPage = Math.floor(dragState.fromGlobalIndex / this.productsPerPage);
+        const toPage = Math.floor(dragState.targetGlobalIndex / this.productsPerPage);
+        
+        // Show confirmation notification if moving to a different page
+        if (fromPage !== toPage) {
+          const productName = dragState.draggedProduct?.name || 'Produit';
+          setTimeout(() => {
+            this.showAlertMessage(
+              `${productName} déplacé de la page ${fromPage + 1} vers la page ${toPage + 1}`,
+              'success'
+            );
+          }, 600);
+        }
+        
+        // Complete the drop operation to save the new position
+        this.dragDropService.drop(
+          dragState.fromGlobalIndex,
+          dragState.targetGlobalIndex,
+          this.allProducts
+        );
+      } else {
+        // No valid target, just cancel the drag
+        this.dragDropService.cancelDrag();
+      }
     }
+    
+    this.dragModeEnabled = !this.dragModeEnabled;
     
     // Show feedback message
     const message = this.dragModeEnabled ? 'Mode modification activé' : 'Mode modification désactivé';
@@ -2169,22 +2451,44 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // so they are recorded as advancePayment instead of clearing them.
     
     const saleData: CreateSaleRequest = {
-      items: activeCart.items.map(item => ({
-        productId: item.product.id,
-        productName: item.product.name,
-        quantity: item.quantity,
-        unitPrice: Number(item.unitPrice),
-        total: Number(item.total),
-        discount: 0,
-        // Wholesale fields
-        isWholesale: item.isWholesale || false,
-        bundleQuantity: item.bundleQuantity || undefined,
-        bundleSize: item.bundleSize || undefined,
-        bundlePrice: item.bundlePrice || undefined,
-        // Advance payment fields for credit
-        advancePayment: this.salePaymentType === 'CREDIT' ? (Number(this.amountPaid || 0)) : undefined,
-        advancePaymentMethod: this.salePaymentType === 'CREDIT' ? this.paymentType as any : undefined
-      })),
+      items: activeCart.items.map(item => {
+        // For wholesale items, ensure unitPrice uses bundlePrice if available
+        const isWholesale = item.isWholesale || false;
+        const effectiveUnitPrice = isWholesale && item.bundlePrice 
+          ? Number(item.bundlePrice) 
+          : (Number(item.unitPrice) || 0);
+        
+        // For wholesale items, ensure quantity is valid
+        // Server accepts either quantity (total units) or bundleQuantity (number of bundles)
+        let effectiveQuantity = item.quantity;
+        if (isWholesale) {
+          // If quantity is invalid/zero but we have bundleQuantity and bundleSize, calculate total units
+          if ((!effectiveQuantity || effectiveQuantity === 0) && item.bundleQuantity && item.bundleSize) {
+            effectiveQuantity = Number(item.bundleQuantity) * Number(item.bundleSize);
+          }
+          // If still invalid, use bundleQuantity as fallback (server will accept it)
+          if ((!effectiveQuantity || effectiveQuantity === 0) && item.bundleQuantity) {
+            effectiveQuantity = Number(item.bundleQuantity);
+          }
+        }
+        
+        return {
+          productId: item.product.id,
+          productName: item.product.name,
+          quantity: effectiveQuantity,
+          unitPrice: effectiveUnitPrice,
+          total: Number(item.total),
+          discount: 0,
+          // Wholesale fields
+          isWholesale: isWholesale,
+          bundleQuantity: item.bundleQuantity || undefined,
+          bundleSize: item.bundleSize || undefined,
+          bundlePrice: item.bundlePrice || undefined,
+          // Advance payment fields for credit
+          advancePayment: this.salePaymentType === 'CREDIT' ? (Number(this.amountPaid || 0)) : undefined,
+          advancePaymentMethod: this.salePaymentType === 'CREDIT' ? this.paymentType as any : undefined
+        };
+      }),
       total: Number(activeCart.subtotal),
       discount: Number(activeCart.discount),
       finalTotal: Number(activeCart.netTotal),
@@ -5148,6 +5452,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.dragDropService.onPageChange
       .pipe(takeUntil(this.destroy$))
       .subscribe(({ direction, currentPage }) => {
+        // Prevent page changes when drag mode (Modifier) is enabled
+        if (this.dragModeEnabled) {
+          return;
+        }
         if (direction === 'prev' && this.currentPage > 0) {
           this.currentPage--;
         } else if (direction === 'next' && this.currentPage < this.totalPages - 1) {
@@ -5239,6 +5547,19 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // Handle drag end
       const dragState = this.dragDropService.getCurrentDragState();
       if (dragState.targetGlobalIndex !== null) {
+        // Calculate source and destination pages
+        const fromPage = Math.floor(dragState.fromGlobalIndex / this.productsPerPage);
+        const toPage = Math.floor(dragState.targetGlobalIndex / this.productsPerPage);
+        
+        // Show confirmation notification if moving to a different page
+        if (fromPage !== toPage) {
+          const productName = dragState.draggedProduct?.name || 'Produit';
+          this.showAlertMessage(
+            `${productName} déplacé de la page ${fromPage + 1} vers la page ${toPage + 1}`,
+            'success'
+          );
+        }
+        
         this.dragDropService.drop(
           dragState.fromGlobalIndex,
           dragState.targetGlobalIndex,
@@ -5343,6 +5664,19 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // Handle drag end
       const dragState = this.dragDropService.getCurrentDragState();
       if (dragState.targetGlobalIndex !== null) {
+        // Calculate source and destination pages
+        const fromPage = Math.floor(dragState.fromGlobalIndex / this.productsPerPage);
+        const toPage = Math.floor(dragState.targetGlobalIndex / this.productsPerPage);
+        
+        // Show confirmation notification if moving to a different page
+        if (fromPage !== toPage) {
+          const productName = dragState.draggedProduct?.name || 'Produit';
+          this.showAlertMessage(
+            `${productName} déplacé de la page ${fromPage + 1} vers la page ${toPage + 1}`,
+            'success'
+          );
+        }
+        
         this.dragDropService.drop(
           dragState.fromGlobalIndex,
           dragState.targetGlobalIndex,

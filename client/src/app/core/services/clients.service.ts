@@ -15,7 +15,7 @@ export class ClientsService {
     private http: HttpClient
   ) {}
 
-  getClients(page: number = 1, limit: number = 20, search?: string, type?: string, active?: boolean): Observable<ClientsResponse> {
+  getClients(page: number = 1, limit: number = 20, search?: string, type?: string, active?: boolean, sortBy?: string, sortOrder?: 'asc' | 'desc'): Observable<ClientsResponse> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('limit', limit.toString());
@@ -28,6 +28,12 @@ export class ClientsService {
     }
     if (active !== undefined) {
       params = params.set('active', active.toString());
+    }
+    if (sortBy) {
+      params = params.set('sortBy', sortBy);
+    }
+    if (sortOrder) {
+      params = params.set('sortOrder', sortOrder);
     }
 
     return this.http.get<ClientsResponse>(this.apiUrl, { params }).pipe(
