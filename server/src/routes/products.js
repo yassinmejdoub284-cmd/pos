@@ -1518,6 +1518,176 @@ router.post('/transfer', authenticateToken, async (req, res) => {
   }
 });
 
+// Transfer product to multiple target products
+router.post('/transfer-multiple', authenticateToken, async (req, res) => {
+  try {
+    console.log('Multiple transfer request body:', req.body);
+    const { sourceProductId, transfers, depotId } = req.body;
+
+    // Validate required fields
+    if (!sourceProductId || !transfers || !Array.isArray(transfers) || transfers.length === 0 || !depotId) {
+      return res.status(400).json({ 
+        error: 'Tous les champs sont requis et transfers doit être un tableau non vide'
+      });
+    }
+
+    const sourceProduct = await prisma.product.findUnique({
+      where: { id: parseInt(sourceProductId) }
+    });
+
+    if (!sourceProduct) {
+      return res.status(404).json({ error: 'Produit source non trouvé' });
+    }
+
+    // Validate all target products exist
+    const targetProductIds = transfers.map(t => parseInt(t.targetProductId));
+    const targetProducts = await prisma.product.findMany({
+      where: { id: { in: targetProductIds } }
+    });
+
+    if (targetProducts.length !== targetProductIds.length) {
+      return res.status(404).json({ error: 'Un ou plusieurs produits cibles non trouvés' });
+    }
+
+    const depotIdInt = parseInt(depotId);
+
+    // Validate all transfers
+    for (const transfer of transfers) {
+      if (!transfer.targetProductId || transfer.quantity === undefined || transfer.quantity === null || 
+          transfer.conversionRatio === undefined || transfer.conversionRatio === null) {
+        return res.status(400).json({ error: 'Tous les champs de transfert sont requis' });
+      }
+      if (parseFloat(transfer.quantity) <= 0) {
+        return res.status(400).json({ error: 'La quantité doit être positive' });
+      }
+      if (parseFloat(transfer.conversionRatio) <= 0) {
+        return res.status(400).json({ error: 'Le ratio de conversion doit être positif' });
+      }
+    }
+
+    // Calculate total source quantity needed
+    const totalSourceQuantity = transfers.reduce((sum, transfer) => {
+      return sum + parseFloat(transfer.quantity);
+    }, 0);
+
+    // Check source inventory
+    const sourceInventory = await prisma.inventory.findUnique({
+      where: {
+        depotId_productId: {
+          depotId: depotIdInt,
+          productId: parseInt(sourceProductId)
+        }
+      }
+    });
+
+    const currentSourceQuantity = parseFloat(sourceInventory?.quantity || 0);
+
+    // Perform all transfers in a single transaction
+    await prisma.$transaction(async (tx) => {
+      // Reduce source product inventory
+      if (sourceInventory) {
+        const newSourceQuantity = currentSourceQuantity - totalSourceQuantity;
+        await tx.inventory.update({
+          where: { id: sourceInventory.id },
+          data: { quantity: newSourceQuantity }
+        });
+      } else {
+        await tx.inventory.create({
+          data: {
+            depotId: depotIdInt,
+            productId: parseInt(sourceProductId),
+            quantity: -totalSourceQuantity
+          }
+        });
+      }
+
+      // Process each transfer
+      for (const transfer of transfers) {
+        const targetProductId = parseInt(transfer.targetProductId);
+        const sourceQuantity = parseFloat(transfer.quantity);
+        const ratio = parseFloat(transfer.conversionRatio);
+        const targetQuantity = sourceQuantity * ratio;
+
+        const targetProduct = targetProducts.find(p => p.id === targetProductId);
+
+        // Add target product inventory
+        const targetInventory = await tx.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: depotIdInt,
+              productId: targetProductId
+            }
+          }
+        });
+
+        if (targetInventory) {
+          const currentTargetQuantity = parseFloat(targetInventory.quantity) || 0;
+          await tx.inventory.update({
+            where: { id: targetInventory.id },
+            data: { quantity: currentTargetQuantity + targetQuantity }
+          });
+        } else {
+          await tx.inventory.create({
+            data: {
+              depotId: depotIdInt,
+              productId: targetProductId,
+              quantity: targetQuantity
+            }
+          });
+        }
+
+        // Create stock movement records
+        const referenceText = `Transfer ${sourceProduct.name} -> ${targetProduct.name} (${sourceQuantity} x ${ratio} = ${targetQuantity})`;
+        
+        await tx.stockMovement.create({
+          data: {
+            productId: parseInt(sourceProductId),
+            depotId: depotIdInt,
+            quantity: -sourceQuantity,
+            type: 'OUT',
+            reason: 'PRODUCT_CONVERSION',
+            reference: referenceText,
+            userId: req.user.id
+          }
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            productId: targetProductId,
+            depotId: depotIdInt,
+            quantity: targetQuantity,
+            type: 'IN',
+            reason: 'PRODUCT_CONVERSION',
+            reference: referenceText,
+            userId: req.user.id
+          }
+        });
+      }
+    });
+
+    await logAudit(req.user.id, 'products', parseInt(sourceProductId), 'TRANSFER_MULTIPLE', null, {
+      sourceProductId,
+      transfers: transfers.map(t => ({
+        targetProductId: t.targetProductId,
+        quantity: t.quantity,
+        conversionRatio: t.conversionRatio
+      })),
+      depotId: depotIdInt
+    });
+
+    res.json({ 
+      success: true,
+      message: `Transfert réussi: ${transfers.length} produit(s) cible(s) transféré(s)`
+    });
+  } catch (error) {
+    console.error('Error transferring products:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors du transfert des produits',
+      details: error.message 
+    });
+  }
+});
+
 // IMPORTANT: This route must come BEFORE router.get('/:id') to avoid route conflicts
 // Get transfer history to vrac
 router.get('/transfer-history', authenticateToken, async (req, res) => {

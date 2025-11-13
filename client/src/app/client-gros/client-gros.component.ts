@@ -520,6 +520,45 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     this.showArchivedRules = !this.showArchivedRules;
   }
 
+  updatePricesOnly(): void {
+    if (this.appliedRules.length === 0) {
+      alert('Aucune règle appliquée');
+      return;
+    }
+
+    // Track all products that need price updates
+    const productsToUpdate: { productId: number; newPrice: number }[] = [];
+    
+    this.appliedRules.forEach(appliedRule => {
+      const selectedProducts = this.products.filter(p => appliedRule.productIds.includes(p.id));
+      
+      // Calculate new prices for each product (per bundle/fardeau)
+      selectedProducts.forEach(product => {
+        // Calculate discounted bundle price (discount applied on margin for percentage)
+        const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, appliedRule.rule);
+        
+        // Convert to unit price for storage (price per unit after discount)
+        const config = this.getBundleConfig(product);
+        const finalUnitPrice = config.bundleSize > 0 
+          ? discountedBundlePrice / config.bundleSize 
+          : discountedBundlePrice;
+
+        // Store the new price for this product (will be saved to client-specific prices only)
+        // This is the unit price after discount
+        productsToUpdate.push({
+          productId: product.id,
+          newPrice: finalUnitPrice
+        });
+      });
+    });
+
+    // Update product prices in database without creating sales
+    this.updateProductPrices(productsToUpdate);
+
+    // Clear applied rules after saving
+    this.appliedRules = [];
+  }
+
   confirmAndSave(): void {
     if (this.appliedRules.length === 0) {
       alert('Aucune règle appliquée');

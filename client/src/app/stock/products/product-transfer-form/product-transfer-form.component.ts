@@ -10,6 +10,7 @@ import { Product, ProductFamily } from '../../../core/models/product.model';
 })
 export class ProductTransferFormComponent implements OnInit, OnChanges {
   @Input() sourceProduct: Product | null = null;
+  @Input() fixedVracMode: boolean = false;
   @Output() transferred = new EventEmitter<{
     targetProductId: number;
     quantity: number;
@@ -26,6 +27,7 @@ export class ProductTransferFormComponent implements OnInit, OnChanges {
   error = '';
   targetType: 'vrac' | 'stock' | 'gros' | 'imported' | 'family' = 'vrac';
   selectedFamilyId: number | null = null;
+  jusVracFamilyId: number | null = null;
 
   constructor(
     private fb: FormBuilder,
@@ -48,29 +50,59 @@ export class ProductTransferFormComponent implements OnInit, OnChanges {
       this.transferForm.get('conversionRatio')?.disable();
     }
     
-    this.loadFamilies();
-    this.loadTargetProducts();
-    this.transferForm.get('targetType')?.valueChanges.subscribe(type => {
-      this.targetType = type;
-      this.transferForm.patchValue({ targetProductId: null, targetFamilyId: null });
-      this.selectedFamilyId = null;
+    // If fixed vrac mode, set up fixed parameters
+    if (this.fixedVracMode) {
+      this.targetType = 'family';
+      this.transferForm.patchValue({ targetType: 'family' });
+      this.transferForm.get('targetType')?.disable();
       
-      // Update validators based on target type
-      const familyControl = this.transferForm.get('targetFamilyId');
-      if (type === 'family') {
-        familyControl?.setValidators([Validators.required]);
-      } else {
-        familyControl?.clearValidators();
-      }
-      familyControl?.updateValueAndValidity();
-      
+      // Find JUS VRAC family
+      this.productsService.getFamilles().subscribe({
+        next: (families) => {
+          this.families = families;
+          const jusVracFamily = families.find(f => 
+            f.name === 'JUS VRAC' || 
+            f.name.toUpperCase() === 'JUS VRAC'
+          );
+          if (jusVracFamily) {
+            this.jusVracFamilyId = jusVracFamily.id;
+            this.selectedFamilyId = jusVracFamily.id;
+            this.transferForm.patchValue({ targetFamilyId: jusVracFamily.id });
+            this.transferForm.get('targetFamilyId')?.disable();
+            this.loadTargetProducts();
+          } else {
+            this.error = 'Famille JUS VRAC non trouvée';
+          }
+        },
+        error: (error) => {
+          this.error = 'Erreur lors du chargement des familles';
+        }
+      });
+    } else {
+      this.loadFamilies();
       this.loadTargetProducts();
-    });
-    this.transferForm.get('targetFamilyId')?.valueChanges.subscribe(familyId => {
-      this.selectedFamilyId = familyId ? parseInt(familyId) : null;
-      this.transferForm.patchValue({ targetProductId: null });
-      this.loadTargetProducts();
-    });
+      this.transferForm.get('targetType')?.valueChanges.subscribe(type => {
+        this.targetType = type;
+        this.transferForm.patchValue({ targetProductId: null, targetFamilyId: null });
+        this.selectedFamilyId = null;
+        
+        // Update validators based on target type
+        const familyControl = this.transferForm.get('targetFamilyId');
+        if (type === 'family') {
+          familyControl?.setValidators([Validators.required]);
+        } else {
+          familyControl?.clearValidators();
+        }
+        familyControl?.updateValueAndValidity();
+        
+        this.loadTargetProducts();
+      });
+      this.transferForm.get('targetFamilyId')?.valueChanges.subscribe(familyId => {
+        this.selectedFamilyId = familyId ? parseInt(familyId) : null;
+        this.transferForm.patchValue({ targetProductId: null });
+        this.loadTargetProducts();
+      });
+    }
   }
 
   loadFamilies(): void {
@@ -108,8 +140,9 @@ export class ProductTransferFormComponent implements OnInit, OnChanges {
               return product.name?.toLowerCase().includes('import');
             case 'family':
               // Filter by selected family
-              if (this.selectedFamilyId) {
-                return product.familleId === this.selectedFamilyId;
+              if (this.selectedFamilyId || this.jusVracFamilyId) {
+                const familyId = this.selectedFamilyId || this.jusVracFamilyId;
+                return product.familleId === familyId;
               }
               return true; // Show all if no family selected
             default:

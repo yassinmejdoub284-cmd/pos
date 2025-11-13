@@ -10,6 +10,7 @@ import { BulkImportComponent } from './bulk-import/bulk-import.component';
 import { VracConversionFormComponent } from './vrac-conversion-form/vrac-conversion-form.component';
 import { VracStatisticsComponent } from './vrac-statistics/vrac-statistics.component';
 import { ProductTransferFormComponent } from './product-transfer-form/product-transfer-form.component';
+import { MultiTransferFormComponent } from './multi-transfer-form/multi-transfer-form.component';
 import { ImageUploadModalComponent } from '../../shared/components/image-upload-modal/image-upload-modal.component';
 import { ConservationWarningsComponent } from '../../shared/components/conservation-warnings/conservation-warnings.component';
 import { MultiDepotSelectorComponent } from '../../shared/multi-depot-selector/multi-depot-selector.component';
@@ -21,7 +22,8 @@ import { MultiDepotSelectorComponent } from '../../shared/multi-depot-selector/m
     BulkImportComponent,
     VracConversionFormComponent,
     VracStatisticsComponent,
-    ProductTransferFormComponent
+    ProductTransferFormComponent,
+    MultiTransferFormComponent
   ],
   imports: [
     CommonModule,

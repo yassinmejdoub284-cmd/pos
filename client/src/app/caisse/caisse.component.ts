@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef } from '@angular/core';
+  import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ProductsService } from '../core/services/products.service';
@@ -1427,14 +1427,22 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
+    // Get the effective unit price (client-specific price if available)
+    const effectiveUnitPrice = this.getEffectiveUnitPrice(product);
+    const bundleSize = product.bundleSize || 1;
+    // Calculate bundle price based on effective unit price (client-specific if available)
+    const effectiveBundlePrice = effectiveUnitPrice * bundleSize;
+    
     const existingItem = activeCart.items.find(item => item.product.id === product.id && item.isWholesale);
     
     if (existingItem) {
       existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + Number(bundleCount || 0);
-      existingItem.quantity = this.roundQuantity(existingItem.bundleQuantity * (product.bundleSize || 1));
-      existingItem.total = Number(existingItem.bundleQuantity) * Number(product.bundlePrice);
+      existingItem.quantity = this.roundQuantity(existingItem.bundleQuantity * bundleSize);
+      // Update bundlePrice to use effective price (client-specific if available)
+      existingItem.bundlePrice = effectiveBundlePrice;
+      existingItem.total = Number(existingItem.bundleQuantity) * Number(effectiveBundlePrice);
       // Ensure designation shows fradeau info
-      const label = `${product.name} (fradeau x${product.bundleSize || 1})`;
+      const label = `${product.name} (fradeau x${bundleSize})`;
       (existingItem as any).displayName = label;
       (existingItem as any).productName = label;
       
@@ -1444,17 +1452,17 @@ export class CaisseComponent implements OnInit, OnDestroy {
     } else {
       const newItem = {
         product,
-        quantity: this.roundQuantity((product.bundleSize || 1) * Number(bundleCount || 1)),
-        unitPrice: Number(product.bundlePrice),
-        total: Number(product.bundlePrice) * Number(bundleCount || 1),
+        quantity: this.roundQuantity(bundleSize * Number(bundleCount || 1)),
+        unitPrice: effectiveUnitPrice,
+        total: effectiveBundlePrice * Number(bundleCount || 1),
         isGift: false,
         isWholesale: true,
         bundleQuantity: Number(bundleCount || 1),
-        bundleSize: product.bundleSize,
-        bundlePrice: product.bundlePrice,
+        bundleSize: bundleSize,
+        bundlePrice: effectiveBundlePrice, // Use effective bundle price (client-specific if available)
         isApproved: false
       };
-      const label = `${product.name} (fradeau x${product.bundleSize || 1})`;
+      const label = `${product.name} (fradeau x${bundleSize})`;
       (newItem as any).displayName = label;
       (newItem as any).productName = label;
       activeCart.items.unshift(newItem);
@@ -1490,9 +1498,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.clearReceipt();
     // Reset shuffled products when switching modes
     this.shuffledProductsForWholesale = [];
-    // Reload products to get all products (including variants) when enabling wholesale mode
+    
+    // When enabling wholesale mode with a client selected, reload client prices first
     if (this.isWholesaleMode && this.selectedClient) {
-      this.loadProducts();
+      this.loadClientPrices(this.selectedClient.id);
     } else {
       // Refresh product listing to reflect mode change (show all when off)
       this.filterProducts();
@@ -1814,9 +1823,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     activeCart.clientId = client.id;
     activeCart.clientName = `${client.firstName} ${client.lastName}`;
     
-    // Load client-specific prices from client-gros endpoint
-    this.loadClientPrices(client.id);
-    
     // If we were waiting for client selection to enable wholesale mode, do it now
     if (this.pendingWholesaleToggle) {
       this.isWholesaleMode = true;
@@ -1829,13 +1835,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     }
     
     this.showClientSearchPopup = false;
-    // Reload products to get all products (including variants) when in wholesale mode
-    if (this.isWholesaleMode && this.selectedClient) {
-      this.loadProducts();
-    } else {
-      // Refresh product list according to mode
-      this.filterProducts();
-    }
+    
+    // Load client-specific prices from client-gros endpoint first, then reload products
+    // This ensures products are loaded with the correct fixed prices for the client
+    this.loadClientPrices(client.id);
   }
 
   loadClientPrices(clientId: number): void {
@@ -1852,13 +1855,29 @@ export class CaisseComponent implements OnInit, OnDestroy {
             this.clientPrices.set(productId, price);
           }
         });
-        // Refresh product prices display
+        
+        // Reload products to get all products (including variants) with fixed prices when in wholesale mode
+        if (this.isWholesaleMode && this.selectedClient) {
+          this.loadProducts();
+        } else {
+          // Refresh product list according to mode
+          this.filterProducts();
+        }
+        
+        // Refresh product prices display in cart
         this.calculateTotals();
       },
       error: (error: any) => {
         // If endpoint doesn't exist yet or no prices found, just clear the cache
         // This means we'll use default/wholesale prices
         this.clientPrices.clear();
+        
+        // Still reload products even if prices failed to load
+        if (this.isWholesaleMode && this.selectedClient) {
+          this.loadProducts();
+        } else {
+          this.filterProducts();
+        }
       }
     });
   }
@@ -3725,13 +3744,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.currentInput = '';
   }
 
-  // Simple multiply functionality - toggle between quantity and price mode
+  // Switch to price mode when PRIX button is clicked
   handleMultiply(): void {
-    if (this.inputMode === 'quantity') {
-      this.inputMode = 'price';
-    } else {
-      this.inputMode = 'quantity';
-    }
+    // Only switch to price mode when clicked, don't toggle back
+    this.inputMode = 'price';
     this.currentInput = '';
   }
 
@@ -4218,9 +4234,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
     if (existingItem) {
       if (isWholesaleContext && product.isWholesale && product.bundleSize) {
         // For wholesale items, update bundle quantity
+        const effectiveUnitPrice = this.getEffectiveUnitPrice(product);
+        const effectiveBundlePrice = effectiveUnitPrice * product.bundleSize;
         existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + Number(quantity);
         existingItem.quantity = this.roundQuantity(existingItem.bundleQuantity * product.bundleSize);
-        existingItem.total = existingItem.bundleQuantity * (product.bundlePrice || 0);
+        existingItem.bundlePrice = effectiveBundlePrice; // Update to use effective price (client-specific if available)
+        existingItem.total = existingItem.bundleQuantity * effectiveBundlePrice;
       } else {
         // For regular items, update quantity directly
         existingItem.quantity = this.roundQuantity(Number(existingItem.quantity) + Number(quantity));
@@ -4238,6 +4257,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     } else {
       const unitPrice = this.getEffectiveUnitPrice(product);
       const isWholesaleContext = this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE';
+      // Calculate effective bundle price for wholesale items
+      const effectiveBundlePrice = isWholesaleContext && product.isWholesale && product.bundleSize
+        ? unitPrice * product.bundleSize
+        : undefined;
       const newItem = {
         product,
         quantity: this.roundQuantity(isWholesaleContext && product.isWholesale && product.bundleSize ? Number(quantity) * product.bundleSize : Number(quantity)),
@@ -4247,7 +4270,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
         isWholesale: isWholesaleContext && product.isWholesale,
         bundleQuantity: isWholesaleContext && product.isWholesale ? Number(quantity) : undefined,
         bundleSize: isWholesaleContext && product.isWholesale ? product.bundleSize : undefined,
-        bundlePrice: isWholesaleContext && product.isWholesale ? product.bundlePrice : undefined
+        bundlePrice: effectiveBundlePrice // Use effective bundle price (client-specific if available)
       };
       // designation override
       if ((this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && product.bundleSize) {
@@ -4643,7 +4666,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
         this.selectedReceiptItem = existingItem;
         this.selectedReceiptItemIndex = index;
         this.pendingProduct = product;
-        this.inputMode = 'price'; // Set to price mode for editing
+        // Keep quantity mode - user can click PRIX button if they want to edit price
+        this.inputMode = 'quantity';
         this.currentInput = '';
         
         this.showAlertMessage(
@@ -4689,16 +4713,14 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // If negative stock is allowed, continue without showing the dialog
     }
     
-    if (this.inputMode === 'quantity') {
-      // In quantity mode: automatically add +1, but allow custom quantity input
-      this.addProductToReceiptWithQuantity(product, 1);
-      this.pendingProduct = product;
-      this.currentInput = ''; // Don't show "1" in input
-    } else if (this.inputMode === 'price') {
-      // In price mode: set pending product for price input (PU)
-      this.pendingProduct = product;
-      this.currentInput = '';
-    }
+    // Always default to quantity mode when selecting a new product
+    // User must explicitly click PRIX button to enter price mode
+    this.inputMode = 'quantity';
+    
+    // In quantity mode: automatically add +1, but allow custom quantity input
+    this.addProductToReceiptWithQuantity(product, 1);
+    this.pendingProduct = product;
+    this.currentInput = ''; // Don't show "1" in input
   }
 
   showStockWarning(product: Product, quantity: number, currentStock: number): void {
@@ -5821,17 +5843,36 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getWholesaleUnitPrice(product: any): number {
     // First check if there's a client-specific price for the selected client
-    if (this.selectedClient && this.clientPrices.has(product.id)) {
-      const clientPrice = this.clientPrices.get(product.id)!;
-      // Apply wholesale rules if any
-      const rule = this.findRuleForProduct(product.id);
-      if (rule) {
-        const val = Number(rule.value) || 0;
-        if (rule.ruleType === 'percentage') return clientPrice * (1 - val / 100);
-        if (rule.ruleType === 'fixed') return val;
-        if (rule.ruleType === 'discount') return Math.max(0, clientPrice - val);
+    // This should match the logic in client-gros getWholesalePrice method
+    if (this.selectedClient) {
+      // Check for direct product ID match
+      if (this.clientPrices.has(product.id)) {
+        const clientPrice = this.clientPrices.get(product.id)!;
+        // Apply wholesale rules if any
+        const rule = this.findRuleForProduct(product.id);
+        if (rule) {
+          const val = Number(rule.value) || 0;
+          if (rule.ruleType === 'percentage') return clientPrice * (1 - val / 100);
+          if (rule.ruleType === 'fixed') return val;
+          if (rule.ruleType === 'discount') return Math.max(0, clientPrice - val);
+        }
+        return clientPrice;
       }
-      return clientPrice;
+      
+      // Also check for parent product ID if this is a variant
+      const parentProductId = product.parentProductId;
+      if (parentProductId && parentProductId > 0 && this.clientPrices.has(parentProductId)) {
+        const clientPrice = this.clientPrices.get(parentProductId)!;
+        // Apply wholesale rules if any (check both product.id and parentProductId)
+        const rule = this.findRuleForProduct(product.id) || this.findRuleForProduct(parentProductId);
+        if (rule) {
+          const val = Number(rule.value) || 0;
+          if (rule.ruleType === 'percentage') return clientPrice * (1 - val / 100);
+          if (rule.ruleType === 'fixed') return val;
+          if (rule.ruleType === 'discount') return Math.max(0, clientPrice - val);
+        }
+        return clientPrice;
+      }
     }
     
     // Use depot-specific price if available, otherwise use default price
@@ -5844,12 +5885,25 @@ export class CaisseComponent implements OnInit, OnDestroy {
         baseUnit = Number(depotPrice.prix_vente_TTC) || 0;
       }
     }
-    const bundlePrice = Number(product.bundlePrice) || 0;
-    const bundleSize = Number(product.bundleSize) || 0;
+    
+    // Get bundle config - check parent product if this is a variant (matches client-gros logic)
+    let bundlePrice = Number(product.bundlePrice) || 0;
+    let bundleSize = Number(product.bundleSize) || 0;
+    const parentProductId = product.parentProductId;
+    
+    // If no bundle config on current product and it's a variant, check parent product
+    if ((bundlePrice === 0 || bundleSize === 0) && parentProductId && parentProductId > 0) {
+      const parentProduct = this.allProducts.find(p => p.id === parentProductId);
+      if (parentProduct) {
+        bundlePrice = Number(parentProduct.bundlePrice) || 0;
+        bundleSize = Number(parentProduct.bundleSize) || 0;
+      }
+    }
 
-    // If product is wholesale-capable, we sell by bundle: unit price represents one bundle price
+    // If product is wholesale-capable, calculate unit price per item (bundlePrice / bundleSize)
+    // This matches the logic in client-gros getBaseWholesalePrice method
     const baseForWholesale = (product.isWholesale && bundlePrice > 0 && bundleSize > 0)
-      ? bundlePrice
+      ? bundlePrice / bundleSize
       : baseUnit;
 
     const rule = this.findRuleForProduct(product.id);
@@ -5865,8 +5919,18 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getEffectiveUnitPrice(product: any): number {
     // First check if there's a client-specific price (from client-gros)
-    if (this.selectedClient && this.clientPrices.has(product.id)) {
-      return this.clientPrices.get(product.id)!;
+    // This should match the logic in client-gros getWholesalePrice method
+    if (this.selectedClient) {
+      // Check for direct product ID match
+      if (this.clientPrices.has(product.id)) {
+        return this.clientPrices.get(product.id)!;
+      }
+      
+      // Also check for parent product ID if this is a variant
+      const parentProductId = product.parentProductId;
+      if (parentProductId && parentProductId > 0 && this.clientPrices.has(parentProductId)) {
+        return this.clientPrices.get(parentProductId)!;
+      }
     }
     
     const isWholesaleContext = this.isWholesaleMode || (this.selectedClient?.clientType === 'WHOLESALE');

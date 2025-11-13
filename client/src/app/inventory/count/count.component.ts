@@ -66,6 +66,9 @@ export class CountComponent implements OnInit, OnDestroy {
   saving = false;
   error = '';
   success = '';
+  showSuccessNotification = false;
+  successNotificationMessage = '';
+  successNotificationProduct = '';
   
   // Statistics
   totalItems = 0;
@@ -254,9 +257,8 @@ export class CountComponent implements OnInit, OnDestroy {
     console.log('hasStockProductsInDepot:', this.hasStockProductsInDepot);
     console.log('items to process:', this.items.length);
     
-    // Only show items that have already been counted (countedQuantity is not null)
-    // This prevents preselection of all products - users must manually add products to count
-    const itemsToProcess = this.items.filter(item => item.countedQuantity !== null);
+    // Show ALL items from the session to allow editing
+    const itemsToProcess = this.items;
     
     this.countItems = itemsToProcess
       .map(item => {
@@ -306,14 +308,25 @@ export class CountComponent implements OnInit, OnDestroy {
           }
         }
         
+        // Parse prices from notes if they exist (format: PA=price;PV=price)
+        let purchasePrice = productData.prix_achat ?? (productData.prix_vente_TTC * 0.7);
+        let salePrice = productData.prix_vente_TTC ?? 0;
+        
+        if (item.notes) {
+          const paMatch = item.notes.match(/PA=([\d.]+)/);
+          const pvMatch = item.notes.match(/PV=([\d.]+)/);
+          if (paMatch) purchasePrice = parseFloat(paMatch[1]);
+          if (pvMatch) salePrice = parseFloat(pvMatch[1]);
+        }
+        
         return {
           product: productData,
         theoreticalQuantity: item.theoreticalQuantity,
         countedQuantity: item.countedQuantity,
         isConfirmed: item.countedQuantity !== null,
         inventoryItemId: item.id,
-          purchasePrice: productData.prix_achat ?? (productData.prix_vente_TTC * 0.7), // Default to 70% of sale price if no purchase price
-          salePrice: productData.prix_vente_TTC ?? 0
+          purchasePrice: purchasePrice,
+          salePrice: salePrice
         } as CountItem;
       });
     
@@ -322,7 +335,7 @@ export class CountComponent implements OnInit, OnDestroy {
 
   updateStatistics(): void {
     this.totalItems = this.items.length;
-    this.countedItems = this.countItems.length; // All items in countItems are counted
+    this.countedItems = this.countItems.filter(item => item.countedQuantity !== null).length;
     this.remainingItems = this.totalItems - this.countedItems;
   }
 
@@ -541,6 +554,7 @@ export class CountComponent implements OnInit, OnDestroy {
 
     // Include prices encoded in notes for persistence
     const notes = this.composeNotesWithPrices(item);
+    this.saving = true;
     this.inventoryService.updateItemCount(
       this.session.id,
       item.inventoryItemId,
@@ -549,18 +563,34 @@ export class CountComponent implements OnInit, OnDestroy {
       notes
     ).subscribe({
       next: (updatedItem) => {
-        // Update the item in our local array
+        // Update the item in our local items array
         const index = this.items.findIndex(i => i.id === updatedItem.id);
         if (index !== -1) {
           this.items[index] = updatedItem;
         }
+        
+        // Update the countItem to reflect the saved state
+        item.isConfirmed = updatedItem.countedQuantity !== null && updatedItem.countedQuantity !== undefined;
+        item.countedQuantity = updatedItem.countedQuantity ?? null;
+        
         this.updateStatistics();
-        this.success = 'Quantité comptée sauvegardée avec succès';
-        setTimeout(() => this.success = '', 2000);
+        this.saving = false;
+        
+        // Show smart success notification
+        const quantity = updatedItem.countedQuantity ?? 0;
+        this.successNotificationProduct = item.product.name;
+        this.successNotificationMessage = `Quantité: ${quantity} | Stock mis à jour avec succès`;
+        this.showSuccessNotification = true;
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+          this.showSuccessNotification = false;
+        }, 3000);
       },
       error: (err) => {
         console.error('Error saving count:', err);
         this.error = err.error?.error || 'Erreur lors de la sauvegarde du comptage';
+        this.saving = false;
         console.error('Full error details:', {
           status: err.status,
           statusText: err.statusText,
@@ -643,7 +673,7 @@ export class CountComponent implements OnInit, OnDestroy {
         // Add the new item to our items array
         this.items.push(newInventoryItem);
         
-        // Now save the count
+        // Now save the count (this will also show the notification)
         this.saveCountToBackend(item);
       },
       error: (err) => {
@@ -660,16 +690,72 @@ export class CountComponent implements OnInit, OnDestroy {
   }
 
   removeCountItem(index: number): void {
-    this.countItems.splice(index, 1);
-    if (this.selectedCountItemIndex === index) {
-      this.selectedCountItem = null;
-      this.selectedCountItemIndex = -1;
-      this.pendingProduct = null;
-      this.currentInput = '';
-    } else if (this.selectedCountItemIndex > index) {
-      this.selectedCountItemIndex--;
+    const item = this.countItems[index];
+    
+    if (!item) return;
+
+    // Confirm deletion
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${item.product.name}" de l'inventaire ?`)) {
+      return;
     }
-    this.updateStatistics();
+
+    // If item has an inventoryItemId, delete it from backend
+    if (item.inventoryItemId && this.session) {
+      this.saving = true;
+      this.inventoryService.deleteItem(this.session.id, item.inventoryItemId).subscribe({
+        next: () => {
+          // Remove from local arrays
+          this.countItems.splice(index, 1);
+          
+          // Remove from items array
+          const itemIndex = this.items.findIndex(i => i.id === item.inventoryItemId);
+          if (itemIndex !== -1) {
+            this.items.splice(itemIndex, 1);
+          }
+          
+          // Update selection
+          if (this.selectedCountItemIndex === index) {
+            this.selectedCountItem = null;
+            this.selectedCountItemIndex = -1;
+            this.pendingProduct = null;
+            this.currentInput = '';
+          } else if (this.selectedCountItemIndex > index) {
+            this.selectedCountItemIndex--;
+          }
+          
+          this.updateStatistics();
+          this.saving = false;
+          
+          // Show success notification
+          this.successNotificationProduct = item.product.name;
+          this.successNotificationMessage = 'Article supprimé de l\'inventaire';
+          this.showSuccessNotification = true;
+          
+          setTimeout(() => {
+            this.showSuccessNotification = false;
+          }, 3000);
+        },
+        error: (err) => {
+          this.saving = false;
+          this.error = err.error?.error || 'Erreur lors de la suppression de l\'article';
+          console.error('Error deleting inventory item:', err);
+        }
+      });
+    } else {
+      // If no inventoryItemId, just remove from UI (item was never saved)
+      this.countItems.splice(index, 1);
+      
+      if (this.selectedCountItemIndex === index) {
+        this.selectedCountItem = null;
+        this.selectedCountItemIndex = -1;
+        this.pendingProduct = null;
+        this.currentInput = '';
+      } else if (this.selectedCountItemIndex > index) {
+        this.selectedCountItemIndex--;
+      }
+      
+      this.updateStatistics();
+    }
   }
 
   // Validation and save methods
@@ -761,7 +847,6 @@ export class CountComponent implements OnInit, OnDestroy {
               this.inventoryService.postSession(this.session!.id).subscribe({
                 next: (result) => {
                   this.saving = false;
-                  this.success = 'Inventaire terminé et stock mis à jour avec succès!';
                   
                   // Update session status
                   this.session!.status = 'POSTED';
@@ -778,11 +863,16 @@ export class CountComponent implements OnInit, OnDestroy {
                     console.error('Error triggering releve save:', e);
                   }
                 
-                // Show success message and redirect after delay
-                setTimeout(() => {
-                  this.success = '';
-                  this.router.navigate(['/inventory', this.depotId]);
-                }, 3000);
+                  // Show smart success notification
+                  this.successNotificationProduct = `Session #${this.session!.numero}`;
+                  this.successNotificationMessage = 'Inventaire finalisé et stock mis à jour avec succès!';
+                  this.showSuccessNotification = true;
+                
+                  // Redirect to inventory root after showing notification
+                  setTimeout(() => {
+                    this.showSuccessNotification = false;
+                    this.router.navigate(['/inventory']);
+                  }, 3000);
               },
               error: (err) => {
                 this.saving = false;
@@ -809,15 +899,19 @@ export class CountComponent implements OnInit, OnDestroy {
       this.inventoryService.postSession(this.session.id).subscribe({
         next: (result) => {
           this.saving = false;
-          this.success = 'Inventaire terminé et stock mis à jour avec succès!';
           
           // Update session status
           this.session!.status = 'POSTED';
           
-          // Show success message and redirect after delay
+          // Show smart success notification
+          this.successNotificationProduct = `Session #${this.session!.numero}`;
+          this.successNotificationMessage = 'Inventaire finalisé et stock mis à jour avec succès!';
+          this.showSuccessNotification = true;
+          
+          // Redirect to inventory root after showing notification
           setTimeout(() => {
-            this.success = '';
-            this.router.navigate(['/inventory', this.depotId]);
+            this.showSuccessNotification = false;
+            this.router.navigate(['/inventory']);
           }, 3000);
         },
         error: (err) => {
@@ -1077,6 +1171,35 @@ export class CountComponent implements OnInit, OnDestroy {
         this.saving = false;
       }
     });
+  }
+
+  // Methods for inline editing of CountItem quantities
+  onQuantityInputChange(item: CountItem, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value;
+    const quantity = value === '' ? null : parseFloat(value);
+    
+    if (quantity !== null && (isNaN(quantity) || quantity < 0)) {
+      return;
+    }
+    
+    item.countedQuantity = quantity;
+    item.isConfirmed = quantity !== null;
+    this.updateStatistics();
+  }
+
+  onQuantityBlurSave(item: CountItem): void {
+    // Save the quantity when user leaves the input field
+    if (item.inventoryItemId) {
+      this.saveCountToBackend(item);
+    } else if (item.countedQuantity !== null) {
+      // If no inventory item exists yet, create one first
+      this.createInventoryItemForProduct(item);
+    }
+  }
+
+  hideSuccessNotification(): void {
+    this.showSuccessNotification = false;
   }
 
 }

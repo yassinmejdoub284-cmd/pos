@@ -339,8 +339,6 @@ export class ProductsComponent implements OnInit {
       depotId: currentDepotId
     };
 
-    console.log('Transfer payload:', transferPayload);
-
     this.productsService.transferProduct(transferPayload).subscribe({
       next: () => {
         this.closeTransferModal();

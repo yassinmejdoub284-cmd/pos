@@ -724,6 +724,122 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
   }
 });
 
+// Delete inventory item
+router.delete('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.sessionId);
+    const itemId = parseInt(req.params.itemId);
+
+    console.log('Deleting inventory item:', {
+      sessionId,
+      itemId,
+      userId: req.user.id
+    });
+
+    // Validate session exists and is in correct status
+    const session = await prisma.inventorySession.findUnique({
+      where: { id: sessionId }
+    });
+
+    if (!session) {
+      console.error('Inventory session not found:', sessionId);
+      return res.status(404).json({ error: 'Inventory session not found' });
+    }
+
+    if (!['DRAFT', 'IN_PROGRESS'].includes(session.status)) {
+      // Allow ADMIN to delete items regardless of status
+      if (req.user?.role !== 'ADMIN') {
+        console.error('Cannot delete items in session status:', session.status);
+        return res.status(400).json({ 
+          error: `Cannot delete items in this session status: ${session.status}. Only DRAFT and IN_PROGRESS sessions can be modified.` 
+        });
+      }
+    }
+
+    // Get the inventory item
+    const item = await prisma.inventoryItem.findUnique({
+      where: { id: itemId },
+      include: {
+        product: true
+      }
+    });
+
+    if (!item || item.sessionId !== sessionId) {
+      console.error('Inventory item not found:', { itemId, sessionId, itemExists: !!item });
+      return res.status(404).json({ error: 'Inventory item not found' });
+    }
+
+    // If item has a counted quantity that affected stock, we need to revert the stock change
+    // The stock was updated when the item was counted, so we need to reverse that change
+    const ecartQuantity = item.ecartQuantity ? parseFloat(item.ecartQuantity) : 0;
+
+    // Delete inventory item and revert stock in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Revert stock change if there was an écart
+      if (Math.abs(ecartQuantity) > 0.001) {
+        // Get session depot
+        const sessionDepot = await tx.depot.findUnique({
+          where: { id: session.depotId }
+        });
+
+        if (sessionDepot) {
+          // Revert the inventory change (opposite of what was applied)
+          const inventory = await tx.inventory.findUnique({
+            where: {
+              depotId_productId: {
+                depotId: session.depotId,
+                productId: item.productId
+              }
+            }
+          });
+
+          if (inventory) {
+            const currentQuantity = parseFloat(inventory.quantity);
+            const newQuantity = currentQuantity - ecartQuantity; // Revert the change
+            await tx.inventory.update({
+              where: { id: inventory.id },
+              data: { quantity: newQuantity }
+            });
+            console.log(`Reverted inventory for depot ${session.depotId}, product ${item.productId}: ${currentQuantity} -> ${newQuantity}`);
+          }
+
+          // Create stock movement record for the reversal
+          await tx.stockMovement.create({
+            data: {
+              productId: item.productId,
+              depotId: session.depotId,
+              quantity: Math.abs(ecartQuantity),
+              type: ecartQuantity > 0 ? 'OUT' : 'IN', // Opposite of original
+              reason: 'INVENTORY_ITEM_DELETED',
+              reference: session.numero,
+              userId: req.user.id
+            }
+          });
+        }
+      }
+
+      // Delete the inventory item
+      const deletedItem = await tx.inventoryItem.delete({
+        where: { id: itemId }
+      });
+
+      return deletedItem;
+    });
+
+    await logAudit(req.user.id, 'inventory_items', itemId, 'DELETE', item, null);
+
+    console.log('Successfully deleted inventory item:', {
+      itemId: result.id,
+      productId: result.productId
+    });
+
+    res.json({ message: 'Inventory item deleted successfully', item: result });
+  } catch (error) {
+    console.error('Error deleting inventory item:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Post inventory session (apply stock adjustments)
 router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
   try {

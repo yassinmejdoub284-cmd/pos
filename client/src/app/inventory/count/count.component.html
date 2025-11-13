@@ -188,7 +188,7 @@
                   <th class="text-right px-2 py-2 text-xs font-medium text-gray-700 w-16 border-r-0">ÉCART</th>
                   <th class="text-right px-2 py-2 text-xs font-medium text-gray-700 w-24">P. Achat</th>
                   <th class="text-right px-2 py-2 text-xs font-medium text-gray-700 w-24">P. Vente</th>
-                  <th class="text-center px-2 py-2 text-xs font-medium text-gray-700 w-12"></th>
+                  <th class="text-center px-2 py-2 text-xs font-medium text-gray-700 w-16">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -200,12 +200,19 @@
                   <td class="px-2 py-2 text-xs font-medium">
                     <div>{{ truncate(item.product.name, 20) }}</div>
                   </td>
-                  <td class="px-2 py-2 text-xs text-right">
-                    <span *ngIf="item.countedQuantity !== null" class="font-bold text-blue-600">
-                      {{ item.countedQuantity }}
-                    </span>
-                    <span *ngIf="item.countedQuantity === null" class="text-gray-400">-</span>
-                    <span *ngIf="saving" class="ml-1 text-xs text-orange-500">💾</span>
+                  <td class="px-2 py-2 text-xs text-right" (click)="$event.stopPropagation()">
+                    <input 
+                      type="number" 
+                      [value]="item.countedQuantity ?? ''" 
+                      (input)="onQuantityInputChange(item, $event)"
+                      (blur)="onQuantityBlurSave(item)"
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                      class="w-16 text-right border border-gray-300 rounded px-1 py-0.5 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      [class.font-bold]="item.countedQuantity !== null"
+                      [class.text-blue-600]="item.countedQuantity !== null"
+                      [class.text-gray-400]="item.countedQuantity === null">
                   </td>
                   <td class="px-2 py-2 text-xs text-right">
                     <span *ngIf="item.countedQuantity !== null" [class]="getEcartClass(item)">
@@ -225,11 +232,15 @@
                       {{ item.salePrice | number:'1.2-2' }}
                     </span>
                   </td>
-                  <td class="px-2 py-2 text-center">
-                    <button (click)="removeCountItem(i)"
-                      class="w-6 h-6 bg-gradient-to-br from-pink-400 to-rose-500 text-white rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-lg transform active:scale-95">
-                      ×
-          </button>
+                  <td class="px-2 py-2 text-center" (click)="$event.stopPropagation()">
+                    <button 
+                      (click)="removeCountItem(i)"
+                      title="Supprimer cet article"
+                      class="w-7 h-7 bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-lg flex items-center justify-center text-sm font-bold transition-all shadow-md hover:shadow-lg transform hover:scale-110 active:scale-95 border border-red-400">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      </svg>
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -325,14 +336,57 @@
       </div>
     </div>
 
-    <div *ngIf="success"
-      class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
-      <div class="flex items-center">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        {{ success }}
+    <!-- Smart Success Notification -->
+    <div *ngIf="showSuccessNotification"
+      class="fixed top-4 right-4 z-50 max-w-md transform transition-all duration-500 ease-in-out"
+      [class.animate-slide-in-right]="showSuccessNotification"
+      [class.opacity-0]="!showSuccessNotification"
+      [class.opacity-100]="showSuccessNotification">
+      <div class="bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl shadow-2xl border-l-4 border-emerald-300 overflow-hidden">
+        <div class="p-4">
+          <div class="flex items-start justify-between">
+            <div class="flex items-start space-x-3 flex-1">
+              <!-- Success Icon with Animation -->
+              <div class="flex-shrink-0 mt-0.5">
+                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center animate-pulse">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+              </div>
+              
+              <!-- Notification Content -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center space-x-2 mb-1">
+                  <span class="text-sm font-bold text-emerald-100">✓ Sauvegardé</span>
+                  <span class="text-xs text-emerald-200">•</span>
+                  <span class="text-xs text-emerald-200">Stock mis à jour</span>
+                </div>
+                <p class="text-sm font-semibold text-white mb-1 truncate">
+                  {{ successNotificationProduct }}
+                </p>
+                <p class="text-xs text-emerald-100">
+                  {{ successNotificationMessage }}
+                </p>
+              </div>
+              
+              <!-- Close Button -->
+              <button 
+                (click)="hideSuccessNotification()" 
+                class="flex-shrink-0 ml-2 text-white/80 hover:text-white transition-colors"
+                title="Fermer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="h-1 bg-emerald-700/50">
+          <div class="h-full bg-emerald-300 animate-progress-bar" style="animation: progressBar 3s linear forwards;"></div>
+        </div>
       </div>
     </div>
 

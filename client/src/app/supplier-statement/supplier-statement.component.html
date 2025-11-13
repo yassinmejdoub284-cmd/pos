@@ -226,7 +226,7 @@
           <tbody class="bg-white divide-y divide-amber-100">
             <tr *ngFor="let item of statement.statement">
               <td class="px-6 py-4 whitespace-nowrap text-sm text-amber-800">
-                {{ formatDate(item.date) | date:'dd/MM/yyyy hh:mm:ss' }}
+                {{ item.date | date:'dd/MM/yyyy HH:mm:ss' }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 

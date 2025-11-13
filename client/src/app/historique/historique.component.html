@@ -152,7 +152,7 @@
               <th class="text-left px-3 py-2">Ticket</th>
               <th class="text-left px-3 py-2">Date</th>
               <th class="text-left px-3 py-2">Client</th>
-              <th class="text-left px-3 py-2">Articles</th>
+              <th class="text-left px-3 py-2 max-w-[150px]">Articles</th>
               <th class="text-right px-3 py-2">Total</th>
               <th class="text-right px-3 py-2">Remise</th>
               <th class="text-right px-3 py-2">Net</th>
@@ -172,9 +172,9 @@
                 <span *ngIf="sale.client; else guestRow" class="text-slate-800">{{ sale.client.firstName }} {{ sale.client.lastName }}</span>
                 <ng-template #guestRow><span class="text-slate-500">PASSAGER</span></ng-template>
               </td>
-              <td class="px-3 py-2 text-slate-800">
-                {{ getSaleSummary(sale) }}
-                <span *ngIf="isWholesaleSale(sale)" class="ml-1 text-[10px] font-bold text-violet-600">GROS</span>
+              <td class="px-3 py-2 text-slate-800 max-w-[150px] truncate">
+                <span class="truncate block">{{ getSaleSummary(sale) }}</span>
+                <span *ngIf="isWholesaleSale(sale)" class="text-[10px] font-bold text-violet-600">GROS</span>
               </td>
               <td class="px-3 py-2 text-right text-slate-800">{{ sale.total | number:'1.2-2' }} dt</td>
               <td class="px-3 py-2 text-right" [class]="sale.discount > 0 ? 'text-emerald-600' : 'text-slate-400'">-{{ sale.discount | number:'1.2-2' }} dt</td>

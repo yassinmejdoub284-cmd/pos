@@ -159,8 +159,6 @@ router.patch('/corrections/:id', authenticateToken, requireRole('MANAGER', 'ADMI
   }
 });
 
-module.exports = router;
-
 // GET /api/attendance/details/:userId
 router.get('/details/:userId', authenticateToken, async (req, res) => {
   try {
@@ -245,6 +243,63 @@ router.get('/details/:userId', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Attendance details error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/attendance/today - Get today's attendance status for current user
+router.get('/today', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const now = new Date();
+    const dayDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+    const todayAttendance = await prisma.attendanceDay.findUnique({
+      where: {
+        userId_date: {
+          userId,
+          date: dayDate
+        }
+      }
+    });
+
+    const todayPunches = await prisma.attendancePunch.findMany({
+      where: {
+        userId,
+        timestamp: {
+          gte: new Date(dayDate),
+          lt: new Date(dayDate.getTime() + 24 * 60 * 60 * 1000)
+        }
+      },
+      orderBy: { timestamp: 'desc' }
+    });
+
+    res.json({
+      hasCheckedIn: !!todayAttendance?.firstCheckIn,
+      hasCheckedOut: !!todayAttendance?.lastCheckOut,
+      isCheckedIn: !!todayAttendance?.firstCheckIn && !todayAttendance?.lastCheckOut,
+      firstCheckIn: todayAttendance?.firstCheckIn?.toISOString() || null,
+      lastCheckOut: todayAttendance?.lastCheckOut?.toISOString() || null,
+      workedSeconds: todayAttendance?.workedSeconds || 0,
+      overtimeSeconds: todayAttendance?.overtimeSeconds || 0,
+      isLate: todayAttendance?.isLate || false,
+      isComplete: todayAttendance?.isComplete || false,
+      punches: todayPunches.map(p => ({
+        type: p.type,
+        timestamp: p.timestamp.toISOString(),
+        time: p.timestamp.toLocaleTimeString('fr-FR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        })
+      }))
+    });
+  } catch (error) {
+    console.error('Get today attendance error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -349,4 +404,5 @@ router.post('/punch', authenticateToken, async (req, res) => {
   }
 });
 
+module.exports = router;
 

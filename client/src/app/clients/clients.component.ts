@@ -25,7 +25,7 @@ export class ClientsComponent implements OnInit, OnDestroy {
   totalClients = 0;
   currentPage = 1;
   totalPages = 1;
-  itemsPerPage = 12;
+  itemsPerPage = 50;
 
   // Filters
   searchQuery = '';
@@ -432,7 +432,8 @@ export class ClientsComponent implements OnInit, OnDestroy {
         this.loadClients();
       },
       error: (error) => {
-        this.showAlertMessage('Erreur lors de la suppression du client', 'error');
+        const errorMessage = error?.error?.error || 'Erreur lors de la suppression du client';
+        this.showAlertMessage(errorMessage, 'error');
         console.error('Error deleting client:', error);
       }
     });

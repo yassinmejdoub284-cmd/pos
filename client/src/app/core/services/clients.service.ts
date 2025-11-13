@@ -57,8 +57,8 @@ export class ClientsService {
     return this.http.put<Client>(`${this.apiUrl}/${id}`, clientData);
   }
 
-  deleteClient(id: number): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
+  deleteClient(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 
   searchClients(query: string): Observable<{ clients: Client[] }> {

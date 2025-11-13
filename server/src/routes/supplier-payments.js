@@ -1,6 +1,38 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const path = require('path');
+const fs = require('fs');
+
+const USER_ROLES_FILE = path.join(__dirname, '../uploads/user-roles.json');
+
+function readUserRoles() {
+  try {
+    if (fs.existsSync(USER_ROLES_FILE)) {
+      return JSON.parse(fs.readFileSync(USER_ROLES_FILE, 'utf8'));
+    }
+    return {};
+  } catch (error) {
+    console.error('Error reading user roles:', error);
+    return {};
+  }
+}
+
+function hasRoleOrRoleKey(user, allowedRoles) {
+  // Check database role
+  if (allowedRoles.includes(user.role)) {
+    return true;
+  }
+  
+  // Check roleKey from user-roles.json
+  const userRoles = readUserRoles();
+  const roleKey = userRoles[String(user.id)];
+  if (roleKey && allowedRoles.includes(roleKey)) {
+    return true;
+  }
+  
+  return false;
+}
 
 const router = express.Router();
 
@@ -43,7 +75,18 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Create supplier payment
-router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.post('/', authenticateToken, (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const allowedRoles = ['ADMIN', 'MANAGER', 'CASHIER', 'RESPONSABLE_MAGASIN'];
+  if (!hasRoleOrRoleKey(req.user, allowedRoles)) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
+  
+  next();
+}, async (req, res) => {
   try {
     const { supplierId, amount, notes, paymentMethod } = req.body;
     
@@ -53,12 +96,42 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER'])
 
     // Enforce depot isolation - verify supplier belongs to user's depot
     const userDepotId = req.user?.depotId;
-    if (!userDepotId) {
+    
+    // For RESPONSABLE_MAGASIN without depotId, get depotId from supplier or allow if supplier has expenses in any depot
+    const userRoles = readUserRoles();
+    const userRoleKey = userRoles[String(req.user.id)];
+    const isResponsableMagasin = req.user?.role === 'RESPONSABLE_MAGASIN' || userRoleKey === 'RESPONSABLE_MAGASIN';
+    
+    let targetDepotId = userDepotId;
+    if (!targetDepotId && isResponsableMagasin) {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: Number(supplierId) },
+        select: { depotId: true }
+      });
+      
+      if (supplier?.depotId) {
+        targetDepotId = supplier.depotId;
+      } else {
+        // If supplier has no depot, check if they have expenses in any depot
+        const expenseWithDepot = await prisma.expense.findFirst({
+          where: { supplierId: Number(supplierId) },
+          select: { depotId: true }
+        });
+        
+        if (expenseWithDepot?.depotId) {
+          targetDepotId = expenseWithDepot.depotId;
+        } else {
+          return res.status(400).json({ error: 'Impossible de déterminer le dépôt pour ce fournisseur' });
+        }
+      }
+    }
+    
+    if (!targetDepotId && req.user?.role !== 'ADMIN' && !isResponsableMagasin) {
       return res.status(400).json({ error: 'User must be assigned to a depot to create supplier payments' });
     }
 
-    // Verify supplier belongs to user's depot (unless admin)
-    if (req.user?.role !== 'ADMIN') {
+    // Verify supplier belongs to user's depot (unless admin or RESPONSABLE_MAGASIN)
+    if (req.user?.role !== 'ADMIN' && !isResponsableMagasin) {
       const supplier = await prisma.supplier.findUnique({
         where: { id: Number(supplierId) },
         select: { depotId: true }
@@ -91,7 +164,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER'])
     if (method === 'CASH') {
       activeSession = await prisma.sessionCaisse.findFirst({
         where: { 
-          depotId: userDepotId,
+          depotId: targetDepotId,
           status: 'OPEN' 
         }
       });
@@ -149,17 +222,16 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER'])
       }
 
       // After computing how much was actually applied, normalize the stored supplier payment amount
-      // We store supplier payments as NEGATIVE to indicate money going out
+      // We store supplier payments as POSITIVE to indicate debit (money going out)
       const originalAmount = Number(amount);
-      const isCreditOnly = originalAmount < 0;
       const normalizedApplied = appliedAmount > 0 ? appliedAmount : Math.abs(originalAmount);
       await tx.supplierPayment.update({
         where: { id: supplierPayment.id },
-        data: { amount: -normalizedApplied }
+        data: { amount: normalizedApplied }
       });
 
-      // If cash payment, create cash movement sortie ONLY for positive (debit) payments
-      if (method === 'CASH' && !isCreditOnly) {
+      // If cash payment, create cash movement sortie for debit payments
+      if (method === 'CASH' && normalizedApplied > 0) {
         // Only withdraw the portion that actually matches unpaid supplier expenses.
         // If none matched (no pending expenses), fallback to the requested amount.
         const amt = normalizedApplied;
@@ -232,7 +304,18 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Update supplier payment
-router.put('/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.put('/:id', authenticateToken, (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const allowedRoles = ['ADMIN', 'MANAGER', 'RESPONSABLE_MAGASIN'];
+  if (!hasRoleOrRoleKey(req.user, allowedRoles)) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
+  
+  next();
+}, async (req, res) => {
   try {
     const { amount, notes } = req.body;
     

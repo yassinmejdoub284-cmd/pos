@@ -179,6 +179,11 @@ export class InventoryService {
     return this.http.delete(`${this.apiUrl}/sessions/${id}`);
   }
 
+  // Delete inventory item
+  deleteItem(sessionId: number, itemId: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/sessions/${sessionId}/items/${itemId}`);
+  }
+
   // Get total products count in inventory for a depot
   getInventoryCount(depotId: number): Observable<number> {
     return this.http.get<number>(`${this.apiUrl}/count/${depotId}`);

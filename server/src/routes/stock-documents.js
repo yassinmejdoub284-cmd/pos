@@ -1233,7 +1233,21 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
         }
       });
       
-      // Collect all product IDs from entries and exits (only valid product IDs)
+      // Find return documents (bon de retour) since last inventory
+      const returnDocuments = await prisma.stockDocument.findMany({
+        where: {
+          emetteurId: depotId,
+          type: 'BON_EXPEDITION',
+          status: 'RECEIVED',
+          notes: { contains: 'Supplier:' },
+          createdAt: { gte: inventoryPostedAt }
+        },
+        include: {
+          items: true
+        }
+      });
+      
+      // Collect all product IDs from entries, exits, and returns (only valid product IDs)
       entryDocuments.forEach(doc => {
         if (doc.items) {
           doc.items.forEach(item => {
@@ -1247,6 +1261,16 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
       sales.forEach(sale => {
         if (sale.items) {
           sale.items.forEach(item => {
+            if (item.productId != null) {
+              inventoryProductIds.add(item.productId);
+            }
+          });
+        }
+      });
+      
+      returnDocuments.forEach(doc => {
+        if (doc.items) {
+          doc.items.forEach(item => {
             if (item.productId != null) {
               inventoryProductIds.add(item.productId);
             }
@@ -1304,8 +1328,22 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
             });
           });
           
-          // Current stock = base quantity + entries - exits
-          const currentStock = baseQuantity + totalEntries - totalExits;
+          // Calculate returns (return documents) since last inventory POST
+          // Use returnDocuments already fetched above
+          let totalReturns = 0;
+          returnDocuments.forEach(doc => {
+            if (doc.items) {
+              doc.items.forEach(docItem => {
+                if (docItem.productId === productId) {
+                  // Returns have negative quantities in the document, so we add the absolute value
+                  totalReturns += Math.abs(parseFloat(docItem.quantity || 0));
+                }
+              });
+            }
+          });
+          
+          // Current stock = base quantity + entries - exits - returns
+          const currentStock = baseQuantity + totalEntries - totalExits - totalReturns;
           
           return {
             id: inventoryItem?.id || null,
@@ -2482,14 +2520,50 @@ router.post('/return', authenticateToken, async (req, res) => {
     const { depotId, supplierId, items, notes } = req.body;
     const userId = req.user.id;
 
-    if (!depotId || !items || items.length === 0) {
-      return res.status(400).json({ error: 'Dépôt et articles requis' });
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'Articles requis' });
+    }
+
+    if (!supplierId) {
+      return res.status(400).json({ error: 'Fournisseur requis pour le bon de retour' });
+    }
+
+    // Get depotId from active session or use provided depotId
+    let targetDepotId = depotId ? parseInt(depotId) : null;
+    
+    if (!targetDepotId) {
+      // Try to get depotId from active session
+      const activeSession = await prisma.sessionCaisse.findFirst({
+        where: {
+          userId: userId,
+          status: 'OPEN'
+        },
+        orderBy: { openedAt: 'desc' }
+      });
+      
+      if (activeSession && activeSession.depotId) {
+        targetDepotId = parseInt(activeSession.depotId);
+      } else if (req.user?.depotId) {
+        targetDepotId = parseInt(req.user.depotId);
+      } else {
+        return res.status(400).json({ error: 'Aucune session ouverte ou dépôt assigné. Veuillez ouvrir une session ou spécifier un dépôt.' });
+      }
+    }
+
+    // Validate targetDepotId
+    if (!targetDepotId || isNaN(targetDepotId)) {
+      return res.status(400).json({ error: 'Dépôt invalide' });
     }
 
     // Generate document reference
-    const depot = await prisma.depot.findUnique({ where: { id: depotId } });
+    const depot = await prisma.depot.findUnique({ where: { id: targetDepotId } });
     if (!depot) {
       return res.status(404).json({ error: 'Dépôt non trouvé' });
+    }
+
+    const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
+    if (!supplier) {
+      return res.status(404).json({ error: 'Fournisseur non trouvé' });
     }
 
     const currentYear = new Date().getFullYear();
@@ -2498,73 +2572,222 @@ router.post('/return', authenticateToken, async (req, res) => {
     const lastDoc = await prisma.stockDocument.findFirst({
       where: {
         type: 'BON_EXPEDITION',
-        reference: { startsWith: `BR-${currentYear}${currentMonth}` }
+        numero: { startsWith: `BR-${currentYear}${currentMonth}` }
       },
       orderBy: { createdAt: 'desc' }
     });
 
     let nextNumber = 1;
     if (lastDoc) {
-      const lastNumber = parseInt(lastDoc.reference.split('-').pop());
+      const lastNumber = parseInt(lastDoc.numero.split('-').pop());
       nextNumber = lastNumber + 1;
     }
 
-    const reference = `BR-${currentYear}${currentMonth}-${String(nextNumber).padStart(4, '0')}`;
+    const numero = `BR-${currentYear}${currentMonth}-${String(nextNumber).padStart(4, '0')}`;
 
-    // Create the return document
-    const document = await prisma.stockDocument.create({
-      data: {
-        reference,
-        type: 'BON_EXPEDITION',
-        status: 'RECEIVED', // Auto-validate returns
-        depotId: depotId,
-        emetteurId: supplierId,
-        destinataireId: depotId,
-        notes: notes || 'Bon de retour',
-        createdBy: userId,
-        validatedBy: userId,
-        validatedAt: new Date(),
-        items: {
-          create: items.map(item => ({
-            productId: item.productId,
-            famille: item.famille || 'Divers',
-            quantity: -Math.abs(item.quantity), // Negative quantity for returns
-            purchasePrice: item.purchasePrice || 0,
-            batch: item.batch || null,
-            notes: item.notes || null
-          }))
-        }
-      },
-      include: {
-        depot: true,
-        emetteur: true,
-        items: {
-          include: {
-            product: true
+    // Calculate total return amount
+    const totalAmount = items.reduce((sum, item) => {
+      const quantity = Math.abs(item.quantity || 0);
+      const price = parseFloat(item.purchasePrice || 0);
+      return sum + (quantity * price);
+    }, 0);
+
+    // Create the return document and expense in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the return document
+      const document = await tx.stockDocument.create({
+        data: {
+          numero,
+          type: 'BON_EXPEDITION',
+          status: 'RECEIVED', // Auto-validate returns
+          emetteurId: targetDepotId, // Depot is the sender
+          destinataireId: targetDepotId,
+          notes: `Supplier:${supplierId}${notes ? ' | ' + notes : ''}`,
+          items: {
+            create: items.map(item => ({
+              productId: parseInt(item.productId),
+              famille: item.famille || 'Divers',
+              quantity: -Math.abs(item.quantity), // Negative quantity for returns
+              purchasePrice: item.purchasePrice ? parseFloat(item.purchasePrice) : null,
+              batch: item.batch || null,
+              notes: item.notes || null
+            }))
+          },
+          statusHistory: {
+            create: {
+              status: 'RECEIVED',
+              userId: userId,
+              notes: 'Bon de retour créé'
+            }
+          }
+        },
+        include: {
+          destinataire: true,
+          emetteur: true,
+          items: {
+            include: {
+              product: true
+            }
           }
         }
+      });
+
+      // Update inventory for each item (reduce stock from the session's depot)
+      for (const item of items) {
+        const quantity = Math.abs(item.quantity);
+        const productId = parseInt(item.productId);
+        const sessionDepotId = targetDepotId;
+        
+        // Check current stock before reducing
+        const inventory = await tx.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: sessionDepotId,
+              productId: productId
+            }
+          }
+        });
+
+        if (!inventory || parseFloat(inventory.quantity) < quantity) {
+          throw new Error(`Stock insuffisant pour le produit ${productId}. Stock disponible: ${inventory?.quantity || 0}, Quantité demandée: ${quantity}`);
+        }
+
+        await tx.inventory.update({
+          where: {
+            depotId_productId: {
+              depotId: sessionDepotId,
+              productId: productId
+            }
+          },
+          data: {
+            quantity: { decrement: quantity }
+          }
+        });
+
+        // Create stock movement
+        await tx.stockMovement.create({
+          data: {
+            productId: productId,
+            depotId: sessionDepotId,
+            quantity: -quantity,
+            type: 'OUT',
+            fromDepotId: sessionDepotId,
+            toDepotId: null,
+            reason: 'RETURN_SUPPLIER',
+            reference: numero,
+            userId: userId
+          }
+        });
       }
+
+      // Create expense entry for supplier debit (if total amount > 0)
+      let expenseRecord = null;
+      if (totalAmount > 0) {
+        // Find or get default expense category (use first available or create one)
+        // Get all categories and filter in JavaScript for case-insensitive search
+        const allCategories = await tx.expenseCategory.findMany({
+          where: { isActive: true }
+        });
+        
+        let expenseCategory = allCategories.find(cat => 
+          cat.name && cat.name.toLowerCase().includes('retour')
+        );
+
+        if (!expenseCategory) {
+          // Try to find any category
+          expenseCategory = allCategories.length > 0 ? allCategories[0] : null;
+          
+          if (!expenseCategory) {
+            // Create a default category for returns
+            expenseCategory = await tx.expenseCategory.create({
+              data: {
+                name: 'Bon de Retour',
+                description: 'Retours de produits aux fournisseurs',
+                isActive: true
+              }
+            });
+          }
+        }
+
+        // Create expense entry (debit for supplier)
+        expenseRecord = await tx.expense.create({
+          data: {
+            amount: totalAmount,
+            categoryId: expenseCategory.id,
+            depotId: targetDepotId,
+            userId: userId,
+            date: new Date(),
+            paymentType: 'CASH', // Default payment type for expense
+            collectionDate: new Date(),
+            notes: `Bon de retour ${numero} - Retour de produits vers ${supplier.name}`,
+            isApproved: true,
+            approvedBy: userId,
+            approvedAt: new Date(),
+            description: `Bon de retour ${numero}`,
+            supplierId: parseInt(supplierId),
+            isPaid: false,
+            isAdvance: false
+          }
+        });
+      }
+
+      return { document, expenseRecord };
     });
 
-    // Update inventory for each item (reduce stock)
-    for (const item of items) {
-      const quantity = Math.abs(item.quantity); // Use positive quantity for calculation
-      await updateInventory(depotId, item.productId, -quantity); // Negative to reduce stock
+    // Log comprehensive audit trail for StockDocument
+    try {
+      await logAudit(userId, 'StockDocument', result.document.id, 'CREATE', null, {
+        type: 'BON_EXPEDITION',
+        numero: result.document.numero,
+        depotId: targetDepotId,
+        supplierId: parseInt(supplierId),
+        supplierName: supplier.name,
+        itemsCount: items.length,
+        totalValue: totalAmount,
+        items: items.map(item => ({
+          productId: parseInt(item.productId),
+          quantity: Math.abs(item.quantity),
+          purchasePrice: item.purchasePrice ? parseFloat(item.purchasePrice) : null,
+          batch: item.batch || null
+        })),
+        notes: notes || null,
+        createdAt: new Date().toISOString()
+      });
+    } catch (auditError) {
+      console.error('Error logging audit trail for bon de retour document:', auditError);
+      // Don't fail the request if audit logging fails
     }
 
-    // Log audit
-    await logAudit(userId, 'CREATE', 'StockDocument', document.id, {
-      type: 'BON_EXPEDITION',
-      depotId: depotId,
-      itemsCount: items.length,
-      totalValue: items.reduce((sum, item) => sum + (Math.abs(item.quantity) * (item.purchasePrice || 0)), 0)
-    });
+    // Log audit trail for Expense if created
+    if (result.expenseRecord) {
+      try {
+        await logAudit(userId, 'Expense', result.expenseRecord.id, 'CREATE', null, {
+          type: 'SUPPLIER_RETURN_DEBIT',
+          amount: totalAmount,
+          supplierId: parseInt(supplierId),
+          supplierName: supplier.name,
+          depotId: targetDepotId,
+          stockDocumentId: result.document.id,
+          stockDocumentNumero: result.document.numero,
+          notes: `Bon de retour ${result.document.numero} - Retour de produits vers ${supplier.name}`,
+          createdAt: new Date().toISOString()
+        });
+      } catch (auditError) {
+        console.error('Error logging audit trail for bon de retour expense:', auditError);
+        // Don't fail the request if audit logging fails
+      }
+    }
 
-    res.json(document);
+    res.json(result.document);
 
   } catch (error) {
     console.error('Error creating bon de retour:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du bon de retour' });
+    console.error('Error stack:', error.stack);
+    console.error('Request body:', req.body);
+    res.status(500).json({ 
+      error: error.message || 'Erreur lors de la création du bon de retour',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

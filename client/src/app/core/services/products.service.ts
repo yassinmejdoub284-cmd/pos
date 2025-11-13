@@ -144,6 +144,18 @@ export class ProductsService {
     return this.http.post<any>(`${this.apiUrl}/transfer`, transferData);
   }
 
+  transferProductMultiple(transferData: {
+    sourceProductId: number;
+    transfers: Array<{
+      targetProductId: number;
+      quantity: number;
+      conversionRatio: number;
+    }>;
+    depotId: number;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/transfer-multiple`, transferData);
+  }
+
   getTransferHistory(params: {
     depotId: number;
     page?: number;

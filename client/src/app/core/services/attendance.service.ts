@@ -67,6 +67,10 @@ export class AttendanceService {
     if (endDate) params = params.set('endDate', endDate);
     return this.http.get<any>(`${this.API}/details/${userId}`, { params });
   }
+
+  getTodayStatus(): Observable<any> {
+    return this.http.get<any>(`${this.API}/today`);
+  }
 }
 
 

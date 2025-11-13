@@ -42,7 +42,19 @@ export class SupplierStatementComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loadSuppliers();
     this.loadSupplierSummaries();
+  }
+
+  loadSuppliers(): void {
+    this.supplierService.getSuppliers().subscribe({
+      next: (suppliers) => {
+        this.suppliers = suppliers;
+      },
+      error: (error) => {
+        console.error('Error loading suppliers:', error);
+      }
+    });
   }
 
   loadSupplierSummaries(): void {
@@ -123,6 +135,7 @@ export class SupplierStatementComponent implements OnInit {
       'expense': 'Dépense',
       'payment': 'Règlement',
       'bon_entree': 'Bon d\'entrée',
+      'bon_retour': 'Bon de retour',
       'credit': 'Crédit'
     };
     return types[type] || type;
@@ -133,6 +146,7 @@ export class SupplierStatementComponent implements OnInit {
       'expense': 'text-red-600 bg-red-50',
       'payment': 'text-green-600 bg-green-50',
       'bon_entree': 'text-blue-600 bg-blue-50',
+      'bon_retour': 'text-purple-600 bg-purple-50',
       'credit': 'text-orange-600 bg-orange-50'
     };
     return colors[type] || 'text-gray-600 bg-gray-50';
@@ -140,11 +154,18 @@ export class SupplierStatementComponent implements OnInit {
 
   onReferenceClick(item: SupplierStatementItem): void {
     if (item.clickable) {
-      // If it's a bon d'entrée, navigate to the stock documents page
+      // If it's a bon d'entrée or bon de retour, navigate to the document edit page
       if (item.bonId) {
-        this.router.navigate(['/stock/documents'], { 
-          queryParams: { highlight: item.bonId } 
-        });
+        // Check if it's a bon de retour (type is 'bon_retour' or documentType is 'BON_EXPEDITION')
+        const isBonRetour = item.type === 'bon_retour' || (item as any).documentType === 'BON_EXPEDITION';
+        
+        if (isBonRetour) {
+          // Navigate to bon de retour document edit page
+          this.router.navigate(['/stock/documents/bon-retour/edit', item.bonId]);
+        } else {
+          // Navigate to bon d'entrée document edit page
+          this.router.navigate(['/stock/documents/bon-entree/edit', item.bonId]);
+        }
       } else {
         // For other references, show an alert for now
         alert(`Détails de ${item.reference}`);
@@ -331,6 +352,7 @@ export class SupplierStatementComponent implements OnInit {
     .badge-expense { color: #b91c1c; background: #fee2e2; border-color: #fca5a5; }
     .badge-payment { color: #065f46; background: #d1fae5; border-color: #34d399; }
     .badge-bon_entree { color: #1d4ed8; background: #dbeafe; border-color: #93c5fd; }
+    .badge-bon_retour { color: #7c3aed; background: #ede9fe; border-color: #a78bfa; }
     .badge-credit { color: #9a3412; background: #ffedd5; border-color: #fdba74; }
     tr { page-break-inside: avoid; }
     .footer { position: fixed; bottom: 8mm; left: 12mm; right: 12mm; font-size: 11px; color: #64748b; display: flex; justify-content: space-between; }
@@ -392,6 +414,7 @@ export class SupplierStatementComponent implements OnInit {
     if (type === 'expense') return 'badge-expense';
     if (type === 'payment') return 'badge-payment';
     if (type === 'bon_entree') return 'badge-bon_entree';
+    if (type === 'bon_retour') return 'badge-bon_retour';
     if (type === 'credit') return 'badge-credit';
     return 'badge';
   }

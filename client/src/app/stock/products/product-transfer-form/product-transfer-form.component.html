@@ -14,20 +14,27 @@
     <div>
       <label class="block text-sm font-medium text-slate-600 mb-2">Type de Produit Cible *</label>
       <select formControlName="targetType" 
-        class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all">
+        [disabled]="fixedVracMode"
+        [class.bg-slate-200]="fixedVracMode"
+        [class.cursor-not-allowed]="fixedVracMode"
+        class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all disabled:opacity-70">
         <option value="vrac">Vrac</option>
         <option value="stock">Stock</option>
         <option value="gros">Gros</option>
         <option value="imported">Importés</option>
         <option value="family">Par Famille</option>
       </select>
+      <span *ngIf="fixedVracMode" class="text-xs text-slate-500 mt-1 block">Ces valeurs sont fixes et ne peuvent pas être modifiées</span>
     </div>
 
     <!-- Family Selection (when family type is selected) -->
     <div *ngIf="transferForm.get('targetType')?.value === 'family'">
       <label class="block text-sm font-medium text-slate-600 mb-2">Famille de Produit *</label>
       <select formControlName="targetFamilyId" 
-        class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all">
+        [disabled]="fixedVracMode"
+        [class.bg-slate-200]="fixedVracMode"
+        [class.cursor-not-allowed]="fixedVracMode"
+        class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all disabled:opacity-70">
         <option value="">Sélectionner une famille</option>
         <option *ngFor="let family of families" [value]="family.id">
           {{ family.name }}
@@ -37,17 +44,25 @@
 
     <!-- Target Product Selection -->
     <div>
-      <label class="block text-sm font-medium text-slate-600 mb-2">Produit Cible *</label>
+      <label class="block text-sm font-medium text-slate-600 mb-2" *ngIf="fixedVracMode">
+        Sélectionnez un produit de la famille JUS VRAC :
+      </label>
+      <label class="block text-sm font-medium text-slate-600 mb-2" *ngIf="!fixedVracMode">
+        Produit Cible *
+      </label>
       <select formControlName="targetProductId" 
         class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all">
         <option value="">Sélectionner un produit</option>
         <option *ngFor="let product of targetProducts" [value]="product.id">
-          {{ product.name }}
+          {{ product.name }}{{ product.famille ? ' - ' + product.famille.name : '' }}{{ product.prix_vente_TTC ? ' - ' + (product.prix_vente_TTC | currency:'TND':'symbol':'1.2-2') : '' }}{{ product.unite ? ' - Unité: ' + product.unite : '' }}
         </option>
       </select>
       <span *ngIf="targetProducts.length === 0" class="text-xs text-slate-500 mt-1 block">
         <span *ngIf="targetType === 'family'">Aucun produit de cette famille trouvé</span>
         <span *ngIf="targetType !== 'family'">Aucun produit de type {{ targetType }} trouvé</span>
+      </span>
+      <span *ngIf="fixedVracMode && !transferForm.get('targetProductId')?.value && targetProducts.length > 0" class="text-xs text-amber-600 mt-1 block">
+        Veuillez sélectionner un produit cible de la famille JUS VRAC
       </span>
     </div>
 

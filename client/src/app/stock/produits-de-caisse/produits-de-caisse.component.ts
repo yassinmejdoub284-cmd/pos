@@ -2,6 +2,7 @@ import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ProduitsDeStockService } from '../../core/services/produits-de-caisse.service';
 import { ProductsService } from '../../core/services/products.service';
+import { SessionsService } from '../../core/services/sessions.service';
 import { Product } from '../../core/models/product.model';
 import { ProduitDeStock } from '../../core/models/produit-de-caisse.model';
 
@@ -13,6 +14,7 @@ import { ProduitDeStock } from '../../core/models/produit-de-caisse.model';
 export class ProduitsDeStockComponent implements OnInit {
   private produitsDeStockService = inject(ProduitsDeStockService);
   private productsService = inject(ProductsService);
+  private sessionsService = inject(SessionsService);
 
   produitsDeStock = signal<ProduitDeStock[]>([]);
   allProducts = signal<Product[]>([]);
@@ -60,8 +62,10 @@ export class ProduitsDeStockComponent implements OnInit {
     this.error.set('');
     
     try {
+      const depotId = this.sessionsService.getActiveDepotId();
+      
       const [produits, products] = await Promise.all([
-        firstValueFrom(this.produitsDeStockService.getProduitsDeStock()),
+        firstValueFrom(this.produitsDeStockService.getProduitsDeStock(depotId)),
         firstValueFrom(this.productsService.getProducts())
       ]) as [ProduitDeStock[], Product[]];
       
@@ -71,10 +75,10 @@ export class ProduitsDeStockComponent implements OnInit {
       // Group sub-products under their parent products
       this.groupProductsWithSubProducts(products, produits);
       
-      // Extract unique categories only from products that have subproducts
+      // Extract unique categories from all products
       const categories = ['Tous', ...new Set(
-        this.groupedProducts()
-          .map(group => group.product.famille?.name)
+        products
+          .map(product => product.famille?.name)
           .filter(Boolean) as string[]
       )];
       this.productCategories.set(categories);
@@ -92,8 +96,14 @@ export class ProduitsDeStockComponent implements OnInit {
         product,
         subProducts: subProducts.filter(sub => sub.parentProductId === product.id)
       }))
-      .filter(group => group.subProducts.length > 0) // Only show products with subproducts
-      .sort((a, b) => b.subProducts.length - a.subProducts.length); // Order by most to least subproducts
+      .sort((a, b) => {
+        // First sort by number of subproducts (most to least)
+        if (b.subProducts.length !== a.subProducts.length) {
+          return b.subProducts.length - a.subProducts.length;
+        }
+        // Then sort alphabetically by product name
+        return a.product.name.localeCompare(b.product.name);
+      });
     
     this.groupedProducts.set(grouped);
   }

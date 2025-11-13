@@ -7,6 +7,7 @@ import { AuthService } from '../core/services/auth.service';
 import { StockDocumentActionDialogComponent } from '../shared/stock-document-action-dialog/stock-document-action-dialog.component';
 import { SessionsService } from '../core/services/sessions.service';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
+import { StockDocument } from '../core/models/stock-document.model';
 
 @Component({
   selector: 'app-stock',
@@ -18,6 +19,8 @@ export class StockComponent implements OnInit {
   loading = false;
   error = '';
   pendingDocumentsCount = 0;
+  bonRetourDocuments: StockDocument[] = [];
+  loadingBonRetour = false;
 
   // Modal properties
   showActionDepotModal = false;
@@ -48,6 +51,7 @@ export class StockComponent implements OnInit {
   ngOnInit(): void {
     this.loadDepots();
     this.loadPendingDocumentsCount();
+    this.loadBonRetourDocuments();
     // Load role access settings and filter visible action cards
     this.settingsService.getSettings().subscribe({
       next: (s) => {
@@ -61,6 +65,7 @@ export class StockComponent implements OnInit {
       next: (sess: any) => {
         if (sess?.depotId) {
           this.loadPendingDocumentsCount();
+          this.loadBonRetourDocuments();
         }
       }
     });
@@ -578,6 +583,69 @@ export class StockComponent implements OnInit {
 
   refreshPendingCount(): void {
     this.loadPendingDocumentsCount();
+  }
+
+  loadBonRetourDocuments(): void {
+    this.loadingBonRetour = true;
+    const currentUser = this.authService.currentUser();
+    const depotId = this.isAdmin() ? undefined : currentUser?.depotId;
+    
+    this.stockDocs.getDocuments(1, 100, 'BON_EXPEDITION', undefined, depotId).subscribe({
+      next: (response) => {
+        const allDocs = Array.isArray(response) ? response : (response?.data ?? []);
+        this.bonRetourDocuments = allDocs.filter((d: StockDocument) => d.type === 'BON_EXPEDITION');
+        this.loadingBonRetour = false;
+      },
+      error: () => {
+        this.bonRetourDocuments = [];
+        this.loadingBonRetour = false;
+      }
+    });
+  }
+
+  formatDate(date: string | Date): string {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('fr-FR');
+  }
+
+  getStatusLabel(status: string): string {
+    const statusLabels: { [key: string]: string } = {
+      'PREPARED': 'Préparé',
+      'SENT': 'Envoyé',
+      'RECEIVED': 'Reçu',
+      'CANCELLED': 'Annulé',
+      'COMPLETED': 'Terminé'
+    };
+    return statusLabels[status] || status;
+  }
+
+  navigateToBonRetour(depotId?: number): void {
+    if (depotId) {
+      this.router.navigate(['/stock/documents/bon-retour', depotId]);
+    } else {
+      const currentUser = this.authService.currentUser();
+      const userDepotId = currentUser?.depotId;
+      if (userDepotId) {
+        this.router.navigate(['/stock/documents/bon-retour', userDepotId]);
+      } else if (this.isAdmin() && this.depots.length > 0) {
+        this.openActionDepotSelection('bon-retour');
+      }
+    }
+  }
+
+  viewBonRetourDocument(document: StockDocument): void {
+    if (document.destinataireId) {
+      this.router.navigate(['/stock/documents/bon-retour', document.destinataireId]);
+    }
+  }
+
+  getDocumentTotal(document: StockDocument): number {
+    if (!document.items || document.items.length === 0) {
+      return 0;
+    }
+    return document.items.reduce((sum, item) => {
+      return sum + Math.abs(item.quantity * (item.purchasePrice || 0));
+    }, 0);
   }
 
   logout(): void {

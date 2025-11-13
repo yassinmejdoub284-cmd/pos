@@ -240,6 +240,27 @@
           </div>
         </div>
 
+        <!-- Transfer Section -->
+        <div *ngIf="product && product.isVraguable" class="lg:col-span-2">
+          <div class="border border-slate-200 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-md font-semibold text-slate-800">Transférer Produit</span>
+              <button type="button" (click)="toggleTransferSection()"
+                class="px-4 py-2 bg-orange-50 text-orange-700 rounded-xl transition-all text-sm font-medium hover:bg-orange-100">
+                <span *ngIf="!showTransferSection()">Afficher</span>
+                <span *ngIf="showTransferSection()">Masquer</span>
+              </button>
+            </div>
+            
+            <div *ngIf="showTransferSection()" class="mt-4">
+              <app-multi-transfer-form
+                [sourceProduct]="product"
+                (transferred)="onMultiTransfer($event)"
+                (cancelled)="showTransferSection.set(false)">
+              </app-multi-transfer-form>
+            </div>
+          </div>
+        </div>
 
         <div class="lg:col-span-2">
           <label class="block text-sm font-medium text-slate-600 mb-2">Photo</label>

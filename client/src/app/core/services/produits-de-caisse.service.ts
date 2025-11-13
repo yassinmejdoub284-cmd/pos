@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ProduitDeStock, CreateProduitDeStockRequest, UpdateProduitDeStockRequest, ProduitDeCaisse, CreateProduitDeCaisseRequest, UpdateProduitDeCaisseRequest } from '../models/produit-de-caisse.model';
@@ -11,12 +11,20 @@ export class ProduitsDeStockService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/produits-de-caisse`;
 
-  getProduitsDeStock(): Observable<ProduitDeStock[]> {
-    return this.http.get<ProduitDeStock[]>(this.apiUrl);
+  getProduitsDeStock(depotId?: number): Observable<ProduitDeStock[]> {
+    let params = new HttpParams();
+    if (depotId) {
+      params = params.set('depotId', depotId.toString());
+    }
+    return this.http.get<ProduitDeStock[]>(this.apiUrl, { params });
   }
 
-  getProduitDeStock(id: number): Observable<ProduitDeStock> {
-    return this.http.get<ProduitDeStock>(`${this.apiUrl}/${id}`);
+  getProduitDeStock(id: number, depotId?: number): Observable<ProduitDeStock> {
+    let params = new HttpParams();
+    if (depotId) {
+      params = params.set('depotId', depotId.toString());
+    }
+    return this.http.get<ProduitDeStock>(`${this.apiUrl}/${id}`, { params });
   }
 
   createProduitDeStock(data: CreateProduitDeStockRequest): Observable<ProduitDeStock> {
@@ -31,12 +39,20 @@ export class ProduitsDeStockService {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 
-  getActiveProduitsDeStock(): Observable<ProduitDeStock[]> {
-    return this.http.get<ProduitDeStock[]>(`${this.apiUrl}/active`);
+  getActiveProduitsDeStock(depotId?: number): Observable<ProduitDeStock[]> {
+    let params = new HttpParams();
+    if (depotId) {
+      params = params.set('depotId', depotId.toString());
+    }
+    return this.http.get<ProduitDeStock[]>(`${this.apiUrl}/active`, { params });
   }
 
-  getSubProductsByParent(parentProductId: number): Observable<ProduitDeStock[]> {
-    return this.http.get<ProduitDeStock[]>(`${this.apiUrl}/parent/${parentProductId}`);
+  getSubProductsByParent(parentProductId: number, depotId?: number): Observable<ProduitDeStock[]> {
+    let params = new HttpParams();
+    if (depotId) {
+      params = params.set('depotId', depotId.toString());
+    }
+    return this.http.get<ProduitDeStock[]>(`${this.apiUrl}/parent/${parentProductId}`, { params });
   }
 
   uploadImage(file: File): Observable<{ imageUrl: string }> {
@@ -53,12 +69,12 @@ export class ProduitsDeStockService {
 export class ProduitsDeCaisseService {
   private produitsDeStockService = inject(ProduitsDeStockService);
 
-  getProduitsDeCaisse(): Observable<ProduitDeCaisse[]> {
-    return this.produitsDeStockService.getProduitsDeStock();
+  getProduitsDeCaisse(depotId?: number): Observable<ProduitDeCaisse[]> {
+    return this.produitsDeStockService.getProduitsDeStock(depotId);
   }
 
-  getProduitDeCaisse(id: number): Observable<ProduitDeCaisse> {
-    return this.produitsDeStockService.getProduitDeStock(id);
+  getProduitDeCaisse(id: number, depotId?: number): Observable<ProduitDeCaisse> {
+    return this.produitsDeStockService.getProduitDeStock(id, depotId);
   }
 
   createProduitDeCaisse(data: CreateProduitDeCaisseRequest): Observable<ProduitDeCaisse> {
@@ -73,8 +89,8 @@ export class ProduitsDeCaisseService {
     return this.produitsDeStockService.deleteProduitDeStock(id);
   }
 
-  getActiveProduitsDeCaisse(): Observable<ProduitDeCaisse[]> {
-    return this.produitsDeStockService.getActiveProduitsDeStock();
+  getActiveProduitsDeCaisse(depotId?: number): Observable<ProduitDeCaisse[]> {
+    return this.produitsDeStockService.getActiveProduitsDeStock(depotId);
   }
 
   uploadImage(file: File): Observable<{ imageUrl: string }> {

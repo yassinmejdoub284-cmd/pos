@@ -6,7 +6,8 @@ const router = express.Router();
 // Get all clients with optional search and filters
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 50, active, q, search, type, depotId, sortBy, sortOrder } = req.query;
+    const { page = 1, limit: limitParam = 50, active, q, search, type, depotId, sortBy, sortOrder } = req.query;
+    const limit = Math.min(parseInt(limitParam) || 50, 1000); // Ensure limit is between 1 and 1000
 
     const where = {};
     
@@ -15,11 +16,19 @@ router.get('/', authenticateToken, async (req, res) => {
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     
-    // Determine which depot to use: requested > visiting > user's depot
-    let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-    
-    // For non-admin users, check depot access
-    if (req.user?.role !== 'ADMIN') {
+    // For ADMIN users: only filter by depot if explicitly provided in query
+    // For non-ADMIN users: use user's depot or visiting depot
+    let targetDepotId = null;
+    if (req.user?.role === 'ADMIN') {
+      // Admin can see all clients unless depotId is explicitly provided
+      if (depotId) {
+        targetDepotId = parseInt(depotId);
+      }
+    } else {
+      // Non-admin users: determine which depot to use: requested > visiting > user's depot
+      targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+      
+      // Check depot access for non-admin users
       // Allow if accessing own depot
       if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
         // OK - accessing own depot
@@ -49,11 +58,9 @@ router.get('/', authenticateToken, async (req, res) => {
       }
     }
     
+    // Apply depot filter only if targetDepotId is set
     if (targetDepotId) {
       where.depotId = targetDepotId;
-    } else if (req.user?.role !== 'ADMIN') {
-      // Non-admin users without depot assigned cannot view clients
-      return res.status(400).json({ error: 'User must be assigned to a depot to view clients' });
     }
     
     if (active !== undefined && active !== '') where.isActive = active === 'true';
@@ -77,7 +84,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     // Get total count for pagination
     const total = await prisma.client.count({ where });
-    const totalPages = Math.ceil(total / parseInt(limit));
+    const totalPages = Math.ceil(total / limit);
 
     // Determine sort field and order
     let orderByField = 'id';
@@ -114,15 +121,15 @@ router.get('/', authenticateToken, async (req, res) => {
         }
       },
       orderBy: { [orderByField]: orderByDirection },
-      skip: (parseInt(page) - 1) * parseInt(limit),
-      take: parseInt(limit)
+      skip: (parseInt(page) - 1) * limit,
+      take: limit
     });
 
     res.json({ 
       clients, 
       pagination: { 
         page: parseInt(page), 
-        limit: parseInt(limit),
+        limit: limit,
         total: total,
         pages: totalPages
       } 
@@ -412,7 +419,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete client (soft delete)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -460,6 +467,38 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
+    // Check if client has any debt transactions
+    const clientDebtTransactions = await prisma.clientDebtTransaction.count({
+      where: { clientId: parseInt(id) }
+    });
+
+    if (clientDebtTransactions > 0) {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer : ce client a des transactions de dette associées',
+        constraint: 'client_debt_transactions_client_id_fkey',
+        dependents: [{
+          table: 'client_debt_transactions',
+          count: clientDebtTransactions
+        }]
+      });
+    }
+
+    // Check if client has any stock documents
+    const clientStockDocuments = await prisma.stockDocument.count({
+      where: { clientId: parseInt(id) }
+    });
+
+    if (clientStockDocuments > 0) {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer : ce client a des documents de stock associés',
+        constraint: 'stock_documents_client_id_fkey',
+        dependents: [{
+          table: 'stock_documents',
+          count: clientStockDocuments
+        }]
+      });
+    }
+
     await prisma.client.delete({
       where: { id: parseInt(id) }
     });
@@ -468,9 +507,22 @@ router.delete('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting client:', error);
     if (error.code === 'P2003') {
+      const constraintName = error.meta?.field_name || 'foreign_key_constraint';
+      let errorMessage = 'Impossible de supprimer : des éléments sont liés à ce client';
+      
+      if (constraintName.includes('sales')) {
+        errorMessage = 'Impossible de supprimer : ce client a des ventes associées';
+      } else if (constraintName.includes('invoice')) {
+        errorMessage = 'Impossible de supprimer : ce client a des factures associées';
+      } else if (constraintName.includes('debt')) {
+        errorMessage = 'Impossible de supprimer : ce client a des transactions de dette associées';
+      } else if (constraintName.includes('stock')) {
+        errorMessage = 'Impossible de supprimer : ce client a des documents de stock associés';
+      }
+      
       return res.status(400).json({ 
-        error: 'Impossible de supprimer : des éléments sont liés à ce client',
-        constraint: error.meta?.field_name || 'foreign_key_constraint'
+        error: errorMessage,
+        constraint: constraintName
       });
     }
     res.status(500).json({ error: 'Internal server error' });

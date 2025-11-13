@@ -43,11 +43,7 @@ const routes: Routes = [
   { path: 'vehicles', loadChildren: () => import('./vehicles/vehicles.module').then(m => m.VehiclesModule) },
   { path: 'drivers', loadChildren: () => import('./drivers/drivers.module').then(m => m.DriversModule) },
   { 
-    path: 'documents/bon-retour/:depotId', 
-    loadChildren: () => import('./documents/bon-retour/bon-retour.module').then(m => m.BonRetourModule) 
-  },
-  { 
-    path: 'documents/bon-retour/edit/:documentId', 
+    path: 'documents/bon-retour', 
     loadChildren: () => import('./documents/bon-retour/bon-retour.module').then(m => m.BonRetourModule) 
   }
 ];

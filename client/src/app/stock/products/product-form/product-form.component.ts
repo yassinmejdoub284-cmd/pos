@@ -28,6 +28,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
   imageInputType: 'file' | 'url' = 'file';
   selectedDepotIds = signal<number[]>([]);
   depotPrices = signal<Map<number, number>>(new Map()); // Map<depotId, price>
+  showTransferSection = signal(false);
 
   constructor(
     private fb: FormBuilder,
@@ -484,5 +485,42 @@ export class ProductFormComponent implements OnInit, OnChanges {
     } catch {
       return false;
     }
+  }
+
+  toggleTransferSection(): void {
+    this.showTransferSection.set(!this.showTransferSection());
+  }
+
+  onMultiTransfer(transfers: Array<{
+    targetProductId: number;
+    quantity: number;
+    conversionRatio: number;
+  }>): void {
+    if (!this.product || transfers.length === 0) return;
+
+    this.loading.set(true);
+    this.error.set('');
+
+    const userDepotId = this.authService.currentUser()?.depotId || 0;
+    const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
+    const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
+
+    const transferPayload = {
+      sourceProductId: this.product.id,
+      transfers: transfers,
+      depotId: currentDepotId
+    };
+
+    this.productsService.transferProductMultiple(transferPayload).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.showTransferSection.set(false);
+        this.error.set('');
+      },
+      error: (error) => {
+        this.loading.set(false);
+        this.error.set(error.error?.error || 'Erreur lors du transfert des produits');
+      }
+    });
   }
 } 

@@ -3,6 +3,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, Validators, FormArray, FormGroup, FormControl, AbstractControl } from '@angular/forms';
 import { ProductsService } from '../../core/services/products.service';
 import { StockDocumentsService } from '../../core/services/stock-documents.service';
+import { SuppliersService } from '../../core/services/suppliers.service';
+import { Supplier } from '../../core/models/supplier.model';
 
 interface ReturnItemForm {
   productId: number;
@@ -25,6 +27,11 @@ export class NewReturnComponent implements OnInit {
   success = '';
 
   products = signal<any[]>([]);
+  inventory = signal<any[]>([]);
+  suppliers = signal<Supplier[]>([]);
+  selectedSupplierId: number | null = null;
+  showSupplierModal = false;
+  
   private searchQuery = signal<string>('');
   filteredProducts = computed(() => {
     const all = this.products();
@@ -44,10 +51,29 @@ export class NewReturnComponent implements OnInit {
     return product ? (product.name || `Produit #${productId}`) : `Produit #${productId}`;
   }
 
+  getProductStock(productId: number): number {
+    const invItem = this.inventory().find(item => item.productId === productId);
+    return invItem ? parseFloat(invItem.quantity || 0) : 0;
+  }
+
+  getSelectedSupplierName(): string {
+    if (!this.selectedSupplierId) return 'Non sélectionné';
+    const supplier = this.suppliers().find(s => s.id === this.selectedSupplierId);
+    return supplier ? supplier.name : 'Non sélectionné';
+  }
+
   getTotalQuantity(): number {
     return this.itemsArray.controls.reduce((total, ctrl) => {
       const quantity = ctrl.get('quantity')?.value || 0;
       return total + (Number(quantity) || 0);
+    }, 0);
+  }
+
+  getTotalAmount(): number {
+    return this.itemsArray.controls.reduce((total, ctrl) => {
+      const quantity = ctrl.get('quantity')?.value || 0;
+      const price = ctrl.get('unitPrice')?.value || 0;
+      return total + (Number(quantity) || 0) * (Number(price) || 0);
     }, 0);
   }
 
@@ -56,13 +82,17 @@ export class NewReturnComponent implements OnInit {
     private router: Router,
     private fb: FormBuilder,
     private productsService: ProductsService,
-    private stockDocs: StockDocumentsService
+    private stockDocs: StockDocumentsService,
+    private suppliersService: SuppliersService
   ) {}
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(params => {
       const id = params.get('depotId');
       this.depotId = id ? parseInt(id, 10) : -1;
+      if (this.depotId > 0) {
+        this.loadInventory();
+      }
     });
 
     this.form = this.fb.group({
@@ -80,9 +110,42 @@ export class NewReturnComponent implements OnInit {
       }
     });
 
+    this.suppliersService.list().subscribe({
+      next: (suppliers) => {
+        this.suppliers.set(suppliers || []);
+      },
+      error: () => {
+        this.error = 'Erreur chargement fournisseurs';
+      }
+    });
+
     this.itemSearchCtrl.valueChanges.subscribe((q) => {
       this.searchQuery.set((q || '').toString());
     });
+  }
+
+  loadInventory(): void {
+    this.stockDocs.getInventory(this.depotId).subscribe({
+      next: (inv) => {
+        this.inventory.set(inv || []);
+      },
+      error: () => {
+        this.error = 'Erreur chargement inventaire';
+      }
+    });
+  }
+
+  selectSupplier(supplierId: number): void {
+    this.selectedSupplierId = supplierId;
+    this.showSupplierModal = false;
+  }
+
+  openSupplierModal(): void {
+    this.showSupplierModal = true;
+  }
+
+  closeSupplierModal(): void {
+    this.showSupplierModal = false;
   }
 
   get itemsArray(): FormArray { return this.form.get('items') as FormArray; }
@@ -90,10 +153,14 @@ export class NewReturnComponent implements OnInit {
   asFormControl(control: AbstractControl | null): FormControl<any> { return control as FormControl<any>; }
 
   addItem(product: any): void {
+    const availableStock = this.getProductStock(product.id);
     const group = this.fb.group({
       productId: this.fb.control<number>(product.id, { nonNullable: true, validators: [Validators.required] }),
       famille: this.fb.control<string>(product.famille?.name || 'Divers', { nonNullable: true, validators: [Validators.required] }),
-      quantity: this.fb.control<number>(1, { nonNullable: true, validators: [Validators.required, Validators.min(0.001)] }),
+      quantity: this.fb.control<number>(Math.min(1, availableStock), { 
+        nonNullable: true, 
+        validators: [Validators.required, Validators.min(0.001), Validators.max(availableStock)] 
+      }),
       unitPrice: this.fb.control<number | null>(product.prix_achat || null),
       batch: this.fb.control<string | null>(null),
       notes: this.fb.control<string | null>(null)
@@ -123,19 +190,26 @@ export class NewReturnComponent implements OnInit {
   removeItem(index: number): void { this.itemsArray.removeAt(index); }
 
   submit(): void {
+    if (!this.selectedSupplierId) {
+      this.error = 'Veuillez sélectionner un fournisseur';
+      return;
+    }
+
     if (this.itemsArray.length === 0) {
       this.error = 'Veuillez ajouter au moins un produit à retourner';
       return;
     }
 
-    // Validate that all items have quantities
+    // Validate that all items have quantities and stock availability
     const invalidItems = this.itemsArray.controls.filter(ctrl => {
       const quantity = ctrl.get('quantity')?.value;
-      return !quantity || Number(quantity) <= 0;
+      const productId = ctrl.get('productId')?.value;
+      const availableStock = this.getProductStock(productId);
+      return !quantity || Number(quantity) <= 0 || Number(quantity) > availableStock;
     });
 
     if (invalidItems.length > 0) {
-      this.error = 'Tous les produits doivent avoir une quantité valide à retourner';
+      this.error = 'Certains produits ont des quantités invalides ou dépassent le stock disponible';
       return;
     }
 
@@ -150,22 +224,26 @@ export class NewReturnComponent implements OnInit {
     const items: ReturnItemForm[] = this.itemsArray.controls.map((ctrl) => ({
       productId: ctrl.get('productId')?.value || 0,
       famille: ctrl.get('famille')?.value || 'Divers',
-      quantity: Math.abs(ctrl.get('quantity')?.value || 0), // Keep positive quantity, backend will handle the negative
+      quantity: Math.abs(ctrl.get('quantity')?.value || 0),
       purchasePrice: ctrl.get('unitPrice')?.value || null,
       batch: ctrl.get('batch')?.value || null,
       notes: ctrl.get('notes')?.value || null
     }));
 
-    this.stockDocs.createEntry(this.depotId, null, items, 'Bon de retour', true).subscribe({
+    this.stockDocs.createReturnDocument({
+      depotId: this.depotId,
+      supplierId: this.selectedSupplierId,
+      items: items,
+      notes: `Bon de retour vers ${this.getSelectedSupplierName()}`
+    }).subscribe({
       next: () => {
         this.loading = false;
-        this.success = `Bon de retour créé avec succès - Les quantités ont été soustraites de l'inventaire`;
+        this.success = `Bon de retour créé avec succès - Les quantités ont été soustraites de l'inventaire et le débit a été ajouté au relevé du fournisseur`;
         setTimeout(() => this.router.navigate(['/stock/documents/bon-retour', this.depotId]), 1500);
       },
       error: (err) => {
         this.loading = false;
         this.error = err.error?.error || 'Erreur lors de la création du bon de retour';
-        console.error('Error creating return:', err);
       }
     });
   }

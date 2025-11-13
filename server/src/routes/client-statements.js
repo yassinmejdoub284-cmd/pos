@@ -118,7 +118,7 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
 // Get all client statements summary
 router.get('/statements/summary', authenticateToken, async (req, res) => {
   try {
-    const { startDate, endDate, page = 1, limit = 50 } = req.query;
+    const { startDate, endDate, page = 1, limit = 1000 } = req.query;
 
     const whereClause = {};
     

@@ -1174,7 +1174,7 @@ export class PrintService {
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
-            .ticket { width: 300px; margin: 0 auto; }
+            .ticket { width: 300px; margin: 0 auto; font-weight: bold; }
             .center { text-align: center; }
             .line { border-top: 1px dashed #000; margin: 8px 0; }
             .double-line { border-top: 2px solid #000; margin: 8px 0; }
@@ -1185,7 +1185,7 @@ export class PrintService {
             td.price { width: 20%; text-align: right; }
             td.total { width: 20%; text-align: right; }
             .muted { color: #444; }
-            .bold { font-weight: 700; }
+            .bold { font-weight: bold; }
             @media print {
               body { margin: 0; padding: 4px; }
               .ticket { width: 100%; }
@@ -3299,7 +3299,6 @@ export class PrintService {
     const leftAlign = ESC + '\x61\x00';   // Left alignment
     const boldOn = ESC + '\x45\x01';      // Bold on
     const boldOff = ESC + '\x45\x00';     // Bold off
-    const normalSize = ESC + '\x21\x00';  // Normal size
     const monospaceFont = ESC + '\x4D\x00'; // Select font A (monospace)
     const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
     const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
@@ -3307,13 +3306,12 @@ export class PrintService {
     // Eliminate margins and set monospace font
     text += noTopMargin + noBottomMargin + monospaceFont;
     
-    // Header - 48 characters wide
+    // Header
     text += '='.repeat(LINE_WIDTH) + '\n';
-    text += centerAlign + boldOn + 'RELEVE FOURNISSEUR' + boldOff + '\n';
-    text += leftAlign + '='.repeat(LINE_WIDTH) + '\n\n';
+    text += leftAlign + 'FOURNISSEUR' + '\n';
+    text += leftAlign + '\n';
     
     // Supplier information
-    text += leftAlign + boldOn + 'FOURNISSEUR:' + boldOff + '\n';
     const supplierName = this.sanitizeForThermalPrinter(supplier.name || 'N/A');
     text += supplierName.substring(0, LINE_WIDTH) + '\n';
     if (supplier.contactName) {
@@ -3329,53 +3327,40 @@ export class PrintService {
     }
     
     // Period
+    text += '-'.repeat(LINE_WIDTH) + '\n';
     const periodStart = startDate ? new Date(startDate).toLocaleDateString('fr-FR') : 'Début';
     const periodEnd = endDate ? new Date(endDate).toLocaleDateString('fr-FR') : 'Aujourd\'hui';
-    text += '-'.repeat(LINE_WIDTH) + '\n';
     const periodLine = 'Periode: ' + periodStart + ' - ' + periodEnd;
     text += periodLine.substring(0, LINE_WIDTH) + '\n';
     text += 'Date: ' + new Date().toLocaleDateString('fr-FR') + '\n';
-    text += '-'.repeat(LINE_WIDTH) + '\n\n';
-    
-    // Summary
-    text += boldOn + 'RESUME:' + boldOff + '\n';
     text += '-'.repeat(LINE_WIDTH) + '\n';
-    
-    const totalDebit = Number(statement.totalDebit || 0).toFixed(3);
-    const debitLine = 'Total Debit'.padEnd(25) + totalDebit.padStart(12) + ' dt';
-    text += debitLine.substring(0, LINE_WIDTH) + '\n';
-    
-    const totalCredit = Number(statement.totalCredit || 0).toFixed(3);
-    const creditLine = 'Total Credit'.padEnd(25) + totalCredit.padStart(12) + ' dt';
-    text += creditLine.substring(0, LINE_WIDTH) + '\n';
-    
-    const balance = Number(statement.currentBalance || 0);
-    const balanceValue = balance.toFixed(3).padStart(12) + ' dt';
-    const balanceLine = 'Solde Actuel'.padEnd(25) + balanceValue;
-    text += boldOn + balanceLine.substring(0, LINE_WIDTH) + boldOff + '\n';
-    text += '-'.repeat(LINE_WIDTH) + '\n\n';
+    text += '\n';
     
     // Transactions
-    text += boldOn + 'DETAIL DES OPERATIONS:' + boldOff + '\n';
+    text += 'DETAIL DES OPERATIONS:' + '\n';
     text += '-'.repeat(LINE_WIDTH) + '\n';
     
     if (!statement.statement || statement.statement.length === 0) {
       text += 'Aucune operation pour cette periode\n';
     } else {
-      // Header row - optimized for 48 chars
-      text += 'Date  Type      Ref       Debit     Credit    Solde\n';
+      // Header row - Date(6) + Ref(12) + Debit(10) + Credit(10) + Solde(10) = 48 chars
+      text += 'Date       Ref       Debit     Credit       Solde\n';
       text += '-'.repeat(LINE_WIDTH) + '\n';
       
       statement.statement.forEach((item: any) => {
         const date = new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-        const type = this.getTransactionTypeLabelShort(item.type).substring(0, 8).padEnd(8);
-        const ref = (item.reference || '').substring(0, 8).padEnd(8);
-        const debit = item.debit > 0 ? item.debit.toFixed(3).padStart(8) : ''.padStart(8);
-        const credit = item.credit > 0 ? item.credit.toFixed(3).padStart(8) : ''.padStart(8);
-        const balance = item.balance.toFixed(3).padStart(8);
+        const ref = (item.reference || '').substring(0, 12).padEnd(12);
+        const debit = item.debit > 0 ? item.debit.toFixed(3).padStart(10) : ''.padStart(10);
+        const credit = item.credit > 0 ? item.credit.toFixed(3).padStart(10) : ''.padStart(10);
+        const balanceValue = item.balance;
+        // Negative balances show value with "-" at the end (e.g., "500.000-")
+        // Positive balances show just the value
+        const balance = balanceValue < 0 
+          ? Math.abs(balanceValue).toFixed(3).padStart(9) + '-'
+          : balanceValue.toFixed(3).padStart(10);
         
-        // Format: Date(6) + Type(8) + Ref(8) + Debit(8) + Credit(8) + Solde(8) = 46 chars
-        const line = date.padEnd(6) + type + ref + debit + credit + balance;
+        // Format: Date(6) + Ref(12) + Debit(10) + Credit(10) + Solde(10) = 48 chars
+        const line = date.padEnd(6) + ref + debit + credit + balance;
         text += line.substring(0, LINE_WIDTH) + '\n';
       });
     }

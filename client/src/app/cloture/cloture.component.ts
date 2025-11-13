@@ -43,9 +43,16 @@ export class ClotureComponent implements OnInit, OnDestroy {
   
   // Tickets modal state
   showTicketsModal = signal(false);
-  sessionTickets = signal<Array<{ id: number; amount: number; totalAmount?: number; createdAt?: string | Date }>>([]);
+  sessionTickets = signal<Array<{ id: number; amount: number; totalAmount?: number; createdAt?: string | Date; status?: string }>>([]);
   ticketsMoreFlag = false;
-  ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => sum + t.amount, 0));
+  ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => {
+    const status = ((t as any).status || '').toUpperCase();
+    // Exclude cancelled and refunded tickets from total
+    if (status === 'CANCELLED' || status === 'REFUNDED') {
+      return sum;
+    }
+    return sum + t.amount;
+  }, 0));
   
   // Store Z report sales data for totalSalesTTC calculation
   private zReportSales = signal<Array<any>>([]);
@@ -191,6 +198,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const session = this.currentSession();
     if (!session) return [];
 
+    // Helper function to extract paid amount from partial payment notes
+    const extractPaidAmount = (notes: string | null | undefined, defaultAmount: number): number => {
+      if (!notes) return defaultAmount;
+      
+      // Match pattern: "Paiement partiel: Xdt payé, reste Ydt" or "Paiement partiel: X dt payé, reste Y dt"
+      const match = notes.match(/Paiement partiel:\s*([\d.]+)\s*dt?\s*payé/i);
+      if (match && match[1]) {
+        const paidAmount = parseFloat(match[1]);
+        if (!isNaN(paidAmount) && paidAmount > 0) {
+          return paidAmount;
+        }
+      }
+      
+      return defaultAmount;
+    };
+
     const rows: Array<{ createdAt: string; label: string; amount: number }> = [];
 
     // Dépenses (use server details first)
@@ -200,10 +223,15 @@ export class ClotureComponent implements OnInit, OnDestroy {
       if (e.categoryName) parts.push(e.categoryName);
       if (e.supplierName) parts.push(`Fournisseur: ${e.supplierName}`);
       const label = parts.length ? parts.join(' · ') : (e.reason || 'Dépense');
+      
+      // Extract paid amount if partial payment, otherwise use full amount
+      const defaultAmount = parseFloat(e.amount || 0) || 0;
+      const displayAmount = extractPaidAmount(e.notes, defaultAmount);
+      
       rows.push({
         createdAt: e.createdAt,
         label,
-        amount: parseFloat(e.amount || 0) || 0
+        amount: displayAmount
       });
     }
 
@@ -392,6 +420,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   recentExpenses(): Array<{ createdAt: string; type: string; reason: string; amount: number; categoryName?: string | null; supplierName?: string | null; notes?: string | null }> {
+    // Helper function to extract paid amount from partial payment notes
+    const extractPaidAmount = (notes: string | null | undefined, defaultAmount: number): number => {
+      if (!notes) return defaultAmount;
+      
+      // Match pattern: "Paiement partiel: Xdt payé, reste Ydt" or "Paiement partiel: X dt payé, reste Y dt"
+      const match = notes.match(/Paiement partiel:\s*([\d.]+)\s*dt?\s*payé/i);
+      if (match && match[1]) {
+        const paidAmount = parseFloat(match[1]);
+        if (!isNaN(paidAmount) && paidAmount > 0) {
+          return paidAmount;
+        }
+      }
+      
+      return defaultAmount;
+    };
+
     // Prefer server-provided details if any
     const details = (this.currentSession()?.summary as any)?.expensesDetails as Array<any> | undefined;
     if (details && details.length) {
@@ -429,14 +473,25 @@ export class ClotureComponent implements OnInit, OnDestroy {
           if (m2 && m2[1]) supplierName = m2[1].trim();
         }
 
+        // Extract paid amount if partial payment, otherwise use full amount
+        const defaultAmount = parseFloat(d.amount || 0) || 0;
+        const displayAmount = extractPaidAmount(d.notes, defaultAmount);
+
+        // Format notes to remove remaining amount mention
+        let formattedNotes: string | null = d.notes || null;
+        if (formattedNotes && formattedNotes.includes('Paiement partiel')) {
+          // Remove "reste Xdt" part, keep only "Paiement partiel: Xdt payé"
+          formattedNotes = formattedNotes.replace(/,\s*reste\s+[\d.]+\s*dt?/i, '');
+        }
+
         return ({
           createdAt: d.createdAt,
           type: 'SORTIE',
           reason: fullReason,
-          amount: d.amount,
+          amount: displayAmount,
           categoryName,
           supplierName,
-          notes: d.notes || null
+          notes: formattedNotes
         });
       });
     }
@@ -635,18 +690,38 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   getExpensesTotal(): number {
-    // Prefer server-provided total if available (this is the total of ALL expenses for display)
+    // Helper function to extract paid amount from partial payment notes
+    const extractPaidAmount = (notes: string | null | undefined, defaultAmount: number): number => {
+      if (!notes) return defaultAmount;
+      
+      // Match pattern: "Paiement partiel: Xdt payé, reste Ydt" or "Paiement partiel: X dt payé, reste Y dt"
+      const match = notes.match(/Paiement partiel:\s*([\d.]+)\s*dt?\s*payé/i);
+      if (match && match[1]) {
+        const paidAmount = parseFloat(match[1]);
+        if (!isNaN(paidAmount) && paidAmount > 0) {
+          return paidAmount;
+        }
+      }
+      
+      return defaultAmount;
+    };
+
+    // Calculate from expenses details if available (using paid amounts for partial payments)
     const summary: any = this.currentSession()?.summary || {};
+    const expensesDetails = (summary.expensesDetails || []) as Array<any>;
+    if (expensesDetails.length > 0) {
+      const totalFromDetails = expensesDetails.reduce((sum, e) => {
+        const defaultAmount = parseFloat(e.amount || 0) || 0;
+        const displayAmount = extractPaidAmount(e.notes, defaultAmount);
+        return sum + displayAmount;
+      }, 0);
+      if (totalFromDetails > 0) return totalFromDetails;
+    }
+    
+    // Fallback: Prefer server-provided total if available
     const fromSummary = parseFloat(summary.expensesTotal || 0) || 0;
     if (fromSummary > 0) {
       return fromSummary;
-    }
-    
-    // Fallback: Calculate from expenses details if available
-    const expensesDetails = (summary.expensesDetails || []) as Array<any>;
-    if (expensesDetails.length > 0) {
-      const totalFromDetails = expensesDetails.reduce((sum, e) => sum + (parseFloat(e.amount || 0) || 0), 0);
-      if (totalFromDetails > 0) return totalFromDetails;
     }
     
     // Final fallback: movements tagged as expenses (exclude rejected)
@@ -740,11 +815,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
         const sales = (report?.session?.sales || []) as Array<any>;
         // Store Z report sales for totalSalesTTC calculation
         this.zReportSales.set(sales);
+        // Show all tickets including cancelled ones, but exclude them from totals
         this.sessionTickets.set(sales.map(s => ({
           id: s.id,
           amount: parseFloat((s.paidAmount ?? s.finalTotal ?? s.amount ?? 0) as any) || 0,
           totalAmount: s.totalAmount ?? s.finalTotal,
           createdAt: s.createdAt,
+          status: s.status,
           // carry session-local numbering fields for display in modal
           dailyTicketNumber: s.dailyTicketNumber ?? s.sessionTicketNumber ?? s.numero ?? s.sessionIndex ?? s.sessionSeq ?? null
         })));
