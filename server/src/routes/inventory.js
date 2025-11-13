@@ -1141,26 +1141,155 @@ router.get('/sessions/:id/summary', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANA
   }
 });
 
-// Delete inventory session (only if DRAFT)
+// Delete inventory session (only if DRAFT, or POSTED for ADMIN)
 router.delete('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
 
     const session = await prisma.inventorySession.findUnique({
-      where: { id: sessionId }
+      where: { id: sessionId },
+      include: {
+        items: {
+          include: {
+            product: true
+          }
+        }
+      }
     });
 
     if (!session) {
       return res.status(404).json({ error: 'Inventory session not found' });
     }
 
-    if (session.status !== 'DRAFT') {
-      return res.status(400).json({ error: 'Can only delete DRAFT inventory sessions' });
+    if (session.status !== 'DRAFT' && req.user?.role !== 'ADMIN') {
+      return res.status(400).json({ error: 'Can only delete DRAFT inventory sessions. Only ADMIN can delete POSTED sessions.' });
     }
 
-    await prisma.inventorySession.delete({
-      where: { id: sessionId }
-    });
+    // If session is POSTED, we need to revert stock changes
+    if (session.status === 'POSTED') {
+      const postedAt = session.postedAt || session.closedAt || session.createdAt;
+      
+      await prisma.$transaction(async (tx) => {
+        // For each item in the inventory session, revert stock to original state
+        for (const item of session.items) {
+          const productId = item.productId;
+          const theoreticalQuantity = parseFloat(item.theoreticalQuantity || 0);
+          const countedQuantity = parseFloat(item.countedQuantity || item.theoreticalQuantity || 0);
+          
+          // Get all sales (exits) that happened AFTER the inventory was posted
+          const salesAfterInventory = await tx.sale.findMany({
+            where: {
+              depotId: session.depotId,
+              status: { in: ['COMPLETED', 'CMD_TERMINEE'] },
+              createdAt: { gte: postedAt }
+            },
+            include: {
+              items: {
+                where: {
+                  productId: productId
+                }
+              }
+            }
+          });
+          
+          let totalExitsAfter = 0;
+          salesAfterInventory.forEach(sale => {
+            sale.items.forEach(saleItem => {
+              const actualQuantity = sale.isWholesale && saleItem.isWholesale && saleItem.bundleSize
+                ? (parseFloat(saleItem.bundleQuantity || saleItem.quantity || 0)) * parseFloat(saleItem.bundleSize || 1)
+                : parseFloat(saleItem.quantity || 0);
+              totalExitsAfter += actualQuantity;
+            });
+          });
+          
+          // Get all entries that happened AFTER the inventory was posted
+          const entryDocumentsAfter = await tx.stockDocument.findMany({
+            where: {
+              destinataireId: session.depotId,
+              type: { in: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'] },
+              status: 'RECEIVED',
+              createdAt: { gte: postedAt }
+            },
+            include: {
+              items: {
+                where: {
+                  productId: productId
+                }
+              }
+            }
+          });
+          
+          let totalEntriesAfter = 0;
+          entryDocumentsAfter.forEach(doc => {
+            doc.items.forEach(docItem => {
+              totalEntriesAfter += parseFloat(docItem.quantity || 0);
+            });
+          });
+          
+          // Calculate original stock before inventory
+          // Original stock = theoretical quantity (what was in stock before inventory)
+          // Current stock after inventory = counted quantity
+          // Stock after sales/entries = counted quantity - exits + entries
+          // We want to revert to: original stock - exits after + entries after
+          const originalStock = theoreticalQuantity;
+          const revertedStock = originalStock - totalExitsAfter + totalEntriesAfter;
+          
+          // Update inventory to reverted stock
+          const inventory = await tx.inventory.findUnique({
+            where: {
+              depotId_productId: {
+                depotId: session.depotId,
+                productId: productId
+              }
+            }
+          });
+
+          if (inventory) {
+            await tx.inventory.update({
+              where: { id: inventory.id },
+              data: { quantity: revertedStock }
+            });
+            console.log(`Reverted inventory for depot ${session.depotId}, product ${productId}: ${inventory.quantity} -> ${revertedStock} (original: ${originalStock}, exits after: ${totalExitsAfter}, entries after: ${totalEntriesAfter})`);
+          } else {
+            // Create inventory entry if it doesn't exist
+            await tx.inventory.create({
+              data: {
+                depotId: session.depotId,
+                productId: productId,
+                quantity: revertedStock
+              }
+            });
+            console.log(`Created inventory entry for depot ${session.depotId}, product ${productId}: ${revertedStock}`);
+          }
+          
+          // Create stock movement record for the reversion
+          const stockChange = revertedStock - countedQuantity;
+          if (Math.abs(stockChange) > 0.001) {
+            await tx.stockMovement.create({
+              data: {
+                productId: productId,
+                depotId: session.depotId,
+                quantity: Math.abs(stockChange),
+                type: stockChange > 0 ? 'IN' : 'OUT',
+                reason: 'INVENTORY_DELETED',
+                reference: `DELETED: ${session.numero}`,
+                userId: req.user.id
+              }
+            });
+          }
+        }
+        
+        // Delete the inventory session
+        await tx.inventorySession.delete({
+          where: { id: sessionId }
+        });
+      });
+    } else {
+      // For DRAFT sessions, just delete without reverting stock
+      await prisma.inventorySession.delete({
+        where: { id: sessionId }
+      });
+    }
 
     await logAudit(req.user.id, 'inventory_sessions', sessionId, 'DELETE', session, null);
 

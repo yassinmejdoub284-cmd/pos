@@ -10,7 +10,7 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
     const { clientId } = req.params;
     const { startDate, endDate } = req.query;
 
-    // Get client info
+    // Get client info - no depot filtering, get client regardless of depot
     const client = await prisma.client.findUnique({
       where: { id: parseInt(clientId) },
       select: {
@@ -18,7 +18,8 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
         code: true,
         firstName: true,
         lastName: true,
-        currentDebt: true
+        currentDebt: true,
+        depotId: true
       }
     });
 
@@ -31,12 +32,14 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
       ? { gte: new Date(startDate), lte: new Date(endDate) }
       : undefined;
 
-    // Get client debt transactions ONLY (single source of truth)
-    // Includes both DEBT (Crédit) and PAYMENT (Débit), with or without saleId
+    // Get all client debt transactions from ALL depots (no depot filtering)
+    // Includes both DEBT (Débit - client owes) and PAYMENT (Crédit - reduces debt), with or without saleId
+    // This ensures we get all transactions regardless of which depot the sale was made at
     const debtTransactions = await prisma.clientDebtTransaction.findMany({
       where: {
         clientId: parseInt(clientId),
         ...(dateFilter ? { createdAt: dateFilter } : {})
+        // No depot filtering - get all transactions from all depots for this client
       },
       select: {
         id: true,
@@ -73,16 +76,16 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
         if (new Date(t.createdAt) < new Date(row.date)) {
           row.date = t.createdAt;
         }
-        if (t.type === 'PAYMENT') row.debit += amount;
-        if (t.type === 'DEBT') row.credit += amount;
+        if (t.type === 'DEBT') row.debit += amount;
+        if (t.type === 'PAYMENT') row.credit += amount;
       } else {
         // Standalone transactions remain separate
         standaloneRows.push({
           type: t.type.toLowerCase(),
           date: t.createdAt,
           reference: t.type === 'DEBT' ? `CREDIT-${t.id}` : `REGLEMENT-${t.id}`,
-          debit: t.type === 'PAYMENT' ? amount : 0,
-          credit: t.type === 'DEBT' ? amount : 0,
+          debit: t.type === 'DEBT' ? amount : 0,
+          credit: t.type === 'PAYMENT' ? amount : 0,
           id: t.id,
           clickable: t.type === 'PAYMENT',
           saleId: null,
@@ -118,7 +121,7 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
 // Get all client statements summary
 router.get('/statements/summary', authenticateToken, async (req, res) => {
   try {
-    const { startDate, endDate, page = 1, limit = 1000 } = req.query;
+    const { startDate, endDate, page = 1, limit = 5000 } = req.query;
 
     const whereClause = {};
     
@@ -129,6 +132,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       };
     }
 
+    // Fetch all active clients without depot filtering - get all clients regardless of depot
     const clients = await prisma.client.findMany({
       where: { isActive: true },
       select: {
@@ -139,6 +143,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         currentDebt: true,
         maxDebt: true,
         totalSpent: true,
+        depotId: true,
         _count: {
           select: { 
             sales: true,
@@ -146,97 +151,89 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           }
         }
       },
-      orderBy: { totalSpent: 'desc' },
+      orderBy: { code: 'asc' }, // Sort by code to ensure CLI0001 appears first
       skip: (parseInt(page) - 1) * parseInt(limit),
       take: parseInt(limit)
     });
 
-    // Get summary for each client
+    // Get summary for each client using the same logic as individual statement
     const clientSummaries = await Promise.all(
       clients.map(async (client) => {
-        const sales = await prisma.sale.findMany({
-          where: { 
+        // Use the same date filter logic as individual statement
+        const dateFilter = (startDate && endDate)
+          ? { gte: new Date(startDate), lte: new Date(endDate) }
+          : undefined;
+
+        // Get all debt transactions for this client from ALL depots (no depot filtering)
+        // This ensures we get all transactions regardless of which depot the sale was made at
+        const debtTransactions = await prisma.clientDebtTransaction.findMany({
+          where: {
             clientId: client.id,
-            ...(startDate && endDate ? {
-              createdAt: {
-                gte: new Date(startDate),
-                lte: new Date(endDate)
-              }
-            } : {})
+            ...(dateFilter ? { createdAt: dateFilter } : {})
+            // No depot filtering - get all transactions from all depots
           },
           select: {
             id: true,
-            finalTotal: true,
-            advancePayment: true,
-            paymentType: true,
-            createdAt: true
-          }
-        });
-
-        const debtTransactions = await prisma.clientDebtTransaction.findMany({
-          where: { 
-            clientId: client.id,
-            saleId: null, // Only standalone transactions
-            ...(startDate && endDate ? {
-              createdAt: {
-                gte: new Date(startDate),
-                lte: new Date(endDate)
-              }
-            } : {})
-          },
-          select: {
             amount: true,
             type: true,
+            saleId: true,
             createdAt: true
-          }
+          },
+          orderBy: { createdAt: 'asc' }
         });
 
-        // Calculate totals using the same logic as individual client statement
-        let totalDebit = 0;
-        let totalCredit = 0;
-        let operationCount = 0;
+        // Group transactions by saleId (same logic as individual statement)
+        const groupedBySale = new Map();
+        const standaloneRows = [];
 
-        // Process sales
-        sales.forEach(sale => {
-          const totalAmount = parseFloat(sale.finalTotal);
-          operationCount++;
-          
-          if (sale.paymentType === 'CREDIT') {
-            const advanceAmount = parseFloat(sale.advancePayment || 0);
-            totalDebit += advanceAmount;
-            totalCredit += totalAmount;
+        for (const t of debtTransactions) {
+          const amount = parseFloat(t.amount);
+          if (t.saleId) {
+            if (!groupedBySale.has(t.saleId)) {
+              groupedBySale.set(t.saleId, {
+                type: 'ticket',
+                date: t.createdAt,
+                debit: 0,
+                credit: 0
+              });
+            }
+            const row = groupedBySale.get(t.saleId);
+            // Keep earliest date for the ticket row
+            if (new Date(t.createdAt) < new Date(row.date)) {
+              row.date = t.createdAt;
+            }
+            if (t.type === 'DEBT') row.debit += amount;
+            if (t.type === 'PAYMENT') row.credit += amount;
           } else {
-            // Cash sales: débit = crédit
-            totalDebit += totalAmount;
-            totalCredit += totalAmount;
+            standaloneRows.push({
+              type: t.type.toLowerCase(),
+              date: t.createdAt,
+              debit: t.type === 'DEBT' ? amount : 0,
+              credit: t.type === 'PAYMENT' ? amount : 0
+            });
           }
+        }
+
+        // Calculate totals and running balance (same as individual statement)
+        const rows = [...Array.from(groupedBySale.values()), ...standaloneRows]
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        const totalDebit = rows.reduce((sum, t) => sum + t.debit, 0);
+        const totalCredit = rows.reduce((sum, t) => sum + t.credit, 0);
+        
+        // Calculate running balance (same formula as individual statement)
+        let balance = 0;
+        rows.forEach(r => {
+          balance = balance + r.debit - r.credit;
         });
-
-        // Process standalone debt transactions
-        debtTransactions.forEach(transaction => {
-          operationCount++;
-          if (transaction.type === 'PAYMENT') {
-            totalDebit += parseFloat(transaction.amount);
-          } else if (transaction.type === 'DEBT') {
-            totalCredit += parseFloat(transaction.amount);
-          }
-        });
-
-        const currentBalance = totalDebit - totalCredit;
-
-        // Calculate remaining allowed debts
-        const maxDebt = parseFloat(client.maxDebt || 0);
-        const currentDebtAmount = parseFloat(client.currentDebt || 0);
-        const remainingAllowedDebts = Math.max(0, maxDebt - currentDebtAmount);
+        const currentBalance = balance;
 
         return {
           ...client,
-          periodSales: totalCredit, // Ventes Période = Total Crédit (366,900)
-          periodPayments: totalDebit, // Paiements = Total Débit (271,900)
-          periodDebts: totalCredit - totalDebit, // Créances = Remaining debt (95,000)
-          periodBalance: remainingAllowedDebts, // Remaining Allowed Debts = maxDebt - currentDebt
-          currentDebt: -Math.abs(parseFloat(client.currentDebt || 0)), // Solde Actuel = -95,000 (negative)
-          operationCount: operationCount
+          totalDebit: totalDebit,
+          totalCredit: totalCredit,
+          currentBalance: currentBalance,
+          operationCount: rows.length
         };
       })
     );

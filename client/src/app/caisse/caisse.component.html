@@ -372,7 +372,7 @@
                   (click)="selectReceiptItem(item, i)">
                   <td class="px-3 py-3 text-sm">
                     <div *ngIf="!item.isWholesale" class="flex items-center space-x-2">
-                      <span>{{ item.quantity }}</span>
+                      <span>{{ item.quantity | number:'1.3-3' }}</span>
                       <span *ngIf="getRemainingStock(item.product.id) < 0"
                         class="text-xs bg-red-100 text-red-600 px-1 py-0.5 rounded"
                         [title]="'Stock après vente: ' + getRemainingStock(item.product.id)">
@@ -381,7 +381,7 @@
                     </div>
                     <div *ngIf="item.isWholesale" class="text-center">
                       <div class="text-violet-600 font-bold">{{ item.bundleQuantity || 0 }}<span
-                          class="text-[0.6rem] text-gray-500">x{{ item.quantity }}</span></div>
+                          class="text-[0.6rem] text-gray-500">x{{ item.quantity | number:'1.3-3' }}</span></div>
                       <div class="text-xs text-gray-500 flex items-center justify-center space-x-1">
                         <span *ngIf="getRemainingStock(item.product.id) < 0" class="text-red-600"
                           [title]="'Stock après vente: ' + getRemainingStock(item.product.id)">
@@ -3166,7 +3166,7 @@
                     <td class="px-3 py-2 text-gray-700">{{ item.product?.famille?.name || 'N/A' }}</td>
                     <td class="px-3 py-2 text-gray-700">{{ item.product?.designation_legale || item.product?.name ||
                       item.productName }}</td>
-                    <td class="px-3 py-2 text-right text-gray-700">{{ item.quantity }} {{ item.product?.unite || '' }}
+                    <td class="px-3 py-2 text-right text-gray-700">{{ item.quantity | number:'1.3-3' }} {{ item.product?.unite || '' }}
                     </td>
                     <td class="px-3 py-2 text-right text-gray-700">{{ item.unitPrice | number:'1.3-3' }} dt</td>
                     <td class="px-3 py-2 text-right font-medium text-gray-800">{{ item.total | number:'1.3-3' }} dt</td>
@@ -3758,7 +3758,7 @@
                 {{ item.productName }}
               </div>
               <div class="text-xs text-gray-500 mb-2">
-                Qty: {{ item.quantity }}
+                Qty: {{ item.quantity | number:'1.3-3' }}
               </div>
               <div class="text-sm font-bold text-red-600">
                 {{ item.total | number:'1.2-2' }} dt

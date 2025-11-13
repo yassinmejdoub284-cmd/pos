@@ -196,7 +196,12 @@
                   class="border-b border-gray-200 text-gray-800 cursor-pointer transition-colors"
                   [class]="selectedCountItemIndex === i ? 'bg-blue-100 border-blue-300' : 'bg-purple-50'"
                   (click)="selectCountItem(item)">
-                  <td class="px-2 py-2 text-xs">{{ item.theoreticalQuantity }}</td>
+                  <td class="px-2 py-2 text-xs">
+                    <span [class.text-red-600]="item.theoreticalQuantity > 1000000 || item.theoreticalQuantity < 0" 
+                          [title]="item.theoreticalQuantity > 1000000 || item.theoreticalQuantity < 0 ? 'Valeur théorique anormale' : ''">
+                      {{ item.theoreticalQuantity > 1000000 ? '0' : item.theoreticalQuantity }}
+                    </span>
+                  </td>
                   <td class="px-2 py-2 text-xs font-medium">
                     <div>{{ truncate(item.product.name, 20) }}</div>
                   </td>

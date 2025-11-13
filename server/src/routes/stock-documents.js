@@ -1,7 +1,39 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireRole } = require('../middleware/auth');
 const { logAudit } = require('../lib/audit');
+const path = require('path');
+const fs = require('fs');
+
+const USER_ROLES_FILE = path.join(__dirname, '../uploads/user-roles.json');
+
+function readUserRoles() {
+  try {
+    if (fs.existsSync(USER_ROLES_FILE)) {
+      return JSON.parse(fs.readFileSync(USER_ROLES_FILE, 'utf8'));
+    }
+    return {};
+  } catch (error) {
+    console.error('Error reading user roles:', error);
+    return {};
+  }
+}
+
+function hasRoleOrRoleKey(user, allowedRoles) {
+  // Check database role
+  if (allowedRoles.includes(user.role)) {
+    return true;
+  }
+  
+  // Check roleKey from user-roles.json
+  const userRoles = readUserRoles();
+  const roleKey = userRoles[String(user.id)];
+  if (roleKey && allowedRoles.includes(roleKey)) {
+    return true;
+  }
+  
+  return false;
+}
 
 // Import calculateSessionSummary from sessions route
 async function calculateSessionSummary(sessionId) {
@@ -710,7 +742,10 @@ router.post('/entry', authenticateToken, async (req, res) => {
     }
 
     // If depot is a shop, check if session exists (but don't validate cash availability)
-    if (depot.type === 'SHOP') {
+    // RESPONSABLE_MAGASIN can create bon d'entrée without requiring a session
+    const isResponsableMagasin = hasRoleOrRoleKey(req.user, ['RESPONSABLE_MAGASIN']);
+    
+    if (depot.type === 'SHOP' && !isResponsableMagasin) {
       const activeSession = await prisma.sessionCaisse.findFirst({
         where: { 
           userId: req.user.id, 
@@ -1184,10 +1219,12 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
     }
     
     // Get the last POSTED inventory session for this depot
+    // Order by postedAt desc to get the most recent posted inventory
     const lastPostedSession = await prisma.inventorySession.findFirst({
       where: {
         depotId: depotId,
-        status: 'POSTED'
+        status: 'POSTED',
+        postedAt: { not: null }
       },
       include: {
         items: true
@@ -2787,6 +2824,188 @@ router.post('/return', authenticateToken, async (req, res) => {
     res.status(500).json({ 
       error: error.message || 'Erreur lors de la création du bon de retour',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Delete bon entree document (admin only) - reverses stock
+router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const documentId = parseInt(req.params.id);
+
+    if (isNaN(documentId)) {
+      return res.status(400).json({ error: 'Invalid document ID' });
+    }
+
+    // Get the document with items
+    const document = await prisma.stockDocument.findUnique({
+      where: { id: documentId },
+      include: {
+        items: true,
+        emetteur: true,
+        destinataire: true
+      }
+    });
+
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // Only allow deletion of BON_ENTREE_DEPOT and BON_TRANSFERT documents
+    if (document.type !== 'BON_ENTREE_DEPOT' && document.type !== 'BON_TRANSFERT') {
+      return res.status(400).json({ error: 'Only bon entree and transfer documents can be deleted' });
+    }
+
+    // Only allow deletion of RECEIVED documents
+    if (document.status !== 'RECEIVED') {
+      return res.status(400).json({ error: 'Only RECEIVED documents can be deleted' });
+    }
+
+    // Delete document and reverse stock in a transaction
+    await prisma.$transaction(async (tx) => {
+      // Reverse stock for each item
+      for (const item of document.items) {
+        // Use parentProductId if available (for grouped products), otherwise use productId
+        const targetProductId = item.parentProductId || item.productId;
+        const quantity = parseFloat(item.quantity) || 0;
+        const destinataireDepotId = document.destinataireId;
+        const emetteurDepotId = document.emetteurId;
+        const isTransfer = document.type === 'BON_TRANSFERT';
+
+        if (quantity > 0) {
+          // For transfers: remove from destination, add back to source
+          // For entries: remove from destination only
+          
+          // Step 1: Remove stock from destination depot (where it was received)
+          const destinataireInventory = await tx.inventory.findUnique({
+            where: {
+              depotId_productId: {
+                depotId: destinataireDepotId,
+                productId: targetProductId
+              }
+            }
+          });
+
+          if (destinataireInventory) {
+            const currentQuantity = parseFloat(destinataireInventory.quantity) || 0;
+            const newQuantity = currentQuantity - quantity;
+
+            // Prevent negative stock
+            if (newQuantity < 0) {
+              throw new Error(`Cannot delete document: would result in negative stock for product ${targetProductId} in destination depot. Current: ${currentQuantity}, Removing: ${quantity}`);
+            }
+
+            if (newQuantity === 0) {
+              // Delete inventory entry if quantity becomes zero
+              await tx.inventory.delete({
+                where: { id: destinataireInventory.id }
+              });
+            } else {
+              // Update inventory
+              await tx.inventory.update({
+                where: { id: destinataireInventory.id },
+                data: { quantity: newQuantity }
+              });
+            }
+          }
+
+          // Step 2: For transfers, add stock back to source depot
+          if (isTransfer && emetteurDepotId !== destinataireDepotId) {
+            const emetteurInventory = await tx.inventory.findUnique({
+              where: {
+                depotId_productId: {
+                  depotId: emetteurDepotId,
+                  productId: targetProductId
+                }
+              }
+            });
+
+            if (emetteurInventory) {
+              const currentEmetteurQuantity = parseFloat(emetteurInventory.quantity) || 0;
+              const newEmetteurQuantity = currentEmetteurQuantity + quantity;
+              
+              await tx.inventory.update({
+                where: { id: emetteurInventory.id },
+                data: { quantity: newEmetteurQuantity }
+              });
+            } else {
+              // Create inventory entry if it doesn't exist
+              await tx.inventory.create({
+                data: {
+                  depotId: emetteurDepotId,
+                  productId: targetProductId,
+                  quantity: quantity
+                }
+              });
+            }
+
+            // Create stock movement for source depot (adding back)
+            await tx.stockMovement.create({
+              data: {
+                productId: targetProductId,
+                depotId: emetteurDepotId,
+                quantity: quantity,
+                type: 'IN',
+                fromDepotId: destinataireDepotId,
+                toDepotId: emetteurDepotId,
+                reason: 'TRANSFER_DELETED_REVERSED',
+                reference: document.numero,
+                userId: req.user.id
+              }
+            });
+          }
+
+          // Create reverse stock movement for destination depot
+          await tx.stockMovement.create({
+            data: {
+              productId: targetProductId,
+              depotId: destinataireDepotId,
+              quantity: -quantity, // Negative to reverse
+              type: 'OUT',
+              fromDepotId: destinataireDepotId,
+              toDepotId: isTransfer ? emetteurDepotId : null,
+              reason: isTransfer ? 'TRANSFER_DELETED' : 'ENTRY_DELETED',
+              reference: document.numero,
+              userId: req.user.id
+            }
+          });
+        }
+      }
+
+      // Delete related records first (due to foreign key constraints)
+      // Delete document links (both source and target)
+      await tx.stockDocumentLink.deleteMany({
+        where: {
+          OR: [
+            { sourceDocumentId: documentId },
+            { targetDocumentId: documentId }
+          ]
+        }
+      });
+
+      // Delete status history
+      await tx.documentStatusHistory.deleteMany({
+        where: { documentId: documentId }
+      });
+
+      // Delete document items
+      await tx.stockDocumentItem.deleteMany({
+        where: { documentId: documentId }
+      });
+
+      // Finally, delete the document
+      await tx.stockDocument.delete({
+        where: { id: documentId }
+      });
+    });
+
+    await logAudit(req.user.id, 'stock_documents', documentId, 'DELETE', document, null);
+
+    res.json({ message: 'Document deleted successfully', documentId });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({ 
+      error: error.message || 'Erreur lors de la suppression du document' 
     });
   }
 });

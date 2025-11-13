@@ -464,9 +464,16 @@ router.put('/:id', authenticateToken, async (req, res) => {
       isActive 
     } = req.body;
 
-    // Check if produit exists
+    // Check if produit exists with depot assignments
     const existingProduit = await prisma.produitDeCaisse.findUnique({
-      where: { id: parseInt(id) }
+      where: { id: parseInt(id) },
+      include: {
+        depotAssignments: {
+          select: {
+            depotId: true
+          }
+        }
+      }
     });
 
     if (!existingProduit) {
@@ -607,6 +614,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
         }))
       });
     }
+
+    // Note: produits-de-caisse don't use the inventory table directly
+    // They manage stock through their own initialStock, minStock, maxStock fields
+    // Stock synchronization is handled through the productIds relationship if needed
 
     const produit = await prisma.produitDeCaisse.findUnique({
       where: { id: parseInt(id) },

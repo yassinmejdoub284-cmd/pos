@@ -8,7 +8,7 @@ import { ProduitDeStock } from '../../core/models/produit-de-caisse.model';
 import { DepotsService } from '../../core/services/depots.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Subject, takeUntil } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 
 interface CountItem {
@@ -319,10 +319,18 @@ export class CountComponent implements OnInit, OnDestroy {
           if (pvMatch) salePrice = parseFloat(pvMatch[1]);
         }
         
+        // Validate and fix abnormal theoretical quantity values
+        let theoreticalQty = parseFloat(String(item.theoreticalQuantity || 0));
+        // If theoretical quantity is abnormally high (likely a data error), set it to 0
+        if (theoreticalQty > 1000000 || theoreticalQty < 0) {
+          console.warn(`Abnormal theoretical quantity detected for product ${item.productId}: ${theoreticalQty}. Setting to 0.`);
+          theoreticalQty = 0;
+        }
+        
         return {
           product: productData,
-        theoreticalQuantity: item.theoreticalQuantity,
-        countedQuantity: item.countedQuantity,
+        theoreticalQuantity: theoreticalQty,
+        countedQuantity: item.countedQuantity ? parseFloat(String(item.countedQuantity)) : null,
         isConfirmed: item.countedQuantity !== null,
         inventoryItemId: item.id,
           purchasePrice: purchasePrice,
@@ -414,7 +422,12 @@ export class CountComponent implements OnInit, OnDestroy {
 
   addProductToCount(product: Product): void {
     const existingItem = this.items.find(item => item.product?.id === product.id);
-    const theoreticalQuantity = existingItem?.theoreticalQuantity || 0;
+    let theoreticalQuantity = existingItem ? parseFloat(String(existingItem.theoreticalQuantity || 0)) : 0;
+    // Validate and fix abnormal theoretical quantity values
+    if (theoreticalQuantity > 1000000 || theoreticalQuantity < 0) {
+      console.warn(`Abnormal theoretical quantity detected for product ${product.id}: ${theoreticalQuantity}. Setting to 0.`);
+      theoreticalQuantity = 0;
+    }
     
     // Ensure product has all required data
     const productData: Product = {
@@ -853,9 +866,17 @@ export class CountComponent implements OnInit, OnDestroy {
 
                   // Save an inventory line into tableau de relevé inventaire
                   try {
+                    const token = this.authService.getToken();
+                    const headers = new HttpHeaders({
+                      'Content-Type': 'application/json',
+                      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    });
                     this.http.post(`${environment.apiUrl}/releve-inventaire/from-session/${this.session!.id}`, {
                       depotId: this.depotId
-                    }, { withCredentials: true }).subscribe({
+                    }, { 
+                      headers,
+                      withCredentials: true 
+                    }).subscribe({
                       next: () => {},
                       error: (e) => console.error('Error saving inventory to releve:', e)
                     });
@@ -1009,15 +1030,17 @@ export class CountComponent implements OnInit, OnDestroy {
 
   getEcartClass(item: CountItem): string {
     if (item.countedQuantity === null) return '';
-    const ecart = item.countedQuantity - item.theoreticalQuantity;
+    const theoreticalQty = item.theoreticalQuantity > 1000000 ? 0 : item.theoreticalQuantity;
+    const ecart = item.countedQuantity - theoreticalQty;
     return ecart > 0 ? 'text-green-600' : ecart < 0 ? 'text-red-600' : '';
   }
 
   getEcartText(item: CountItem): string {
     if (item.countedQuantity === null) return '';
-    const ecart = item.countedQuantity - item.theoreticalQuantity;
+    const theoreticalQty = item.theoreticalQuantity > 1000000 ? 0 : item.theoreticalQuantity;
+    const ecart = item.countedQuantity - theoreticalQty;
     const sign = ecart > 0 ? '+' : '';
-    return `${sign}${ecart}`;
+    return `${sign}${ecart.toFixed(3)}`;
   }
 
   // New methods for the redesigned UI

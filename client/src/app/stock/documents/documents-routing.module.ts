@@ -9,13 +9,15 @@ import { DocumentsListComponent } from './documents/documents.component';
 const routes: Routes = [
   { path: '', component: DocumentsListComponent },
   { path: 'list', component: DocumentsListComponent },
-  { path: ':id/edit', component: DocumentComponent },
-  { path: ':id', component: DocumentComponent },
   // Use distinct param names to avoid confusion between depotId and documentId
-  { path: 'bon-entree/:depotId', component: BonEntreeComponent },
+  // Specific routes must come before generic :id routes
   { path: 'bon-entree/edit/:documentId', component: BonEntreeComponent },
+  { path: 'bon-entree/:depotId', component: BonEntreeComponent },
   // Bon de retour list shares component with filtered mode
   { path: 'bon-retour/:depotId', component: BonEntreeComponent },
+  // Generic routes come last
+  { path: ':id/edit', component: DocumentComponent },
+  { path: ':id', component: DocumentComponent },
   // Removed: bon-sortie, bon-transfert, bon-livraison
 ];
 

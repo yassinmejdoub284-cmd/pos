@@ -166,4 +166,10 @@ export class StockDocumentsService {
       catchError((error) => throwError(() => error))
     );
   }
+
+  deleteDocument(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/${id}`).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
 } 

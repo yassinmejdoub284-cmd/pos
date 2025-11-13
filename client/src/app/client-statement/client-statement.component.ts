@@ -43,10 +43,10 @@ interface ClientSummary {
   lastName: string;
   currentDebt: number;
   totalSpent: number;
-  periodSales: number;
-  periodPayments: number;
-  periodDebts: number;
-  periodBalance: number;
+  totalDebit: number;
+  totalCredit: number;
+  currentBalance: number;
+  operationCount: number;
   _count: {
     sales: number;
     debtTransactions: number;

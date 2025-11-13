@@ -728,7 +728,8 @@
           "stock": {
             "visible": true,
             "submodules": {
-              "stock-produits": true
+              "stock-produits": true,
+              "stock-achat": true
             }
           }
         },

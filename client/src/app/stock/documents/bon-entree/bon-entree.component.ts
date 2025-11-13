@@ -4,6 +4,7 @@ import { StockDocumentsService } from '../../../core/services/stock-documents.se
 import { DepotsService } from '../../../core/services/depots.service';
 import { ProductsService } from '../../../core/services/products.service';
 import { SuppliersService } from '../../../core/services/suppliers.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { StockDocument, StockDocumentItem } from '../../../core/models/stock-document.model';
 import { buildScanLikeDocumentHtmlFromDocument, getScanPrintStyles } from '../../shared/print-templates';
 import { Depot } from '../../../core/models/stock-document.model';
@@ -51,7 +52,8 @@ export class BonEntreeComponent implements OnInit {
     private stockDocsService: StockDocumentsService,
     private depotsService: DepotsService,
     private productsService: ProductsService,
-    private suppliersService: SuppliersService
+    private suppliersService: SuppliersService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -68,6 +70,9 @@ export class BonEntreeComponent implements OnInit {
     this.isEditMode = url.includes('/edit/');
 
     if (this.isEditMode && this.documentId) {
+      this.loadDocument();
+    } else if (this.documentId) {
+      // If documentId is provided (e.g., from generic :id route), load the document
       this.loadDocument();
     } else if (this.depotId) {
       this.loadDocumentsForDepot(showReturnsOnly);
@@ -496,5 +501,41 @@ export class BonEntreeComponent implements OnInit {
     });
     
     return Array.from(grouped.values());
+  }
+
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
+  deleteDocument(doc: StockDocument): void {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le document ${doc.numero}? Cette action est irréversible et remboursera le stock.`)) {
+      return;
+    }
+
+    this.loading = true;
+    this.error = '';
+    this.success = '';
+
+    this.stockDocsService.deleteDocument(doc.id).subscribe({
+      next: () => {
+        this.success = 'Document supprimé avec succès';
+        this.loading = false;
+        setTimeout(() => {
+          this.success = '';
+          // Reload documents list
+          if (this.depotId) {
+            this.loadDocumentsForDepot(this.isReturnsMode);
+          } else if (this.documentId && doc.id === parseInt(this.documentId)) {
+            // If we deleted the currently viewed document, go back
+            this.router.navigate(['/stock']);
+          }
+        }, 2000);
+      },
+      error: (error) => {
+        this.error = error.error?.error || 'Erreur lors de la suppression du document';
+        this.loading = false;
+        setTimeout(() => this.error = '', 5000);
+      }
+    });
   }
 }

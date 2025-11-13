@@ -332,6 +332,7 @@ export class EntryComponent implements OnInit {
     const paymentData = {
       supplierId: supplierId,
       amount: amount,
+      paymentMethod: (method || 'CASH') as 'CASH'|'CARD'|'CHECK'|'BANK_TRANSFER'|'CREDIT', // Include payment method with proper type
       notes: `${method.toUpperCase()} - ${notes || 'Paiement bon d\'entrée'}`
     };
 
@@ -430,6 +431,7 @@ export class EntryComponent implements OnInit {
     const paymentData = {
       supplierId: supplierId,
       amount: paidAmount,
+      paymentMethod: (this.paymentMethod || 'CASH') as 'CASH'|'CARD'|'CHECK'|'BANK_TRANSFER'|'CREDIT', // Include payment method with proper type
       notes: `Paiement partiel - ${this.paymentMethod.toUpperCase()} - Bon d'entrée #${documentId} (Payé: ${paidAmount.toFixed(3)} dt, Total: ${creditAmount.toFixed(3)} dt)`
     };
 
@@ -476,6 +478,7 @@ export class EntryComponent implements OnInit {
     const creditData = {
       supplierId: supplierId,
       amount: -creditAmount, // Negative amount for credit/debt
+      paymentMethod: 'CREDIT' as const, // Use CREDIT method to avoid cash deduction
       notes: `Crédit - Bon d'entrée #${documentId}`
     };
 

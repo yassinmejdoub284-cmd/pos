@@ -223,14 +223,23 @@ router.post('/', authenticateToken, (req, res, next) => {
 
       // After computing how much was actually applied, normalize the stored supplier payment amount
       // We store supplier payments as POSITIVE to indicate debit (money going out)
+      // For CREDIT payments (negative amounts), preserve the negative sign to indicate credit/debt
       const originalAmount = Number(amount);
-      const normalizedApplied = appliedAmount > 0 ? appliedAmount : Math.abs(originalAmount);
+      let normalizedApplied;
+      if (method === 'CREDIT' && originalAmount < 0) {
+        // For credit entries, preserve negative amount to indicate debt
+        normalizedApplied = originalAmount;
+      } else {
+        // For regular payments, use positive amount
+        normalizedApplied = appliedAmount > 0 ? appliedAmount : Math.abs(originalAmount);
+      }
       await tx.supplierPayment.update({
         where: { id: supplierPayment.id },
         data: { amount: normalizedApplied }
       });
 
-      // If cash payment, create cash movement sortie for debit payments
+      // If cash payment, create cash movement sortie for debit payments only
+      // Credit payments should NOT create cash movements
       if (method === 'CASH' && normalizedApplied > 0) {
         // Only withdraw the portion that actually matches unpaid supplier expenses.
         // If none matched (no pending expenses), fallback to the requested amount.

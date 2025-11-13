@@ -293,8 +293,14 @@ router.get('/', authenticateToken, async (req, res) => {
       prisma.expense.count({ where })
     ]);
 
+    // Convert Decimal amounts to numbers for proper serialization
+    const expensesWithNumbers = expenses.map(expense => ({
+      ...expense,
+      amount: expense.amount ? parseFloat(expense.amount.toString()) : 0
+    }));
+
     res.json({
-      expenses,
+      expenses: expensesWithNumbers,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -734,7 +740,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     const existingExpense = await prisma.expense.findUnique({
       where: { id: expenseId },
-      include: { user: true }
+      include: { 
+        user: true,
+        category: true
+      }
     });
 
     if (!existingExpense) {
@@ -746,10 +755,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Accès non autorisé' });
     }
 
-    // Only allow deletion if not approved
-    if (existingExpense.isApproved) {
+    // Only admin can delete approved expenses
+    if (existingExpense.isApproved && req.user?.role !== 'ADMIN') {
       return res.status(403).json({ 
-        error: 'Impossible de supprimer une dépense approuvée' 
+        error: 'Seuls les administrateurs peuvent supprimer une dépense approuvée' 
       });
     }
 
@@ -760,8 +769,110 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    await prisma.expense.delete({
-      where: { id: expenseId }
+    // Check if this is a cash expense that needs refund
+    const isCashExpense = (existingExpense.paymentType || 'CASH').toUpperCase() === 'CASH';
+    const wasPaid = existingExpense.isPaid || existingExpense.isAdvance;
+    const expenseAmount = parseFloat(existingExpense.amount || 0);
+    
+    // Find the session where this expense was created (if any)
+    let refundSessionId = null;
+    if (isCashExpense && wasPaid && expenseAmount > 0) {
+      // Find cash movements related to this expense
+      const relatedMovements = await prisma.cashMovement.findMany({
+        where: {
+          reason: {
+            contains: `Dépense #${expenseId}`
+          },
+          type: 'SORTIE'
+        },
+        include: {
+          session: true
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      // Find the most recent closed session that contains this expense
+      if (relatedMovements.length > 0) {
+        // Get the session from the movement
+        const movement = relatedMovements[0];
+        if (movement.session) {
+          refundSessionId = movement.session.id;
+        }
+      }
+      
+      // If no movement found, try to find the session by date range
+      if (!refundSessionId) {
+        const expenseDate = new Date(existingExpense.createdAt);
+        const session = await prisma.sessionCaisse.findFirst({
+          where: {
+            depotId: existingExpense.depotId,
+            openedAt: { lte: expenseDate },
+            OR: [
+              { closedAt: { gte: expenseDate } },
+              { status: 'CLOSED', closedAt: { gte: expenseDate } }
+            ]
+          },
+          orderBy: { closedAt: 'desc' }
+        });
+        if (session) {
+          refundSessionId = session.id;
+        }
+      }
+    }
+
+    // Delete the expense and handle refund in a transaction
+    await prisma.$transaction(async (tx) => {
+      // Create refund cash movement if needed
+      if (isCashExpense && wasPaid && expenseAmount > 0 && refundSessionId) {
+        // Check if session is closed
+        const session = await tx.sessionCaisse.findUnique({
+          where: { id: refundSessionId }
+        });
+
+        if (session && session.status === 'CLOSED') {
+          // Create ENTREE (refund) cash movement
+          const refundAmount = existingExpense.isAdvance && existingExpense.paidAmount 
+            ? parseFloat(existingExpense.paidAmount) 
+            : expenseAmount;
+
+          await tx.cashMovement.create({
+            data: {
+              sessionId: refundSessionId,
+              type: 'ENTREE',
+              amount: refundAmount,
+              reason: `Remboursement - Dépense supprimée #${expenseId}: ${existingExpense.category?.name || 'Divers'}`,
+              createdById: req.user?.id
+            }
+          });
+          console.log(`[expenses.delete] Created refund cash movement for deleted expense ${expenseId}, amount: ${refundAmount}, session: ${refundSessionId}`);
+        }
+      }
+
+      // Delete related cash movements (mark as invalid)
+      const expenseRegex = new RegExp(`Dépense(?: approuvée)? #${expenseId}(?::|$)`, 'i');
+      const relatedMovements = await tx.cashMovement.findMany({
+        where: {
+          reason: {
+            contains: `Dépense #${expenseId}`
+          }
+        }
+      });
+
+      // Mark cash movements as invalid by updating the reason
+      for (const movement of relatedMovements) {
+        await tx.cashMovement.update({
+          where: { id: movement.id },
+          data: {
+            reason: `[SUPPRIMÉ] ${movement.reason}`,
+            amount: 0 // Set amount to 0 to effectively exclude it from calculations
+          }
+        });
+      }
+
+      // Delete the expense
+      await tx.expense.delete({
+        where: { id: expenseId }
+      });
     });
 
     await AuditLogger.logDelete('expenses', expenseId, existingExpense, req.user?.id, req);

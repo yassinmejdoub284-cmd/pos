@@ -5,6 +5,7 @@ import { Product, ProductFamily, ProductDepotPrice } from '../../../core/models/
 import { Depot } from '../../../core/models/depot.model';
 import { DepotsService } from '../../../core/services/depots.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { SessionsService } from '../../../core/services/sessions.service';
 
 @Component({
   selector: 'app-product-form',
@@ -28,13 +29,17 @@ export class ProductFormComponent implements OnInit, OnChanges {
   imageInputType: 'file' | 'url' = 'file';
   selectedDepotIds = signal<number[]>([]);
   depotPrices = signal<Map<number, number>>(new Map()); // Map<depotId, price>
+  depotPriceInputs = signal<Map<number, string | number>>(new Map()); // Map<depotId, inputValue> - allows empty string
   showTransferSection = signal(false);
+  isResponsableMagasin = signal(false);
+  sessionDepotId = signal<number | null>(null);
 
   constructor(
     private fb: FormBuilder,
     private productsService: ProductsService,
     private depotsService: DepotsService,
-    private authService: AuthService
+    private authService: AuthService,
+    private sessionsService: SessionsService
   ) {
     this.productForm = this.fb.group({
       name: ['', Validators.required],
@@ -62,11 +67,54 @@ export class ProductFormComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
+    this.checkResponsableMagasin();
+    this.loadSessionDepotId();
     this.loadFamilies();
     this.loadDepots();
     this.initializeSelectedDepots();
     this.initializeDepotPrices();
     this.initializeForm();
+  }
+
+  private checkResponsableMagasin(): void {
+    const user = this.authService.currentUser();
+    if (!user) {
+      this.isResponsableMagasin.set(false);
+      return;
+    }
+    
+    // Check roleKey first (stored in user-roles.json), then role as string
+    const roleKey = (user as any).roleKey;
+    const role = String(user.role || '');
+    const isResponsable = roleKey === 'RESPONSABLE_MAGASIN' || role === 'RESPONSABLE_MAGASIN';
+    this.isResponsableMagasin.set(isResponsable);
+  }
+
+  private loadSessionDepotId(): void {
+    if (this.isResponsableMagasin()) {
+      // Try to get depotId from active session first
+      const session = this.sessionsService.currentSession();
+      if (session?.depotId) {
+        this.sessionDepotId.set(session.depotId);
+        return;
+      }
+      
+      // Try to get from visitingDepotId in sessionStorage
+      const visitingDepotId = sessionStorage.getItem('visitingDepotId');
+      if (visitingDepotId) {
+        const parsed = parseInt(visitingDepotId);
+        if (!isNaN(parsed)) {
+          this.sessionDepotId.set(parsed);
+          return;
+        }
+      }
+      
+      // Fallback to user's depotId
+      const user = this.authService.currentUser();
+      if (user?.depotId) {
+        this.sessionDepotId.set(user.depotId);
+      }
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -254,10 +302,12 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
   initializeDepotPrices(): void {
     const pricesMap = new Map<number, number>();
+    const inputMap = new Map<number, string | number>();
     
     if (this.product && this.product.depotPrices && this.product.depotPrices.length > 0) {
       this.product.depotPrices.forEach(depotPrice => {
         pricesMap.set(depotPrice.depotId, depotPrice.prix_vente_TTC);
+        inputMap.set(depotPrice.depotId, depotPrice.prix_vente_TTC);
       });
     }
     
@@ -266,25 +316,64 @@ export class ProductFormComponent implements OnInit, OnChanges {
       const defaultPrice = this.product?.prix_vente_TTC || this.productForm.get('prix_vente_TTC')?.value || 0;
       this.selectedDepotIds().forEach(depotId => {
         pricesMap.set(depotId, defaultPrice);
+        inputMap.set(depotId, defaultPrice);
       });
     }
     
     this.depotPrices.set(pricesMap);
+    this.depotPriceInputs.set(inputMap);
   }
 
-  onDepotPriceChange(depotId: number, price: number): void {
-    // Only allow price changes for admins
-    if (!this.authService.isAdmin()) {
+  onDepotPriceChange(depotId: number, price: number | string, isBlur: boolean = false): void {
+    // Allow price changes for admins or RESPONSABLE_MAGASIN for their own depot
+    const isAdmin = this.authService.isAdmin();
+    const isResponsable = this.isResponsableMagasin();
+    const userDepotId = this.sessionDepotId();
+    
+    if (!isAdmin && !isResponsable) {
       return;
     }
     
-    const currentPrices = this.depotPrices();
-    const newPrices = new Map(currentPrices);
-    newPrices.set(depotId, price);
-    this.depotPrices.set(newPrices);
+    // RESPONSABLE_MAGASIN can only change prices for their own depot
+    if (isResponsable && !isAdmin && depotId !== userDepotId) {
+      return;
+    }
+    
+    // Update input map immediately to allow clearing the field
+    const currentInputs = this.depotPriceInputs();
+    const newInputs = new Map(currentInputs);
+    newInputs.set(depotId, price);
+    this.depotPriceInputs.set(newInputs);
+    
+    // Handle empty string or invalid values
+    // During typing, allow empty string temporarily
+    // On blur, convert empty to 0 and update the price map
+    if (isBlur || (price !== '' && price !== null && price !== undefined)) {
+      let priceValue: number;
+      if (price === '' || price === null || price === undefined) {
+        priceValue = 0;
+      } else {
+        const parsed = typeof price === 'string' ? parseFloat(price) : price;
+        priceValue = isNaN(parsed) ? 0 : parsed;
+      }
+      
+      const currentPrices = this.depotPrices();
+      const newPrices = new Map(currentPrices);
+      newPrices.set(depotId, priceValue);
+      this.depotPrices.set(newPrices);
+      
+      // Update input map with the final value
+      newInputs.set(depotId, priceValue);
+      this.depotPriceInputs.set(newInputs);
+    }
   }
 
-  getDepotPrice(depotId: number): number {
+  getDepotPrice(depotId: number): number | string {
+    // Return input value if available (allows empty string), otherwise return price
+    const inputValue = this.depotPriceInputs().get(depotId);
+    if (inputValue !== undefined) {
+      return inputValue;
+    }
     return this.depotPrices().get(depotId) || this.productForm.get('prix_vente_TTC')?.value || 0;
   }
 
@@ -299,10 +388,14 @@ export class ProductFormComponent implements OnInit, OnChanges {
       this.error.set('');
 
       // Get all form values including disabled controls
-      const formData = this.productForm.getRawValue();
+      let formData = this.productForm.getRawValue();
       
-      // Only allow depot and price modifications for admins
-      if (this.authService.isAdmin()) {
+      const isAdmin = this.authService.isAdmin();
+      const isResponsable = this.isResponsableMagasin();
+      const userDepotId = this.sessionDepotId();
+      
+      // Allow depot and price modifications for admins or RESPONSABLE_MAGASIN for their depot
+      if (isAdmin) {
         formData.depotIds = this.selectedDepotIds();
         
         // Add depot prices
@@ -311,6 +404,21 @@ export class ProductFormComponent implements OnInit, OnChanges {
           prix_vente_TTC
         }));
         formData.depotPrices = depotPricesArray;
+      } else if (isResponsable && userDepotId) {
+        // RESPONSABLE_MAGASIN can only modify their own depot price
+        // Get the price for their depot from the depotPrices map
+        const userDepotPrice = this.depotPrices().get(userDepotId);
+        const defaultPrice = this.productForm.get('prix_vente_TTC')?.value || 0;
+        const finalPrice = userDepotPrice !== undefined ? userDepotPrice : defaultPrice;
+        
+        // Only send their depot price
+        formData.depotPrices = [{
+          depotId: userDepotId,
+          prix_vente_TTC: finalPrice
+        }];
+        
+        // Don't send depotIds - keep existing assignments
+        delete formData.depotIds;
       } else {
         // Non-admins cannot modify depot assignments or prices
         // Keep existing depot assignments and prices from the product
@@ -338,6 +446,33 @@ export class ProductFormComponent implements OnInit, OnChanges {
 
       const saveProduct = () => {
         if (this.product) {
+          // For RESPONSABLE_MAGASIN, ensure we have depotPrices
+          if (this.isResponsableMagasin() && !this.authService.isAdmin()) {
+            const userDepotId = this.sessionDepotId();
+            if (!userDepotId) {
+              this.loading.set(false);
+              this.error.set('Aucun dépôt trouvé pour votre session');
+              return;
+            }
+            
+            // Ensure depotPrices is set and contains their depot
+            if (!formData.depotPrices || !Array.isArray(formData.depotPrices) || formData.depotPrices.length === 0) {
+              const userDepotPrice = this.depotPrices().get(userDepotId);
+              const defaultPrice = this.productForm.get('prix_vente_TTC')?.value || 0;
+              formData.depotPrices = [{
+                depotId: userDepotId,
+                prix_vente_TTC: userDepotPrice !== undefined ? userDepotPrice : defaultPrice
+              }];
+            }
+            
+            // Create a clean request with only allowed fields
+            const cleanFormData: any = {
+              depotId: userDepotId,
+              depotPrices: formData.depotPrices
+            };
+            formData = cleanFormData;
+          }
+          
           this.productsService.updateProduct(this.product.id, formData).subscribe({
             next: (product) => {
               this.loading.set(false);
@@ -345,7 +480,9 @@ export class ProductFormComponent implements OnInit, OnChanges {
             },
             error: (error) => {
               this.loading.set(false);
-              this.error.set('Erreur lors de la mise à jour du produit');
+              const errorMessage = error?.error?.error || error?.message || 'Erreur lors de la mise à jour du produit';
+              this.error.set(errorMessage);
+              console.error('Error updating product:', error);
             }
           });
         } else {

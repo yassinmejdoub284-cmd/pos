@@ -9,6 +9,36 @@ const ImageOptimizer = require('../lib/image-optimizer');
 
 const router = express.Router();
 
+const USER_ROLES_FILE = path.join(__dirname, '../uploads/user-roles.json');
+
+function readUserRoles() {
+  try {
+    if (fs.existsSync(USER_ROLES_FILE)) {
+      return JSON.parse(fs.readFileSync(USER_ROLES_FILE, 'utf8'));
+    }
+    return {};
+  } catch (error) {
+    console.error('Error reading user roles:', error);
+    return {};
+  }
+}
+
+function hasRoleOrRoleKey(user, allowedRoles) {
+  // Check database role
+  if (allowedRoles.includes(user.role)) {
+    return true;
+  }
+  
+  // Check roleKey from user-roles.json
+  const userRoles = readUserRoles();
+  const roleKey = userRoles[String(user.id)];
+  if (roleKey && allowedRoles.includes(roleKey)) {
+    return true;
+  }
+  
+  return false;
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads/products';
@@ -602,6 +632,56 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Produit non trouvé' });
     }
     
+    // Check if user is RESPONSABLE_MAGASIN
+    const isResponsableMagasin = hasRoleOrRoleKey(req.user, ['RESPONSABLE_MAGASIN']);
+    const isAdmin = req.user.role === 'ADMIN';
+    
+    // Get active session depotId for RESPONSABLE_MAGASIN
+    let sessionDepotId = null;
+    if (isResponsableMagasin && !isAdmin) {
+      // Try to get depotId from query parameter or request body first
+      const requestedDepotId = req.query.depotId || req.body.depotId;
+      
+      if (requestedDepotId) {
+        const parsedDepotId = parseInt(requestedDepotId);
+        if (!isNaN(parsedDepotId)) {
+          // Use the requested depotId (from session or user)
+          sessionDepotId = parsedDepotId;
+        }
+      }
+      
+      // If no depotId from request, try to find active session
+      if (!sessionDepotId) {
+        const whereClause = {
+          status: 'OPEN'
+        };
+        
+        // If user has depotId, filter by it
+        if (req.user.depotId) {
+          whereClause.depotId = req.user.depotId;
+        }
+        
+        const activeSession = await prisma.sessionCaisse.findFirst({
+          where: whereClause,
+          orderBy: { createdAt: 'desc' }
+        });
+        
+        if (activeSession && activeSession.depotId) {
+          sessionDepotId = activeSession.depotId;
+        }
+      }
+      
+      // Fallback to user's depotId if no session found (allow modification even without active session)
+      if (!sessionDepotId && req.user.depotId) {
+        sessionDepotId = req.user.depotId;
+      }
+      
+      // If still no depotId, return error
+      if (!sessionDepotId) {
+        return res.status(400).json({ error: 'Aucun dépôt trouvé. Veuillez contacter un administrateur.' });
+      }
+    }
+    
     const {
       name,
       designation_legale,
@@ -630,6 +710,27 @@ router.put('/:id', authenticateToken, async (req, res) => {
       depotIds,
       depotPrices
     } = req.body;
+    
+    // RESPONSABLE_MAGASIN can only update depot prices, not other product fields
+    if (isResponsableMagasin && !isAdmin) {
+      // Check if trying to update non-depot-price fields (but allow depotPrices)
+      const restrictedFields = ['name', 'designation_legale', 'description', 'familleId', 'barcode', 
+        'unite', 'prix_vente_TTC', 'prix_achat', 'tva', 'duree_conservation', 'photo', 'isVrac', 
+        'isVraguable', 'conversionRatio', 'prix_vente_vrac', 'prix_achat_vrac', 'originalProductId', 
+        'isStockable', 'isWholesale', 'bundleSize', 'bundlePrice', 'minMargin', 'requiresApproval'];
+      
+      const hasRestrictedFields = restrictedFields.some(field => req.body[field] !== undefined);
+      if (hasRestrictedFields) {
+        return res.status(400).json({ error: 'Vous ne pouvez modifier que les prix de dépôt pour votre dépôt' });
+      }
+      
+      // Only allow depotIds if it's their own depot (if provided)
+      if (depotIds !== undefined) {
+        if (!Array.isArray(depotIds) || depotIds.length !== 1 || parseInt(depotIds[0]) !== sessionDepotId) {
+          return res.status(400).json({ error: 'Vous ne pouvez modifier les prix que pour votre propre dépôt' });
+        }
+      }
+    }
     
     if (prix_vente_TTC !== undefined && prix_vente_TTC < 0) {
       return res.status(400).json({ error: 'Le prix de vente doit être positif' });
@@ -692,10 +793,19 @@ router.put('/:id', authenticateToken, async (req, res) => {
     
     console.log('Update data to be saved:', updateData);
     
-    const product = await prisma.product.update({
-      where: { id: productId },
-      data: updateData
-    });
+    // For RESPONSABLE_MAGASIN, we might only update depot prices, not the product itself
+    let product;
+    if (Object.keys(updateData).length > 0) {
+      product = await prisma.product.update({
+        where: { id: productId },
+        data: updateData
+      });
+    } else {
+      // If no product fields to update, just fetch the product
+      product = await prisma.product.findUnique({
+        where: { id: productId }
+      });
+    }
     
     // Handle depot assignments if depotIds are provided
     if (depotIds !== undefined) {
@@ -717,26 +827,138 @@ router.put('/:id', authenticateToken, async (req, res) => {
     
     // Handle depot prices if provided
     if (depotPrices !== undefined) {
-      // Remove existing depot prices
-      await prisma.productDepotPrice.deleteMany({
-        where: { productId: productId }
-      });
-      
-      // Add new depot prices
-      if (depotPrices && Array.isArray(depotPrices) && depotPrices.length > 0) {
-        await prisma.productDepotPrice.createMany({
-          data: depotPrices.map(({ depotId, prix_vente_TTC }) => ({
-            productId: productId,
-            depotId: parseInt(depotId),
-            prix_vente_TTC: parseFloat(prix_vente_TTC)
-          }))
+      // For RESPONSABLE_MAGASIN, only allow updating their own depot price
+      if (isResponsableMagasin && !isAdmin) {
+        if (!Array.isArray(depotPrices) || depotPrices.length === 0) {
+          return res.status(400).json({ error: 'Les prix de dépôt sont requis' });
+        }
+        
+        // Filter to only their depot
+        const filteredDepotPrices = depotPrices.filter(({ depotId }) => {
+          const parsedDepotId = typeof depotId === 'string' ? parseInt(depotId) : depotId;
+          return parsedDepotId === sessionDepotId;
         });
+        
+        if (filteredDepotPrices.length === 0) {
+          return res.status(400).json({ error: 'Vous ne pouvez modifier les prix que pour votre propre dépôt' });
+        }
+        
+        // Update only their depot price (don't delete all, just update/create theirs)
+        const depotPriceData = filteredDepotPrices[0];
+        const priceValue = parseFloat(depotPriceData.prix_vente_TTC);
+        
+        if (isNaN(priceValue) || priceValue < 0) {
+          return res.status(400).json({ error: 'Le prix doit être un nombre positif' });
+        }
+        
+        await prisma.productDepotPrice.upsert({
+          where: {
+            productId_depotId: {
+              productId: productId,
+              depotId: sessionDepotId
+            }
+          },
+          update: {
+            prix_vente_TTC: priceValue
+          },
+          create: {
+            productId: productId,
+            depotId: sessionDepotId,
+            prix_vente_TTC: priceValue
+          }
+        });
+      } else {
+        // Admin or other roles: remove all and recreate
+        await prisma.productDepotPrice.deleteMany({
+          where: { productId: productId }
+        });
+        
+        // Add new depot prices
+        if (depotPrices && Array.isArray(depotPrices) && depotPrices.length > 0) {
+          await prisma.productDepotPrice.createMany({
+            data: depotPrices.map(({ depotId, prix_vente_TTC }) => ({
+              productId: productId,
+              depotId: parseInt(depotId),
+              prix_vente_TTC: parseFloat(prix_vente_TTC)
+            }))
+          });
+        }
+      }
+    }
+    
+    // Handle stock synchronization when product is modified
+    // If isStockable changes, update inventory records accordingly
+    if (isStockable !== undefined && oldProduct.isStockable !== isStockable) {
+      if (isStockable) {
+        // Product became stockable - create inventory records for all active depots
+        const depots = await prisma.depot.findMany({
+          where: { isActive: true }
+        });
+        
+        for (const depot of depots) {
+          // Check if inventory already exists
+          const existingInventory = await prisma.inventory.findUnique({
+            where: {
+              depotId_productId: {
+                depotId: depot.id,
+                productId: productId
+              }
+            }
+          });
+          
+          if (!existingInventory) {
+            await prisma.inventory.create({
+              data: {
+                depotId: depot.id,
+                productId: productId,
+                quantity: 0
+              }
+            });
+          }
+        }
+      } else {
+        // Product became non-stockable - remove inventory records (but keep quantity 0 for safety)
+        // Actually, we should keep inventory records but they won't be used
+        // Or we can delete them if quantity is 0
+        const inventories = await prisma.inventory.findMany({
+          where: {
+            productId: productId,
+            quantity: { lte: 0 }
+          }
+        });
+        
+        if (inventories.length > 0) {
+          await prisma.inventory.deleteMany({
+            where: {
+              productId: productId,
+              quantity: { lte: 0 }
+            }
+          });
+        }
       }
     }
     
     await logAudit(req.user.id, 'products', productId, 'UPDATE', oldProduct, updateData);
     
-    res.json(product);
+    // Fetch the product with all relations including updated depot prices
+    const productWithRelations = await prisma.product.findUnique({
+      where: { id: productId },
+      include: {
+        famille: true,
+        depotAssignments: {
+          include: {
+            depot: true
+          }
+        },
+        depotPrices: {
+          include: {
+            depot: true
+          }
+        }
+      }
+    });
+    
+    res.json(productWithRelations);
   } catch (error) {
     console.error('Error updating product:', error);
     if (error.code === 'P2002') {

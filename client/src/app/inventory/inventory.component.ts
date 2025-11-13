@@ -1,8 +1,11 @@
-import { Component, OnInit } from '@angular/core';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Router, ActivatedRoute, NavigationEnd } from '@angular/router';
 import { InventoryService } from '../core/services/inventory.service';
 import { DepotsService } from '../core/services/depots.service';
 import { SessionsService } from '../core/services/sessions.service';
+import { AuthService } from '../core/services/auth.service';
+import { filter } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 
 interface InventorySession {
   id: number;
@@ -29,7 +32,7 @@ interface InventorySession {
   styleUrls: ['./inventory.component.css'],
   standalone: false
 })
-export class InventoryComponent implements OnInit {
+export class InventoryComponent implements OnInit, OnDestroy {
   sessions: InventorySession[] = [];
   depot: any = null;
   loading = false;
@@ -37,17 +40,36 @@ export class InventoryComponent implements OnInit {
   statusFilter = '';
   viewMode: 'grid' | 'table' = 'grid';
   totalProducts = 0;
+  private routerSubscription?: Subscription;
 
   constructor(
     private router: Router,
     private route: ActivatedRoute,
     private inventoryService: InventoryService,
     private depotsService: DepotsService,
-    private sessionsService: SessionsService
+    private sessionsService: SessionsService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
     this.loadDepot();
+    
+    this.routerSubscription = this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe(() => {
+        const url = this.router.url;
+        const isInventoryListPage = url === '/inventory' || 
+          (url.match(/^\/inventory\/\d+$/) !== null);
+        if (isInventoryListPage) {
+          this.loadSessions();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    if (this.routerSubscription) {
+      this.routerSubscription.unsubscribe();
+    }
   }
 
   loadDepot(): void {
@@ -73,6 +95,7 @@ export class InventoryComponent implements OnInit {
       if (currentDepot) {
         this.depot = JSON.parse(currentDepot);
         this.loadTotalProducts();
+        this.loadSessions();
       } else {
         // Load all depots and use the first one
         this.depotsService.list().subscribe({
@@ -80,6 +103,7 @@ export class InventoryComponent implements OnInit {
             if (depots.length > 0) {
               this.depot = depots[0];
               this.loadTotalProducts();
+              this.loadSessions();
             }
           },
           error: (error) => {
@@ -140,6 +164,7 @@ export class InventoryComponent implements OnInit {
     this.inventoryService.createSession(this.depot.id).subscribe({
       next: (session) => {
         console.log('Session created successfully:', session);
+        this.loadSessions();
         this.loading = false;
         this.router.navigate(['/inventory', this.depot!.id, session.id, 'count']);
       },
@@ -245,11 +270,13 @@ export class InventoryComponent implements OnInit {
   }
 
   canModify(session: InventorySession): boolean {
-    return true; // Allow modification for all statuses
+    // Allow modification for all statuses
+    return true;
   }
 
   canDelete(session: InventorySession): boolean {
-    return session.status === 'DRAFT';
+    // Allow deletion if session is DRAFT, or if user is admin
+    return session.status === 'DRAFT' || this.authService.isAdmin();
   }
 
   goHome(): void {

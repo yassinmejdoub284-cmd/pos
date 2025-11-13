@@ -93,7 +93,7 @@ export class SupplierService {
     return this.http.get<SupplierPayment[]>(url);
   }
 
-  createSupplierPayment(payment: { supplierId: number; amount: number; notes?: string; paymentMethod?: 'CASH'|'CARD'|'CHECK'|'BANK_TRANSFER' }): Observable<SupplierPayment> {
+  createSupplierPayment(payment: { supplierId: number; amount: number; notes?: string; paymentMethod?: 'CASH'|'CARD'|'CHECK'|'BANK_TRANSFER'|'CREDIT' }): Observable<SupplierPayment> {
     return this.http.post<SupplierPayment>(`${environment.apiUrl}/supplier-payments`, payment);
   }
 

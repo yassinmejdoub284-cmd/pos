@@ -339,7 +339,7 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     this.appliedRules.forEach(appliedRule => {
       const products = this.products.filter(p => appliedRule.productIds.includes(p.id));
       products.forEach(product => {
-        // Calculate final price per bundle (fardeau) with discount applied on margin
+        // Calculate final price per bundle (fardeau) with discount applied on wholesale selling price
         const finalBundlePrice = this.calculateDiscountedBundlePrice(product, appliedRule.rule);
         total += Number(finalBundlePrice) || 0;
       });
@@ -373,11 +373,17 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     const ruleVal = Number(rule.value) || 0;
 
     if (rule.ruleType === 'percentage') {
-      // Percentage discount is calculated on the wholesale margin
-      // Formula: bundlePrice - (margin * discount_percentage / 100)
-      const margin = this.getWholesaleMargin(product);
-      const discountOnMargin = margin * (ruleVal / 100);
-      return Math.max(0, config.bundlePrice - discountOnMargin);
+      // Get base wholesale unit price from product configuration (bundlePrice / bundleSize)
+      // Example: bundlePrice = 75, bundleSize = 5 => baseUnitPrice = 15.000 dt
+      if (config.bundleSize > 0) {
+        const baseUnitPrice = config.bundlePrice / config.bundleSize;
+        // Apply percentage discount on the base unit price
+        const discountedUnitPrice = baseUnitPrice * (1 - ruleVal / 100);
+        // Calculate discounted bundle price from discounted unit price
+        return Math.max(0, discountedUnitPrice * config.bundleSize);
+      }
+      // Fallback if bundleSize is 0 or invalid
+      return Math.max(0, config.bundlePrice * (1 - ruleVal / 100));
     } else if (rule.ruleType === 'fixed') {
       // Fixed price per bundle (fardeau)
       return ruleVal;
@@ -534,7 +540,7 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       
       // Calculate new prices for each product (per bundle/fardeau)
       selectedProducts.forEach(product => {
-        // Calculate discounted bundle price (discount applied on margin for percentage)
+        // Calculate discounted bundle price (discount applied on wholesale selling price for percentage)
         const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, appliedRule.rule);
         
         // Convert to unit price for storage (price per unit after discount)
@@ -576,7 +582,7 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       
       // Calculate new prices for each product (per bundle/fardeau)
       selectedProducts.forEach(product => {
-        // Calculate discounted bundle price (discount applied on margin for percentage)
+        // Calculate discounted bundle price (discount applied on wholesale selling price for percentage)
         const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, appliedRule.rule);
         
         // Convert to unit price for storage (price per unit after discount)
@@ -696,7 +702,7 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     
     // Create sale items with wholesale pricing (per bundle/fardeau)
     const items = selectedProducts.map(product => {
-      // Calculate discounted bundle price (discount applied on margin for percentage)
+      // Calculate discounted bundle price (discount applied on wholesale selling price for percentage)
       const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, rule);
       
       // Convert to unit price for sale item

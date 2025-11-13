@@ -1434,6 +1434,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     if (existingItem) {
       existingItem.quantity = this.roundQuantity(Number(existingItem.quantity) + 1);
+      // Update unitPrice to current effective price (client-specific if available)
+      existingItem.unitPrice = this.getEffectiveUnitPrice(product);
       existingItem.total = Number(existingItem.quantity) * Number(existingItem.unitPrice);
       // Ensure all values are numbers
       existingItem.unitPrice = Number(existingItem.unitPrice);
@@ -1443,16 +1445,27 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
     } else {
       const isWholesaleContext = this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE';
+      const effectiveUnitPrice = this.getEffectiveUnitPrice(product);
+      const bundleQuantity = isWholesaleContext && product.isWholesale ? 1 : undefined;
+      const bundleSize = isWholesaleContext && product.isWholesale ? product.bundleSize : undefined;
+      // For wholesale items, calculate effective bundle price and total
+      const effectiveBundlePrice = (isWholesaleContext && product.isWholesale && bundleSize) 
+        ? effectiveUnitPrice * bundleSize 
+        : undefined;
+      const total = (isWholesaleContext && product.isWholesale && effectiveBundlePrice && bundleQuantity)
+        ? effectiveBundlePrice * bundleQuantity
+        : effectiveUnitPrice;
+      
       const newItem = {
         product,
         quantity: this.roundQuantity(isWholesaleContext && product.isWholesale && product.bundleSize ? product.bundleSize : 1),
-        unitPrice: this.getEffectiveUnitPrice(product),
-        total: this.getEffectiveUnitPrice(product),
+        unitPrice: effectiveUnitPrice,
+        total: total,
         isGift: false,
         isWholesale: isWholesaleContext && product.isWholesale,
-        bundleQuantity: isWholesaleContext && product.isWholesale ? 1 : undefined,
-        bundleSize: isWholesaleContext && product.isWholesale ? product.bundleSize : undefined,
-        bundlePrice: isWholesaleContext && product.isWholesale ? product.bundlePrice : undefined
+        bundleQuantity: bundleQuantity,
+        bundleSize: bundleSize,
+        bundlePrice: effectiveBundlePrice
       };
       if ((this.isWholesaleMode || this.selectedClient?.clientType === 'WHOLESALE') && product.bundleSize) {
         (newItem as any).displayName = `${product.name} (fradeau x${product.bundleSize})`;
@@ -1772,8 +1785,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   fetchAllClients(): void {
     this.searchingClients = true;
-    // Load first 200 active clients for quick local filtering
-    this.clientsService.getClients(1, 200, undefined, '', true).subscribe({
+    // Load first 500 active clients for quick local filtering (increased to ensure all clients are loaded)
+    this.clientsService.getClients(1, 500, undefined, '', true).subscribe({
       next: (response: any) => {
         // Filter clients to only show those assigned to shops or with "any" access
         // This ensures caisse only shows customers who can make purchases at shops
@@ -1787,9 +1800,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
           if (client.depot && client.depot.type === 'SHOP') {
             return true;
           }
-          // Exclude all other clients:
-          // - Invoicing-only clients (depotId = null)
-          // - Warehouse clients (depot.type = 'WAREHOUSE', 'MAIN', 'BRANCH')
+          // Include clients with no depot assignment (null) - allow them to be shown
+          // This ensures clients like CLI0001 are not excluded
+          if (!client.depotId && !client.depot) {
+            return true;
+          }
+          // Exclude warehouse clients (depot.type = 'WAREHOUSE', 'MAIN', 'BRANCH')
           return false;
         });
         this.searchingClients = false;
@@ -1805,7 +1821,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
   filterClients(): void {
     const q = (this.clientSearchQuery || '').trim().toLowerCase();
     if (!q) {
-      this.searchResults = this.allClientsCache.slice(0, 20);
+      // Show first 100 clients when no search query
+      this.searchResults = this.allClientsCache.slice(0, 100);
       return;
     }
     
@@ -1826,6 +1843,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       filteredClients = this.allClientsCache.filter(c => c.clientType === 'BUSINESS');
     } else {
       // Regular search in name, code, phone, email, and client type
+      // Normalize code search to handle variations like "cli001" matching "CLI0001"
       filteredClients = this.allClientsCache.filter(c => {
         const name = `${c.firstName || ''} ${c.lastName || ''}`.toLowerCase();
         const code = (c.code || '').toLowerCase();
@@ -1833,15 +1851,19 @@ export class CaisseComponent implements OnInit, OnDestroy {
         const email = (c.email || '').toLowerCase();
         const clientType = (c.clientType || '').toLowerCase();
         
+        // Check if query matches code (handles partial matches like "cli001" for "CLI0001")
+        const codeMatch = code.includes(q) || code.replace(/^cli0*/, '').includes(q.replace(/^cli0*/, ''));
+        
         return name.includes(q) || 
-               code.includes(q) || 
+               codeMatch || 
                phone.includes(q) || 
                email.includes(q) ||
                clientType.includes(q);
       });
     }
     
-    this.searchResults = filteredClients.slice(0, 20);
+    // Show up to 200 results to ensure all matching clients are visible
+    this.searchResults = filteredClients.slice(0, 200);
   }
 
   searchClients(): void {
@@ -2328,11 +2350,19 @@ export class CaisseComponent implements OnInit, OnDestroy {
         this.showAlertMessage('Ce client n\'est pas autorisé à faire du crédit', 'error');
         return;
       }
-      const remainingCredit = this.getClientRemainingCredit();
       const outstanding = this.roundToTenthAsThreeDecimals(Number(activeCart.netTotal) - Number(this.amountPaid || 0));
-      if (outstanding > remainingCredit) {
-        this.showAlertMessage(`Crédit dépassé. Reste autorisé: ${remainingCredit.toFixed(3)} dt`, 'error');
-        return;
+      const currentDebt = Number(this.selectedClient.currentDebt ?? 0);
+      
+      // If credit amount is less than or equal to client's balance (solde), approve it
+      if (outstanding <= currentDebt) {
+        // Allow the sale - client has enough balance to cover it
+      } else {
+        // Otherwise, check against the remaining credit limit (maxDebt - currentDebt)
+        const remainingCredit = this.getClientRemainingCredit();
+        if (outstanding > remainingCredit) {
+          this.showAlertMessage(`Crédit dépassé. Reste autorisé: ${remainingCredit.toFixed(3)} dt`, 'error');
+          return;
+        }
       }
     }
 
@@ -3810,10 +3840,17 @@ export class CaisseComponent implements OnInit, OnDestroy {
           // For wholesale items, update bundle quantity
           this.selectedReceiptItem.bundleQuantity = quantity;
           this.selectedReceiptItem.quantity = this.roundQuantity(quantity * this.selectedReceiptItem.bundleSize);
-          this.selectedReceiptItem.total = quantity * (this.selectedReceiptItem.bundlePrice || 0);
+          // Update to use current effective price (client-specific if available)
+          const effectiveUnitPrice = this.getEffectiveUnitPrice(this.selectedReceiptItem.product);
+          const effectiveBundlePrice = effectiveUnitPrice * this.selectedReceiptItem.bundleSize;
+          this.selectedReceiptItem.bundlePrice = effectiveBundlePrice;
+          this.selectedReceiptItem.unitPrice = effectiveUnitPrice;
+          this.selectedReceiptItem.total = quantity * effectiveBundlePrice;
         } else {
           // For regular items, update quantity directly
           this.selectedReceiptItem.quantity = this.roundQuantity(quantity);
+          // Update unitPrice to current effective price (client-specific if available)
+          this.selectedReceiptItem.unitPrice = this.getEffectiveUnitPrice(this.selectedReceiptItem.product);
           this.selectedReceiptItem.total = quantity * this.selectedReceiptItem.unitPrice;
         }
         
@@ -3854,10 +3891,17 @@ export class CaisseComponent implements OnInit, OnDestroy {
           // For wholesale items, update bundle quantity
           lastItem.bundleQuantity = quantity;
           lastItem.quantity = this.roundQuantity(quantity * lastItem.bundleSize);
-          lastItem.total = quantity * (lastItem.bundlePrice || 0);
+          // Update to use current effective price (client-specific if available)
+          const effectiveUnitPrice = this.getEffectiveUnitPrice(lastItem.product);
+          const effectiveBundlePrice = effectiveUnitPrice * lastItem.bundleSize;
+          lastItem.bundlePrice = effectiveBundlePrice;
+          lastItem.unitPrice = effectiveUnitPrice;
+          lastItem.total = quantity * effectiveBundlePrice;
         } else {
           // For regular items, update quantity directly
           lastItem.quantity = this.roundQuantity(quantity);
+          // Update unitPrice to current effective price (client-specific if available)
+          lastItem.unitPrice = this.getEffectiveUnitPrice(lastItem.product);
           lastItem.total = quantity * lastItem.unitPrice;
         }
         
@@ -4303,14 +4347,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
       const effectiveBundlePrice = isWholesaleContext && product.isWholesale && product.bundleSize
         ? unitPrice * product.bundleSize
         : undefined;
+      const bundleQuantity = isWholesaleContext && product.isWholesale ? Number(quantity) : undefined;
+      // For wholesale items, total = bundleQuantity * effectiveBundlePrice
+      // For regular items, total = quantity * unitPrice
+      const total = (isWholesaleContext && product.isWholesale && effectiveBundlePrice && bundleQuantity)
+        ? bundleQuantity * effectiveBundlePrice
+        : Number(quantity) * Number(unitPrice);
+      
       const newItem = {
         product,
         quantity: this.roundQuantity(isWholesaleContext && product.isWholesale && product.bundleSize ? Number(quantity) * product.bundleSize : Number(quantity)),
         unitPrice: Number(unitPrice),
-        total: Number(quantity) * Number(unitPrice),
+        total: total,
         isGift: false,
         isWholesale: isWholesaleContext && product.isWholesale,
-        bundleQuantity: isWholesaleContext && product.isWholesale ? Number(quantity) : undefined,
+        bundleQuantity: bundleQuantity,
         bundleSize: isWholesaleContext && product.isWholesale ? product.bundleSize : undefined,
         bundlePrice: effectiveBundlePrice // Use effective bundle price (client-specific if available)
       };
@@ -4723,9 +4774,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
         
         if (isWholesaleContext && product.isWholesale && product.bundleSize) {
           // For wholesale items, increment bundle quantity
+          const effectiveUnitPrice = this.getEffectiveUnitPrice(product);
+          const effectiveBundlePrice = effectiveUnitPrice * product.bundleSize;
           existingItem.bundleQuantity = (existingItem.bundleQuantity || 0) + 1;
           existingItem.quantity = this.roundQuantity(existingItem.bundleQuantity * product.bundleSize);
-          existingItem.total = existingItem.bundleQuantity * (product.bundlePrice || 0);
+          existingItem.bundlePrice = effectiveBundlePrice; // Update to use effective price (client-specific if available)
+          existingItem.total = existingItem.bundleQuantity * effectiveBundlePrice;
         } else {
           // For regular items, increment quantity directly
           existingItem.quantity = this.roundQuantity(Number(existingItem.quantity) + 1);
@@ -5067,8 +5121,24 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // this.showAlertMessage('Article supprimé', 'info');
     } else {
       // Update quantity
-      this.selectedReceiptItem.quantity = this.roundQuantity(newQuantity);
-      this.selectedReceiptItem.total = Number(this.selectedReceiptItem.quantity) * Number(this.selectedReceiptItem.unitPrice);
+      if (this.selectedReceiptItem.isWholesale && this.selectedReceiptItem.bundleSize) {
+        // For wholesale items, update bundle quantity
+        const bundleQuantity = this.roundQuantity(newQuantity / this.selectedReceiptItem.bundleSize);
+        this.selectedReceiptItem.bundleQuantity = bundleQuantity;
+        this.selectedReceiptItem.quantity = this.roundQuantity(newQuantity);
+        // Update to use current effective price (client-specific if available)
+        const effectiveUnitPrice = this.getEffectiveUnitPrice(this.selectedReceiptItem.product);
+        const effectiveBundlePrice = effectiveUnitPrice * this.selectedReceiptItem.bundleSize;
+        this.selectedReceiptItem.bundlePrice = effectiveBundlePrice;
+        this.selectedReceiptItem.unitPrice = effectiveUnitPrice;
+        this.selectedReceiptItem.total = bundleQuantity * effectiveBundlePrice;
+      } else {
+        // For regular items, update quantity and ensure unitPrice is current
+        this.selectedReceiptItem.quantity = this.roundQuantity(newQuantity);
+        // Update unitPrice to current effective price (client-specific if available)
+        this.selectedReceiptItem.unitPrice = this.getEffectiveUnitPrice(this.selectedReceiptItem.product);
+        this.selectedReceiptItem.total = Number(this.selectedReceiptItem.quantity) * Number(this.selectedReceiptItem.unitPrice);
+      }
       this.currentInput = newQuantity.toString();
       // this.showAlertMessage(`Quantité mise à jour: ${newQuantity}`, 'info');
     }

@@ -396,7 +396,7 @@ export class NewEntryComponent implements OnInit {
       supplierId: supplierId,
       amount: -this.totalPurchaseAmount, // Negative amount for the full credit
       notes: `Crédit - ${reference} - Payé: ${paidAmount.toFixed(3)} dt - Total: ${this.totalPurchaseAmount.toFixed(3)} dt (${method.toUpperCase()})${notes ? ` - ${notes}` : ''}`,
-      paymentMethod: method.toUpperCase() as 'CASH' | 'CARD' | 'CHECK' | 'BANK_TRANSFER'
+      paymentMethod: method.toUpperCase() as 'CASH' | 'CARD' | 'CHECK' | 'BANK_TRANSFER' | 'CREDIT'
     };
 
     this.supplierService.createSupplierPayment(combinedData).subscribe({
@@ -448,6 +448,7 @@ export class NewEntryComponent implements OnInit {
             const creditData = {
               supplierId: supplierId,
               amount: -this.totalPurchaseAmount, // Negative amount for credit/debt
+              paymentMethod: 'CREDIT' as const, // Use CREDIT method to avoid cash deduction
               notes: `Crédit - Bon d'entrée${doc.id ? ` #${doc.id}` : ''}`
             };
 

@@ -67,6 +67,10 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   pendingExpenses: Expense[] = [];
   currentUser: any = null;
 
+  // Date filters (for admin)
+  startDate: string = '';
+  endDate: string = '';
+
   private pieChart: Chart | null = null;
   private lineChart: Chart | null = null;
 
@@ -86,6 +90,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit() {
+    this.setDefaultDates();
     this.loadCurrentUser();
     this.loadData();
     
@@ -107,6 +112,16 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     });
   }
 
+  setDefaultDates(): void {
+    // Set to current month (first day to last day)
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    this.startDate = firstDay.toISOString().split('T')[0];
+    this.endDate = lastDay.toISOString().split('T')[0];
+  }
+
   ngAfterViewInit() {
     // Charts will be initialized when stats modal is opened
   }
@@ -125,15 +140,22 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     const user = this.authService.currentUser();
     const isAdminUser = user?.role === 'ADMIN';
     
+    // Build filters for expenses and stats (only for admin)
+    const filters: any = {};
+    if (isAdminUser && this.startDate && this.endDate) {
+      filters.startDate = this.startDate;
+      filters.endDate = this.endDate;
+    }
+    
     const promises: Promise<any>[] = [
       this.expenseService.getCategories().toPromise(),
-      this.expenseService.getExpenses().toPromise(),
+      this.expenseService.getExpenses(isAdminUser ? filters : undefined).toPromise(),
       this.supplierService.getSuppliers().toPromise()
     ];
 
     // Only load stats for admin users
     if (isAdminUser) {
-      promises.push(this.expenseService.getStats().toPromise());
+      promises.push(this.expenseService.getStats(filters).toPromise());
     }
 
     Promise.all(promises).then((results) => {
@@ -156,6 +178,12 @@ export class ChargesComponent implements OnInit, AfterViewInit {
       this.loading = false;
       console.error('Error loading data:', error);
     });
+  }
+
+  onDateFilterChange(): void {
+    if (this.isAdmin()) {
+      this.loadData();
+    }
   }
 
   selectCategory(category: ExpenseCategory) {
@@ -181,15 +209,32 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   }
 
   getCategoryAmount(categoryId: number): number {
-    if (!this.stats?.byCategory) return 0;
-    const breakdown = this.stats.byCategory.find(cat => cat.categoryId === categoryId);
-    return breakdown ? breakdown.totalAmount : 0;
+    if (!this.expenses || this.expenses.length === 0) return 0;
+    return this.expenses
+      .filter(expense => expense.categoryId === categoryId && !expense.isRejected)
+      .reduce((sum, expense) => {
+        let amount = 0;
+        const expenseAmount: any = expense.amount;
+        if (expenseAmount != null && expenseAmount !== undefined) {
+          if (typeof expenseAmount === 'string') {
+            // Remove any spaces and replace comma with dot for French number format
+            const cleaned = expenseAmount.replace(/\s/g, '').replace(',', '.');
+            amount = parseFloat(cleaned);
+          } else if (typeof expenseAmount === 'number') {
+            amount = expenseAmount;
+          } else {
+            // Handle Prisma Decimal object or other types
+            const amountStr = String(expenseAmount);
+            amount = parseFloat(amountStr);
+          }
+        }
+        return sum + (isNaN(amount) || amount < 0 ? 0 : amount);
+      }, 0);
   }
 
   getCategoryCount(categoryId: number): number {
-    if (!this.stats?.byCategory) return 0;
-    const breakdown = this.stats.byCategory.find(cat => cat.categoryId === categoryId);
-    return breakdown ? breakdown.count : 0;
+    if (!this.expenses || this.expenses.length === 0) return 0;
+    return this.expenses.filter(expense => expense.categoryId === categoryId && !expense.isRejected).length;
   }
 
   openAddExpenseModal() {
@@ -559,6 +604,31 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     } catch (error) {
       this.error = 'Erreur lors de l\'approbation';
       console.error('Error approving expense:', error);
+    }
+  }
+
+  async deleteExpense(expense: Expense) {
+    if (!this.currentUser) {
+      this.error = 'Utilisateur non connecté';
+      return;
+    }
+
+    if (!this.isAdmin()) {
+      this.error = 'Accès réservé aux administrateurs';
+      return;
+    }
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer cette dépense de ${this.formatCurrency(expense.amount)} ?`)) {
+      return;
+    }
+
+    try {
+      await this.expenseService.deleteExpense(expense.id).toPromise();
+      this.loadData();
+    } catch (error: any) {
+      const errorMessage = error?.error?.error || 'Erreur lors de la suppression de la dépense';
+      this.error = errorMessage;
+      console.error('Error deleting expense:', error);
     }
   }
 
