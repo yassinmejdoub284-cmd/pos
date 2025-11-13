@@ -958,11 +958,23 @@ export class CaisseComponent implements OnInit, OnDestroy {
         
         // Filter families to only include those that have products in allProducts
         const familiesWithProducts = families.filter(family => 
-          this.allProducts.some(product => product.famille?.name === family.name)
+          this.allProducts.some(product => {
+            if (!product.famille || !product.famille.name) {
+              return false;
+            }
+            const productFamilleName = product.famille.name.trim().toLowerCase();
+            const familyName = family.name?.trim()?.toLowerCase();
+            return productFamilleName === familyName;
+          })
         );
         
-        // Build categories: only "Tous" and actual family names that have products
-        const categories = ['Tous', ...familiesWithProducts.map(family => family.name)];
+        // Sort family names alphabetically
+        const sortedFamilyNames = familiesWithProducts
+          .map(family => family.name)
+          .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+        
+        // Build categories: "Tous" first, then sorted family names
+        const categories = ['Tous', ...sortedFamilyNames];
         
         this.productCategories = categories;
         
@@ -1027,8 +1039,30 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     // Filter by famille only
     if (this.selectedCategory !== 'Tous') {
-      // Filter products by their famille name
-      filtered = filtered.filter(p => p.famille?.name === this.selectedCategory);
+      // Filter products by their famille name (case-insensitive, trimmed)
+      const categoryName = this.selectedCategory.trim().toLowerCase();
+      
+      // Find the famille ID from productFamilies for fallback matching
+      const selectedFamille = this.productFamilies.find(f => 
+        (f.name || '').trim().toLowerCase() === categoryName
+      );
+      
+      filtered = filtered.filter(p => {
+        // Try matching by famille name first
+        if (p.famille && p.famille.name) {
+          const familleName = (p.famille.name || '').trim().toLowerCase();
+          if (familleName === categoryName) {
+            return true;
+          }
+        }
+        
+        // Fallback: match by familleId if famille object doesn't have name or name doesn't match
+        if (selectedFamille && p.familleId && p.familleId === selectedFamille.id) {
+          return true;
+        }
+        
+        return false;
+      });
     }
     
     // Filter by search query
@@ -1127,13 +1161,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
       return this.shuffledProductsForWholesale.slice(startIndex, endIndex);
     }
     
-    // Normal mode: check if this page has custom product selection
+    // When filtering by famille (not "Tous"), ignore custom page product selection
+    // and use normal pagination to show all products from the selected famille
+    if (this.selectedCategory !== 'Tous') {
+      const startIndex = this.currentPage * this.productsPerPage;
+      const endIndex = startIndex + this.productsPerPage;
+      return this.filteredProducts.slice(startIndex, endIndex);
+    }
+    
+    // Normal mode (no famille filter): check if this page has custom product selection
     const pageProductIds = this.pageProductsMap.get(this.currentPage);
     
     if (pageProductIds && pageProductIds.length > 0) {
-      // Get selected products from allProducts (not filteredProducts) to work in both modes
-      const selectedProducts = this.allProducts.filter(p => pageProductIds.includes(p.id));
-      // Show all selected products in normal mode
+      // Get selected products from filteredProducts to respect current filter (search, etc.)
+      const selectedProducts = this.filteredProducts.filter(p => pageProductIds.includes(p.id));
+      // Show all selected products that match the current filter
       return selectedProducts;
     }
     
