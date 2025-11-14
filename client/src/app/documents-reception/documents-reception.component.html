@@ -374,11 +374,13 @@
             Fermer
           </button>
           <button (click)="approve(selectedDocument()!)" 
-                  class="flex-1 px-4 py-2.5 bg-emerald-500 text-white rounded-lg font-medium">
+                  [disabled]="getValidatedCount() === 0"
+                  [class]="'flex-1 px-4 py-2.5 rounded-lg font-medium ' + 
+                           (getValidatedCount() === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-emerald-500 text-white')">
             <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
-            Approuver le document
+            Approuver le document {{ getValidatedCount() > 0 ? '(' + getValidatedCount() + ' validé' + (getValidatedCount() > 1 ? 's' : '') + ')' : '' }}
           </button>
         </div>
       </div>

@@ -1246,6 +1246,10 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
       );
       
       // Find all products with entries (entry documents) since last inventory
+      // Include all RECEIVED documents destined to this depot that represent incoming stock
+      // This includes BON_ENTREE_DEPOT, BON_ENTREE_MAGASIN, and any other documents
+      // that were approved as entries (they should have been converted to entry types, but
+      // we also check for any RECEIVED documents to be safe)
       const entryDocuments = await prisma.stockDocument.findMany({
         where: {
           destinataireId: depotId,
@@ -1257,6 +1261,51 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           items: true
         }
       });
+      
+      // Also include any other RECEIVED documents that have stock movements of type 'IN'
+      // This ensures we catch any documents that might have been approved but not yet converted
+      // First, get all IN movements for this depot since the inventory date
+      const inMovements = await prisma.stockMovement.findMany({
+        where: {
+          toDepotId: depotId,
+          type: 'IN',
+          date: { gte: inventoryPostedAt },
+          reference: { not: null }
+        },
+        select: {
+          reference: true
+        }
+      });
+      
+      // Get unique document numbers from movements
+      const entryDocumentNumbers = new Set(inMovements.map(m => m.reference).filter(ref => ref != null));
+      
+      // Find documents that have IN movements but aren't already in entryDocuments
+      // Only query if there are document numbers to search for
+      let additionalEntryDocs = [];
+      if (entryDocumentNumbers.size > 0) {
+        // Get document numbers that are already in entryDocuments to avoid duplicates
+        const existingDocumentNumbers = new Set(entryDocuments.map(doc => doc.numero));
+        const numbersToSearch = Array.from(entryDocumentNumbers).filter(num => !existingDocumentNumbers.has(num));
+        
+        if (numbersToSearch.length > 0) {
+          additionalEntryDocs = await prisma.stockDocument.findMany({
+            where: {
+              destinataireId: depotId,
+              status: 'RECEIVED',
+              createdAt: { gte: inventoryPostedAt },
+              numero: { in: numbersToSearch },
+              type: { notIn: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN', 'BON_EXPEDITION'] }
+            },
+            include: {
+              items: true
+            }
+          });
+        }
+      }
+      
+      // Combine both sets of entry documents
+      const allEntryDocuments = [...entryDocuments, ...additionalEntryDocs];
       
       // Find all products with exits (sales) since last inventory
       const sales = await prisma.sale.findMany({
@@ -1285,7 +1334,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
       });
       
       // Collect all product IDs from entries, exits, and returns (only valid product IDs)
-      entryDocuments.forEach(doc => {
+      allEntryDocuments.forEach(doc => {
         if (doc.items) {
           doc.items.forEach(item => {
             if (item.productId != null) {
@@ -1343,7 +1392,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           
           // Calculate entries (entry documents) since last inventory POST
           let totalEntries = 0;
-          entryDocuments.forEach(doc => {
+          allEntryDocuments.forEach(doc => {
             doc.items.forEach(docItem => {
               if (docItem.productId === productId) {
                 totalEntries += parseFloat(docItem.quantity || 0);
@@ -1441,7 +1490,11 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
     res.json(uniqueInventoryFallback);
   } catch (error) {
     console.error('Error fetching inventory:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération de l\'inventaire' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Erreur lors de la récupération de l\'inventaire',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -1764,9 +1817,9 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
   try {
     console.log('🚀 APPROVE RECEIPT ENDPOINT CALLED');
     const documentId = parseInt(req.params.id);
-    const { depotId } = req.body;
+    const { depotId, validatedItemIds } = req.body;
     
-    console.log('Approve receipt request:', { documentId, depotId, userId: req.user.id });
+    console.log('Approve receipt request:', { documentId, depotId, userId: req.user.id, validatedItemIds });
     
     const document = await prisma.stockDocument.findUnique({
       where: { id: documentId },
@@ -1803,13 +1856,42 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
     // Previously only BON_ENTREE_MAGASIN and FACTURE were allowed
     console.log('Document type approved for receipt:', { type: document.type });
     
+    // Get depot info to determine the correct entry document type
+    const targetDepot = await prisma.depot.findUnique({
+      where: { id: parseInt(depotId) },
+      select: { type: true }
+    });
+    
+    if (!targetDepot) {
+      return res.status(404).json({ error: 'Dépôt cible non trouvé' });
+    }
+    
+    // Determine the correct entry document type based on depot type
+    // SHOP depots use BON_ENTREE_MAGASIN, others use BON_ENTREE_DEPOT
+    const entryDocumentType = targetDepot.type === 'SHOP' ? 'BON_ENTREE_MAGASIN' : 'BON_ENTREE_DEPOT';
+    console.log('Setting document type to:', entryDocumentType, 'for depot type:', targetDepot.type);
+    
+    // Filter items to only include validated ones if validatedItemIds is provided
+    let itemsToProcess = document.items;
+    if (validatedItemIds && Array.isArray(validatedItemIds) && validatedItemIds.length > 0) {
+      itemsToProcess = document.items.filter(item => validatedItemIds.includes(item.id));
+      console.log(`Filtering items: ${document.items.length} total, ${itemsToProcess.length} validated`);
+    } else {
+      console.log('No validatedItemIds provided, processing all items');
+    }
+    
+    if (itemsToProcess.length === 0) {
+      return res.status(400).json({ error: 'Aucun produit validé à approuver' });
+    }
+    
     await prisma.$transaction(async (tx) => {
-      console.log('Starting stock addition transaction for', document.items.length, 'items');
+      
+      console.log('Starting stock addition transaction for', itemsToProcess.length, 'items');
       
       // Group items by parent product to consolidate quantities
       const groupedItems = new Map();
       
-      for (const item of document.items) {
+      for (const item of itemsToProcess) {
         console.log('Processing item - full object:', JSON.stringify(item, null, 2));
         console.log('Processing item:', { 
           productId: item.productId, 
@@ -1942,10 +2024,12 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
         });
       }
       
+      // Update document status and type to ensure it's counted as an entry document
       await tx.stockDocument.update({
         where: { id: documentId },
         data: {
           status: 'RECEIVED',
+          type: entryDocumentType, // Change type to entry document type so it's counted in Total Entrées
           statusHistory: {
             create: {
               status: 'RECEIVED',
@@ -2890,9 +2974,11 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
             const currentQuantity = parseFloat(destinataireInventory.quantity) || 0;
             const newQuantity = currentQuantity - quantity;
 
-            // Prevent negative stock
+            // Allow deletion even if it would result in negative stock (admin operation)
+            // This allows correction of incorrectly entered bon d'entrée documents
+            // Negative stock can be corrected later through inventory adjustments
             if (newQuantity < 0) {
-              throw new Error(`Cannot delete document: would result in negative stock for product ${targetProductId} in destination depot. Current: ${currentQuantity}, Removing: ${quantity}`);
+              console.warn(`[ADMIN DELETE] Allowing deletion that will result in negative stock for product ${targetProductId} in destination depot. Current: ${currentQuantity}, Removing: ${quantity}, Result: ${newQuantity}`);
             }
 
             if (newQuantity === 0) {
@@ -2901,7 +2987,7 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
                 where: { id: destinataireInventory.id }
               });
             } else {
-              // Update inventory
+              // Update inventory (allow negative for admin corrections)
               await tx.inventory.update({
                 where: { id: destinataireInventory.id },
                 data: { quantity: newQuantity }
@@ -2973,6 +3059,61 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
       }
 
       // Delete related records first (due to foreign key constraints)
+      // Delete supplier payments linked to this bon d'entrée (credit payments)
+      // Look for payments with notes containing "Bon d'entrée #<id>" or "Crédit - Bon d'entrée #<id>"
+      // Also check for variations without space after "Bon d'entrée"
+      const supplierPaymentsToDelete = await tx.supplierPayment.findMany({
+        where: {
+          OR: [
+            { notes: { contains: `Bon d'entrée #${documentId}` } },
+            { notes: { contains: `Crédit - Bon d'entrée #${documentId}` } },
+            { notes: { contains: `Crédit - Bon d'entrée${documentId}` } },
+            { notes: { contains: `Bon d'entrée${documentId}` } },
+            // Also check for format with document numero if available
+            ...(document.numero ? [
+              { notes: { contains: `Bon d'entrée ${document.numero}` } },
+              { notes: { contains: `Crédit - Bon d'entrée ${document.numero}` } }
+            ] : [])
+          ]
+        }
+      });
+
+      // Get supplier payment IDs before deletion
+      const supplierPaymentIds = supplierPaymentsToDelete.map(p => p.id);
+
+      // Delete cash movements associated with these supplier payments
+      // Cash movements have reason format: "Règlement fournisseur #<paymentId> (FOURN:...)"
+      if (supplierPaymentIds.length > 0) {
+        // Find and invalidate cash movements linked to these supplier payments
+        for (const paymentId of supplierPaymentIds) {
+          const relatedMovements = await tx.cashMovement.findMany({
+            where: {
+              reason: {
+                contains: `Règlement fournisseur #${paymentId}`
+              }
+            }
+          });
+
+          // Mark cash movements as invalid by updating the reason and setting amount to 0
+          for (const movement of relatedMovements) {
+            await tx.cashMovement.update({
+              where: { id: movement.id },
+              data: {
+                reason: `[SUPPRIMÉ] ${movement.reason}`,
+                amount: 0 // Set amount to 0 to effectively exclude it from calculations
+              }
+            });
+          }
+        }
+
+        // Delete supplier payments linked to this bon d'entrée
+        await tx.supplierPayment.deleteMany({
+          where: {
+            id: { in: supplierPaymentIds }
+          }
+        });
+      }
+
       // Delete document links (both source and target)
       await tx.stockDocumentLink.deleteMany({
         where: {

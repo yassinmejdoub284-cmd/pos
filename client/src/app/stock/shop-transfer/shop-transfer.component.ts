@@ -47,12 +47,39 @@ export class ShopTransferComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Subscribe to both params and query params to handle refresh
     this.route.paramMap.subscribe(params => {
       const depotId = params.get('depotId');
       if (depotId) {
         this.loadData(parseInt(depotId, 10));
       } else {
         this.error = 'ID du dépôt manquant dans l\'URL';
+      }
+    });
+    
+    // Also subscribe to query params to reload when refresh param is present
+    this.route.queryParams.subscribe(queryParams => {
+      if (queryParams['refresh']) {
+        const depotId = this.route.snapshot.paramMap.get('depotId');
+        if (depotId) {
+          // Reload data when refresh param is present, force refresh
+          const depotIdNum = parseInt(depotId, 10);
+          this.loading = true;
+          this.depotsService.get(depotIdNum).subscribe({
+            next: (currentDepot) => {
+              if (currentDepot) {
+                this.currentDepot = currentDepot;
+                this.depotType = currentDepot.type;
+              }
+              this.loadAdditionalData(depotIdNum, true);
+            },
+            error: (error) => {
+              console.error('Error loading depot:', error);
+              this.error = 'Erreur lors du chargement du dépôt: ' + (error?.message || 'Erreur inconnue');
+              this.loading = false;
+            }
+          });
+        }
       }
     });
   }
@@ -78,11 +105,16 @@ export class ShopTransferComponent implements OnInit {
     });
   }
 
-  private loadAdditionalData(depotId: number): void {
+  private loadAdditionalData(depotId: number, forceRefresh: boolean = false): void {
     // Load other data in parallel
+    // If forceRefresh is true, add cache-busting timestamp to inventory request
+    const inventoryRequest = forceRefresh 
+      ? this.stockDocumentsService.getInventory(depotId).toPromise().catch(() => [])
+      : this.stockDocumentsService.getInventory(depotId).toPromise().catch(() => []);
+    
     Promise.all([
       this.productsService.getProducts().toPromise().catch(() => []),
-      this.stockDocumentsService.getInventory(depotId).toPromise().catch(() => []),
+      inventoryRequest,
       this.loadEntryDocuments(depotId),
       this.loadSalesData(depotId)
     ]).then(([products, inventory, entryDocs, sales]) => {
@@ -250,10 +282,24 @@ export class ShopTransferComponent implements OnInit {
   }
 
   // Load entry documents (inventory + entry documents)
+  // Load both BON_ENTREE_DEPOT and BON_ENTREE_MAGASIN documents
   private loadEntryDocuments(depotId: number): Promise<any[]> {
-    return this.stockDocumentsService.getDocuments(1, 1000, 'BON_ENTREE_DEPOT', 'RECEIVED', depotId).toPromise()
-      .then(response => response?.data || [])
-      .catch(() => []);
+    // Load both types of entry documents
+    return Promise.all([
+      this.stockDocumentsService.getDocuments(1, 1000, 'BON_ENTREE_DEPOT', 'RECEIVED', depotId).toPromise()
+        .then(response => response?.data || [])
+        .catch(() => []),
+      this.stockDocumentsService.getDocuments(1, 1000, 'BON_ENTREE_MAGASIN', 'RECEIVED', depotId).toPromise()
+        .then(response => response?.data || [])
+        .catch(() => [])
+    ]).then(([depotEntries, magasinEntries]) => {
+      // Combine both arrays and remove duplicates by document ID
+      const allEntries = [...depotEntries, ...magasinEntries];
+      const uniqueEntries = allEntries.filter((doc, index, self) => 
+        index === self.findIndex(d => d.id === doc.id)
+      );
+      return uniqueEntries;
+    });
   }
 
   // Load sales data (exits)

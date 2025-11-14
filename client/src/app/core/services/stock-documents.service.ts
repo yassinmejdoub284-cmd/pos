@@ -143,8 +143,11 @@ export class StockDocumentsService {
     );
   }
 
-  approveReceipt(documentId: number, depotId: number): Observable<StockDocument> {
-    return this.http.post<StockDocument>(`${this.apiUrl}/${documentId}/approve-receipt`, { depotId }).pipe(
+  approveReceipt(documentId: number, depotId: number, validatedItemIds?: number[]): Observable<StockDocument> {
+    return this.http.post<StockDocument>(`${this.apiUrl}/${documentId}/approve-receipt`, { 
+      depotId,
+      validatedItemIds: validatedItemIds || []
+    }).pipe(
       catchError((error) => throwError(() => error))
     );
   }

@@ -936,8 +936,54 @@ router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGE
           }
         });
         
+        // Also include any other RECEIVED documents that have IN movements for this product
+        // Get all IN movements for this product and depot
+        const inMovements = await tx.stockMovement.findMany({
+          where: {
+            toDepotId: session.depotId,
+            productId: productId,
+            type: 'IN'
+          },
+          select: {
+            reference: true
+          }
+        });
+        
+        // Get unique document numbers from movements
+        const entryDocumentNumbers = new Set(inMovements.map(m => m.reference).filter(ref => ref != null));
+        
+        // Find documents that have IN movements but aren't already in entryDocuments
+        // Only query if there are document numbers to search for
+        let additionalEntryDocs = [];
+        if (entryDocumentNumbers.size > 0) {
+          // Get document numbers that are already in entryDocuments to avoid duplicates
+          const existingDocumentNumbers = new Set(entryDocuments.map(doc => doc.numero));
+          const numbersToSearch = Array.from(entryDocumentNumbers).filter(num => !existingDocumentNumbers.has(num));
+          
+          if (numbersToSearch.length > 0) {
+            additionalEntryDocs = await tx.stockDocument.findMany({
+              where: {
+                destinataireId: session.depotId,
+                status: 'RECEIVED',
+                numero: { in: numbersToSearch },
+                type: { notIn: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN', 'BON_EXPEDITION'] }
+              },
+              include: {
+                items: {
+                  where: {
+                    productId: productId
+                  }
+                }
+              }
+            });
+          }
+        }
+        
+        // Combine both sets of entry documents
+        const allEntryDocuments = [...entryDocuments, ...additionalEntryDocs];
+        
         let totalEntries = 0;
-        entryDocuments.forEach(doc => {
+        allEntryDocuments.forEach(doc => {
           doc.items.forEach(docItem => {
             totalEntries += parseFloat(docItem.quantity || 0);
           });

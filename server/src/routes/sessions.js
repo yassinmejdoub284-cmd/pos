@@ -1765,6 +1765,7 @@ async function calculateSessionSummary(sessionId) {
   } catch (e) {}
 
   // Supplier payments details (for UI display with supplier name)
+  // Exclude CREDIT payments as they don't represent actual cash outflows
   let supplierPaymentsDetails = [];
   try {
     const sessionStart = new Date(session.openedAt);
@@ -1772,6 +1773,7 @@ async function calculateSessionSummary(sessionId) {
     const supplierPayments = await prisma.supplierPayment.findMany({
       where: {
         userId: session.userId,
+        paymentMethod: { notIn: ['CREDIT'] }, // Exclude CREDIT payments from décaissement
         OR: [
           { paymentDate: { gte: sessionStart, lte: sessionEnd } },
           { createdAt: { gte: sessionStart, lte: sessionEnd } }

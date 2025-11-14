@@ -517,7 +517,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
         const reasonLower = reason.toLowerCase();
         const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]');
+        return m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]') && !reason.includes('[SUPPRIMÉ]');
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10)
@@ -562,7 +562,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
         const reasonLower = reason.toLowerCase();
         const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]');
+        return m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]') && !reason.includes('[SUPPRIMÉ]');
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }

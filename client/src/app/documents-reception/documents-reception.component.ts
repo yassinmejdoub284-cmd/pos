@@ -265,13 +265,42 @@ export class DocumentsReceptionComponent implements OnInit {
       this.error = `Le document ${doc.numero} n'est pas prêt pour approbation (statut: ${doc.status}).`;
       return;
     }
+    
+    // Get validated item IDs from validatedProducts Set
+    // validatedProducts contains keys like "productId_quantity_count"
+    const validatedItemIds: number[] = [];
+    if (doc.items && this.validatedProducts.size > 0) {
+      doc.items.forEach((item: any) => {
+        const productKey = `${item.productId}_${item.quantity}_${item.count}`;
+        if (this.validatedProducts.has(productKey)) {
+          validatedItemIds.push(item.id);
+        }
+      });
+    }
+    
+    // Require at least one validated product
+    if (validatedItemIds.length === 0) {
+      this.error = 'Veuillez valider au moins un produit avant d\'approuver le document. Cliquez sur chaque produit pour le valider.';
+      return;
+    }
+    
     this.loading = true;
-    this.stockDocs.approveReceipt(doc.id, depotId).subscribe({
+    this.stockDocs.approveReceipt(doc.id, depotId, validatedItemIds).subscribe({
       next: (updated) => {
         this.loading = false;
+        // Clear validated products
+        this.validatedProducts.clear();
         // Refresh the documents list
         this.loadDocuments();
-        this.router.navigate(['/stock/documents/bon-entree', String(depotId)]);
+        // Wait a moment for backend transaction to complete, then navigate
+        setTimeout(() => {
+          // Navigate to shop-transfer page to see the updated inventory with entries
+          // Add a timestamp query param to force reload
+          this.router.navigate(['/stock/shop-transfer', String(depotId)], {
+            queryParams: { refresh: Date.now() },
+            onSameUrlNavigation: 'reload'
+          });
+        }, 300); // 300ms delay to ensure backend transaction is complete
       },
       error: (err) => {
         this.loading = false;
