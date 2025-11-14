@@ -1,4 +1,4 @@
-  import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ProductsService } from '../core/services/products.service';
@@ -4212,7 +4212,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const lines = activeCart.items.map(item => `
       <tr>
         <td style=\"padding:6px;border:1px solid #ddd;\">${this.truncate(item.product.name, 40)}</td>
-        <td style=\"padding:6px;border:1px solid #ddd;text-align:center;\">${item.quantity}</td>
+        <td style=\"padding:6px;border:1px solid #ddd;text-align:center;\">${Number(item.quantity).toFixed(3)}</td>
         <td style=\"padding:6px;border:1px solid #ddd;text-align:right;\">${Number(item.unitPrice).toFixed(3)}</td>
         <td style=\"padding:6px;border:1px solid #ddd;text-align:right;\">${Number(item.total).toFixed(3)}</td>
       </tr>
@@ -6661,7 +6661,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
         <tr>
           <td>${line.product?.famille?.name || line.familleName || 'N/A'}</td>
           <td>${line.product?.designation_legale || line.legalDesignation || line.product?.name || line.productName || 'Produit inconnu'}</td>
-          <td class="text-right">${quantity}</td>
+          <td class="text-right">${quantity.toFixed(3)}</td>
           <td class="text-right">${prixVenteHTVA.toFixed(3)} dt</td>
           <td class="text-right">${tvaPercent}%</td>
           <td class="text-right">${montantTVAForLine.toFixed(3)} dt</td>
