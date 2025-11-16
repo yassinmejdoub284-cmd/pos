@@ -51,18 +51,39 @@ async function calculateSessionSummary(sessionId) {
 
   if (!session) return null;
 
-  // Calculate cash from sales
+  // Get cancelled/refunded ticket IDs to exclude their movements
+  const cancelledTicketIds = new Set(
+    session.sales
+      .filter(sale => ['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase()))
+      .map(sale => sale.id)
+  );
+
+  // Calculate cash from sales (exclude cancelled/refunded)
   const cashSales = session.sales
-    .filter(sale => sale.paymentMethod?.type === 'CASH')
+    .filter(sale => sale.paymentMethod?.type === 'CASH' && !['REFUNDED','CANCELLED'].includes((sale.status || '').toUpperCase()))
     .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
 
-  // Calculate cash movements
+  // Calculate cash movements (exclude rejected movements, deleted movements, and movements from cancelled tickets)
   const entree = session.cashMovements
-    .filter(m => m.type === 'ENTREE')
+    .filter(m => {
+      const reason = String(m.reason || '');
+      const amount = parseFloat(m.amount || 0);
+      const isRejected = reason.includes('[REJETÉ]');
+      const isDeleted = reason.includes('[SUPPRIMÉ]');
+      const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+      return m.type === 'ENTREE' && !isRejected && !isDeleted && !isFromCancelledTicket && amount > 0;
+    })
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
 
   const sortie = session.cashMovements
-    .filter(m => ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type))
+    .filter(m => {
+      const reason = String(m.reason || '');
+      const amount = parseFloat(m.amount || 0);
+      const isRejected = reason.includes('[REJETÉ]');
+      const isDeleted = reason.includes('[SUPPRIMÉ]');
+      const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+      return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !isFromCancelledTicket && amount > 0;
+    })
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
 
   // Start expected cash from opening
@@ -99,9 +120,52 @@ async function calculateSessionSummary(sessionId) {
 
   expectedCash = expectedCash + clientPaymentsTotal;
 
-  // Compute cash from sales as totalSales - creditOutstanding and add entries then subtract sorties
-  const totalSalesAmount = session.sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
-  const cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
+  // Compute cash from sales as sum of paidAmount (actual cash received) - only encaissement, not credit amounts
+  // Calculate paidAmount for each sale: finalTotal - debt for that sale
+  let cashFromSalesNetCredit = 0;
+  try {
+    const saleIds = session.sales
+      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+      .map(s => s.id);
+    
+    if (saleIds.length > 0) {
+      // Get all DEBT transactions for sales in this session
+      const debts = await prisma.clientDebtTransaction.findMany({
+        where: { 
+          type: 'DEBT', 
+          saleId: { in: saleIds } 
+        },
+        select: { saleId: true, amount: true }
+      });
+      
+      // Group debt by saleId
+      const debtBySaleId = {};
+      debts.forEach(t => {
+        const sid = t.saleId;
+        const amt = parseFloat(t.amount || 0) || 0;
+        if (sid) {
+          debtBySaleId[sid] = (debtBySaleId[sid] || 0) + amt;
+        }
+      });
+      
+      // Calculate paidAmount for each sale and sum them up
+      session.sales
+        .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+        .forEach(sale => {
+          const total = parseFloat(sale.finalTotal || 0) || 0;
+          const debtForSale = debtBySaleId[sale.id] || 0;
+          const paidAmount = Math.max(0, total - debtForSale);
+          cashFromSalesNetCredit += paidAmount;
+        });
+    }
+  } catch (e) {
+    // Fallback: if we can't calculate paidAmount, use old method
+    const totalSalesAmount = session.sales
+      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+      .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
+    cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
+  }
+  
   expectedCash = expectedCash + cashFromSalesNetCredit + entree - sortie;
 
   return {
@@ -109,8 +173,10 @@ async function calculateSessionSummary(sessionId) {
     cashSales,
     entree,
     sortie,
-    totalSales: session.sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0),
-    totalTickets: session.sales.length,
+    totalSales: session.sales
+      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+      .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0),
+    totalTickets: session.sales.filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase())).length,
     creditOutstanding,
     clientPaymentsTotal
   };
@@ -866,29 +932,12 @@ router.post('/entry', authenticateToken, async (req, res) => {
         });
       }
 
-      // If paid cash, record a cash movement sortie for total purchase amount
-      if (payCash) {
-        // Compute total purchase amount from items
-        const totalPurchase = items.reduce((sum, it) => {
-          const qty = parseFloat(it.quantity || 0);
-          const price = it.purchasePrice !== undefined && it.purchasePrice !== null ? parseFloat(it.purchasePrice) : 0;
-          return sum + qty * price;
-        }, 0);
-
-        // Only create movement if amount > 0
-        if (totalPurchase > 0) {
-          await tx.cashMovement.create({
-            data: {
-              sessionId: activeSession.id,
-              type: 'SORTIE',
-              amount: totalPurchase,
-              reason: `Achat fournisseur ${numero}${supplierId ? ` (FOURN:${supplierId})` : ''}`,
-              ticketId: null,
-              createdById: req.user.id
-            }
-          });
-        }
-      }
+      // NOTE: We do NOT create cash movement here even if payCash is true
+      // The cash movement will be created when the supplier payment is recorded
+      // This prevents double counting: one movement from bon d'entrée creation
+      // and another from supplier payment creation
+      // If payCash is true, the payment should be created immediately after bon d'entrée creation
+      // and that payment will create the cash movement with the correct reason "Règlement fournisseur"
 
       return doc;
     });
@@ -1398,6 +1447,26 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
                 totalEntries += parseFloat(docItem.quantity || 0);
               }
             });
+          });
+          
+          // Also include stock movements of type 'IN' that are not from entry documents
+          // This includes stock restorations from refunds, cancellations, etc.
+          const additionalInMovements = await prisma.stockMovement.findMany({
+            where: {
+              toDepotId: depotId,
+              productId: productId,
+              type: 'IN',
+              date: { gte: inventoryPostedAt },
+              OR: [
+                { reference: null }, // Movements without reference (like restorations)
+                { reference: { not: { in: Array.from(entryDocumentNumbers) } } }, // Exclude movements already counted in entry documents
+                { reason: { contains: 'Remboursement' } } // Include all restoration movements
+              ]
+            }
+          });
+          
+          additionalInMovements.forEach(movement => {
+            totalEntries += parseFloat(movement.quantity || 0);
           });
           
           // Calculate exits (sales) since last inventory POST
@@ -2503,7 +2572,7 @@ async function synchronizeStockForDocumentUpdate(document, originalItems, newIte
     
     // Determine stock changes based on document type
     const isOutgoing = ['BON_EXPEDITION', 'BON_SORTIE'].includes(document.type);
-    const isIncoming = ['BON_ENTREE', 'BON_ENTREE_MAGASIN'].includes(document.type);
+    const isIncoming = ['BON_ENTREE', 'BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'].includes(document.type);
     const isTransfer = document.type === 'BON_TRANSFERT';
     
     if (!isOutgoing && !isIncoming && !isTransfer) {
@@ -2945,6 +3014,9 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
       return res.status(400).json({ error: 'Only RECEIVED documents can be deleted' });
     }
 
+    // Track affected sessions for summary recalculation (declared before transaction)
+    const affectedSessionIdsForRecalc = new Set();
+
     // Delete document and reverse stock in a transaction
     await prisma.$transaction(async (tx) => {
       // Reverse stock for each item
@@ -2993,6 +3065,17 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
                 data: { quantity: newQuantity }
               });
             }
+          } else {
+            // If inventory doesn't exist, create it with negative quantity to track the deletion
+            // This ensures the stock is properly reversed even if inventory was deleted or never existed
+            await tx.inventory.create({
+              data: {
+                depotId: destinataireDepotId,
+                productId: targetProductId,
+                quantity: -quantity // Negative to reflect the removal
+              }
+            });
+            console.warn(`[ADMIN DELETE] Created inventory entry with negative quantity for product ${targetProductId} in depot ${destinataireDepotId} (quantity: -${quantity})`);
           }
 
           // Step 2: For transfers, add stock back to source depot
@@ -3059,9 +3142,11 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
       }
 
       // Delete related records first (due to foreign key constraints)
-      // Delete supplier payments linked to this bon d'entrée (credit payments)
-      // Look for payments with notes containing "Bon d'entrée #<id>" or "Crédit - Bon d'entrée #<id>"
-      // Also check for variations without space after "Bon d'entrée"
+      // Delete supplier payments linked to this bon d'entrée
+      // Look for payments with notes containing various formats:
+      // - "Bon d'entrée #<id>"
+      // - "Crédit - Bon d'entrée #<id>"
+      // - "Règlement bon d'entrée #<id>" (new format from cash payments)
       const supplierPaymentsToDelete = await tx.supplierPayment.findMany({
         where: {
           OR: [
@@ -3069,10 +3154,13 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
             { notes: { contains: `Crédit - Bon d'entrée #${documentId}` } },
             { notes: { contains: `Crédit - Bon d'entrée${documentId}` } },
             { notes: { contains: `Bon d'entrée${documentId}` } },
+            { notes: { contains: `Règlement bon d'entrée #${documentId}` } },
+            { notes: { contains: `Règlement bon d'entrée${documentId}` } },
             // Also check for format with document numero if available
             ...(document.numero ? [
               { notes: { contains: `Bon d'entrée ${document.numero}` } },
-              { notes: { contains: `Crédit - Bon d'entrée ${document.numero}` } }
+              { notes: { contains: `Crédit - Bon d'entrée ${document.numero}` } },
+              { notes: { contains: `Règlement bon d'entrée ${document.numero}` } }
             ] : [])
           ]
         }
@@ -3081,21 +3169,30 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
       // Get supplier payment IDs before deletion
       const supplierPaymentIds = supplierPaymentsToDelete.map(p => p.id);
 
-      // Delete cash movements associated with these supplier payments
+      // Delete cash movements associated with these supplier payments and restore expectedCash
       // Cash movements have reason format: "Règlement fournisseur #<paymentId> (FOURN:...)"
       if (supplierPaymentIds.length > 0) {
+        // Track sessions that need expectedCash adjustment
+        const sessionAdjustments = new Map(); // sessionId -> amount to add back
+
         // Find and invalidate cash movements linked to these supplier payments
-        for (const paymentId of supplierPaymentIds) {
+        for (const payment of supplierPaymentsToDelete) {
+          const paymentId = payment.id;
+          // Search for movements with various format variations
           const relatedMovements = await tx.cashMovement.findMany({
             where: {
-              reason: {
-                contains: `Règlement fournisseur #${paymentId}`
-              }
+              OR: [
+                { reason: { contains: `Règlement fournisseur #${paymentId}` } },
+                { reason: { contains: `Règlement fournisseur#${paymentId}` } },
+                { reason: { contains: `Règlement fournisseur ${paymentId}` } }
+              ]
             }
           });
 
           // Mark cash movements as invalid by updating the reason and setting amount to 0
           for (const movement of relatedMovements) {
+            const movementAmount = parseFloat(movement.amount || 0);
+            
             await tx.cashMovement.update({
               where: { id: movement.id },
               data: {
@@ -3103,7 +3200,27 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
                 amount: 0 // Set amount to 0 to effectively exclude it from calculations
               }
             });
+
+            // Track affected sessions for summary recalculation
+            if (movement.sessionId) {
+              affectedSessionIdsForRecalc.add(movement.sessionId);
+            }
+
+            // If this was a cash payment, track the amount to restore to session
+            if (payment.paymentMethod === 'CASH' && movementAmount > 0 && movement.sessionId) {
+              const currentAdjustment = sessionAdjustments.get(movement.sessionId) || 0;
+              sessionAdjustments.set(movement.sessionId, currentAdjustment + movementAmount);
+            }
           }
+        }
+
+        // Restore expectedCash for all affected sessions
+        for (const [sessionId, amountToRestore] of sessionAdjustments.entries()) {
+          await tx.sessionCaisse.update({
+            where: { id: sessionId },
+            data: { expectedCash: { increment: amountToRestore } }
+          });
+          console.log(`[DELETE BON ENTREE] Restored ${amountToRestore} to session ${sessionId} expectedCash`);
         }
 
         // Delete supplier payments linked to this bon d'entrée
@@ -3141,6 +3258,26 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
     });
 
     await logAudit(req.user.id, 'stock_documents', documentId, 'DELETE', document, null);
+
+    // Recalculate session summaries for all affected sessions
+    if (affectedSessionIdsForRecalc && affectedSessionIdsForRecalc.size > 0) {
+      const { calculateSessionSummary } = require('./sessions');
+      
+      for (const sessionId of affectedSessionIdsForRecalc) {
+        try {
+          const summary = await calculateSessionSummary(sessionId);
+          if (summary) {
+            await prisma.sessionCaisse.update({
+              where: { id: sessionId },
+              data: { expectedCash: summary.expectedCash }
+            });
+            console.log(`[DELETE BON ENTREE] Recalculated summary for session ${sessionId}, expectedCash: ${summary.expectedCash}`);
+          }
+        } catch (error) {
+          console.error(`Error recalculating summary for session ${sessionId}:`, error);
+        }
+      }
+    }
 
     res.json({ message: 'Document deleted successfully', documentId });
   } catch (error) {

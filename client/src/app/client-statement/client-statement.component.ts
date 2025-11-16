@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TicketDialogComponent } from '../shared/ticket-dialog/ticket-dialog.component';
 import { PaymentDialogComponent } from '../shared/payment-dialog/payment-dialog.component';
+import { AuthService } from '../core/services/auth.service';
 
 interface Client {
   id: number;
@@ -26,6 +27,8 @@ interface StatementItem {
   id: number;
   clickable: boolean;
   saleId?: number;
+  transactionIds?: number[];
+  transactionId?: number;
 }
 
 interface ClientStatement {
@@ -75,6 +78,12 @@ export class ClientStatementComponent implements OnInit {
   showPaymentDialog = false;
   selectedPaymentId: number | null = null;
   
+  // Notification
+  showNotification = false;
+  notificationType: 'success' | 'error' | 'info' = 'success';
+  notificationTitle = '';
+  notificationMessage = '';
+  notificationDetails: string[] = [];
   
   // Filters
   filters = {
@@ -83,7 +92,11 @@ export class ClientStatementComponent implements OnInit {
     endDate: ''
   };
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(
+    private http: HttpClient, 
+    private router: Router,
+    private authService: AuthService
+  ) {}
 
   ngOnInit(): void {
     this.loadClientSummaries();
@@ -456,6 +469,133 @@ export class ClientStatementComponent implements OnInit {
     if (balance > 0) return 'text-green-600'; // Client has paid in advance
     if (balance < 0) return 'text-red-600';   // Client still owes money
     return 'text-gray-600';
+  }
+
+  isAdmin(): boolean {
+    const isAdminUser = this.authService.isAdmin();
+    // Debug: log to console to help troubleshoot
+    console.log('Is Admin:', isAdminUser, 'User:', this.authService.currentUser());
+    return isAdminUser;
+  }
+
+  deleteTransaction(item: StatementItem): void {
+    // Check if user is admin
+    if (!this.isAdmin()) {
+      this.notificationType = 'error';
+      this.notificationTitle = 'Accès refusé';
+      this.notificationMessage = 'Seuls les administrateurs peuvent supprimer des transactions';
+      this.notificationDetails = [];
+      this.showNotification = true;
+      setTimeout(() => {
+        this.hideNotification();
+      }, 5000);
+      return;
+    }
+
+    if (!this.selectedClient) {
+      alert('Aucun client sélectionné');
+      return;
+    }
+
+    const confirmMessage = item.credit > 0 
+      ? `Êtes-vous sûr de vouloir supprimer ce paiement de ${this.formatAmount(item.credit)} ?\n\nCette action va:\n- Restaurer le stock du ticket\n- Retirer le montant de la clôture de caisse\n- Mettre à jour la dette du client`
+      : `Êtes-vous sûr de vouloir supprimer cette vente de ${this.formatAmount(item.debit)} ?\n\nCette action va:\n- Restaurer le stock du ticket\n- Mettre à jour la dette du client`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // Determine transaction IDs to delete
+    const transactionIds = item.transactionIds || (item.transactionId ? [item.transactionId] : []);
+    
+    if (transactionIds.length === 0) {
+      alert('Impossible de supprimer: aucune transaction associée');
+      return;
+    }
+
+    // Determine if this is a credit (payment) or debit (sale)
+    const isCredit = item.credit > 0;
+
+    const deleteData = {
+      transactionIds: transactionIds,
+      saleId: item.saleId || null,
+      isCredit: isCredit,
+      clientId: this.selectedClient.id
+    };
+
+    this.loading = true;
+    this.http.request('DELETE', `${environment.apiUrl}/client-statements/statement/transaction`, {
+      body: deleteData,
+      headers: { 'Content-Type': 'application/json' }
+    }).subscribe({
+      next: (response: any) => {
+        // Build smart notification
+        const isCredit = item.credit > 0;
+        const amount = isCredit ? item.credit : item.debit;
+        const transactionType = isCredit ? 'Paiement' : 'Vente';
+        
+        this.notificationType = 'success';
+        this.notificationTitle = `${transactionType} supprimée avec succès`;
+        this.notificationMessage = `${transactionType} de ${this.formatAmount(amount)} supprimée`;
+        this.notificationDetails = [];
+        
+        // Add details about what was deleted
+        this.notificationDetails.push(`📋 ${item.reference}`);
+        this.notificationDetails.push(`💰 Montant: ${this.formatAmount(amount)}`);
+        
+        // Add details about actions performed
+        if (isCredit && item.saleId) {
+          this.notificationDetails.push('✅ Stock restauré pour ce ticket');
+          this.notificationDetails.push('✅ Montant retiré de la clôture de caisse');
+        } else if (!isCredit && item.saleId) {
+          this.notificationDetails.push('✅ Stock restauré pour ce ticket');
+        }
+        
+        this.notificationDetails.push('✅ Dette du client mise à jour');
+        
+        if (response.stockRestored) {
+          this.notificationDetails.push('✅ Articles retournés au stock');
+        }
+        
+        if (response.transactionsDeleted > 1) {
+          this.notificationDetails.push(`✅ ${response.transactionsDeleted} transactions supprimées`);
+        }
+        
+        this.showNotification = true;
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          this.hideNotification();
+        }, 5000);
+        
+        // Reload the statement
+        this.loadStatement();
+      },
+      error: (error) => {
+        console.error('Error deleting transaction:', error);
+        
+        // Show error notification
+        this.notificationType = 'error';
+        this.notificationTitle = 'Erreur lors de la suppression';
+        this.notificationMessage = error.error?.error || 'Une erreur est survenue lors de la suppression de la transaction';
+        this.notificationDetails = [];
+        this.showNotification = true;
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          this.hideNotification();
+        }, 5000);
+        
+        this.loading = false;
+      }
+    });
+  }
+
+  hideNotification(): void {
+    this.showNotification = false;
+    this.notificationTitle = '';
+    this.notificationMessage = '';
+    this.notificationDetails = [];
   }
 
 }

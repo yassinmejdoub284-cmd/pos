@@ -24,7 +24,8 @@ import { InventoryService } from '../core/services/inventory.service';
 import { Product } from '../core/models/product.model';
 import { Sale } from '../core/models/sale.model';
 import { Client } from '../core/models/client.model';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, takeUntil, forkJoin, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { TicketActionDialogComponent } from '../shared/ticket-action-dialog/ticket-action-dialog.component';
 
@@ -1665,6 +1666,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Quick add client functionality
   showQuickAddClientPopup = false;
+  showAddDebtModal = false;
+  debtAmount: number | undefined;
+  debtNotes: string = '';
   quickAddForm = {
     firstName: '',
     lastName: '',
@@ -2062,6 +2066,61 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   closeQuickAddClient(): void {
     this.showQuickAddClientPopup = false;
+  }
+
+  // Add debt to client relevé
+  openAddDebtModal(): void {
+    if (!this.selectedClient) {
+      this.showAlertMessage('Aucun client sélectionné', 'error');
+      return;
+    }
+    this.debtAmount = undefined;
+    this.debtNotes = '';
+    this.showAddDebtModal = true;
+  }
+
+  closeAddDebtModal(): void {
+    this.showAddDebtModal = false;
+    this.debtAmount = undefined;
+    this.debtNotes = '';
+  }
+
+  addDebtToClient(): void {
+    if (!this.selectedClient || !this.selectedClient.id) {
+      this.showAlertMessage('Aucun client sélectionné', 'error');
+      return;
+    }
+
+    if (!this.debtAmount || this.debtAmount <= 0) {
+      this.showAlertMessage('Veuillez entrer un montant valide', 'error');
+      return;
+    }
+
+    const amount = this.debtAmount; // Store in variable to satisfy TypeScript
+    this.clientsService.addDebtTransaction(
+      this.selectedClient.id,
+      amount,
+      this.debtNotes || undefined
+    ).subscribe({
+      next: (updatedClient) => {
+        // Update the selected client with new debt amount
+        if (this.selectedClient) {
+          this.selectedClient.currentDebt = updatedClient.currentDebt;
+        }
+        this.showAlertMessage(
+          `Débit de ${amount.toFixed(3)} DT ajouté au relevé de ${this.selectedClient?.firstName} ${this.selectedClient?.lastName}`,
+          'success'
+        );
+        this.closeAddDebtModal();
+      },
+      error: (error) => {
+        console.error('Error adding debt transaction:', error);
+        this.showAlertMessage(
+          error.error?.error || 'Erreur lors de l\'ajout du débit au relevé',
+          'error'
+        );
+      }
+    });
   }
 
   validateQuickClientForm(): { isValid: boolean; missingFields: string[] } {
@@ -3990,23 +4049,41 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Submit client payment to the API
   submitClientPayment(amount: number, notes?: string): void {
-    if (!this.selectedClient) return;
+    // Use pendingPaymentClient if available (from search), otherwise use selectedClient
+    const client = this.pendingPaymentClient || this.selectedClient;
+    if (!client || !client.id) {
+      this.showAlertMessage('Aucun client sélectionné', 'error');
+      return;
+    }
 
     const paymentData = {
-      clientId: this.selectedClient.id,
+      clientId: client.id,
       amount: amount,
       notes: notes || `Encaissement automatique depuis la caisse - ${new Date().toLocaleString('fr-FR')}`
     };
 
     this.http.post(`${environment.apiUrl}/client-payments`, paymentData).subscribe({
       next: (response) => {
+        const clientName = `${client.firstName} ${client.lastName}`;
         this.showAlertMessage(
-          `Encaissement de ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'TND' }).format(amount)} enregistré avec succès pour ${this.selectedClient?.firstName} ${this.selectedClient?.lastName}`,
+          `Encaissement de ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'TND' }).format(amount)} enregistré avec succès pour ${clientName}`,
           'success'
         );
         
         // Refresh client data to update current debt
-        this.refreshSelectedClientData();
+        if (this.pendingPaymentClient) {
+          // Update pendingPaymentClient with new debt
+          this.clientsService.getClient(client.id).subscribe({
+            next: (updatedClient) => {
+              this.pendingPaymentClient = updatedClient;
+            },
+            error: (error) => {
+              console.error('Error refreshing client data:', error);
+            }
+          });
+        } else {
+          this.refreshSelectedClientData();
+        }
       },
       error: (error) => {
         console.error('Error creating client payment:', error);
@@ -4034,6 +4111,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Open client payment from search results
+  openClientPaymentFromSearch(client: any): void {
+    // Set the pending payment client
+    this.pendingPaymentClient = client;
+    // Set default amount to current debt if available, otherwise 0
+    this.pendingPaymentAmount = parseFloat(client.currentDebt || 0);
+    this.pendingPaymentNotes = '';
+    
+    // Open the payment confirmation dialog
+    this.showPaymentConfirmationDialog = true;
+    
+    // Optionally close the client search popup
+    // this.showClientSearchPopup = false;
+  }
+
   // Payment confirmation dialog methods
   cancelClientPaymentConfirmation(): void {
     this.showPaymentConfirmationDialog = false;
@@ -4052,6 +4144,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.pendingPaymentClient = null;
     this.pendingPaymentAmount = 0;
     this.pendingPaymentNotes = '';
+    
+    // Refresh the client search results to show updated debt
+    if (this.clientSearchQuery) {
+      this.searchClients();
+    }
   }
 
   // Helper methods for the dialog
@@ -6385,8 +6482,45 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadingSuppliers = true;
     this.supplierService.getSuppliers().subscribe({
       next: (suppliers: any[]) => {
-        this.supplierResults = (suppliers || []).filter((s: any) => s.isActive !== false);
-        this.loadingSuppliers = false;
+        const activeSuppliers = (suppliers || []).filter((s: any) => s.isActive !== false);
+        
+        // Fetch statement for each supplier to get balance from relvee fournisseur
+        if (activeSuppliers.length === 0) {
+          this.supplierResults = [];
+          this.loadingSuppliers = false;
+          return;
+        }
+
+        // Create observables for fetching statements (with wide date range to get all transactions)
+        // Use a date 10 years ago to ensure we get all transactions
+        const startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 10);
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDateStr = startDate.toISOString().split('T')[0];
+        
+        const statementObservables = activeSuppliers.map(supplier => 
+          this.supplierService.getSupplierStatement(supplier.id, startDateStr, endDate).pipe(
+            map(statement => ({ supplier, balance: statement.currentBalance })),
+            catchError(() => of({ supplier, balance: supplier.currentDebt || 0 })) // Fallback to currentDebt if statement fails
+          )
+        );
+
+        // Fetch all statements in parallel
+        forkJoin(statementObservables).subscribe({
+          next: (results) => {
+            // Map suppliers with their statement balances
+            this.supplierResults = results.map(result => ({
+              ...result.supplier,
+              currentDebt: result.balance // Use balance from statement instead of currentDebt
+            }));
+            this.loadingSuppliers = false;
+          },
+          error: () => {
+            // Fallback: use currentDebt if all statements fail
+            this.supplierResults = activeSuppliers;
+            this.loadingSuppliers = false;
+          }
+        });
       },
       error: () => {
         this.supplierResults = [];

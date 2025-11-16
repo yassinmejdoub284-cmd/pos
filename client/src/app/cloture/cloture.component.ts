@@ -34,6 +34,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   showCloseForm = signal(false);
   showFundForm = signal(false);
   showAdjustForm = signal(false);
+  showCreditDetailsModal = false;
   activeTab = signal<'historique' | 'cloture'>('cloture');
   showDetails = signal({
     encaissement: { clientPayments: false, advances: false, cash: false },
@@ -235,15 +236,15 @@ export class ClotureComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Règlements fournisseur (from cash movements) - exclude rejected
+    // Règlements fournisseur (from cash movements) - exclude rejected and deleted
     const movements = (session.cashMovements || []) as Array<any>;
     for (const m of movements) {
       const reason = String(m.reason || '');
       const reasonLower = reason.toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
       const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
-      // Exclude rejected movements
-      if (m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]')) {
+      // Exclude rejected and deleted movements
+      if (m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]') && !reason.includes('[SUPPRIMÉ]')) {
         rows.push({
           createdAt: m.createdAt,
           label: reason.replace(/#\d+\s*\(FOURN:\d+\)/i, '').trim(),
@@ -252,17 +253,71 @@ export class ClotureComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Remboursements (from cash movements) - exclude rejected
+    // Remboursements (from cash movements) - exclude rejected and deleted
     for (const m of movements) {
       const reason = String(m.reason || '');
       const reasonLower = reason.toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
       const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
-      // Exclude rejected movements
-      if (m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]')) {
+      // Exclude rejected and deleted movements
+      if (m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]') && !reason.includes('[SUPPRIMÉ]')) {
         rows.push({
           createdAt: m.createdAt,
           label: reason || 'Remboursement',
+          amount: amount
+        });
+      }
+    }
+
+    // Other sorties (not categorized as expenses, supplier payments, or refunds)
+    // This includes: retraits, dépôts au coffre, and other SORTIE movements
+    const sales = ((session as any)?.sales || []) as any[];
+    const cancelledTicketIds = new Set(
+      sales
+        .filter(sale => ['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase()))
+        .map(sale => sale.id)
+    );
+    
+    // Build a set of expense IDs that are already shown in expensesDetails
+    // This prevents double counting: expenses with cash movements are shown in expensesDetails,
+    // and their movements should NOT be shown again in "autres sorties"
+    const expenseIdsInDetails = new Set<number>();
+    const expenseRegex = /#(\d+)/;
+    expenses.forEach(e => {
+      // Try to extract expense ID from various fields
+      const label = (e.categoryName || '') + (e.supplierName || '') + (e.reason || '');
+      const match = label.match(expenseRegex);
+      if (match && match[1]) {
+        expenseIdsInDetails.add(parseInt(match[1]));
+      }
+    });
+    
+    for (const m of movements) {
+      const reason = String(m.reason || '');
+      const reasonLower = reason.toLowerCase();
+      const amount = parseFloat(m.amount || 0) || 0;
+      const isRejected = reason.includes('[REJETÉ]');
+      const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+      
+      // Check if this movement is already counted as an expense
+      const expenseMatch = reason.match(/Dépense(?: approuvée)?\s*#(\d+)/i);
+      const isExpenseMovement = expenseMatch && expenseIdsInDetails.has(parseInt(expenseMatch[1]));
+      
+      // Check if this is a sortie that hasn't been categorized yet
+      const isSortie = ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type);
+      const isExpense = reasonLower.includes('dépense') || reasonLower.includes('depense');
+      const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
+      const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
+      const isDeleted = reason.includes('[SUPPRIMÉ]');
+      
+      if (isSortie && amount > 0 && !isRejected && !isDeleted && !isFromCancelledTicket && 
+          !isExpenseMovement && !isExpense && !isSupplierPayment && !isRefund) {
+        // This is an uncategorized sortie (not an expense, supplier payment, or refund)
+        const label = reason || (m.type === 'DEPOT_COFFRE' ? 'Dépôt au coffre' : 
+                                 m.type === 'RETRAIT_CENTRALE' ? 'Retrait centrale' : 'Autre sortie');
+        rows.push({
+          createdAt: m.createdAt,
+          label: label,
           amount: amount
         });
       }
@@ -360,14 +415,77 @@ export class ClotureComponent implements OnInit, OnDestroy {
   private requestedSalesDataForSessionId: number | null = null;
   private lastLoadedSessionId: number | null = null;
 
-  // Crédit and supplier payments helpers
-  getCreditAmount(): number {
+  // Crédit and supplier payments helpers - converted to computed signal for auto-updates
+  creditAmount = computed(() => {
     const session = this.currentSession();
     const summary: any = session?.summary || {};
     const direct = parseFloat(summary.creditOutstanding || 0) || 0;
     if (direct > 0) return direct;
     const credit = (summary.salesByPayment?.CREDIT?.amount) || 0;
     return parseFloat(credit) || 0;
+  });
+
+  // Keep method for backward compatibility
+  getCreditAmount(): number {
+    return this.creditAmount();
+  }
+
+  // Get detailed breakdown of credit sales (where the credit amount comes from)
+  // This shows only sales with outstanding credit (DEBT - PAYMENT > 0)
+  getCreditSalesDetails(): Array<{ saleId: number; clientName: string; amount: number; saleTotal: number; paidAmount: number; date: string }> {
+    const session = this.currentSession();
+    if (!session) return [];
+
+    const sales = ((session as any)?.sales || []) as any[];
+    const creditSales: Array<{ saleId: number; clientName: string; amount: number; saleTotal: number; paidAmount: number; date: string }> = [];
+
+    // Filter sales with CREDIT payment type
+    sales.forEach(sale => {
+      const paymentType = (sale.paymentType || '').toUpperCase();
+      const status = (sale.status || '').toUpperCase();
+      
+      // Only include active credit sales
+      if (paymentType === 'CREDIT' && !['CANCELLED', 'REFUNDED'].includes(status)) {
+        const saleTotal = parseFloat(sale.finalTotal || 0) || 0;
+        
+        // Get debt transactions for this sale (from summary or calculate)
+        // The outstanding amount should be: DEBT - PAYMENT
+        // For now, we'll use: finalTotal - paidAmount (advance payment)
+        // But ideally we should get the actual DEBT transactions minus PAYMENT transactions
+        const paidAmount = parseFloat(sale.paidAmount || sale.advancePayment || 0) || 0;
+        
+        // Calculate outstanding: total - paid
+        // Note: This is a simplified calculation. The server calculates it more accurately
+        // by subtracting PAYMENT transactions from DEBT transactions
+        const outstanding = Math.max(0, saleTotal - paidAmount);
+        
+        // Only include if there's outstanding credit
+        if (outstanding > 0) {
+          // Try to get client name from sale.client, or from clientId if client object not loaded
+          let clientName = 'Client inconnu';
+          if (sale.client) {
+            const firstName = sale.client.firstName || '';
+            const lastName = sale.client.lastName || '';
+            clientName = `${firstName} ${lastName}`.trim() || 'Client inconnu';
+          } else if (sale.clientId) {
+            // If client object not loaded, show client ID
+            clientName = `Client #${sale.clientId}`;
+          }
+          
+          creditSales.push({
+            saleId: sale.id,
+            clientName,
+            amount: outstanding, // This is the outstanding credit amount
+            saleTotal,
+            paidAmount,
+            date: sale.createdAt || session.openedAt
+          });
+        }
+      }
+    });
+
+    // Sort by date (newest first)
+    return creditSales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
   // Recent movements helper (pure)
@@ -570,13 +688,24 @@ export class ClotureComponent implements OnInit, OnDestroy {
   // Refunds (Remboursements)
   recentRefunds(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
     const movements = (this.currentSession()?.cashMovements || []) as any[];
+    const sales = ((this.currentSession() as any)?.sales || []) as any[];
+    
+    // Get cancelled/refunded ticket IDs
+    const cancelledTicketIds = new Set(
+      sales
+        .filter(sale => ['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase()))
+        .map(sale => sale.id)
+    );
+    
     return movements
       .filter(m => {
         const reason = String(m.reason || '');
         const reasonLower = reason.toLowerCase();
         const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]');
+        const isRejected = reason.includes('[REJETÉ]');
+        const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+        return m.type === 'SORTIE' && isRefund && amount > 0 && !isRejected && !isFromCancelledTicket;
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10)
@@ -588,15 +717,49 @@ export class ClotureComponent implements OnInit, OnDestroy {
       }));
   }
 
+  // Get total of all sorties (cash outflows) from session summary
+  getAllSortiesTotal(): number {
+    const summary: any = this.currentSession()?.summary || {};
+    // Use sortie from summary if available (includes all SORTIE, DEPOT_COFFRE, RETRAIT_CENTRALE)
+    const sortieFromSummary = parseFloat(summary.sortie || 0) || 0;
+    if (sortieFromSummary > 0) {
+      return sortieFromSummary;
+    }
+    
+    // Fallback: calculate from movements
+    const movements = this.currentSession()?.cashMovements || [];
+    return movements
+      .filter(m => {
+        const reason = String(m.reason || '');
+        const amount = parseFloat((m as any).amount || 0) || 0;
+        return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && 
+               amount > 0 && 
+               !reason.includes('[REJETÉ]') && 
+               !reason.includes('[SUPPRIMÉ]');
+      })
+      .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
+  }
+
   getRefundsTotal(): number {
     const movements = this.currentSession()?.cashMovements || [];
+    const sales = ((this.currentSession() as any)?.sales || []) as any[];
+    
+    // Get cancelled/refunded ticket IDs
+    const cancelledTicketIds = new Set(
+      sales
+        .filter(sale => ['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase()))
+        .map(sale => sale.id)
+    );
+    
     return movements
       .filter(m => {
         const reason = String(m.reason || '');
         const reasonLower = reason.toLowerCase();
         const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
         const amount = parseFloat((m as any).amount || 0) || 0;
-        return m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]');
+        const isRejected = reason.includes('[REJETÉ]');
+        const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+        return m.type === 'SORTIE' && isRefund && amount > 0 && !isRejected && !isFromCancelledTicket;
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
@@ -632,6 +795,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   // Computed signal for total sales (sum of all ticket totals) - matches tickets modal calculation
+  // Auto-updates when session or sales data changes
   totalSalesTTC = computed(() => {
     // Use Z report sales data (same as tickets modal) if available, otherwise fall back to session sales
     const zSales = this.zReportSales();
@@ -650,6 +814,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
       const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
       return total + amount;
     }, 0);
+  });
+
+  // Computed signal for total tickets count - auto-updates when session changes
+  totalTickets = computed(() => {
+    return this.currentSession()?.summary?.totalTickets || 0;
   });
 
   // Computed signal for cash from sales - pure function, no side effects
@@ -756,8 +925,14 @@ export class ClotureComponent implements OnInit, OnDestroy {
     return parseFloat((this.currentSession()?.expectedCash as any) || 0) || 0;
   }
 
-  getOpeningFund(): number {
+  // Opening fund as computed signal for auto-updates
+  openingFund = computed(() => {
     return parseFloat((this.currentSession()?.openingFund as any) || 0) || 0;
+  });
+
+  // Keep method for backward compatibility
+  getOpeningFund(): number {
+    return this.openingFund();
   }
 
   // Get user sales summary for display under solde de caisse - uses same logic as tickets modal
@@ -1089,7 +1264,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
           }
           
           // Load Z report sales data for totalSalesTTC calculation
-          if (this.zReportSales().length === 0 || (currentSession && currentSession.id !== session.id)) {
+          // Refresh on every session update to ensure totalSalesTTC is always current
+          if (!currentSession || currentSession.id !== session.id || this.zReportSales().length === 0) {
+            this.loadZReportSalesData(session.id);
+          } else if (currentSession.id === session.id) {
+            // Refresh Z report sales even if session ID is same to get latest sales data
+            // This ensures totalSalesTTC updates when new sales are added
             this.loadZReportSalesData(session.id);
           }
           
@@ -1158,7 +1338,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
           }
           
           // Load Z report sales data for totalSalesTTC calculation
-          if (this.zReportSales().length === 0 || (currentSession && currentSession.id !== session.id)) {
+          // Refresh on every session update to ensure totalSalesTTC is always current
+          if (!currentSession || currentSession.id !== session.id || this.zReportSales().length === 0) {
+            this.loadZReportSalesData(session.id);
+          } else if (currentSession.id === session.id) {
+            // Refresh Z report sales even if session ID is same to get latest sales data
+            // This ensures totalSalesTTC updates when new sales are added
             this.loadZReportSalesData(session.id);
           }
           

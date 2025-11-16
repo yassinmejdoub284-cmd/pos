@@ -1106,15 +1106,14 @@ export class PrintService {
         const total = Number(item.total || 0).toFixed(3);
         const name = (item.productName || '').toString();
         
-        if (item.isWholesale) {
-          const bundleQty = item.bundleQuantity || 0;
-          const bundlePrice = item.bundlePrice || 0;
-          const bundleSize = item.bundleSize || 1;
+        if (item.isWholesale && item.bundlePrice) {
+          const bundleQty = Number(item.bundleQuantity || 0);
+          const bundlePrice = Number(item.bundlePrice || 0);
+          const bundleSize = Number(item.bundleSize || 1);
           return `
             <tr>
               <td class="name">${this.escapeHtml(name)}<br><small style="color: #8b5cf6; font-weight: bold;">GROS</small></td>
-              <td class="qty">${bundleQty} fardeau${bundleQty > 1 ? 'x' : ''}<br><small>(${qty} unités)</small></td>
-              <td class="price">${bundlePrice.toFixed(3)}/fardeau<br><small>(${(bundlePrice / bundleSize).toFixed(3)}/unité)</small></td>
+              <td class="price">${bundlePrice.toFixed(3)}/fardeau</td>
               <td class="total">${total}</td>
             </tr>
           `;
@@ -1122,7 +1121,6 @@ export class PrintService {
           return `
             <tr>
               <td class="name">${this.escapeHtml(name)}</td>
-              <td class="qty">${qty}</td>
               <td class="price">${unit}</td>
               <td class="total">${total}</td>
             </tr>
@@ -1133,9 +1131,16 @@ export class PrintService {
 
     const discount = Number(sale.discount || 0);
     const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
-    const net = Number(sale.finalTotal || subtotal - discount);
+    // Use finalTotal from database as TOTAL A PAYER
+    const totalAPayer = Number(sale.finalTotal || subtotal - discount);
     const payment = sale.paymentMethod?.name || '—';
     const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
+    // Check if it's a credit payment - explicitly check for CREDIT type
+    const isCredit = sale.paymentType === 'CREDIT';
+    // Get advancePayment from database (montant payé maintenant)
+    const montantPayeMaintenant = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
+    // Calculate remaining amount: TOTAL A PAYER - Montant payé maintenant
+    const resteAPayer = Math.max(0, totalAPayer - montantPayeMaintenant);
 
     // Generate logo HTML if enabled
     let logoHtml = '';
@@ -1180,10 +1185,10 @@ export class PrintService {
             .double-line { border-top: 2px solid #000; margin: 8px 0; }
             table { width: 100%; border-collapse: collapse; }
             td { font-size: 12px; padding: 2px 0; }
-            td.name { width: 48%; }
-            td.qty { width: 12%; text-align: right; }
-            td.price { width: 20%; text-align: right; }
-            td.total { width: 20%; text-align: right; }
+            td.name { width: 50%; }
+            td.qty { display: none; }
+            td.price { width: 25%; text-align: right; }
+            td.total { width: 25%; text-align: right; }
             .muted { color: #444; }
             .bold { font-weight: bold; }
             @media print {
@@ -1208,7 +1213,6 @@ export class PrintService {
               <thead>
                 <tr>
                   <td class="bold">ARTICLE</td>
-                  <td class="bold" style="text-align:right">QTE</td>
                   <td class="bold" style="text-align:right">P.U.</td>
                   <td class="bold" style="text-align:right">TOTAL</td>
                 </tr>
@@ -1221,7 +1225,9 @@ export class PrintService {
             <table>
               <tr><td class="bold">Sous-total</td><td style="text-align:right" class="bold">${subtotal.toFixed(3)} dt</td></tr>
               ${discount > 0 ? `<tr><td>Remise</td><td style="text-align:right">-${discount.toFixed(3)} dt</td></tr>` : ''}
-              <tr><td class="bold">TOTAL A PAYER</td><td style="text-align:right" class="bold">${net.toFixed(3)} dt</td></tr>
+              <tr><td class="bold">TOTAL A PAYER</td><td style="text-align:right" class="bold">${totalAPayer.toFixed(3)} dt</td></tr>
+              ${isCredit ? `<tr><td>Montant payé maintenant</td><td style="text-align:right">${montantPayeMaintenant.toFixed(3)} dt</td></tr>` : ''}
+              ${isCredit ? `<tr><td class="bold">Reste à payer</td><td style="text-align:right" class="bold">${resteAPayer.toFixed(3)} dt</td></tr>` : ''}
               <tr><td>Paiement</td><td style="text-align:right">${this.escapeHtml(payment)}</td></tr>
             </table>
             <div class="line"></div>
@@ -1235,7 +1241,14 @@ export class PrintService {
 
   buildSaleReceiptText(sale: Sale, settings: AppSettings | null): string {
     const createdAt = new Date(sale.createdAt);
+    const isWholesale = this.isWholesaleSale(sale);
     
+    // For wholesale sales, use the detailed ticket format
+    if (isWholesale) {
+      return this.buildWholesaleReceiptText(sale, settings, createdAt);
+    }
+    
+    // For regular sales, use the standard format
     // Format date and time based on settings
     const dateFormat = settings?.printSettings?.dateFormat || 'dd/mm/yyyy';
     const timeFormat = settings?.printSettings?.timeFormat || '24h';
@@ -1317,10 +1330,6 @@ export class PrintService {
       }
     }
     
-    if (this.isWholesaleSale(sale)) {
-      text += 'VENTE GROS\n';
-    }
-    
     text += '------------------\n';
     
     // Format currency based on settings
@@ -1334,54 +1343,254 @@ export class PrintService {
       return currencyPosition === 'before' ? `${currencySymbol} ${formatted}` : `${formatted} ${currencySymbol}`;
     };
     
-    // Items header (bold) - QTE before ARTICLE with more space between QTE and ARTICLE
-    text += boldOn + 'QTE    ARTICLE                 P.U.    TOTAL' + boldOff + '\n';
+    // Items header
+    text += leftAlign + boldOn + 'Articles' + boldOff + '\n';
     text += '--------------------------------------------\n';
     
     // Items - sanitized for thermal printer
     (sale.items || []).forEach(item => {
       const name = this.sanitizeForThermalPrinter((item.productName || '').toString());
-      const qty = Number(item.quantity || 0).toString();
+      const qty = Number(item.quantity || 0);
       const unit = Number(item.unitPrice || 0);
       const total = Number(item.total || 0);
       
       if (item.isWholesale) {
-        const bundleQty = item.bundleQuantity || 0;
-        const bundlePrice = item.bundlePrice || 0;
-        const bundleSize = item.bundleSize || 1;
+        const bundleQty = Number(item.bundleQuantity || 0);
+        const bundleSize = Number(item.bundleSize || 1);
+        const totalUnits = bundleQty * bundleSize;
+        
+        // Format quantity: show as integer if whole number, otherwise 2 decimals
+        const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
         
         text += `${name}\n`;
-        text += `GROS              ${bundleQty} fardeau${bundleQty > 1 ? 'x' : ''}  ${formatCurrency(bundlePrice)}  ${formatCurrency(total)}\n`;
-        text += `                  (${qty} unités)\n`;
+        text += `${qtyFormatted} × ${unit.toFixed(2)} dt Gros\n`;
+        if (bundleQty > 0 && bundleSize > 0) {
+          text += `Lot: ${bundleQty} × ${bundleSize} = ${totalUnits} unités\n`;
+        }
+        text += `${total.toFixed(2)} dt\n`;
       } else {
-        // Format item line with QTE first, then ARTICLE with more space between QTE and ARTICLE
-        const qtyPadded = qty.padStart(3);
-        const namePadded = name.padEnd(20); // Space for article name
-        const unitFormatted = unit.toFixed(3);
-        const totalFormatted = total.toFixed(3);
-        const unitPadded = unitFormatted.padStart(6); // Align P.U. prices
-        const totalPadded = totalFormatted.padStart(8); // Align TOTAL prices
-        text += `${qtyPadded}    ${namePadded}  ${unitPadded}  ${totalPadded}\n`;
+        // Regular item format
+        // Format quantity: show as integer if whole number, otherwise 2 decimals
+        const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
+        
+        text += `${name}\n`;
+        text += `${qtyFormatted} × ${unit.toFixed(2)} dt\n`;
+        text += `${total.toFixed(2)} dt\n`;
       }
+      text += '\n';
     });
     
-    text += '=========================================\n';
+    text += '--------------------------------------------\n\n';
+    
+    // Payment section
+    text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
+    
+    // Payment type
+    const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
+    text += leftAlign + `Type de paiement: ${paymentTypeText}\n`;
+    
+    // Payment method
+    if (sale.paymentMethod) {
+      text += leftAlign + `Méthode: ${this.sanitizeForThermalPrinter(sale.paymentMethod.name)}\n`;
+    }
+    
+    // Advance payment (acompte)
+    const advancePayment = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
+    if (advancePayment > 0) {
+      text += leftAlign + `Acompte: ${advancePayment.toFixed(2)} dt\n`;
+      if (sale.advancePaymentMethod) {
+        text += leftAlign + `Méthode acompte: ${this.sanitizeForThermalPrinter(sale.advancePaymentMethod.name)}\n`;
+      }
+    }
+    
+    text += '\n';
     
     // Totals
     const discount = Number(sale.discount || 0);
     const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
-    const net = Number(sale.finalTotal || subtotal - discount);
-    const payment = sale.paymentMethod?.name || '—';
+    // Use finalTotal from database as TOTAL
+    const total = Number(sale.finalTotal || subtotal - discount);
     
-    text += boldOn + `Sous-total                    ${subtotal.toFixed(3)} dt` + boldOff + '\n';
-    if (discount > 0 && settings?.printSettings?.showDiscountDetails) {
-      text += `Remise                        -${discount.toFixed(3)} dt\n`;
+    text += leftAlign + `Sous-total: ${subtotal.toFixed(2)} dt\n`;
+    if (discount > 0) {
+      text += leftAlign + `Remise: -${discount.toFixed(2)} dt\n`;
     }
-    text += boldOn + `TOTAL A PAYER                 ${net.toFixed(3)} dt` + boldOff + '\n';
-    // Payment method (if enabled in settings) - sanitized for thermal printer
-    if (settings?.printSettings?.showPaymentMethod) {
-      text += `Paiement                      ${this.sanitizeForThermalPrinter(payment)}\n`;
+    text += leftAlign + boldOn + `Total: ${total.toFixed(2)} dt` + boldOff + '\n';
+    
+    text += '=========================================\n';
+    
+    // Custom thank you message from settings - sanitized for thermal printer
+    const thankYouMessage = this.sanitizeForThermalPrinter(settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!');
+    text += centerAlign + thankYouMessage + '\n\n\n\n\n\n';
+    
+    // Paper cut command
+    text += ESC + '\x69'; // Full cut
+    text += ESC + '\x64\x01'; // Feed 6 lines before cutting
+    
+    // Open cash drawer for cash payments (espèces)
+    if (sale.paymentType === 'COMPTANT' && sale.paymentMethod?.id === 1) {
+      // ESC/POS command to open cash drawer: ESC p 0 25 250
+      text += ESC + '\x70\x00\x19\xFA'; // Open drawer command
     }
+    
+    return text;
+  }
+
+  // Build detailed receipt text for wholesale sales (matching ticket details modal format)
+  private buildWholesaleReceiptText(sale: Sale, settings: AppSettings | null, createdAt: Date): string {
+    let text = '';
+    
+    // ESC/POS commands for formatting
+    const ESC = '\x1B';
+    const centerAlign = ESC + '\x61\x01'; // Center alignment
+    const leftAlign = ESC + '\x61\x00';   // Left alignment
+    const boldOn = ESC + '\x45\x01';      // Bold on
+    const boldOff = ESC + '\x45\x00';     // Bold off
+    const normalSize = ESC + '\x21\x00';  // Normal size
+    const monospaceFont = ESC + '\x4D\x00'; // Select font A (monospace)
+    const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
+    const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
+    
+    // Eliminate margins and set monospace font
+    text += noTopMargin + noBottomMargin + monospaceFont;
+    
+    // Header
+    text += '================================\n';
+    
+    // ASCII Art Logo "HD" - centered and smaller
+    text += centerAlign + '  _   _ _____  \n';
+    text += centerAlign + ' | | | |  __ \\ \n';
+    text += centerAlign + ' | |_| | |  | |\n';
+    text += centerAlign + ' |  _  | |  | |\n';
+    text += centerAlign + ' | | | | |__| |\n';
+    text += centerAlign + ' |_| |_|_____/ \n\n';
+    
+    // Company name (double bold and centered) - sanitized for thermal printer
+    const companyName = this.sanitizeForThermalPrinter(settings?.companyName || 'PATISSERIE MODERNE');
+    text += centerAlign + boldOn + boldOn + companyName + boldOff + boldOff + normalSize + '\n';
+    
+    // Company details (centered) - sanitized for thermal printer
+    if (settings?.printSettings?.showCompanyDetails) {
+      if (settings?.companyAddress) {
+        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyAddress) + '\n';
+      }
+      if (settings?.companyPhone) {
+        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyPhone) + '\n';
+      }
+      if (settings?.companyEmail) {
+        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyEmail) + '\n';
+      }
+    }
+    
+    text += centerAlign + '================================\n\n';
+    
+    // Numéro de Ticket
+    text += leftAlign + 'Numéro de Ticket\n';
+    text += leftAlign + `#${this.getTicketNumberForPrint(sale)}\n`;
+    
+    // Status
+    const statusText = this.getStatusTextForPrint(sale.status || 'COMPLETED');
+    text += leftAlign + `${statusText}\n\n`;
+    
+    // Client info
+    if (sale.client) {
+      const clientName = `${sale.client.firstName} ${sale.client.lastName}`;
+      text += leftAlign + 'Client\n';
+      text += leftAlign + `${this.sanitizeForThermalPrinter(clientName)}\n`;
+      if (sale.client.code) {
+        text += leftAlign + `Code: ${sale.client.code}\n`;
+      }
+    } else {
+      text += leftAlign + 'Client\n';
+      text += leftAlign + 'Passager\n';
+    }
+    text += '\n';
+    
+    // Caissier (Cashier)
+    if (sale.user) {
+      const cashierName = `${sale.user.firstName} ${sale.user.lastName}`;
+      text += leftAlign + 'Caissier\n';
+      text += leftAlign + `${this.sanitizeForThermalPrinter(cashierName)}\n`;
+    }
+    
+    // Date and time
+    const shortDate = createdAt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+    const shortTime = createdAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    text += leftAlign + `${shortDate}, ${shortTime}\n\n`;
+    
+    text += '------------------\n';
+    
+    // Items header
+    text += leftAlign + boldOn + 'Articles' + boldOff + '\n';
+    text += '--------------------------------------------\n';
+    
+    // Items - sanitized for thermal printer
+    (sale.items || []).forEach(item => {
+      const name = this.sanitizeForThermalPrinter((item.productName || '').toString());
+      const qty = Number(item.quantity || 0);
+      const unit = Number(item.unitPrice || 0);
+      const total = Number(item.total || 0);
+      
+      if (item.isWholesale) {
+        const bundleQty = Number(item.bundleQuantity || 0);
+        const bundleSize = Number(item.bundleSize || 1);
+        const totalUnits = bundleQty * bundleSize;
+        
+        // Format quantity: show as integer if whole number, otherwise 2 decimals
+        const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
+        
+        text += `${name}\n`;
+        text += `${qtyFormatted} × ${unit.toFixed(2)} dt Gros\n`;
+        if (bundleQty > 0 && bundleSize > 0) {
+          text += `Lot: ${bundleQty} × ${bundleSize} = ${totalUnits} unités\n`;
+        }
+        text += `${total.toFixed(2)} dt\n`;
+      } else {
+        // Regular item format (shouldn't happen in wholesale sale, but just in case)
+        const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
+        text += `${name}\n`;
+        text += `${qtyFormatted} × ${unit.toFixed(2)} dt\n`;
+        text += `${total.toFixed(2)} dt\n`;
+      }
+      text += '\n';
+    });
+    
+    text += '--------------------------------------------\n\n';
+    
+    // Payment section
+    text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
+    
+    // Payment type
+    const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
+    text += leftAlign + `Type de paiement: ${paymentTypeText}\n`;
+    
+    // Payment method
+    if (sale.paymentMethod) {
+      text += leftAlign + `Méthode: ${this.sanitizeForThermalPrinter(sale.paymentMethod.name)}\n`;
+    }
+    
+    // Advance payment (acompte)
+    const advancePayment = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
+    if (advancePayment > 0) {
+      text += leftAlign + `Acompte: ${advancePayment.toFixed(2)} dt\n`;
+      if (sale.advancePaymentMethod) {
+        text += leftAlign + `Méthode acompte: ${this.sanitizeForThermalPrinter(sale.advancePaymentMethod.name)}\n`;
+      }
+    }
+    
+    text += '\n';
+    
+    // Totals
+    const discount = Number(sale.discount || 0);
+    const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
+    // Use finalTotal from database as TOTAL
+    const total = Number(sale.finalTotal || subtotal - discount);
+    
+    text += leftAlign + `Sous-total: ${subtotal.toFixed(2)} dt\n`;
+    if (discount > 0) {
+      text += leftAlign + `Remise: -${discount.toFixed(2)} dt\n`;
+    }
+    text += leftAlign + boldOn + `Total: ${total.toFixed(2)} dt` + boldOff + '\n';
     
     text += '=========================================\n';
     
@@ -1452,6 +1661,45 @@ export class PrintService {
   // Check if sale is wholesale
   private isWholesaleSale(sale: Sale): boolean {
     return sale.items && sale.items.some(item => item.isWholesale);
+  }
+
+  // Get status text for printing
+  private getStatusTextForPrint(status: string): string {
+    switch (status.toUpperCase()) {
+      case 'COMPLETED':
+        return 'Terminé';
+      case 'TEMPORARY':
+        return 'Temporaire';
+      case 'PENDING':
+        return 'En attente';
+      case 'CANCELLED':
+        return 'Annulé';
+      case 'REFUNDED':
+        return 'Remboursé';
+      case 'PENDING_ADMIN':
+        return 'En attente admin';
+      case 'CADEAU':
+        return 'Cadeau';
+      default:
+        return 'Terminé';
+    }
+  }
+
+  // Get payment type text for printing
+  private getPaymentTypeTextForPrint(paymentType: string, status?: string): string {
+    const s = (status || '').toUpperCase();
+    if (s === 'CADEAU') {
+      return 'CADEAU';
+    }
+    
+    switch (paymentType.toUpperCase()) {
+      case 'COMPTANT':
+        return 'Comptant';
+      case 'CREDIT':
+        return 'Crédit';
+      default:
+        return 'Comptant';
+    }
   }
 
   private escapeHtml(input: string): string {

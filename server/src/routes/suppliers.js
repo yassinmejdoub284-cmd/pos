@@ -625,7 +625,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
             credit: 0
           };
         }),
-        // 2. Bon d'entrée documents: calculate total from items
+        // 2. Bon d'entrée documents: calculate total from items (DEBIT - crédit fournisseur/dette)
         ...bonEntreeDocuments.map(doc => {
           const totalAmount = doc.items.reduce((sum, item) => {
             const qty = parseFloat(item.quantity || 0);
@@ -634,8 +634,8 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           }, 0);
           return {
             date: doc.createdAt,
-            debit: 0,
-            credit: totalAmount
+            debit: totalAmount, // Crédit fournisseur en DEBIT column (dépense)
+            credit: 0
           };
         }),
         // 3. Debt transactions: standalone debt/payment adjustments
@@ -714,8 +714,8 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
               };
             }
           }),
-        // 5. Supplier payments: reduce what we owe (debit transactions - money going out)
-        // Include all payments, even those linked to bon d'entrée (they appear as debit)
+        // 5. Supplier payments: recorded as CREDIT (sortie de caisse - règlement fournisseur)
+        // Include all payments, even those linked to bon d'entrée (they appear as credit)
         ...periodPayments.map(payment => {
           const amount = parseFloat(payment.amount);
           const notes = payment.notes || '';
@@ -730,16 +730,16 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
             const paidAmount = parseFloat(paidMatch[1]);
             return {
               date: payment.createdAt,
-              debit: paidAmount, // Use the paid amount as debit
-              credit: 0
+              debit: 0,
+              credit: paidAmount // Sortie de caisse en CREDIT column
             };
           } else {
-            // All supplier payments are debits (money going out)
-            // Use absolute value to ensure positive debit
+            // All supplier payments are credits (sortie de caisse - règlement fournisseur)
+            // Use absolute value to ensure positive credit
             return {
               date: payment.createdAt,
-              debit: Math.abs(amount), // Payment is always a debit
-              credit: 0
+              debit: 0,
+              credit: Math.abs(amount) // Payment is always a credit (sortie de caisse)
             };
           }
         })
@@ -818,7 +818,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
           return sum + (qty * price);
         }, 0);
-        currentDebt -= totalAmount; // credit (negative)
+        currentDebt += totalAmount; // debit (increases debt - crédit fournisseur/dette)
       });
       
       allExpenses
@@ -856,7 +856,8 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       
       allPayments.forEach(payment => {
         const amount = parseFloat(payment.amount);
-        currentDebt += amount; // debit (positive)
+        // Payments as credit reduce debt (sortie de caisse)
+        currentDebt -= Math.abs(amount);
       });
 
       allDebtTransactions.forEach(transaction => {
@@ -941,11 +942,18 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       orderBy: { date: 'asc' }
     });
 
-    // Get payments
+    // Get payments (include paymentMethod to check if cash payment)
     const payments = await prisma.supplierPayment.findMany({
       where: { 
         supplierId: parseInt(supplierId),
         createdAt: { gte: start, lte: end }
+      },
+      select: {
+        id: true,
+        amount: true,
+        paymentMethod: true,
+        notes: true,
+        createdAt: true
       },
       orderBy: { createdAt: 'asc' }
     });
@@ -968,25 +976,59 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     });
 
     // Get bon d'entrée documents for this supplier
+    // Include documents created/updated in the date range OR documents that have payments in the date range
+    // OR if there are any payments for this supplier, include all bon d'entrée documents (to show the debt)
+    // This ensures bon d'entrée appears even if created before the date range but paid during it
+    const bonEntreeIdsFromPayments = payments
+      .map(p => {
+        const bonMatch = p.notes?.match(/Bon d'entrée #(\d+)/);
+        return bonMatch ? parseInt(bonMatch[1]) : null;
+      })
+      .filter(id => id !== null);
+    
+    // Get bon d'entrée documents for this supplier
+    // Always include ALL bon d'entrée for this supplier to show complete debt picture
+    // The date filter is applied at the transaction level, not at document level
+    // This ensures we see the debt (DEBIT) even if bon d'entrée was created before the date range
+    // Also check if payments reference bon d'entrée by ID to include them
     const bonEntreeDocuments = await prisma.stockDocument.findMany({
       where: {
         type: 'BON_ENTREE_DEPOT',
-        notes: { contains: `Supplier:${supplierId}` },
-        createdAt: { gte: start, lte: end }
+        OR: [
+          { notes: { contains: `Supplier:${supplierId}` } },
+          // Also include bon d'entrée referenced in payments (in case notes format is different)
+          ...(bonEntreeIdsFromPayments.length > 0 ? [{ id: { in: bonEntreeIdsFromPayments } }] : [])
+        ]
+        // No date restriction - include all bon d'entrée for this supplier
+        // The statement will show all debts (DEBIT) and payments in the period (CREDIT)
       },
       include: {
         items: true
       },
       orderBy: { createdAt: 'asc' }
     });
+    
+    // Debug: log found bon d'entrée documents
+    console.log(`Found ${bonEntreeDocuments.length} bon d'entrée documents for supplier ${supplierId}`);
+    bonEntreeDocuments.forEach(doc => {
+      console.log(`Bon d'entrée #${doc.id}: notes="${doc.notes}", totalAmount=${doc.items.reduce((sum, item) => {
+        const qty = parseFloat(item.quantity || 0);
+        const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
+        return sum + (qty * price);
+      }, 0)}`);
+    });
 
     // Get bon de retour documents for this supplier
+    // Include documents created in the date range OR updated in the date range
     const bonRetourDocuments = await prisma.stockDocument.findMany({
       where: {
         type: 'BON_EXPEDITION',
         notes: { contains: `Supplier:${supplierId}` },
         status: 'RECEIVED',
-        createdAt: { gte: start, lte: end }
+        OR: [
+          { createdAt: { gte: start, lte: end } },
+          { updatedAt: { gte: start, lte: end } }
+        ]
       },
       include: {
         items: true
@@ -1025,6 +1067,8 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         };
       }),
       // Bon d'entrée documents: calculate total from items
+      // Always show in DEBIT (crédit fournisseur/dette) - even if paid in cash
+      // Cash payments are shown separately in CREDIT
       ...bonEntreeDocuments.map(doc => {
         // Calculate total amount from items
         const totalAmount = doc.items.reduce((sum, item) => {
@@ -1033,24 +1077,18 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
           return sum + (qty * price);
         }, 0);
 
-        // Check if there's a payment record for this bon d'entrée
-        const relatedPayment = payments.find(p => {
-          const bonMatch = p.notes?.match(/Bon d'entrée #(\d+)/);
-          return bonMatch && bonMatch[1] === doc.id.toString();
-        });
-
         // Extract document number (numero) - could be like "BE-001" or just the ID
         const docNumber = doc.numero || doc.id.toString();
         const reference = `Bon d'entrée #${doc.id}`;
 
-        // Bon d'entrée always increases debt (credit), payment is handled separately
-        // Always show the bon d'entrée amount in credit (what we owe)
+        // Bon d'entrée increases debt - shown as DEBIT (crédit fournisseur/dette - dépense)
+        // Always shown in DEBIT, even if there's a cash payment (payment shown separately in CREDIT)
         return {
           type: 'bon_entree',
           date: doc.createdAt,
           reference: reference,
-          debit: 0,
-          credit: totalAmount,
+          debit: totalAmount, // Crédit fournisseur en DEBIT column (dépense)
+          credit: 0,
           id: doc.id,
           clickable: true,
           bonId: doc.id.toString(),
@@ -1163,9 +1201,11 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
           };
         }
       }),
-      // Supplier payments: reduce what we owe (like client payments)
-      // Include all payments, even those linked to bon d'entrée (they appear as debit)
-      ...payments.map(payment => {
+      // Supplier payments: only CASH payments recorded as CREDIT (sortie de caisse)
+      // Non-cash payments (CREDIT, CARD, etc.) are not shown as they don't affect cash
+      ...payments
+        .filter(payment => payment.paymentMethod === 'CASH')
+        .map(payment => {
           const amount = parseFloat(payment.amount);
           const notes = payment.notes || '';
           const reference = `PAYMENT-${payment.id}`;
@@ -1182,22 +1222,22 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
               type: 'payment',
               date: payment.createdAt,
               reference: reference,
-              debit: paidAmount, // Use the paid amount as debit
-              credit: 0,
+              debit: 0,
+              credit: paidAmount, // Sortie de caisse en CREDIT column
               id: payment.id,
               clickable: true,
               bonId: null,
               description: payment.notes || 'Règlement fournisseur'
             };
           } else {
-            // All supplier payments are debits (money going out)
-            // Use absolute value to ensure positive debit
+            // Cash payments are credits (sortie de caisse - règlement fournisseur)
+            // Use absolute value to ensure positive credit
             return {
               type: 'payment',
               date: payment.createdAt,
               reference: reference,
-              debit: Math.abs(amount), // Payment is always a debit
-              credit: 0,
+              debit: 0,
+              credit: Math.abs(amount), // Cash payment is a credit (sortie de caisse)
               id: payment.id,
               clickable: true,
               bonId: null,
@@ -1208,6 +1248,9 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     // Calculate running balance
+    // - Bon d'entrée (DEBIT) increases debt (crédit fournisseur/dette - dépense)
+    // - Payments (CREDIT) reduce debt (sortie de caisse - what we pay)
+    // Balance = debit - credit (standard accounting)
     allTransactions.forEach(transaction => {
       balance += transaction.debit - transaction.credit;
       statement.push({

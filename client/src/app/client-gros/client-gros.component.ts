@@ -939,6 +939,29 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     return false;
   }
 
+  // Get applied rule for a product (if any)
+  getAppliedRuleForProduct(product: ClientGrosItem): WholesaleRule | null {
+    for (const appliedRule of this.appliedRules) {
+      if (appliedRule.productIds.includes(product.id)) {
+        return appliedRule.rule;
+      }
+    }
+    return null;
+  }
+
+  // Check if product has a client-specific price (different from base price)
+  hasClientSpecificPrice(product: ClientGrosItem): boolean {
+    if (!this.selectedCustomer) {
+      return false;
+    }
+    const basePrice = this.getBaseWholesalePrice(product);
+    const clientPrice = this.getWholesalePrice(product);
+    // Return true if client price exists and is different from base price
+    return this.clientPrices.has(product.id) || 
+           (product.parentProductId && product.parentProductId > 0 && this.clientPrices.has(product.parentProductId)) ||
+           (clientPrice !== basePrice);
+  }
+
   truncate(text: string, maxLength: number): string {
     if (text.length <= maxLength) {
       return text;

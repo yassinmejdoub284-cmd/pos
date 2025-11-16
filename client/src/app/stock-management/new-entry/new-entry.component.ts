@@ -236,37 +236,19 @@ export class NewEntryComponent implements OnInit {
       return;
     }
 
-    // Verify cash availability for cash payments
+    // Check if session exists for cash payments, but don't validate cash availability
+    // Allow payment even if cash balance is negative
     if (this.paymentMethod === 'cash') {
-      this.verifyCashAvailability();
+      const currentSession = this.sessionsService.currentSession();
+      if (!currentSession) {
+        this.error = 'Aucune session de caisse ouverte';
+        return;
+      }
+      // Proceed with payment without checking cash availability
+      this.processPaymentWithVerification();
     } else {
       this.processPaymentWithVerification();
     }
-  }
-
-  verifyCashAvailability(): void {
-    const currentSession = this.sessionsService.currentSession();
-    if (!currentSession) {
-      this.error = 'Aucune session de caisse ouverte';
-      return;
-    }
-
-    // Get session summary to check available cash
-    this.sessionsService.getSessionSummary(currentSession.id).subscribe({
-      next: (summary) => {
-        const availableCash = summary.expectedCash;
-        if (this.partialPaymentAmount > availableCash) {
-          this.error = `Fonds insuffisants. Disponible: ${availableCash.toFixed(3)} dt, Demandé: ${this.partialPaymentAmount.toFixed(3)} dt`;
-          return;
-        }
-        
-        // Cash is available, proceed with payment
-        this.processPaymentWithVerification();
-      },
-      error: (err) => {
-        this.error = 'Erreur lors de la vérification des fonds disponibles';
-      }
-    });
   }
 
   processPaymentWithVerification(): void {
@@ -309,42 +291,15 @@ export class NewEntryComponent implements OnInit {
     this.ensureSupplierExists(supplierInfo).then(supplierId => {
       if (supplierId) {
         // Create a single combined record that represents both payment and credit
+        // The backend will handle creating the cash movement for CASH payments
+        // We don't create it here to avoid double counting
         this.createCombinedPaymentRecord(supplierId, amount, method, notes, documentId);
         
-        // Add cash movement to closure system for cash payments
-        if (method === 'cash') {
-          this.addCashMovementToClosure(amount, supplierInfo, documentId);
-        } else {
-          this.finalizePayment(supplierInfo, amount, remainingAmount);
-        }
+        // Finalize payment - the supplier payment backend will create the cash movement if needed
+        this.finalizePayment(supplierInfo, amount, remainingAmount);
       } else {
         this.error = 'Erreur lors de la création du fournisseur';
         this.loading = false;
-      }
-    });
-  }
-
-  addCashMovementToClosure(amount: number, supplierInfo: string, documentId?: number): void {
-    const currentSession = this.sessionsService.currentSession();
-    if (!currentSession) {
-      this.error = 'Aucune session de caisse ouverte';
-      this.loading = false;
-      return;
-    }
-
-    const movementData = {
-      type: 'SORTIE' as const,
-      amount: amount,
-      reason: `Paiement fournisseur - ${supplierInfo}${documentId ? ` (Bon #${documentId})` : ''}`
-    };
-
-    this.sessionsService.addCashMovement(currentSession.id, movementData).subscribe({
-      next: (movement) => {
-        this.finalizePayment(supplierInfo, amount, this.totalPurchaseAmount - amount);
-      },
-      error: (err) => {
-        this.loading = false;
-        this.error = 'Erreur lors de l\'enregistrement du mouvement de caisse';
       }
     });
   }
@@ -388,25 +343,72 @@ export class NewEntryComponent implements OnInit {
   }
 
   createCombinedPaymentRecord(supplierId: number, paidAmount: number, method: string, notes: string, documentId?: number): void {
-    // Create a single record that the supplier statement system will recognize as a partial payment
-    // The backend looks for specific patterns: "Payé: X dt" and "Total: Y dt"
+    // For cash payments, create the payment with positive paid amount so backend creates cash movement correctly
+    // For other methods, create credit record with negative amount
     const reference = `Bon d'entrée${documentId ? ` #${documentId}` : ''}`;
+    const remainingAmount = this.totalPurchaseAmount - paidAmount;
     
-    const combinedData = {
-      supplierId: supplierId,
-      amount: -this.totalPurchaseAmount, // Negative amount for the full credit
-      notes: `Crédit - ${reference} - Payé: ${paidAmount.toFixed(3)} dt - Total: ${this.totalPurchaseAmount.toFixed(3)} dt (${method.toUpperCase()})${notes ? ` - ${notes}` : ''}`,
-      paymentMethod: method.toUpperCase() as 'CASH' | 'CARD' | 'CHECK' | 'BANK_TRANSFER' | 'CREDIT'
-    };
+    if (method.toLowerCase() === 'cash') {
+      // For cash payments: create payment record with positive paid amount
+      // The backend will create the cash movement (SORTIE) for this amount
+      // IMPORTANT: Only create ONE payment record to avoid double counting
+      const paymentData = {
+        supplierId: supplierId,
+        amount: paidAmount, // Positive amount for cash payment - backend will create cash movement
+        notes: `Règlement bon d'entrée${documentId ? ` #${documentId}` : ''} - Payé: ${paidAmount.toFixed(3)} dt - Total: ${this.totalPurchaseAmount.toFixed(3)} dt${notes ? ` - ${notes}` : ''}`,
+        paymentMethod: 'CASH' as const
+      };
 
-    this.supplierService.createSupplierPayment(combinedData).subscribe({
-      next: (payment) => {
-        console.log('Combined payment record created:', payment);
-      },
-      error: (err) => {
-        console.error('Error creating combined payment record:', err);
-      }
-    });
+      this.supplierService.createSupplierPayment(paymentData).subscribe({
+        next: (payment) => {
+          console.log('Cash payment record created:', payment);
+          
+          // If there's remaining amount, create a separate credit record (CREDIT method won't create cash movement)
+          if (remainingAmount > 0) {
+            const creditData = {
+              supplierId: supplierId,
+              amount: -remainingAmount, // Negative amount for credit/debt
+              notes: `Crédit - ${reference} - Reste dû: ${remainingAmount.toFixed(3)} dt`,
+              paymentMethod: 'CREDIT' as const // CREDIT method ensures no cash movement is created
+            };
+            
+            this.supplierService.createSupplierPayment(creditData).subscribe({
+              next: (credit) => {
+                console.log('Credit record created:', credit);
+              },
+              error: (err) => {
+                console.error('Error creating credit record:', err);
+                // Don't show error to user as the main payment was successful
+              }
+            });
+          }
+        },
+        error: (err) => {
+          console.error('Error creating cash payment record:', err);
+          this.loading = false;
+          this.error = 'Erreur lors de la création du paiement';
+        }
+      });
+    } else {
+      // For non-cash payments: create credit record with negative amount
+      const combinedData = {
+        supplierId: supplierId,
+        amount: -this.totalPurchaseAmount, // Negative amount for the full credit
+        notes: `Crédit - ${reference} - Payé: ${paidAmount.toFixed(3)} dt - Total: ${this.totalPurchaseAmount.toFixed(3)} dt (${method.toUpperCase()})${notes ? ` - ${notes}` : ''}`,
+        paymentMethod: method.toUpperCase() as 'CARD' | 'CHECK' | 'BANK_TRANSFER' | 'CREDIT'
+      };
+
+      this.supplierService.createSupplierPayment(combinedData).subscribe({
+        next: (payment) => {
+          console.log('Combined payment record created:', payment);
+        },
+        error: (err) => {
+          console.error('Error creating combined payment record:', err);
+          this.loading = false;
+          this.error = 'Erreur lors de la création du paiement';
+        }
+      });
+    }
   }
 
   finalizePayment(supplierInfo: string, amount: number, remainingAmount: number): void {

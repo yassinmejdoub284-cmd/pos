@@ -678,6 +678,52 @@ router.post('/:id/debt/payments', async (req, res) => {
   }
 });
 
+// Add debt transaction (add to client's relevé as debit)
+router.post('/:id/debt/add', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, notes } = req.body;
+    const debtAmount = parseFloat(amount);
+    
+    if (!debtAmount || debtAmount <= 0) {
+      return res.status(400).json({ error: 'Montant invalide' });
+    }
+
+    const client = await prisma.client.findUnique({ where: { id: parseInt(id) } });
+    if (!client) {
+      return res.status(404).json({ error: 'Client introuvable' });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // Update client's current debt (increase it by the debt amount)
+      const newDebt = parseFloat(client.currentDebt || 0) + debtAmount;
+      const c = await tx.client.update({ 
+        where: { id: client.id }, 
+        data: { currentDebt: newDebt } 
+      });
+      
+      // Create the debt transaction (DEBT type - adds to debit in relevé)
+      await tx.clientDebtTransaction.create({
+        data: { 
+          clientId: client.id, 
+          saleId: null, 
+          amount: debtAmount, 
+          type: 'DEBT', 
+          notes: notes?.trim() || 'Ajout manuel au relevé', 
+          userId: req.user?.id || null 
+        }
+      });
+      
+      return c;
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error adding debt transaction:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'ajout du débit au relevé' });
+  }
+});
+
 // Initialize client solde (set currentDebt to custom amount)
 router.post('/:id/solde/init', async (req, res) => {
   try {

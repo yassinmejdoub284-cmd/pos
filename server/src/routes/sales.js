@@ -934,6 +934,7 @@ router.get('/', authenticateToken, async (req, res) => {
       where: whereClause,
       include: {
         paymentMethod: { select: { name: true } },
+        advancePaymentMethod: { select: { name: true } },
         client: { select: { firstName: true, lastName: true, code: true } },
         user: { select: { firstName: true, lastName: true } },
         items: true,
@@ -943,6 +944,25 @@ router.get('/', authenticateToken, async (req, res) => {
       skip: (parseInt(page) - 1) * parseInt(limit),
       take: parseInt(limit)
     });
+
+    // Convert Decimal fields to numbers for proper serialization
+    const salesWithNumbers = sales.map(sale => ({
+      ...sale,
+      total: sale.total ? parseFloat(sale.total.toString()) : 0,
+      discount: sale.discount ? parseFloat(sale.discount.toString()) : 0,
+      finalTotal: sale.finalTotal ? parseFloat(sale.finalTotal.toString()) : 0,
+      advancePayment: sale.advancePayment ? parseFloat(sale.advancePayment.toString()) : 0,
+      items: sale.items.map(item => ({
+        ...item,
+        quantity: item.quantity ? parseFloat(item.quantity.toString()) : 0,
+        unitPrice: item.unitPrice ? parseFloat(item.unitPrice.toString()) : 0,
+        total: item.total ? parseFloat(item.total.toString()) : 0,
+        discount: item.discount ? parseFloat(item.discount.toString()) : 0,
+        bundlePrice: item.bundlePrice ? parseFloat(item.bundlePrice.toString()) : null,
+        bundleQuantity: item.bundleQuantity ? parseFloat(item.bundleQuantity.toString()) : null,
+        marginPercent: item.marginPercent ? parseFloat(item.marginPercent.toString()) : null
+      }))
+    }));
 
     // Get table sales and convert them to sale format for historique
     // Note: TableSale doesn't have depotId field, so we'll fetch all table sales
@@ -1040,7 +1060,7 @@ router.get('/', authenticateToken, async (req, res) => {
     }));
 
     // Combine and sort all sales by creation date
-    const allSales = [...sales, ...convertedTableSales].sort((a, b) => 
+    const allSales = [...salesWithNumbers, ...convertedTableSales].sort((a, b) => 
       new Date(b.createdAt) - new Date(a.createdAt)
     );
 
@@ -1103,6 +1123,7 @@ router.get('/current-session/tickets', async (req, res) => {
       where: { sessionId: activeSession.id, depotId: userDepotId },
       include: {
         paymentMethod: { select: { name: true } },
+        advancePaymentMethod: { select: { name: true } },
         client: { select: { firstName: true, lastName: true, code: true, address: true, matriculeFiscal: true } },
         user: { select: { firstName: true, lastName: true } },
         items: true
@@ -1110,7 +1131,26 @@ router.get('/current-session/tickets', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json(tickets);
+    // Convert Decimal fields to numbers for proper serialization
+    const ticketsWithNumbers = tickets.map(ticket => ({
+      ...ticket,
+      total: ticket.total ? parseFloat(ticket.total.toString()) : 0,
+      discount: ticket.discount ? parseFloat(ticket.discount.toString()) : 0,
+      finalTotal: ticket.finalTotal ? parseFloat(ticket.finalTotal.toString()) : 0,
+      advancePayment: ticket.advancePayment ? parseFloat(ticket.advancePayment.toString()) : 0,
+      items: ticket.items.map(item => ({
+        ...item,
+        quantity: item.quantity ? parseFloat(item.quantity.toString()) : 0,
+        unitPrice: item.unitPrice ? parseFloat(item.unitPrice.toString()) : 0,
+        total: item.total ? parseFloat(item.total.toString()) : 0,
+        discount: item.discount ? parseFloat(item.discount.toString()) : 0,
+        bundlePrice: item.bundlePrice ? parseFloat(item.bundlePrice.toString()) : null,
+        bundleQuantity: item.bundleQuantity ? parseFloat(item.bundleQuantity.toString()) : null,
+        marginPercent: item.marginPercent ? parseFloat(item.marginPercent.toString()) : null
+      }))
+    }));
+
+    res.json(ticketsWithNumbers);
   } catch (error) {
     console.error('Error fetching current session tickets:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1188,7 +1228,26 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Sale not found' });
     }
 
-    res.json(sale);
+    // Convert Decimal fields to numbers for proper serialization
+    const saleWithNumbers = {
+      ...sale,
+      total: sale.total ? parseFloat(sale.total.toString()) : 0,
+      discount: sale.discount ? parseFloat(sale.discount.toString()) : 0,
+      finalTotal: sale.finalTotal ? parseFloat(sale.finalTotal.toString()) : 0,
+      advancePayment: sale.advancePayment ? parseFloat(sale.advancePayment.toString()) : 0,
+      items: sale.items.map(item => ({
+        ...item,
+        quantity: item.quantity ? parseFloat(item.quantity.toString()) : 0,
+        unitPrice: item.unitPrice ? parseFloat(item.unitPrice.toString()) : 0,
+        total: item.total ? parseFloat(item.total.toString()) : 0,
+        discount: item.discount ? parseFloat(item.discount.toString()) : 0,
+        bundlePrice: item.bundlePrice ? parseFloat(item.bundlePrice.toString()) : null,
+        bundleQuantity: item.bundleQuantity ? parseFloat(item.bundleQuantity.toString()) : null,
+        marginPercent: item.marginPercent ? parseFloat(item.marginPercent.toString()) : null
+      }))
+    };
+
+    res.json(saleWithNumbers);
   } catch (error) {
     console.error('Error fetching sale:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1209,10 +1268,10 @@ router.put('/:id/status', async (req, res) => {
     return res.status(400).json({ error: 'User must be assigned to a depot to update sale status' });
   }
   const updated = await prisma.$transaction(async (tx) => {
-      // Load sale first to validate depot and current status, include items for stock restoration
+      // Load sale first to validate depot and current status, include items for stock restoration and client info
       const existing = await tx.sale.findFirst({ 
         where: { id: parseInt(id), depotId: userDepotId },
-        include: { items: true, paymentMethod: true, session: true }
+        include: { items: true, paymentMethod: true, session: true, client: true }
       });
       if (!existing) {
         throw new Error('Sale not found');
@@ -1226,9 +1285,14 @@ router.put('/:id/status', async (req, res) => {
       const previousStatus = (existing.status || '').toUpperCase();
       const sale = await tx.sale.update({ where: { id: parseInt(id), depotId: userDepotId }, data: { status } });
 
-      // When canceling a COMPLETED sale, restore stock and create refund cash movement
-      if (status === 'CANCELLED' && previousStatus === 'COMPLETED') {
-        // Restore stock for all items
+      // When canceling a sale, restore stock (for any status that had stock deducted)
+      // and handle client debt transactions and cash movements
+      if (status === 'CANCELLED') {
+        // Restore stock if the sale was completed or had stock deducted
+        const shouldRestoreStock = previousStatus === 'COMPLETED' || previousStatus === 'CMD_TERMINEE';
+        
+        if (shouldRestoreStock && existing.items && existing.items.length > 0) {
+          // Restore stock for all items
         for (const item of existing.items) {
           // Calculate actual quantity to restore (handle wholesale bundle quantities)
           const actualQuantityToRestore = (existing.isWholesale && item.isWholesale && item.bundleSize)
@@ -1278,6 +1342,7 @@ router.put('/:id/status', async (req, res) => {
             }
           });
         }
+        }
 
         // Create cash refund movement if it was a cash sale
         const paymentMethodType = existing.paymentMethod?.type || '';
@@ -1310,14 +1375,57 @@ router.put('/:id/status', async (req, res) => {
             });
           }
         }
+
+        // Handle client debt transactions - delete or mark them to remove from client statement
+        if (existing.clientId) {
+          const clientDebtTransactions = await tx.clientDebtTransaction.findMany({
+            where: {
+              saleId: sale.id
+            }
+          });
+
+          if (clientDebtTransactions.length > 0) {
+            const client = await tx.client.findUnique({ where: { id: existing.clientId } });
+            
+            if (client) {
+              // Calculate total debt and payment amounts to reverse
+              let totalDebtToReverse = 0;
+              let totalPaymentToReverse = 0;
+              
+              for (const transaction of clientDebtTransactions) {
+                if (transaction.type === 'DEBT') {
+                  totalDebtToReverse += parseFloat(transaction.amount || 0);
+                } else if (transaction.type === 'PAYMENT') {
+                  totalPaymentToReverse += parseFloat(transaction.amount || 0);
+                }
+              }
+
+              // Reverse the debt: subtract debt, add back payments
+              const currentDebt = parseFloat(client.currentDebt || 0);
+              const newDebt = Math.max(0, currentDebt - totalDebtToReverse + totalPaymentToReverse);
+              
+              await tx.client.update({
+                where: { id: client.id },
+                data: { currentDebt: newDebt }
+              });
+
+              // Delete all client debt transactions for this sale
+              await tx.clientDebtTransaction.deleteMany({
+                where: {
+                  saleId: sale.id
+                }
+              });
+            }
+          }
+        }
       }
 
       // Revert any legacy cancellation movements by marking them as rejected
+      // Mark ALL cash movements related to this ticket (not just SORTIE) as rejected
       if (status === 'CANCELLED') {
         const movements = await tx.cashMovement.findMany({
           where: {
-            ticketId: sale.id,
-            type: 'SORTIE'
+            ticketId: sale.id
           }
         });
         for (const m of movements) {
@@ -1326,16 +1434,19 @@ router.put('/:id/status', async (req, res) => {
           const isRefund = reason.includes('Remboursement');
           
           // Only mark legacy movements as rejected, not the new refund movements
+          // For SORTIE movements, restore expected cash on the movement's session
           if (!alreadyRejected && !isRefund) {
             await tx.cashMovement.update({
               where: { id: m.id },
               data: { reason: `${reason} [REJETÉ]` }
             });
-            // Restore expected cash on the movement's session
-            await tx.sessionCaisse.update({
-              where: { id: m.sessionId },
-              data: { expectedCash: { increment: parseFloat(m.amount || 0) } }
-            });
+            // Restore expected cash for SORTIE movements (they were subtracted from cash)
+            if (['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type)) {
+              await tx.sessionCaisse.update({
+                where: { id: m.sessionId },
+                data: { expectedCash: { increment: parseFloat(m.amount || 0) } }
+              });
+            }
           }
         }
       }
@@ -1363,14 +1474,16 @@ router.get('/payment-methods/all', async (req, res) => {
 // Wholesale sales endpoint (authenticated)
 router.post('/wholesale', authenticateToken, async (req, res) => {
   try {
-    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, paymentType } = req.body;
+    const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, paymentType, advancePayment, advancePaymentMethod } = req.body;
     
     // Debug log for wholesale sales
     console.log('Wholesale sale received:', {
       paymentType,
       paymentMethodId,
       amountPaid,
-      clientId
+      clientId,
+      advancePayment,
+      advancePaymentMethod
     });
 
     // Validate required fields
@@ -1419,6 +1532,11 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
         }
       });
 
+      // Map payment method strings to IDs when needed
+      const paymentMethodMap = { cash: 1, card: 2, check: 3, virement: 4 };
+      const advanceAmount = advancePayment !== undefined ? parseFloat(advancePayment) : (amountPaid !== undefined ? parseFloat(amountPaid) : 0);
+      const advanceMethodId = advancePaymentMethod ? paymentMethodMap[advancePaymentMethod] : (paymentMethodId ? parseInt(paymentMethodId) : null);
+
       const newSale = await tx.sale.create({
         data: {
           total: parseFloat(total),
@@ -1431,7 +1549,12 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
           sessionId: activeSession ? activeSession.id : null,
           status: 'COMPLETED',
           paymentType: paymentType || 'COMPTANT',
-          isWholesale: true
+          isWholesale: true,
+          // Persist advance payment fields when provided (particularly for CREDIT)
+          advancePayment: advanceAmount > 0 ? advanceAmount : 0,
+          advancePaymentMethodId: advanceAmount > 0 ? advanceMethodId : null,
+          advancePaymentDate: advanceAmount > 0 ? new Date() : null,
+          advancePaymentNotes: null
         }
       });
 

@@ -157,7 +157,21 @@
                    <div class="font-medium text-xs mb-1 text-gray-800 leading-tight break-words text-center">
                      {{ truncate(product.name, 18) }}
                    </div>
-                  <div [class]="'absolute top-1 -left-1 transform -rotate-12 text-xs font-bold px-2 py-0.5 rounded-full border ' + (hasWholesalePrice(product) ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300/60' : 'bg-rose-100/80 text-rose-800 border-rose-300/60')">
+                  <!-- Price display: show both original and current price if rule applied or client-specific price exists -->
+                  <div *ngIf="getAppliedRuleForProduct(product) || hasClientSpecificPrice(product)" class="absolute top-1 -left-1 transform -rotate-12 flex flex-col gap-0.5">
+                    <div [class]="'text-[10px] line-through px-2 py-0.5 rounded-full border ' + (hasWholesalePrice(product) ? 'bg-emerald-100/80 text-emerald-600 border-emerald-300/60' : 'bg-rose-100/80 text-rose-600 border-rose-300/60')">
+                      {{ getBaseWholesalePrice(product) | number:'1.3-3' }}dt
+                    </div>
+                    <div [class]="'text-xs font-bold px-2 py-0.5 rounded-full border ' + (hasWholesalePrice(product) ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300/60' : 'bg-rose-100/80 text-rose-800 border-rose-300/60')">
+                      <span *ngIf="getAppliedRuleForProduct(product)">
+                        {{ getCalculatedPrice(product, getAppliedRuleForProduct(product)!) | number:'1.3-3' }}dt
+                      </span>
+                      <span *ngIf="!getAppliedRuleForProduct(product)">
+                        {{ getWholesalePrice(product) | number:'1.3-3' }}dt
+                      </span>
+                    </div>
+                  </div>
+                  <div *ngIf="!getAppliedRuleForProduct(product) && !hasClientSpecificPrice(product)" [class]="'absolute top-1 -left-1 transform -rotate-12 text-xs font-bold px-2 py-0.5 rounded-full border ' + (hasWholesalePrice(product) ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300/60' : 'bg-rose-100/80 text-rose-800 border-rose-300/60')">
                     {{ getWholesalePrice(product) | number:'1.3-3' }}dt
                   </div>
                  </div>
@@ -327,7 +341,7 @@
                   <span class="text-gray-700">{{ getProductById(productId)?.name }}</span>
                   <span class="flex items-center gap-2">
                     <span [class]="'text-[11px] line-through ' + (hasWholesalePrice(getProductById(productId)!) ? 'text-emerald-600' : 'text-rose-600')">
-                      {{ getWholesalePrice(getProductById(productId)!) | number:'1.3-3' }}dt
+                      {{ getBaseWholesalePrice(getProductById(productId)!) | number:'1.3-3' }}dt
                     </span>
                     <span [class]="'font-semibold ' + (hasWholesalePrice(getProductById(productId)!) ? 'text-emerald-700' : 'text-rose-700')">
                       {{ getCalculatedPrice(getProductById(productId)!, appliedRule.rule) | number:'1.3-3' }}dt

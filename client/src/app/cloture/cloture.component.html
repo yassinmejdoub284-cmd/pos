@@ -68,7 +68,7 @@
           <path d="M6 9h12" />
         </svg>
         <span>Fonds initial:</span>
-        <span class="font-semibold">{{ formatCurrency(getOpeningFund()) }}</span>
+        <span class="font-semibold">{{ formatCurrency(openingFund()) }}</span>
       </div>
       <div
         class="px-2 py-1 rounded-full border border-violet-200 bg-violet-50 text-violet-700 text-xs inline-flex items-center gap-1.5 cursor-pointer select-none"
@@ -80,11 +80,12 @@
           <path d="M8 12h8" />
         </svg>
         <span>Tickets:</span>
-        <span class="font-semibold">{{ currentSession()?.summary?.totalTickets || 0 }}</span>
+        <span class="font-semibold">{{ totalTickets() }}</span>
       </div>
       <div
         class="px-2 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-xs inline-flex items-center gap-1.5 cursor-pointer select-none"
-        (click)="openEncaissementClientPayments()">
+        (click)="showCreditDetailsModal = true"
+        title="Cliquez pour voir le détail des ventes en crédit">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 7h16" />
@@ -92,7 +93,7 @@
           <path d="M4 17h16" />
         </svg>
         <span>Ventes en crédits:</span>
-        <span class="font-semibold">{{ formatCurrency(getCreditAmount()) }}</span>
+        <span class="font-semibold">{{ formatCurrency(creditAmount()) }}</span>
       </div>
     </div>
 
@@ -345,7 +346,7 @@
             Décaissement
           </span>
           <span class="text-right text-base md:text-lg font-bold text-rose-700">{{
-            formatCurrency(getExpensesTotal() + getSupplierPaymentsTotal() + getRefundsTotal())
+            formatCurrency(getAllSortiesTotal())
             }}</span>
         </label>
 
@@ -613,7 +614,7 @@
             <path d="M19 9l-6 6-4-4" />
           </svg>
           <span>Ventes TTC:</span>
-          <span class="font-semibold">{{ formatCurrency(currentSession()?.summary?.totalSales || 0) }}</span>
+          <span class="font-semibold">{{ formatCurrency(totalSalesTTC()) }}</span>
         </div>
         <div
           class="px-2 py-1 rounded-full border border-violet-200 bg-violet-50 text-violet-700 text-xs inline-flex items-center gap-1.5">
@@ -624,7 +625,7 @@
             <path d="M8 12h8" />
           </svg>
           <span>Tickets:</span>
-          <span class="font-semibold">{{ currentSession()?.summary?.totalTickets || 0 }}</span>
+          <span class="font-semibold">{{ totalTickets() }}</span>
         </div>
         <div
           class="px-2 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-xs inline-flex items-center gap-1.5">
@@ -635,7 +636,7 @@
             <path d="M4 17h16" />
           </svg>
           <span>Ventes en crédits:</span>
-          <span class="font-semibold">{{ formatCurrency(getCreditAmount()) }}</span>
+          <span class="font-semibold">{{ formatCurrency(creditAmount()) }}</span>
         </div>
       </div>
       <div
@@ -696,7 +697,7 @@
             Décaissement
           </span>
           <span class="text-right text-base md:text-lg font-bold text-rose-700">{{
-            formatCurrency(getExpensesTotal() + getSupplierPaymentsTotal() + getRefundsTotal())
+            formatCurrency(getAllSortiesTotal())
             }}</span>
         </div>
         <div class="mt-3 relative pl-6">
@@ -1053,7 +1054,7 @@
             <path d="M3 3v18h18" />
             <path d="M19 9l-6 6-4-4" />
           </svg>
-          <span class="text-sm font-semibold text-indigo-800">Tickets (x{{ currentSession()?.summary?.totalTickets || 0
+          <span class="text-sm font-semibold text-indigo-800">Tickets (x{{ totalTickets()
             }})</span>
         </div>
         <button (click)="showTicketsModal.set(false)"
@@ -1333,6 +1334,63 @@
         [class.text-red-700]="getDetailedTotals().net < 0">
         Solde net = {{ formatCurrency(getDetailedTotals().net) }}
       </div>
+    </div>
+  </div>
+</div>
+}
+
+@if (showCreditDetailsModal) {
+<div class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+  <div class="bg-white w-full md:max-w-2xl rounded-2xl shadow-xl max-h-[90vh] overflow-hidden">
+    <div class="p-4 border-b flex items-center justify-between bg-amber-50">
+      <div>
+        <h3 class="text-lg font-semibold text-amber-800">Détail des Ventes en Crédit</h3>
+        <p class="text-xs text-amber-600">Total: {{ formatCurrency(creditAmount()) }}</p>
+      </div>
+      <button (click)="showCreditDetailsModal = false" class="text-amber-600 hover:text-amber-800" aria-label="Fermer">✕</button>
+    </div>
+    <div class="p-4 overflow-y-auto max-h-[70vh]">
+      @if (getCreditSalesDetails().length > 0) {
+      <div class="space-y-2">
+        <table class="w-full text-sm">
+          <thead class="bg-amber-50">
+            <tr>
+              <th class="px-3 py-2 text-left text-xs font-medium text-amber-700">Ticket</th>
+              <th class="px-3 py-2 text-left text-xs font-medium text-amber-700">Client</th>
+              <th class="px-3 py-2 text-right text-xs font-medium text-amber-700">Total Vente</th>
+              <th class="px-3 py-2 text-right text-xs font-medium text-amber-700">Payé</th>
+              <th class="px-3 py-2 text-right text-xs font-medium text-amber-700">Restant (Crédit)</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-amber-100">
+            @for (credit of getCreditSalesDetails(); track credit.saleId) {
+            <tr class="hover:bg-amber-50/50">
+              <td class="px-3 py-2">
+                <button (click)="openTicketDetails(credit.saleId)" class="text-blue-600 hover:underline">
+                  #{{ credit.saleId }}
+                </button>
+              </td>
+              <td class="px-3 py-2 text-amber-800">{{ credit.clientName }}</td>
+              <td class="px-3 py-2 text-right text-amber-700">{{ formatCurrency(credit.saleTotal) }}</td>
+              <td class="px-3 py-2 text-right text-green-600">{{ formatCurrency(credit.paidAmount) }}</td>
+              <td class="px-3 py-2 text-right font-semibold text-amber-700">{{ formatCurrency(credit.amount) }}</td>
+            </tr>
+            }
+          </tbody>
+          <tfoot class="bg-amber-100">
+            <tr>
+              <td colspan="4" class="px-3 py-2 text-right font-semibold text-amber-800">Total Crédit:</td>
+              <td class="px-3 py-2 text-right font-bold text-amber-900">{{ formatCurrency(creditAmount()) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      } @else {
+      <div class="text-center py-8 text-amber-600">
+        <p>Aucune vente en crédit trouvée dans cette session.</p>
+        <p class="text-xs mt-2">Les ventes en crédit apparaissent ici lorsqu'un client n'a pas payé la totalité de sa commande.</p>
+      </div>
+      }
     </div>
   </div>
 </div>

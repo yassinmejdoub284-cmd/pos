@@ -76,6 +76,10 @@ export class ClientsService {
     return this.http.post<Client>(`${this.apiUrl}/${id}/debt/payments`, { amount, notes });
   }
 
+  addDebtTransaction(id: number, amount: number, notes?: string): Observable<Client> {
+    return this.http.post<Client>(`${this.apiUrl}/${id}/debt/add`, { amount, notes });
+  }
+
   initializeSolde(id: number, amount: number, notes?: string): Observable<Client> {
     return this.http.post<Client>(`${this.apiUrl}/${id}/solde/init`, { amount, notes });
   }

@@ -100,4 +100,8 @@ export class SupplierService {
   initializeSolde(id: number, amount: number, notes?: string): Observable<Supplier> {
     return this.http.post<Supplier>(`${this.apiUrl}/${id}/solde/init`, { amount, notes });
   }
+
+  deleteSupplierPayment(paymentId: number): Observable<void> {
+    return this.http.delete<void>(`${environment.apiUrl}/supplier-payments/${paymentId}`);
+  }
 }

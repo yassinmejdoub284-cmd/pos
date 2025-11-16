@@ -6,6 +6,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SupplierService } from '../core/services/supplier.service';
 import { PrintService } from '../core/services/print.service';
+import { AuthService } from '../core/services/auth.service';
+import { ExpenseService } from '../core/services/expense.service';
 import { 
   Supplier, 
   SupplierStatement, 
@@ -26,6 +28,7 @@ export class SupplierStatementComponent implements OnInit {
   statement: SupplierStatement | null = null;
   loading = false;
   showSummary = true;
+  isAdmin = false;
   
   // Filters
   filters = {
@@ -38,10 +41,13 @@ export class SupplierStatementComponent implements OnInit {
     private http: HttpClient, 
     private router: Router,
     private supplierService: SupplierService,
-    private printService: PrintService
+    private printService: PrintService,
+    private authService: AuthService,
+    private expenseService: ExpenseService
   ) {}
 
   ngOnInit(): void {
+    this.isAdmin = this.authService.isAdmin();
     this.loadSuppliers();
     this.loadSupplierSummaries();
   }
@@ -449,5 +455,66 @@ export class SupplierStatementComponent implements OnInit {
     if (balance > 0) return 'text-red-600'; // We owe money to supplier
     if (balance < 0) return 'text-green-600'; // We have credit with supplier
     return 'text-gray-600';
+  }
+
+  canDeleteOperation(item: SupplierStatementItem): boolean {
+    // Only admin can delete operations
+    if (!this.isAdmin) return false;
+    
+    // Can delete payments (supplier payments) and expenses
+    // Check by type and reference pattern
+    const isPayment = item.type === 'payment' && item.reference.startsWith('PAYMENT-');
+    const isExpense = (item.type === 'expense' || 
+                      item.type === 'advance' || 
+                      item.type === 'paid' || 
+                      item.type === 'unpaid') && 
+                      item.reference.startsWith('EXPENSE-');
+    
+    return isPayment || isExpense;
+  }
+
+  deleteOperation(item: SupplierStatementItem): void {
+    if (!this.canDeleteOperation(item)) {
+      return;
+    }
+
+    const operationType = this.getTransactionTypeLabel(item.type);
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer cette opération : ${operationType} - ${item.reference} ?`)) {
+      return;
+    }
+
+    this.loading = true;
+
+    // Check by reference pattern to determine the type
+    if (item.reference.startsWith('PAYMENT-')) {
+      // Delete supplier payment
+      this.supplierService.deleteSupplierPayment(item.id).subscribe({
+        next: () => {
+          alert('Règlement supprimé avec succès');
+          this.loadStatement(); // Reload statement
+        },
+        error: (error) => {
+          console.error('Error deleting payment:', error);
+          this.loading = false;
+          alert('Erreur lors de la suppression du règlement');
+        }
+      });
+    } else if (item.reference.startsWith('EXPENSE-')) {
+      // Delete expense
+      this.expenseService.deleteExpense(item.id).subscribe({
+        next: () => {
+          alert('Dépense supprimée avec succès');
+          this.loadStatement(); // Reload statement
+        },
+        error: (error) => {
+          console.error('Error deleting expense:', error);
+          this.loading = false;
+          alert('Erreur lors de la suppression de la dépense');
+        }
+      });
+    } else {
+      this.loading = false;
+      alert('Cette opération ne peut pas être supprimée');
+    }
   }
 }

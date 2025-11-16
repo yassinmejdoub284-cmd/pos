@@ -153,7 +153,7 @@ router.get('/active-by-depot', authenticateToken, async (req, res) => {
 });
 
 // Open new session
-router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
   try {
     const { openingFund, posId, note, depotId } = req.body;
 
@@ -282,7 +282,7 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
 });
 
 // Open new session by depot only (no user linkage)
-router.post('/open-by-depot', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.post('/open-by-depot', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
   try {
     const { openingFund, posId, note, depotId } = req.body;
 
@@ -443,7 +443,7 @@ router.post('/open-by-depot', authenticateToken, requireRole(['ADMIN', 'MANAGER'
 });
 
 // Add cash movement
-router.post('/:id/movements', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.post('/:id/movements', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
   try {
     const { id } = req.params;
     const { type, amount, reason, ticketId } = req.body;
@@ -574,7 +574,7 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
 });
 
 // Close session
-router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res) => {
+router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
   try {
     const { id } = req.params;
     const { countedCash, fonds, retraitCentrale, denominations, isAdminCorrection } = req.body;
@@ -1528,7 +1528,15 @@ async function calculateSessionSummary(sessionId) {
           depotId: sessionDepotId
         },
         include: {
-          paymentMethod: true
+          paymentMethod: true,
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              code: true
+            }
+          }
         }
       },
       cashMovements: true
@@ -1549,17 +1557,27 @@ async function calculateSessionSummary(sessionId) {
 
   // Debug logging removed to reduce console spam
 
+  // Get cancelled/refunded ticket IDs to exclude their movements
+  const cancelledTicketIds = new Set(
+    session.sales
+      .filter(sale => ['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase()))
+      .map(sale => sale.id)
+  );
+
   // Calculate cash from sales (exclude refunded)
   const cashSales = session.sales
     .filter(sale => sale.paymentMethod?.type === 'CASH' && !['REFUNDED','CANCELLED'].includes((sale.status || '').toUpperCase()))
     .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
 
-  // Calculate cash movements (exclude rejected movements - marked with [REJETÉ] or amount = 0)
+  // Calculate cash movements (exclude rejected movements, deleted movements, and movements from cancelled tickets)
   const entree = session.cashMovements
     .filter(m => {
       const reason = String(m.reason || '');
       const amount = parseFloat(m.amount || 0);
-      return m.type === 'ENTREE' && !reason.includes('[REJETÉ]') && amount > 0;
+      const isRejected = reason.includes('[REJETÉ]');
+      const isDeleted = reason.includes('[SUPPRIMÉ]');
+      const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+      return m.type === 'ENTREE' && !isRejected && !isDeleted && !isFromCancelledTicket && amount > 0;
     })
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
 
@@ -1567,7 +1585,10 @@ async function calculateSessionSummary(sessionId) {
     .filter(m => {
       const reason = String(m.reason || '');
       const amount = parseFloat(m.amount || 0);
-      return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !reason.includes('[REJETÉ]') && amount > 0;
+      const isRejected = reason.includes('[REJETÉ]');
+      const isDeleted = reason.includes('[SUPPRIMÉ]');
+      const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+      return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !isFromCancelledTicket && amount > 0;
     })
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
 
@@ -1588,30 +1609,68 @@ async function calculateSessionSummary(sessionId) {
   });
 
   // Calculate outstanding credit from client debt transactions tied to this session's sales
+  // IMPORTANT: Only count DEBT that hasn't been paid (DEBT - PAYMENT for each sale)
   let creditOutstanding = 0;
   let creditCount = 0;
   let creditAdvancePaid = 0;
   try {
+    // Get all debt transactions (DEBT type) for sales in this session
     const debtTransactions = await prisma.clientDebtTransaction.findMany({
       where: {
         type: 'DEBT',
         sale: {
-          sessionId: sessionId
+          sessionId: sessionId,
+          status: { notIn: ['CANCELLED', 'REFUNDED'] } // Exclude cancelled/refunded sales
         }
       },
       select: { amount: true, saleId: true }
     });
-    creditOutstanding = debtTransactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
-    creditCount = debtTransactions.length;
+
+    // Get all payment transactions (PAYMENT type) for the same sales
+    const paymentTransactions = await prisma.clientDebtTransaction.findMany({
+      where: {
+        type: 'PAYMENT',
+        sale: {
+          sessionId: sessionId,
+          status: { notIn: ['CANCELLED', 'REFUNDED'] } // Exclude cancelled/refunded sales
+        }
+      },
+      select: { amount: true, saleId: true }
+    });
+
+    // Group DEBT by saleId
+    const debtBySaleId = {};
+    debtTransactions.forEach(t => {
+      const saleId = t.saleId;
+      const amount = parseFloat(t.amount || 0) || 0;
+      if (saleId) {
+        debtBySaleId[saleId] = (debtBySaleId[saleId] || 0) + amount;
+      }
+    });
+
+    // Group PAYMENT by saleId
+    const paymentBySaleId = {};
+    paymentTransactions.forEach(t => {
+      const saleId = t.saleId;
+      const amount = parseFloat(t.amount || 0) || 0;
+      if (saleId) {
+        paymentBySaleId[saleId] = (paymentBySaleId[saleId] || 0) + amount;
+      }
+    });
+
+    // Calculate outstanding credit per sale: DEBT - PAYMENT (only if > 0)
+    // This ensures we only count credit that hasn't been paid
+    Object.keys(debtBySaleId).forEach(saleId => {
+      const debtAmount = debtBySaleId[saleId] || 0;
+      const paidAmount = paymentBySaleId[saleId] || 0;
+      const outstanding = Math.max(0, debtAmount - paidAmount);
+      if (outstanding > 0) {
+        creditOutstanding += outstanding;
+        creditCount += 1;
+      }
+    });
 
     // Compute advances per sale: finalTotal - DEBT sum for that sale (only for CREDIT sales)
-    const debtBySaleId = debtTransactions.reduce((map, t) => {
-      const sid = t.saleId;
-      const amt = parseFloat(t.amount || 0) || 0;
-      map[sid] = (map[sid] || 0) + amt;
-      return map;
-    }, {});
-
     session.sales.forEach(sale => {
       if ((sale.paymentType || '').toUpperCase() === 'CREDIT') {
         const total = parseFloat(sale.finalTotal || 0) || 0;
@@ -1825,11 +1884,52 @@ async function calculateSessionSummary(sessionId) {
   // Add standalone client payments (credit encashments) to expected cash
   expectedCash = expectedCash + clientPaymentsTotal;
 
-  // Compute cash from sales as totalSales - creditOutstanding and add entries then subtract sorties
-  const totalSalesAmount = session.sales
-    .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
-    .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
-  const cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
+  // Compute cash from sales as sum of paidAmount (actual cash received) - only encaissement, not credit amounts
+  // Calculate paidAmount for each sale: finalTotal - debt for that sale
+  let cashFromSalesNetCredit = 0;
+  try {
+    const saleIds = session.sales
+      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+      .map(s => s.id);
+    
+    if (saleIds.length > 0) {
+      // Get all DEBT transactions for sales in this session
+      const debts = await prisma.clientDebtTransaction.findMany({
+        where: { 
+          type: 'DEBT', 
+          saleId: { in: saleIds } 
+        },
+        select: { saleId: true, amount: true }
+      });
+      
+      // Group debt by saleId
+      const debtBySaleId = {};
+      debts.forEach(t => {
+        const sid = t.saleId;
+        const amt = parseFloat(t.amount || 0) || 0;
+        if (sid) {
+          debtBySaleId[sid] = (debtBySaleId[sid] || 0) + amt;
+        }
+      });
+      
+      // Calculate paidAmount for each sale and sum them up
+      session.sales
+        .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+        .forEach(sale => {
+          const total = parseFloat(sale.finalTotal || 0) || 0;
+          const debtForSale = debtBySaleId[sale.id] || 0;
+          const paidAmount = Math.max(0, total - debtForSale);
+          cashFromSalesNetCredit += paidAmount;
+        });
+    }
+  } catch (e) {
+    // Fallback: if we can't calculate paidAmount, use old method
+    const totalSalesAmount = session.sales
+      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+      .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
+    cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
+  }
+  
   expectedCash = expectedCash + cashFromSalesNetCredit + entree - sortie;
 
   // Calculate total of ALL expenses for display (not just those without movement)
@@ -2064,4 +2164,7 @@ async function getClotureSettings() {
   }
 }
 
+// Export calculateSessionSummary for use in other routes
 module.exports = router;
+module.exports.calculateSessionSummary = calculateSessionSummary;
+module.exports.updateExpectedCash = updateExpectedCash;

@@ -2323,7 +2323,7 @@
               </div>
 
               <!-- Stats -->
-              <div class="flex justify-between items-center pt-4 border-t border-slate-100">
+              <div class="flex justify-between items-center pt-4 border-t border-slate-100 mb-4">
                 <div class="text-center">
                   <div class="text-lg font-bold text-green-600">{{ client.totalSpent | number:'1.0-0' }} dt</div>
                   <div class="text-xs text-slate-500">Total dépensé</div>
@@ -2340,6 +2340,26 @@
                   <div class="text-xs text-slate-500">Type</div>
                 </div>
               </div>
+
+              <!-- Action Buttons -->
+              <div class="flex gap-2 pt-4 border-t border-slate-100" (click)="$event.stopPropagation()">
+                <button 
+                  (click)="openClientPaymentFromSearch(client)"
+                  class="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-md">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  Règlement
+                </button>
+                <button 
+                  (click)="selectClient(client)"
+                  class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-md">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  Sélectionner
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2350,12 +2370,13 @@
           <!-- Table Header -->
           <div class="bg-gradient-to-r from-slate-100 to-blue-50 rounded-t-xl border-2 border-slate-200 border-b-0 p-3">
             <div class="grid grid-cols-12 gap-4 text-sm font-semibold text-slate-700">
-              <div class="col-span-3">Client</div>
+              <div class="col-span-2">Client</div>
               <div class="col-span-2">Code</div>
               <div class="col-span-2">Contact</div>
               <div class="col-span-2">Type</div>
               <div class="col-span-2">Total</div>
               <div class="col-span-1">Points</div>
+              <div class="col-span-1">Actions</div>
             </div>
           </div>
 
@@ -2367,7 +2388,7 @@
 
               <div class="grid grid-cols-12 gap-4 p-4 items-center">
                 <!-- Client Info -->
-                <div class="col-span-3 flex items-center gap-3">
+                <div class="col-span-2 flex items-center gap-3">
                   <div
                     class="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md">
                     {{ client.firstName.charAt(0) }}{{ client.lastName.charAt(0) }}
@@ -2418,6 +2439,19 @@
                 <div class="col-span-1">
                   <div class="text-sm font-medium text-blue-600">{{ client.loyaltyPoints || 0 }}</div>
                 </div>
+
+                <!-- Actions -->
+                <div class="col-span-1 flex items-center gap-2" (click)="$event.stopPropagation()">
+                  <button 
+                    (click)="openClientPaymentFromSearch(client)"
+                    class="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1 shadow-md"
+                    title="Règlement client">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Règlement
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -2461,12 +2495,20 @@
                   getClientTypeLabel(selectedClient.clientType) }}</div>
               </div>
             </div>
-            <button (click)="clearSelectedClient()" title="Effacer le client sélectionné"
-              class="w-10 h-10 bg-red-100  text-red-600 rounded-full flex items-center justify-center transition-all duration-200">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
+            <div class="flex items-center gap-2">
+              <button (click)="openAddDebtModal()" title="Ajouter un débit au relevé"
+                class="w-10 h-10 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full flex items-center justify-center transition-all duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+              </button>
+              <button (click)="clearSelectedClient()" title="Effacer le client sélectionné"
+                class="w-10 h-10 bg-red-100  text-red-600 rounded-full flex items-center justify-center transition-all duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2596,6 +2638,78 @@
             Créer
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Debt Modal -->
+  <div *ngIf="showAddDebtModal"
+    class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
+    <div
+      class="bg-white/95 rounded-3xl border border-gray-200/50 max-w-md w-full shadow-2xl transform animate-scale-in">
+      <div class="bg-gradient-to-r from-blue-500 to-indigo-500 p-6 flex justify-between items-center rounded-t-3xl">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-white">Ajouter un débit au relevé</h2>
+        </div>
+        <button (click)="closeAddDebtModal()" title="Fermer"
+          class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center transition-all duration-300 group">
+          <svg class="w-6 h-6 text-white transition-transform duration-300" fill="none"
+            stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-6">
+        <div *ngIf="selectedClient" class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div class="text-sm text-blue-600 font-medium mb-1">Client sélectionné</div>
+          <div class="text-lg font-semibold text-slate-800">{{ selectedClient.firstName }} {{ selectedClient.lastName }}</div>
+          <div class="text-sm text-slate-600">{{ selectedClient.code }}</div>
+        </div>
+
+        <form (ngSubmit)="addDebtToClient()" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Montant (dt) *</label>
+            <input 
+              type="number" 
+              step="0.001"
+              min="0.001"
+              [(ngModel)]="debtAmount" 
+              name="debtAmount"
+              placeholder="Entrez le montant"
+              required
+              class="w-full bg-white border-2 border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Notes (optionnel)</label>
+            <textarea 
+              [(ngModel)]="debtNotes" 
+              name="debtNotes"
+              placeholder="Ajoutez des notes..."
+              rows="3"
+              class="w-full bg-white border-2 border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></textarea>
+          </div>
+
+          <div class="flex gap-3 pt-4">
+            <button 
+              type="button"
+              (click)="closeAddDebtModal()" 
+              class="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-all duration-200">
+              Annuler
+            </button>
+            <button 
+              type="submit"
+              class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg font-medium transition-all duration-200 shadow-md">
+              Ajouter au relevé
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -3017,9 +3131,15 @@
 
         <!-- Payment Details -->
         <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-amber-700 font-medium">Montant du règlement</span>
-            <span class="text-2xl font-bold text-amber-800">{{ formatAmount(pendingPaymentAmount) }}</span>
+          <div class="mb-3">
+            <label class="block text-amber-700 font-medium mb-2">Montant du règlement (dt)</label>
+            <input 
+              type="number" 
+              step="0.001"
+              min="0"
+              [(ngModel)]="pendingPaymentAmount" 
+              class="w-full bg-white border-2 border-amber-200 rounded-lg px-4 py-3 text-2xl font-bold text-amber-800 text-right focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              placeholder="0.000">
           </div>
 
           <!-- Current Debt Info -->

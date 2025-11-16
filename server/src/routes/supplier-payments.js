@@ -245,22 +245,33 @@ router.post('/', authenticateToken, (req, res, next) => {
         // If none matched (no pending expenses), fallback to the requested amount.
         const amt = normalizedApplied;
         if (amt > 0) {
-          await tx.cashMovement.create({
-            data: {
+          // Check if a cash movement already exists for this supplier payment to prevent duplicates
+          const existingMovement = await tx.cashMovement.findFirst({
+            where: {
               sessionId: activeSession.id,
-              type: 'SORTIE',
-              amount: amt,
-              reason: `Règlement fournisseur #${supplierPayment.id} (FOURN:${supplierId})`,
-              ticketId: null,
-              createdById: req.user.id
+              reason: { contains: `Règlement fournisseur #${supplierPayment.id}` }
             }
           });
 
-          // Keep session expected cash in sync immediately
-          await tx.sessionCaisse.update({
-            where: { id: activeSession.id },
-            data: { expectedCash: { decrement: amt } }
-          });
+          // Only create cash movement if one doesn't already exist
+          if (!existingMovement) {
+            await tx.cashMovement.create({
+              data: {
+                sessionId: activeSession.id,
+                type: 'SORTIE',
+                amount: amt,
+                reason: `Règlement fournisseur #${supplierPayment.id} (FOURN:${supplierId})`,
+                ticketId: null,
+                createdById: req.user.id
+              }
+            });
+
+            // Keep session expected cash in sync immediately
+            await tx.sessionCaisse.update({
+              where: { id: activeSession.id },
+              data: { expectedCash: { decrement: amt } }
+            });
+          }
         }
       }
 
@@ -354,9 +365,91 @@ router.put('/:id', authenticateToken, (req, res, next) => {
 // Delete supplier payment
 router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
   try {
-    await prisma.supplierPayment.delete({
-      where: { id: parseInt(req.params.id) }
+    const paymentId = parseInt(req.params.id);
+    
+    // Get the payment first to check if it's a cash payment
+    const payment = await prisma.supplierPayment.findUnique({
+      where: { id: paymentId }
     });
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Règlement non trouvé' });
+    }
+
+    // Track affected sessions for summary recalculation
+    const affectedSessionIds = new Set();
+
+    // Delete payment and invalidate related cash movements in a transaction
+    await prisma.$transaction(async (tx) => {
+      // Find and invalidate cash movements linked to this supplier payment
+      // Cash movements have reason format: "Règlement fournisseur #<paymentId> (FOURN:...)"
+      // Also search for variations without space or with different formats
+      const relatedMovements = await tx.cashMovement.findMany({
+        where: {
+          OR: [
+            { reason: { contains: `Règlement fournisseur #${paymentId}` } },
+            { reason: { contains: `Règlement fournisseur#${paymentId}` } },
+            { reason: { contains: `Règlement fournisseur ${paymentId}` } }
+          ]
+        }
+      });
+
+      // Mark cash movements as invalid by updating the reason and setting amount to 0
+      for (const movement of relatedMovements) {
+        const movementAmount = parseFloat(movement.amount || 0);
+        
+        await tx.cashMovement.update({
+          where: { id: movement.id },
+          data: {
+            reason: `[SUPPRIMÉ] ${movement.reason}`,
+            amount: 0 // Set amount to 0 to effectively exclude it from calculations
+          }
+        });
+
+        // Track affected sessions
+        if (movement.sessionId) {
+          affectedSessionIds.add(movement.sessionId);
+        }
+      }
+
+      // If it was a cash payment, we need to adjust the session's expected cash
+      // by adding back the amount that was deducted
+      if (payment.paymentMethod === 'CASH' && parseFloat(payment.amount) > 0) {
+        // Find the session that has the cash movement
+        if (relatedMovements.length > 0) {
+          const sessionId = relatedMovements[0].sessionId;
+          if (sessionId) {
+            const amountToRestore = parseFloat(payment.amount);
+            await tx.sessionCaisse.update({
+              where: { id: sessionId },
+              data: { expectedCash: { increment: amountToRestore } }
+            });
+          }
+        }
+      }
+
+      // Delete the supplier payment
+      await tx.supplierPayment.delete({
+        where: { id: paymentId }
+      });
+    });
+
+    // Recalculate session summaries for all affected sessions
+    // Import the function from sessions route
+    const { calculateSessionSummary } = require('./sessions');
+    for (const sessionId of affectedSessionIds) {
+      try {
+        const summary = await calculateSessionSummary(sessionId);
+        if (summary) {
+          await prisma.sessionCaisse.update({
+            where: { id: sessionId },
+            data: { expectedCash: summary.expectedCash }
+          });
+        }
+      } catch (error) {
+        console.error(`Error recalculating summary for session ${sessionId}:`, error);
+      }
+    }
 
     res.status(204).send();
   } catch (error) {

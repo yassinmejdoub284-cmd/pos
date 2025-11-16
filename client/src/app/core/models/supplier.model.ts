@@ -65,6 +65,7 @@ export interface SupplierStatement {
 }
 
 export interface SupplierStatementItem {
+  id: number;
   date: string;
   type: string;
   reference: string;

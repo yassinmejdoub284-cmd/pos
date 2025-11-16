@@ -64,26 +64,28 @@ export class BonEntreeComponent implements OnInit {
     const path = this.router.url;
     const showReturnsOnly = path.includes('/stock/documents/bon-retour/');
     this.isReturnsMode = showReturnsOnly;
-    this.loadInitialData();
-
+    
     const url = this.router.url;
     this.isEditMode = url.includes('/edit/');
 
-    if (this.isEditMode && this.documentId) {
-      this.loadDocument();
-    } else if (this.documentId) {
-      // If documentId is provided (e.g., from generic :id route), load the document
-      this.loadDocument();
-    } else if (this.depotId) {
-      this.loadDocumentsForDepot(showReturnsOnly);
-    }
+    // Load initial data first, then load document if needed
+    this.loadInitialData().then(() => {
+      if (this.isEditMode && this.documentId) {
+        this.loadDocument();
+      } else if (this.documentId) {
+        // If documentId is provided (e.g., from generic :id route), load the document
+        this.loadDocument();
+      } else if (this.depotId) {
+        this.loadDocumentsForDepot(showReturnsOnly);
+      }
+    });
   }
 
-  loadInitialData(): void {
+  loadInitialData(): Promise<void> {
     this.loading = true;
     
     const depotFilter = this.depotId ? parseInt(this.depotId, 10) : undefined as any;
-    Promise.all([
+    return Promise.all([
       this.depotsService.list().toPromise(),
       this.suppliersService.list().toPromise(),
       this.productsService.getProducts(depotFilter).toPromise()
@@ -95,6 +97,7 @@ export class BonEntreeComponent implements OnInit {
     }).catch(error => {
       this.error = 'Erreur lors du chargement des données';
       this.loading = false;
+      throw error;
     });
   }
 
@@ -106,7 +109,27 @@ export class BonEntreeComponent implements OnInit {
       next: (doc) => {
         this.document = doc;
         this.selectedDepot = doc.destinataire || null;
-        this.selectedSupplier = doc.supplier || null;
+        
+        // Automatically set supplier from document
+        if (doc.supplier) {
+          // Find matching supplier from the suppliers list
+          const supplier = doc.supplier;
+          const matchingSupplier = this.suppliers.find(s => s.id === supplier.id);
+          this.selectedSupplier = matchingSupplier || supplier;
+        } else {
+          // Try to extract supplier from notes if not in document
+          if (doc.notes) {
+            const supplierMatch = doc.notes.match(/Supplier:(\d+)/);
+            if (supplierMatch) {
+              const supplierId = parseInt(supplierMatch[1]);
+              const matchingSupplier = this.suppliers.find(s => s.id === supplierId);
+              if (matchingSupplier) {
+                this.selectedSupplier = matchingSupplier;
+              }
+            }
+          }
+        }
+        
         this.items = doc.items || [];
         this.notes = doc.notes || '';
         
