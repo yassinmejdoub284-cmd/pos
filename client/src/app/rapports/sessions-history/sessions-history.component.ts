@@ -89,6 +89,11 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   expenseDetails = signal<Array<{ id: number; amount: number; reason: string; createdAt: string; categoryName?: string; supplierName?: string; notes?: string }>>([]);
   expenseDetailsTitle = signal('');
 
+  // Credit sales details modal state
+  showCreditSalesDetailsModal = signal(false);
+  creditSalesDetails = signal<Array<{ id: number; saleId: number; amount: number; clientName: string; createdAt: string; ticketNumber?: number | string; outstanding?: number; paid?: number }>>([]);
+  creditSalesDetailsTitle = signal('');
+
   // Cash sales detail state
   cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number; status?: string; createdAt?: string; dailyTicketNumber?: number | string }[]>([]);
   cashSalesLoading = signal(false);
@@ -231,8 +236,10 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         const enriched: SessionCaisse = {
           ...session,
           cashMovements: report.session?.cashMovements || session.cashMovements,
-          summary: report.summary || session.summary
-        };
+          summary: report.summary || session.summary,
+          // Include sales data from the report (same as cloture component)
+          sales: report.session?.sales || (session as any)?.sales || []
+        } as any;
         console.log('Enriched session:', enriched);
         this.selectedSession.set(enriched);
         // Ensure cash sales list is populated using X/Z report sales
@@ -329,14 +336,26 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     }
 
     // Espèces en Caisse: list each cash-paid ticket (paidAmount)
+    // CRITICAL: Only include CASH tickets - credit tickets are excluded because their payments are in "Encaissements Crédit Clients"
+    // Note: cashSalesDetails() is already filtered to only include CASH tickets, but we double-check here
     for (const t of this.cashSalesDetails()) {
-      if ((t.paidAmount || 0) > 0) {
-        rows.push({
-          createdAt: new Date(this.selectedSession()!.openedAt).toISOString(),
-          label: `Ticket N°${t.id}`,
-          amount: t.paidAmount
-        });
-      }
+      const paymentMethod = ((t as any).paymentMethod || '').toUpperCase();
+      const paymentType = ((t as any).paymentType || '').toUpperCase();
+      const totalAmount = typeof t.totalAmount === 'number' ? t.totalAmount : parseFloat(String(t.totalAmount || 0)) || 0;
+      const paidAmount = typeof t.paidAmount === 'number' ? t.paidAmount : parseFloat(String(t.paidAmount || 0)) || 0;
+      const remainingBalance = totalAmount - paidAmount;
+      
+      // Double-check: exclude credit tickets even if they somehow got into cashSalesDetails
+      if (paymentType === 'CREDIT') continue; // Explicit credit sale
+      if (remainingBalance > 0.001) continue; // Has outstanding balance = credit sale
+      if (paymentMethod !== 'CASH' && paymentType !== 'COMPTANT') continue;
+      if (paidAmount <= 0) continue;
+      
+      rows.push({
+        createdAt: new Date(this.selectedSession()!.openedAt).toISOString(),
+        label: `Ticket N°${t.id}`,
+        amount: t.paidAmount
+      });
     }
 
     // Filter by search
@@ -481,9 +500,35 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   // Crédit and supplier payments helpers
   getCreditAmount(): number {
     const session = this.selectedSession();
+    if (!session) return 0;
+    
     const summary: any = session?.summary || {};
-    const direct = parseFloat(summary.creditOutstanding || 0) || 0;
-    if (direct > 0) return direct;
+    // Use creditSalesTotal (total credit sales) if available
+    // This represents the total amount of credit sales (sum of all DEBT transactions)
+    if (summary.creditSalesTotal !== undefined && summary.creditSalesTotal !== null) {
+      const creditFromSummary = parseFloat(summary.creditSalesTotal || 0) || 0;
+      if (creditFromSummary > 0) {
+        return creditFromSummary;
+      }
+    }
+    
+    // Fallback: calculate from sales array (same as cloture component)
+    const sales = ((session as any)?.sales || []) as any[];
+    if (sales.length > 0) {
+      return sales.reduce((total: number, sale: any) => {
+        const paymentType = (sale.paymentType || sale.paymentMethod?.type || '').toUpperCase();
+        const status = (sale.status || '').toUpperCase();
+        
+        // Only include active credit sales
+        if (paymentType === 'CREDIT' && !['CANCELLED', 'REFUNDED'].includes(status)) {
+          const finalTotal = parseFloat(sale.finalTotal || 0) || 0;
+          return total + finalTotal;
+        }
+        return total;
+      }, 0);
+    }
+    
+    // Final fallback: calculate from salesByPayment if available
     const credit = (summary.salesByPayment?.CREDIT?.amount) || 0;
     return parseFloat(credit) || 0;
   }
@@ -507,12 +552,16 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   recentClientPayments(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
     const details = (this.selectedSession()?.summary as any)?.clientPaymentsDetails as Array<any> | undefined;
     if (details && details.length) {
-      return details.slice(0, 10).map(d => ({
-        createdAt: d.createdAt,
-        type: 'ENTREE',
-        reason: `Encaissement client · ${d.clientName || 'Client'}`,
-        amount: parseFloat(d.amount || 0) || 0
-      }));
+      return details.slice(0, 10).map(d => {
+        // If payment is linked to a sale (credit ticket payment), show ticket number
+        const ticketInfo = d.ticketNumber ? ` · Ticket #${d.ticketNumber}` : '';
+        return {
+          createdAt: d.createdAt,
+          type: 'ENTREE',
+          reason: `Encaissement client · ${d.clientName || 'Client'}${ticketInfo}`,
+          amount: parseFloat(d.amount || 0) || 0
+        };
+      });
     }
     return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && (((m.reason || '').toLowerCase().includes('crédit')) || ((m.reason || '').toLowerCase().includes('credit'))));
   }
@@ -665,19 +714,28 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   }
 
   getDecaissementTotal(): number {
-    const s = this.selectedSession();
-    const summary: any = s?.summary || {};
-    // Use server-calculated values when available for accuracy
-    const expensesForCalc = parseFloat(summary.expensesTotalForCalculation || 0) || 0;
-    const suppliers = Array.isArray(summary.supplierPaymentsDetails)
-      ? summary.supplierPaymentsDetails.reduce((sum: number, p: any) => sum + (parseFloat(p.amount || 0) || 0), 0)
-      : this.getSupplierPaymentsTotal();
-    const refunds = this.getRefundsTotal();
-    if (expensesForCalc > 0 || suppliers > 0 || refunds > 0) {
-      return expensesForCalc + suppliers + refunds;
+    // Get total of all sorties (cash outflows) from session summary
+    // Same formula as cloture component
+    const session = this.selectedSession();
+    const summary: any = session?.summary || {};
+    // Use sortie from summary if available (includes all SORTIE, DEPOT_COFFRE, RETRAIT_CENTRALE)
+    const sortieFromSummary = parseFloat(summary.sortie || 0) || 0;
+    if (sortieFromSummary > 0) {
+      return sortieFromSummary;
     }
-    // Fallback to client-side functions
-    return this.getExpensesTotal() + this.getSupplierPaymentsTotal() + this.getRefundsTotal();
+    
+    // Fallback: calculate from movements
+    const movements = session?.cashMovements || [];
+    return movements
+      .filter(m => {
+        const reason = String(m.reason || '');
+        const amount = parseFloat((m as any).amount || 0) || 0;
+        return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && 
+               amount > 0 && 
+               !reason.includes('[REJETÉ]') && 
+               !reason.includes('[SUPPRIMÉ]');
+      })
+      .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 
   // Refunds (Remboursements)
@@ -719,9 +777,11 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   getNetAfterAdjustments(): number {
     const totalSales = parseFloat((this.selectedSession()?.summary?.totalSales as any) || 0) || 0;
     const expectedCash = parseFloat((this.selectedSession()?.summary?.expectedCash as any) || 0) || 0;
-    const credit = this.getCreditAmount();
+    // Use creditOutstanding (outstanding credit) for cash calculations, not total credit sales
+    const summary: any = this.selectedSession()?.summary || {};
+    const creditOutstanding = parseFloat(summary.creditOutstanding || 0) || 0;
     const supplierRegs = this.getSupplierPaymentsTotal();
-    return totalSales + expectedCash - credit - supplierRegs;
+    return totalSales + expectedCash - creditOutstanding - supplierRegs;
   }
 
   // New computed helpers
@@ -749,10 +809,25 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   }
 
   getCashFromSalesNetOfCredit(): number {
-    const summary: any = this.selectedSession()?.summary || {};
-    const totalSales = parseFloat(summary.totalSales || 0) || 0;
-    const credit = this.getCreditAmount();
-    return Math.max(0, totalSales - credit);
+    // Sum up all paid amounts (cash portions of sales), excluding canceled tickets and cadeau tickets
+    // Same formula as cloture component
+    const session = this.selectedSession();
+    if (!session) return 0;
+    
+    // Get sales data from session
+    const sales = ((session as any)?.sales || []) as any[];
+    
+    // Sum up all paid amounts (cash portions of sales), excluding canceled tickets and cadeau tickets
+    return sales.reduce((total: number, sale: any) => {
+      const status = (sale.status || '').toUpperCase();
+      // Exclude canceled, refunded, and cadeau tickets from encaissement
+      // Cadeau tickets have amount = 0 and should only affect stock movements
+      if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
+        return total;
+      }
+      const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
+      return total + paidAmount;
+    }, 0);
   }
 
   getExpensesTotal(): number {
@@ -842,7 +917,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     const session = this.selectedSession();
     if (!session || this.cashSalesLoading()) return;
     this.cashSalesLoading.set(true);
-    this.sessionsService.getSessionReport(session.id, 'X').subscribe({
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (report: any) => {
         const sales = (report?.session?.sales || []) as Array<any>;
 
@@ -855,8 +930,14 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           let paidAmount = explicitPaid ?? 0;
 
           if (explicitPaid == null) {
+            // Calculate paidAmount: finalTotal - DEBT for credit sales, or finalTotal for cash sales
             const method = String(sale.paymentMethod?.type || '').toUpperCase();
-            paidAmount = method === 'CASH' ? finalTotal : 0;
+            if (method === 'CASH') {
+              paidAmount = finalTotal;
+            } else {
+              // For credit sales, paidAmount is already calculated on server (finalTotal - DEBT)
+              paidAmount = 0; // Will be set from paidAmount field if available
+            }
           }
 
           // Normalize items for this sale
@@ -875,16 +956,45 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
             totalAmount: finalTotal,
             createdAt: sale.createdAt,
             status: (sale.status || '').toString(),
-            dailyTicketNumber: (sale as any)?.dailyTicketNumber
+            dailyTicketNumber: (sale as any)?.dailyTicketNumber || sale.id,
+            paymentMethod: sale.paymentMethod?.type || sale.paymentType || '',
+            paymentType: (sale.paymentType || sale.paymentMethod?.type || '').toUpperCase() // Store paymentType for filtering
           };
         });
 
-        const cashSales = enriched
-          .filter(s => (s.paidAmount || 0) > 0)
+        // Include ONLY CASH tickets with paidAmount > 0
+        // CRITICAL: Exclude credit tickets - their payments are shown in "Encaissements Crédit Clients" only
+        const cashSalesOnly = enriched
+          .filter(s => {
+            const status = (s.status || '').toUpperCase();
+            // Exclude canceled, refunded, and gift tickets (CADEAU) from cash sales
+            // Gift tickets have amount = 0 and should not be counted in encaissement
+            if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
+              return false;
+            }
+            
+            const paymentMethod = (s.paymentMethod || '').toUpperCase();
+            const paymentType = ((s as any).paymentType || '').toUpperCase();
+            const totalAmount = typeof s.totalAmount === 'number' ? s.totalAmount : parseFloat(String(s.totalAmount || 0)) || 0;
+            const paidAmount = typeof s.paidAmount === 'number' ? s.paidAmount : parseFloat(String(s.paidAmount || 0)) || 0;
+            const remainingBalance = totalAmount - paidAmount;
+            
+            // Exclude if:
+            // 1. paymentMethod is not CASH
+            // 2. paymentType is CREDIT (explicit credit sale)
+            // 3. Has remaining balance > 0.001 (indicates credit sale with partial payment)
+            // 4. paidAmount is 0 or negative
+            if (paymentMethod !== 'CASH' && paymentType !== 'COMPTANT') return false;
+            if (paymentType === 'CREDIT') return false; // Explicit credit sale
+            if (remainingBalance > 0.001) return false; // Has outstanding balance = credit sale
+            if (paidAmount <= 0) return false;
+            
+            return true;
+          })
           .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
         this.ticketItemsById.set(itemsMap);
-        this.cashSalesDetails.set(cashSales);
+        this.cashSalesDetails.set(cashSalesOnly);
         this.cashSalesLoading.set(false);
       },
       error: () => {
@@ -1130,8 +1240,10 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   getPreparationChecklist(): Array<{ label: string; ok: boolean }> {
     const expectedCash = parseFloat((this.selectedSession()?.summary?.expectedCash as any) || 0) || 0;
     const sales = parseFloat((this.selectedSession()?.summary?.totalSales as any) || 0) || 0;
-    const credit = this.getCreditAmount();
-    const computedCashFromSales = Math.max(0, sales - credit);
+    // Use creditOutstanding (outstanding credit) for cash calculations, not total credit sales
+    const summary: any = this.selectedSession()?.summary || {};
+    const creditOutstanding = parseFloat(summary.creditOutstanding || 0) || 0;
+    const computedCashFromSales = Math.max(0, sales - creditOutstanding);
     const cashOk = Math.abs(expectedCash - (computedCashFromSales + this.getClientPaymentsTotal() + this.getTotalOrderAdvances() - this.getExpensesTotal() - this.getSupplierPaymentsTotal())) < 0.01;
     return [
       { label: 'Écarts de caisse', ok: cashOk },
@@ -2227,6 +2339,79 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     return this.expenseDetails().reduce((sum, expense) => sum + expense.amount, 0);
   }
 
+  // Credit sales details modal methods
+  openCreditSalesDetailsModal(): void {
+    const session = this.selectedSession();
+    if (!session) return;
+
+    console.log('Opening credit sales details modal for session:', session.id);
+
+    // Fetch fresh session report to get credit sales details
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (report) => {
+        console.log('Session report received for credit sales:', report);
+        const sales = (report?.session?.sales || []) as Array<any>;
+        
+        // Filter credit sales (sales with CREDIT payment method)
+        const creditSales = sales.filter((sale: any) => {
+          const paymentType = (sale.paymentMethod?.type || sale.paymentType || '').toUpperCase();
+          return paymentType === 'CREDIT' && !['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase());
+        });
+
+        console.log('Credit sales found:', creditSales);
+
+        // Build credit sales details from sales
+        // For credit sales, the amount should be the DEBT amount (creditSalesTotal is sum of DEBT transactions)
+        // We'll use finalTotal as the credit amount since that's what was sold on credit
+        const creditSalesDetailsList = creditSales.map((sale: any) => {
+          const finalTotal = parseFloat(sale.finalTotal || 0) || 0;
+          const clientName = sale.client 
+            ? `${sale.client.firstName || ''} ${sale.client.lastName || ''}`.trim() || 'Client'
+            : 'Client';
+          
+          // The credit amount is the finalTotal (what was sold on credit)
+          // This matches the creditSalesTotal calculation which sums DEBT transactions
+          const creditAmount = finalTotal;
+          
+          return {
+            id: sale.id,
+            saleId: sale.id,
+            amount: creditAmount,
+            clientName: clientName,
+            createdAt: sale.createdAt,
+            ticketNumber: sale.dailyTicketNumber || sale.sessionTicketNumber || sale.ticketNumber || sale.id,
+            outstanding: creditAmount,
+            paid: 0
+          };
+        });
+
+        // Sort by date (newest first)
+        creditSalesDetailsList.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+        this.creditSalesDetails.set(creditSalesDetailsList);
+        this.creditSalesDetailsTitle.set(`Ventes à Crédit - Session #${session.id}`);
+        this.showCreditSalesDetailsModal.set(true);
+      },
+      error: (error) => {
+        console.error('Error fetching session report for credit sales details:', error);
+        this.creditSalesDetails.set([]);
+        this.creditSalesDetailsTitle.set('Ventes à Crédit');
+        this.showCreditSalesDetailsModal.set(true);
+      }
+    });
+  }
+
+  closeCreditSalesDetailsModal(): void {
+    this.showCreditSalesDetailsModal.set(false);
+    this.creditSalesDetails.set([]);
+    this.creditSalesDetailsTitle.set('');
+  }
+
+  getCreditSalesDetailsTotal(): number {
+    return this.creditSalesDetails().reduce((sum, sale) => sum + sale.amount, 0);
+  }
 
   // Group entries by session
   getSessionGroups(): Array<{sessionId: number; entries: ReleveEntry[]}> {

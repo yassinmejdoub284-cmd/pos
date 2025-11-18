@@ -774,6 +774,10 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
                     }
                   });
                   sales.forEach(sale => {
+                    // Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
+                    const status = (sale.status || '').toUpperCase();
+                    if (['CADEAU','PENDING_ADMIN'].includes(status)) return;
+                    
                     const total = parseFloat(sale.finalTotal || 0) || 0;
                     const debtForSale = debtBySaleId[sale.id] || 0;
                     const paidAmount = Math.max(0, total - debtForSale);
@@ -782,7 +786,10 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
                 }
               } catch (e) {
                 // Fallback: if we can't calculate paidAmount, use old method
-                const totalSalesAmount = sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0);
+                // Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
+                const totalSalesAmount = sales
+                  .filter(s => !['CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
+                  .reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0);
                 cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
               }
               
@@ -1058,6 +1065,10 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
                     }
                   });
                   sales.forEach(sale => {
+                    // Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
+                    const status = (sale.status || '').toUpperCase();
+                    if (['CADEAU','PENDING_ADMIN'].includes(status)) return;
+                    
                     const total = parseFloat(sale.finalTotal || 0) || 0;
                     const debtForSale = debtBySaleId[sale.id] || 0;
                     const paidAmount = Math.max(0, total - debtForSale);
@@ -1066,7 +1077,10 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
                 }
               } catch (e) {
                 // Fallback: if we can't calculate paidAmount, use old method
-                const totalSalesAmount = sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0);
+                // Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
+                const totalSalesAmount = sales
+                  .filter(s => !['CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
+                  .reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0);
                 cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
               }
               
@@ -1206,6 +1220,10 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
                     }
                   });
                   sales.forEach(sale => {
+                    // Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
+                    const status = (sale.status || '').toUpperCase();
+                    if (['CADEAU','PENDING_ADMIN'].includes(status)) return;
+                    
                     const total = parseFloat(sale.finalTotal || 0) || 0;
                     const debtForSale = debtBySaleId[sale.id] || 0;
                     const paidAmount = Math.max(0, total - debtForSale);
@@ -1214,7 +1232,10 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
                 }
               } catch (e) {
                 // Fallback: if we can't calculate paidAmount, use old method
-                const totalSalesAmount = sales.reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0);
+                // Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
+                const totalSalesAmount = sales
+                  .filter(s => !['CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
+                  .reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0);
                 cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
               }
               

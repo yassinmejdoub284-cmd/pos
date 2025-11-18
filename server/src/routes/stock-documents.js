@@ -122,10 +122,11 @@ async function calculateSessionSummary(sessionId) {
 
   // Compute cash from sales as sum of paidAmount (actual cash received) - only encaissement, not credit amounts
   // Calculate paidAmount for each sale: finalTotal - debt for that sale
+  // CRITICAL: Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
   let cashFromSalesNetCredit = 0;
   try {
     const saleIds = session.sales
-      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+      .filter(s => !['REFUNDED','CANCELLED','CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
       .map(s => s.id);
     
     if (saleIds.length > 0) {
@@ -149,8 +150,9 @@ async function calculateSessionSummary(sessionId) {
       });
       
       // Calculate paidAmount for each sale and sum them up
+      // Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
       session.sales
-        .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+        .filter(s => !['REFUNDED','CANCELLED','CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
         .forEach(sale => {
           const total = parseFloat(sale.finalTotal || 0) || 0;
           const debtForSale = debtBySaleId[sale.id] || 0;
@@ -160,8 +162,9 @@ async function calculateSessionSummary(sessionId) {
     }
   } catch (e) {
     // Fallback: if we can't calculate paidAmount, use old method
+    // Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
     const totalSalesAmount = session.sales
-      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+      .filter(s => !['REFUNDED','CANCELLED','CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
       .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
     cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
   }
@@ -794,43 +797,60 @@ router.post('/entry', authenticateToken, async (req, res) => {
   try {
     const { depotId, supplierId, items, notes, payCash, isReturn } = req.body;
 
-    if (!depotId || !items || items.length === 0) {
-      return res.status(400).json({ error: 'Données manquantes' });
+    console.log('[stock-documents/entry] Request received:', {
+      depotId,
+      supplierId,
+      itemsCount: items?.length,
+      hasNotes: !!notes,
+      payCash,
+      isReturn,
+      userId: req.user?.id,
+      userRole: req.user?.role
+    });
+
+    // Validate required fields
+    if (!depotId) {
+      return res.status(400).json({ error: 'Dépôt requis' });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Au moins un article est requis' });
+    }
+
+    // Validate depotId is a valid number
+    const depotIdInt = parseInt(depotId);
+    if (isNaN(depotIdInt) || depotIdInt <= 0) {
+      return res.status(400).json({ error: 'ID de dépôt invalide' });
+    }
+
+    // Validate each item has required fields
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item.productId || parseInt(item.productId) <= 0) {
+        return res.status(400).json({ error: `Article ${i + 1}: ID de produit invalide` });
+      }
+      if (!item.quantity || parseQuantity(item.quantity) <= 0) {
+        return res.status(400).json({ error: `Article ${i + 1}: Quantité invalide` });
+      }
+      if (!item.famille) {
+        return res.status(400).json({ error: `Article ${i + 1}: Famille requise` });
+      }
     }
 
     // Check if depot is a shop and validate cash availability
     const depot = await prisma.depot.findUnique({
-      where: { id: parseInt(depotId) }
+      where: { id: depotIdInt }
     });
 
     if (!depot) {
       return res.status(400).json({ error: 'Dépôt introuvable' });
     }
 
-    // If depot is a shop, check if session exists (but don't validate cash availability)
-    // RESPONSABLE_MAGASIN can create bon d'entrée without requiring a session
-    const isResponsableMagasin = hasRoleOrRoleKey(req.user, ['RESPONSABLE_MAGASIN']);
-    
-    if (depot.type === 'SHOP' && !isResponsableMagasin) {
-      const activeSession = await prisma.sessionCaisse.findFirst({
-        where: { 
-          userId: req.user.id, 
-          status: 'OPEN',
-          depotId: parseInt(depotId)
-        }
-      });
-
-      if (!activeSession) {
-        return res.status(400).json({ 
-          error: 'Session de caisse requise pour créer un bon d\'entrée dans un magasin' 
-        });
-      }
-
-      // Note: We don't validate cash availability here because:
-      // 1. The payment can be made via credit/deferred payment
-      // 2. The payment is handled separately via the payment dialog
-      // 3. The purchase price entered may be different from the product's selling price
-    }
+    // Note: Session check is only required when paying cash (checked later)
+    // Entry documents can be created without a session since:
+    // 1. The payment can be made via credit/deferred payment
+    // 2. The payment is handled separately via the payment dialog
+    // 3. The purchase price entered may be different from the product's selling price
 
     // Use valid DocumentType enum values only
     const numberType = isReturn ? 'BON_EXPEDITION' : 'BON_ENTREE_DEPOT';
@@ -855,17 +875,17 @@ router.post('/entry', authenticateToken, async (req, res) => {
           type: isReturn ? 'BON_EXPEDITION' : 'BON_ENTREE_DEPOT',
           status: 'RECEIVED',
           // Schema requires depots; we set both to the receiving depot
-          emetteurId: parseInt(depotId),
-          destinataireId: parseInt(depotId),
+          emetteurId: depotIdInt,
+          destinataireId: depotIdInt,
           notes: supplierId ? `Supplier:${supplierId}${notes ? ' | ' + notes : ''}` : (notes || null),
           items: {
             create: items.map((item) => ({
-              productId: item.productId,
-              famille: typeof item.famille === 'object' ? item.famille.name : item.famille,
+              productId: parseInt(item.productId),
+              famille: typeof item.famille === 'object' ? item.famille.name : (item.famille || 'Divers'),
               quantity: parseQuantity(item.quantity),
               purchasePrice: item.purchasePrice ? parseFloat(item.purchasePrice) : null,
               batch: item.batch || null,
-              notes: typeof item.famille === 'object' ? item.famille.name : (item.notes || null),
+              notes: item.notes || null,
               barcode: null
             }))
           },
@@ -888,7 +908,6 @@ router.post('/entry', authenticateToken, async (req, res) => {
       for (const item of items) {
         const productId = parseInt(item.productId);
         const quantity = parseQuantity(item.quantity);
-        const depotIdInt = parseInt(depotId);
 
         const inventory = await tx.inventory.findUnique({
           where: { depotId_productId: { depotId: depotIdInt, productId } }
@@ -947,7 +966,9 @@ router.post('/entry', authenticateToken, async (req, res) => {
     res.status(201).json(document);
   } catch (error) {
     console.error('Error creating supplier entry:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du bon d\'entrée' });
+    const errorMessage = error.message || 'Erreur lors de la création du bon d\'entrée';
+    const statusCode = error.message && error.message.includes('Cannot return') ? 400 : 500;
+    res.status(statusCode).json({ error: errorMessage });
   }
 });
 

@@ -5,6 +5,62 @@ const { logAudit } = require('../lib/audit');
 
 const router = express.Router();
 
+// Diagnostic route to check session existence (admin only)
+router.get('/:id/check', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sessionId = parseInt(id);
+    
+    const session = await prisma.sessionCaisse.findUnique({
+      where: { id: sessionId },
+      select: {
+        id: true,
+        depotId: true,
+        status: true,
+        openedAt: true,
+        closedAt: true,
+        userId: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        },
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        }
+      }
+    });
+    
+    if (!session) {
+      return res.status(404).json({ 
+        exists: false,
+        message: `Session ${sessionId} n'existe pas dans la base de données`
+      });
+    }
+    
+    res.json({
+      exists: true,
+      session: {
+        id: session.id,
+        depotId: session.depotId,
+        status: session.status,
+        openedAt: session.openedAt,
+        closedAt: session.closedAt,
+        user: session.user,
+        depot: session.depot
+      }
+    });
+  } catch (error) {
+    console.error('Error checking session:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get active session for user (strictly filtered by depotId for isolation)
 router.get('/active', authenticateToken, async (req, res) => {
   try {
@@ -1291,16 +1347,33 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { type = 'Z', format = 'html' } = req.query;
+    const sessionId = parseInt(id);
+
+    console.log(`[Session Report] Request for session ${sessionId}, user: ${req.user?.id}, role: ${req.user?.role}`);
 
     // Enforce depot isolation - use visiting depot or user's depot
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     
-    // Determine which depot to use: visiting > user's depot
-    let targetDepotId = visitingDepotId || userDepotId;
+    console.log(`[Session Report] userDepotId: ${userDepotId}, visitingDepotId: ${visitingDepotId}`);
     
-    if (!targetDepotId) {
+    // Determine which depot to use: visiting > user's depot
+    // For admins: only use depotId if explicitly provided via header (allows access to all depots if not specified)
+    // For non-admins: use visiting depot or fallback to user's depot
+    let targetDepotId;
+    if (req.user?.role === 'ADMIN') {
+      // Admins: only filter by depot if explicitly provided via header
+      targetDepotId = visitingDepotId || null;
+    } else {
+      // Non-admins: use visiting depot or fallback to user's depot
+      targetDepotId = visitingDepotId || userDepotId;
+    }
+    
+    console.log(`[Session Report] targetDepotId: ${targetDepotId} (admin: ${req.user?.role === 'ADMIN'})`);
+    
+    // For non-admin users, depot is required
+    if (!targetDepotId && req.user?.role !== 'ADMIN') {
       return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view session reports' });
     }
     
@@ -1330,10 +1403,43 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
       }
     }
     
+    // First check if session exists at all (without depot filter)
+    const sessionExists = await prisma.sessionCaisse.findUnique({
+      where: { id: sessionId },
+      select: { id: true, depotId: true, status: true }
+    });
+
+    if (!sessionExists) {
+      console.log(`[Session Report] Session ${sessionId} does not exist in database`);
+      return res.status(404).json({ error: `Session ${sessionId} non trouvée dans la base de données` });
+    }
+
+    console.log(`[Session Report] Session ${sessionId} exists with depotId: ${sessionExists.depotId}, status: ${sessionExists.status}`);
+
+    // Build where clause - for admins without depotId, use session's depotId
     const whereClause = {
-      id: parseInt(id),
-      depotId: targetDepotId // Always filter by target depot for isolation
+      id: sessionId
     };
+    
+    // For admins without specified depotId, use the session's actual depotId (or null) for the query
+    if (!targetDepotId && req.user?.role === 'ADMIN') {
+      // If session has a depotId, use it; if NULL, don't filter by depotId
+      if (sessionExists.depotId !== null && sessionExists.depotId !== undefined) {
+        whereClause.depotId = sessionExists.depotId;
+        console.log(`[Session Report] Admin access: using session's depotId ${sessionExists.depotId}`);
+      } else {
+        console.log(`[Session Report] Admin access: session has NULL depotId, no depot filter applied`);
+      }
+    } else if (targetDepotId) {
+      // Non-admin or admin with explicit depotId
+      whereClause.depotId = targetDepotId;
+      console.log(`[Session Report] Using targetDepotId ${targetDepotId} in whereClause`);
+    } else if (req.user?.role !== 'ADMIN') {
+      // Non-admins must have a depot specified
+      return res.status(400).json({ error: 'Depot must be specified for non-admin users' });
+    }
+
+    console.log(`[Session Report] Final whereClause:`, JSON.stringify(whereClause));
 
     const session = await prisma.sessionCaisse.findFirst({
       where: whereClause,
@@ -1345,8 +1451,30 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     });
 
     if (!session) {
-      return res.status(404).json({ error: 'Session non trouvée' });
+      console.log(`[Session Report] Session ${sessionId} not found with filters:`, JSON.stringify(whereClause));
+      console.log(`[Session Report] Session exists with depotId: ${sessionExists.depotId}, targetDepotId: ${targetDepotId}`);
+      
+      // Check if session exists but belongs to different depot
+      if (targetDepotId !== null && targetDepotId !== undefined && 
+          sessionExists.depotId !== null && sessionExists.depotId !== undefined &&
+          sessionExists.depotId !== targetDepotId) {
+        return res.status(404).json({ 
+          error: `Session ${sessionId} appartient au dépôt ${sessionExists.depotId}, pas au dépôt ${targetDepotId}` 
+        });
+      }
+      
+      // If session has NULL depotId and we're filtering by a specific depot
+      if (targetDepotId !== null && targetDepotId !== undefined && 
+          (sessionExists.depotId === null || sessionExists.depotId === undefined)) {
+        return res.status(404).json({ 
+          error: `Session ${sessionId} n'a pas de dépôt assigné, mais un filtre de dépôt ${targetDepotId} a été appliqué` 
+        });
+      }
+      
+      return res.status(404).json({ error: `Session ${sessionId} non trouvée avec les filtres spécifiés` });
     }
+
+    console.log(`[Session Report] Session ${sessionId} found successfully`);
 
     const reportData = type === 'Z' ? 
       await generateZReport(parseInt(id)) : 
@@ -1564,9 +1692,24 @@ async function calculateSessionSummary(sessionId) {
       .map(sale => sale.id)
   );
 
-  // Calculate cash from sales (exclude refunded)
+  // Calculate cash from sales (exclude refunded and credit sales)
+  // CRITICAL: Exclude credit sales - their payments are counted in clientPaymentsTotal
   const cashSales = session.sales
-    .filter(sale => sale.paymentMethod?.type === 'CASH' && !['REFUNDED','CANCELLED'].includes((sale.status || '').toUpperCase()))
+    .filter(sale => {
+      const paymentMethodType = (sale.paymentMethod?.type || '').toUpperCase();
+      const paymentType = (sale.paymentType || '').toUpperCase();
+      const status = (sale.status || '').toUpperCase();
+      
+      // Exclude if:
+      // 1. Status is REFUNDED or CANCELLED
+      // 2. paymentType is CREDIT (explicit credit sale)
+      // 3. paymentMethod is not CASH
+      if (['REFUNDED','CANCELLED'].includes(status)) return false;
+      if (paymentType === 'CREDIT') return false; // Explicit credit sale
+      if (paymentMethodType !== 'CASH') return false;
+      
+      return true;
+    })
     .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
 
   // Calculate cash movements (exclude rejected movements, deleted movements, and movements from cancelled tickets)
@@ -1588,7 +1731,11 @@ async function calculateSessionSummary(sessionId) {
       const isRejected = reason.includes('[REJETÉ]');
       const isDeleted = reason.includes('[SUPPRIMÉ]');
       const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
-      return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !isFromCancelledTicket && amount > 0;
+      // IMPORTANT: Include return refunds even if ticket is REFUNDED (they should reduce cash)
+      const isReturnRefund = reason.includes('Remboursement retour') || reason.includes('retour');
+      // Don't exclude return refunds even if ticket is cancelled/refunded
+      const shouldExclude = isFromCancelledTicket && !isReturnRefund;
+      return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !shouldExclude && amount > 0;
     })
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
 
@@ -1610,33 +1757,48 @@ async function calculateSessionSummary(sessionId) {
 
   // Calculate outstanding credit from client debt transactions tied to this session's sales
   // IMPORTANT: Only count DEBT that hasn't been paid (DEBT - PAYMENT for each sale)
+  // CRITICAL: All transactions must be from sales in this specific session
   let creditOutstanding = 0;
+  let creditSalesTotal = 0; // Total credit sales amount (sum of all DEBT transactions)
   let creditCount = 0;
   let creditAdvancePaid = 0;
   try {
     // Get all debt transactions (DEBT type) for sales in this session
+    // CRITICAL: Filter by sale.sessionId to ensure we only get transactions from this session
     const debtTransactions = await prisma.clientDebtTransaction.findMany({
       where: {
         type: 'DEBT',
         sale: {
-          sessionId: sessionId,
+          sessionId: sessionId, // CRITICAL: Only sales from this session
           status: { notIn: ['CANCELLED', 'REFUNDED'] } // Exclude cancelled/refunded sales
         }
       },
-      select: { amount: true, saleId: true }
+      select: { 
+        amount: true, 
+        saleId: true
+      }
     });
 
     // Get all payment transactions (PAYMENT type) for the same sales
+    // CRITICAL: Filter by sale.sessionId to ensure we only get transactions from this session
     const paymentTransactions = await prisma.clientDebtTransaction.findMany({
       where: {
         type: 'PAYMENT',
         sale: {
-          sessionId: sessionId,
+          sessionId: sessionId, // CRITICAL: Only sales from this session
           status: { notIn: ['CANCELLED', 'REFUNDED'] } // Exclude cancelled/refunded sales
         }
       },
-      select: { amount: true, saleId: true }
+      select: { 
+        amount: true, 
+        saleId: true
+      }
     });
+
+    // Calculate total credit sales: sum of all DEBT transactions from this session
+    creditSalesTotal = debtTransactions.reduce((sum, t) => {
+      return sum + (parseFloat(t.amount || 0) || 0);
+    }, 0);
 
     // Group DEBT by saleId
     const debtBySaleId = {};
@@ -1691,6 +1853,8 @@ async function calculateSessionSummary(sessionId) {
           creditCount += 1;
         }
         creditAdvancePaid += advance;
+        // In fallback, use finalTotal as credit sales total
+        creditSalesTotal += total;
       }
     });
   }
@@ -1850,17 +2014,21 @@ async function calculateSessionSummary(sessionId) {
     }));
   } catch (e) {}
 
-  // Compute client payments (only standalone PAYMENT debt transactions, no saleId)
+  // Compute client payments (standalone PAYMENT debt transactions + PAYMENT transactions linked to credit sales)
+  // IMPORTANT: Only include payments that are actually related to this session
   let clientPaymentsTotal = 0;
   let clientPaymentsDetails = [];
   try {
     const sessionStart = new Date(session.openedAt);
     const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
+    
+    // Get standalone payments (no saleId) - only those made during this session
+    // These are payments made directly to clients' accounts during the session
     const standalonePayments = await prisma.clientDebtTransaction.findMany({
       where: {
         type: 'PAYMENT',
         saleId: null, // Only standalone payments (no saleId)
-        userId: session.userId,
+        userId: session.userId, // Same user as session
         createdAt: {
           gte: sessionStart,
           lte: sessionEnd
@@ -1871,63 +2039,116 @@ async function calculateSessionSummary(sessionId) {
       },
       orderBy: { createdAt: 'desc' }
     });
+    
+    // NOTE: Credit sale advance payments are NOT included in clientPaymentsTotal
+    // They are counted as cash from sales (espèces en caisse) instead
+    // Only standalone payments (without saleId) are counted as client payments
+    
+    // Only include standalone payments in clientPaymentsTotal
     clientPaymentsTotal = standalonePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+    
     clientPaymentsDetails = standalonePayments.map(p => ({
       id: p.id,
       amount: parseFloat(p.amount || 0),
       clientId: p.client?.id || null,
       clientName: p.client ? `${p.client.firstName} ${p.client.lastName}`.trim() : 'Client',
-      createdAt: p.createdAt
+      createdAt: p.createdAt,
+      saleId: null, // Standalone payments don't have saleId
+      ticketNumber: null,
+      sessionId: null
     }));
-  } catch (e) {}
+  } catch (e) {
+    console.error('[calculateSessionSummary] Error computing client payments:', e);
+  }
 
   // Add standalone client payments (credit encashments) to expected cash
   expectedCash = expectedCash + clientPaymentsTotal;
 
-  // Compute cash from sales as sum of paidAmount (actual cash received) - only encaissement, not credit amounts
-  // Calculate paidAmount for each sale: finalTotal - debt for that sale
+  // Compute cash from sales as sum of paidAmount (actual cash received)
+  // INCLUDES: 
+  // - Full amount from CASH sales (paidAmount = finalTotal)
+  // - Advance payments from CREDIT sales (paidAmount from credit sales)
+  // Credit sale advance payments go to "espèces en caisse", not "encaissement credit client"
   let cashFromSalesNetCredit = 0;
   try {
-    const saleIds = session.sales
-      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
-      .map(s => s.id);
-    
-    if (saleIds.length > 0) {
-      // Get all DEBT transactions for sales in this session
-      const debts = await prisma.clientDebtTransaction.findMany({
-        where: { 
-          type: 'DEBT', 
-          saleId: { in: saleIds } 
+    // Get sale IDs that have DEBT transactions (these are credit sales)
+    // Query debt transactions to identify credit sales
+    const saleIdsWithDebt = new Set();
+    try {
+      const debtTxns = await prisma.clientDebtTransaction.findMany({
+        where: {
+          type: 'DEBT',
+          sale: {
+            sessionId: sessionId,
+            status: { notIn: ['CANCELLED', 'REFUNDED'] }
+          }
         },
-        select: { saleId: true, amount: true }
+        select: { saleId: true }
       });
-      
-      // Group debt by saleId
-      const debtBySaleId = {};
-      debts.forEach(t => {
-        const sid = t.saleId;
-        const amt = parseFloat(t.amount || 0) || 0;
-        if (sid) {
-          debtBySaleId[sid] = (debtBySaleId[sid] || 0) + amt;
-        }
+      debtTxns.forEach(t => {
+        if (t.saleId != null) saleIdsWithDebt.add(t.saleId);
       });
-      
-      // Calculate paidAmount for each sale and sum them up
-      session.sales
-        .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
-        .forEach(sale => {
-          const total = parseFloat(sale.finalTotal || 0) || 0;
-          const debtForSale = debtBySaleId[sale.id] || 0;
-          const paidAmount = Math.max(0, total - debtForSale);
-          cashFromSalesNetCredit += paidAmount;
-        });
+    } catch (debtErr) {
+      // If we can't query debt transactions, rely on paymentType check only
+      console.warn('[calculateSessionSummary] Could not query debt transactions for credit sale detection:', debtErr);
     }
+    
+    // Include ALL sales (both CASH and CREDIT) - use paidAmount for each
+    // For CASH sales: paidAmount = finalTotal (fully paid)
+    // For CREDIT sales: paidAmount = advance payment only (NOT the full sale amount)
+    // CRITICAL: Credit sales should NOT subtract from expected cash - only add the advance payment
+    // CRITICAL: Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
+    const allSales = session.sales.filter(s => {
+      const status = (s.status || '').toUpperCase();
+      // Exclude cancelled/refunded sales and cadeau sales
+      if (['REFUNDED','CANCELLED','CADEAU','PENDING_ADMIN'].includes(status)) return false;
+      return true;
+    });
+    
+    // Sum up paidAmount from all sales (includes advance payments from credit sales)
+    cashFromSalesNetCredit = allSales.reduce((sum, sale) => {
+      const paymentType = (sale.paymentType || '').toUpperCase();
+      const isCreditSale = paymentType === 'CREDIT' || saleIdsWithDebt.has(sale.id);
+      
+      if (isCreditSale) {
+        // For credit sales: only add the advance payment (paidAmount), NOT the full sale amount
+        // Calculate paidAmount as: finalTotal - outstanding credit
+        // Or use advancePayment field if available
+        const finalTotal = parseFloat(sale.finalTotal || 0) || 0;
+        const advancePayment = parseFloat(sale.advancePayment || 0) || 0;
+        const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
+        
+        // Use paidAmount if explicitly set, otherwise use advancePayment
+        // This ensures we only count the cash received, not the credit amount
+        const cashReceived = paidAmount > 0 ? paidAmount : advancePayment;
+        return sum + cashReceived;
+      } else {
+        // For CASH sales: use full amount (paidAmount = finalTotal)
+        const paidAmount = parseFloat(sale.paidAmount ?? sale.finalTotal ?? 0) || 0;
+        return sum + paidAmount;
+      }
+    }, 0);
   } catch (e) {
-    // Fallback: if we can't calculate paidAmount, use old method
-    const totalSalesAmount = session.sales
-      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
-      .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
-    cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
+    // Fallback: calculate from all sales
+    console.error('[calculateSessionSummary] Error computing cash from sales:', e);
+    cashFromSalesNetCredit = session.sales
+      .filter(s => !['REFUNDED','CANCELLED','CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
+      .reduce((sum, sale) => {
+        const paymentType = (sale.paymentType || '').toUpperCase();
+        const isCreditSale = paymentType === 'CREDIT';
+        
+        if (isCreditSale) {
+          // For credit sales: only add advance payment, NOT full amount
+          const advancePayment = parseFloat(sale.advancePayment || 0) || 0;
+          const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
+          const cashReceived = paidAmount > 0 ? paidAmount : advancePayment;
+          return sum + cashReceived;
+        } else {
+          // For CASH sales: use full amount
+          const paidAmount = parseFloat(sale.paidAmount ?? sale.finalTotal ?? 0) || 0;
+          return sum + paidAmount;
+        }
+      }, 0);
   }
   
   expectedCash = expectedCash + cashFromSalesNetCredit + entree - sortie;
@@ -1947,6 +2168,7 @@ async function calculateSessionSummary(sessionId) {
       .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0),
     totalTickets: session.sales.filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase())).length,
     creditOutstanding,
+    creditSalesTotal, // Total credit sales amount (sum of all DEBT transactions)
     creditAdvancePaid,
     clientPaymentsTotal,
     clientPaymentsDetails,

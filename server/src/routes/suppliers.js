@@ -1,8 +1,56 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const fs = require('fs');
+const path = require('path');
 
 const router = express.Router();
+
+// Helper function to read user roles from user-roles.json
+function readUserRoles() {
+  try {
+    const filePath = path.join(__dirname, '../uploads/user-roles.json');
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+    return {};
+  } catch (error) {
+    console.error('Error reading user roles:', error);
+    return {};
+  }
+}
+
+// Helper function to check if user has role or roleKey
+function hasRoleOrRoleKey(user, allowedRoles) {
+  // Check database role
+  if (allowedRoles.includes(user.role)) {
+    return true;
+  }
+  
+  // Check roleKey from user-roles.json
+  const userRoles = readUserRoles();
+  const roleKey = userRoles[String(user.id)];
+  if (roleKey && allowedRoles.includes(roleKey)) {
+    return true;
+  }
+  
+  return false;
+}
+
+// Middleware to require role or roleKey
+function requireRoleOrRoleKey(allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (!hasRoleOrRoleKey(req.user, allowedRoles)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    next();
+  };
+}
 
 // Get all suppliers
 router.get('/', authenticateToken, async (req, res) => {
@@ -135,7 +183,7 @@ router.get('/', authenticateToken, async (req, res) => {
       
       const allPayments = await prisma.supplierPayment.findMany({
         where: { supplierId: supplier.id },
-        select: { amount: true, notes: true }
+        select: { amount: true, notes: true, paymentMethod: true }
       });
 
       // Calculate totals using the same logic as the statement
@@ -612,7 +660,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
 
       // Build transactions array using the same logic as statement route
       const allTransactions = [
-        // 1. Bon de retour documents: calculate total from items (debit for supplier - reduces what we owe)
+        // 1. Bon de retour documents: calculate total from items (crédit fournisseur - réduit la dette)
         ...bonRetourDocuments.map(doc => {
           const totalAmount = doc.items.reduce((sum, item) => {
             const qty = Math.abs(parseFloat(item.quantity || 0));
@@ -621,11 +669,11 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           }, 0);
           return {
             date: doc.createdAt,
-            debit: totalAmount,
-            credit: 0
+            debit: 0,
+            credit: totalAmount
           };
         }),
-        // 2. Bon d'entrée documents: calculate total from items (DEBIT - crédit fournisseur/dette)
+        // 2. Bon d'entrée documents: calculate total from items (Crédit fournisseur / dette)
         ...bonEntreeDocuments.map(doc => {
           const totalAmount = doc.items.reduce((sum, item) => {
             const qty = parseFloat(item.quantity || 0);
@@ -634,8 +682,8 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           }, 0);
           return {
             date: doc.createdAt,
-            debit: totalAmount, // Crédit fournisseur en DEBIT column (dépense)
-            credit: 0
+            debit: 0,
+            credit: totalAmount // Crédit fournisseur
           };
         }),
         // 3. Debt transactions: standalone debt/payment adjustments
@@ -714,34 +762,16 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
               };
             }
           }),
-        // 5. Supplier payments: recorded as CREDIT (sortie de caisse - règlement fournisseur)
-        // Include all payments, even those linked to bon d'entrée (they appear as credit)
+        // 5. Supplier payments: positifs = débit (règlements), négatifs = crédit (avoirs)
         ...periodPayments.map(payment => {
           const amount = parseFloat(payment.amount);
-          const notes = payment.notes || '';
-          
-          // Extract bon d'entrée details from notes (same as statement logic)
-          const bonMatch = notes.match(/Bon d'entrée #(\d+)/);
-          const paidMatch = notes.match(/Payé: ([\d.]+) dt/);
-          const totalMatch = notes.match(/Total: ([\d.]+) dt/);
-          
-          if (bonMatch && paidMatch && totalMatch) {
-            // Partial payment with both paid amount and total amount
-            const paidAmount = parseFloat(paidMatch[1]);
-            return {
-              date: payment.createdAt,
-              debit: 0,
-              credit: paidAmount // Sortie de caisse en CREDIT column
-            };
-          } else {
-            // All supplier payments are credits (sortie de caisse - règlement fournisseur)
-            // Use absolute value to ensure positive credit
-            return {
-              date: payment.createdAt,
-              debit: 0,
-              credit: Math.abs(amount) // Payment is always a credit (sortie de caisse)
-            };
-          }
+          const normalized = Math.abs(amount);
+          const isCreditEntry = amount < 0 || payment.paymentMethod === 'CREDIT';
+          return {
+            date: payment.createdAt,
+            debit: isCreditEntry ? 0 : normalized,
+            credit: isCreditEntry ? normalized : 0
+          };
         })
       ];
 
@@ -800,28 +830,26 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         }
       });
 
-      let currentDebt = 0;
-      
-      // Calculate current debt from all transactions
-      allBonRetourDocs.forEach(doc => {
+      // Normalise toutes les opérations pour recalculer la dette courante
+      const normalizedBonRetour = allBonRetourDocs.map(doc => {
         const totalAmount = doc.items.reduce((sum, item) => {
           const qty = Math.abs(parseFloat(item.quantity || 0));
           const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
           return sum + (qty * price);
         }, 0);
-        currentDebt += totalAmount; // debit
+        return { debit: 0, credit: totalAmount };
       });
-      
-      allBonEntreeDocs.forEach(doc => {
+
+      const normalizedBonEntree = allBonEntreeDocs.map(doc => {
         const totalAmount = doc.items.reduce((sum, item) => {
           const qty = parseFloat(item.quantity || 0);
           const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
           return sum + (qty * price);
         }, 0);
-        currentDebt += totalAmount; // debit (increases debt - crédit fournisseur/dette)
+        return { debit: 0, credit: totalAmount };
       });
-      
-      allExpenses
+
+      const normalizedExpenses = allExpenses
         .filter(expense => {
           if (expense.notes && expense.notes.includes('Bon de retour')) {
             const bonRetourMatch = expense.notes.match(/Bon de retour (BR-[-\d]+)/);
@@ -833,11 +861,24 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
               }
             }
           }
+          if (expense.notes) {
+            const bonEntreeMatch = expense.notes.match(/Bon d'entrée #(\d+)|(BE-[-\d]+)/i);
+            if (bonEntreeMatch) {
+              const bonEntreeId = bonEntreeMatch[1];
+              const bonEntreeNumero = bonEntreeMatch[2];
+              const isDuplicate = allBonEntreeDocs.some(doc => 
+                (bonEntreeId && doc.id.toString() === bonEntreeId) ||
+                (bonEntreeNumero && doc.numero === bonEntreeNumero)
+              );
+              if (isDuplicate) {
+                return false;
+              }
+            }
+          }
           return true;
         })
-        .forEach(expense => {
+        .map(expense => {
           const totalAmount = parseFloat(expense.amount);
-          
           if (expense.isAdvance) {
             let paidAmount = 0;
             if (expense.notes && expense.notes.includes('Paiement partiel:')) {
@@ -846,28 +887,40 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
                 paidAmount = parseFloat(match[1]);
               }
             }
-            currentDebt += paidAmount - totalAmount; // debit - credit
+            return { debit: paidAmount, credit: totalAmount };
           } else if (expense.isPaid) {
-            currentDebt += totalAmount - totalAmount; // debit - credit = 0
-          } else {
-            currentDebt -= totalAmount; // credit (negative)
+            return { debit: totalAmount, credit: totalAmount };
           }
+          return { debit: 0, credit: totalAmount };
         });
-      
-      allPayments.forEach(payment => {
+
+      const normalizedPayments = allPayments.map(payment => {
         const amount = parseFloat(payment.amount);
-        // Payments as credit reduce debt (sortie de caisse)
-        currentDebt -= Math.abs(amount);
+        const normalized = Math.abs(amount);
+        const isCreditEntry = amount < 0 || payment.paymentMethod === 'CREDIT';
+        return {
+          debit: isCreditEntry ? 0 : normalized,
+          credit: isCreditEntry ? normalized : 0
+        };
       });
 
-      allDebtTransactions.forEach(transaction => {
+      const normalizedDebtTransactions = allDebtTransactions.map(transaction => {
         const amount = parseFloat(transaction.amount);
-        if (transaction.type === 'PAYMENT') {
-          currentDebt += amount; // Payment reduces debt (debit)
-        } else if (transaction.type === 'DEBT') {
-          currentDebt -= amount; // Debt increases debt (credit, negative)
-        }
+        return {
+          debit: transaction.type === 'PAYMENT' ? amount : 0,
+          credit: transaction.type === 'DEBT' ? amount : 0
+        };
       });
+
+      const ledgerEntries = [
+        ...normalizedBonRetour,
+        ...normalizedBonEntree,
+        ...normalizedExpenses,
+        ...normalizedPayments,
+        ...normalizedDebtTransactions
+      ];
+
+      const currentDebt = ledgerEntries.reduce((sum, entry) => sum + (entry.credit - entry.debit), 0);
 
       return {
         id: supplier.id,
@@ -1042,7 +1095,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
 
     // Combine and sort all transactions (opposite of client statement)
     const allTransactions = [
-      // Bon de retour documents: calculate total from items (debit for supplier - reduces what we owe)
+      // Bon de retour documents: calculate total from items (crédit fournisseur - réduit la dette)
       ...bonRetourDocuments.map(doc => {
         // Calculate total amount from items
         const totalAmount = doc.items.reduce((sum, item) => {
@@ -1057,8 +1110,8 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
           type: 'bon_retour',
           date: doc.createdAt,
           reference: reference,
-          debit: totalAmount, // Return reduces what we owe (debit)
-          credit: 0,
+          debit: 0,
+          credit: totalAmount, // Le retour crédite notre compte fournisseur
           id: doc.id,
           clickable: true,
           bonId: doc.id.toString(),
@@ -1067,8 +1120,8 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         };
       }),
       // Bon d'entrée documents: calculate total from items
-      // Always show in DEBIT (crédit fournisseur/dette) - even if paid in cash
-      // Cash payments are shown separately in CREDIT
+      // Toujours affiché en CRÉDIT (crédit fournisseur / dette), même si payé comptant.
+      // Les paiements espèces apparaissent séparément en DÉBIT.
       ...bonEntreeDocuments.map(doc => {
         // Calculate total amount from items
         const totalAmount = doc.items.reduce((sum, item) => {
@@ -1087,8 +1140,8 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
           type: 'bon_entree',
           date: doc.createdAt,
           reference: reference,
-          debit: totalAmount, // Crédit fournisseur en DEBIT column (dépense)
-          credit: 0,
+          debit: 0,
+          credit: totalAmount, // Crédit fournisseur (augmentation dette)
           id: doc.id,
           clickable: true,
           bonId: doc.id.toString(),
@@ -1201,58 +1254,48 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
           };
         }
       }),
-      // Supplier payments: only CASH payments recorded as CREDIT (sortie de caisse)
-      // Non-cash payments (CREDIT, CARD, etc.) are not shown as they don't affect cash
-      ...payments
-        .filter(payment => payment.paymentMethod === 'CASH')
-        .map(payment => {
-          const amount = parseFloat(payment.amount);
-          const notes = payment.notes || '';
-          const reference = `PAYMENT-${payment.id}`;
-          
-          // Extract bon d'entrée details from notes (same as summary logic)
-          const bonMatch = notes.match(/Bon d'entrée #(\d+)/);
-          const paidMatch = notes.match(/Payé: ([\d.]+) dt/);
-          const totalMatch = notes.match(/Total: ([\d.]+) dt/);
-          
-          if (bonMatch && paidMatch && totalMatch) {
-            // Partial payment with both paid amount and total amount
-            const paidAmount = parseFloat(paidMatch[1]);
-            return {
-              type: 'payment',
-              date: payment.createdAt,
-              reference: reference,
-              debit: 0,
-              credit: paidAmount, // Sortie de caisse en CREDIT column
-              id: payment.id,
-              clickable: true,
-              bonId: null,
-              description: payment.notes || 'Règlement fournisseur'
-            };
-          } else {
-            // Cash payments are credits (sortie de caisse - règlement fournisseur)
-            // Use absolute value to ensure positive credit
-            return {
-              type: 'payment',
-              date: payment.createdAt,
-              reference: reference,
-              debit: 0,
-              credit: Math.abs(amount), // Cash payment is a credit (sortie de caisse)
-              id: payment.id,
-              clickable: true,
-              bonId: null,
-              description: payment.notes || 'Règlement fournisseur'
-            };
-          }
-        })
+      // Supplier payments: positive amounts = débit (règlement), negative amounts = crédit (crédits fournisseur)
+      ...payments.map(payment => {
+        const rawAmount = parseFloat(payment.amount);
+        const amount = Math.abs(rawAmount);
+        const reference = `PAYMENT-${payment.id}`;
+        const notes = payment.notes || '';
+        const isCreditEntry = rawAmount < 0 || payment.paymentMethod === 'CREDIT';
+
+        if (isCreditEntry) {
+          return {
+            type: 'credit',
+            date: payment.createdAt,
+            reference,
+            debit: 0,
+            credit: amount,
+            id: payment.id,
+            clickable: true,
+            bonId: null,
+            description: notes || 'Crédit fournisseur'
+          };
+        }
+
+        return {
+          type: 'payment',
+          date: payment.createdAt,
+          reference,
+          debit: amount,
+          credit: 0,
+          id: payment.id,
+          clickable: true,
+          bonId: null,
+          description: notes || 'Règlement fournisseur'
+        };
+      })
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     // Calculate running balance
-    // - Bon d'entrée (DEBIT) increases debt (crédit fournisseur/dette - dépense)
-    // - Payments (CREDIT) reduce debt (sortie de caisse - what we pay)
-    // Balance = debit - credit (standard accounting)
+    // - Crédit (bon d'entrée, crédit fournisseur, etc.) augmente la dette
+    // - Débit (règlements) réduit la dette
+    // Balance = credit - debit
     allTransactions.forEach(transaction => {
-      balance += transaction.debit - transaction.credit;
+      balance += transaction.credit - transaction.debit;
       statement.push({
         ...transaction,
         balance: balance
@@ -1277,7 +1320,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
 });
 
 // Initialize supplier solde (set currentDebt to custom amount)
-router.post('/:id/solde/init', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.post('/:id/solde/init', authenticateToken, requireRoleOrRoleKey(['ADMIN', 'MANAGER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, notes } = req.body;

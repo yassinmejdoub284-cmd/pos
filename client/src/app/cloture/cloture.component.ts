@@ -59,7 +59,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   private zReportSales = signal<Array<any>>([]);
 
   // Cash sales detail state
-  cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number; status?: string; dailyTicketNumber?: number | string }[]>([]);
+  cashSalesDetails = signal<{ id: number; paidAmount: number; totalAmount: number; discount?: number; status?: string; dailyTicketNumber?: number | string }[]>([]);
   cashSalesLoading = signal(false);
   // UI local toggles for cash sales "voir plus"
   cashMoreMainFlag = false;
@@ -171,11 +171,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Espèces en Caisse: list each cash-paid ticket (paidAmount), excluding canceled tickets
+    // Espèces en Caisse: list each cash-paid ticket (paidAmount), excluding canceled, refunded, and gift tickets
     for (const t of this.cashSalesDetails()) {
       const status = (t.status || '').toUpperCase();
-      // Exclude canceled and refunded tickets from encaissement
-      if ((status === 'CANCELLED' || status === 'REFUNDED')) {
+      // Exclude canceled, refunded, and gift tickets (CADEAU) from encaissement
+      // Gift tickets have amount = 0 and should not be counted in encaissement
+      if ((status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN')) {
         continue;
       }
       if ((t.paidAmount || 0) > 0) {
@@ -416,8 +417,21 @@ export class ClotureComponent implements OnInit, OnDestroy {
   private lastLoadedSessionId: number | null = null;
 
   // Crédit and supplier payments helpers - converted to computed signal for auto-updates
+  // Use getTotalCreditFromDetails() to ensure consistency with displayed credit sales details
   creditAmount = computed(() => {
     const session = this.currentSession();
+    if (!session) return 0;
+    
+    // Calculate from credit sales details (ensures accuracy and consistency)
+    const details = this.getCreditSalesDetails();
+    const totalFromDetails = details.reduce((sum, credit) => sum + credit.amount, 0);
+    
+    // If we have details and they sum to a value, use that
+    if (details.length > 0 && totalFromDetails > 0) {
+      return totalFromDetails;
+    }
+    
+    // Fallback to summary values if details aren't available yet
     const summary: any = session?.summary || {};
     const direct = parseFloat(summary.creditOutstanding || 0) || 0;
     if (direct > 0) return direct;
@@ -428,6 +442,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
   // Keep method for backward compatibility
   getCreditAmount(): number {
     return this.creditAmount();
+  }
+
+  // Calculate total credit from individual credit sales details (ensures consistency with displayed rows)
+  getTotalCreditFromDetails(): number {
+    const details = this.getCreditSalesDetails();
+    return details.reduce((sum, credit) => sum + credit.amount, 0);
   }
 
   // Get detailed breakdown of credit sales (where the credit amount comes from)
@@ -448,15 +468,17 @@ export class ClotureComponent implements OnInit, OnDestroy {
       if (paymentType === 'CREDIT' && !['CANCELLED', 'REFUNDED'].includes(status)) {
         const saleTotal = parseFloat(sale.finalTotal || 0) || 0;
         
-        // Get debt transactions for this sale (from summary or calculate)
-        // The outstanding amount should be: DEBT - PAYMENT
-        // For now, we'll use: finalTotal - paidAmount (advance payment)
-        // But ideally we should get the actual DEBT transactions minus PAYMENT transactions
-        const paidAmount = parseFloat(sale.paidAmount || sale.advancePayment || 0) || 0;
+        // The server calculates paidAmount as: finalTotal - DEBT transactions
+        // For credit sales: paidAmount = finalTotal - outstandingDebt
+        // So outstanding credit = finalTotal - paidAmount = outstandingDebt
+        // This matches the server's creditOutstanding calculation: sum(DEBT) - sum(PAYMENT)
+        // Use paidAmount if available (calculated by server from DEBT transactions)
+        // Otherwise fall back to advancePayment
+        const paidAmount = parseFloat(sale.paidAmount ?? sale.advancePayment ?? 0) || 0;
         
-        // Calculate outstanding: total - paid
-        // Note: This is a simplified calculation. The server calculates it more accurately
-        // by subtracting PAYMENT transactions from DEBT transactions
+        // Calculate outstanding credit: total sale amount minus what was paid
+        // This matches the server calculation where outstanding = DEBT - PAYMENT
+        // For display: outstanding = saleTotal - paidAmount
         const outstanding = Math.max(0, saleTotal - paidAmount);
         
         // Only include if there's outstanding credit
@@ -477,7 +499,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
             clientName,
             amount: outstanding, // This is the outstanding credit amount
             saleTotal,
-            paidAmount,
+            paidAmount, // Show the actual paid amount
             date: sale.createdAt || session.openedAt
           });
         }
@@ -794,7 +816,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 
-  // Computed signal for total sales (sum of all ticket totals) - matches tickets modal calculation
+  // Computed signal for total sales (sum of all ticket totals) - includes all sales including credit sales
   // Auto-updates when session or sales data changes
   totalSalesTTC = computed(() => {
     // Use Z report sales data (same as tickets modal) if available, otherwise fall back to session sales
@@ -802,16 +824,18 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const session = this.currentSession();
     const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
     
-    // Sum up all ticket amounts using same logic as tickets modal: paidAmount ?? finalTotal ?? amount ?? 0
-    // Exclude canceled and refunded tickets from total sales
+    // Sum up all ticket amounts - use finalTotal to include full sale amount for credit sales
+    // Exclude canceled, refunded, and gift tickets (CADEAU) from total sales TTC
     return sales.reduce((total: number, sale: any) => {
       const status = (sale.status || '').toUpperCase();
-      // Exclude canceled and refunded tickets from total sales TTC
-      if (status === 'CANCELLED' || status === 'REFUNDED') {
+      // Exclude canceled, refunded, and gift tickets from total sales TTC
+      // Gift tickets (CADEAU) have amount = 0 and should not be counted in sales
+      if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
         return total;
       }
-      // Use same calculation as openTicketsModal: paidAmount ?? finalTotal ?? amount ?? 0
-      const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
+      // Use finalTotal first to include full sale amount (including credit sales)
+      // Fallback to paidAmount or amount if finalTotal is not available
+      const amount = parseFloat((sale.finalTotal ?? sale.paidAmount ?? sale.amount ?? 0) as any) || 0;
       return total + amount;
     }, 0);
   });
@@ -829,11 +853,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
     // Get sales data from session
     const sales = (session as any)?.sales || [];
     
-    // Sum up all paid amounts (cash portions of sales), excluding canceled tickets
+    // Sum up all paid amounts (cash portions of sales), excluding canceled tickets and cadeau tickets
     return sales.reduce((total: number, sale: any) => {
       const status = (sale.status || '').toUpperCase();
-      // Exclude canceled and refunded tickets from encaissement
-      if (status === 'CANCELLED' || status === 'REFUNDED') {
+      // Exclude canceled, refunded, and cadeau tickets from encaissement
+      // Cadeau tickets have amount = 0 and should only affect stock movements
+      if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
         return total;
       }
       const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
@@ -950,8 +975,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
     
     sales.forEach((sale: any) => {
       const status = (sale.status || '').toUpperCase();
-      // Exclude canceled and refunded tickets from user sales summary
-      if (status === 'CANCELLED' || status === 'REFUNDED') {
+      // Exclude canceled, refunded, and gift tickets from user sales summary
+      // Gift tickets (CADEAU) should not be counted in sales
+      if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
         return;
       }
       
@@ -1057,6 +1083,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
       next: (report: any) => {
         const sales = (report?.session?.sales || []) as Array<any>;
         const cashSales = sales.filter(s => {
+          const status = (s.status || '').toUpperCase();
+          // Exclude canceled, refunded, and gift tickets (CADEAU) from cash sales
+          // Gift tickets have amount = 0 and should not be counted in encaissement
+          if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
+            return false;
+          }
+          
           const method = ((s.paymentMethod?.type || '') as string).toUpperCase();
           const paid = parseFloat(s.paidAmount ?? 0) || 0;
           const total = parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0;
@@ -1087,6 +1120,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
           id: s.id,
           paidAmount: parseFloat(s.paidAmount ?? 0) || 0,
           totalAmount: parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0,
+          discount: parseFloat(s.discount ?? 0) || 0,
           createdAt: s.createdAt,
           status: (s.status || statusById.get(s.id) || '').toString(),
           dailyTicketNumber: (s as any)?.dailyTicketNumber

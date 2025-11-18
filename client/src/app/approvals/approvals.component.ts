@@ -7,6 +7,7 @@ import { ApprovalsService, ChangeRequest, ClotureRejectReasonCode } from '../cor
 import { SessionsService, SessionSummary, OpenSessionRequest } from '../core/services/sessions.service';
 import { HttpClient } from '@angular/common/http';
 import { ReturnsService, ReturnRequest } from '../core/services/returns.service';
+import { AuthService } from '../core/services/auth.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
@@ -84,7 +85,8 @@ export class ApprovalsComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private http: HttpClient,
-    private returnsService: ReturnsService
+    private returnsService: ReturnsService,
+    private authService: AuthService
   ) {}
 
   // Get withdrawal amount from session data
@@ -240,15 +242,33 @@ export class ApprovalsComponent implements OnInit {
         this.varianceRequests = requests;
         // Load concise Z-report data for each session to display extract info
         requests.forEach((req) => {
-          const sessionId = req.session?.id || req.entityId;
+          // Only load report if session exists in the request
+          if (!req.session || !req.session.id) {
+            return; // Skip if session doesn't exist (orphaned change request)
+          }
+          
+          const sessionId = req.session.id;
+          // Only use depotId from session if available - don't fallback to user's depotId
+          // as it might not match the session's actual depot
+          const sessionDepotId = req.session.depotId;
+          // For admins, don't pass depotId to allow access to sessions from any depot
+          // For non-admins, use the session's depotId if available
+          const isAdmin = this.authService.isAdmin();
+          const depotId = isAdmin ? undefined : sessionDepotId;
+          
           if (sessionId && !this.clotureSummaries[sessionId]) {
-            this.sessionsService.getSessionReport(sessionId, 'Z', 'html').subscribe({
+            this.sessionsService.getSessionReport(sessionId, 'Z', 'html', depotId).subscribe({
               next: (report) => {
                 this.clotureSummaries[sessionId] = report;
               },
               error: (error) => {
-                console.warn(`Failed to load session report for session ${sessionId}:`, error);
+                // Only log 404 errors if they're not expected (e.g., session deleted)
+                if (error.status !== 404) {
+                  console.warn(`Failed to load session report for session ${sessionId} (depotId: ${depotId || 'not specified'}, sessionDepotId: ${sessionDepotId || 'not available'}):`, error);
+                }
                 // Don't show error to user as this is just for display enhancement
+                // Mark as attempted to avoid retrying
+                this.clotureSummaries[sessionId] = null;
               }
             });
           }
@@ -271,15 +291,33 @@ export class ApprovalsComponent implements OnInit {
             );
             // Load Z-report data for history requests too
             this.historyRequests.forEach((req) => {
-              const sessionId = req.session?.id || req.entityId;
+              // Only load report if session exists in the request
+              if (!req.session || !req.session.id) {
+                return; // Skip if session doesn't exist (orphaned change request)
+              }
+              
+              const sessionId = req.session.id;
+              // Only use depotId from session if available - don't fallback to user's depotId
+              // as it might not match the session's actual depot
+              const sessionDepotId = req.session.depotId;
+              // For admins, don't pass depotId to allow access to sessions from any depot
+              // For non-admins, use the session's depotId if available
+              const isAdmin = this.authService.isAdmin();
+              const depotId = isAdmin ? undefined : sessionDepotId;
+              
               if (sessionId && !this.clotureSummaries[sessionId]) {
-                this.sessionsService.getSessionReport(sessionId, 'Z', 'html').subscribe({
+                this.sessionsService.getSessionReport(sessionId, 'Z', 'html', depotId).subscribe({
                   next: (report) => {
                     this.clotureSummaries[sessionId] = report;
                   },
                   error: (error) => {
-                    console.warn(`Failed to load session report for session ${sessionId}:`, error);
+                    // Only log 404 errors if they're not expected (e.g., session deleted)
+                    if (error.status !== 404) {
+                      console.warn(`Failed to load session report for session ${sessionId} (depotId: ${depotId || 'not specified'}, sessionDepotId: ${sessionDepotId || 'not available'}):`, error);
+                    }
                     // Don't show error to user as this is just for display enhancement
+                    // Mark as attempted to avoid retrying
+                    this.clotureSummaries[sessionId] = null;
                   }
                 });
               }

@@ -142,5 +142,10 @@ export const routes: Routes = [
     path: 'factures', 
     canActivate: [authGuard],
     loadChildren: () => import('./factures/factures.module').then(m => m.FacturesModule) 
+  },
+  { 
+    path: 'extrait-par-article', 
+    canActivate: [authGuard],
+    loadChildren: () => import('./extrait-par-article/extrait-par-article.module').then(m => m.ExtraitParArticleModule) 
   }
 ];

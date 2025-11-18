@@ -250,9 +250,14 @@
                     <div class="text-slate-600"
                       [ngClass]="(($any(s).status || '').toUpperCase() === 'CANCELLED') ? 'line-through decoration-2 decoration-gray-700' : ''">
                       {{ ($any(s).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ getTicketDisplayNo(s) }}
+                      @if ((s.discount || 0) > 0) {
+                      <span
+                        class="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 ml-1">{{
+                        formatCurrency(s.discount || 0) }} (remise)</span>
+                      }
                       @if (s.totalAmount !== s.paidAmount) {
                       <span
-                        class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">{{
+                        class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200 ml-1">{{
                         formatCurrency(s.totalAmount - s.paidAmount) }} (crédit)</span>
                       }
                     </div>
@@ -580,9 +585,15 @@
             <div class="flex items-center justify-between py-1 text-sm cursor-pointer" (click)="openTicketDetails(s.id)">
                   <div class="text-slate-600"
                     [ngClass]="(['REFUNDED','CANCELLED'].includes(($any(s).status || '').toUpperCase())) ? 'line-through decoration-2 decoration-gray-800' : ''">
-                    Ticket #{{ getTicketDisplayNo(s) }} @if (s.totalAmount !== s.paidAmount) {
+                    Ticket #{{ getTicketDisplayNo(s) }}
+                    @if ((s.discount || 0) > 0) {
                     <span
-                      class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">{{
+                      class="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 ml-1">{{
+                      formatCurrency(s.discount || 0) }} (remise)</span>
+                    }
+                    @if (s.totalAmount !== s.paidAmount) {
+                    <span
+                      class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200 ml-1">{{
                       formatCurrency(s.totalAmount - s.paidAmount) }} (crédit)</span>
                     }
                   </div>
@@ -886,9 +897,14 @@
               @if (i < 2 || cashMoreExpandedFlag) { <div class="flex items-center justify-between py-1 text-sm cursor-pointer" (click)="openTicketDetails(s.id)">
                 <div class="text-slate-600">
                    {{ ($any(s).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ getTicketDisplayNo(s) }}
+                  @if ((s.discount || 0) > 0) {
+                  <span
+                    class="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 ml-1">{{
+                    formatCurrency(s.discount || 0) }} (remise)</span>
+                  }
                   @if (s.totalAmount !== s.paidAmount) {
                   <span
-                    class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">{{
+                    class="text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200 ml-1">{{
                     formatCurrency(s.totalAmount - s.paidAmount) }} (crédit)</span>
                   }
                 </div>
@@ -1345,7 +1361,7 @@
     <div class="p-4 border-b flex items-center justify-between bg-amber-50">
       <div>
         <h3 class="text-lg font-semibold text-amber-800">Détail des Ventes en Crédit</h3>
-        <p class="text-xs text-amber-600">Total: {{ formatCurrency(creditAmount()) }}</p>
+        <p class="text-xs text-amber-600">Total: {{ formatCurrency(getTotalCreditFromDetails()) }}</p>
       </div>
       <button (click)="showCreditDetailsModal = false" class="text-amber-600 hover:text-amber-800" aria-label="Fermer">✕</button>
     </div>
@@ -1380,7 +1396,7 @@
           <tfoot class="bg-amber-100">
             <tr>
               <td colspan="4" class="px-3 py-2 text-right font-semibold text-amber-800">Total Crédit:</td>
-              <td class="px-3 py-2 text-right font-bold text-amber-900">{{ formatCurrency(creditAmount()) }}</td>
+              <td class="px-3 py-2 text-right font-bold text-amber-900">{{ formatCurrency(getTotalCreditFromDetails()) }}</td>
             </tr>
           </tfoot>
         </table>

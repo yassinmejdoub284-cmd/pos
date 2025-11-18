@@ -30,6 +30,7 @@ router.get('/change-requests', authenticateToken, async (req, res) => {
           where: { id: cr.entityId },
           select: {
             id: true,
+            depotId: true,
             openedAt: true,
             closedAt: true,
             variance: true,

@@ -2716,6 +2716,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
         this.currentCustomer = 'PASSAGER';
         this.invoiceMode = false;
         
+        // Reset filter to "Tous" after successful sale
+        this.selectedCategory = 'Tous';
+        this.filterProducts();
+        
         // Only show success alert if not suppressed
         if (!suppressAlert) {
           this.showAlertMessage('Vente validée avec succès!', 'success');
@@ -3340,6 +3344,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
         // Refresh shop inventory to show updated stock quantities
         this.loadShopInventory();
         
+        // Reset filter to "Tous" after finalizing temporary sale
+        this.selectedCategory = 'Tous';
+        this.filterProducts();
+        
         this.closeTemporarySalePayment();
         this.loadPendingTemporarySalesCount(); // Refresh the count
         // Refresh the existing temporary sales list to remove the finalized sale
@@ -3435,6 +3443,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     if (!activeCart) return;
     
     // Create gift sale data
+    // Use currentShopDepotId to ensure stock is removed from the correct depot
     const giftSaleData = {
       items: activeCart.items.map(item => ({
         productId: item.product.id,
@@ -3448,14 +3457,15 @@ export class CaisseComponent implements OnInit, OnDestroy {
       finalTotal: 0, // Gift is free
       reason: this.giftReason,
       recipient: this.giftRecipient,
-      status: 'PENDING_ADMIN',
-      clientId: activeCart.clientId || undefined
+      status: 'PENDING_ADMIN', // Send for approval - stock will be removed only after approval
+      clientId: activeCart.clientId || undefined,
+      depotId: this.currentShopDepotId || undefined // Pass depotId to ensure stock is removed from correct depot
     };
     
     // Save gift sale to backend
     this.salesService.createGiftSale(giftSaleData).subscribe({
       next: (savedSale) => {
-        this.showAlertMessage('Demande de cadeau envoyée pour approbation!', 'success');
+        this.showAlertMessage('Demande de cadeau envoyée pour approbation! Le stock a été retiré.', 'success');
         
         // Auto-remove client after successful gift sale (except Client 1)
         this.autoRemoveClientAfterPayment(activeCart.id);
@@ -3463,6 +3473,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
         this.giftReason = '';
         this.giftRecipient = '';
         this.loadPendingGiftSalesCount(); // Refresh the count
+        
+        // Refresh shop inventory to show updated stock quantities
+        this.loadShopInventory();
+        
+        // Reset filter to "Tous" after successful gift sale
+        this.selectedCategory = 'Tous';
+        this.filterProducts();
       },
       error: (error) => {
         console.error('Error saving gift sale:', error);
@@ -3532,6 +3549,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
         this.showAlertMessage('Cadeau approuvé avec succès!', 'success');
         this.loadExistingGiftSales(); // Refresh the list
         this.loadPendingGiftSalesCount(); // Refresh the count
+        
+        // Refresh shop inventory to show updated stock quantities after approval
+        this.loadShopInventory();
       },
       error: (error) => {
         console.error('Error approving gift sale:', error);
@@ -4730,7 +4750,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   getShopStock(productId: number): number {
     const inventoryItem = this.shopInventory.find(item => item.productId === productId);
-    return inventoryItem ? parseFloat(inventoryItem.quantity) : 0;
+    return inventoryItem ? this.roundQuantity(parseFloat(inventoryItem.quantity)) : 0;
   }
 
   getRemainingStock(productId: number): number {
@@ -4744,7 +4764,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       .filter(item => item.product.id === productId)
       .reduce((total, item) => total + item.quantity, 0);
     
-    return currentStock - cartQuantity;
+    return this.roundQuantity(currentStock - cartQuantity);
   }
 
   getStockStatus(productId: number): 'sufficient' | 'low' | 'out' {
@@ -6409,6 +6429,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
             this.loadInvoiceRequests();
             // Clear the cart since the sale is now completed
             this.clearCart(this.activeCartId);
+            // Reset filter to "Tous" after successful sale
+            this.selectedCategory = 'Tous';
+            this.filterProducts();
           },
           error: (error) => {
             console.error('Error requesting invoice:', error);

@@ -63,6 +63,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   showHistoriqueChoiceDialog = signal(false);
   showCompanySwitchDialog = signal(false);
   companySwitchData = signal<{ companyName: string; logoUrl?: string | null } | null>(null);
+  showExtraitDepotDialog = signal(false);
   
   // Settings
   appSettings = signal<AppSettings | null>(null);
@@ -267,6 +268,16 @@ export class HomeComponent implements OnInit, OnDestroy {
       gradient: 'from-indigo-50 to-blue-100',
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
     },
+    {
+      id: 'extrait-par-article',
+      title: 'Extrait par Article',
+      description: 'Rapport par article',
+      route: '/extrait-par-article',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      color: 'from-teal-500 to-cyan-600',
+      gradient: 'from-teal-50 to-cyan-100',
+      roles: ['ADMIN', 'MANAGER']
+    },
     // {
     //   id: 'stock-management',
     //   title: 'Gestion de Stock',
@@ -300,6 +311,9 @@ export class HomeComponent implements OnInit, OnDestroy {
       const u: any = this.currentUser();
       const roleKey = u?.roleKey || u?.role;
     } catch {}
+    // Clear cached actions on init to ensure fresh filtering
+    this._cachedFilteredActions = [];
+    this._lastUserRole = null;
     this.updateGreeting();
     this.loadDashboardStats();
     this.loadSettings();
@@ -520,8 +534,21 @@ export class HomeComponent implements OnInit, OnDestroy {
       if (roleAccessBlocks && Object.keys(roleAccessBlocks).length > 0) {
         // Strict: only show modules explicitly marked visible for this role key
         const visibleIds = Object.keys(roleAccessBlocks).filter(k => roleAccessBlocks[k]?.visible === true);
+        // If extrait-par-article is not in visibleIds but user has ADMIN/MANAGER role, include it
+        const userRole = currentUser?.role || '';
+        const shouldIncludeExtrait = (userRole === 'ADMIN' || userRole === 'MANAGER') && 
+                                     !visibleIds.includes('extrait-par-article') &&
+                                     this.quickActions.find(a => a.id === 'extrait-par-article');
+        
+        if (shouldIncludeExtrait) {
+          visibleIds.push('extrait-par-article');
+          console.log('Adding extrait-par-article to visible modules for', userRole);
+        }
+        
         this._cachedFilteredActions = this.quickActions.filter(a => visibleIds.includes(a.id));
         console.log('Filtered actions (roleAccessConfig):', this._cachedFilteredActions.map(a => a.id), 'visibleIds:', visibleIds);
+        console.log('All quickActions IDs:', this.quickActions.map(a => a.id));
+        console.log('extrait-par-article in quickActions:', this.quickActions.find(a => a.id === 'extrait-par-article'));
       } else {
         // Fallback: filter by roles defined in each action
         const userRole = currentUser?.role || '';
@@ -530,6 +557,8 @@ export class HomeComponent implements OnInit, OnDestroy {
           return a.roles.includes(userRole);
         });
         console.log('Filtered actions (fallback):', this._cachedFilteredActions.map(a => a.id));
+        console.log('User role:', userRole);
+        console.log('extrait-par-article module:', this.quickActions.find(a => a.id === 'extrait-par-article'));
       }
     }
 
@@ -602,6 +631,10 @@ export class HomeComponent implements OnInit, OnDestroy {
     } else if (route === '/pointage') {
       // Direct navigation to historique pointage (no dialog)
       this.router.navigate(['/pointage']);
+    } else if (route === '/extrait-par-article') {
+      // Show depot selection dialog for extrait par article
+      this.showExtraitDepotDialog.set(true);
+      this.cdr.detectChanges();
     } else {
       this.router.navigate([route]);
     }
@@ -618,6 +651,15 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   onHistoriqueChoiceClosed(): void {
     this.showHistoriqueChoiceDialog.set(false);
+  }
+
+  onExtraitDepotSelected(depotId: string): void {
+    this.showExtraitDepotDialog.set(false);
+    this.router.navigate(['/extrait-par-article', depotId]);
+  }
+
+  onExtraitDepotDialogClosed(): void {
+    this.showExtraitDepotDialog.set(false);
   }
 
   onExpenseActionSelected(actionId: string): void {
@@ -838,6 +880,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.logoLoadError.set(false); // Reset error state when loading new settings
         // Invalidate cached actions so filtering re-evaluates with fresh settings
         this._cachedFilteredActions = [];
+        this._lastUserRole = null; // Also reset role to force re-evaluation
         this.cdr.markForCheck();
 
         // Attempt to enrich with enterprise (company) data of the user's depot

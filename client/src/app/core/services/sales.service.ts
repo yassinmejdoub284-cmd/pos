@@ -70,6 +70,7 @@ export interface CreateGiftSaleRequest {
   recipient: string;
   status: string;
   clientId?: number;
+  depotId?: number; // Optional: specify depotId for stock operations
 }
 
 @Injectable({
@@ -154,6 +155,11 @@ export class SalesService {
 
   rejectGiftSale(saleId: number): Observable<Sale> {
     return this.http.put<Sale>(`${this.apiUrl}/gift/${saleId}/reject`, {});
+  }
+
+  fixGiftStock(force: boolean = false): Observable<{ success: boolean; forceMode: boolean; summary: { total: number; fixed: number; skipped: number; errors: number; totalItemsProcessed: number; totalStockRemoved: number }; errors?: any[] }> {
+    const url = force ? `${this.apiUrl}/gift/fix-stock?force=true` : `${this.apiUrl}/gift/fix-stock`;
+    return this.http.post<{ success: boolean; forceMode: boolean; summary: { total: number; fixed: number; skipped: number; errors: number; totalItemsProcessed: number; totalStockRemoved: number }; errors?: any[] }>(url, {});
   }
 
   getTodaysSales(): Observable<Sale[]> {

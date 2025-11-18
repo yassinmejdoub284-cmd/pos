@@ -608,4 +608,20 @@ export class ClientsComponent implements OnInit, OnDestroy {
   isSortActive(field: string): boolean {
     return this.sortBy === field;
   }
+
+  // Statistics getters
+  get activeClientsCount(): number {
+    return this.clients.filter(c => c.isActive).length;
+  }
+
+  get inactiveClientsCount(): number {
+    return this.clients.filter(c => !c.isActive).length;
+  }
+
+  getTotalDebt(): number {
+    return this.clients.reduce((total, client) => {
+      const debt = typeof client.currentDebt === 'number' ? client.currentDebt : parseFloat(String(client.currentDebt || 0));
+      return total + (isNaN(debt) ? 0 : debt);
+    }, 0);
+  }
 } 

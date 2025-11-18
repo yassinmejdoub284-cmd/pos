@@ -908,7 +908,56 @@ export class PrintService {
     const totalWidth = 30;
     const usedSpace = 'TOTAL:'.length + totalAmount.length;
     const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
-    escpos += 'TOTAL:' + dots + totalAmount + '\n\n';
+    escpos += 'TOTAL:' + dots + totalAmount + '\n';
+    
+    // Calculate total discounts (remise) from all sales
+    const totalDiscount = sales.reduce((sum: number, sale: any) => {
+      const discount = parseFloat(sale.discount || 0) || 0;
+      return sum + discount;
+    }, 0);
+    
+    if (totalDiscount > 0) {
+      const discountAmount = this.formatCurrency(totalDiscount);
+      const discountUsedSpace = 'Total remise:'.length + discountAmount.length;
+      const discountDots = '.'.repeat(Math.max(1, totalWidth - discountUsedSpace));
+      escpos += 'Total remise:' + discountDots + discountAmount + '\n';
+    }
+    
+    escpos += '\n';
+    
+    // Show cancelled tickets section
+    const allSales: any[] = sessionReport?.session?.sales || [];
+    const cancelledTickets = allSales.filter((s: any) => {
+      const status = String(s?.status || '').toUpperCase();
+      return status === 'CANCELLED';
+    });
+    
+    if (cancelledTickets.length > 0) {
+      escpos += '================================\n';
+      escpos += '      TICKETS ANNULÉS\n';
+      escpos += '================================\n';
+      
+      let totalCancelledAmount = 0;
+      cancelledTickets.forEach((ticket: any) => {
+        const ticketNumber = ticket.dailyTicketNumber || ticket.sessionTicketNumber || ticket.ticketNumber || ticket.id;
+        const ticketAmount = parseFloat(ticket.finalTotal || ticket.total || 0) || 0;
+        totalCancelledAmount += ticketAmount;
+        
+        const ticketLabel = `Ticket #${ticketNumber}:`;
+        const amountStr = this.formatCurrency(ticketAmount);
+        const labelWidth = ticketLabel.length;
+        const spacesNeeded = Math.max(1, totalWidth - labelWidth - amountStr.length);
+        const spaces = ' '.repeat(spacesNeeded);
+        escpos += ticketLabel + spaces + amountStr + '\n';
+      });
+      
+      escpos += '-------------------------------\n';
+      const cancelledTotalStr = this.formatCurrency(totalCancelledAmount);
+      const cancelledTotalUsedSpace = 'Total annulé:'.length + cancelledTotalStr.length;
+      const cancelledTotalDots = '.'.repeat(Math.max(1, totalWidth - cancelledTotalUsedSpace));
+      escpos += 'Total annulé:' + cancelledTotalDots + cancelledTotalStr + '\n';
+      escpos += '\n';
+    }
 
     // Sales summary by payment method removed per request
 
@@ -923,12 +972,15 @@ export class PrintService {
     const totalSales = summary.totalSales || 0;
     const financialOpeningFund = session.openingFund || 0;
     
-    const financialTotalWidth = 30;
+    const financialTotalWidth = 32; // Increased width for better alignment
+    const dtColumnPosition = 28; // Fixed position for DT column
     
     const formatFinancialLine = (label: string, amount: number) => {
       const amountStr = this.formatCurrency(amount);
-      const usedSpace = label.length + amountStr.length - 1;
-      const spaces = ' '.repeat(Math.max(1, financialTotalWidth - usedSpace));
+      // Calculate spaces needed to align DT at fixed column position
+      const labelWidth = label.length;
+      const spacesNeeded = Math.max(1, dtColumnPosition - labelWidth - amountStr.length);
+      const spaces = ' '.repeat(spacesNeeded);
       return label + spaces + amountStr;
     };
     
@@ -950,9 +1002,21 @@ export class PrintService {
     };
     
     const getCashFromSalesNetOfCredit = () => {
-      const totalSales = parseFloat(summary.totalSales || 0) || 0;
-      const credit = parseFloat(summary.creditOutstanding || 0) || 0;
-      return Math.max(0, totalSales - credit);
+      // Calculate cash from sales using paidAmount from each sale (more accurate)
+      // This matches the server calculation which uses paidAmount for each sale
+      const sales: any[] = (sessionReport?.session?.sales || []) as any[];
+      const cashFromSales = sales
+        .filter(s => {
+          const status = (s.status || '').toUpperCase();
+          return status !== 'CANCELLED' && status !== 'REFUNDED';
+        })
+        .reduce((sum: number, sale: any) => {
+          // Use paidAmount if available (includes advance payments from credit sales)
+          // Otherwise use finalTotal for cash sales
+          const paidAmount = parseFloat(sale.paidAmount ?? sale.finalTotal ?? 0) || 0;
+          return sum + paidAmount;
+        }, 0);
+      return cashFromSales;
     };
     
     const getFundingsTotal = () => {
@@ -1003,27 +1067,103 @@ export class PrintService {
     escpos += formatFinancialLine('Enc. client:', getClientPaymentsTotal()) + '\n';
     escpos += formatFinancialLine('Acomptes sur Cmd.:', getTotalOrderAdvances()) + '\n';
     escpos += formatFinancialLine('Alim. de caisse:', getFundingsTotal()) + '\n';
-    escpos += formatFinancialLine('Espèces en caisse:', getCashFromSalesNetOfCredit()) + '\n';
+    // Espèces en caisse: total encaissement (sum of all encaissement items)
+    const totalEncaissement = getClientPaymentsTotal() + getTotalOrderAdvances() + getFundingsTotal() + getCashFromSalesNetOfCredit();
+    escpos += formatFinancialLine('Espèces en caisse:', totalEncaissement) + '\n';
     
     // Calculate detailed décaissements
     const getExpensesTotal = () => {
+      // First try to use server-provided expensesTotal from summary (most accurate)
+      const summaryExpensesTotal = parseFloat((summary as any)?.expensesTotal || 0) || 0;
+      if (summaryExpensesTotal > 0) {
+        return summaryExpensesTotal;
+      }
+      
+      // Fallback: calculate from expensesDetails if available
+      const expensesDetails = (summary as any)?.expensesDetails || [];
+      if (expensesDetails.length > 0) {
+        return expensesDetails.reduce((sum: number, e: any) => {
+          const amount = parseFloat(e.amount || 0) || 0;
+          return sum + amount;
+        }, 0);
+      }
+      
+      // Final fallback: calculate from cash movements that are specifically expenses
       const movements = session.cashMovements || [];
       return movements
-        .filter((m: any) => m.type === 'SORTIE' && 
-          !(m.reason || '').toLowerCase().includes('fournisseur') &&
-          !(m.reason || '').toLowerCase().includes('supplier') &&
-          !(m.reason || '').toLowerCase().includes('remboursement') &&
-          !(m.reason || '').toLowerCase().includes('bon de retour'))
+        .filter((m: any) => {
+          const reasonLower = (m.reason || '').toLowerCase();
+          return m.type === 'SORTIE' && 
+                 (reasonLower.includes('dépense') || reasonLower.includes('depense')) &&
+                 !reasonLower.includes('fournisseur') &&
+                 !reasonLower.includes('supplier') &&
+                 !reasonLower.includes('remboursement') &&
+                 !reasonLower.includes('bon de retour');
+        })
         .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
     };
 
-    // Calculate return refunds
+    // Get cancelled ticket IDs
+    const getCancelledTicketIds = () => {
+      const allSales: any[] = sessionReport?.session?.sales || [];
+      return new Set(
+        allSales
+          .filter((s: any) => {
+            const status = String(s?.status || '').toUpperCase();
+            return status === 'CANCELLED';
+          })
+          .map((s: any) => s.id)
+      );
+    };
+
+    // Calculate canceled ticket refunds from actual cash movements
+    // Only count SORTIE movements linked to canceled tickets or with "Ticket annulé" in reason
+    const getCanceledTicketRefunds = () => {
+      const movements = session.cashMovements || [];
+      const cancelledTicketIds = getCancelledTicketIds();
+      
+      return movements
+        .filter((m: any) => {
+          const reason = String(m.reason || '').toLowerCase();
+          const isRejected = String(m.reason || '').includes('[REJETÉ]');
+          const isDeleted = String(m.reason || '').includes('[SUPPRIMÉ]');
+          const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+          const isCancellationRefund = reason.includes('ticket annulé') || reason.includes('ticket annule');
+          
+          return m.type === 'SORTIE' && 
+                 !isRejected && 
+                 !isDeleted &&
+                 (isFromCancelledTicket || isCancellationRefund) &&
+                 parseFloat(m.amount || 0) > 0;
+        })
+        .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
+    };
+
+    // Calculate return refunds (bon de retour - product returns)
     const getReturnRefunds = () => {
       const movements = session.cashMovements || [];
+      const cancelledTicketIds = getCancelledTicketIds();
+      
       return movements
-        .filter((m: any) => m.type === 'SORTIE' && 
-          ((m.reason || '').toLowerCase().includes('remboursement') ||
-           (m.reason || '').toLowerCase().includes('bon de retour')))
+        .filter((m: any) => {
+          const reason = String(m.reason || '').toLowerCase();
+          const isRejected = String(m.reason || '').includes('[REJETÉ]');
+          const isDeleted = String(m.reason || '').includes('[SUPPRIMÉ]');
+          const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+          const isReturnRefund = reason.includes('remboursement retour') || 
+                                  reason.includes('bon de retour') ||
+                                  reason.includes('retour');
+          const isCancellationRefund = reason.includes('ticket annulé') || reason.includes('ticket annule');
+          
+          // Return refunds are separate from ticket cancellation refunds
+          return m.type === 'SORTIE' && 
+                 !isRejected && 
+                 !isDeleted &&
+                 !isFromCancelledTicket &&
+                 !isCancellationRefund &&
+                 isReturnRefund &&
+                 parseFloat(m.amount || 0) > 0;
+        })
         .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
     };
     
@@ -1035,15 +1175,57 @@ export class PrintService {
            (m.reason || '').toLowerCase().includes('supplier')));
     };
     
-    escpos += formatFinancialLine('Dépenses:', getExpensesTotal()) + '\n';
-    
-    // Show return refunds if any
-    const returnRefunds = getReturnRefunds();
-    if (returnRefunds > 0) {
-      escpos += formatFinancialLine('Remboursements:', returnRefunds) + '\n';
+    // Show expenses with supplier name or notes (no category name)
+    escpos += 'Dépense:\n';
+    const expensesDetails = (summary as any)?.expensesDetails || [];
+    if (expensesDetails.length > 0) {
+      expensesDetails.forEach((expense: any) => {
+        const amount = parseFloat(expense.amount || 0) || 0;
+        const notes = expense.notes || '';
+        const supplierName = expense.supplierName || '';
+        
+        // Format: SUPPLIERNAME (notes): amount aligned to DT column
+        let expenseLabel = ' ';
+        if (supplierName) {
+          expenseLabel += supplierName.toUpperCase();
+          if (notes) {
+            expenseLabel += ` (${notes})`;
+          }
+        } else if (notes) {
+          expenseLabel += notes;
+        } else {
+          expenseLabel += 'Dépense';
+        }
+        expenseLabel += ':';
+        const amountStr = this.formatCurrency(amount);
+        const labelWidth = expenseLabel.length;
+        const spacesNeeded = Math.max(1, dtColumnPosition - labelWidth - amountStr.length);
+        const spaces = ' '.repeat(spacesNeeded);
+        escpos += expenseLabel + spaces + amountStr + '\n';
+      });
+    } else {
+      // Use getExpensesTotal() which now prioritizes summary.expensesTotal
+      const expensesTotal = getExpensesTotal();
+      if (expensesTotal > 0) {
+        const amountStr = this.formatCurrency(expensesTotal);
+        const labelWidth = 1; // Just the space
+        const spacesNeeded = Math.max(1, dtColumnPosition - labelWidth - amountStr.length);
+        const spaces = ' '.repeat(spacesNeeded);
+        escpos += ' ' + spaces + amountStr + '\n';
+      }
     }
     
-    // Show individual supplier payments
+    // Show canceled ticket refunds and return refunds combined as "Annulation ticket"
+    // Only count actual cash refund movements (real data from cash movements)
+    const canceledTicketRefunds = getCanceledTicketRefunds();
+    const returnRefunds = getReturnRefunds();
+    const totalAnnulation = canceledTicketRefunds + returnRefunds;
+    if (totalAnnulation > 0) {
+      escpos += formatFinancialLine('Annulation ticket:', totalAnnulation) + '\n';
+    }
+    
+    // Show supplier payments section
+    escpos += 'Règlement fournisseur:\n';
     const supplierPayments = getSupplierPayments();
     const supplierDetails = (summary as any)?.supplierPaymentsDetails || [];
     
@@ -1072,11 +1254,33 @@ export class PrintService {
           }
         }
         
-        const line = `${supplierName} - ${this.formatCurrency(amount)}`;
-        escpos += line + '\n';
+        // Format: SUPPLIERNAME: amount aligned to DT column
+        let supplierLabel = ' ';
+        if (supplierName && supplierName !== 'Fournisseur') {
+          supplierLabel += supplierName.toUpperCase();
+        } else {
+          supplierLabel += 'Fournisseur';
+        }
+        supplierLabel += ':';
+        const amountStr = this.formatCurrency(amount);
+        const labelWidth = supplierLabel.length;
+        const spacesNeeded = Math.max(1, dtColumnPosition - labelWidth - amountStr.length);
+        const spaces = ' '.repeat(spacesNeeded);
+        escpos += supplierLabel + spaces + amountStr + '\n';
       });
     } else {
-      escpos += formatFinancialLine('Règlement Frs:', 0) + '\n';
+      // Show total if no individual payments but total exists
+      const supplierPaymentsTotal = Array.isArray(supplierDetails) && supplierDetails.length > 0
+        ? supplierDetails.reduce((sum: number, p: any) => sum + (parseFloat(p.amount || 0) || 0), 0)
+        : 0;
+      
+      if (supplierPaymentsTotal > 0) {
+        const amountStr = this.formatCurrency(supplierPaymentsTotal);
+        const labelWidth = 1; // Just the space
+        const spacesNeeded = Math.max(1, dtColumnPosition - labelWidth - amountStr.length);
+        const spaces = ' '.repeat(spacesNeeded);
+        escpos += ' ' + spaces + amountStr + '\n';
+      }
     }
     escpos += '-------------------------------\n';
     escpos += formatFinancialLine('Solde attendu:', expectedCash) + '\n';
@@ -2492,6 +2696,8 @@ export class PrintService {
   }
 
   private generateDailyExtractHTMLWithFamilyGrouping(sessionReport: any, companyData?: any, withdrawalAmount: number = 0): string {
+    const session = sessionReport.session;
+    const summary = sessionReport.summary;
     const closedDate = new Date();
     const formatDateNoYearWithTime = (date: Date) => {
       const day = date.getDate().toString().padStart(2, '0');
@@ -2501,9 +2707,6 @@ export class PrintService {
       return `${day}/${month} ${hours}:${minutes}`;
     };
     const closingTime = formatDateNoYearWithTime(closedDate);
-    
-    const session = sessionReport.session;
-    const summary = sessionReport.summary;
 
     // Build family grouping from session sales
     const sales: any[] = (sessionReport?.session?.sales || []) as any[];
@@ -2742,10 +2945,65 @@ export class PrintService {
         </div>`;
     }
 
+    // Show cancelled tickets section
+    const allSales: any[] = sessionReport?.session?.sales || [];
+    const cancelledTickets = allSales.filter((s: any) => {
+      const status = String(s?.status || '').toUpperCase();
+      return status === 'CANCELLED';
+    });
+    
+    if (cancelledTickets.length > 0) {
+      let totalCancelledAmount = 0;
+      let cancelledTicketsRows = '';
+      
+      cancelledTickets.forEach((ticket: any) => {
+        const ticketNumber = ticket.dailyTicketNumber || ticket.sessionTicketNumber || ticket.ticketNumber || ticket.id;
+        const ticketAmount = parseFloat(ticket.finalTotal || ticket.total || 0) || 0;
+        totalCancelledAmount += ticketAmount;
+        
+        cancelledTicketsRows += `
+                    <tr>
+                        <td class="article-col">Ticket #${ticketNumber}</td>
+                        <td class="qty-col"></td>
+                        <td class="unit-price-col"></td>
+                        <td class="total-col">${ticketAmount.toFixed(3)} TND</td>
+                    </tr>`;
+      });
+      
+      html += `
+        <div class="family-section">
+            <div class="family-title">TICKETS ANNULÉS</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="article-col">Article</th>
+                        <th class="qty-col">Qty</th>
+                        <th class="unit-price-col">Unit Price</th>
+                        <th class="total-col">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${cancelledTicketsRows}
+                    <tr class="family-total">
+                        <td class="article-col">Total annulé</td>
+                        <td class="qty-col"></td>
+                        <td class="unit-price-col"></td>
+                        <td class="total-col">${totalCancelledAmount.toFixed(3)} TND</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>`;
+    }
+
     // Financial summary
-    const totalDiscount = 0; // Could be calculated from sales
+    // Calculate total discounts from all sales
+    const totalDiscount = sales.reduce((sum: number, sale: any) => {
+      const discount = parseFloat(sale.discount || 0) || 0;
+      return sum + discount;
+    }, 0);
     const totalExpenses = summary?.expensesTotal || 0;
-    const totalCaisse = totalArticleSales;
+    // Use summary.totalSales (total of all ticket amounts) instead of totalArticleSales
+    const totalCaisse = summary?.totalSales || totalArticleSales;
     const remainingCash = totalCaisse - withdrawalAmount;
 
     html += `
@@ -2767,7 +3025,67 @@ export class PrintService {
                 <tr>
                     <td class="label">Dépense</td>
                     <td class="amount">${totalExpenses.toFixed(3)} TND</td>
-                </tr>
+                </tr>`;
+    
+    // Calculate supplier payments total
+    const supplierPayments = (session.cashMovements || []).filter((m: any) => 
+      m.type === 'SORTIE' && 
+      ((m.reason || '').toLowerCase().includes('fournisseur') ||
+       (m.reason || '').toLowerCase().includes('supplier'))
+    );
+    const supplierDetails = (summary as any)?.supplierPaymentsDetails || [];
+    let supplierPaymentsTotal = 0;
+    let supplierRows = '';
+    
+    if (supplierPayments.length > 0) {
+      supplierPayments.forEach((payment: any) => {
+        const amount = parseFloat(payment.amount || 0) || 0;
+        supplierPaymentsTotal += amount;
+        const reason = payment.reason || '';
+        let supplierName = 'Fournisseur';
+        
+        const idMatch = reason.match(/#(\d+)/);
+        const paymentId = idMatch ? parseInt(idMatch[1], 10) : null;
+        
+        if (supplierDetails && supplierDetails.length && paymentId) {
+          const match = supplierDetails.find((d: any) => Number(d.id) === paymentId);
+          if (match && match.supplierName) {
+            supplierName = match.supplierName;
+          }
+        }
+        
+        if (supplierName === 'Fournisseur') {
+          const paren = reason.match(/\(([^)]+)\)/);
+          if (paren && paren[1] && !/^FOURN:/i.test(paren[1])) {
+            supplierName = paren[1].trim();
+          }
+        }
+        
+        supplierRows += `
+                <tr>
+                    <td class="label">${supplierName}</td>
+                    <td class="amount">${amount.toFixed(3)} TND</td>
+                </tr>`;
+      });
+    } else if (supplierDetails.length > 0) {
+      supplierDetails.forEach((detail: any) => {
+        const amount = parseFloat(detail.amount || 0) || 0;
+        supplierPaymentsTotal += amount;
+        const supplierName = detail.supplierName || 'Fournisseur';
+        supplierRows += `
+                <tr>
+                    <td class="label">${supplierName}</td>
+                    <td class="amount">${amount.toFixed(3)} TND</td>
+                </tr>`;
+      });
+    }
+    
+    if (supplierPaymentsTotal > 0) {
+      // Only show individual supplier rows, not a total row to avoid duplication
+      html += supplierRows;
+    }
+    
+    html += `
                 <tr><td colspan="2" class="separator"></td></tr>
                 <tr>
                     <td class="label">Totale Caisse</td>
@@ -3316,10 +3634,65 @@ export class PrintService {
         </div>`;
     }
 
+    // Show cancelled tickets section
+    const allSales: any[] = sessionReport?.session?.sales || [];
+    const cancelledTickets = allSales.filter((s: any) => {
+      const status = String(s?.status || '').toUpperCase();
+      return status === 'CANCELLED';
+    });
+    
+    if (cancelledTickets.length > 0) {
+      let totalCancelledAmount = 0;
+      let cancelledTicketsRows = '';
+      
+      cancelledTickets.forEach((ticket: any) => {
+        const ticketNumber = ticket.dailyTicketNumber || ticket.sessionTicketNumber || ticket.ticketNumber || ticket.id;
+        const ticketAmount = parseFloat(ticket.finalTotal || ticket.total || 0) || 0;
+        totalCancelledAmount += ticketAmount;
+        
+        cancelledTicketsRows += `
+                    <tr>
+                        <td class="article-col">Ticket #${ticketNumber}</td>
+                        <td class="qty-col"></td>
+                        <td class="unit-price-col"></td>
+                        <td class="total-col">${ticketAmount.toFixed(3)} TND</td>
+                    </tr>`;
+      });
+      
+      html += `
+        <div class="family-section">
+            <div class="family-title">TICKETS ANNULÉS</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="article-col">Article</th>
+                        <th class="qty-col">Qty</th>
+                        <th class="unit-price-col">Unit Price</th>
+                        <th class="total-col">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${cancelledTicketsRows}
+                    <tr class="family-total">
+                        <td class="article-col">Total annulé</td>
+                        <td class="qty-col"></td>
+                        <td class="unit-price-col"></td>
+                        <td class="total-col">${totalCancelledAmount.toFixed(3)} TND</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>`;
+    }
+
     // Financial summary (same logic as A4 version)
-    const totalDiscount = 0; // Could be calculated from sales
+    // Calculate total discounts from all sales
+    const totalDiscount = sales.reduce((sum: number, sale: any) => {
+      const discount = parseFloat(sale.discount || 0) || 0;
+      return sum + discount;
+    }, 0);
     const totalExpenses = summary?.expensesTotal || 0;
-    const totalCaisse = totalArticleSales;
+    // Use summary.totalSales (total of all ticket amounts) instead of totalArticleSales
+    const totalCaisse = summary?.totalSales || totalArticleSales;
     const remainingCash = totalCaisse - withdrawalAmount;
 
     html += `

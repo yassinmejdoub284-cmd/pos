@@ -821,7 +821,7 @@ router.get('/session-extracts', async (req, res) => {
   }
 });
 
-router.get('/session-extracts/:id', async (req, res) => {
+router.get('/session-extracts/:id', authenticateToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const session = await prisma.sessionCaisse.findUnique({
@@ -830,6 +830,18 @@ router.get('/session-extracts/:id', async (req, res) => {
     });
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Check depot access
+    const userDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    const targetDepotId = visitingDepotId || userDepotId;
+
+    if (req.user?.role !== 'ADMIN') {
+      if (session.depotId && targetDepotId && session.depotId !== targetDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access sessions from other depot' });
+      }
     }
 
     const sales = await prisma.sale.findMany({
@@ -882,15 +894,20 @@ router.get('/session-extracts/:id', async (req, res) => {
       products: Array.from(f.products.values())
     }));
 
+    // Calculate expenses from cash movements
+    const totalExpenses = (session.cashMovements || [])
+      .filter(m => m.type === 'SORTIE' || m.type === 'DEPOT_COFFRE')
+      .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
+
     // Map to existing DailyExtractDetail shape for compatibility
     const detail = {
       date: (session.closedAt || session.openedAt).toISOString().split('T')[0],
       families,
       totalDiscount,
       totalRevenue,
+      totalExpenses,
       soldeDebit: 0,
       expenses: [],
-      totalExpenses: 0,
       totalCaisse: session.expectedCash || 0,
       withdrawal: (session.cashMovements || [])
         .filter(m => m.type === 'RETRAIT_CENTRALE')
@@ -901,6 +918,205 @@ router.get('/session-extracts/:id', async (req, res) => {
     res.json(detail);
   } catch (error) {
     console.error('Error generating session extract detail:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get article extracts for a depot (all closed sessions)
+router.get('/article-extracts/:depotId', authenticateToken, async (req, res) => {
+  try {
+    const depotId = parseInt(req.params.depotId);
+    
+    // Check depot access
+    // Get user's original depot (before any visiting depot override)
+    const userOriginalDepotId = req.user?.depotId;
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    
+    // For non-admin users, check depot access
+    if (req.user?.role !== 'ADMIN') {
+      // Allow if accessing own depot
+      if (depotId === userOriginalDepotId) {
+        // OK - accessing own depot
+      }
+      // Allow if accessing visiting depot (for MANAGER/CASHIER with visiting depot header)
+      else if (visitingDepotId && depotId === visitingDepotId) {
+        // OK - accessing visiting depot
+      }
+      // Deny if trying to access different depot
+      else {
+        return res.status(403).json({ error: 'Access denied: Cannot access extracts from other depot' });
+      }
+    }
+
+    // Get all sessions for this depot (not just closed ones)
+    const sessions = await prisma.sessionCaisse.findMany({
+      where: {
+        depotId: depotId
+      },
+      include: {
+        cashMovements: true,
+        user: { select: { firstName: true, lastName: true } },
+        depot: { select: { name: true, code: true } }
+      },
+      orderBy: [
+        { closedAt: 'desc' },
+        { openedAt: 'desc' }
+      ],
+      take: 100 // Limit to 100 most recent
+    });
+
+    if (sessions.length === 0) {
+      return res.json([]);
+    }
+
+    const sessionIds = sessions.map(s => s.id);
+
+    // Get all sales for these sessions (including cancelled ones for the cancelled tickets section)
+    const sales = await prisma.sale.findMany({
+      where: {
+        sessionId: { in: sessionIds },
+        status: { in: ['COMPLETED', 'CANCELLED'] }
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                famille: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Group sales by session
+    const salesBySession = new Map();
+    sales.forEach(sale => {
+      if (!salesBySession.has(sale.sessionId)) {
+        salesBySession.set(sale.sessionId, []);
+      }
+      salesBySession.get(sale.sessionId).push(sale);
+    });
+
+    // Generate extracts for each session
+    const extracts = sessions.map(session => {
+      const sessionSales = salesBySession.get(session.id) || [];
+      const completedSales = sessionSales.filter(s => s.status === 'COMPLETED');
+      const cancelledSales = sessionSales.filter(s => s.status === 'CANCELLED');
+      
+      const totalRevenue = completedSales.reduce((sum, s) => sum + parseFloat(s.finalTotal || 0), 0);
+      const totalDiscount = completedSales.reduce((sum, s) => sum + parseFloat(s.discount || 0), 0);
+      const totalCancelled = cancelledSales.reduce((sum, s) => sum + parseFloat(s.finalTotal || 0), 0);
+
+      // Group by families (only from completed sales)
+      const familyMap = new Map();
+      completedSales.forEach(sale => {
+        sale.items.forEach(item => {
+          const famId = item.product.famille.id;
+          const famName = item.product.famille.name;
+          if (!familyMap.has(famId)) {
+            familyMap.set(famId, {
+              id: famId,
+              name: famName,
+              totalRevenue: 0,
+              totalDiscount: 0,
+              products: new Map()
+            });
+          }
+          const fam = familyMap.get(famId);
+          fam.totalRevenue += parseFloat(item.total);
+          fam.totalDiscount += parseFloat(item.discount);
+          const pid = item.product.id;
+          if (!fam.products.has(pid)) {
+            fam.products.set(pid, {
+              id: pid,
+              name: item.product.name,
+              designation_legale: item.product.designation_legale || undefined,
+              quantity: 0,
+              revenue: 0,
+              discount: 0
+            });
+          }
+          const p = fam.products.get(pid);
+          p.quantity += parseFloat(item.quantity);
+          p.revenue += parseFloat(item.total);
+          p.discount += parseFloat(item.discount);
+        });
+      });
+
+      const families = Array.from(familyMap.values()).map(f => ({
+        ...f,
+        products: Array.from(f.products.values())
+      }));
+
+      // Calculate expenses from cash movements (exclude refunds from cancelled tickets)
+      const totalExpenses = (session.cashMovements || [])
+        .filter(m => {
+          const reason = String(m.reason || '');
+          return (m.type === 'SORTIE' || m.type === 'DEPOT_COFFRE') && 
+                 !reason.includes('Remboursement') && 
+                 !reason.includes('[REJETÉ]') &&
+                 !reason.includes('[SUPPRIMÉ]');
+        })
+        .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
+
+      // Calculate supplier payments
+      const supplierPayments = (session.cashMovements || [])
+        .filter(m => {
+          const reason = String(m.reason || '');
+          return m.type === 'SORTIE' && 
+                 (reason.includes('Fournisseur') || reason.includes('fournisseur')) &&
+                 !reason.includes('[REJETÉ]') &&
+                 !reason.includes('[SUPPRIMÉ]');
+        })
+        .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
+
+      // Calculate withdrawals
+      const withdrawals = (session.cashMovements || [])
+        .filter(m => {
+          const reason = String(m.reason || '');
+          return m.type === 'RETRAIT_CENTRALE' &&
+                 !reason.includes('[REJETÉ]') &&
+                 !reason.includes('[SUPPRIMÉ]');
+        })
+        .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
+
+      // Calculate total cash (revenue - discount - expenses - supplier payments - withdrawals)
+      const totalCash = totalRevenue - totalDiscount - totalExpenses - supplierPayments - withdrawals;
+
+      return {
+        sessionId: session.id,
+        date: (session.closedAt || session.openedAt).toISOString().split('T')[0],
+        totalRevenue,
+        totalDiscount,
+        totalExpenses,
+        totalCancelled,
+        supplierPayments,
+        withdrawals,
+        totalCash,
+        cancelledTickets: cancelledSales.map(s => ({
+          id: s.id,
+          ticketNumber: s.ticketNumber || `#${s.id}`,
+          amount: parseFloat(s.finalTotal || 0)
+        })),
+        families,
+        session: {
+          id: session.id,
+          openedAt: session.openedAt,
+          closedAt: session.closedAt,
+          status: session.status,
+          user: session.user,
+          depot: session.depot,
+          cashMovements: session.cashMovements
+        }
+      };
+    });
+
+    res.json(extracts);
+  } catch (error) {
+    console.error('Error generating article extracts:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

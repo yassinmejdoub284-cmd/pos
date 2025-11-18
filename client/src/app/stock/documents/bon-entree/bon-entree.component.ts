@@ -1,9 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { FormBuilder, Validators, FormArray, FormGroup, FormControl, AbstractControl } from '@angular/forms';
 import { StockDocumentsService } from '../../../core/services/stock-documents.service';
 import { DepotsService } from '../../../core/services/depots.service';
 import { ProductsService } from '../../../core/services/products.service';
 import { SuppliersService } from '../../../core/services/suppliers.service';
+import { SupplierService } from '../../../core/services/supplier.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { StockDocument, StockDocumentItem } from '../../../core/models/stock-document.model';
 import { buildScanLikeDocumentHtmlFromDocument, getScanPrintStyles } from '../../shared/print-templates';
@@ -29,30 +31,59 @@ export class BonEntreeComponent implements OnInit {
   isEditMode = false;
   showDocumentDetails = false;
   isReturnsMode = false;
+  showDocumentsList = false;
 
   // Form data
   selectedDepot: Depot | null = null;
   selectedSupplier: Supplier | null = null;
   items: StockDocumentItem[] = [];
   notes = '';
+  paymentMethod: 'CREDIT' | 'CASH' = 'CREDIT';
+
+  // Form for new-entry style interface
+  form!: FormGroup;
 
   // Available options
   depots: Depot[] = [];
   suppliers: Supplier[] = [];
-  products: Product[] = [];
+  products = signal<Product[]>([]);
+  private searchQuery = signal<string>('');
+  filteredProducts = computed(() => {
+    const all = this.products();
+    const q = (this.searchQuery() || '').toLowerCase();
+    const selected = this.selectedCategory();
+    let result = all;
+    if (selected && selected !== 'Tous') {
+      result = result.filter((p) => (p.famille?.name || '').toLowerCase() === selected.toLowerCase());
+    }
+    if (!q) return result;
+    return result.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.barcode || '').toLowerCase().includes(q));
+  });
 
   // UI state
   showSupplierModal = false;
   showProductModal = false;
   showDepotModal = false;
 
+  // UI state for new-entry style interface
+  productCategories: string[] = ['Tous'];
+  selectedCategory = signal<string>('Tous');
+  currentInput: string = '';
+  pendingProduct: any | null = null;
+  selectedIndex: number = -1;
+  selectedField: 'quantity' | 'unitPrice' | null = null;
+  lastEnteredValue: string = '';
+  Math = Math;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private fb: FormBuilder,
     private stockDocsService: StockDocumentsService,
     private depotsService: DepotsService,
     private productsService: ProductsService,
     private suppliersService: SuppliersService,
+    private supplierService: SupplierService,
     private authService: AuthService
   ) {}
 
@@ -66,19 +97,52 @@ export class BonEntreeComponent implements OnInit {
     this.isReturnsMode = showReturnsOnly;
     
     const url = this.router.url;
-    this.isEditMode = url.includes('/edit/');
+    this.isEditMode = url.includes('/edit/') || !!this.depotId || !!this.documentId;
+
+    // Initialize form
+    this.form = this.fb.group({
+      notes: this.fb.control<string>(''),
+      itemSearch: this.fb.control<string>(''),
+      items: this.fb.array<FormGroup>([])
+    });
+
+    // Subscribe to search changes
+    this.itemSearchCtrl.valueChanges.subscribe((q) => {
+      this.searchQuery.set((q || '').toString());
+    });
 
     // Load initial data first, then load document if needed
     this.loadInitialData().then(() => {
-      if (this.isEditMode && this.documentId) {
-        this.loadDocument();
-      } else if (this.documentId) {
-        // If documentId is provided (e.g., from generic :id route), load the document
+      if (this.documentId && this.documentId !== 'new') {
+        // Load document for editing
         this.loadDocument();
       } else if (this.depotId) {
+        // If we have depotId, show the new-entry interface
+        // Set selected depot from depotId
+        const depot = this.depots.find(d => d.id.toString() === this.depotId);
+        if (depot) {
+          this.selectedDepot = depot;
+        }
+        // Load documents list for this depot (will be shown when user clicks the toggle button)
         this.loadDocumentsForDepot(showReturnsOnly);
       }
     });
+  }
+
+  get itemsArray(): FormArray {
+    return this.form.get('items') as FormArray;
+  }
+
+  get notesCtrl(): FormControl<string> {
+    return this.form.get('notes') as FormControl<string>;
+  }
+
+  get itemSearchCtrl(): FormControl<string> {
+    return this.form.get('itemSearch') as FormControl<string>;
+  }
+
+  asFormControl(control: AbstractControl | null): FormControl<any> {
+    return control as FormControl<any>;
   }
 
   loadInitialData(): Promise<void> {
@@ -92,7 +156,11 @@ export class BonEntreeComponent implements OnInit {
     ]).then(([depots, suppliers, products]) => {
       this.depots = depots || [];
       this.suppliers = suppliers || [];
-      this.products = products || [];
+      this.products.set(products || []);
+      // Build categories
+      const list = products || [];
+      const cats = Array.from(new Set(list.map((p: any) => p.famille?.name).filter(Boolean)));
+      this.productCategories = ['Tous', ...cats];
       this.loading = false;
     }).catch(error => {
       this.error = 'Erreur lors du chargement des données';
@@ -109,6 +177,21 @@ export class BonEntreeComponent implements OnInit {
       next: (doc) => {
         this.document = doc;
         this.selectedDepot = doc.destinataire || null;
+        // Set depotId from document for product loading
+        if (doc.destinataire) {
+          this.depotId = doc.destinataire.id.toString();
+          // Reload products for this depot
+          this.productsService.getProducts(doc.destinataire.id).subscribe({
+            next: (prods) => {
+              this.products.set(prods || []);
+              // Build categories
+              const list = prods || [];
+              const cats = Array.from(new Set(list.map((p: any) => p.famille?.name).filter(Boolean)));
+              this.productCategories = ['Tous', ...cats];
+            },
+            error: () => {}
+          });
+        }
         
         // Automatically set supplier from document
         if (doc.supplier) {
@@ -132,6 +215,22 @@ export class BonEntreeComponent implements OnInit {
         
         this.items = doc.items || [];
         this.notes = doc.notes || '';
+        this.notesCtrl.setValue(this.notes);
+        
+        // Convert items to FormArray
+        this.itemsArray.clear();
+        doc.items?.forEach(item => {
+          const product = this.products().find(p => p.id === item.productId);
+          const group = this.fb.group({
+            productId: this.fb.control<number>(item.productId, { nonNullable: true, validators: [Validators.required] }),
+            famille: this.fb.control<string>(item.famille || '', { nonNullable: true, validators: [Validators.required] }),
+            quantity: this.fb.control<number>(item.quantity || 0, { nonNullable: true, validators: [Validators.required, Validators.min(0.001)] }),
+            unitPrice: this.fb.control<number | null>(item.purchasePrice || null),
+            batch: this.fb.control<string | null>(item.batch || null),
+            notes: this.fb.control<string | null>(item.notes || null)
+          });
+          this.itemsArray.push(group);
+        });
         
         // Load parent products for items that have parentProductId
         this.loadParentProductsForItems();
@@ -283,22 +382,58 @@ export class BonEntreeComponent implements OnInit {
     this.success = '';
   }
 
-  addItem(): void {
-    this.items.push({
-      id: 0,
-      documentId: 0,
-      productId: 0,
-      famille: '',
-      quantity: 1,
-      purchasePrice: 0,
-      batch: '',
-      notes: '',
-      barcode: undefined
-    });
+  addItem(product?: any): void {
+    if (product) {
+      const group = this.fb.group({
+        productId: this.fb.control<number>(product.id, { nonNullable: true, validators: [Validators.required] }),
+        famille: this.fb.control<string>(product.famille?.name || 'Divers', { nonNullable: true, validators: [Validators.required] }),
+        quantity: this.fb.control<number>(1, { nonNullable: true, validators: [Validators.required, Validators.min(0.001)] }),
+        unitPrice: this.fb.control<number | null>(product.prix_achat || null),
+        batch: this.fb.control<string | null>(null),
+        notes: this.fb.control<string | null>(null)
+      });
+      this.itemsArray.insert(0, group);
+      this.selectedIndex = 0;
+      this.selectedField = 'quantity';
+      this.pendingProduct = product;
+      this.currentInput = '';
+    } else {
+      // Legacy method for backward compatibility
+      this.items.push({
+        id: 0,
+        documentId: 0,
+        productId: 0,
+        famille: '',
+        quantity: 1,
+        purchasePrice: 0,
+        batch: '',
+        notes: '',
+        barcode: undefined
+      });
+    }
+  }
+
+  handleProductClick(product: any): void {
+    // Check if product already exists in the list
+    const existingIndex = this.itemsArray.controls.findIndex((c) => c.get('productId')?.value === product.id);
+    
+    if (existingIndex >= 0) {
+      // Product exists - increment quantity by 1
+      const existingCtrl = this.itemsArray.at(existingIndex) as FormGroup;
+      const currentQty = existingCtrl.get('quantity')?.value || 0;
+      existingCtrl.get('quantity')!.setValue(currentQty + 1);
+      this.selectedIndex = existingIndex;
+      this.selectedField = 'quantity';
+    } else {
+      // Product doesn't exist - add new item
+      this.pendingProduct = product;
+      this.currentInput = '';
+      this.addItem(product);
+    }
   }
 
   removeItem(index: number): void {
-    this.items.splice(index, 1);
+    this.itemsArray.removeAt(index);
   }
 
   selectProduct(item: StockDocumentItem, product: Product): void {
@@ -319,7 +454,7 @@ export class BonEntreeComponent implements OnInit {
   }
 
   saveDocument(): void {
-    if (!this.selectedDepot || this.items.length === 0) {
+    if (!this.selectedDepot || this.itemsArray.length === 0) {
       this.error = 'Veuillez sélectionner un dépôt et ajouter au moins un article';
       return;
     }
@@ -327,18 +462,41 @@ export class BonEntreeComponent implements OnInit {
     this.loading = true;
     this.error = '';
 
+    // Convert FormArray items to document items, filtering out invalid items
+    const items = this.itemsArray.controls
+      .map((ctrl) => {
+        const productId = ctrl.get('productId')?.value;
+        const quantity = ctrl.get('quantity')?.value;
+        const famille = ctrl.get('famille')?.value;
+        
+        // Skip items with invalid productId or quantity
+        if (!productId || productId <= 0 || !quantity || quantity <= 0) {
+          return null;
+        }
+        
+        return {
+          productId: parseInt(productId),
+          famille: famille || 'Divers',
+          quantity: parseFloat(quantity) || 0,
+          purchasePrice: ctrl.get('unitPrice')?.value ? parseFloat(ctrl.get('unitPrice')?.value) : null,
+          batch: ctrl.get('batch')?.value || null,
+          notes: ctrl.get('notes')?.value || null
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    // Validate we still have items after filtering
+    if (items.length === 0) {
+      this.error = 'Veuillez ajouter au moins un article valide';
+      this.loading = false;
+      return;
+    }
+
     const documentData = {
       depotId: this.selectedDepot.id,
       supplierId: this.selectedSupplier?.id || null,
-      items: this.items.map(item => ({
-        productId: item.productId,
-        famille: item.famille,
-        quantity: item.quantity,
-        purchasePrice: item.purchasePrice,
-        batch: item.batch,
-        notes: item.notes
-      })),
-      notes: this.notes
+      items: items,
+      notes: this.notesCtrl.value || this.notes
     };
 
     if (this.documentId && this.documentId !== 'new') {
@@ -367,15 +525,23 @@ export class BonEntreeComponent implements OnInit {
       ).subscribe({
         next: (doc) => {
           this.document = doc;
-          this.success = 'Document créé avec succès';
-          this.loading = false;
-          // Auto-dismiss success message after 3 seconds
-          setTimeout(() => this.success = '', 3000);
-          // Navigate to the new document edit view to avoid param confusion
-          this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
+          
+          // If supplier is selected, create payment record
+          if (documentData.supplierId && this.selectedSupplier && this.totalAmount > 0) {
+            this.createSupplierPayment(documentData.supplierId, this.totalAmount, doc);
+          } else {
+            this.success = 'Document créé avec succès';
+            this.loading = false;
+            // Auto-dismiss success message after 3 seconds
+            setTimeout(() => this.success = '', 3000);
+            // Navigate to the new document edit view to avoid param confusion
+            this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
+          }
         },
         error: (error) => {
-          this.error = error.error?.error || 'Erreur lors de la création du document';
+          console.error('Error creating bon d\'entrée:', error);
+          const errorMessage = error.error?.error || error.message || 'Erreur lors de la création du document';
+          this.error = errorMessage;
           this.loading = false;
           // Auto-dismiss error message after 5 seconds
           setTimeout(() => this.error = '', 5000);
@@ -387,8 +553,8 @@ export class BonEntreeComponent implements OnInit {
   printDocument(doc?: StockDocument): void {
     const target = doc || this.document;
     if (!target) return;
-    // Show as "Bon d'entrée" from recipient's perspective
-    const printContent = buildScanLikeDocumentHtmlFromDocument(target, 'livraison', null);
+    // Show as actual "Bon d'entrée" with TTC-based pricing
+    const printContent = buildScanLikeDocumentHtmlFromDocument(target, 'entree', null);
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       this.error = 'Impossible d\'ouvrir la fenêtre d\'impression';
@@ -438,6 +604,13 @@ export class BonEntreeComponent implements OnInit {
   }
 
   getTotalValue(): number {
+    if (this.itemsArray && this.itemsArray.length > 0) {
+      return this.itemsArray.controls.reduce((total, ctrl) => {
+        const quantity = ctrl.get('quantity')?.value || 0;
+        const unitPrice = ctrl.get('unitPrice')?.value || 0;
+        return total + (quantity * unitPrice);
+      }, 0);
+    }
     return this.items.reduce((total, item) => {
       const quantity = item.quantity || 0;
       const price = item.purchasePrice || 0;
@@ -445,8 +618,158 @@ export class BonEntreeComponent implements OnInit {
     }, 0);
   }
 
+  get totalAmount(): number {
+    return this.itemsArray.controls.reduce((total, ctrl) => {
+      const quantity = ctrl.get('quantity')?.value || 0;
+      const unitPrice = ctrl.get('unitPrice')?.value || 0;
+      return total + (quantity * unitPrice);
+    }, 0);
+  }
+
+  get totalItems(): number {
+    return this.itemsArray.controls.reduce((total, ctrl) => {
+      return total + (ctrl.get('quantity')?.value || 0);
+    }, 0);
+  }
+
   getProductFamille(product: Product): string {
     return typeof product.famille === 'string' ? product.famille : product.famille?.name || 'N/A';
+  }
+
+  // Keypad methods
+  selectCategory(category: string): void {
+    this.selectedCategory.set(category);
+  }
+
+  trackByProductId(index: number, product: any): number {
+    return product.id;
+  }
+
+  getProductCardClass(productId: number): string {
+    const baseClass = 'product-button bg-white border border-gray-200 rounded-lg p-2 text-center transition-colors duration-150 cursor-pointer shadow-sm relative select-none';
+    const isSelected = this.itemsArray.controls.some((c) => c.get('productId')?.value === productId);
+    return isSelected ? baseClass + ' border-blue-500 bg-blue-50' : baseClass;
+  }
+
+  selectExisting(index: number): void {
+    this.selectedIndex = index;
+    this.selectedField = null;
+    this.currentInput = '';
+  }
+
+  selectField(index: number, field: 'quantity' | 'unitPrice'): void {
+    this.selectedIndex = index;
+    this.selectedField = field;
+    this.currentInput = '';
+  }
+
+  addToInput(value: string): void {
+    this.currentInput += value;
+  }
+
+  addDecimal(): void {
+    if (!this.currentInput.includes('.')) {
+      this.currentInput += '.';
+    }
+  }
+
+  clearInput(): void { 
+    this.currentInput = ''; 
+  }
+
+  enterValue(): void {
+    const value = parseFloat(this.currentInput);
+    if (isNaN(value) || value <= 0) {
+      this.error = 'Valeur invalide (> 0)';
+      return;
+    }
+    
+    if (this.pendingProduct) {
+      // Adding new product
+      const idx = this.itemsArray.controls.findIndex((c) => c.get('productId')?.value === this.pendingProduct!.id);
+      if (idx >= 0) {
+        (this.itemsArray.at(idx) as FormGroup).get('quantity')!.setValue(value);
+        this.selectedIndex = idx;
+      } else {
+        this.addItem(this.pendingProduct);
+        (this.itemsArray.at(this.itemsArray.length - 1) as FormGroup).get('quantity')!.setValue(value);
+      }
+      this.pendingProduct = null;
+    } else if (this.selectedIndex >= 0 && this.selectedField) {
+      // Updating existing field
+      (this.itemsArray.at(this.selectedIndex) as FormGroup).get(this.selectedField)!.setValue(value);
+    }
+    
+    this.lastEnteredValue = this.currentInput;
+    this.currentInput = '';
+    this.selectedField = null;
+  }
+
+  getFieldClass(index: number, field: 'quantity' | 'unitPrice'): string {
+    const isSelected = this.selectedIndex === index && this.selectedField === field;
+    const baseClass = 'w-full border rounded px-2 py-1 text-xs text-right cursor-pointer transition-all duration-200';
+    
+    if (isSelected) {
+      return `${baseClass} bg-blue-100 border-blue-400 shadow-md ring-2 ring-blue-300`;
+    } else {
+      return `${baseClass} bg-white border-gray-300`;
+    }
+  }
+
+  getProductName(productId: number): string {
+    const product = this.products().find(p => p.id === productId);
+    return product ? product.name : `Produit #${productId}`;
+  }
+
+  getCategoryButtonClass(category: string): string {
+    const isSelected = this.selectedCategory() === category;
+    const baseClass = 'border-2 shadow-sm';
+    
+    if (isSelected) {
+      // Selected state - more prominent colors
+      switch (category) {
+        case 'Tous':
+          return `${baseClass} bg-blue-500 text-white border-blue-600 shadow-blue-200`;
+        case 'Pâtisserie':
+          return `${baseClass} bg-pink-500 text-white border-pink-600 shadow-pink-200`;
+        case 'Viennoiserie':
+          return `${baseClass} bg-amber-500 text-white border-amber-600 shadow-amber-200`;
+        case 'Boulangerie':
+          return `${baseClass} bg-orange-500 text-white border-orange-600 shadow-orange-200`;
+        case 'Boissons':
+          return `${baseClass} bg-cyan-500 text-white border-cyan-600 shadow-cyan-200`;
+        case 'Vrac':
+          return `${baseClass} bg-green-500 text-white border-green-600 shadow-green-200`;
+        case 'Pâtisserie Tunisienne':
+          return `${baseClass} bg-purple-500 text-white border-purple-600 shadow-purple-200`;
+        case 'Jus et Smoothies':
+          return `${baseClass} bg-emerald-500 text-white border-emerald-600 shadow-emerald-200`;
+        default:
+          return `${baseClass} bg-gray-500 text-white border-gray-600 shadow-gray-200`;
+      }
+    } else {
+      // Unselected state - lighter colors
+      switch (category) {
+        case 'Tous':
+          return `${baseClass} bg-blue-50 text-blue-700 border-blue-200`;
+        case 'Pâtisserie':
+          return `${baseClass} bg-pink-50 text-pink-700 border-pink-200`;
+        case 'Viennoiserie':
+          return `${baseClass} bg-amber-50 text-amber-700 border-amber-200`;
+        case 'Boulangerie':
+          return `${baseClass} bg-orange-50 text-orange-700 border-orange-200`;
+        case 'Boissons':
+          return `${baseClass} bg-cyan-50 text-cyan-700 border-cyan-200`;
+        case 'Vrac':
+          return `${baseClass} bg-green-50 text-green-700 border-green-200`;
+        case 'Pâtisserie Tunisienne':
+          return `${baseClass} bg-purple-50 text-purple-700 border-purple-200`;
+        case 'Jus et Smoothies':
+          return `${baseClass} bg-emerald-50 text-emerald-700 border-emerald-200`;
+        default:
+          return `${baseClass} bg-gray-50 text-gray-700 border-gray-200`;
+      }
+    }
   }
 
   formatDate(date: string | Date): string {
@@ -528,6 +851,43 @@ export class BonEntreeComponent implements OnInit {
 
   isAdmin(): boolean {
     return this.authService.isAdmin();
+  }
+
+  createSupplierPayment(supplierId: number, amount: number, doc: StockDocument): void {
+    if (!amount || amount <= 0) {
+      this.success = 'Document créé avec succès';
+      this.loading = false;
+      setTimeout(() => this.success = '', 3000);
+      this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
+      return;
+    }
+
+    const paymentData = {
+      supplierId: supplierId,
+      amount: this.paymentMethod === 'CASH' ? amount : -amount, // Negative for credit (debt), positive for cash payment
+      paymentMethod: this.paymentMethod,
+      notes: `Bon d'entrée #${doc.numero} - Montant: ${amount.toFixed(3)} dt`
+    };
+
+    this.supplierService.createSupplierPayment(paymentData).subscribe({
+      next: (payment) => {
+        console.log('Supplier payment created:', payment);
+        this.success = `Document créé avec succès${this.paymentMethod === 'CASH' ? ' - Paiement en espèces enregistré' : ' - Crédit enregistré'}`;
+        this.loading = false;
+        setTimeout(() => this.success = '', 3000);
+        this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
+      },
+      error: (error) => {
+        console.error('Error creating supplier payment:', error);
+        // Document was created successfully, but payment failed
+        this.success = 'Document créé avec succès (Erreur lors de l\'enregistrement du paiement)';
+        this.loading = false;
+        setTimeout(() => {
+          this.success = '';
+          this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
+        }, 3000);
+      }
+    });
   }
 
   deleteDocument(doc: StockDocument): void {

@@ -181,29 +181,45 @@ export class HistoriqueComponent implements OnInit {
       const currentSession = this.allSessions[this.currentSessionPage - 1];
       if (currentSession) {
         params.sessionIds = [currentSession.id];
+      } else {
+        // If current session page is out of bounds, load all sales with a wide date range
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setFullYear(endDate.getFullYear() - 1); // Load last year of data
+        params.startDate = startDate.toISOString();
+        params.endDate = endDate.toISOString();
       }
     } else if (this.startDate && this.endDate) {
-      // Fallback to date filtering
+      // Fallback to date filtering if user has set dates
       params.startDate = `${this.startDate}T00:00:00.000`;
       params.endDate = `${this.endDate}T23:59:59.999`;
     } else {
-      // If no sessions and no date range, use role-based history limit
-      const historyLimitDays = this.getCurrentUserHistoryLimit();
+      // If no sessions and no date range, load sales with a wide date range (last 2 years)
+      // This ensures we get all recent data when sessions are not available
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(endDate.getDate() - (historyLimitDays - 1));
+      startDate.setFullYear(endDate.getFullYear() - 2); // Load last 2 years of data
       params.startDate = startDate.toISOString();
       params.endDate = endDate.toISOString();
+      params.limit = 10000; // Increase limit to get more data
+      console.log('No sessions available, loading all sales with wide date range (last 2 years)');
     }
+
+    console.log('Loading sales with params:', params);
 
     this.salesService.getSales(params)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (sales: any) => {
+          console.log('Sales loaded:', sales?.length || 0, 'sales');
           this.sales = sales || [];
           this.filteredSales = this.sales;
           this.totalItems = this.sales.length;
           this.loading = false;
+          
+          if (this.sales.length === 0) {
+            console.warn('No sales returned. Check if sessions are loading correctly.');
+          }
           
           // Apply any existing filters after loading
           if (this.searchQuery || this.selectedStatus || this.selectedPaymentMethod || 
@@ -213,11 +229,32 @@ export class HistoriqueComponent implements OnInit {
         },
         error: (error) => {
           console.error('Error loading sales:', error);
-          this.error = 'Erreur lors du chargement des ventes';
+          this.error = `Erreur lors du chargement des ventes: ${error?.error?.error || error?.message || 'Erreur inconnue'}`;
           this.sales = [];
           this.filteredSales = [];
           this.totalItems = 0;
           this.loading = false;
+          
+          // Try to load without filters as fallback
+          if (Object.keys(params).length > 0) {
+            console.log('Retrying without filters...');
+            setTimeout(() => {
+              this.salesService.getSales({})
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                  next: (sales: any) => {
+                    console.log('Fallback: Loaded', sales?.length || 0, 'sales without filters');
+                    this.sales = sales || [];
+                    this.filteredSales = this.sales;
+                    this.totalItems = this.sales.length;
+                    this.error = '';
+                  },
+                  error: (fallbackError) => {
+                    console.error('Fallback also failed:', fallbackError);
+                  }
+                });
+            }, 1000);
+          }
         }
       });
   }
@@ -287,6 +324,8 @@ export class HistoriqueComponent implements OnInit {
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
     
+    console.log('Loading recent sessions with limit:', limit);
+    
     this.sessionsService.getSessions({ 
       limit: limit,
       startDate: startDate.toISOString(),
@@ -295,6 +334,7 @@ export class HistoriqueComponent implements OnInit {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (sessions: any) => {
+          console.log('Sessions loaded:', sessions?.length || 0, 'sessions');
           // Sort sessions by openedAt/createdAt (newest first) and keep only last N
           const sorted = (sessions || [])
             .slice()
@@ -309,25 +349,23 @@ export class HistoriqueComponent implements OnInit {
           this.sessionIds = sorted.map((s: any) => s.id);
           this.totalSessions = this.allSessions.length;
           this.currentSessionPage = 1; // Page 1 = most recent session
+          
+          if (this.allSessions.length === 0) {
+            console.warn('No sessions found. Sales will be loaded without session filter.');
+          }
+          
           if (after) after();
         },
         error: (error) => {
           console.error('Error loading recent sessions:', error);
-          // Fallback to date-based filtering
-          const days = limit;
-          const end = new Date();
-          const start = new Date();
-          start.setDate(end.getDate() - (days - 1));
-          const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          this.startDate = toIso(start);
-          this.endDate = toIso(end);
-          
+          // Don't set date filters - let loadSales() handle loading all sales
           // Reset session-based pagination
           this.allSessions = [];
           this.sessionIds = [];
           this.totalSessions = 0;
           this.currentSessionPage = 1;
           
+          console.log('Sessions failed to load, will load all sales without session filter');
           if (after) after();
         }
       });
@@ -343,13 +381,19 @@ export class HistoriqueComponent implements OnInit {
       this.sessionIds = [];
       this.totalSessions = 0;
       this.currentSessionPage = 1;
+      console.log('No depot ID, will load all sales without session filter');
       if (after) after();
       return;
     }
 
+    console.log('Loading current and last session for depot:', depotId);
+
     // Get current session (OPEN) - handle null case
     const currentSession$ = this.sessionsService.getActiveSessionByDepot(1, depotId).pipe(
-      catchError(() => of(null))
+      catchError((error) => {
+        console.warn('Error loading current session:', error);
+        return of(null);
+      })
     );
     
     // Get last closed session
@@ -358,7 +402,10 @@ export class HistoriqueComponent implements OnInit {
       status: 'CLOSED',
       limit: 1
     }).pipe(
-      catchError(() => of([]))
+      catchError((error) => {
+        console.warn('Error loading closed sessions:', error);
+        return of([]);
+      })
     );
 
     // Combine both requests
@@ -396,6 +443,13 @@ export class HistoriqueComponent implements OnInit {
         this.sessionIds = sorted.map((s: any) => s.id);
         this.totalSessions = this.allSessions.length;
         this.currentSessionPage = 1;
+        
+        console.log('Loaded', this.allSessions.length, 'sessions');
+        
+        if (this.allSessions.length === 0) {
+          console.warn('No sessions found. Sales will be loaded without session filter.');
+        }
+        
         if (after) after();
       },
       error: (error) => {
@@ -404,6 +458,7 @@ export class HistoriqueComponent implements OnInit {
         this.sessionIds = [];
         this.totalSessions = 0;
         this.currentSessionPage = 1;
+        console.log('Sessions failed to load, will load all sales without session filter');
         if (after) after();
       }
     });
@@ -1260,7 +1315,16 @@ export class HistoriqueComponent implements OnInit {
       next: () => {
         this.submittingReturnRequest = false;
         this.showReturnRequestModal = false;
-        this.showAlertMessage('Demande créée et envoyée pour approbation', 'success');
+        
+        // Check if it's a simple return (processed immediately)
+        const isSimpleReturn = this.returnType === 'RETURN';
+        if (isSimpleReturn) {
+          this.showAlertMessage('Retour traité immédiatement: stock restauré et montant retiré de la caisse', 'success');
+          // Reload sales to reflect changes
+          this.loadSales();
+        } else {
+          this.showAlertMessage('Demande créée et envoyée pour approbation', 'success');
+        }
       },
       error: (err) => {
         this.submittingReturnRequest = false;

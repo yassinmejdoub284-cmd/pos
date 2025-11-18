@@ -19,6 +19,7 @@ export interface ChangeRequest {
   updatedAt: string;
   session?: {
     id: number;
+    depotId?: number;
     openedAt: string;
     closedAt?: string;
     variance?: number;

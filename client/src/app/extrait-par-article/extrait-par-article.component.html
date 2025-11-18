@@ -1,0 +1,216 @@
+<div class="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 p-4">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          <button (click)="goBack()" 
+            class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+          </button>
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Extrait par Article</h1>
+            <p class="text-sm text-gray-600" *ngIf="depot">
+              Dépôt: {{ depot.name }} ({{ depot.code }})
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="bg-white rounded-2xl shadow-lg p-12 text-center">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent"></div>
+      <p class="mt-4 text-gray-600">Chargement...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error && !loading" class="bg-red-50 border border-red-200 rounded-2xl p-6">
+      <div class="flex items-center space-x-3">
+        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <p class="text-red-800">{{ error }}</p>
+      </div>
+    </div>
+
+    <!-- Single Session Display with Navigation -->
+    <div *ngIf="!loading && !error && extracts.length > 0" class="space-y-6">
+      <!-- Navigation Buttons -->
+      <div class="bg-white rounded-2xl shadow-lg p-4 flex items-center justify-between">
+        <button 
+          (click)="previousSession()" 
+          [disabled]="currentSessionIndex === 0"
+          class="px-6 py-3 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          <span>Précédent</span>
+        </button>
+        
+        <div class="text-center">
+          <p class="text-sm text-gray-600">Session</p>
+          <p class="text-lg font-bold text-gray-900">
+            {{ currentSessionIndex + 1 }} / {{ extracts.length }}
+          </p>
+        </div>
+        
+        <button 
+          (click)="nextSession()" 
+          [disabled]="currentSessionIndex === extracts.length - 1"
+          class="px-6 py-3 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2">
+          <span>Suivant</span>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Current Session Extract -->
+      <ng-container *ngIf="getCurrentExtract() as extract">
+      <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
+        <!-- Header -->
+        <div class="text-center mb-8 border-b-2 border-gray-200 pb-4">
+          <h2 class="text-3xl font-bold text-gray-900 mb-2">EXTRait JOURNALIÈRE</h2>
+          <p class="text-lg text-gray-700">{{ formatDate(extract.date) }}</p>
+          <p class="text-lg font-semibold text-gray-800 mt-2" *ngIf="extract.session?.user">
+            {{ extract.session?.user?.firstName }} {{ extract.session?.user?.lastName }}
+          </p>
+          <p class="text-lg font-semibold text-gray-800 mt-2" *ngIf="depot">
+            {{ depot.name }}
+          </p>
+        </div>
+
+        <!-- Product Categories -->
+        <div class="space-y-6 mb-8">
+          <div *ngFor="let family of extract.families" class="border border-gray-200 rounded-lg overflow-hidden">
+            <!-- Family Header -->
+            <div class="bg-gradient-to-r from-teal-100 to-cyan-100 px-6 py-3 border-b border-gray-300">
+              <h3 class="text-xl font-bold text-gray-900">{{ family.name }}</h3>
+            </div>
+            
+            <!-- Products Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Article</th>
+                    <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Qty</th>
+                    <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Unit Price</th>
+                    <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Total</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  <tr *ngFor="let product of family.products" class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm text-gray-900">{{ product.name }}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-700">{{ product.quantity.toFixed(3) }}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-700">{{ formatCurrency(product.unitPrice || 0) }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">{{ formatCurrency(product.revenue) }}</td>
+                  </tr>
+                </tbody>
+                <tfoot class="bg-gray-100">
+                  <tr>
+                    <td colspan="3" class="px-4 py-3 text-right font-bold text-gray-900">Total {{ family.name }}</td>
+                    <td class="px-4 py-3 text-right font-bold text-gray-900">{{ formatCurrency(family.totalRevenue) }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cancelled Tickets Section -->
+        <div *ngIf="extract.cancelledTickets && extract.cancelledTickets.length > 0" class="border border-gray-200 rounded-lg overflow-hidden mb-6">
+          <div class="bg-gradient-to-r from-red-100 to-rose-100 px-6 py-3 border-b border-gray-300">
+            <h3 class="text-xl font-bold text-gray-900">TICKETS ANNULÉS</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Article</th>
+                  <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Qty</th>
+                  <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Unit Price</th>
+                  <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Total</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <tr *ngFor="let ticket of extract.cancelledTickets" class="hover:bg-gray-50">
+                  <td class="px-4 py-3 text-sm text-gray-900">Ticket {{ formatTicketNumber(ticket.ticketNumber) }}</td>
+                  <td class="px-4 py-3 text-sm text-right text-gray-700"></td>
+                  <td class="px-4 py-3 text-sm text-right text-gray-700"></td>
+                  <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">{{ formatCurrency(ticket.amount) }}</td>
+                </tr>
+              </tbody>
+              <tfoot class="bg-gray-100">
+                <tr>
+                  <td colspan="3" class="px-4 py-3 text-right font-bold text-gray-900">Total annulé</td>
+                  <td class="px-4 py-3 text-right font-bold text-gray-900">{{ formatCurrency(extract.totalCancelled || 0) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Financial Summary -->
+        <div class="border-2 border-gray-300 rounded-lg p-6 bg-gray-50">
+          <h3 class="text-2xl font-bold text-gray-900 mb-4 text-center">Résumé Financier</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="text-right">
+              <span class="text-gray-700 font-semibold">Totale Remise</span>
+            </div>
+            <div class="text-left">
+              <span class="text-gray-900 font-bold">{{ formatCurrency(extract.totalDiscount || 0) }}</span>
+            </div>
+            
+            <div class="text-right">
+              <span class="text-gray-700 font-semibold">Totale Recette</span>
+            </div>
+            <div class="text-left">
+              <span class="text-gray-900 font-bold">{{ formatCurrency(extract.totalRevenue || 0) }}</span>
+            </div>
+            
+            <div class="text-right">
+              <span class="text-gray-700 font-semibold">Totale Caisse (Solde Débit)</span>
+            </div>
+            <div class="text-left">
+              <span class="text-gray-900 font-bold">{{ formatCurrency((extract.totalRevenue || 0) - (extract.totalDiscount || 0)) }}</span>
+            </div>
+            
+            <div class="text-right">
+              <span class="text-gray-700 font-semibold">Dépense</span>
+            </div>
+            <div class="text-left">
+              <span class="text-gray-900 font-bold">{{ formatCurrency(extract.totalExpenses || 0) }}</span>
+            </div>
+            
+            <div class="text-right">
+              <span class="text-gray-700 font-semibold">Fournisseur</span>
+            </div>
+            <div class="text-left">
+              <span class="text-gray-900 font-bold">{{ formatCurrency(extract.supplierPayments || 0) }}</span>
+            </div>
+            
+            <div class="text-right">
+              <span class="text-gray-700 font-semibold">Retrait</span>
+            </div>
+            <div class="text-left">
+              <span class="text-gray-900 font-bold">{{ formatCurrency(extract.withdrawals || 0) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      </ng-container>
+    </div>
+
+    <!-- No Data Message -->
+    <div *ngIf="!loading && !error && extracts.length === 0" class="bg-white rounded-2xl shadow-lg p-12 text-center">
+      <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+      </svg>
+      <p class="text-gray-600 text-lg">Aucune session trouvée</p>
+    </div>
+  </div>
+</div>

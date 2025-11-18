@@ -1,7 +1,7 @@
 import { StockDocument } from '../../core/models/stock-document.model';
 import { AppSettings } from '../../core/services/settings.service';
 
-export type ScanDocumentType = 'sortie' | 'transfert' | 'livraison';
+export type ScanDocumentType = 'sortie' | 'transfert' | 'livraison' | 'entree';
 
 export function getScanPrintStyles(): string {
   return `
@@ -219,6 +219,8 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
           return 'Bon de Sortie';
         case 'transfert':
           return 'Bon de Transfert';
+        case 'entree':
+          return 'Bon d\'Entrée';
         default:
           return 'Document';
       }
@@ -267,11 +269,50 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   }> = {};
   
   // Process with or without pricing based on document type
-  const isTransferDocument = document.type === 'BON_TRANSFERT';
-  const isSortieDocument = document.type === 'BON_EXPEDITION';
+  const documentType = (document.type as string) || '';
+  const isEntryDocumentType = documentType === 'BON_ENTREE_DEPOT';
+  const isTransferDocument = documentType === 'BON_TRANSFERT';
+  const isSortieDocument = documentType === 'BON_EXPEDITION';
   const isNonPricingDocument = isTransferDocument || isSortieDocument;
+  let entryItemCount = 0;
+  let entryTotalQuantity = 0;
   
-  if (!isNonPricingDocument) {
+  if (isEntryDocumentType) {
+    const entryItems = (document.items || []);
+    entryItemCount = entryItems.length;
+    
+    itemsRows = entryItems.map((raw, idx) => {
+      const item: any = raw as any;
+      const quantity = Number(item.quantity ?? 0) || 0;
+      entryTotalQuantity += quantity;
+      const productName = item.product?.name || item.childProductName || item.famille || `Produit ${item.productId || ''}`.trim();
+      const unitPrice = (() => {
+        const purchase = Number(item.purchasePrice);
+        if (isFinite(purchase) && purchase > 0) return purchase;
+        const prixUnitaire = Number(item.prixUnitaire);
+        if (isFinite(prixUnitaire) && prixUnitaire > 0) return prixUnitaire;
+        if (quantity > 0) {
+          const montantTTC = Number(item.montantTTC);
+          if (isFinite(montantTTC) && montantTTC > 0) {
+            return montantTTC / quantity;
+          }
+        }
+        return 0;
+      })();
+      const totalTTC = Math.round((quantity * unitPrice) * 1000) / 1000;
+      unifiedTotalTTC += totalTTC;
+      
+      return `
+        <tr>
+          <td class="text-center">${idx + 1}</td>
+          <td>${productName}</td>
+          <td class="text-center">${formatQuantity(quantity)}</td>
+          <td class="text-center">${unitPrice.toFixed(3)} DT</td>
+          <td class="text-center">${totalTTC.toFixed(3)} DT</td>
+        </tr>
+      `;
+    }).join('');
+  } else if (!isNonPricingDocument) {
     const isWholesaleClient = !!(document as any).client && ((document as any).client.clientType === 'WHOLESALE');
     
     // Group items by parent product AND TVA rate
@@ -490,16 +531,64 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
     }).join('');
   }
 
-  const totalsSection = isNonPricingDocument ? '' : `
-    <tfoot>
-      <tr class="total-row">
-        <td colspan="3" class="text-right font-bold">TOTAL:</td>
-        <td class="text-center font-bold">${(Number(unifiedTotalHT) || 0).toFixed(3)} DT</td>
-        <td class="text-center font-bold">-</td>
-        <td class="text-center font-bold">${(Number(unifiedTotalTTC) || 0).toFixed(3)} DT</td>
+  const tableHeaders = (() => {
+    if (isEntryDocumentType) {
+      return `
+        <tr>
+          <th class="text-center">#</th>
+          <th>Produit</th>
+          <th class="text-center">Qté</th>
+          <th class="text-center">P.U. (DT)</th>
+          <th class="text-center">Total TTC</th>
+        </tr>
+      `;
+    }
+    if (isNonPricingDocument) {
+      return `
+        <tr>
+          <th>Code</th>
+          <th>Désignation</th>
+          <th>Qté</th>
+        </tr>
+      `;
+    }
+    return `
+      <tr>
+        <th>Code</th>
+        <th>Désignation</th>
+        <th>Qté</th>
+        <th>Montant HT</th>
+        <th>TVA</th>
+        <th>Montant TTC</th>
       </tr>
-    </tfoot>
-  `;
+    `;
+  })();
+
+  const tableFooter = (() => {
+    if (isEntryDocumentType) {
+      return `
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="4" class="text-right font-bold">TOTAL TTC:</td>
+            <td class="text-center font-bold">${(Number(unifiedTotalTTC) || 0).toFixed(3)} DT</td>
+          </tr>
+        </tfoot>
+      `;
+    }
+    if (isNonPricingDocument) {
+      return '';
+    }
+    return `
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="3" class="text-right font-bold">TOTAL:</td>
+          <td class="text-center font-bold">${(Number(unifiedTotalHT) || 0).toFixed(3)} DT</td>
+          <td class="text-center font-bold">-</td>
+          <td class="text-center font-bold">${(Number(unifiedTotalTTC) || 0).toFixed(3)} DT</td>
+        </tr>
+      </tfoot>
+    `;
+  })();
 
   // Build unified header for ALL document types (like Bon de Livraison)
   const em = (document as any).emetteur || {};
@@ -507,7 +596,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   
   // For FACTURE documents, always use the emetteur (provider/supplier) company info
   // For entry documents (livraison), use receiver's company info; otherwise use sender's
-  const isEntryDocument = sessionType === 'livraison' && (document.type as string) !== 'FACTURE';
+  const isEntryDocument = (sessionType === 'livraison' || sessionType === 'entree') && (document.type as string) !== 'FACTURE';
   const companySource = isEntryDocument ? dest : em;
   const company = (companySource && (companySource.company)) ? (companySource.company) : companySource;
   
@@ -625,6 +714,70 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
 
   const tunisianFooter = '';
 
+  const totalsAndAmountSection = (() => {
+    if (isEntryDocumentType) {
+      return `
+        <div class="totals-and-amount" style="page-break-inside: avoid;">
+          <div class="total-breakdown" style="align-items: flex-end;">
+            <div class="total-line"><span class="label">Articles:</span><span class="value">${entryItemCount}</span></div>
+            <div class="total-line"><span class="label">Quantité totale:</span><span class="value">${formatQuantity(Number(entryTotalQuantity) || 0)}</span></div>
+            <div class="total-line total-final"><span class="label">Total TTC:</span><span class="value">${(Number(unifiedTotalTTC) || 0).toFixed(3)} DT</span></div>
+          </div>
+        </div>
+      `;
+    }
+    if (isNonPricingDocument) {
+      return '';
+    }
+    return `
+      <div class="totals-and-amount" style="page-break-inside: avoid;">
+        <div class="totals-summary" style="display: flex; justify-content: space-between; margin-right: 8mm;">
+          ${(document.type as string) === 'FACTURE' ? `
+            <div>
+              <table style="width: 200px; border-collapse: collapse; border: 1px solid #000; font-size: 11px;">
+                <thead>
+                  <tr style="background-color: #f0f0f0;">
+                    <th style="border: 1px solid #000; text-align: center;">Taux (%)</th>
+                    <th style="border: 1px solid #000; text-align: center;">Base</th>
+                    <th style="border: 1px solid #000; text-align: center;">Montant TVA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${Object.values(tvaGroups)
+                    .sort((a: any, b: any) => a.rate - b.rate)
+                    .map((tvaGroup: any) => `
+                    <tr>
+                      <td style="border: 1px solid #000; text-align: center;">${tvaGroup.rate.toFixed(1)}</td>
+                      <td style="border: 1px solid #000; text-align: center;">${tvaGroup.baseHT.toFixed(3)}</td>
+                      <td style="border: 1px solid #000; text-align: center;">${tvaGroup.montantTVA.toFixed(3)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
+          <div class="total-breakdown">
+            <div class="total-line"><span class="label">Total HT:</span><span class="value">${(Number(unifiedTotalHT) || 0).toFixed(3)} DT</span></div>
+            <div class="total-line"><span class="label">Total TVA:</span><span class="value">${(Number(unifiedTotalTVA) || 0).toFixed(3)} DT</span></div>
+            ${(document.type as string) === 'FACTURE' ? `
+            <div class="total-line"><span class="label">Timbre:</span><span class="value">${(settings?.documentDisplaySettings?.facture?.timbrePrice || 1).toFixed(3)} DT</span></div>
+            ` : ''}
+            <div class="total-line total-final"><span class="label">Total TTC:</span><span class="value">${((Number(unifiedTotalTTC) || 0) + ((document.type as string) === 'FACTURE' ? (settings?.documentDisplaySettings?.facture?.timbrePrice || 1) : 0)).toFixed(3)} DT</span></div>
+          </div>
+        </div>
+
+        ${(document.type as string) === 'FACTURE' ? `
+          <div style="margin-top: 20px; padding: 15px; border: 1px solid #000; background-color: #f9f9f9;">
+            <div style="font-size: 10px; line-height: 1.4; color: #000;">
+              <span>Arrêté la présente facture, sauf erreur ou omission de notre part, à la somme de :</span><br>
+              <span style="font-weight: bold; text-transform: uppercase; color: #000;">${numberToFrenchWords((Number(unifiedTotalTTC) || 0) + ((document.type as string) === 'FACTURE' ? (settings?.documentDisplaySettings?.facture?.timbrePrice || 1) : 0))}</span>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  })();
+
   return `
     <div class="container">
       ${unifiedHeader}
@@ -632,70 +785,15 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
 
       <table>
         <thead>
-          <tr>
-            <th>Code</th>
-            <th>Désignation</th>
-            <th>Qté</th>
-            ${!isNonPricingDocument ? `
-            <th>Montant HT</th>
-            <th>TVA</th>
-            <th>Montant TTC</th>
-            ` : ''}
-          </tr>
+          ${tableHeaders}
         </thead>
         <tbody>
           ${itemsRows}
         </tbody>
-        ${totalsSection}
+        ${tableFooter}
       </table>
 
-       ${!isNonPricingDocument ? `
-       <div class="totals-and-amount" style="page-break-inside: avoid;">
-         <div class="totals-summary" style="display: flex; justify-content: space-between; margin-right: 8mm;">
-           ${(document.type as string) === 'FACTURE' ? `
-             <div>
-               <table style="width: 200px; border-collapse: collapse; border: 1px solid #000; font-size: 11px;">
-                 <thead>
-                   <tr style="background-color: #f0f0f0;">
-                     <th style="border: 1px solid #000; text-align: center;">Taux (%)</th>
-                     <th style="border: 1px solid #000; text-align: center;">Base</th>
-                     <th style="border: 1px solid #000; text-align: center;">Montant TVA</th>
-                   </tr>
-                 </thead>
-                 <tbody>
-                   ${Object.values(tvaGroups)
-                     .sort((a: any, b: any) => a.rate - b.rate) // Sort by TVA rate
-                     .map((tvaGroup: any) => `
-                     <tr>
-                       <td style="border: 1px solid #000; text-align: center;">${tvaGroup.rate.toFixed(1)}</td>
-                       <td style="border: 1px solid #000; text-align: center;">${tvaGroup.baseHT.toFixed(3)}</td>
-                       <td style="border: 1px solid #000; text-align: center;">${tvaGroup.montantTVA.toFixed(3)}</td>
-                     </tr>
-                   `).join('')}
-                 </tbody>
-               </table>
-             </div>
-           ` : ''}
-           <div class="total-breakdown">
-             <div class="total-line"><span class="label">Total HT:</span><span class="value">${(Number(unifiedTotalHT) || 0).toFixed(3)} DT</span></div>
-             <div class="total-line"><span class="label">Total TVA:</span><span class="value">${(Number(unifiedTotalTVA) || 0).toFixed(3)} DT</span></div>
-             ${(document.type as string) === 'FACTURE' ? `
-             <div class="total-line"><span class="label">Timbre:</span><span class="value">${(settings?.documentDisplaySettings?.facture?.timbrePrice || 1).toFixed(3)} DT</span></div>
-             ` : ''}
-             <div class="total-line total-final"><span class="label">Total TTC:</span><span class="value">${((Number(unifiedTotalTTC) || 0) + ((document.type as string) === 'FACTURE' ? (settings?.documentDisplaySettings?.facture?.timbrePrice || 1) : 0)).toFixed(3)} DT</span></div>
-           </div>
-         </div>
-
-         ${(document.type as string) === 'FACTURE' ? `
-           <div style="margin-top: 20px; padding: 15px; border: 1px solid #000; background-color: #f9f9f9;">
-             <div style="font-size: 10px; line-height: 1.4; color: #000;">
-               <span>Arrêté la présente facture, sauf erreur ou omission de notre part, à la somme de :</span><br>
-               <span style="font-weight: bold; text-transform: uppercase; color: #000;">${numberToFrenchWords((Number(unifiedTotalTTC) || 0) + ((document.type as string) === 'FACTURE' ? (settings?.documentDisplaySettings?.facture?.timbrePrice || 1) : 0))}</span>
-             </div>
-           </div>
-         ` : ''}
-       </div>
-       ` : ''}
+       ${totalsAndAmountSection}
 
       <div class="footer">
         <div class="signature-section" style="display:flex; gap:24px; justify-content:space-between;">

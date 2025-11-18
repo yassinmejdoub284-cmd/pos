@@ -6,6 +6,7 @@ async function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
+    console.log('[Auth] No token provided for:', req.method, req.path);
     return res.status(401).json({ error: 'Access token required' });
   }
 
@@ -39,6 +40,7 @@ async function authenticateToken(req, res, next) {
     });
 
     if (!user) {
+      console.log('[Auth] User not found or inactive for userId:', decoded.userId);
       return res.status(401).json({ error: 'User not found or inactive' });
     }
 
@@ -54,8 +56,12 @@ async function authenticateToken(req, res, next) {
     req.user = { ...user, depotId: visitingDepotId };
     next();
   } catch (error) {
+    console.log('[Auth] Token verification failed:', error.name, error.message);
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token expired' });
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token format' });
     }
     return res.status(403).json({ error: 'Invalid token' });
   }

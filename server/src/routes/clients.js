@@ -1,7 +1,56 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
+const fs = require('fs');
+const path = require('path');
+
 const router = express.Router();
+
+// Helper function to read user roles from user-roles.json
+function readUserRoles() {
+  try {
+    const filePath = path.join(__dirname, '../uploads/user-roles.json');
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+    return {};
+  } catch (error) {
+    console.error('Error reading user roles:', error);
+    return {};
+  }
+}
+
+// Helper function to check if user has role or roleKey
+function hasRoleOrRoleKey(user, allowedRoles) {
+  // Check database role
+  if (allowedRoles.includes(user.role)) {
+    return true;
+  }
+  
+  // Check roleKey from user-roles.json
+  const userRoles = readUserRoles();
+  const roleKey = userRoles[String(user.id)];
+  if (roleKey && allowedRoles.includes(roleKey)) {
+    return true;
+  }
+  
+  return false;
+}
+
+// Middleware to require role or roleKey
+function requireRoleOrRoleKey(allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (!hasRoleOrRoleKey(req.user, allowedRoles)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    next();
+  };
+}
 
 // Get all clients with optional search and filters
 router.get('/', authenticateToken, async (req, res) => {
@@ -725,7 +774,7 @@ router.post('/:id/debt/add', authenticateToken, async (req, res) => {
 });
 
 // Initialize client solde (set currentDebt to custom amount)
-router.post('/:id/solde/init', async (req, res) => {
+router.post('/:id/solde/init', authenticateToken, requireRoleOrRoleKey(['ADMIN', 'MANAGER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, notes } = req.body;

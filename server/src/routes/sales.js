@@ -691,35 +691,117 @@ router.put('/temporary/:id/advance', async (req, res) => {
   }
 });
 
-router.post('/gift', async (req, res) => {
+router.post('/gift', authenticateToken, async (req, res) => {
   try {
-    const { items, total, discount, finalTotal, reason, recipient, status, clientId } = req.body;
+    const { items, total, discount, finalTotal, reason, recipient, status, clientId, depotId } = req.body;
+
+    console.log(`[Gift Sale] Creating gift sale - Request depotId: ${depotId}, User depotId: ${req.user?.depotId}, User role: ${req.user?.role}`);
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Gift sale must have at least one item' });
     }
 
-    // Use user's assigned depot for stock operations
+    // Use provided depotId or fallback to user's assigned depot for stock operations
     const userDepotId = req.user?.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to create gift sales' });
+    let targetDepotId = depotId ? parseInt(depotId) : userDepotId;
+    
+    console.log(`[Gift Sale] Initial targetDepotId: ${targetDepotId} (from request: ${depotId}, user: ${userDepotId})`);
+    
+    // For admins, allow specifying any depot
+    // For non-admins, validate depot access
+    if (req.user?.role !== 'ADMIN') {
+      if (!targetDepotId) {
+        return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to create gift sales' });
+      }
+      // Non-admins can only create gifts for their own depot
+      if (depotId && parseInt(depotId) !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot create gift sales for different depot' });
+      }
+    } else {
+      // Admins can specify depot, but must be valid
+      if (depotId) {
+        const requestedDepot = await prisma.depot.findFirst({
+          where: { id: parseInt(depotId), isActive: true }
+        });
+        if (!requestedDepot) {
+          return res.status(400).json({ error: 'Invalid or inactive depot specified' });
+        }
+        targetDepotId = requestedDepot.id;
+      } else if (!userDepotId) {
+        return res.status(400).json({ error: 'DepotId must be specified for admin users without assigned depot' });
+      }
+    }
+    
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'DepotId is required to create gift sales' });
+    }
+
+    console.log(`[Gift Sale] Final targetDepotId: ${targetDepotId}, processing ${items.length} items`);
+
+    // Validate depotId is a valid number
+    if (!targetDepotId || isNaN(targetDepotId) || targetDepotId <= 0) {
+      console.error(`[Gift Sale] Invalid targetDepotId: ${targetDepotId}`);
+      return res.status(400).json({ error: 'Invalid depotId specified' });
     }
 
     if (!reason || reason.trim() === '') {
       return res.status(400).json({ error: 'Gift reason is required' });
     }
 
+    // Determine sale status - use provided status or default to PENDING_ADMIN
+    const saleStatus = status && (status === 'CADEAU' || status === 'PENDING_ADMIN') ? status : 'PENDING_ADMIN';
+    // Stock will be removed only when the cadeau is approved, not at creation
+
     const sale = await prisma.$transaction(async (tx) => {
+      // Get the current active session for the depot (same logic as regular sales)
+      const activeSession = await tx.sessionCaisse.findFirst({
+        where: {
+          depotId: targetDepotId,
+          status: 'OPEN'
+        }
+      });
+
+      // Compute session-based ticket number (same logic as regular sales)
+      let sessionTicketNumber = null;
+      if (activeSession && activeSession.id) {
+        const recent = await tx.sale.findMany({
+          where: { sessionId: activeSession.id },
+          orderBy: { createdAt: 'desc' },
+          select: { dailyTicketNumber: true },
+          take: 500
+        });
+        const parseNum = (raw) => {
+          if (!raw) return 0;
+          const s = String(raw);
+          if (s.includes('/')) {
+            const part = s.split('/')[1];
+            const n = parseInt(part, 10);
+            return isNaN(n) ? 0 : n;
+          }
+          const n = parseInt(s, 10);
+          return isNaN(n) ? 0 : n;
+        };
+        const maxNum = recent.reduce((mx, r) => Math.max(mx, parseNum(r.dailyTicketNumber)), 0);
+        sessionTicketNumber = (maxNum || 0) + 1;
+      }
+
+      // Calculate actual final total (total - discount), but payment is 0 for gifts
+      const calculatedFinalTotal = parseFloat(total) - parseFloat(discount || 0);
+
+      // Create gift sale with provided status (PENDING_ADMIN for approval, CADEAU for auto-approved)
       const newSale = await tx.sale.create({
         data: {
           total: parseFloat(total),
           discount: parseFloat(discount || 0),
-          finalTotal: 0,
+          finalTotal: calculatedFinalTotal, // Preserve actual value (even though payment is 0)
           paymentMethodId: null,
           userId: req.user?.id,
           clientId: clientId ? parseInt(clientId) : null,
           depotId: targetDepotId, // Use shop depot for caisse operations
-          status: 'PENDING_ADMIN',
+          sessionId: activeSession ? activeSession.id : null, // Link to active session
+          status: saleStatus,
+          // Store session-based ticket number (same as regular sales)
+          dailyTicketNumber: sessionTicketNumber ? String(sessionTicketNumber).padStart(4, '0') : null,
           notes: `Cadeau - Raison: ${reason}${recipient ? ` - Destinataire: ${recipient}` : ''}`
         }
       });
@@ -736,31 +818,120 @@ router.post('/gift', async (req, res) => {
             discount: 0
           }
         });
+
+        // If cadeau is auto-approved (status = 'CADEAU'), remove stock immediately
+        // Otherwise, stock will be removed when approved
+        if (saleStatus === 'CADEAU') {
+          const itemQuantity = parseFloat(item.quantity) || 0;
+          const itemProductId = parseInt(item.productId);
+          
+          if (itemProductId && itemQuantity > 0) {
+            // Get current inventory
+            const currentInventory = await tx.inventory.findFirst({
+              where: {
+                depotId: targetDepotId,
+                productId: itemProductId
+              }
+            });
+
+            if (currentInventory) {
+              // Calculate new quantity (can be negative)
+              const newQuantity = parseFloat(currentInventory.quantity) - itemQuantity;
+              
+              console.log(`[Gift Sale] Auto-approved cadeau - Removing stock for productId=${itemProductId}: current=${currentInventory.quantity}, removing=${itemQuantity}, new=${newQuantity}`);
+              
+              // Update inventory
+              await tx.inventory.updateMany({
+                where: {
+                  depotId: targetDepotId,
+                  productId: itemProductId
+                },
+                data: {
+                  quantity: newQuantity
+                }
+              });
+            } else {
+              // If no inventory record exists, create one with negative quantity
+              console.log(`[Gift Sale] Auto-approved cadeau - Creating inventory record with negative quantity for productId=${itemProductId}: -${itemQuantity}`);
+              
+              await tx.inventory.create({
+                data: {
+                  depotId: targetDepotId,
+                  productId: itemProductId,
+                  quantity: -itemQuantity
+                }
+              });
+            }
+            
+            // Create stock movement record
+            await tx.stockMovement.create({
+              data: {
+                productId: itemProductId,
+                depotId: targetDepotId,
+                quantity: itemQuantity,
+                type: 'OUT',
+                reason: 'Gift Sale',
+                userId: req.user?.id
+              }
+            });
+          }
+        }
+        // If status is PENDING_ADMIN, stock will be removed when approved
       }
 
       return newSale;
     });
+
+    // Stock removal: 
+    // - If status is CADEAU (auto-approved), stock was removed during creation
+    // - If status is PENDING_ADMIN, stock will be removed upon approval
+    console.log(`[Gift Sale] Transaction completed. Status: ${saleStatus}, stock ${saleStatus === 'CADEAU' ? 'removed' : 'will be removed upon approval'}.`);
 
     const saleWithDetails = await prisma.sale.findUnique({
       where: { id: sale.id },
       include: { items: true, client: { select: { firstName: true, lastName: true, code: true } } }
     });
 
-    // Send push notification for new gift
-    try {
-      await sendPushToAll({
-        title: 'Nouveau Cadeau',
-        body: `Cadeau de ${finalTotal} DT - ${items.length} articles par ${req.user.firstName} ${req.user.lastName}`,
-        data: { type: 'GIFT', id: saleWithDetails.id, depotId: saleWithDetails.depotId }
+    // Emit socket notification for real-time ticket synchronization (same as regular sales)
+    if (req.app.get('io')) {
+      req.app.get('io').to(`depot_${targetDepotId}`).emit('ticket_created', {
+        depotId: targetDepotId,
+        ticketNumber: sale.dailyTicketNumber,
+        sessionId: sale.sessionId,
+        saleId: sale.id,
+        createdBy: req.user.username,
+        isGift: true
       });
-    } catch (e) {
-      console.warn('[sales.gift] Failed to send push notification:', e);
+    }
+
+    // Send push notification if status is PENDING_ADMIN (needs approval)
+    if (saleStatus === 'PENDING_ADMIN') {
+      try {
+        const { sendPushToAll } = require('../lib/push');
+        await sendPushToAll({
+          title: 'Nouvelle demande de cadeau',
+          body: `Demande de cadeau en attente d'approbation - ${reason}`,
+          data: { type: 'GIFT_APPROVAL', id: sale.id }
+        });
+      } catch (e) {
+        console.error('[Gift Sale] Error sending push notification:', e);
+      }
     }
 
     res.status(201).json(saleWithDetails);
   } catch (error) {
-    console.error('Error creating gift sale:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('[Gift Sale] Error creating gift sale:', error);
+    console.error('[Gift Sale] Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      body: req.body
+    });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message || 'Failed to create gift sale',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -772,65 +943,156 @@ router.put('/gift/:id/approve', async (req, res) => {
       return res.status(400).json({ error: 'User must be assigned to a depot to approve gift sales' });
     }
 
+    // Allow approving both PENDING_ADMIN and already approved CADEAU (to fix stock if needed)
     const giftSale = await prisma.sale.findFirst({
-      where: { id: parseInt(id), status: 'PENDING_ADMIN', depotId: userDepotId },
+      where: { 
+        id: parseInt(id), 
+        status: { in: ['PENDING_ADMIN', 'CADEAU'] },
+        depotId: userDepotId 
+      },
       include: { items: true }
     });
 
     if (!giftSale) {
-      return res.status(404).json({ error: 'Gift sale not found or already processed' });
+      return res.status(404).json({ error: 'Gift sale not found or cannot be processed' });
     }
 
+    // Use the gift sale's depotId (should be same as userDepotId, but use sale's to be sure)
+    const targetDepotId = giftSale.depotId || userDepotId;
+    
+    console.log(`[gift approve] Starting approval for sale ${id}, depotId=${targetDepotId}, items count=${giftSale.items.length}`);
+
     const sale = await prisma.$transaction(async (tx) => {
+      // Update status to CADEAU if it was PENDING_ADMIN
       const updatedSale = await tx.sale.update({
         where: { id: parseInt(id) },
-        data: { status: 'CADEAU', updatedAt: new Date() }
+        data: { 
+          status: 'CADEAU', 
+          updatedAt: new Date() 
+        }
       });
 
-      for (const item of giftSale.items) {
-        // Get current inventory quantity first
-        const currentInventory = await tx.inventory.findFirst({
-          where: {
-            depotId: targetDepotId,
-            productId: item.productId
+      // Always remove stock when approving a cadeau
+      // Check if stock was already removed by looking for existing stock movements
+      // This ensures stock is removed even if the cadeau was already CADEAU but stock wasn't removed
+      console.log(`[gift approve] Processing stock removal for sale ${id} (status was ${giftSale.status}).`);
+      
+      // Get existing stock movements for this sale to check if stock was already removed
+      const saleItemIds = giftSale.items.map(item => item.productId);
+      const timeWindowStart = new Date(giftSale.createdAt.getTime() - 5 * 60 * 1000); // 5 minutes before
+      const timeWindowEnd = new Date(giftSale.createdAt.getTime() + 5 * 60 * 1000); // 5 minutes after
+      
+      const existingMovements = await tx.stockMovement.findMany({
+        where: {
+          productId: { in: saleItemIds },
+          depotId: targetDepotId,
+          reason: { in: ['Gift Sale', 'Gift Sale Created', 'Gift Sale Approved'] },
+          date: {
+            gte: timeWindowStart,
+            lte: timeWindowEnd
           }
-        });
-
-        if (currentInventory) {
-          // Calculate new quantity (can be negative)
-          const newQuantity = parseFloat(currentInventory.quantity) - item.quantity;
-          
-          await tx.inventory.updateMany({
-            where: { depotId: userDepotId, productId: item.productId },
-            data: { quantity: newQuantity }
-          });
-        } else {
-          // If no inventory record exists, create one with negative quantity
-          await tx.inventory.create({
-            data: {
-              depotId: targetDepotId,
-              productId: item.productId,
-              quantity: -item.quantity
-            }
-          });
         }
+      });
+      
+      // Remove stock for each item
+      for (const item of giftSale.items) {
+        try {
+          const itemProductId = parseInt(item.productId);
+          const itemQuantity = parseFloat(item.quantity) || 0;
+          
+          if (itemProductId && itemQuantity > 0) {
+            // Check if stock movement already exists for this item
+            const hasMovement = existingMovements.some(m => 
+              m.productId === itemProductId && 
+              Math.abs(parseFloat(m.quantity.toString()) - itemQuantity) < 0.001
+            );
+            
+            if (hasMovement) {
+              console.log(`[gift approve] Stock movement already exists for productId=${itemProductId}, skipping.`);
+              continue;
+            }
+            
+            // Get current inventory
+            const currentInventory = await tx.inventory.findFirst({
+              where: {
+                depotId: targetDepotId,
+                productId: itemProductId
+              }
+            });
 
-        await tx.stockMovement.create({
-          data: {
-            productId: item.productId,
-            depotId: targetDepotId, // Use shop depot for caisse operations
-            quantity: item.quantity,
-            type: 'OUT',
-            reason: 'Gift Sale Approved',
-            userId: req.user.id
+            if (currentInventory) {
+              // Calculate new quantity (can be negative)
+              const newQuantity = parseFloat(currentInventory.quantity) - itemQuantity;
+              
+              console.log(`[gift approve] Removing stock for productId=${itemProductId}: current=${currentInventory.quantity}, removing=${itemQuantity}, new=${newQuantity}`);
+              
+              // Update inventory
+              await tx.inventory.updateMany({
+                where: {
+                  depotId: targetDepotId,
+                  productId: itemProductId
+                },
+                data: {
+                  quantity: newQuantity
+                }
+              });
+            } else {
+              // If no inventory record exists, create one with negative quantity
+              console.log(`[gift approve] Creating inventory record with negative quantity for productId=${itemProductId}: -${itemQuantity}`);
+              
+              await tx.inventory.create({
+                data: {
+                  depotId: targetDepotId,
+                  productId: itemProductId,
+                  quantity: -itemQuantity
+                }
+              });
+            }
+            
+            // Create stock movement record
+            await tx.stockMovement.create({
+              data: {
+                productId: itemProductId,
+                depotId: targetDepotId,
+                quantity: itemQuantity,
+                type: 'OUT',
+                reason: 'Gift Sale Approved',
+                userId: req.user?.id
+              }
+            });
+            
+            console.log(`[gift approve] Stock removed and movement recorded for productId=${itemProductId}`);
           }
-        });
+        } catch (itemError) {
+          console.error(`[gift approve] Error processing productId=${item.productId}:`, itemError);
+          // Continue with other items even if one fails
+        }
       }
+      
+      console.log(`[gift approve] Transaction completed successfully`);
 
       return updatedSale;
     });
 
     const saleWithDetails = await prisma.sale.findUnique({ where: { id: sale.id }, include: { items: true, client: { select: { firstName: true, lastName: true, code: true } } } });
+
+    // Verify inventory was updated correctly
+    for (const item of giftSale.items) {
+      const itemProductId = parseInt(item.productId);
+      if (itemProductId) {
+        const verifyInventory = await prisma.inventory.findFirst({
+          where: {
+            depotId: targetDepotId,
+            productId: itemProductId
+          }
+        });
+        if (verifyInventory) {
+          console.log(`[gift approve] Verification: productId=${itemProductId}, final quantity=${verifyInventory.quantity}`);
+        } else {
+          console.warn(`[gift approve] Verification failed: productId=${itemProductId} not found in inventory`);
+        }
+      }
+    }
 
     res.json(saleWithDetails);
   } catch (error) {
@@ -842,26 +1104,254 @@ router.put('/gift/:id/approve', async (req, res) => {
 router.put('/gift/:id/reject', async (req, res) => {
   try {
     const { id } = req.params;
+    const userDepotId = req.user?.depotId;
     const where = { id: parseInt(id), status: 'PENDING_ADMIN' };
     // Restrict by depot for non-admins; allow admins to reject across depots
-    if (req.user && req.user.role !== 'ADMIN' && req.user.depotId) {
-      where.depotId = req.user.depotId;
+    if (req.user && req.user.role !== 'ADMIN' && userDepotId) {
+      where.depotId = userDepotId;
     }
 
-    const giftSale = await prisma.sale.findFirst({ where });
+    const giftSale = await prisma.sale.findFirst({ 
+      where,
+      include: { items: true }
+    });
 
     if (!giftSale) {
       return res.status(404).json({ error: 'Gift sale not found or already processed' });
     }
 
-    await prisma.sale.update({ where: { id: parseInt(id) }, data: { status: 'CANCELLED', updatedAt: new Date() } });
+    const targetDepotId = giftSale.depotId || userDepotId;
 
-    const saleWithDetails = await prisma.sale.findUnique({ where: { id: parseInt(id) }, include: { items: true, client: { select: { firstName: true, lastName: true, code: true } } } });
+    // Stock was not removed at creation, so no need to restore it when rejecting
+    // Only update the sale status to CANCELLED
+    await prisma.$transaction(async (tx) => {
+      // Update sale status
+      await tx.sale.update({ 
+        where: { id: parseInt(id) }, 
+        data: { status: 'CANCELLED', updatedAt: new Date() } 
+      });
+
+      console.log(`[gift reject] Rejecting sale ${id} (status was ${giftSale.status}). No stock to restore since it was never removed.`);
+    });
+
+    const saleWithDetails = await prisma.sale.findUnique({ 
+      where: { id: parseInt(id) }, 
+      include: { items: true, client: { select: { firstName: true, lastName: true, code: true } } } 
+    });
 
     res.json(saleWithDetails);
   } catch (error) {
     console.error('Error rejecting gift sale:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Fix gift sales that don't have stock deducted (retroactive fix)
+// Supports force mode: if ?force=true, will process all items regardless of existing movements
+router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
+  try {
+    // Only allow ADMIN and MANAGER roles
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER') {
+      return res.status(403).json({ error: 'Access denied. Only admins and managers can fix gift stock.' });
+    }
+
+    const forceMode = req.query.force === 'true' || req.body.force === true;
+    console.log(`[Gift Stock Fix] Starting retroactive stock fix... (force mode: ${forceMode})`);
+
+    // Find all CADEAU sales
+    const giftSales = await prisma.sale.findMany({
+      where: {
+        status: 'CADEAU'
+      },
+      include: {
+        items: true,
+        depot: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        }
+      },
+      orderBy: {
+        id: 'asc'
+      }
+    });
+
+    console.log(`[Gift Stock Fix] Found ${giftSales.length} gift sales`);
+
+    let fixedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    const errors = [];
+    let totalItemsProcessed = 0;
+    let totalStockRemoved = 0;
+
+    for (const sale of giftSales) {
+      if (!sale.depotId) {
+        console.log(`[Gift Stock Fix] Sale #${sale.id}: No depotId, skipping...`);
+        skippedCount++;
+        continue;
+      }
+
+      const targetDepotId = sale.depotId;
+
+      let itemsNeedingStock = [];
+
+      if (forceMode) {
+        // Force mode: process all items regardless of existing movements
+        itemsNeedingStock = sale.items.filter(item => {
+          const itemProductId = parseInt(item.productId);
+          const itemQuantity = parseFloat(item.quantity) || 0;
+          return itemProductId && itemQuantity > 0;
+        });
+        console.log(`[Gift Stock Fix] Force mode: Processing ALL ${itemsNeedingStock.length} items for sale #${sale.id}`);
+      } else {
+        // Normal mode: check for existing movements
+        // Use a wider time window (30 minutes) to catch movements
+        const timeWindowStart = new Date(sale.createdAt.getTime() - 30 * 60 * 1000); // 30 minutes before
+        const timeWindowEnd = new Date(sale.createdAt.getTime() + 30 * 60 * 1000); // 30 minutes after
+        
+        const existingMovements = await prisma.stockMovement.findMany({
+          where: {
+            productId: { in: sale.items.map(item => item.productId) },
+            depotId: targetDepotId,
+            reason: { in: ['Gift Sale', 'Gift Sale Created', 'Gift Sale Approved', 'Gift Sale (Retroactive Fix)'] },
+            date: {
+              gte: timeWindowStart,
+              lte: timeWindowEnd
+            }
+          }
+        });
+
+        console.log(`[Gift Stock Fix] Sale #${sale.id}: Found ${existingMovements.length} existing movements in time window`);
+
+        // Check if we need to process this sale
+        itemsNeedingStock = sale.items.filter(item => {
+          const itemProductId = parseInt(item.productId);
+          const itemQuantity = parseFloat(item.quantity) || 0;
+          
+          if (!itemProductId || itemQuantity <= 0) {
+            return false; // Skip invalid items
+          }
+          
+          // Check if there's a movement for this exact product and quantity
+          const hasMovement = existingMovements.some(m => {
+            const movementProductId = parseInt(m.productId);
+            const movementQuantity = parseFloat(m.quantity.toString()) || 0;
+            
+            // Match product ID and quantity (with small tolerance for floating point)
+            return movementProductId === itemProductId && 
+                   Math.abs(movementQuantity - itemQuantity) < 0.001;
+          });
+          
+          return !hasMovement;
+        });
+      }
+
+      if (itemsNeedingStock.length === 0) {
+        console.log(`[Gift Stock Fix] Sale #${sale.id}: All items already have stock movements, skipping...`);
+        skippedCount++;
+        continue;
+      }
+
+      console.log(`[Gift Stock Fix] Sale #${sale.id}: Processing ${itemsNeedingStock.length} items that need stock deduction`);
+
+      try {
+        await prisma.$transaction(async (tx) => {
+          for (const item of itemsNeedingStock) {
+            const itemQuantity = parseFloat(item.quantity) || 0;
+            const itemProductId = parseInt(item.productId);
+
+            if (!itemProductId || itemQuantity <= 0) {
+              console.log(`[Gift Stock Fix] Sale #${sale.id}: Skipping invalid item - productId=${itemProductId}, quantity=${itemQuantity}`);
+              continue;
+            }
+
+            // Get current inventory
+            const currentInventory = await tx.inventory.findUnique({
+              where: {
+                depotId_productId: {
+                  depotId: targetDepotId,
+                  productId: itemProductId
+                }
+              }
+            });
+
+            const currentQty = currentInventory ? parseFloat(currentInventory.quantity) || 0 : 0;
+            const newQuantity = currentQty - itemQuantity;
+
+            console.log(`[Gift Stock Fix] Sale #${sale.id}, Product #${itemProductId}: ${currentQty} → ${newQuantity} (removing ${itemQuantity})`);
+
+            // Update or create inventory
+            await tx.inventory.upsert({
+              where: {
+                depotId_productId: {
+                  depotId: targetDepotId,
+                  productId: itemProductId
+                }
+              },
+              update: {
+                quantity: newQuantity
+              },
+              create: {
+                depotId: targetDepotId,
+                productId: itemProductId,
+                quantity: -itemQuantity
+              }
+            });
+
+            // Create stock movement (always create, even in force mode, for audit trail)
+            await tx.stockMovement.create({
+              data: {
+                productId: itemProductId,
+                depotId: targetDepotId,
+                quantity: itemQuantity,
+                type: 'OUT',
+                reason: forceMode ? 'Gift Sale (Force Fix)' : 'Gift Sale (Retroactive Fix)',
+                userId: sale.userId,
+                date: sale.createdAt
+              }
+            });
+
+            totalItemsProcessed++;
+            totalStockRemoved += itemQuantity;
+            console.log(`[Gift Stock Fix] Sale #${sale.id}, Product #${itemProductId}: Stock removed and movement created`);
+          }
+        });
+
+        fixedCount++;
+        console.log(`[Gift Stock Fix] ✅ Fixed sale #${sale.id} (${itemsNeedingStock.length} items)`);
+      } catch (error) {
+        errorCount++;
+        errors.push({ saleId: sale.id, error: error.message });
+        console.error(`[Gift Stock Fix] Error fixing sale #${sale.id}:`, error);
+        console.error(`[Gift Stock Fix] Error stack:`, error.stack);
+      }
+    }
+
+    console.log(`[Gift Stock Fix] Completed: Fixed=${fixedCount}, Skipped=${skippedCount}, Errors=${errorCount}`);
+    console.log(`[Gift Stock Fix] Total items processed: ${totalItemsProcessed}, Total stock removed: ${totalStockRemoved}`);
+
+    res.json({
+      success: true,
+      forceMode: forceMode,
+      summary: {
+        total: giftSales.length,
+        fixed: fixedCount,
+        skipped: skippedCount,
+        errors: errorCount,
+        totalItemsProcessed: totalItemsProcessed,
+        totalStockRemoved: totalStockRemoved
+      },
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('[Gift Stock Fix] Fatal error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
   }
 });
 

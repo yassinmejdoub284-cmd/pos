@@ -246,12 +246,19 @@ export class SessionsService {
   }
 
   // Get session report (X or Z)
-  getSessionReport(sessionId: number, type: 'X' | 'Z' = 'Z', format: 'html' | 'escpos' | 'pdf' = 'html'): Observable<any> {
+  getSessionReport(sessionId: number, type: 'X' | 'Z' = 'Z', format: 'html' | 'escpos' | 'pdf' = 'html', depotId?: number): Observable<any> {
     const params = { type, format };
-    return this.http.get(`${this.API_URL}/${sessionId}/report`, { 
+    const options: any = { 
       params,
       ...this.getRequestOptions()
-    });
+    };
+    if (depotId) {
+      options.headers = {
+        ...options.headers,
+        'x-depot-id': depotId.toString()
+      };
+    }
+    return this.http.get(`${this.API_URL}/${sessionId}/report`, options);
   }
 
   // Admin: Reopen session
