@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { UsersService, User } from '../../core/services/users.service';
 import { SettingsService, AppSettings } from '../../core/services/settings.service';
 import { DepotsService } from '../../core/services/depots.service';
+import { AuthService } from '../../core/services/auth.service';
 import { Depot } from '../../core/models/depot.model';
 
 @Component({
@@ -25,6 +26,7 @@ export class UsersComponent implements OnInit {
   newRoleKey: string = '';
   depots: Depot[] = [];
   selectedDepot: Depot | null = null;
+  selectedDepotsForUser: Depot[] = []; // Multiple depots for user assignment
   isEditingDepot = false;
 
   // Numpad modal
@@ -63,21 +65,43 @@ export class UsersComponent implements OnInit {
   // Token display state
   visibleTokens: { [userId: number]: boolean } = {};
 
+  // Depot filtering for super admin (up to 2 depots)
+  selectedFilterDepots: Depot[] = [];
+  showDepotFilter = false;
+
   constructor(
     private usersService: UsersService,
     private depotsService: DepotsService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
     this.load();
     this.loadDepots();
     this.loadCurrentRoles();
+    // Check if user is super admin to show depot filter
+    // Also check from sessionStorage in case signal hasn't updated
+    const userStr = sessionStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        const roleKey = (user as any).roleKey;
+        this.showDepotFilter = roleKey === '9' || roleKey === 'SUPER_ADMIN' || this.authService.isSuperAdmin();
+      } catch {
+        this.showDepotFilter = this.authService.isSuperAdmin();
+      }
+    } else {
+      this.showDepotFilter = this.authService.isSuperAdmin();
+    }
   }
 
   load(): void {
     this.loading = true;
-    this.usersService.getUsers().subscribe({
+    const depotIds = this.selectedFilterDepots.length > 0 
+      ? this.selectedFilterDepots.map(d => d.id) 
+      : undefined;
+    this.usersService.getUsers(depotIds).subscribe({
       next: (u) => { this.users = u; this.loading = false; },
       error: () => { this.error = 'Erreur lors du chargement des utilisateurs'; this.loading = false; }
     });
@@ -97,6 +121,15 @@ export class UsersComponent implements OnInit {
     this.selectedUser = user;
     // Initialize roleKey selector with existing roleKey or fallback to role
     this.newRoleKey = (user as any)?.roleKey || user.role || '';
+    // Initialize depotIds if available, otherwise use depotId
+    if ((user as any)?.depotIds && Array.isArray((user as any).depotIds)) {
+      // Already has multiple depot IDs
+    } else if (user.depotId) {
+      // Convert single depotId to array format
+      (this.selectedUser as any).depotIds = [user.depotId];
+    } else {
+      (this.selectedUser as any).depotIds = [];
+    }
     this.showEditModal = true;
   }
   closeEdit(): void { this.selectedUser = null; this.showEditModal = false; }
@@ -105,6 +138,7 @@ export class UsersComponent implements OnInit {
 
   resetNewUser(): void {
     this.newUser = { firstName: '', lastName: '', role: 'CASHIER', depotId: undefined, pin: '', token: '' };
+    (this.newUser as any).depotIds = [];
   }
 
   // Role Access (custom role keys from settings)
@@ -127,7 +161,7 @@ export class UsersComponent implements OnInit {
 
   create(): void {
     this.error = '';
-    const payload = {
+    const payload: any = {
       username: `${this.newUser.firstName?.toLowerCase()}.${this.newUser.lastName?.toLowerCase()}` || '',
       email: `${this.newUser.firstName?.toLowerCase()}.${this.newUser.lastName?.toLowerCase()}@company.com` || '',
       password: 'default123',
@@ -140,6 +174,10 @@ export class UsersComponent implements OnInit {
       token: this.newUser.token || '',
       roleKey: this.newRoleKey?.trim() || undefined
     };
+    // Add multiple depot IDs if available
+    if ((this.newUser as any).depotIds && Array.isArray((this.newUser as any).depotIds)) {
+      payload.depotIds = (this.newUser as any).depotIds;
+    }
     this.usersService.createUser(payload).subscribe({
       next: () => { this.closeAdd(); this.load(); },
       error: () => { this.error = "Erreur lors de l'ajout de l'utilisateur"; }
@@ -148,7 +186,7 @@ export class UsersComponent implements OnInit {
 
   save(): void {
     if (!this.selectedUser) return;
-    const update = {
+    const update: any = {
       firstName: this.selectedUser.firstName,
       lastName: this.selectedUser.lastName,
       // Persist role as the selected custom roleKey when provided to avoid empty role
@@ -158,6 +196,10 @@ export class UsersComponent implements OnInit {
       // Persist selected custom role key (global RBAC)
       roleKey: this.newRoleKey?.trim() || undefined
     };
+    // Add multiple depot IDs if available
+    if ((this.selectedUser as any).depotIds && Array.isArray((this.selectedUser as any).depotIds)) {
+      update.depotIds = (this.selectedUser as any).depotIds;
+    }
     this.usersService.updateUser(this.selectedUser.id, update).subscribe({
       next: (u) => { this.selectedUser = u; this.closeEdit(); this.load(); },
       error: () => { this.error = "Erreur lors de la modification de l'utilisateur"; }
@@ -191,29 +233,81 @@ export class UsersComponent implements OnInit {
     return this.usersService.getRoleDisplayName(role);
   }
 
-  // Depot selection methods
+  // Depot selection methods (multiple selection)
   openDepotSelection(isEdit: boolean = false): void {
     this.isEditingDepot = isEdit;
     this.showDepotSelection = true;
     this.selectedDepot = null;
+    // Initialize selected depots from current user (support multiple depots)
+    if (isEdit && this.selectedUser) {
+      const depotIds = (this.selectedUser as any)?.depotIds || [];
+      if (depotIds.length > 0) {
+        this.selectedDepotsForUser = this.depots.filter(d => depotIds.includes(d.id));
+      } else if (this.selectedUser.depotId) {
+        const currentDepot = this.depots.find(d => d.id === this.selectedUser?.depotId);
+        this.selectedDepotsForUser = currentDepot ? [currentDepot] : [];
+      } else {
+        this.selectedDepotsForUser = [];
+      }
+    } else if (!isEdit) {
+      const depotIds = (this.newUser as any)?.depotIds || [];
+      if (depotIds.length > 0) {
+        this.selectedDepotsForUser = this.depots.filter(d => depotIds.includes(d.id));
+      } else if (this.newUser.depotId) {
+        const currentDepot = this.depots.find(d => d.id === this.newUser.depotId);
+        this.selectedDepotsForUser = currentDepot ? [currentDepot] : [];
+      } else {
+        this.selectedDepotsForUser = [];
+      }
+    } else {
+      this.selectedDepotsForUser = [];
+    }
   }
 
   closeDepotSelection(): void {
     this.showDepotSelection = false;
     this.selectedDepot = null;
     this.isEditingDepot = false;
+    this.selectedDepotsForUser = [];
   }
 
-  selectDepot(depot: Depot): void {
-    this.selectedDepot = depot;
+  toggleDepotForUser(depot: Depot): void {
+    const index = this.selectedDepotsForUser.findIndex(d => d.id === depot.id);
+    if (index >= 0) {
+      // Remove depot
+      this.selectedDepotsForUser.splice(index, 1);
+    } else {
+      // Add depot (no limit)
+      this.selectedDepotsForUser.push(depot);
+    }
+  }
+
+  isDepotSelectedForUser(depotId: number): boolean {
+    return this.selectedDepotsForUser.some(d => d.id === depotId);
   }
 
   confirmDepotSelection(): void {
-    if (this.selectedDepot) {
+    // Store first depot ID for backward compatibility (depotId field)
+    // And also store all selected depot IDs in a custom field
+    if (this.selectedDepotsForUser.length > 0) {
+      const firstDepotId = this.selectedDepotsForUser[0].id;
       if (this.isEditingDepot && this.selectedUser) {
-        this.selectedUser.depotId = this.selectedDepot.id;
+        this.selectedUser.depotId = firstDepotId;
+        // Store multiple depot IDs in a custom property
+        (this.selectedUser as any).depotIds = this.selectedDepotsForUser.map(d => d.id);
       } else {
-        this.newUser.depotId = this.selectedDepot.id;
+        this.newUser.depotId = firstDepotId;
+        // Store multiple depot IDs in a custom property
+        (this.newUser as any).depotIds = this.selectedDepotsForUser.map(d => d.id);
+      }
+    } else {
+      // Clear depots
+      if (this.isEditingDepot && this.selectedUser) {
+        this.selectedUser.depotId = undefined;
+        (this.selectedUser as any).depotIds = [];
+      } else {
+        this.newUser.depotId = undefined;
+        (this.newUser as any).depotIds = [];
       }
     }
     this.closeDepotSelection();
@@ -223,6 +317,21 @@ export class UsersComponent implements OnInit {
     if (!depotId) return 'Aucun';
     const depot = this.depots.find(d => d.id === depotId);
     return depot ? depot.name : `ID: ${depotId}`;
+  }
+
+  getDepotsDisplay(user: User | Partial<User>): string {
+    const depotIds = (user as any)?.depotIds || [];
+    if (depotIds.length > 0) {
+      const names = depotIds.map((id: number) => {
+        const depot = this.depots.find(d => d.id === id);
+        return depot ? depot.name : `ID: ${id}`;
+      });
+      return names.join(', ');
+    }
+    if (user.depotId) {
+      return this.getDepotName(user.depotId);
+    }
+    return 'Aucun';
   }
 
   getDepotIcon(type: string): string {
@@ -542,6 +651,29 @@ export class UsersComponent implements OnInit {
       return user.token || 'Non défini';
     }
     return '••••••••••••••••••••';
+  }
+
+  // Depot filter methods for super admin
+  toggleDepotFilter(depot: Depot): void {
+    const index = this.selectedFilterDepots.findIndex(d => d.id === depot.id);
+    if (index >= 0) {
+      // Remove depot from filter
+      this.selectedFilterDepots.splice(index, 1);
+    } else {
+      // Add depot to filter (no limit - can select multiple)
+      this.selectedFilterDepots.push(depot);
+    }
+    // Reload users with new filter
+    this.load();
+  }
+
+  clearDepotFilter(): void {
+    this.selectedFilterDepots = [];
+    this.load();
+  }
+
+  isDepotSelected(depotId: number): boolean {
+    return this.selectedFilterDepots.some(d => d.id === depotId);
   }
 }
 

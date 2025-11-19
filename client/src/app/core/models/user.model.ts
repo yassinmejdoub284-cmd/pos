@@ -13,6 +13,7 @@ export interface User {
   companyId?: number;
   companyName?: string;
   userType?: 'patisserie' | 'enterprise';
+  roleKey?: string;
 }
 
 export type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER' | 'ENTERPRISE_USER';

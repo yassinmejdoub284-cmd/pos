@@ -57,8 +57,14 @@ export class UsersService {
 
   constructor(private http: HttpClient) {}
 
-  getUsers(): Observable<User[]> {
-    return this.http.get<User[]>(this.apiUrl);
+  getUsers(depotIds?: number[]): Observable<User[]> {
+    let url = this.apiUrl;
+    if (depotIds && depotIds.length > 0) {
+      // Send as multiple parameters: ?depotIds=1&depotIds=2&depotIds=3
+      const params = depotIds.map(id => `depotIds=${id}`).join('&');
+      url = `${url}?${params}`;
+    }
+    return this.http.get<User[]>(url);
   }
 
   getUser(id: number): Observable<User> {

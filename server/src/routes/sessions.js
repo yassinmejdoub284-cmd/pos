@@ -2,8 +2,27 @@ const express = require('express');
 const { prisma } = require('../lib/prisma');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { logAudit } = require('../lib/audit');
+const fs = require('fs');
+const path = require('path');
 
 const router = express.Router();
+
+// Helper function to read user roles from JSON file
+function readUserRoles() {
+  try {
+    const rolesPath = path.join(__dirname, '../uploads/user-roles.json');
+    if (fs.existsSync(rolesPath)) {
+      return JSON.parse(fs.readFileSync(rolesPath, 'utf8'));
+    }
+  } catch {}
+  return {};
+}
+
+// Helper function to check if user is super admin
+function isSuperAdmin(userId) {
+  const mapping = readUserRoles();
+  return mapping[String(userId)] === '9' || mapping[String(userId)] === 'SUPER_ADMIN';
+}
 
 // Diagnostic route to check session existence (admin only)
 router.get('/:id/check', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
@@ -1019,21 +1038,48 @@ router.get('/', authenticateToken, async (req, res) => {
     console.log('Sessions GET request - User:', req.user);
     console.log('Sessions GET request - Query params:', { startDate, endDate, userId, posId, status, hasVariance, page, limit });
 
-    // Enforce depot isolation for session history
-    const userDepotId = req.user.depotId;
-    if (!userDepotId) {
+    // Check if user is super admin
+    const isUserSuperAdmin = isSuperAdmin(req.user.id);
+    console.log('Sessions GET - isSuperAdmin:', isUserSuperAdmin, 'userId:', req.user.id, 'role:', req.user.role);
+    
+    // Check for visiting depot from header (set when super admin selects a depot)
+    const visitingDepotHeader = req.headers['x-depot-id'];
+    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
+    console.log('Sessions GET - visitingDepotHeader:', visitingDepotHeader, 'visitingDepotId:', visitingDepotId);
+    
+    // Determine which depot to use: visiting > user's depot
+    let targetDepotId = visitingDepotId || req.user.depotId;
+    
+    // For super admin, allow access even without depot if visiting depot is specified
+    if (isUserSuperAdmin && visitingDepotId) {
+      targetDepotId = visitingDepotId;
+    } else if (!targetDepotId && !isUserSuperAdmin) {
       return res.status(400).json({ error: 'User must be assigned to a depot to view session history' });
     }
     
+    console.log('Sessions GET - targetDepotId:', targetDepotId);
+    
     const whereClause = {
-      depotId: userDepotId // Always filter by user's depot for isolation
+      depotId: targetDepotId // Filter by selected depot (visiting depot for super admin, or user's depot)
     };
     
+    // Super admin can see all sessions from the selected depot without userId filter
     // Admin can see all sessions from their depot, others only their own
-    if (req.user?.role !== 'ADMIN') {
+    if (isUserSuperAdmin) {
+      // Super admin: only filter by userId if explicitly requested
+      if (userId) {
+        whereClause.userId = parseInt(userId);
+        console.log('Sessions GET - Super admin filtering by userId:', userId);
+      } else {
+        console.log('Sessions GET - Super admin: showing all sessions for depot', targetDepotId);
+      }
+      // Otherwise, show all sessions for the selected depot
+    } else if (req.user?.role !== 'ADMIN') {
       whereClause.userId = req.user?.id;
+      console.log('Sessions GET - Non-admin filtering by userId:', req.user?.id);
     } else if (userId) {
       whereClause.userId = parseInt(userId);
+      console.log('Sessions GET - Admin filtering by userId:', userId);
     }
 
     if (startDate && endDate) {
@@ -1351,34 +1397,38 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
 
     console.log(`[Session Report] Request for session ${sessionId}, user: ${req.user?.id}, role: ${req.user?.role}`);
 
+    // Check if user is super admin
+    const isUserSuperAdmin = isSuperAdmin(req.user.id);
+    
     // Enforce depot isolation - use visiting depot or user's depot
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     
-    console.log(`[Session Report] userDepotId: ${userDepotId}, visitingDepotId: ${visitingDepotId}`);
+    console.log(`[Session Report] userDepotId: ${userDepotId}, visitingDepotId: ${visitingDepotId}, isSuperAdmin: ${isUserSuperAdmin}`);
     
     // Determine which depot to use: visiting > user's depot
-    // For admins: only use depotId if explicitly provided via header (allows access to all depots if not specified)
+    // For admins and super admins: only use depotId if explicitly provided via header (allows access to all depots if not specified)
     // For non-admins: use visiting depot or fallback to user's depot
     let targetDepotId;
-    if (req.user?.role === 'ADMIN') {
-      // Admins: only filter by depot if explicitly provided via header
+    const isAdmin = req.user?.role === 'ADMIN' || isUserSuperAdmin;
+    if (isAdmin) {
+      // Admins and super admins: only filter by depot if explicitly provided via header
       targetDepotId = visitingDepotId || null;
     } else {
       // Non-admins: use visiting depot or fallback to user's depot
       targetDepotId = visitingDepotId || userDepotId;
     }
     
-    console.log(`[Session Report] targetDepotId: ${targetDepotId} (admin: ${req.user?.role === 'ADMIN'})`);
+    console.log(`[Session Report] targetDepotId: ${targetDepotId} (admin: ${isAdmin})`);
     
     // For non-admin users, depot is required
-    if (!targetDepotId && req.user?.role !== 'ADMIN') {
+    if (!targetDepotId && !isAdmin) {
       return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view session reports' });
     }
     
     // For non-admin users, check depot access
-    if (req.user?.role !== 'ADMIN') {
+    if (!isAdmin) {
       // Allow if accessing own depot
       if (targetDepotId && userDepotId && targetDepotId === userDepotId) {
         // OK - accessing own depot
@@ -1421,27 +1471,27 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
       id: sessionId
     };
     
-    // For admins without specified depotId, use the session's actual depotId (or null) for the query
-    if (!targetDepotId && req.user?.role === 'ADMIN') {
+    // For admins and super admins without specified depotId, use the session's actual depotId (or null) for the query
+    if (!targetDepotId && isAdmin) {
       // If session has a depotId, use it; if NULL, don't filter by depotId
       if (sessionExists.depotId !== null && sessionExists.depotId !== undefined) {
         whereClause.depotId = sessionExists.depotId;
-        console.log(`[Session Report] Admin access: using session's depotId ${sessionExists.depotId}`);
+        console.log(`[Session Report] Admin/SuperAdmin access: using session's depotId ${sessionExists.depotId}`);
       } else {
-        console.log(`[Session Report] Admin access: session has NULL depotId, no depot filter applied`);
+        console.log(`[Session Report] Admin/SuperAdmin access: session has NULL depotId, no depot filter applied`);
       }
     } else if (targetDepotId) {
-      // Non-admin or admin with explicit depotId
+      // Non-admin or admin/super admin with explicit depotId
       whereClause.depotId = targetDepotId;
       console.log(`[Session Report] Using targetDepotId ${targetDepotId} in whereClause`);
-    } else if (req.user?.role !== 'ADMIN') {
+    } else if (!isAdmin) {
       // Non-admins must have a depot specified
       return res.status(400).json({ error: 'Depot must be specified for non-admin users' });
     }
 
     console.log(`[Session Report] Final whereClause:`, JSON.stringify(whereClause));
 
-    const session = await prisma.sessionCaisse.findFirst({
+    let session = await prisma.sessionCaisse.findFirst({
       where: whereClause,
       include: {
         user: { select: { firstName: true, lastName: true } },
@@ -1452,7 +1502,37 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
 
     if (!session) {
       console.log(`[Session Report] Session ${sessionId} not found with filters:`, JSON.stringify(whereClause));
-      console.log(`[Session Report] Session exists with depotId: ${sessionExists.depotId}, targetDepotId: ${targetDepotId}`);
+      console.log(`[Session Report] Session exists with depotId: ${sessionExists.depotId}, targetDepotId: ${targetDepotId}, isSuperAdmin: ${isUserSuperAdmin}, visitingDepotId: ${visitingDepotId}`);
+      
+      // For super admin with visiting depot, verify the session belongs to that depot
+      if (isUserSuperAdmin && visitingDepotId) {
+        if (sessionExists.depotId === visitingDepotId) {
+          // Session belongs to the selected depot, but query failed - retry with explicit depot filter
+          console.log(`[Session Report] Super admin: retrying with explicit depot filter for depot ${visitingDepotId}`);
+          const retrySession = await prisma.sessionCaisse.findFirst({
+            where: {
+              id: sessionId,
+              depotId: visitingDepotId
+            },
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+              depot: { select: { name: true, code: true } },
+              cashMovements: true
+            }
+          });
+          if (retrySession) {
+            // Use the retry session
+            session = retrySession;
+            console.log(`[Session Report] Super admin: successfully retrieved session ${sessionId} on retry`);
+          } else {
+            return res.status(404).json({ error: `Session ${sessionId} non trouvée pour le dépôt ${visitingDepotId}` });
+          }
+        } else {
+          return res.status(404).json({ 
+            error: `Session ${sessionId} appartient au dépôt ${sessionExists.depotId}, pas au dépôt sélectionné ${visitingDepotId}` 
+          });
+        }
+      }
       
       // Check if session exists but belongs to different depot
       if (targetDepotId !== null && targetDepotId !== undefined && 
@@ -1471,7 +1551,9 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
         });
       }
       
-      return res.status(404).json({ error: `Session ${sessionId} non trouvée avec les filtres spécifiés` });
+      if (!session) {
+        return res.status(404).json({ error: `Session ${sessionId} non trouvée avec les filtres spécifiés` });
+      }
     }
 
     console.log(`[Session Report] Session ${sessionId} found successfully`);

@@ -235,14 +235,16 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (sessions) => {
-          // Restore original visitingDepotId
-          if (originalVisitingDepotId) {
-            sessionStorage.setItem('visitingDepotId', originalVisitingDepotId);
-          } else {
-            sessionStorage.removeItem('visitingDepotId');
-          }
+          // Keep visitingDepotId set until all reports are loaded
+          // Don't restore it here - we'll restore it after all reports are loaded
 
           if (!sessions || sessions.length === 0) {
+            // Restore original visitingDepotId before returning
+            if (originalVisitingDepotId) {
+              sessionStorage.setItem('visitingDepotId', originalVisitingDepotId);
+            } else {
+              sessionStorage.removeItem('visitingDepotId');
+            }
             this.loading = false;
             this.error = 'Aucune session trouvée pour ce dépôt';
             return;
@@ -258,6 +260,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
           });
 
           // Get session reports for all sessions in parallel
+          // Keep visitingDepotId set so the interceptor uses the correct depot
           const reportRequests = sortedSessions.map(session => 
             this.sessionsService.getSessionReport(session.id, 'Z', 'html', depotIdNum)
               .pipe(
@@ -273,6 +276,12 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
             .pipe(takeUntil(this.destroy$))
             .subscribe({
               next: (sessionReports) => {
+                // Restore original visitingDepotId after all reports are loaded
+                if (originalVisitingDepotId) {
+                  sessionStorage.setItem('visitingDepotId', originalVisitingDepotId);
+                } else {
+                  sessionStorage.removeItem('visitingDepotId');
+                }
                 // Process each session report and convert to SessionExtract format
                 this.extracts = sessionReports
                   .filter(({ report }) => report !== null)
@@ -458,6 +467,12 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
                 this.loading = false;
               },
               error: (err) => {
+                // Restore original visitingDepotId on error
+                if (originalVisitingDepotId) {
+                  sessionStorage.setItem('visitingDepotId', originalVisitingDepotId);
+                } else {
+                  sessionStorage.removeItem('visitingDepotId');
+                }
                 console.error('Error loading session reports:', err);
                 this.error = 'Erreur lors du chargement des rapports de session';
                 this.loading = false;
@@ -598,6 +613,15 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
     if (!ticketNumber) return '';
     // If it already starts with #, return as is, otherwise add #
     return ticketNumber.startsWith('#') ? ticketNumber : `#${ticketNumber}`;
+  }
+
+  formatQuantity(quantity: number): string {
+    const formatted = quantity.toFixed(3);
+    // If decimal part is .000, return only integer part
+    if (formatted.endsWith('.000')) {
+      return Math.floor(quantity).toString();
+    }
+    return formatted;
   }
 
   goBack(): void {

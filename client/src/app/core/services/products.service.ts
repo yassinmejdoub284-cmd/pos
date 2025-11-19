@@ -179,4 +179,54 @@ export class ProductsService {
     }
     return this.http.get<any>(`${this.apiUrl}/transfer-history`, { params: httpParams });
   }
+
+  // Product Depot Links
+  getSimilarProducts(params: {
+    sourceDepotIds: number[];
+    productName?: string;
+    barcode?: string;
+    destinationProductId?: number;
+  }): Observable<Product[]> {
+    let httpParams = new HttpParams();
+    httpParams = httpParams.set('sourceDepotIds', params.sourceDepotIds.join(','));
+    if (params.productName) {
+      httpParams = httpParams.set('productName', params.productName);
+    }
+    if (params.barcode) {
+      httpParams = httpParams.set('barcode', params.barcode);
+    }
+    if (params.destinationProductId) {
+      httpParams = httpParams.set('destinationProductId', params.destinationProductId.toString());
+    }
+    return this.http.get<Product[]>(`${this.apiUrl}/similar-products`, { params: httpParams });
+  }
+
+  createProductDepotLink(linkData: {
+    sourceProductId: number;
+    sourceDepotId: number;
+    destinationProductId: number;
+    destinationDepotId: number;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/depot-links`, linkData);
+  }
+
+  getProductDepotLinks(productId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/${productId}/depot-links`);
+  }
+
+  deleteProductDepotLink(linkId: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/depot-links/${linkId}`);
+  }
+
+  getDestinationProduct(params: {
+    sourceProductId: number;
+    sourceDepotId: number;
+    destinationDepotId: number;
+  }): Observable<Product | null> {
+    let httpParams = new HttpParams();
+    httpParams = httpParams.set('sourceProductId', params.sourceProductId.toString());
+    httpParams = httpParams.set('sourceDepotId', params.sourceDepotId.toString());
+    httpParams = httpParams.set('destinationDepotId', params.destinationDepotId.toString());
+    return this.http.get<Product | null>(`${this.apiUrl}/depot-links/destination`, { params: httpParams });
+  }
 } 

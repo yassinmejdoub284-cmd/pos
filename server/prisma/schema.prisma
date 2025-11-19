@@ -59,6 +59,7 @@ model User {
   createdReminders               Reminder[]                @relation("ReminderCreatedBy")
   updatedReminders               Reminder[]                @relation("ReminderUpdatedBy")
   reminderAssignments            ReminderAssignment[]
+  userDepots                     UserDepot[]
 
   @@unique([pin, depotId], map: "users_pin_depot_id_key")
   @@index([depotId], map: "users_depot_id_fkey")
@@ -66,13 +67,13 @@ model User {
 }
 
 model UserEnterprise {
-  id             Int      @id @default(autoincrement())
-  name           String   @db.VarChar(100)
-  password       String   @db.VarChar(255) // hashed password
-  companyId      Int      @map("company_id")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  company        Company  @relation(fields: [companyId], references: [id])
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  password  String   @db.VarChar(255) // hashed password
+  companyId Int      @map("company_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  company   Company  @relation(fields: [companyId], references: [id])
 
   @@index([companyId], map: "users_enterprise_company_id_fkey")
   @@map("users_enterprise")
@@ -117,6 +118,9 @@ model Depot {
   fromTransfers         StockTransfer[]        @relation("FromDepot")
   toTransfers           StockTransfer[]        @relation("ToDepot")
   users                 User[]                 @relation("DepotUsers")
+  userDepots            UserDepot[]
+  sourceDepotLinks      ProductDepotLink[]     @relation("SourceDepot")
+  destinationDepotLinks ProductDepotLink[]    @relation("DestinationDepot")
   releveInventaire      ReleveInventaire[]
   suppliers             Supplier[]
 
@@ -124,37 +128,52 @@ model Depot {
   @@map("depots")
 }
 
+model UserDepot {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  depotId   Int      @map("depot_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  depot     Depot    @relation(fields: [depotId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, depotId])
+  @@index([userId], map: "user_depots_user_id_fkey")
+  @@index([depotId], map: "user_depots_depot_id_fkey")
+  @@map("user_depots")
+}
+
 model Company {
-  id               Int           @id @default(autoincrement())
-  raisonSociale    String        @db.VarChar(200)
-  formeJuridique   String        @db.VarChar(50)
-  activite         String?       @db.VarChar(200)
+  id               Int              @id @default(autoincrement())
+  raisonSociale    String           @db.VarChar(200)
+  formeJuridique   String           @db.VarChar(50)
+  activite         String?          @db.VarChar(200)
   dateCreation     DateTime?
-  logoUrl          String?       @db.VarChar(255)
-  brandColor       String?       @db.VarChar(20)
-  statut           CompanyStatus @default(ACTIF)
-  adresse          String?       @db.Text
-  ville            String?       @db.VarChar(100)
-  delegation       String?       @db.VarChar(100)
-  gouvernorat      String?       @db.VarChar(100)
-  codePostal       String?       @db.VarChar(10)
-  telephone        String?       @db.VarChar(20)
-  email            String?       @db.VarChar(100)
-  siteWeb          String?       @db.VarChar(150)
-  matriculeFiscal  String        @db.VarChar(50)
-  rne              String        @db.VarChar(50)
-  registreCommerce String?       @db.VarChar(50)
-  tvaAssujetti     Boolean       @default(false)
-  numeroTva        String?       @db.VarChar(50)
-  tauxTva          Decimal       @default(19.00) @db.Decimal(5, 2)
-  capitalSocial    Decimal       @default(0.000) @db.Decimal(14, 3)
-  representantNom  String?       @db.VarChar(100)
-  representantCin  String?       @db.VarChar(20)
-  rib              String?       @db.VarChar(50)
-  banque           String?       @db.VarChar(100)
-  bic              String?       @db.VarChar(20)
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
+  logoUrl          String?          @db.VarChar(255)
+  brandColor       String?          @db.VarChar(20)
+  statut           CompanyStatus    @default(ACTIF)
+  adresse          String?          @db.Text
+  ville            String?          @db.VarChar(100)
+  delegation       String?          @db.VarChar(100)
+  gouvernorat      String?          @db.VarChar(100)
+  codePostal       String?          @db.VarChar(10)
+  telephone        String?          @db.VarChar(20)
+  email            String?          @db.VarChar(100)
+  siteWeb          String?          @db.VarChar(150)
+  matriculeFiscal  String           @db.VarChar(50)
+  rne              String           @db.VarChar(50)
+  registreCommerce String?          @db.VarChar(50)
+  tvaAssujetti     Boolean          @default(false)
+  numeroTva        String?          @db.VarChar(50)
+  tauxTva          Decimal          @default(19.00) @db.Decimal(5, 2)
+  capitalSocial    Decimal          @default(0.000) @db.Decimal(14, 3)
+  representantNom  String?          @db.VarChar(100)
+  representantCin  String?          @db.VarChar(20)
+  rib              String?          @db.VarChar(50)
+  banque           String?          @db.VarChar(100)
+  bic              String?          @db.VarChar(20)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
   depots           Depot[]
   invoices         Invoice[]
   enterpriseUsers  UserEnterprise[]
@@ -193,8 +212,8 @@ model Product {
   isVrac                   Boolean               @default(false) @map("is_vrac")
   isVraguable              Boolean               @default(false) @map("is_vraguable")
   conversionRatio          Decimal?              @map("conversion_ratio") @db.Decimal(10, 3)
-  prix_vente_vrac          Decimal?              @map("prix_vente_vrac") @db.Decimal(10, 2) @default(0)
-  prix_achat_vrac          Decimal?              @map("prix_achat_vrac") @db.Decimal(10, 3) @default(0)
+  prix_vente_vrac          Decimal?              @default(0) @map("prix_vente_vrac") @db.Decimal(10, 2)
+  prix_achat_vrac          Decimal?              @default(0) @map("prix_achat_vrac") @db.Decimal(10, 3)
   displayIndex             Int?                  @map("display_index")
   bundlePrice              Decimal?              @map("bundle_price") @db.Decimal(10, 2)
   bundleSize               Int?                  @map("bundle_size")
@@ -223,9 +242,11 @@ model Product {
   stockMovements           StockMovement[]
   stockTransferItems       StockTransferItem[]
   vracPrices               VracPrice[]
-  creditEntries           CreditEntry[]
-  releveInventaire        ReleveInventaire[]
-  clientProductPrices     ClientProductPrice[]
+  creditEntries            CreditEntry[]
+  releveInventaire         ReleveInventaire[]
+  clientProductPrices      ClientProductPrice[]
+  sourceProductLinks       ProductDepotLink[]      @relation("SourceProduct")
+  destinationProductLinks  ProductDepotLink[]     @relation("DestinationProduct")
 
   @@index([familleId], map: "products_famille_id_fkey")
   @@index([originalProductId], map: "products_original_product_id_fkey")
@@ -248,19 +269,41 @@ model ProductDepot {
 }
 
 model ProductDepotPrice {
-  id        Int      @id @default(autoincrement())
-  productId Int      @map("product_id")
-  depotId   Int      @map("depot_id")
-  prix_vente_TTC Decimal @map("prix_vente_ttc") @db.Decimal(10, 2)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  depot     Depot    @relation(fields: [depotId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id             Int      @id @default(autoincrement())
+  productId      Int      @map("product_id")
+  depotId        Int      @map("depot_id")
+  prix_vente_TTC Decimal  @map("prix_vente_ttc") @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  depot          Depot    @relation(fields: [depotId], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([productId, depotId])
   @@index([productId], map: "product_depot_prices_product_id_fkey")
   @@index([depotId], map: "product_depot_prices_depot_id_fkey")
   @@map("product_depot_prices")
+}
+
+model ProductDepotLink {
+  id                  Int      @id @default(autoincrement())
+  sourceProductId     Int      @map("source_product_id")
+  sourceDepotId       Int      @map("source_depot_id")
+  destinationProductId Int      @map("destination_product_id")
+  destinationDepotId  Int      @map("destination_depot_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  
+  sourceProduct       Product  @relation("SourceProduct", fields: [sourceProductId], references: [id], onDelete: Cascade)
+  sourceDepot         Depot    @relation("SourceDepot", fields: [sourceDepotId], references: [id], onDelete: Cascade)
+  destinationProduct  Product  @relation("DestinationProduct", fields: [destinationProductId], references: [id], onDelete: Cascade)
+  destinationDepot    Depot    @relation("DestinationDepot", fields: [destinationDepotId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceProductId, sourceDepotId, destinationProductId, destinationDepotId], name: "unique_product_depot_link")
+  @@index([sourceProductId], map: "product_depot_links_source_product_id_fkey")
+  @@index([sourceDepotId], map: "product_depot_links_source_depot_id_fkey")
+  @@index([destinationProductId], map: "product_depot_links_destination_product_id_fkey")
+  @@index([destinationDepotId], map: "product_depot_links_destination_depot_id_fkey")
+  @@map("product_depot_links")
 }
 
 model ProductConservation {
@@ -368,52 +411,52 @@ model Inventory {
 }
 
 model Client {
-  id               Int                     @id @default(autoincrement())
-  code             String                  @unique @db.VarChar(20)
-  firstName        String                  @map("first_name") @db.VarChar(50)
-  lastName         String                  @map("last_name") @db.VarChar(50)
-  pictureUrl       String?                 @map("picture_url") @db.VarChar(255)
-  email            String?                 @unique @db.VarChar(100)
-  phone            String?                 @db.VarChar(20)
-  address          String?                 @db.Text
-  city             String?                 @db.VarChar(50)
-  matriculeFiscal  String?                 @map("matricule_fiscal") @db.VarChar(50)
-  postalCode       String?                 @map("postal_code") @db.VarChar(10)
-  birthday         DateTime?               @db.Date
-  clientType       ClientType              @default(INDIVIDUAL) @map("client_type")
-  loyaltyPoints    Int                     @default(0) @map("loyalty_points")
-  totalSpent       Decimal                 @default(0.000) @map("total_spent") @db.Decimal(12, 3)
-  favoriteProducts String?                 @map("favorite_products") @db.Text
-  allergies        String?                 @db.Text
-  notes            String?                 @db.Text
-  isActive         Boolean                 @default(true) @map("is_active")
-  createdAt        DateTime                @default(now()) @map("created_at")
-  updatedAt        DateTime                @updatedAt @map("updated_at")
-  ageGroup         String?                 @map("age_group") @db.VarChar(20)
-  allowDebt        Boolean                 @default(true) @map("allow_debt")
-  currentDebt      Decimal                 @default(0.000) @map("current_debt") @db.Decimal(12, 3)
-  maxDebt          Decimal?                @map("max_debt") @db.Decimal(12, 3)
-  depotId          Int?                    @map("depot_id")
-  debtTransactions ClientDebtTransaction[]
-  depot            Depot?                  @relation(fields: [depotId], references: [id])
-  invoices         Invoice[]
-  sales            Sale[]
-  stockDocuments   StockDocument[]
+  id                  Int                     @id @default(autoincrement())
+  code                String                  @unique @db.VarChar(20)
+  firstName           String                  @map("first_name") @db.VarChar(50)
+  lastName            String                  @map("last_name") @db.VarChar(50)
+  pictureUrl          String?                 @map("picture_url") @db.VarChar(255)
+  email               String?                 @unique @db.VarChar(100)
+  phone               String?                 @db.VarChar(20)
+  address             String?                 @db.Text
+  city                String?                 @db.VarChar(50)
+  matriculeFiscal     String?                 @map("matricule_fiscal") @db.VarChar(50)
+  postalCode          String?                 @map("postal_code") @db.VarChar(10)
+  birthday            DateTime?               @db.Date
+  clientType          ClientType              @default(INDIVIDUAL) @map("client_type")
+  loyaltyPoints       Int                     @default(0) @map("loyalty_points")
+  totalSpent          Decimal                 @default(0.000) @map("total_spent") @db.Decimal(12, 3)
+  favoriteProducts    String?                 @map("favorite_products") @db.Text
+  allergies           String?                 @db.Text
+  notes               String?                 @db.Text
+  isActive            Boolean                 @default(true) @map("is_active")
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
+  ageGroup            String?                 @map("age_group") @db.VarChar(20)
+  allowDebt           Boolean                 @default(true) @map("allow_debt")
+  currentDebt         Decimal                 @default(0.000) @map("current_debt") @db.Decimal(12, 3)
+  maxDebt             Decimal?                @map("max_debt") @db.Decimal(12, 3)
+  depotId             Int?                    @map("depot_id")
+  debtTransactions    ClientDebtTransaction[]
+  depot               Depot?                  @relation(fields: [depotId], references: [id])
+  invoices            Invoice[]
+  sales               Sale[]
+  stockDocuments      StockDocument[]
+  clientProductPrices ClientProductPrice[]
 
   @@index([depotId], map: "clients_depot_id_fkey")
-  clientProductPrices ClientProductPrice[]
   @@map("clients")
 }
 
 model ClientProductPrice {
-  id        Int      @id @default(autoincrement())
-  clientId  Int      @map("client_id")
-  productId Int      @map("product_id")
-  prix_vente_TTC Decimal @map("prix_vente_ttc") @db.Decimal(10, 2)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id             Int      @id @default(autoincrement())
+  clientId       Int      @map("client_id")
+  productId      Int      @map("product_id")
+  prix_vente_TTC Decimal  @map("prix_vente_ttc") @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([clientId, productId])
   @@index([clientId], map: "client_product_prices_client_id_fkey")
@@ -641,7 +684,7 @@ model Supplier {
   paymentTerms     String?                   @map("payment_terms") @db.VarChar(100)
   notes            String?                   @db.Text
   isActive         Boolean                   @default(true) @map("is_active")
-  depotId           Int?                     @map("depot_id")
+  depotId          Int?                      @map("depot_id")
   createdAt        DateTime                  @default(now()) @map("created_at")
   updatedAt        DateTime                  @updatedAt @map("updated_at")
   currentDebt      Decimal                   @default(0.000) @map("current_debt") @db.Decimal(12, 3)
@@ -788,21 +831,21 @@ model StockDocument {
 }
 
 model StockDocumentItem {
-  id            Int           @id @default(autoincrement())
-  documentId    Int           @map("document_id")
-  productId     Int           @map("product_id")
-  famille       String        @db.VarChar(100)
-  quantity      Decimal       @db.Decimal(10, 3)
-  batch         String?       @db.VarChar(50)
-  notes         String?       @db.Text
-  barcode       String?       @unique @db.VarChar(50)
-  purchasePrice Decimal?      @map("purchase_price") @db.Decimal(10, 3)
-  count         Int?          @default(1)
-  colisCount    Int?          @default(1) @map("colis_count")
-  montantHT     Decimal?      @map("montant_ht") @db.Decimal(10, 3)
-  montantTTC    Decimal?      @map("montant_ttc") @db.Decimal(10, 3)
-  montantTVA    Decimal?      @map("montant_tva") @db.Decimal(10, 3)
-  prixUnitaire  Decimal?      @map("prix_unitaire") @db.Decimal(10, 3)
+  id               Int           @id @default(autoincrement())
+  documentId       Int           @map("document_id")
+  productId        Int           @map("product_id")
+  famille          String        @db.VarChar(100)
+  quantity         Decimal       @db.Decimal(10, 3)
+  batch            String?       @db.VarChar(50)
+  notes            String?       @db.Text
+  barcode          String?       @unique @db.VarChar(50)
+  purchasePrice    Decimal?      @map("purchase_price") @db.Decimal(10, 3)
+  count            Int?          @default(1)
+  colisCount       Int?          @default(1) @map("colis_count")
+  montantHT        Decimal?      @map("montant_ht") @db.Decimal(10, 3)
+  montantTTC       Decimal?      @map("montant_ttc") @db.Decimal(10, 3)
+  montantTVA       Decimal?      @map("montant_tva") @db.Decimal(10, 3)
+  prixUnitaire     Decimal?      @map("prix_unitaire") @db.Decimal(10, 3)
   tva              Decimal?      @default(19.00) @db.Decimal(5, 2)
   parentProductId  Int?          @map("parent_product_id")
   childProductName String?       @map("child_product_name") @db.VarChar(255)
@@ -1141,34 +1184,34 @@ enum ReminderTargetType {
 }
 
 model Reminder {
-  id              Int                       @id @default(autoincrement())
-  title           String                    @db.VarChar(150)
-  description     String?                   @db.Text
-  dueAt           DateTime                  @map("due_at")
-  timezone        String                    @default("Africa/Tunis") @db.VarChar(50)
-  priority        ReminderPriority          @default(NORMAL)
-  recurrenceType  ReminderRecurrenceType    @default(NONE) @map("recurrence_type")
-  recurrenceText  String?                   @map("recurrence_text") @db.VarChar(200)
-  targetType      ReminderTargetType        @map("target_type")
-  visibilityScope String                    @default("TARGETS") @map("visibility_scope") @db.VarChar(20)
-  snoozeAllowed   Boolean                   @default(true) @map("snooze_allowed")
-  snoozeMaxMin    Int?                      @map("snooze_max_min")
-  escalateAfterMin Int?                     @map("escalate_after_min")
-  escalateToRole  String?                   @map("escalate_to_role") @db.VarChar(50)
-  escalateToUserId Int?                     @map("escalate_to_user_id")
-  status          ReminderStatus            @default(ACTIVE)
-  createdById     Int                       @map("created_by_id")
-  updatedById     Int?                      @map("updated_by_id")
-  createdAt       DateTime                  @default(now()) @map("created_at")
-  updatedAt       DateTime                  @updatedAt @map("updated_at")
-  voiceMessageUrl String?                   @map("voice_message_url") @db.VarChar(500)
-  allowVoiceResponses Boolean               @default(false) @map("allow_voice_responses")
+  id                  Int                    @id @default(autoincrement())
+  title               String                 @db.VarChar(150)
+  description         String?                @db.Text
+  dueAt               DateTime               @map("due_at")
+  timezone            String                 @default("Africa/Tunis") @db.VarChar(50)
+  priority            ReminderPriority       @default(NORMAL)
+  recurrenceType      ReminderRecurrenceType @default(NONE) @map("recurrence_type")
+  recurrenceText      String?                @map("recurrence_text") @db.VarChar(200)
+  targetType          ReminderTargetType     @map("target_type")
+  visibilityScope     String                 @default("TARGETS") @map("visibility_scope") @db.VarChar(20)
+  snoozeAllowed       Boolean                @default(true) @map("snooze_allowed")
+  snoozeMaxMin        Int?                   @map("snooze_max_min")
+  escalateAfterMin    Int?                   @map("escalate_after_min")
+  escalateToRole      String?                @map("escalate_to_role") @db.VarChar(50)
+  escalateToUserId    Int?                   @map("escalate_to_user_id")
+  status              ReminderStatus         @default(ACTIVE)
+  createdById         Int                    @map("created_by_id")
+  updatedById         Int?                   @map("updated_by_id")
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
+  voiceMessageUrl     String?                @map("voice_message_url") @db.VarChar(500)
+  allowVoiceResponses Boolean                @default(false) @map("allow_voice_responses")
 
-  createdBy       User                      @relation("ReminderCreatedBy", fields: [createdById], references: [id])
-  updatedBy       User?                     @relation("ReminderUpdatedBy", fields: [updatedById], references: [id])
-  assignments     ReminderAssignment[]
-  roleTargets     ReminderRoleTarget[]
-  voiceResponses  ReminderVoiceResponse[]
+  createdBy      User                    @relation("ReminderCreatedBy", fields: [createdById], references: [id])
+  updatedBy      User?                   @relation("ReminderUpdatedBy", fields: [updatedById], references: [id])
+  assignments    ReminderAssignment[]
+  roleTargets    ReminderRoleTarget[]
+  voiceResponses ReminderVoiceResponse[]
 
   @@index([createdById])
   @@index([updatedById])
@@ -1186,8 +1229,8 @@ model ReminderAssignment {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  reminder     Reminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
-  user         User      @relation(fields: [userId], references: [id])
+  reminder Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
 
   @@unique([reminderId, userId])
   @@index([userId])
@@ -1201,7 +1244,7 @@ model ReminderRoleTarget {
   role       String   @db.VarChar(50)
   createdAt  DateTime @default(now()) @map("created_at")
 
-  reminder   Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  reminder Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
 
   @@unique([reminderId, role])
   @@map("reminder_role_targets")
@@ -1215,8 +1258,8 @@ model ReminderVoiceResponse {
   duration   Int      @default(0) // seconds
   createdAt  DateTime @default(now()) @map("created_at")
 
-  reminder   Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id])
+  reminder Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
 
   @@index([reminderId])
   @@index([userId])
@@ -1353,14 +1396,14 @@ model VehicleBrand {
 }
 
 model Vehicle {
-  id        Int          @id @default(autoincrement())
-  matricule String       @unique @db.VarChar(20)
-  model     String       @db.VarChar(100)
-  brandId   Int          @map("brand_id")
-  isActive  Boolean      @default(true) @map("is_active")
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
-  brand     VehicleBrand @relation(fields: [brandId], references: [id])
+  id             Int             @id @default(autoincrement())
+  matricule      String          @unique @db.VarChar(20)
+  model          String          @db.VarChar(100)
+  brandId        Int             @map("brand_id")
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  brand          VehicleBrand    @relation(fields: [brandId], references: [id])
   stockDocuments StockDocument[]
 
   @@index([brandId], map: "vehicles_brand_id_fkey")
@@ -1368,20 +1411,20 @@ model Vehicle {
 }
 
 model Driver {
-  id            Int       @id @default(autoincrement())
-  nom           String    @db.VarChar(100)
-  prenom        String    @db.VarChar(100)
-  cin           String    @unique @db.VarChar(8)
-  phone         String?   @db.VarChar(20)
-  email         String?   @db.VarChar(100)
-  address       String?   @db.Text
-  licenseNumber String?   @db.VarChar(50)
-  licenseExpiry DateTime?
-  isActive      Boolean   @default(true) @map("is_active")
-  depotId       Int?      @map("depot_id")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  depot         Depot?    @relation(fields: [depotId], references: [id])
+  id             Int             @id @default(autoincrement())
+  nom            String          @db.VarChar(100)
+  prenom         String          @db.VarChar(100)
+  cin            String          @unique @db.VarChar(8)
+  phone          String?         @db.VarChar(20)
+  email          String?         @db.VarChar(100)
+  address        String?         @db.Text
+  licenseNumber  String?         @db.VarChar(50)
+  licenseExpiry  DateTime?
+  isActive       Boolean         @default(true) @map("is_active")
+  depotId        Int?            @map("depot_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  depot          Depot?          @relation(fields: [depotId], references: [id])
   stockDocuments StockDocument[]
 
   @@index([depotId], map: "drivers_depot_id_fkey")
@@ -1570,10 +1613,10 @@ model Salon {
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-  
-  tables      Table[]
-  tableSales  TableSale[]
-  
+
+  tables     Table[]
+  tableSales TableSale[]
+
   @@map("salons")
 }
 
@@ -1587,10 +1630,10 @@ model Table {
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
-  salon     Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  salon      Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
   tableSales TableSale[]
-  
+
   @@map("tables")
 }
 
@@ -1604,29 +1647,29 @@ model TableSale {
   status          TableSaleStatus @default(ACTIVE)
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
-  
-  table           Table           @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  salon           Salon           @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  items           TableSaleItem[]
-  
+
+  table Table           @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  salon Salon           @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  items TableSaleItem[]
+
   @@map("table_sales")
 }
 
 model TableSaleItem {
-  id          Int        @id @default(autoincrement())
-  tableSaleId Int        @map("table_sale_id")
-  productId   Int        @map("product_id")
-  productName String     @map("product_name") @db.VarChar(200)
-  quantity    Decimal    @db.Decimal(10, 3)
-  unitPrice   Decimal    @map("unit_price") @db.Decimal(10, 2)
-  total       Decimal    @db.Decimal(10, 2)
-  isPaid      Boolean    @default(false) @map("is_paid")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
-  
-  tableSale   TableSale  @relation(fields: [tableSaleId], references: [id], onDelete: Cascade)
-  product     Product    @relation(fields: [productId], references: [id])
-  
+  id          Int      @id @default(autoincrement())
+  tableSaleId Int      @map("table_sale_id")
+  productId   Int      @map("product_id")
+  productName String   @map("product_name") @db.VarChar(200)
+  quantity    Decimal  @db.Decimal(10, 3)
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  total       Decimal  @db.Decimal(10, 2)
+  isPaid      Boolean  @default(false) @map("is_paid")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tableSale TableSale @relation(fields: [tableSaleId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id])
+
   @@map("table_sale_items")
 }
 
@@ -1639,28 +1682,28 @@ model CreditEntry {
   date        DateTime
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-  
-  product     Product? @relation(fields: [productId], references: [id])
-  
+
+  product Product? @relation(fields: [productId], references: [id])
+
   @@map("credit_entries")
 }
 
 model ManualEntry {
-  id            Int      @id @default(autoincrement())
-  entryType     String   @map("entry_type") @db.VarChar(20) // DEBIT or CREDIT
-  amount        Decimal  @db.Decimal(10, 2)
-  description   String   @db.VarChar(255)
-  date          DateTime
-  positionIndex Int      @map("position_index") // Index where entry should be inserted
-  referenceRowId String? @map("reference_row_id") @db.VarChar(255) // ID of the row after which to insert
-  dateFrom      String   @map("date_from") @db.VarChar(10) // Start date of report range (YYYY-MM-DD)
-  dateTo        String   @map("date_to") @db.VarChar(10) // End date of report range (YYYY-MM-DD)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  
-  @@map("manual_entries")
+  id             Int      @id @default(autoincrement())
+  entryType      String   @map("entry_type") @db.VarChar(20) // DEBIT or CREDIT
+  amount         Decimal  @db.Decimal(10, 2)
+  description    String   @db.VarChar(255)
+  date           DateTime
+  positionIndex  Int      @map("position_index") // Index where entry should be inserted
+  referenceRowId String?  @map("reference_row_id") @db.VarChar(255) // ID of the row after which to insert
+  dateFrom       String   @map("date_from") @db.VarChar(10) // Start date of report range (YYYY-MM-DD)
+  dateTo         String   @map("date_to") @db.VarChar(10) // End date of report range (YYYY-MM-DD)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
   @@index([dateFrom, dateTo])
   @@index([positionIndex])
+  @@map("manual_entries")
 }
 
 model ReleveInventaire {
@@ -1676,9 +1719,9 @@ model ReleveInventaire {
   date        DateTime
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-  
-  depot       Depot    @relation(fields: [depotId], references: [id])
-  product     Product? @relation(fields: [productId], references: [id])
-  
+
+  depot   Depot    @relation(fields: [depotId], references: [id])
+  product Product? @relation(fields: [productId], references: [id])
+
   @@map("releve_inventaire")
 }

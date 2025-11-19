@@ -258,4 +258,12 @@ export class AuthService {
   isAdmin(): boolean {
     return this.getCurrentUserRole() === 'ADMIN';
   }
+
+  // Check if current user is super admin (roleKey === '9' or 'SUPER_ADMIN')
+  isSuperAdmin(): boolean {
+    const user = this.currentUser();
+    if (!user) return false;
+    const roleKey = (user as any).roleKey;
+    return roleKey === '9' || roleKey === 'SUPER_ADMIN';
+  }
 } 

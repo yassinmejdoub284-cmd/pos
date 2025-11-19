@@ -2096,4 +2096,358 @@ router.get('/transfer-history', authenticateToken, async (req, res) => {
   }
 });
 
+// Get similar products from source depot(s) for linking
+router.get('/similar-products', authenticateToken, async (req, res) => {
+  try {
+    const { sourceDepotIds, productName, barcode, destinationProductId } = req.query;
+    
+    if (!sourceDepotIds) {
+      return res.status(400).json({ error: 'Source depot IDs are required' });
+    }
+    
+    // Handle both array and comma-separated string formats
+    let depotIds = [];
+    if (Array.isArray(sourceDepotIds)) {
+      depotIds = sourceDepotIds.map(id => parseInt(id));
+    } else if (typeof sourceDepotIds === 'string' && sourceDepotIds.includes(',')) {
+      // Handle comma-separated string: "1,2,3"
+      depotIds = sourceDepotIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+    } else {
+      // Single value
+      depotIds = [parseInt(sourceDepotIds)];
+    }
+    
+    if (depotIds.length === 0 || depotIds.some(id => isNaN(id))) {
+      return res.status(400).json({ error: 'Invalid source depot IDs format' });
+    }
+    
+    console.log('Processing similar products request:', {
+      depotIds,
+      productName,
+      barcode,
+      destinationProductId
+    });
+    
+    // Get excluded product IDs first
+    let excludedProductIds = [];
+    if (destinationProductId) {
+      const destProductId = parseInt(destinationProductId);
+      
+      // Get existing links to avoid duplicates
+      const existingLinks = await prisma.productDepotLink.findMany({
+        where: {
+          destinationProductId: destProductId
+        },
+        select: {
+          sourceProductId: true,
+          sourceDepotId: true
+        }
+      });
+      
+      excludedProductIds = existingLinks.map(link => link.sourceProductId);
+      excludedProductIds.push(destProductId);
+    }
+    
+    // First, get all ProductDepot assignments for the selected depots
+    const depotAssignments = await prisma.productDepot.findMany({
+      where: {
+        depotId: { in: depotIds }
+      },
+      select: {
+        productId: true,
+        depotId: true
+      }
+    });
+    
+    console.log(`Found ${depotAssignments.length} product-depot assignments for depots:`, depotIds);
+    
+    if (depotAssignments.length === 0) {
+      return res.json([]);
+    }
+    
+    // Get unique product IDs
+    const productIds = [...new Set(depotAssignments.map(da => da.productId))];
+    
+    // Exclude products that are already linked or are the destination product
+    const filteredProductIds = excludedProductIds.length > 0
+      ? productIds.filter(id => !excludedProductIds.includes(id))
+      : productIds;
+    
+    if (filteredProductIds.length === 0) {
+      return res.json([]);
+    }
+    
+    // Build search conditions
+    const whereConditions = {
+      id: { in: filteredProductIds }
+    };
+    
+    // Add name or barcode filter if provided
+    if (productName) {
+      whereConditions.name = { 
+        contains: productName,
+        mode: 'insensitive'
+      };
+    }
+    if (barcode) {
+      whereConditions.barcode = barcode;
+    }
+    
+    console.log('Fetching products with conditions:', JSON.stringify(whereConditions, null, 2));
+    
+    const products = await prisma.product.findMany({
+      where: whereConditions,
+      include: {
+        depotAssignments: {
+          where: {
+            depotId: { in: depotIds }
+          },
+          include: {
+            depot: {
+              select: {
+                id: true,
+                name: true,
+                code: true
+              }
+            }
+          }
+        },
+        famille: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      take: 100 // Increased limit
+    });
+    
+    console.log(`Found ${products.length} products`);
+    
+    // Transform depotAssignments to assignedDepots for frontend compatibility
+    const productsWithAssignedDepots = products.map(product => ({
+      ...product,
+      assignedDepots: product.depotAssignments.map(da => da.depot)
+    }));
+    
+    res.json(productsWithAssignedDepots);
+  } catch (error) {
+    console.error('Error fetching similar products:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    res.status(500).json({ 
+      error: 'Erreur lors de la récupération des produits similaires',
+      details: error.message 
+    });
+  }
+});
+
+// Create product depot link
+router.post('/depot-links', authenticateToken, async (req, res) => {
+  try {
+    const { sourceProductId, sourceDepotId, destinationProductId, destinationDepotId } = req.body;
+    
+    if (!sourceProductId || !sourceDepotId || !destinationProductId || !destinationDepotId) {
+      return res.status(400).json({ error: 'Tous les champs sont requis' });
+    }
+    
+    // Check if link already exists
+    const existingLink = await prisma.productDepotLink.findFirst({
+      where: {
+        sourceProductId: parseInt(sourceProductId),
+        sourceDepotId: parseInt(sourceDepotId),
+        destinationProductId: parseInt(destinationProductId),
+        destinationDepotId: parseInt(destinationDepotId)
+      }
+    });
+    
+    if (existingLink) {
+      return res.status(400).json({ error: 'Ce lien existe déjà' });
+    }
+    
+    // Verify products are assigned to their respective depots
+    const sourceAssignment = await prisma.productDepot.findUnique({
+      where: {
+        productId_depotId: {
+          productId: parseInt(sourceProductId),
+          depotId: parseInt(sourceDepotId)
+        }
+      }
+    });
+    
+    const destAssignment = await prisma.productDepot.findUnique({
+      where: {
+        productId_depotId: {
+          productId: parseInt(destinationProductId),
+          depotId: parseInt(destinationDepotId)
+        }
+      }
+    });
+    
+    if (!sourceAssignment) {
+      return res.status(400).json({ error: 'Le produit source n\'est pas assigné au dépôt source' });
+    }
+    
+    if (!destAssignment) {
+      return res.status(400).json({ error: 'Le produit destination n\'est pas assigné au dépôt destination' });
+    }
+    
+    const link = await prisma.productDepotLink.create({
+      data: {
+        sourceProductId: parseInt(sourceProductId),
+        sourceDepotId: parseInt(sourceDepotId),
+        destinationProductId: parseInt(destinationProductId),
+        destinationDepotId: parseInt(destinationDepotId)
+      },
+      include: {
+        sourceProduct: {
+          select: {
+            id: true,
+            name: true,
+            barcode: true
+          }
+        },
+        sourceDepot: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        },
+        destinationProduct: {
+          select: {
+            id: true,
+            name: true,
+            barcode: true
+          }
+        },
+        destinationDepot: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        }
+      }
+    });
+    
+    await logAudit(req.user.id, 'products', 'CREATE', `Product depot link created: ${link.id}`);
+    
+    res.status(201).json(link);
+  } catch (error) {
+    console.error('Error creating product depot link:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Ce lien existe déjà' });
+    }
+    res.status(500).json({ error: 'Erreur lors de la création du lien' });
+  }
+});
+
+// Get product depot links for a destination product
+router.get('/:id/depot-links', authenticateToken, async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product ID' });
+    }
+    
+    const links = await prisma.productDepotLink.findMany({
+      where: {
+        destinationProductId: productId
+      },
+      include: {
+        sourceProduct: {
+          select: {
+            id: true,
+            name: true,
+            barcode: true
+          }
+        },
+        sourceDepot: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        },
+        destinationDepot: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        }
+      }
+    });
+    
+    res.json(links);
+  } catch (error) {
+    console.error('Error fetching product depot links:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des liens' });
+  }
+});
+
+// Delete product depot link
+router.delete('/depot-links/:id', authenticateToken, async (req, res) => {
+  try {
+    const linkId = parseInt(req.params.id);
+    
+    if (isNaN(linkId)) {
+      return res.status(400).json({ error: 'Invalid link ID' });
+    }
+    
+    await prisma.productDepotLink.delete({
+      where: { id: linkId }
+    });
+    
+    await logAudit(req.user.id, 'products', 'DELETE', `Product depot link deleted: ${linkId}`);
+    
+    res.json({ message: 'Lien supprimé avec succès' });
+  } catch (error) {
+    console.error('Error deleting product depot link:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du lien' });
+  }
+});
+
+// Get destination product for a source product and depot (used in Bon d'Entrée approval)
+router.get('/depot-links/destination', authenticateToken, async (req, res) => {
+  try {
+    const { sourceProductId, sourceDepotId, destinationDepotId } = req.query;
+    
+    if (!sourceProductId || !sourceDepotId || !destinationDepotId) {
+      return res.status(400).json({ error: 'Tous les paramètres sont requis' });
+    }
+    
+    const link = await prisma.productDepotLink.findFirst({
+      where: {
+        sourceProductId: parseInt(sourceProductId),
+        sourceDepotId: parseInt(sourceDepotId),
+        destinationDepotId: parseInt(destinationDepotId)
+      },
+      include: {
+        destinationProduct: {
+          select: {
+            id: true,
+            name: true,
+            barcode: true
+          }
+        }
+      }
+    });
+    
+    if (!link) {
+      return res.json(null); // No link found, use source product
+    }
+    
+    res.json(link.destinationProduct);
+  } catch (error) {
+    console.error('Error fetching destination product:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération du produit destination' });
+  }
+});
+
 module.exports = router; 

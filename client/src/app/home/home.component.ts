@@ -654,6 +654,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   onExtraitDepotSelected(depotId: string): void {
+    // If user is super admin, store the selected depot ID in sessionStorage
+    // This will filter all sessions by this depot ID via the X-Depot-Id header
+    if (this.authService.isSuperAdmin()) {
+      sessionStorage.setItem('visitingDepotId', depotId);
+      localStorage.setItem('visitingDepotId', depotId);
+      console.log('Super admin selected depot for session filtering:', depotId);
+    }
     this.showExtraitDepotDialog.set(false);
     this.router.navigate(['/extrait-par-article', depotId]);
   }

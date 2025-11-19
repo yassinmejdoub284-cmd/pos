@@ -232,18 +232,24 @@ router.post('/login', async (req, res) => {
 
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, firstName, lastName, role, roleKey, depotId, pin } = req.body;
+    const { username, email, password, firstName, lastName, role, roleKey, depotId, depotIds, pin } = req.body;
 
     if (!username || !email || !password || !firstName || !lastName || !role) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // depotId is required for PIN-based users (isolation by depot)
-    if (!depotId) {
-      return res.status(400).json({ error: 'depotId is required for user registration' });
+    // Handle multiple depot IDs - use first one for depotId field (backward compatibility)
+    let targetDepotId = null;
+    if (depotIds && Array.isArray(depotIds) && depotIds.length > 0) {
+      targetDepotId = parseInt(depotIds[0]);
+    } else if (depotId) {
+      targetDepotId = parseInt(depotId);
     }
 
-    const targetDepotId = parseInt(depotId);
+    // depotId is required for PIN-based users (isolation by depot)
+    if (!targetDepotId) {
+      return res.status(400).json({ error: 'depotId or depotIds is required for user registration' });
+    }
     const pinStr = pin ? String(pin).trim() : '0000';
 
     // Check for existing username or email (globally unique)
@@ -274,6 +280,14 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Prepare depotIds array
+    let depotIdsArray = [];
+    if (depotIds && Array.isArray(depotIds) && depotIds.length > 0) {
+      depotIdsArray = depotIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+    } else if (targetDepotId) {
+      depotIdsArray = [targetDepotId];
+    }
+
     const newUser = await prisma.user.create({
       data: {
         username,
@@ -286,6 +300,23 @@ router.post('/register', async (req, res) => {
         pin: pinStr
       }
     });
+
+    // Create UserDepot relationships if table exists
+    try {
+      if (depotIdsArray.length > 0) {
+        await prisma.userDepot.createMany({
+          data: depotIdsArray.map(depotId => ({
+            userId: newUser.id,
+            depotId: depotId
+          })),
+          skipDuplicates: true
+        });
+      }
+    } catch (error) {
+      // If UserDepot table doesn't exist yet, log warning but continue
+      console.warn('UserDepot table not available yet. Please run migration:', error.message);
+      // Continue without failing - the single depotId is already saved
+    }
 
     if (roleKey && typeof roleKey === 'string') {
       const mapping = readUserRoles();

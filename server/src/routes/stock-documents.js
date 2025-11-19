@@ -1990,15 +1990,62 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
           quantity: item.quantity 
         });
         
+        // Check for product depot link first
+        let targetProductId = item.productId;
+        let sourceProductId = item.productId;
+        let sourceDepotId = document.emetteurId;
+        let destinationDepotId = parseInt(depotId);
+        
+        // Check if there's a link from source product to destination product
+        if (sourceDepotId && destinationDepotId) {
+          const productLink = await tx.productDepotLink.findFirst({
+            where: {
+              sourceProductId: sourceProductId,
+              sourceDepotId: sourceDepotId,
+              destinationDepotId: destinationDepotId
+            },
+            include: {
+              destinationProduct: true
+            }
+          });
+          
+          if (productLink) {
+            console.log('🔗 Found product depot link:', {
+              sourceProductId: sourceProductId,
+              sourceDepotId: sourceDepotId,
+              destinationProductId: productLink.destinationProductId,
+              destinationDepotId: destinationDepotId
+            });
+            targetProductId = productLink.destinationProductId;
+            sourceProductId = productLink.destinationProductId; // Update for grouping
+          }
+        }
+        
         // Use parentProductId if available, otherwise try to find parent by famille
         let parentProduct = null;
-        let targetProductId = item.productId;
         
         if (item.parentProductId) {
           console.log('✅ Using parentProductId from document item:', item.parentProductId);
-          targetProductId = item.parentProductId;
+          // If we have a link, check if parentProductId should also be linked
+          if (sourceDepotId && destinationDepotId) {
+            const parentLink = await tx.productDepotLink.findFirst({
+              where: {
+                sourceProductId: item.parentProductId,
+                sourceDepotId: sourceDepotId,
+                destinationDepotId: destinationDepotId
+              }
+            });
+            if (parentLink) {
+              targetProductId = parentLink.destinationProductId;
+              console.log('🔗 Found parent product link, using destination:', targetProductId);
+            } else {
+              targetProductId = item.parentProductId;
+            }
+          } else {
+            targetProductId = item.parentProductId;
+          }
           parentProduct = await tx.product.findUnique({
-            where: { id: item.parentProductId }
+            where: { id: targetProductId }
           });
           console.log('✅ Found parent product by parentProductId:', parentProduct ? { id: parentProduct.id, name: parentProduct.name } : 'NOT FOUND');
         } else if (item.famille) {
