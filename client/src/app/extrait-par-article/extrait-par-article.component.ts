@@ -609,10 +609,12 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
     return amount.toFixed(3) + ' TND';
   }
 
-  formatTicketNumber(ticketNumber: string | undefined | null): string {
-    if (!ticketNumber) return '';
+  formatTicketNumber(ticketNumber: string | number | undefined | null): string {
+    if (ticketNumber === undefined || ticketNumber === null) return '';
+    // Convert to string to handle both string and number types
+    const ticketStr = String(ticketNumber);
     // If it already starts with #, return as is, otherwise add #
-    return ticketNumber.startsWith('#') ? ticketNumber : `#${ticketNumber}`;
+    return ticketStr.startsWith('#') ? ticketStr : `#${ticketStr}`;
   }
 
   formatQuantity(quantity: number): string {

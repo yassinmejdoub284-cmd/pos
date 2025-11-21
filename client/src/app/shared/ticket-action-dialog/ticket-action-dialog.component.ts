@@ -265,13 +265,15 @@ export class TicketActionDialogComponent {
   }
 
   formatTicketNumber(t: Sale | null): string {
-    const raw: string | undefined = (t as any)?.dailyTicketNumber;
-    if (raw && typeof raw === 'string') {
-      if (raw.includes('/')) {
-        const part = raw.split('/')[1];
-        return part || raw;
+    const raw: string | number | undefined = (t as any)?.dailyTicketNumber;
+    if (raw !== undefined && raw !== null) {
+      // Convert to string to handle both string and number types
+      const rawStr = String(raw);
+      if (rawStr.includes('/')) {
+        const part = rawStr.split('/')[1];
+        return part || rawStr;
       }
-      return raw;
+      return rawStr;
     }
     // Fallback to sale id if dailyTicketNumber is missing (older sales)
     const idVal = (t as any)?.id;
