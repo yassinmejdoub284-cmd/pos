@@ -735,10 +735,19 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
               const sortie = movements
                 .filter(m => {
                   const reason = String(m.reason || '');
+                  const reasonLower = reason.toLowerCase();
                   const amount = parseFloat(m.amount || 0);
                   const isRejected = reason.includes('[REJETÉ]');
                   const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
-                  return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isFromCancelledTicket && amount > 0;
+                  // CRITICAL: Exclude canceled ticket refunds - check both ticketId link and reason text
+                  const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
+                  // CRITICAL: Exclude client credit payments from decaissement
+                  const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
+                                                 reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
+                                                 reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
+                  // Exclude canceled ticket refunds and client credit payments
+                  const shouldExclude = isFromCancelledTicket || isCanceledTicketRefund || isClientCreditPayment;
+                  return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !shouldExclude && amount > 0;
                 })
                 .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
               
@@ -1025,10 +1034,19 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
               const sortie = movements
                 .filter(m => {
                   const reason = String(m.reason || '');
+                  const reasonLower = reason.toLowerCase();
                   const amount = parseFloat(m.amount || 0);
                   const isRejected = reason.includes('[REJETÉ]');
                   const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
-                  return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isFromCancelledTicket && amount > 0;
+                  // CRITICAL: Exclude canceled ticket refunds - check both ticketId link and reason text
+                  const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
+                  // CRITICAL: Exclude client credit payments from decaissement
+                  const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
+                                                 reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
+                                                 reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
+                  // Exclude canceled ticket refunds and client credit payments
+                  const shouldExclude = isFromCancelledTicket || isCanceledTicketRefund || isClientCreditPayment;
+                  return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !shouldExclude && amount > 0;
                 })
                 .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
               
@@ -1178,13 +1196,34 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
               // Start with opening fund
               let newExpectedCash = parseFloat(session.openingFund || 0);
               
+              // Get cancelled/refunded ticket IDs to exclude their movements
+              const cancelledTicketIds = new Set(
+                sales
+                  .filter(sale => ['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase()))
+                  .map(sale => sale.id)
+              );
+              
               // Calculate cash movements
               const entree = movements
                 .filter(m => m.type === 'ENTREE')
                 .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
               
               const sortie = movements
-                .filter(m => ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type))
+                .filter(m => {
+                  const reason = String(m.reason || '');
+                  const reasonLower = reason.toLowerCase();
+                  const amount = parseFloat(m.amount || 0);
+                  const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+                  // CRITICAL: Exclude canceled ticket refunds - check both ticketId link and reason text
+                  const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
+                  // CRITICAL: Exclude client credit payments from decaissement
+                  const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
+                                                 reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
+                                                 reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
+                  // Exclude canceled ticket refunds and client credit payments
+                  const shouldExclude = isFromCancelledTicket || isCanceledTicketRefund || isClientCreditPayment;
+                  return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !shouldExclude && amount > 0;
+                })
                 .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);
               
               // Calculate credit outstanding from DEBT transactions

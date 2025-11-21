@@ -1809,14 +1809,22 @@ async function calculateSessionSummary(sessionId) {
   const sortie = session.cashMovements
     .filter(m => {
       const reason = String(m.reason || '');
+      const reasonLower = reason.toLowerCase();
       const amount = parseFloat(m.amount || 0);
       const isRejected = reason.includes('[REJETÉ]');
       const isDeleted = reason.includes('[SUPPRIMÉ]');
       const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+      // CRITICAL: Exclude canceled ticket refunds - check both ticketId link and reason text
+      const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
       // IMPORTANT: Include return refunds even if ticket is REFUNDED (they should reduce cash)
       const isReturnRefund = reason.includes('Remboursement retour') || reason.includes('retour');
+      // CRITICAL: Exclude client credit payments from decaissement
+      const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
+                                     reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
+                                     reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
       // Don't exclude return refunds even if ticket is cancelled/refunded
-      const shouldExclude = isFromCancelledTicket && !isReturnRefund;
+      // But DO exclude canceled ticket refunds and client credit payments
+      const shouldExclude = (isFromCancelledTicket && !isReturnRefund) || isCanceledTicketRefund || isClientCreditPayment;
       return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !shouldExclude && amount > 0;
     })
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
