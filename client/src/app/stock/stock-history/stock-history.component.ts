@@ -92,10 +92,10 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
   }
 
   private debugDesktopDetection(): void {
-    console.log('=== Desktop Detection Debug ===');
-    console.log('PrintService desktop mode:', this.printService.getDesktopMode());
-    console.log('Settings will be checked when printing...');
-    console.log('===============================');
+
+
+
+
   }
 
   ngOnDestroy(): void {
@@ -403,12 +403,12 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
 
   printDocument(document: StockDocument): void {
     // Implement print functionality
-    console.log('Printing document:', document);
+
   }
 
   exportDocument(document: StockDocument, format: 'pdf' | 'csv'): void {
     // Implement export functionality
-    console.log('Exporting document:', document, 'format:', format);
+
   }
 
   // Analytics management
@@ -496,34 +496,34 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
 
   // Debug method to force desktop mode (for testing)
   forceDesktopMode(): void {
-    console.log('forceDesktopMode() called');
+
     this.printService.setDesktopMode(true);
-    console.log('Desktop mode forced to true');
+
     alert('Desktop mode forced to true');
   }
 
   // Debug method to force web mode (for testing)
   forceWebMode(): void {
-    console.log('forceWebMode() called');
+
     this.printService.setDesktopMode(false);
-    console.log('Desktop mode forced to false');
+
     alert('Desktop mode forced to false');
   }
 
   // Test print method
   testPrint(): void {
-    console.log('testPrint() called');
+
     
     // Check settings before printing
     this.settingsService.getSettings().subscribe({
       next: (settings: any) => {
-        console.log('=== TEST PRINT SETTINGS ===');
-        console.log('isDesktopVersion:', settings?.isDesktopVersion);
-        console.log('PrintService desktop mode:', this.printService.getDesktopMode());
-        console.log('===========================');
+
+
+
+
         
         const testText = 'Test print from Stock History Module\nDesktop mode: ' + this.printService.getDesktopMode() + '\nSettings isDesktopVersion: ' + settings?.isDesktopVersion;
-        console.log('Sending test print:', testText);
+
         this.printService.printPlainText(testText);
         alert('Test print sent!\nSettings isDesktopVersion: ' + settings?.isDesktopVersion);
       },
@@ -536,15 +536,15 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
 
   // Check Tauri status method
   async checkTauriStatus(): Promise<void> {
-    console.log('checkTauriStatus() called');
+
     try {
       // Check current settings
       this.settingsService.getSettings().subscribe({
         next: (settings: any) => {
-          console.log('=== CURRENT SETTINGS ===');
-          console.log('isDesktopVersion:', settings?.isDesktopVersion);
-          console.log('Full settings:', settings);
-          console.log('========================');
+
+
+
+
         },
         error: (error: any) => {
           console.error('Error getting settings:', error);
@@ -552,7 +552,7 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
       });
 
       const status = await this.printService.checkTauriStatus();
-      console.log('Tauri Status Response:', status);
+
       
       // Get settings for the alert
       this.settingsService.getSettings().subscribe({
@@ -572,7 +572,7 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
 
   // Simple test method
   testSimpleClick(): void {
-    console.log('testSimpleClick() called - buttons are working!');
+
     alert('Button click works!');
   }
 }

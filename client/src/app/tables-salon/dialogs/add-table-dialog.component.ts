@@ -111,9 +111,9 @@ export class AddTableDialogComponent implements OnInit {
   });
 
   ngOnInit() {
-    console.log('AddTableDialogComponent initialized');
-    console.log('Available salons:', this.salons);
-    console.log('Initial newTable:', this.newTable);
+
+
+
   }
 
   selectColor(color: string): void {
@@ -121,15 +121,15 @@ export class AddTableDialogComponent implements OnInit {
   }
 
   onSalonChange(): void {
-    console.log('Salon changed to:', this.newTable.salonId);
+
   }
 
   onNameChange(): void {
-    console.log('Name changed to:', this.newTable.name);
+
   }
 
   onNumberChange(): void {
-    console.log('Number changed to:', this.newTable.number);
+
   }
 
   onClose(): void {
@@ -137,9 +137,9 @@ export class AddTableDialogComponent implements OnInit {
   }
 
   onAdd(): void {
-    console.log('Attempting to add table:', this.newTable);
+
     if (this.newTable.name && this.newTable.number && this.newTable.salonId) {
-      console.log('Table data is valid, emitting add event');
+
       this.add.emit(this.newTable);
     } else {
       console.log('Table data is invalid:', {

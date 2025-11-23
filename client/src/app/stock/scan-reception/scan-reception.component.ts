@@ -520,7 +520,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     const streamActive = this.stream.active && this.stream.getVideoTracks().length > 0;
     
     if (!isVideoPlaying || !hasVideoDimensions || !streamActive) {
-      console.log('Camera health check failed, attempting recovery...');
+
       await this.recoverCamera();
     }
   }
@@ -1131,7 +1131,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     if (!product) return 'Général';
     
     // Debug: Log the product and famille structure
-    console.log('getProductFamilyName - Product:', product.name, 'Famille:', product.famille, 'Type:', typeof product.famille);
+
     
     // If famille is a string, return it directly
     if (typeof product.famille === 'string') {
@@ -1140,12 +1140,12 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
     
     // If famille is an object with a name property, return the name
     if (product.famille && typeof product.famille === 'object' && 'name' in product.famille) {
-      console.log('Famille object name:', product.famille.name);
+
       return product.famille.name || 'Général';
     }
     
     // Fallback
-    console.log('Using fallback for famille');
+
     return 'Général';
   }
 
@@ -1347,7 +1347,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
 
   onImageError(event: any): void {
     // Handle image loading errors
-    console.log('Image failed to load:', event.target.src);
+
     event.target.style.display = 'none';
   }
 
@@ -1562,23 +1562,23 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
   }>): string {
     let rows = '';
     
-    console.log('Generating rows for grouped items:', groupedItems);
+
     
     groupedItems.forEach((group, groupIndex) => {
-      console.log(`Processing group ${groupIndex}:`, group);
+
       
       if (group.subProducts.length > 0) {
         // Get the first sub-product to determine if it's a sous-produit
         const firstSubProduct = group.subProducts[0];
         const scannedProduit = this.produitsDeCaisseCache.get(firstSubProduct.articleId);
         
-        console.log(`First sub-product:`, firstSubProduct);
-        console.log(`Scanned produit:`, scannedProduit);
+
+
         
         if (scannedProduit && scannedProduit.parentProductId) {
           // This is a group of sous-produits, show parent product info
           const parentProduct = this.productsCache.get(scannedProduit.parentProductId);
-          console.log(`Parent product:`, parentProduct);
+
           
           const totalQuantity = group.subProducts.reduce((sum, item) => sum + item.quantity, 0);
           const totalCount = group.subProducts.reduce((sum, item) => sum + item.count, 0);
@@ -1605,8 +1605,8 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
             }
           });
           
-          console.log(`Total quantity: ${totalQuantity}, Total count: ${totalCount}`);
-          console.log(`Pricing - HT: ${totalHT}, TVA: ${totalTVA}, TTC: ${totalTTC}`);
+
+
           
           // Parent product row with sub-products in same designation
           const subProductNames = group.subProducts.map(sub => sub.productName).join(', ');
@@ -1628,7 +1628,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
           `;
         } else {
           // This is a standalone sous-produit (no parent)
-          console.log(`Standalone sous-produit:`, group.subProducts);
+
           group.subProducts.forEach(item => {
             const produit = this.produitsDeCaisseCache.get(item.articleId);
             if (produit) {
@@ -1659,7 +1659,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
       }
     });
     
-    console.log('Generated rows:', rows);
+
     return rows;
   }
 
@@ -1682,7 +1682,7 @@ export class ScanReceptionComponent implements OnInit, OnDestroy {
         savedDocument = await this.stockDocs.createDocument(documentData).toPromise();
       }
       
-      console.log('Document saved:', savedDocument);
+
       return savedDocument;
     } catch (error) {
       console.error('Error saving document to database:', error);

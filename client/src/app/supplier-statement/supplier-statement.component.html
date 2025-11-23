@@ -79,13 +79,13 @@
             (click)="printStatementA4()"
             [disabled]="!filters.supplierId"
             class="bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            Imprimer A4
+            A4
           </button>
           <button title="Imprimer Thermique"
             (click)="printStatementThermal()"
             [disabled]="!filters.supplierId"
             class="bg-green-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            Imprimer POS80C
+            80mm
           </button>
         </div>
       </div>
@@ -150,7 +150,7 @@
                   <button title="Imprimer Thermique"
                     (click)="filters.supplierId = supplier.id; printStatementThermal()"
                     class="bg-green-600 text-white px-3 py-1 rounded-lg text-sm transition-colors">
-                    POS80C
+                    80mm
                   </button>
                 </div>
               </td>

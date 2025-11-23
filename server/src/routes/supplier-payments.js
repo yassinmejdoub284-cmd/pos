@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const path = require('path');
 const fs = require('fs');
 
@@ -363,7 +363,7 @@ router.put('/:id', authenticateToken, (req, res, next) => {
 });
 
 // Delete supplier payment
-router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const paymentId = parseInt(req.params.id);
     

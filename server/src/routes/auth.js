@@ -131,7 +131,7 @@ router.post('/login', async (req, res) => {
       // PIN-based authentication - filter by depotId if provided, otherwise find unique user
       const pinStr = String(pin).trim();
       
-      console.log('PIN login attempt:', { pin: pinStr, depotId, hasDepotId: !!depotId });
+
       
       if (depotId) {
         // If depotId is provided, filter by it for isolation
@@ -146,7 +146,7 @@ router.post('/login', async (req, res) => {
         });
         
         if (!user) {
-          console.log('User not found with PIN and depotId:', { pin: pinStr, depotId: targetDepotId });
+
           // Check if user exists but is inactive or in different depot
           const inactiveUser = await prisma.user.findFirst({
             where: { pin: pinStr, depotId: targetDepotId }
@@ -166,7 +166,7 @@ router.post('/login', async (req, res) => {
           }
         });
         
-        console.log('Users found with PIN (no depotId):', users.length);
+
         
         if (users.length === 0) {
           // Check if user exists but is inactive
@@ -181,7 +181,7 @@ router.post('/login', async (req, res) => {
         
         if (users.length > 1) {
           // Multiple users with same PIN exist in different depots - require depotId
-          console.log('Multiple users found with same PIN:', users.map(u => ({ id: u.id, depotId: u.depotId })));
+
           return res.status(400).json({ 
             error: 'Plusieurs utilisateurs trouvés avec ce PIN. Veuillez spécifier le dépôt',
             requiresDepotId: true
@@ -190,7 +190,7 @@ router.post('/login', async (req, res) => {
         
         // Single user found - use it
         user = users[0];
-        console.log('Single user found:', { id: user.id, depotId: user.depotId });
+
       }
     }
 

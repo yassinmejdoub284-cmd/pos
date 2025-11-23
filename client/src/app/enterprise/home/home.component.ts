@@ -73,7 +73,7 @@ export class EnterpriseHomeComponent implements OnInit, OnDestroy {
   navigateToSection(section: string): void {
     this.activeSection = section;
     // TODO: Implement navigation logic for each section
-    console.log('Navigating to:', section);
+
   }
 
   toggleInvoicesMenu(event?: Event): void {

@@ -36,18 +36,18 @@ export function setupSocketHandlers(io) {
   });
 
   io.on('connection', (socket) => {
-    console.log(`User ${socket.user.username} connected`);
+
 
     socket.on('join_depot', (data) => {
       const { depotId } = data;
       socket.join(`depot_${depotId}`);
-      console.log(`User ${socket.user.username} joined depot ${depotId}`);
+
     });
 
     socket.on('leave_depot', (data) => {
       const { depotId } = data;
       socket.leave(`depot_${depotId}`);
-      console.log(`User ${socket.user.username} left depot ${depotId}`);
+
     });
 
     socket.on('request_transfer', async (data) => {
@@ -86,7 +86,7 @@ export function setupSocketHandlers(io) {
 
         io.to(`depot_${fromDepotId}`).to(`depot_${toDepotId}`).emit('transfer_request', transferData);
         
-        console.log(`Transfer request created: ${transfer.id}`);
+
       } catch (error) {
         console.error('Error creating transfer request:', error);
         socket.emit('error', { message: 'Failed to create transfer request' });
@@ -114,7 +114,7 @@ export function setupSocketHandlers(io) {
           };
 
           io.emit('transfer_approved', transferData);
-          console.log(`Transfer ${transferId} approved by ${socket.user.username}`);
+
         } else {
           await prisma.stockTransfer.update({
             where: { id: parseInt(transferId) },
@@ -128,7 +128,7 @@ export function setupSocketHandlers(io) {
           };
 
           io.emit('transfer_cancelled', transferData);
-          console.log(`Transfer ${transferId} cancelled by ${socket.user.username}`);
+
         }
       } catch (error) {
         console.error('Error approving transfer:', error);
@@ -204,7 +204,7 @@ export function setupSocketHandlers(io) {
         };
 
         io.emit('transfer_completed', transferData);
-        console.log(`Transfer ${transferId} completed by ${socket.user.username}`);
+
       } catch (error) {
         console.error('Error completing transfer:', error);
         socket.emit('error', { message: 'Failed to complete transfer' });
@@ -231,7 +231,7 @@ export function setupSocketHandlers(io) {
     });
 
     socket.on('disconnect', () => {
-      console.log(`User ${socket.user.username} disconnected`);
+
     });
   });
 } 

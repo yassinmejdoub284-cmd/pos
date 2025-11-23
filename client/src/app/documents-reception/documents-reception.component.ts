@@ -62,7 +62,7 @@ export class DocumentsReceptionComponent implements OnInit {
       const depotIdFromRoute = params['depotId'];
       if (depotIdFromRoute && !isNaN(Number(depotIdFromRoute))) {
         this.currentDepotId = Number(depotIdFromRoute);
-        console.log('Depot ID from route:', this.currentDepotId);
+
         // Load documents with the depot ID from route
         this.loadDocuments();
       }
@@ -108,12 +108,12 @@ export class DocumentsReceptionComponent implements OnInit {
     this.loading = true;
     this.error = '';
     const depotId = this.getScopedDepotId();
-    console.log('Loading documents for depot ID:', depotId);
+
     // Load all document types (filter statuses client-side)
     this.stockDocs.getDocuments(1, 50, undefined, undefined, depotId, undefined, undefined, false, true).subscribe({
       next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data ?? []);
-        console.log('Raw documents loaded:', data.length);
+
         const selectedDepotName = this.getCurrentDepotName();
         // Filter for documents destined to this depot (all types)
         const filteredData = data.filter((doc: any) => {
@@ -121,7 +121,7 @@ export class DocumentsReceptionComponent implements OnInit {
           const byName = !!selectedDepotName && (doc?.destinataire?.name === selectedDepotName);
           return byId || byName;
         });
-        console.log('Filtered documents for depot', depotId, ':', filteredData.length);
+
         this.documents.set(filteredData);
         this.loading = false;
       },

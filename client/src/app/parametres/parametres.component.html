@@ -143,17 +143,12 @@
             <div class="relative">
               <select title="Sélectionner l'imprimante" 
                       [(ngModel)]="settings.devicesConfig.printer" 
-                      [disabled]="loadingPrinters"
-                      class="w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                <option value="" disabled>Chargement des imprimantes...</option>
+                      class="w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                 <option *ngFor="let printer of availablePrinters" [value]="printer.name">
                   {{ printer.name }}{{ printer.isDefault ? ' (Par défaut)' : '' }}
                 </option>
                 <option value="CUSTOM">Personnalisée</option>
               </select>
-              <div *ngIf="loadingPrinters" class="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-              </div>
             </div>
           </div>
 

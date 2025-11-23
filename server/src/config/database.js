@@ -24,7 +24,7 @@ export async function connectDatabase() {
     pool = mysql.createPool(dbConfig);
     
     const connection = await pool.getConnection();
-    console.log('✅ Database connected successfully');
+
     connection.release();
     
     await initializeTables();
@@ -235,7 +235,7 @@ async function initializeTables() {
       )
     `);
 
-    console.log('✅ Database tables initialized successfully');
+
     
   } catch (error) {
     console.error('❌ Error initializing tables:', error);

@@ -13,8 +13,7 @@ const routes: Routes = [
   // Specific routes must come before generic :id routes
   { path: 'bon-entree/edit/:documentId', component: BonEntreeComponent },
   { path: 'bon-entree/:depotId', component: BonEntreeComponent },
-  // Bon de retour list shares component with filtered mode
-  { path: 'bon-retour/:depotId', component: BonEntreeComponent },
+  // Bon de retour has its own lazy-loaded module at /stock/documents/bon-retour
   // Generic routes come last
   { path: ':id/edit', component: DocumentComponent },
   { path: ':id', component: DocumentComponent },

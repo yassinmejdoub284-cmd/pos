@@ -362,7 +362,7 @@ router.post('/', authenticateToken, async (req, res) => {
           }
           // Generate a new invoice number and try again
           invoiceNumber = await getNextInvoiceNumber(userDepotId);
-          console.log(`Retrying with new invoice number: ${invoiceNumber}`);
+
         } else {
           throw error; // Re-throw non-uniqueness errors
         }
@@ -601,7 +601,7 @@ router.post('/request-from-ticket', authenticateToken, async (req, res) => {
 // Get invoice requests (for admin approval)
 router.get('/requests/pending', authenticateToken, async (req, res) => {
   try {
-    console.log('Getting pending invoice requests for user:', req.user.role);
+
     if (!prisma || !prisma.invoiceRequest || typeof prisma.invoiceRequest.findMany !== 'function') {
       console.warn('Prisma model invoiceRequest is not available; returning empty list');
       return res.json([]);
@@ -632,7 +632,7 @@ router.get('/requests/pending', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'asc' }
     });
     
-    console.log('Found invoice requests:', requests.length);
+
     res.json(requests);
   } catch (error) {
     console.error('Error fetching invoice requests:', error);
@@ -993,7 +993,7 @@ router.post('/finalize-draft', authenticateToken, async (req, res) => {
     // 7. Return the created invoice
 
     // For now, simulate success
-    console.log(`Finalizing draft: ${draftId}`);
+
     
     res.json({ 
       success: true, 

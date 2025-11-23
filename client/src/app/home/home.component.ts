@@ -542,13 +542,13 @@ export class HomeComponent implements OnInit, OnDestroy {
         
         if (shouldIncludeExtrait) {
           visibleIds.push('extrait-par-article');
-          console.log('Adding extrait-par-article to visible modules for', userRole);
+
         }
         
         this._cachedFilteredActions = this.quickActions.filter(a => visibleIds.includes(a.id));
-        console.log('Filtered actions (roleAccessConfig):', this._cachedFilteredActions.map(a => a.id), 'visibleIds:', visibleIds);
-        console.log('All quickActions IDs:', this.quickActions.map(a => a.id));
-        console.log('extrait-par-article in quickActions:', this.quickActions.find(a => a.id === 'extrait-par-article'));
+
+
+
       } else {
         // Fallback: filter by roles defined in each action
         const userRole = currentUser?.role || '';
@@ -556,9 +556,9 @@ export class HomeComponent implements OnInit, OnDestroy {
           if (!a.roles || a.roles.length === 0) return true;
           return a.roles.includes(userRole);
         });
-        console.log('Filtered actions (fallback):', this._cachedFilteredActions.map(a => a.id));
-        console.log('User role:', userRole);
-        console.log('extrait-par-article module:', this.quickActions.find(a => a.id === 'extrait-par-article'));
+
+
+
       }
     }
 
@@ -659,7 +659,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (this.authService.isSuperAdmin()) {
       sessionStorage.setItem('visitingDepotId', depotId);
       localStorage.setItem('visitingDepotId', depotId);
-      console.log('Super admin selected depot for session filtering:', depotId);
+
     }
     this.showExtraitDepotDialog.set(false);
     this.router.navigate(['/extrait-par-article', depotId]);
@@ -881,7 +881,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     ).subscribe(settings => {
       if (settings) {
         this.appSettings.set(settings);
-        console.log('settings', settings);
+
         this.companyName.set(settings.companyName || 'PoS Pâtisserie');
         this.companyLogo.set(settings.logoUrl ? this.settingsService.getAbsoluteLogoUrl(settings.logoUrl) : '');
         this.logoLoadError.set(false); // Reset error state when loading new settings

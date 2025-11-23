@@ -38,7 +38,7 @@ export class SalonService {
 
   // Salon methods
   getSalons(): Observable<Salon[]> {
-    console.log('SalonService: Getting salons from:', `${this.apiUrl}/salons`);
+
     return this.http.get<Salon[]>(`${this.apiUrl}/salons`);
   }
 
@@ -60,7 +60,7 @@ export class SalonService {
 
   // Table methods
   getTables(): Observable<Table[]> {
-    console.log('SalonService: Getting tables from:', `${this.apiUrl}/tables`);
+
     return this.http.get<Table[]>(`${this.apiUrl}/tables`);
   }
 
@@ -73,8 +73,8 @@ export class SalonService {
   }
 
   createTable(table: Partial<Table>): Observable<Table> {
-    console.log('SalonService: Creating table with data:', table);
-    console.log('SalonService: API URL:', `${this.apiUrl}/tables`);
+
+
     return this.http.post<Table>(`${this.apiUrl}/tables`, table);
   }
 

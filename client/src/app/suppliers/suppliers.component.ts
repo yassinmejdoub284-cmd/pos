@@ -124,10 +124,40 @@ export class SuppliersComponent implements OnInit {
     this.loading = true;
     this.supplierService.getSuppliers().subscribe({
       next: (suppliers) => {
-        this.suppliers = suppliers;
-        this.totalSuppliers = suppliers.length;
-        this.totalPages = Math.ceil(this.totalSuppliers / this.itemsPerPage);
-        this.loading = false;
+        const allTimeStartDate = '2000-01-01';
+        const allTimeEndDate = new Date().toISOString().split('T')[0];
+        this.supplierService.getSupplierSummaries(allTimeStartDate, allTimeEndDate).subscribe({
+          next: (summaries) => {
+            const summaryMap = new Map(summaries.map(s => [s.id, s]));
+            this.suppliers = suppliers.map(supplier => {
+              const summary = summaryMap.get(supplier.id);
+              if (summary) {
+                return {
+                  ...supplier,
+                  currentDebt: summary.currentDebt,
+                  totalExpenses: summary.periodExpenses,
+                  totalPayments: summary.periodPayments
+                };
+              }
+              return {
+                ...supplier,
+                currentDebt: supplier.currentDebt || 0,
+                totalExpenses: 0,
+                totalPayments: 0
+              };
+            });
+            this.totalSuppliers = this.suppliers.length;
+            this.totalPages = Math.ceil(this.totalSuppliers / this.itemsPerPage);
+            this.loading = false;
+          },
+          error: (error) => {
+            console.error('Error loading supplier summaries:', error);
+            this.suppliers = suppliers;
+            this.totalSuppliers = suppliers.length;
+            this.totalPages = Math.ceil(this.totalSuppliers / this.itemsPerPage);
+            this.loading = false;
+          }
+        });
       },
       error: (error) => {
         console.error('Error loading suppliers:', error);

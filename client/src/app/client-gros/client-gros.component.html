@@ -160,19 +160,19 @@
                   <!-- Price display: show both original and current price if rule applied or client-specific price exists -->
                   <div *ngIf="getAppliedRuleForProduct(product) || hasClientSpecificPrice(product)" class="absolute top-1 -left-1 transform -rotate-12 flex flex-col gap-0.5">
                     <div [class]="'text-[10px] line-through px-2 py-0.5 rounded-full border ' + (hasWholesalePrice(product) ? 'bg-emerald-100/80 text-emerald-600 border-emerald-300/60' : 'bg-rose-100/80 text-rose-600 border-rose-300/60')">
-                      {{ getBaseWholesalePrice(product) | number:'1.3-3' }}dt
+                      {{ formatPrice(getBaseWholesalePrice(product)) }}dt
                     </div>
                     <div [class]="'text-xs font-bold px-2 py-0.5 rounded-full border ' + (hasWholesalePrice(product) ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300/60' : 'bg-rose-100/80 text-rose-800 border-rose-300/60')">
                       <span *ngIf="getAppliedRuleForProduct(product)">
-                        {{ getCalculatedPrice(product, getAppliedRuleForProduct(product)!) | number:'1.3-3' }}dt
+                        {{ formatPrice(getCalculatedPrice(product, getAppliedRuleForProduct(product)!)) }}dt
                       </span>
                       <span *ngIf="!getAppliedRuleForProduct(product)">
-                        {{ getWholesalePrice(product) | number:'1.3-3' }}dt
+                        {{ formatPrice(getWholesalePrice(product)) }}dt
                       </span>
                     </div>
                   </div>
                   <div *ngIf="!getAppliedRuleForProduct(product) && !hasClientSpecificPrice(product)" [class]="'absolute top-1 -left-1 transform -rotate-12 text-xs font-bold px-2 py-0.5 rounded-full border ' + (hasWholesalePrice(product) ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300/60' : 'bg-rose-100/80 text-rose-800 border-rose-300/60')">
-                    {{ getWholesalePrice(product) | number:'1.3-3' }}dt
+                    {{ formatPrice(getWholesalePrice(product)) }}dt
                   </div>
                  </div>
                </div>
@@ -224,7 +224,7 @@
             <div *ngFor="let product of getSelectedProducts()" 
                  [class]="'flex items-center justify-between rounded p-2 mb-1 border ' + (hasWholesalePrice(product) ? 'bg-emerald-50/40 border-emerald-200/60' : 'bg-rose-50/40 border-rose-200/60')">
               <span [class]="'text-xs font-medium truncate flex-1 ' + (hasWholesalePrice(product) ? 'text-emerald-800' : 'text-rose-800')">{{ product.name }}</span>
-              <span [class]="'text-xs font-bold ml-2 ' + (hasWholesalePrice(product) ? 'text-emerald-700' : 'text-rose-700')">{{ getWholesalePrice(product) | number:'1.3-3' }}dt</span>
+              <span [class]="'text-xs font-bold ml-2 ' + (hasWholesalePrice(product) ? 'text-emerald-700' : 'text-rose-700')">{{ formatPrice(getWholesalePrice(product)) }}dt</span>
             </div>
             <div *ngIf="getSelectedProducts().length === 0" class="text-center py-2">
               <p class="text-gray-500 text-xs">Aucun produit</p>
@@ -341,10 +341,10 @@
                   <span class="text-gray-700">{{ getProductById(productId)?.name }}</span>
                   <span class="flex items-center gap-2">
                     <span [class]="'text-[11px] line-through ' + (hasWholesalePrice(getProductById(productId)!) ? 'text-emerald-600' : 'text-rose-600')">
-                      {{ getBaseWholesalePrice(getProductById(productId)!) | number:'1.3-3' }}dt
+                      {{ formatPrice(getBaseWholesalePrice(getProductById(productId)!)) }}dt
                     </span>
                     <span [class]="'font-semibold ' + (hasWholesalePrice(getProductById(productId)!) ? 'text-emerald-700' : 'text-rose-700')">
-                      {{ getCalculatedPrice(getProductById(productId)!, appliedRule.rule) | number:'1.3-3' }}dt
+                      {{ formatPrice(getCalculatedPrice(getProductById(productId)!, appliedRule.rule)) }}dt
                     </span>
                   </span>
                 </div>
@@ -361,10 +361,10 @@
           <div class="mb-3 text-center">
             <div class="text-lg font-bold text-gray-800 flex items-center justify-center gap-3">
               <span class="text-red-500 line-through text-base font-medium">
-                {{ getOriginalTotalAmount() | number:'1.3-3' }}dt
+                {{ formatPrice(getOriginalTotalAmount()) }}dt
               </span>
               <span class="text-green-600">
-                Total: {{ getTotalAmount() | number:'1.3-3' }}dt
+                Total: {{ formatPrice(getTotalAmount()) }}dt
               </span>
             </div>
           </div>

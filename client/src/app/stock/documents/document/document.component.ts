@@ -160,9 +160,9 @@ export class DocumentComponent implements OnInit, OnDestroy {
     
     this.stockDocumentsService.getDocumentById(id).subscribe({
       next: (document) => {
-        console.log('Document loaded:', document);
-        console.log('Client information:', document.client);
-        console.log('Client ID:', document.clientId);
+
+
+
         this.document = document;
         
         // Convert document items to scannedItems format if in edit mode
@@ -209,7 +209,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
         const productName = item.product?.name || item.childProductName || this.getProductName(item.productId) || `Produit ${item.productId}`;
         
         // Debug: Log the original item data
-        console.log(`Converting document item ${item.productId}: tva=${item.tva}, type=${typeof item.tva}, prixUnitaire=${item.prixUnitaire}`);
+
         
         this.scannedItems.push({
           articleId: item.productId,
@@ -231,7 +231,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
       }
     });
     
-    console.log('Converted document items to scanned items:', this.scannedItems);
+
   }
 
   generateDocumentHtml(): void {
@@ -419,10 +419,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
         // Force image reload if needed
         if (img.src) {
           img.onerror = () => {
-            console.log('Image failed to load:', img.src);
+
           };
           img.onload = () => {
-            console.log('Image loaded successfully:', img.src);
+
           };
         }
       });
@@ -640,8 +640,8 @@ export class DocumentComponent implements OnInit, OnDestroy {
       return;
     }
     
-    console.log('Generating invoice for document:', this.document.id);
-    console.log('Using invoice number:', this.invoiceNumber);
+
+
     
     // Load caches first, then generate invoice
     this.loadProductCaches().then(() => {
@@ -756,15 +756,15 @@ export class DocumentComponent implements OnInit, OnDestroy {
       } : null
     };
 
-    console.log('Invoice data with real products:', invoiceData);
-    console.log('Original document clientId:', this.document.clientId);
-    console.log('Original document client:', this.document.client);
-    console.log('Final clientId being sent:', invoiceData.clientId);
+
+
+
+
 
     // Create the invoice document
     this.stockDocumentsService.createDocument(invoiceData).subscribe({
       next: (createdInvoice) => {
-        console.log('Invoice created successfully:', createdInvoice);
+
         this.cancelInvoice();
         
         // Navigate to the new invoice document
@@ -803,7 +803,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
     // Update the document
     this.stockDocumentsService.updateDocument(this.document.id!, updatedDocument).subscribe({
       next: (savedDocument) => {
-        console.log('Document updated successfully:', savedDocument);
+
         this.document = savedDocument;
         this.generateDocumentHtml();
         this.loading = false;
@@ -825,10 +825,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
   private convertScannedItemsToDocumentItems(): { document: any, items: any[] } {
     if (!this.document) return { document: null, items: [] };
 
-    console.log('convertScannedItemsToDocumentItems: starting conversion');
-    console.log('convertScannedItemsToDocumentItems: scannedItems:', this.scannedItems);
-    console.log('convertScannedItemsToDocumentItems: produitsDeCaisseCache size:', this.produitsDeCaisseCache.size);
-    console.log('convertScannedItemsToDocumentItems: productsCache size:', this.productsCache.size);
+
+
+
+
 
     // Create a copy of the document
     const updatedDocument = { ...this.document };
@@ -836,14 +836,14 @@ export class DocumentComponent implements OnInit, OnDestroy {
     // Convert scannedItems to document items format (without id and documentId for now)
     const items = this.scannedItems.map(item => {
       const produit = this.produitsDeCaisseCache.get(item.articleId);
-      console.log(`Item ${item.articleId}: produit from cache:`, produit);
+
       const parentProductId = produit?.parentProductId || item.articleId;
       const parentProduct = this.productsCache.get(parentProductId);
-      console.log(`Item ${item.articleId}: parentProduct from cache:`, parentProduct);
+
       
       // Check if we have original document item data (for edit mode) - use this first
       const originalData = (item as any).originalDocumentItem;
-      console.log(`Product ${item.articleId}: checking originalData:`, originalData);
+
       
       const baseItem = {
         productId: parentProductId, // Use parent product ID for stock management
@@ -858,10 +858,10 @@ export class DocumentComponent implements OnInit, OnDestroy {
       
       // If we have original data, use it to preserve TVA and pricing
       if (originalData) {
-        console.log(`Product ${item.articleId}: using original data - original tva=${originalData.tva}, type=${typeof originalData.tva}, prixUnitaire=${originalData.prixUnitaire}`);
+
         
         const tva = originalData.tva !== undefined && originalData.tva !== null ? originalData.tva : 19;
-        console.log(`Product ${item.articleId}: final tva=${tva}, type=${typeof tva}`);
+
         
         // Use the recalculated amounts from originalDocumentItem if available
         const finalItem = {
@@ -873,11 +873,11 @@ export class DocumentComponent implements OnInit, OnDestroy {
           montantTTC: originalData.montantTTC || 0
         };
         
-        console.log(`Product ${item.articleId}: final item with originalData:`, finalItem);
+
         return finalItem;
       } else if (produit) {
         // Calculate new pricing (for new items)
-        console.log(`Product ${item.articleId}: no originalData, using product data - produit.tva=${produit.tva}, type=${typeof produit.tva}`);
+
         
         let prixUnitaire = produit.prix_vente_TTC || 0;
         
@@ -892,14 +892,14 @@ export class DocumentComponent implements OnInit, OnDestroy {
         const montantTTC = prixUnitaire * quantite;
         
         // Debug TVA values
-        console.log(`Product ${item.articleId}: original tva=${tva}, prixUnitaire=${prixUnitaire}, quantite=${quantite}`);
+
         
         // For calculation, convert TVA to decimal if needed
         const tvaFraction = tva > 1 ? tva / 100 : tva;
         const montantHT = Math.round((montantTTC / (1 + tvaFraction)) * 1000) / 1000;
         const montantTVA = Math.round((montantTTC - montantHT) * 1000) / 1000;
         
-        console.log(`Product ${item.articleId}: tva=${tva}, tvaFraction=${tvaFraction}, montantHT=${montantHT}, montantTVA=${montantTVA}`);
+
         
         const finalItem = {
           ...baseItem,
@@ -910,17 +910,17 @@ export class DocumentComponent implements OnInit, OnDestroy {
           montantTTC: montantTTC
         };
         
-        console.log(`Product ${item.articleId}: final item tva=${finalItem.tva}, type=${typeof finalItem.tva}`);
+
         return finalItem;
       }
       
       return baseItem;
     });
 
-    console.log('Converted scanned items to document items:', items);
-    console.log('Final items TVA values:');
+
+
     items.forEach((item, index) => {
-      console.log(`Item ${index}: tva=${(item as any).tva}, type=${typeof (item as any).tva}`);
+
     });
     return { document: updatedDocument, items: items };
   }
@@ -1529,8 +1529,8 @@ export class DocumentComponent implements OnInit, OnDestroy {
     const produit = this.produitsDeCaisseCache.get(item.articleId);
     const parentProduct = this.productsCache.get(item.articleId);
     
-    console.log(`recalculateItemPrices called for item ${item.articleId}, produit found:`, !!produit, `parentProduct found:`, !!parentProduct);
-    console.log(`Item quantity: ${item.quantity}, originalDocumentItem:`, item.originalDocumentItem);
+
+
     
     // Use either produit (sub-product) or parentProduct (main product)
     const productData = produit || parentProduct;
@@ -1593,9 +1593,9 @@ export class DocumentComponent implements OnInit, OnDestroy {
       item.originalDocumentItem.montantTVA = montantTVA;
       item.originalDocumentItem.montantTTC = montantTTC;
       
-      console.log(`Final calculated amounts: HT=${montantHT}, TVA=${montantTVA}, TTC=${montantTTC}`);
+
     } else {
-      console.log(`No product found for item ${item.articleId}, cannot recalculate prices`);
+
     }
   }
 
@@ -1755,13 +1755,13 @@ export class DocumentComponent implements OnInit, OnDestroy {
       }
       this.scannedItems[itemIndex].originalDocumentItem.prixUnitaire = newUnitPrice;
       
-      console.log(`Updated unit price to ${newUnitPrice} for item ${this.scannedItems[itemIndex].articleId}`);
-      console.log(`Before recalculation - originalDocumentItem:`, this.scannedItems[itemIndex].originalDocumentItem);
+
+
 
       // Recalculate prices based on the new unit price
       this.recalculateItemPrices(itemIndex);
       
-      console.log(`After recalculation - originalDocumentItem:`, this.scannedItems[itemIndex].originalDocumentItem);
+
 
       // Update the selectedProductForDetails object to reflect the changes immediately
       if (this.selectedProductForDetails) {
@@ -2098,14 +2098,14 @@ export class DocumentComponent implements OnInit, OnDestroy {
   private loadCurrentDepot(): void {
     // First try to get the current session directly
     const currentSession = this.sessionsService.currentSession();
-    console.log('Direct current session:', currentSession);
+
     
     if (currentSession && currentSession.depotId) {
       this.currentDepotId = currentSession.depotId;
-      console.log('Current depot ID from direct session:', this.currentDepotId);
+
       if (currentSession.depot) {
         this.currentDepot = currentSession.depot;
-        console.log('Current depot from direct session:', this.currentDepot);
+
       } else {
         this.loadDepotById(currentSession.depotId);
       }
@@ -2114,21 +2114,21 @@ export class DocumentComponent implements OnInit, OnDestroy {
     // Also subscribe to changes
     this.sessionsService.currentSession$.subscribe({
       next: (session) => {
-        console.log('Current session from subscription:', session);
+
         if (session && session.depotId) {
           this.currentDepotId = session.depotId;
-          console.log('Current depot ID from subscription:', this.currentDepotId);
+
           // Store the depot information from the session if available
           if (session.depot) {
             this.currentDepot = session.depot;
-            console.log('Current depot from subscription:', this.currentDepot);
+
           } else {
             // If depot info is not in session, load it separately
-            console.log('Loading depot by ID from subscription:', session.depotId);
+
             this.loadDepotById(session.depotId);
           }
         } else {
-          console.log('No session or depot ID found in subscription');
+
         }
       },
       error: (error) => {
@@ -2140,12 +2140,12 @@ export class DocumentComponent implements OnInit, OnDestroy {
   private loadDepotById(depotId: number): void {
     this.depotsService.list().subscribe({
       next: (depots) => {
-        console.log('All depots:', depots);
+
         const depot = depots.find((d: any) => d.id === depotId);
-        console.log('Found depot:', depot);
+
         if (depot) {
           this.currentDepot = depot;
-          console.log('Set current depot:', this.currentDepot);
+
         }
       },
       error: (error) => {
@@ -2195,7 +2195,7 @@ export class DocumentComponent implements OnInit, OnDestroy {
       next: (settings) => {
         // Settings are loaded and available for use
         this.currentSettings = settings;
-        console.log('Settings loaded successfully:', settings);
+
       },
       error: (error) => {
         console.error('Error loading settings:', error);

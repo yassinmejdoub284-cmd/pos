@@ -137,7 +137,7 @@ export class EtatMvtStockComponent implements OnInit {
   }
 
   loadSampleData() {
-    console.log('Loading sample data for testing...');
+
     
     // Sample inventory data
     const sampleInventory: InventoryData[] = [
@@ -649,9 +649,9 @@ export class EtatMvtStockComponent implements OnInit {
 
   async testApiConnection() {
     try {
-      console.log('Testing API connection...');
+
       const response = await this.http.get<any>(`${environment.apiUrl}/reports/etat-mvt-stock-test`).toPromise();
-      console.log('API Test Response:', response);
+
       
       if (response?.movements && response.movements.length > 0) {
         // Convert test data to our format

@@ -3,7 +3,7 @@ if (typeof importScripts === 'function') {
   try {
     importScripts('./ngsw-worker.js');
   } catch (e) {
-    console.log('Angular service worker not available in development mode');
+
   }
 }
 

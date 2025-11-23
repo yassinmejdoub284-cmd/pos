@@ -72,10 +72,10 @@ export class TablesSalonComponent implements OnInit {
   }
 
   loadSalons(): void {
-    console.log('Loading salons...');
+
     this.salonService.getSalons().subscribe({
       next: (salons) => {
-        console.log('Salons loaded:', salons);
+
         this.salons.set(salons);
       },
       error: (error) => {
@@ -86,10 +86,10 @@ export class TablesSalonComponent implements OnInit {
   }
 
   loadTables(): void {
-    console.log('Loading tables...');
+
     this.salonService.getTables().subscribe({
       next: (tables) => {
-        console.log('Tables loaded:', tables);
+
         this.tables.set(tables);
       },
       error: (error) => {
@@ -102,8 +102,8 @@ export class TablesSalonComponent implements OnInit {
 
   // Dialog open methods
   openAddTableDialog(): void {
-    console.log('Opening add table dialog');
-    console.log('Available salons:', this.salons());
+
+
     this.showAddTableDialog.set(true);
   }
 
@@ -128,10 +128,10 @@ export class TablesSalonComponent implements OnInit {
 
   // Data management methods
   addTable(tableData: Partial<Table>): void {
-    console.log('Adding table with data:', tableData);
+
     this.salonService.createTable(tableData).subscribe({
       next: (table) => {
-        console.log('Table created successfully:', table);
+
         this.tables.update(tables => [...tables, table]);
         this.showAddTableDialog.set(false);
       },

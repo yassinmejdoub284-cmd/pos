@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { prisma } = require('../lib/prisma');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { logAudit } = require('../lib/audit');
 
 // GET /api/attendance
@@ -148,7 +148,7 @@ router.post('/corrections', authenticateToken, async (req, res) => {
 });
 
 // PATCH /api/attendance/corrections/:id
-router.patch('/corrections/:id', authenticateToken, requireRole('MANAGER', 'ADMIN'), async (req, res) => {
+router.patch('/corrections/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { action } = req.body;

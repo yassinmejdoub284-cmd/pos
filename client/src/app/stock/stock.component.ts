@@ -192,7 +192,7 @@ export class StockComponent implements OnInit {
     this.error = ''; // Clear any previous errors
     
     const currentUser = this.authService.currentUser();
-    console.log('Opening action:', action, 'for user:', currentUser?.role, 'depotId:', currentUser?.depotId);
+
 
     // Actions that do NOT require depot selection
     if (action === 'fleet-management' || action === 'documents' || action === 'achat' || action === 'client-gros') {
@@ -218,13 +218,13 @@ export class StockComponent implements OnInit {
     
     // For non-admin users, auto-route to their assigned depot
     if (!this.isAdmin()) {
-      console.log('Non-admin user, auto-routing to assigned depot');
+
       this.routeToAssignedDepot(action);
       return;
     }
     
     // For admin users, show depot selection dialog
-    console.log('Admin user, showing depot selection dialog');
+
     this.showActionDepotModal = true;
   }
 
@@ -541,7 +541,7 @@ export class StockComponent implements OnInit {
       return;
     }
 
-    console.log('Auto-routing to assigned depot:', assignedDepot.name, 'for action:', action);
+
     
     // Handle documents-reception action directly for non-admin users
     if (action === 'documents-reception') {

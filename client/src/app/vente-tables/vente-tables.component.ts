@@ -490,7 +490,7 @@ export class VenteTablesComponent implements OnInit, OnDestroy {
     // Save order to database (you can implement this API call)
     this.saveOrderToDatabase(orderData).subscribe({
       next: (savedOrder) => {
-        console.log('Order validated and saved:', savedOrder);
+
         
         // Mark all items as paid when validating
         currentCart.forEach(item => {
@@ -543,10 +543,10 @@ export class VenteTablesComponent implements OnInit, OnDestroy {
       remainingAmount: this.getUnpaidTotal()
     };
     
-    console.log('Saving cart to database:', cartData);
+
     this.http.post(`${environment.apiUrl}/table-sales`, cartData).subscribe({
       next: (savedSale) => {
-        console.log('Cart saved to database successfully:', savedSale);
+
         // Immediately refresh UI state from DB to keep interface in sync
         this.loadExistingTableCart(selectedTable.id);
         this.loadTableStatusesFromDatabase();
@@ -570,7 +570,7 @@ export class VenteTablesComponent implements OnInit, OnDestroy {
 
   private showSuccessMessage(message: string): void {
     // You can implement a toast notification here
-    console.log('SUCCESS:', message);
+
     // For now, we'll use alert
     alert(message);
   }
@@ -727,7 +727,7 @@ export class VenteTablesComponent implements OnInit, OnDestroy {
           // Mark the sale as completed
           this.http.patch(`${environment.apiUrl}/table-sales/${activeSale.id}/complete`, {}).subscribe({
             next: () => {
-              console.log('Table sale completed successfully');
+
             },
             error: (error) => {
               console.error('Error completing table sale:', error);
@@ -794,7 +794,7 @@ export class VenteTablesComponent implements OnInit, OnDestroy {
     this.tableStatuses.set(new Map(currentStatuses));
     
     // Log for debugging
-    console.log('Table statuses updated:', Array.from(currentStatuses.entries()));
+
   }
 
   getTableStatus(tableId: number): TableStatus | null {

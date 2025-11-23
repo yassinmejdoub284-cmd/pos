@@ -474,7 +474,7 @@ export class ClientStatementComponent implements OnInit {
   isAdmin(): boolean {
     const isAdminUser = this.authService.isAdmin();
     // Debug: log to console to help troubleshoot
-    console.log('Is Admin:', isAdminUser, 'User:', this.authService.currentUser());
+
     return isAdminUser;
   }
 

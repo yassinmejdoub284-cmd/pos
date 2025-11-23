@@ -161,7 +161,7 @@ export class ProduitsDeStockComponent implements OnInit {
 
   onSearch(): void {
     // Trigger search - the filtering is already handled by the signal
-    console.log('Searching for:', this.searchQuery());
+
   }
 
   toggleViewMode(): void {

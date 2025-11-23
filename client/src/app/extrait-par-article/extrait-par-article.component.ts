@@ -80,7 +80,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
         const user = JSON.parse(userStr);
         this.authService.currentUser.set(user);
         this.authService.isAuthenticated.set(true);
-        console.log('Restored auth state in component');
+
       } catch (error) {
         console.error('Error parsing user data:', error);
         // Don't redirect here - let the guard handle it if auth is truly invalid
@@ -90,7 +90,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.depotId = params.get('depotId');
       if (this.depotId) {
-        console.log('Loading depot:', this.depotId);
+
         this.loadDepot();
       } else {
         // If no depotId is provided, redirect to home
@@ -147,7 +147,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
           this.authService.currentUser.set(user);
           this.authService.isAuthenticated.set(true);
           token = storedToken;
-          console.log('Restored auth state from sessionStorage');
+
         } catch (error) {
           console.error('Error parsing stored user data:', error);
         }
@@ -176,7 +176,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
       this.authService.isAuthenticated.set(true);
       this.authService.currentUser.set(mockUser);
       token = mockAdminToken;
-      console.log('🔧 Development mode: Using mock admin token for article extracts access');
+
     }
     
     // Verify token exists before making request
@@ -196,9 +196,9 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
       sessionStorage.setItem('token', token);
     }
 
-    console.log('Making request to article-extracts with token:', token.substring(0, 20) + '...');
-    console.log('Current user:', currentUser);
-    console.log('Is authenticated:', this.authService.isAuthenticated());
+
+
+
     this.loading = true;
     this.error = '';
     
@@ -210,7 +210,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
     
     // Set the visitingDepotId in sessionStorage so the interceptor adds the correct header
     sessionStorage.setItem('visitingDepotId', depotIdNum.toString());
-    console.log('Set visitingDepotId to:', depotIdNum);
+
     
     // Verify token is available before making request
     const finalToken = sessionStorage.getItem('token') || this.authService.getToken();
@@ -224,8 +224,8 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
       return;
     }
     
-    console.log('Loading sessions for depot:', depotIdNum);
-    console.log('Visiting depot ID in sessionStorage:', sessionStorage.getItem('visitingDepotId'));
+
+
 
     // First, get all sessions for this depot
     this.sessionsService.getSessions({ 

@@ -442,7 +442,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
         }
       }
       
-      console.log('Form data being sent:', formData);
+
 
       const saveProduct = () => {
         if (this.product) {

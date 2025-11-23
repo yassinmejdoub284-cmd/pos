@@ -430,7 +430,7 @@ export class ImportEntryComponent implements OnInit {
     
     // Here you would typically call a service to process the file
     // For now, we'll simulate the import process
-    console.log('Importing file:', file.name);
+
     
     // Simulate file processing
     setTimeout(() => {

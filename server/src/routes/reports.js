@@ -1,13 +1,13 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { requireRole, authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Test endpoint without authentication for debugging
 router.get('/etat-mvt-stock-test', async (req, res) => {
   try {
-    console.log('ETAT MVT STOCK TEST - Starting...');
+
     
     // Get all stock movements without filters
     const movements = await prisma.stockMovement.findMany({
@@ -34,7 +34,7 @@ router.get('/etat-mvt-stock-test', async (req, res) => {
       }
     });
 
-    console.log('ETAT MVT STOCK TEST - Found movements:', movements.length);
+
     
     // Get inventory data
     const inventory = await prisma.inventory.findMany({
@@ -49,7 +49,7 @@ router.get('/etat-mvt-stock-test', async (req, res) => {
       }
     });
 
-    console.log('ETAT MVT STOCK TEST - Found inventory:', inventory.length);
+
 
     res.json({
       movements: movements,
@@ -69,12 +69,12 @@ router.get('/etat-mvt-stock-test', async (req, res) => {
 // Temporary endpoint without authentication for testing
 router.get('/etat-mvt-stock', async (req, res) => {
   try {
-    console.log('ETAT MVT STOCK - Request received (no auth)');
+
     
     const { startDate, endDate, depotId } = req.query;
     const targetDepotId = depotId ? parseInt(depotId) : 4; // Default to depot 4 for testing
     
-    console.log('Target depot ID:', targetDepotId);
+
 
     // Build date filter
     const dateFilter = {};
@@ -129,7 +129,7 @@ router.get('/etat-mvt-stock', async (req, res) => {
       ]
     });
 
-    console.log('ETAT MVT STOCK - Found movements:', movements.length);
+
 
     // Enrich movements with document item data (simplified for testing)
     const enrichedMovements = movements.map(movement => {
@@ -152,7 +152,7 @@ router.get('/etat-mvt-stock', async (req, res) => {
       };
     });
 
-    console.log('ETAT MVT STOCK - Returning enriched movements:', enrichedMovements.length);
+
     res.json(enrichedMovements);
   } catch (error) {
     console.error('Error fetching ETAT MVT STOCK data:', error);
@@ -333,7 +333,7 @@ router.get('/products', authenticateToken, async (req, res) => {
   }
 });
 
-router.get('/inventory', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.get('/inventory', authenticateToken, async (req, res) => {
   try {
     const { depotId } = req.query;
     const targetDepotId = parseInt(depotId || req.user.depotId);
@@ -374,7 +374,7 @@ router.get('/inventory', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), asy
   }
 });
 
-router.get('/stock-movements', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.get('/stock-movements', authenticateToken, async (req, res) => {
   try {
     const { startDate, endDate, type, depotId } = req.query;
     const targetDepotId = parseInt(depotId || req.user.depotId);
@@ -458,7 +458,7 @@ router.get('/daily-extracts', async (req, res) => {
     
     // Get days parameter from query, default to 10 for backward compatibility
     const days = parseInt(req.query.days || '10');
-    console.log(`Daily extracts requested for ${days} days`);
+
     const lastNDays = [];
     
     // Generate last N days (including today)
@@ -612,11 +612,11 @@ router.get('/daily-extracts', async (req, res) => {
         const totalDiscount = sales.reduce((sum, sale) => sum + parseFloat(sale.discount || 0), 0);
         const totalExpenses = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0);
 
-        console.log(`Date: ${dateString}, Sales: ${totalSales}, Revenue: ${totalRevenue}, Discount: ${totalDiscount}, Expenses: ${totalExpenses}`);
+
         
         // Additional debug for today's data
         if (index === 0) {
-          console.log(`TODAY (${dateString}) - Found ${sales.length} sales, ${expenses.length} expenses`);
+
           if (sales.length > 0) {
             console.log(`Today's first sale:`, {
               id: sales[0].id,
@@ -686,7 +686,7 @@ router.get('/daily-extracts', async (req, res) => {
       })
     );
 
-    console.log('Final extracts response:', extracts.map(e => ({ date: e.date, hasData: e.hasData, totalSales: e.totalSales })));
+
     
     res.json(extracts);
   } catch (error) {
@@ -1133,7 +1133,7 @@ router.get('/daily-extracts/:date', async (req, res) => {
     const startDate = new Date(year, month - 1, day, 0, 0, 0, 0);
     const endDate = new Date(year, month - 1, day, 23, 59, 59, 999);
     
-    console.log(`Detail endpoint - Parsed date: ${date}, Start: ${startDate.toISOString()}, End: ${endDate.toISOString()}`);
+
 
     // Get sessions that were active on this day (opened before end of day, closed after start of day)
     const activeSessions = await prisma.sessionCaisse.findMany({
@@ -1172,9 +1172,9 @@ router.get('/daily-extracts/:date', async (req, res) => {
       }
     });
 
-    console.log(`Found ${sales.length} sales for date ${date}`);
+
     if (sales.length > 0) {
-      console.log(`First sale: ${sales[0].createdAt}, Amount: ${sales[0].finalTotal}`);
+
     } else {
       // Debug: Get all sales to see what dates exist
       const allSales = await prisma.sale.findMany({
@@ -1236,7 +1236,7 @@ router.get('/daily-extracts/:date', async (req, res) => {
     const totalDiscount = sales.reduce((sum, sale) => sum + parseFloat(sale.discount || 0), 0);
     const totalExpenses = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0);
 
-    console.log(`Detail - Date: ${date}, Sales: ${sales.length}, Revenue: ${totalRevenue}, Discount: ${totalDiscount}, Expenses: ${totalExpenses}`);
+
 
     // Calculate cash totals from actual closure data
     const soldeDebit = totalRevenue; // Total sales revenue

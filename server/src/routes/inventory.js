@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { requireRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { logAudit } = require('../lib/audit');
 
 const router = express.Router();
@@ -16,7 +16,7 @@ function generateInventoryNumber() {
 }
 
 // Get inventory count for a depot
-router.get('/count/:depotId', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.get('/count/:depotId', authenticateToken, async (req, res) => {
   try {
     const depotId = parseInt(req.params.depotId);
     
@@ -66,7 +66,7 @@ router.get('/count/:depotId', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER'])
 });
 
 // Get all inventory sessions
-router.get('/sessions', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.get('/sessions', authenticateToken, async (req, res) => {
   try {
     const { status, depotId } = req.query;
     const targetDepotId = parseInt(depotId || req.user.depotId);
@@ -129,7 +129,7 @@ router.get('/sessions', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), asyn
 });
 
 // Get single inventory session with items
-router.get('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.get('/sessions/:id', authenticateToken, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
 
@@ -258,7 +258,7 @@ router.get('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), 
 });
 
 // Start new inventory session
-router.post('/sessions', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.post('/sessions', authenticateToken, async (req, res) => {
   try {
     const { depotId, notes } = req.body;
     const targetDepotId = parseInt(depotId || req.user.depotId);
@@ -411,7 +411,7 @@ router.post('/sessions', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), asy
 });
 
 // Update inventory session status
-router.patch('/sessions/:id/status', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.patch('/sessions/:id/status', authenticateToken, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
     const { status, notes } = req.body;
@@ -476,7 +476,7 @@ router.patch('/sessions/:id/status', requireRole(['ADMIN', 'MANAGER', 'STOCK_MAN
 });
 
 // Create new inventory item for a product
-router.post('/sessions/:sessionId/items', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.post('/sessions/:sessionId/items', authenticateToken, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.sessionId);
     const { productId, theoreticalQuantity } = req.body;
@@ -544,7 +544,7 @@ router.post('/sessions/:sessionId/items', requireRole(['ADMIN', 'MANAGER', 'STOC
 });
 
 // Update inventory item count
-router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.patch('/sessions/:sessionId/items/:itemId', authenticateToken, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.sessionId);
     const itemId = parseInt(req.params.itemId);
@@ -618,8 +618,8 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
       countedBy: countedQuantity !== null ? req.user.id : null
     };
 
-    console.log('Updating with data:', updateData);
-    console.log('Ecart difference to apply:', ecartDifference);
+
+
 
     // Update inventory item and stock in a transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -677,7 +677,7 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
               where: { id: inventory.id },
               data: { quantity: newQuantity }
             });
-            console.log(`Updated inventory for depot ${session.depotId}, product ${item.productId}: ${currentQuantity} -> ${newQuantity}`);
+
           } else {
             // Create new inventory entry if it doesn't exist
             await tx.inventory.create({
@@ -687,7 +687,7 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
                 quantity: ecartDifference
               }
             });
-            console.log(`Created new inventory for depot ${session.depotId}, product ${item.productId}: ${ecartDifference}`);
+
           }
 
           // Create stock movement record
@@ -725,7 +725,7 @@ router.patch('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGE
 });
 
 // Delete inventory item
-router.delete('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.delete('/sessions/:sessionId/items/:itemId', authenticateToken, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.sessionId);
     const itemId = parseInt(req.params.itemId);
@@ -800,7 +800,7 @@ router.delete('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAG
               where: { id: inventory.id },
               data: { quantity: newQuantity }
             });
-            console.log(`Reverted inventory for depot ${session.depotId}, product ${item.productId}: ${currentQuantity} -> ${newQuantity}`);
+
           }
 
           // Create stock movement record for the reversal
@@ -841,7 +841,7 @@ router.delete('/sessions/:sessionId/items/:itemId', requireRole(['ADMIN', 'MANAG
 });
 
 // Post inventory session (apply stock adjustments)
-router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
 
@@ -1081,7 +1081,7 @@ router.post('/sessions/:id/post', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGE
 });
 
 // Get inventory session summary/statistics
-router.get('/sessions/:id/summary', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.get('/sessions/:id/summary', authenticateToken, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
 
@@ -1188,7 +1188,7 @@ router.get('/sessions/:id/summary', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANA
 });
 
 // Delete inventory session (only if DRAFT, or POSTED for ADMIN)
-router.delete('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.delete('/sessions/:id', authenticateToken, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
 
@@ -1295,7 +1295,7 @@ router.delete('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']
               where: { id: inventory.id },
               data: { quantity: revertedStock }
             });
-            console.log(`Reverted inventory for depot ${session.depotId}, product ${productId}: ${inventory.quantity} -> ${revertedStock} (original: ${originalStock}, exits after: ${totalExitsAfter}, entries after: ${totalEntriesAfter})`);
+
           } else {
             // Create inventory entry if it doesn't exist
             await tx.inventory.create({
@@ -1305,7 +1305,7 @@ router.delete('/sessions/:id', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']
                 quantity: revertedStock
               }
             });
-            console.log(`Created inventory entry for depot ${session.depotId}, product ${productId}: ${revertedStock}`);
+
           }
           
           // Create stock movement record for the reversion

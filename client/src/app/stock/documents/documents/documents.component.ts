@@ -286,8 +286,8 @@ export class DocumentsListComponent implements OnInit {
       return;
     }
     
-    console.log('Generating invoice for document:', this.selectedDocument.id);
-    console.log('Using invoice number:', this.invoiceNumber);
+
+
     
     // Load caches first, then generate invoice
     this.loadProductCaches().then(() => {
@@ -402,15 +402,15 @@ export class DocumentsListComponent implements OnInit {
       } : null
     };
 
-    console.log('Invoice data with real products:', invoiceData);
-    console.log('Original document clientId:', this.selectedDocument.clientId);
-    console.log('Original document client:', this.selectedDocument.client);
-    console.log('Final clientId being sent:', invoiceData.clientId);
+
+
+
+
 
     // Create the invoice document
     this.stockDocumentsService.createDocument(invoiceData).subscribe({
       next: (createdInvoice) => {
-        console.log('Invoice created successfully:', createdInvoice);
+
         this.cancelInvoice();
         
         // Navigate to the new invoice document

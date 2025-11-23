@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function seedExpenseCategories() {
   try {
-    console.log('🌱 Seeding expense categories...');
+
 
     const categories = [
       {
@@ -71,7 +71,7 @@ async function seedExpenseCategories() {
       });
     }
 
-    console.log('✅ Expense categories seeded successfully!');
+
   } catch (error) {
     console.error('❌ Error seeding expense categories:', error);
     throw error;

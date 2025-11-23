@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting database seeding...');
+
 
   // Create or update depots
   const depots = await Promise.all([
@@ -49,7 +49,7 @@ async function main() {
     })
   ]);
 
-  console.log('✅ Depots created');
+
 
   // Product families (categories)
   const productFamilies = [
@@ -62,7 +62,7 @@ async function main() {
     'Jus et Smoothies'
   ];
 
-  console.log('✅ Product families defined');
+
 
   // Create product families first
   const familyData = [
@@ -90,7 +90,7 @@ async function main() {
     families.push(family);
   }
 
-  console.log('✅ Product families created');
+
 
   // Create or update products
   const productData = [
@@ -150,7 +150,7 @@ async function main() {
       // Find the family ID
       const family = families.find(f => f.name === prodData.familleName);
       if (!family) {
-        console.log(`❌ Family not found: ${prodData.familleName}`);
+
         continue;
       }
 
@@ -170,7 +170,7 @@ async function main() {
     products.push(product);
   }
 
-  console.log('✅ Products created');
+
 
   // Create or update payment methods
   const paymentMethodData = [
@@ -195,7 +195,7 @@ async function main() {
     paymentMethods.push(method);
   }
 
-  console.log('✅ Payment methods created');
+
 
   // Create or update expense categories
   const expenseCategoryData = [
@@ -225,7 +225,7 @@ async function main() {
     expenseCategories.push(category);
   }
 
-  console.log('✅ Expense categories created');
+
 
   // Create or update demo users with different passwords
   const adminPassword = await bcrypt.hash('Admin2024!', 12);
@@ -307,7 +307,7 @@ async function main() {
     })
   ]);
 
-  console.log('✅ Users created');
+
 
   // Create or update clients
   const clientData = [
@@ -331,7 +331,7 @@ async function main() {
     clients.push(client);
   }
 
-  console.log('✅ Clients created');
+
 
   // Create or update inventory
   for (const depot of depots) {
@@ -366,7 +366,7 @@ async function main() {
     }
   }
 
-  console.log('✅ Inventory created');
+
 
   // Create sample expenses
   const expenseData = [
@@ -456,9 +456,9 @@ async function main() {
     });
   }
 
-  console.log('✅ Sample expenses created');
 
-  console.log('🎉 Database seeding completed successfully!');
+
+
 }
 
 main()

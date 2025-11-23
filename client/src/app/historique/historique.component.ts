@@ -85,6 +85,12 @@ export class HistoriqueComponent implements OnInit {
   showReturnPicker = false;
   showAddItemPicker = false;
 
+  // Cancel ticket modal state
+  showCancelTicketModal = false;
+  ticketToCancel: Sale | null = null;
+  showReturnActionMenu = false;
+  selectedSaleForAction: Sale | null = null;
+
   // Collapsible session groups state
   private collapsedSessionKeys = new Set<string>();
 
@@ -202,16 +208,16 @@ export class HistoriqueComponent implements OnInit {
       params.startDate = startDate.toISOString();
       params.endDate = endDate.toISOString();
       params.limit = 10000; // Increase limit to get more data
-      console.log('No sessions available, loading all sales with wide date range (last 2 years)');
+
     }
 
-    console.log('Loading sales with params:', params);
+
 
     this.salesService.getSales(params)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (sales: any) => {
-          console.log('Sales loaded:', sales?.length || 0, 'sales');
+
           this.sales = sales || [];
           this.filteredSales = this.sales;
           this.totalItems = this.sales.length;
@@ -237,13 +243,13 @@ export class HistoriqueComponent implements OnInit {
           
           // Try to load without filters as fallback
           if (Object.keys(params).length > 0) {
-            console.log('Retrying without filters...');
+
             setTimeout(() => {
               this.salesService.getSales({})
                 .pipe(takeUntil(this.destroy$))
                 .subscribe({
                   next: (sales: any) => {
-                    console.log('Fallback: Loaded', sales?.length || 0, 'sales without filters');
+
                     this.sales = sales || [];
                     this.filteredSales = this.sales;
                     this.totalItems = this.sales.length;
@@ -324,7 +330,7 @@ export class HistoriqueComponent implements OnInit {
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
     
-    console.log('Loading recent sessions with limit:', limit);
+
     
     this.sessionsService.getSessions({ 
       limit: limit,
@@ -334,7 +340,7 @@ export class HistoriqueComponent implements OnInit {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (sessions: any) => {
-          console.log('Sessions loaded:', sessions?.length || 0, 'sessions');
+
           // Sort sessions by openedAt/createdAt (newest first) and keep only last N
           const sorted = (sessions || [])
             .slice()
@@ -365,7 +371,7 @@ export class HistoriqueComponent implements OnInit {
           this.totalSessions = 0;
           this.currentSessionPage = 1;
           
-          console.log('Sessions failed to load, will load all sales without session filter');
+
           if (after) after();
         }
       });
@@ -381,12 +387,12 @@ export class HistoriqueComponent implements OnInit {
       this.sessionIds = [];
       this.totalSessions = 0;
       this.currentSessionPage = 1;
-      console.log('No depot ID, will load all sales without session filter');
+
       if (after) after();
       return;
     }
 
-    console.log('Loading current and last session for depot:', depotId);
+
 
     // Get current session (OPEN) - handle null case
     const currentSession$ = this.sessionsService.getActiveSessionByDepot(1, depotId).pipe(
@@ -444,7 +450,7 @@ export class HistoriqueComponent implements OnInit {
         this.totalSessions = this.allSessions.length;
         this.currentSessionPage = 1;
         
-        console.log('Loaded', this.allSessions.length, 'sessions');
+
         
         if (this.allSessions.length === 0) {
           console.warn('No sessions found. Sales will be loaded without session filter.');
@@ -458,7 +464,7 @@ export class HistoriqueComponent implements OnInit {
         this.sessionIds = [];
         this.totalSessions = 0;
         this.currentSessionPage = 1;
-        console.log('Sessions failed to load, will load all sales without session filter');
+
         if (after) after();
       }
     });
@@ -494,20 +500,20 @@ export class HistoriqueComponent implements OnInit {
           (sale.items && sale.items.some(item => item.productName.toLowerCase().includes(query))) ||
           (sale.paymentMethod && sale.paymentMethod.name.toLowerCase().includes(query));
         if (!matchesSearch) {
-          console.log('Sale filtered out by search:', sale.id, query);
+
           return false;
         }
       }
 
       // Status filter
       if (this.selectedStatus && sale.status !== this.selectedStatus) {
-        console.log('Sale filtered out by status:', sale.id, sale.status, this.selectedStatus);
+
         return false;
       }
 
       // Payment method filter
       if (this.selectedPaymentMethod && sale.paymentMethod && sale.paymentMethod.id.toString() !== this.selectedPaymentMethod) {
-        console.log('Sale filtered out by payment method:', sale.id, sale.paymentMethod?.id, this.selectedPaymentMethod);
+
         return false;
       }
 
@@ -517,15 +523,15 @@ export class HistoriqueComponent implements OnInit {
         const isTable = this.isTableSale(sale);
         
         if (this.selectedSaleType === 'wholesale' && !isWholesale) {
-          console.log('Sale filtered out by sale type (wholesale):', sale.id, isWholesale);
+
           return false;
         }
         if (this.selectedSaleType === 'retail' && (isWholesale || isTable)) {
-          console.log('Sale filtered out by sale type (retail):', sale.id, isWholesale, isTable);
+
           return false;
         }
         if (this.selectedSaleType === 'table' && !isTable) {
-          console.log('Sale filtered out by sale type (table):', sale.id, isTable);
+
           return false;
         }
       }
@@ -538,14 +544,14 @@ export class HistoriqueComponent implements OnInit {
         if (this.startDate) {
           const startDateOnly = new Date(this.startDate);
           if (saleDateOnly < startDateOnly) {
-            console.log('Sale filtered out by start date:', sale.id, saleDateOnly, startDateOnly);
+
             return false;
           }
         }
         if (this.endDate) {
           const endDateOnly = new Date(this.endDate);
           if (saleDateOnly > endDateOnly) {
-            console.log('Sale filtered out by end date:', sale.id, saleDateOnly, endDateOnly);
+
             return false;
           }
         }
@@ -1003,6 +1009,93 @@ export class HistoriqueComponent implements OnInit {
     });
   }
 
+  // Return/Exchange action menu
+  openReturnActionMenu(sale: Sale): void {
+    this.selectedSaleForAction = sale;
+    this.showReturnActionMenu = true;
+  }
+
+  closeReturnActionMenu(): void {
+    this.showReturnActionMenu = false;
+    this.selectedSaleForAction = null;
+  }
+
+  selectAnnulation(): void {
+    if (!this.selectedSaleForAction) return;
+    const ticket = this.selectedSaleForAction; // Save reference before closing menu
+    this.closeReturnActionMenu();
+    this.openCancelTicketModal(ticket);
+  }
+
+  selectRetourEchange(): void {
+    if (!this.selectedSaleForAction) return;
+    const ticket = this.selectedSaleForAction; // Save reference before closing menu
+    this.closeReturnActionMenu();
+    this.openReturnRequestModal(ticket);
+  }
+
+  // Cancel ticket methods (copied from caisse.component.ts)
+  openCancelTicketModal(ticket: Sale): void {
+    if (!ticket) {
+      console.error('openCancelTicketModal: No ticket provided');
+      return;
+    }
+    console.log('Opening cancel modal for ticket:', ticket);
+    const st = (ticket as any)?.status ? String((ticket as any).status).toUpperCase() : '';
+    if (st === 'CANCELLED' || st === 'REFUNDED') {
+      this.showAlertMessage('Ticket déjà annulé', 'info');
+      return;
+    }
+    this.ticketToCancel = ticket;
+    this.showCancelTicketModal = true;
+    console.log('Cancel modal opened, ticketToCancel:', this.ticketToCancel);
+  }
+
+  closeCancelTicketModal(): void {
+    this.showCancelTicketModal = false;
+    this.ticketToCancel = null;
+  }
+
+  confirmCancelTicket(): void {
+    if (!this.ticketToCancel) {
+      console.error('Confirm cancel: No ticket to cancel');
+      this.showAlertMessage('Erreur: Aucun ticket sélectionné', 'error');
+      return;
+    }
+    console.log('Confirming cancellation for ticket:', this.ticketToCancel.id);
+    this.cancelTicket(this.ticketToCancel);
+  }
+
+  cancelTicket(ticket: Sale): void {
+    if (!ticket?.id) {
+      console.error('Cancel ticket: No ticket ID');
+      this.showAlertMessage('Erreur: Aucun ticket sélectionné', 'error');
+      return;
+    }
+    const status = (ticket as any)?.status ? String((ticket as any).status).toUpperCase() : '';
+    if (status === 'CANCELLED' || status === 'REFUNDED') {
+      this.showAlertMessage('Ticket déjà annulé', 'info');
+      return;
+    }
+    
+    console.log('Cancelling ticket:', ticket.id);
+    this.http.put(`${environment.apiUrl}/sales/${ticket.id}/status`, { status: 'CANCELLED' }, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    }).subscribe({
+      next: (response) => {
+        console.log('Ticket cancelled successfully:', response);
+        this.showAlertMessage('Ticket annulé', 'success');
+        this.loadSales();
+        this.closeCancelTicketModal();
+      },
+      error: (error) => {
+        console.error('Error cancelling ticket:', error);
+        const errorMessage = error?.error?.error || error?.message || 'Erreur lors de l\'annulation du ticket';
+        this.showAlertMessage(`Erreur: ${errorMessage}`, 'error');
+      }
+    });
+  }
+
   // Return/Exchange UI methods
   openReturnRequestModal(sale?: Sale): void {
     this.showReturnRequestModal = true;
@@ -1013,7 +1106,6 @@ export class HistoriqueComponent implements OnInit {
     this.returnType = null;
     this.exchangeProducts = [];
     this.showReturnPicker = false;
-    // Start with no rows; user will add items explicitly
   }
 
   openReturnDialogForTicket(ticketId: number): void {

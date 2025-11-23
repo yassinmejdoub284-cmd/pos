@@ -10,9 +10,9 @@ export const authGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: R
   const token = sessionStorage.getItem('token');
   const userStr = sessionStorage.getItem('user');
   
-  console.log('[AuthGuard] Checking authentication for:', state.url);
-  console.log('[AuthGuard] Token exists:', !!token);
-  console.log('[AuthGuard] User exists:', !!userStr);
+
+
+
   
   // If we have a valid token and user in storage, allow access
   // This is the most reliable check - sessionStorage persists across refreshes
@@ -26,7 +26,7 @@ export const authGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: R
       const currentUser = authService.currentUser();
       
       if (!isAuthenticated || !currentUser) {
-        console.log('[AuthGuard] Restoring auth state from sessionStorage');
+
         // Reload auth state into signals
         const permissionsStr = sessionStorage.getItem('permissions');
         const permissions = permissionsStr ? JSON.parse(permissionsStr) : null;
@@ -49,7 +49,7 @@ export const authGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: R
         }
       }
       
-      console.log('[AuthGuard] Authentication successful, allowing access');
+
       // Allow access - we have valid token and user
       return true;
     } catch (error) {
@@ -66,7 +66,7 @@ export const authGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: R
   const currentUser = authService.currentUser();
   
   if (isAuthenticated && currentUser) {
-    console.log('[AuthGuard] Authentication successful via signals, allowing access');
+
     return true;
   }
 

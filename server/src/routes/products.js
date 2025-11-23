@@ -425,7 +425,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    console.log('Received product data:', req.body);
+
     const {
       name,
       designation_legale,
@@ -525,7 +525,7 @@ router.post('/', authenticateToken, async (req, res) => {
       requiresApproval: requiresApproval || false
     };
     
-    console.log('Product data to be saved:', productData);
+
     
     const product = await prisma.product.create({
       data: productData
@@ -617,7 +617,7 @@ router.put('/order', authenticateToken, async (req, res) => {
 
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    console.log('Received product update data:', req.body);
+
     const productId = parseInt(req.params.id);
     
     if (isNaN(productId)) {
@@ -791,7 +791,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (minMargin !== undefined) updateData.minMargin = minMargin ? parseFloat(minMargin) : null;
     if (requiresApproval !== undefined) updateData.requiresApproval = requiresApproval;
     
-    console.log('Update data to be saved:', updateData);
+
     
     // For RESPONSABLE_MAGASIN, we might only update depot prices, not the product itself
     let product;
@@ -1549,7 +1549,7 @@ router.get('/vrac/statistics', authenticateToken, async (req, res) => {
 // Transfer/Convert product to another product type
 router.post('/transfer', authenticateToken, async (req, res) => {
   try {
-    console.log('Transfer request body:', req.body);
+
     const { sourceProductId, targetProductId, quantity, conversionRatio, depotId } = req.body;
 
     // Validate required fields
@@ -1595,7 +1595,7 @@ router.post('/transfer', authenticateToken, async (req, res) => {
 
     // Validate that target product is vrac (for transfer to vrac)
     if (!targetProduct.isVrac) {
-      console.log('Warning: Target product is not vrac:', targetProduct.name, 'isVrac:', targetProduct.isVrac);
+
       // Allow transfer but log warning
     }
 
@@ -1624,7 +1624,7 @@ router.post('/transfer', authenticateToken, async (req, res) => {
     // Allow transfer even if inventory doesn't exist or is insufficient (can go negative)
     // This allows flexibility for product conversions
     if (currentSourceQuantity < sourceQuantity && sourceInventory) {
-      console.log(`Warning: Insufficient stock. Available: ${currentSourceQuantity}, Requested: ${sourceQuantity}`);
+
       // Continue with transfer - allow negative inventory
     }
 
@@ -1743,7 +1743,7 @@ router.post('/transfer', authenticateToken, async (req, res) => {
 // Transfer product to multiple target products
 router.post('/transfer-multiple', authenticateToken, async (req, res) => {
   try {
-    console.log('Multiple transfer request body:', req.body);
+
     const { sourceProductId, transfers, depotId } = req.body;
 
     // Validate required fields
@@ -2159,7 +2159,7 @@ router.get('/similar-products', authenticateToken, async (req, res) => {
       }
     });
     
-    console.log(`Found ${depotAssignments.length} product-depot assignments for depots:`, depotIds);
+
     
     if (depotAssignments.length === 0) {
       return res.json([]);
@@ -2193,7 +2193,7 @@ router.get('/similar-products', authenticateToken, async (req, res) => {
       whereConditions.barcode = barcode;
     }
     
-    console.log('Fetching products with conditions:', JSON.stringify(whereConditions, null, 2));
+
     
     const products = await prisma.product.findMany({
       where: whereConditions,
@@ -2222,7 +2222,7 @@ router.get('/similar-products', authenticateToken, async (req, res) => {
       take: 100 // Increased limit
     });
     
-    console.log(`Found ${products.length} products`);
+
     
     // Transform depotAssignments to assignedDepots for frontend compatibility
     const productsWithAssignedDepots = products.map(product => ({

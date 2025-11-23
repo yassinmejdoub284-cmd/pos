@@ -1,56 +1,11 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
 
 const router = express.Router();
 
-// Helper function to read user roles from user-roles.json
-function readUserRoles() {
-  try {
-    const filePath = path.join(__dirname, '../uploads/user-roles.json');
-    if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    }
-    return {};
-  } catch (error) {
-    console.error('Error reading user roles:', error);
-    return {};
-  }
-}
-
-// Helper function to check if user has role or roleKey
-function hasRoleOrRoleKey(user, allowedRoles) {
-  // Check database role
-  if (allowedRoles.includes(user.role)) {
-    return true;
-  }
-  
-  // Check roleKey from user-roles.json
-  const userRoles = readUserRoles();
-  const roleKey = userRoles[String(user.id)];
-  if (roleKey && allowedRoles.includes(roleKey)) {
-    return true;
-  }
-  
-  return false;
-}
-
-// Middleware to require role or roleKey
-function requireRoleOrRoleKey(allowedRoles) {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    if (!hasRoleOrRoleKey(req.user, allowedRoles)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-
-    next();
-  };
-}
 
 // Get all suppliers
 router.get('/', authenticateToken, async (req, res) => {
@@ -317,7 +272,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Create new supplier
-router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { name, contactName, email, phone, address, city, postalCode, taxNumber, paymentTerms, notes, depotId, currentDebt } = req.body;
     
@@ -403,7 +358,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (re
 });
 
 // Update supplier
-router.put('/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { name, contactName, email, phone, address, city, postalCode, taxNumber, paymentTerms, notes, isActive, depotId } = req.body;
     
@@ -464,7 +419,7 @@ router.put('/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (
 });
 
 // Delete supplier
-router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     await prisma.supplier.delete({
       where: { id: parseInt(req.params.id) }
@@ -478,7 +433,7 @@ router.delete('/:id', authenticateToken, requireRole(['ADMIN']), async (req, res
 });
 
 // Toggle supplier status
-router.patch('/:id/toggle-status', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.patch('/:id/toggle-status', authenticateToken, async (req, res) => {
   try {
     const supplier = await prisma.supplier.findUnique({
       where: { id: parseInt(req.params.id) }
@@ -659,6 +614,8 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       });
 
       // Build transactions array using the same logic as statement route
+      // Note: Bon d'entrée documents are NOT included here because they're already represented
+      // through supplierDebtTransaction (type='DEBT') or supplier payments
       const allTransactions = [
         // 1. Bon de retour documents: calculate total from items (crédit fournisseur - réduit la dette)
         ...bonRetourDocuments.map(doc => {
@@ -673,20 +630,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
             credit: totalAmount
           };
         }),
-        // 2. Bon d'entrée documents: calculate total from items (Crédit fournisseur / dette)
-        ...bonEntreeDocuments.map(doc => {
-          const totalAmount = doc.items.reduce((sum, item) => {
-            const qty = parseFloat(item.quantity || 0);
-            const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
-            return sum + (qty * price);
-          }, 0);
-          return {
-            date: doc.createdAt,
-            debit: 0,
-            credit: totalAmount // Crédit fournisseur
-          };
-        }),
-        // 3. Debt transactions: standalone debt/payment adjustments
+        // 2. Debt transactions: standalone debt/payment adjustments (includes bon d'entrée debt)
         ...debtTransactions.map(transaction => {
           const amount = parseFloat(transaction.amount);
           return {
@@ -695,7 +639,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
             credit: transaction.type === 'DEBT' ? amount : 0
           };
         }),
-        // 4. Expenses: what we owe the supplier (increases debt)
+        // 3. Expenses: what we owe the supplier (increases debt)
         // Filter out expenses that are linked to bon de retour or bon d'entrée documents (already handled above)
         ...periodExpenses
           .filter(expense => {
@@ -762,7 +706,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
               };
             }
           }),
-        // 5. Supplier payments: positifs = débit (règlements), négatifs = crédit (avoirs)
+        // 4. Supplier payments: positifs = débit (règlements), négatifs = crédit (avoirs)
         ...periodPayments.map(payment => {
           const amount = parseFloat(payment.amount);
           const normalized = Math.abs(amount);
@@ -912,9 +856,10 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         };
       });
 
+      // Note: normalizedBonEntree is excluded because bon d'entrée debt is already
+      // represented in normalizedDebtTransactions (type='DEBT')
       const ledgerEntries = [
         ...normalizedBonRetour,
-        ...normalizedBonEntree,
         ...normalizedExpenses,
         ...normalizedPayments,
         ...normalizedDebtTransactions
@@ -1060,16 +1005,6 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       },
       orderBy: { createdAt: 'asc' }
     });
-    
-    // Debug: log found bon d'entrée documents
-    console.log(`Found ${bonEntreeDocuments.length} bon d'entrée documents for supplier ${supplierId}`);
-    bonEntreeDocuments.forEach(doc => {
-      console.log(`Bon d'entrée #${doc.id}: notes="${doc.notes}", totalAmount=${doc.items.reduce((sum, item) => {
-        const qty = parseFloat(item.quantity || 0);
-        const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
-        return sum + (qty * price);
-      }, 0)}`);
-    });
 
     // Get bon de retour documents for this supplier
     // Include documents created in the date range OR updated in the date range
@@ -1087,6 +1022,12 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         items: true
       },
       orderBy: { createdAt: 'asc' }
+    });
+
+    const bonEntreeMap = new Map();
+    bonEntreeDocuments.forEach(doc => {
+      bonEntreeMap.set(doc.numero, doc.id.toString());
+      bonEntreeMap.set(doc.id.toString(), doc.id.toString());
     });
 
     // Calculate running balance
@@ -1117,35 +1058,6 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
           bonId: doc.id.toString(),
           documentType: 'BON_EXPEDITION',
           description: `Bon de retour #${doc.id} - ${doc.numero || ''}`
-        };
-      }),
-      // Bon d'entrée documents: calculate total from items
-      // Toujours affiché en CRÉDIT (crédit fournisseur / dette), même si payé comptant.
-      // Les paiements espèces apparaissent séparément en DÉBIT.
-      ...bonEntreeDocuments.map(doc => {
-        // Calculate total amount from items
-        const totalAmount = doc.items.reduce((sum, item) => {
-          const qty = parseFloat(item.quantity || 0);
-          const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
-          return sum + (qty * price);
-        }, 0);
-
-        // Extract document number (numero) - could be like "BE-001" or just the ID
-        const docNumber = doc.numero || doc.id.toString();
-        const reference = `Bon d'entrée #${doc.id}`;
-
-        // Bon d'entrée increases debt - shown as DEBIT (crédit fournisseur/dette - dépense)
-        // Always shown in DEBIT, even if there's a cash payment (payment shown separately in CREDIT)
-        return {
-          type: 'bon_entree',
-          date: doc.createdAt,
-          reference: reference,
-          debit: 0,
-          credit: totalAmount, // Crédit fournisseur (augmentation dette)
-          id: doc.id,
-          clickable: true,
-          bonId: doc.id.toString(),
-          description: `Bon d'entrée #${doc.id}`
         };
       }),
       // Debt transactions: standalone debt/payment adjustments
@@ -1258,9 +1170,27 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       ...payments.map(payment => {
         const rawAmount = parseFloat(payment.amount);
         const amount = Math.abs(rawAmount);
-        const reference = `PAYMENT-${payment.id}`;
         const notes = payment.notes || '';
         const isCreditEntry = rawAmount < 0 || payment.paymentMethod === 'CREDIT';
+
+        let reference = `PAYMENT-${payment.id}`;
+        let bonId = null;
+
+        const bonMatchNumeric = notes.match(/Bon d'entrée #(\d+)/);
+        const bonMatchNumero = notes.match(/Bon d'entrée #(BE-[-\d]+)/i);
+        
+        if (bonMatchNumeric) {
+          const bonEntreeId = bonMatchNumeric[1];
+          reference = `Bon d'entrée #${bonEntreeId}`;
+          bonId = bonEntreeId;
+        } else if (bonMatchNumero) {
+          const bonNumero = bonMatchNumero[1];
+          reference = `Bon d'entrée #${bonNumero}`;
+          const docId = bonEntreeMap.get(bonNumero);
+          if (docId) {
+            bonId = docId;
+          }
+        }
 
         if (isCreditEntry) {
           return {
@@ -1271,7 +1201,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
             credit: amount,
             id: payment.id,
             clickable: true,
-            bonId: null,
+            bonId: bonId,
             description: notes || 'Crédit fournisseur'
           };
         }
@@ -1284,7 +1214,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
           credit: 0,
           id: payment.id,
           clickable: true,
-          bonId: null,
+          bonId: bonId,
           description: notes || 'Règlement fournisseur'
         };
       })
@@ -1320,7 +1250,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
 });
 
 // Initialize supplier solde (set currentDebt to custom amount)
-router.post('/:id/solde/init', authenticateToken, requireRoleOrRoleKey(['ADMIN', 'MANAGER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
+router.post('/:id/solde/init', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, notes } = req.body;

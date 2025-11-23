@@ -75,7 +75,7 @@ export class AppComponent implements OnInit {
           xhr.send(data);
         }
       } catch (error) {
-        console.log('Error calling punch on beforeunload:', error);
+
       }
     }
   }

@@ -1,18 +1,18 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { sendPushToAll } = require('../lib/push');
 
 const router = express.Router();
 
 // Helper function to process return (restore stock and create cash movement)
 async function processReturn(tx, request, items, userId) {
-  console.log(`[returns.process] ===== STARTING processReturn =====`);
-  console.log(`[returns.process] Request ID: ${request.id}, Numero: ${request.numero}`);
-  console.log(`[returns.process] Items to process: ${items?.length || 0}`);
-  console.log(`[returns.process] Request items: ${request.items?.length || 0}`);
-  console.log(`[returns.process] Notes: ${request.notes?.substring(0, 200)}`);
-  console.log(`[returns.process] OriginalSaleId: ${request.originalSaleId}, OriginalSaleTotal: ${request.originalSaleTotal}`);
+
+
+
+
+
+
   
   let returnType = null;
   let refundAmount = 0;
@@ -24,18 +24,18 @@ async function processReturn(tx, request, items, userId) {
         notesLower.includes('retour simple') ||
         notesLower.includes('retour simple (remboursement')) {
       returnType = 'RETURN';
-      console.log(`[returns.process] Detected RETURN type from notes`);
+
     } else if (notesLower.includes('type: échange avec remboursement') ||
                notesLower.includes('échange avec remboursement')) {
       returnType = 'EXCHANGE_CASH';
-      console.log(`[returns.process] Detected EXCHANGE_CASH type from notes`);
+
     }
   }
   
   // If return type not detected but request status is PROCESSED and has originalSaleId, assume it's a simple return
   if (!returnType && request.status === 'PROCESSED' && request.originalSaleId) {
     returnType = 'RETURN';
-    console.log(`[returns.process] Assuming RETURN type based on status and originalSaleId`);
+
   }
 
   // Try to extract refund amount from notes as fallback
@@ -54,7 +54,7 @@ async function processReturn(tx, request, items, userId) {
         const amountStr = refundMatch[1].replace(/,/g, '.');
         refundFromNotes = parseFloat(amountStr) || 0;
         if (refundFromNotes > 0) {
-          console.log(`[returns.process] Extracted refund amount from notes: ${refundFromNotes} DT`);
+
           break;
         }
       }
@@ -64,7 +64,7 @@ async function processReturn(tx, request, items, userId) {
   // Process each item: restore stock and calculate refund
   const itemById = new Map(request.items.map(i => [i.id, i]));
   
-  console.log(`[returns.process] Processing ${items?.length || 0} items for return ${request.numero}`);
+
   
   // Load original sale once if available
   let originalSale = null;
@@ -74,7 +74,7 @@ async function processReturn(tx, request, items, userId) {
       include: { items: true }
     });
     if (originalSale) {
-      console.log(`[returns.process] Loaded original sale ${request.originalSaleId} with ${originalSale.items.length} items`);
+
     } else {
       console.warn(`[returns.process] Original sale ${request.originalSaleId} not found`);
     }
@@ -93,13 +93,13 @@ async function processReturn(tx, request, items, userId) {
     // Default to full requested quantity if not specified
     if (nonRebutQty === 0 && requestedQty > 0) {
       nonRebutQty = requestedQty;
-      console.log(`[returns.process] Defaulted nonRebutQty to ${nonRebutQty} for product ${original.productId}`);
+
     }
     
     // ALWAYS restore stock for non-rebut items (this should happen regardless of refund calculation)
     if (nonRebutQty > 0) {
       try {
-        console.log(`[returns.process] Restoring ${nonRebutQty} units of product ${original.productId} to stock`);
+
         const inv = await tx.inventory.findUnique({
           where: { depotId_productId: { depotId: request.depotId, productId: original.productId } }
         });
@@ -111,12 +111,12 @@ async function processReturn(tx, request, items, userId) {
             where: { id: inv.id },
             data: { quantity: newQty.toString() }
           });
-          console.log(`[returns.process] Updated inventory: ${currentQty} -> ${newQty} for product ${original.productId}`);
+
         } else {
           await tx.inventory.create({
             data: { depotId: request.depotId, productId: original.productId, quantity: nonRebutQty.toString() }
           });
-          console.log(`[returns.process] Created new inventory entry: ${nonRebutQty} for product ${original.productId}`);
+
         }
         
         await tx.stockMovement.create({
@@ -131,7 +131,7 @@ async function processReturn(tx, request, items, userId) {
           }
         });
         
-        console.log(`[returns.process] Created stock movement for product ${original.productId}: +${nonRebutQty} units`);
+
       } catch (stockError) {
         console.error(`[returns.process] ERROR restoring stock for product ${original.productId}:`, stockError);
         // Don't throw - continue processing other items and refund calculation
@@ -140,8 +140,8 @@ async function processReturn(tx, request, items, userId) {
       // Calculate refund amount from original sale if available
       if (returnType === 'RETURN' && originalSale) {
         try {
-          console.log(`[returns.process] Calculating refund for product ${original.productId}, nonRebutQty: ${nonRebutQty}`);
-          console.log(`[returns.process] Looking for sale item with productId ${original.productId} in sale ${request.originalSaleId}`);
+
+
           console.log(`[returns.process] Available sale items:`, originalSale.items.map(i => ({ 
             id: i.id, 
             productId: i.productId ?? i.id,
@@ -164,8 +164,8 @@ async function processReturn(tx, request, items, userId) {
             const unitPrice = parseFloat(saleItem.unitPrice || 0);
             const itemRefund = nonRebutQty * unitPrice;
             refundAmount += itemRefund;
-            console.log(`[returns.process] Product ${original.productId}: ${nonRebutQty} x ${unitPrice} = ${itemRefund} DT`);
-            console.log(`[returns.process] Running refund total: ${refundAmount} DT`);
+
+
           } else {
             console.warn(`[returns.process] Sale item not found for product ${original.productId} in sale ${request.originalSaleId}`);
             console.warn(`[returns.process] Will use fallback refund calculation`);
@@ -180,7 +180,7 @@ async function processReturn(tx, request, items, userId) {
   
   // If refund amount is 0 but we have a refund from notes, use that
   if (returnType === 'RETURN' && refundAmount === 0 && refundFromNotes > 0) {
-    console.log(`[returns.process] Using refund amount from notes: ${refundFromNotes} DT`);
+
     refundAmount = refundFromNotes;
   }
   
@@ -193,7 +193,7 @@ async function processReturn(tx, request, items, userId) {
       if (totalSaleQty > 0) {
         const ratio = totalRequestedQty / totalSaleQty;
         refundAmount = parseFloat(request.originalSaleTotal || 0) * ratio;
-        console.log(`[returns.process] Calculated refund from ratio: ${totalRequestedQty}/${totalSaleQty} = ${ratio}, refund: ${refundAmount} DT`);
+
       } else {
         // If we can't calculate ratio, use the full originalSaleTotal if all items are being returned
         // or calculate from the sum of returned items' values
@@ -210,32 +210,32 @@ async function processReturn(tx, request, items, userId) {
         }, 0);
         if (totalReturnedValue > 0) {
           refundAmount = totalReturnedValue;
-          console.log(`[returns.process] Calculated refund from returned items value: ${refundAmount} DT`);
+
         } else {
           // Last resort: use originalSaleTotal directly if we can't calculate
           refundAmount = parseFloat(request.originalSaleTotal || 0);
-          console.log(`[returns.process] Using originalSaleTotal directly as fallback: ${refundAmount} DT`);
+
         }
       }
     } else if (totalRequestedQty > 0) {
       // If we have requestedQty but no originalSale, try to use originalSaleTotal directly
       refundAmount = parseFloat(request.originalSaleTotal || 0);
-      console.log(`[returns.process] Using originalSaleTotal directly: ${refundAmount} DT`);
+
     }
   }
   
-  console.log(`[returns.process] Total refund amount calculated: ${refundAmount} DT`);
+
   
   // Create cash movement for simple returns - ALWAYS create if returnType is RETURN, even if amount is 0 (will use originalSaleTotal)
   if (returnType === 'RETURN') {
     // If refundAmount is still 0, use originalSaleTotal as last resort
     if (refundAmount === 0 && request.originalSaleTotal) {
       refundAmount = parseFloat(request.originalSaleTotal || 0);
-      console.log(`[returns.process] Using originalSaleTotal as final fallback for cash movement: ${refundAmount} DT`);
+
     }
     
     if (refundAmount > 0) {
-      console.log(`[returns.process] Creating cash movement for return type RETURN, refund: ${refundAmount} DT`);
+
       
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
@@ -246,7 +246,7 @@ async function processReturn(tx, request, items, userId) {
       });
       
       if (activeSession) {
-        console.log(`[returns.process] Found active session ${activeSession.id} for depot ${request.depotId}, current expectedCash: ${activeSession.expectedCash}`);
+
         
         // Create cash movement with SORTIE type
         const cashMovement = await tx.cashMovement.create({
@@ -260,7 +260,7 @@ async function processReturn(tx, request, items, userId) {
           }
         });
         
-        console.log(`[returns.process] Created cash movement ${cashMovement.id} (SORTIE) for ${refundAmount} DT`);
+
         
         // Update expected cash by decrementing the refund amount
         // The session summary will recalculate automatically when fetched, including this new SORTIE movement
@@ -272,8 +272,8 @@ async function processReturn(tx, request, items, userId) {
           data: { expectedCash: newExpectedCash }
         });
         
-        console.log(`[returns.process] Updated session ${activeSession.id} expected cash: ${currentExpectedCash} DT -> ${newExpectedCash} DT (decremented by ${refundAmount} DT)`);
-        console.log(`[returns.process] Cash movement will be included in session summary calculation (SORTIE type)`);
+
+
       } else {
         console.warn(`[returns.process] No active session found for depot ${request.depotId} - cannot create cash movement`);
         console.warn(`[returns.process] Depot ID: ${request.depotId}, User ID: ${userId}`);
@@ -283,7 +283,7 @@ async function processReturn(tx, request, items, userId) {
       console.warn(`[returns.process] Request details: originalSaleId=${request.originalSaleId}, originalSaleTotal=${request.originalSaleTotal}, refundFromNotes=${refundFromNotes}`);
     }
   } else {
-    console.log(`[returns.process] Skipping cash movement - returnType: ${returnType}, refundAmount: ${refundAmount}`);
+
   }
   
   return { returnType, refundAmount };
@@ -312,8 +312,8 @@ router.post('/requests', authenticateToken, async (req, res) => {
       notes.includes('Retour simple (remboursement en espèces)')
     );
     
-    console.log(`[returns.create] Notes received: ${notes?.substring(0, 200)}`);
-    console.log(`[returns.create] Is simple return: ${isSimpleReturn}`);
+
+
 
     const created = await prisma.$transaction(async (tx) => {
       // Create request with appropriate status
@@ -353,7 +353,7 @@ router.post('/requests', authenticateToken, async (req, res) => {
 
       // If simple return, process it immediately (restore stock and create cash movement)
       if (isSimpleReturn) {
-        console.log(`[returns.create] Processing simple return ${request.numero} immediately`);
+
         
         // Reload request with items for processing
         const requestWithItems = await tx.returnRequest.findUnique({
@@ -361,7 +361,7 @@ router.post('/requests', authenticateToken, async (req, res) => {
           include: { items: true }
         });
         
-        console.log(`[returns.create] Request has ${requestWithItems.items.length} items`);
+
         
         // Prepare items for processing (all as non-rebut)
         const processItems = requestWithItems.items.map(item => ({
@@ -370,12 +370,12 @@ router.post('/requests', authenticateToken, async (req, res) => {
           rebutQty: 0
         }));
         
-        console.log(`[returns.create] Processing ${processItems.length} items`);
+
         
         // Process the return
         const processResult = await processReturn(tx, requestWithItems, processItems, req.user.id);
         
-        console.log(`[returns.create] Process result: returnType=${processResult.returnType}, refundAmount=${processResult.refundAmount}`);
+
         
         // Update original sale: mark as REFUNDED if all items returned, or update finalTotal for partial returns
         if (request.originalSaleId) {
@@ -414,7 +414,7 @@ router.post('/requests', authenticateToken, async (req, res) => {
                 where: { id: request.originalSaleId },
                 data: { status: 'REFUNDED' }
               });
-              console.log(`[returns.create] Marked sale ${request.originalSaleId} as REFUNDED (all items returned)`);
+
             } else {
               // Partial return - update finalTotal by subtracting the refund amount
               const currentTotal = parseFloat(originalSale.finalTotal || 0);
@@ -428,7 +428,7 @@ router.post('/requests', authenticateToken, async (req, res) => {
                 }
               });
               
-              console.log(`[returns.create] Updated sale ${request.originalSaleId} finalTotal: ${currentTotal} -> ${newTotal} DT (partial return)`);
+
               
               // Update sale items quantities for returned products
               for (const returnItem of requestWithItems.items) {
@@ -447,7 +447,7 @@ router.post('/requests', authenticateToken, async (req, res) => {
                     }
                   });
                   
-                  console.log(`[returns.create] Updated sale item ${saleItem.id} quantity: ${currentQty} -> ${newQty}`);
+
                 }
               }
             }
@@ -470,7 +470,7 @@ router.post('/requests', authenticateToken, async (req, res) => {
         console.warn('[returns.create] Failed to send push notification:', e);
       }
     } else {
-      console.log(`[returns.create] Simple return ${created.numero} processed immediately`);
+
     }
 
     res.status(201).json(created);
@@ -513,7 +513,7 @@ router.get('/requests', authenticateToken, async (req, res) => {
 });
 
 // Approve and process a return request with dispositions
-router.post('/requests/:id/approve', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { items } = req.body; // [{ itemId, disposition, nonRebutQty, rebutQty }]
@@ -649,22 +649,22 @@ router.post('/requests/:id/approve', authenticateToken, requireRole(['ADMIN', 'M
 
           // Only mark as REFUNDED if all items are returned
           if (allItemsReturned) {
-            console.log(`All items returned - Marking sale ${request.originalSaleId} as REFUNDED for return request ${request.numero}`);
+
             const updatedSale = await tx.sale.update({
               where: { id: request.originalSaleId },
               data: { status: 'REFUNDED' }
             });
-            console.log(`Sale ${request.originalSaleId} updated to status: ${updatedSale.status}`);
+
           } else {
-            console.log(`Partial return - Sale ${request.originalSaleId} remains ${originalSale.status} (not all items returned)`);
+
           }
         } else if (originalSale) {
-          console.log(`Sale ${request.originalSaleId} is already REFUNDED`);
+
         } else {
-          console.log(`Original sale ${request.originalSaleId} not found`);
+
         }
       } else {
-        console.log(`No originalSaleId found for return request ${request.numero}`);
+
       }
 
       // Mark as processed after all items handled
@@ -703,7 +703,7 @@ router.post('/requests/:id/approve', authenticateToken, requireRole(['ADMIN', 'M
 });
 
 // Reject a return request
-router.post('/requests/:id/reject', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { reason } = req.body;
@@ -734,7 +734,7 @@ router.post('/requests/:id/reject', authenticateToken, requireRole(['ADMIN', 'MA
 });
 
 // List rebut records for authority processing
-router.get('/rebuts', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.get('/rebuts', authenticateToken, async (req, res) => {
   try {
     const { status = 'PENDING_AUTHORITY' } = req.query;
     const records = await prisma.rebutRecord.findMany({
@@ -750,7 +750,7 @@ router.get('/rebuts', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'STOCK
 });
 
 // Archive a rebut record after authority approval
-router.post('/rebuts/:id/archive', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.post('/rebuts/:id/archive', authenticateToken, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const record = await prisma.rebutRecord.findUnique({ where: { id } });

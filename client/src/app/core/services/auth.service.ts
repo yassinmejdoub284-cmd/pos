@@ -46,7 +46,7 @@ export class AuthService {
     return this.http.post<AuthResponse>(`${this.API_URL}/auth/login`, credentials).pipe(
       tap({
         next: (response) => {
-          console.log('Login successful, setting auth data');
+
           this.setAuthData(response);
           
           // Only handle attendance and company theme for patisserie users
@@ -57,28 +57,28 @@ export class AuthService {
             setTimeout(() => {
               if (!this.punchInProgress) {
                 this.punchInProgress = true;
-                console.log('Calling punch CHECK_IN after successful login');
+
                 this.attendanceService.punch('CHECK_IN', response.user.id).subscribe({ 
                   next: () => {
-                    console.log('Punch check-in successful');
+
                     this.punchInProgress = false;
                   }, 
                   error: (err) => {
-                    console.log('Punch check-in failed:', err);
+
                     this.punchInProgress = false;
                     // Don't retry on 401 - likely auth issue
                     if (err.status !== 401) {
-                      console.log('Retrying punch in 2 seconds...');
+
                       setTimeout(() => {
                         if (!this.punchInProgress) {
                           this.punchInProgress = true;
                           this.attendanceService.punch('CHECK_IN', response.user.id).subscribe({
                             next: () => {
-                              console.log('Punch check-in retry successful');
+
                               this.punchInProgress = false;
                             },
                             error: (retryErr) => {
-                              console.log('Punch check-in retry failed:', retryErr);
+
                               this.punchInProgress = false;
                             }
                           });
@@ -90,12 +90,12 @@ export class AuthService {
               }
             }, 100);
           } else {
-            console.log('Enterprise user login - skipping attendance punch');
+
           }
         },
         error: (error) => {
           // Don't call punch on login failure
-          console.log('Login failed:', error);
+
         }
       })
     );
@@ -112,13 +112,13 @@ export class AuthService {
         // Make punch request and clear session immediately after request is initiated
         this.attendanceService.punch('CHECK_OUT', currentUser?.id).subscribe({ 
           next: () => {
-            console.log('Punch check-out successful');
+
             this.punchInProgress = false;
           }, 
           error: (err) => {
             // Only log if it's not a 401 (token might already be invalid)
             if (err.status !== 401) {
-              console.log('Punch check-out failed:', err);
+
             }
             this.punchInProgress = false;
           }
@@ -128,13 +128,13 @@ export class AuthService {
         // The punch request is already in flight, so it will use the token from the request
         this.clearSession();
       } catch (error) {
-        console.log('Error calling punch on logout:', error);
+
         this.punchInProgress = false;
         this.clearSession();
       }
     } else {
       if (currentUser?.userType === 'enterprise') {
-        console.log('Enterprise user logout - skipping attendance punch');
+
       }
       this.clearSession();
     }
