@@ -86,7 +86,6 @@ export class PrintService {
   }
 
   private printPlainTextWeb(text: string): void {
-    // Web fallback: open print dialog with plain text
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
@@ -96,16 +95,42 @@ export class PrintService {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Print</title>
             <style>
+              @page {
+                margin: 0;
+                size: auto;
+              }
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              html, body {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+              }
               body { 
                 font-family: monospace; 
                 white-space: pre-wrap; 
                 margin: 0; 
-                padding: 8px;
+                padding: 0;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
               }
               @media print {
-                body { margin: 0; padding: 4px; }
+                @page {
+                  margin: 0;
+                  size: auto;
+                }
+                body { 
+                  margin: 0; 
+                  padding: 0; 
+                }
+                * {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                }
               }
             </style>
           </head>
@@ -116,7 +141,6 @@ export class PrintService {
       
       let hasPrinted = false;
 
-      // Wait for content to load before printing
       printWindow.onload = () => {
         setTimeout(() => {
           if (!hasPrinted) {
@@ -126,7 +150,6 @@ export class PrintService {
         }, 500);
       };
 
-      // Fallback: if onload doesn't fire, try after a longer delay
       setTimeout(() => {
         if (printWindow && !printWindow.closed && !hasPrinted) {
           try {
@@ -280,12 +303,8 @@ export class PrintService {
 
   private async printEscPosDesktop(escposData: string): Promise<void> {
     try {
-      const tauriCore = await import('@tauri-apps/api/core');
-      if (!tauriCore || !tauriCore.invoke) {
-        throw new Error('Tauri invoke is not available');
-      }
-      const base64 = this.toBase64(this.stringToBytes(escposData));
-      await tauriCore.invoke('print_raw_bytes', { data_base64: base64 });
+      const readableText = this.convertEscPosToReadable(escposData);
+      await this.printPlainTextDesktop(readableText);
     } catch (error) {
       console.error('Tauri ESC/POS print error:', error);
       throw error;
@@ -299,32 +318,38 @@ export class PrintService {
   }
 
   async openCashDrawer(): Promise<void> {
-    this.settingsService.getSettings().subscribe({
-      next: (settings) => {
-        if (settings?.isDesktopVersion) {
-          this.openCashDrawerDesktop();
-        } else {
+    return new Promise((resolve, reject) => {
+      this.settingsService.getSettings().subscribe({
+        next: async (settings) => {
+          if (settings?.isDesktopVersion) {
+            try {
+              await this.openCashDrawerDesktop();
+              resolve();
+            } catch (error) {
+              console.error('Desktop cash drawer failed, trying web fallback:', error);
+              this.openCashDrawerWebPrinter();
+              resolve();
+            }
+          } else {
+            this.openCashDrawerWebPrinter();
+            resolve();
+          }
+        },
+        error: () => {
           this.openCashDrawerWebPrinter();
+          resolve();
         }
-      },
-      error: () => {
-        this.openCashDrawerWebPrinter();
-      }
+      });
     });
   }
 
 
   private async openCashDrawerDesktop(): Promise<void> {
     try {
-      const tauriCore = await import('@tauri-apps/api/core');
-      if (!tauriCore || !tauriCore.invoke) {
-        throw new Error('Tauri invoke is not available');
-      }
-      await tauriCore.invoke('open_cash_drawer');
-
+      const cashDrawerCommand = '\x1B\x70\x00\x19\xFA';
+      await this.printPlainTextDesktop(cashDrawerCommand);
     } catch (error) {
-      console.error('Tauri cash drawer failed:', error);
-      this.openCashDrawerWebPrinter();
+      throw error;
     }
   }
 
@@ -399,9 +424,11 @@ export class PrintService {
         // Check if desktop version is enabled
         if (settings?.isDesktopVersion) {
           // Use Tauri direct printing with text format
+          // Cash drawer command is already included in text (same as web mode)
           const text = this.buildSaleReceiptText(sale, settings);
           try {
             await this.printPlainTextDesktop(text);
+            
             // Double print if enabled
             if (doublePrint) {
               // Small delay between prints
@@ -1624,10 +1651,18 @@ export class PrintService {
     text += ESC + '\x69'; // Full cut
     text += ESC + '\x64\x01'; // Feed 6 lines before cutting
     
-    // Open cash drawer for cash payments (espèces)
-    if (sale.paymentType === 'COMPTANT' && sale.paymentMethod?.id === 1) {
+    // Open cash drawer for cash payments (espèces) - same logic for web and desktop
+    const isCashPayment = sale.paymentType === 'COMPTANT' || 
+                         (sale.paymentMethod && (
+                           sale.paymentMethod.id === 1 || 
+                           sale.paymentMethod.name?.toLowerCase().includes('espèces') ||
+                           sale.paymentMethod.name?.toLowerCase().includes('especes') ||
+                           sale.paymentMethod.name?.toLowerCase().includes('cash')
+                         ));
+    
+    if (isCashPayment) {
       // ESC/POS command to open cash drawer: ESC p 0 25 250
-      text += ESC + '\x70\x00\x19\xFA'; // Open drawer command
+      text += ESC + '\x70\x00\x19\xFA';
     }
     
     return text;
@@ -1799,10 +1834,18 @@ export class PrintService {
     text += ESC + '\x69'; // Full cut
     text += ESC + '\x64\x01'; // Feed 6 lines before cutting
     
-    // Open cash drawer for cash payments (espèces)
-    if (sale.paymentType === 'COMPTANT' && sale.paymentMethod?.id === 1) {
+    // Open cash drawer for cash payments (espèces) - same logic for web and desktop
+    const isCashPayment = sale.paymentType === 'COMPTANT' || 
+                         (sale.paymentMethod && (
+                           sale.paymentMethod.id === 1 || 
+                           sale.paymentMethod.name?.toLowerCase().includes('espèces') ||
+                           sale.paymentMethod.name?.toLowerCase().includes('especes') ||
+                           sale.paymentMethod.name?.toLowerCase().includes('cash')
+                         ));
+    
+    if (isCashPayment) {
       // ESC/POS command to open cash drawer: ESC p 0 25 250
-      text += ESC + '\x70\x00\x19\xFA'; // Open drawer command
+      text += ESC + '\x70\x00\x19\xFA';
     }
     
     return text;
@@ -3995,6 +4038,67 @@ export class PrintService {
     
     // Cut paper
     text += '\x1D\x56\x00';
+    
+    return text;
+  }
+
+  buildClientStatementText(
+    statement: any,
+    client: any,
+    startDate: string | null,
+    endDate: string | null
+  ): string {
+    let text = '';
+    const LINE_WIDTH = 48;
+    
+    text += '='.repeat(LINE_WIDTH) + '\n';
+    text += 'CLIENT\n';
+    text += '\n';
+    
+    const clientName = this.sanitizeForThermalPrinter((client.firstName || '') + ' ' + (client.lastName || '')).trim() || 'N/A';
+    text += clientName.substring(0, LINE_WIDTH) + '\n';
+    if (client.code) {
+      text += 'Code: ' + this.sanitizeForThermalPrinter(client.code) + '\n';
+    }
+    
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    const periodStart = startDate ? new Date(startDate).toLocaleDateString('fr-FR') : 'Début';
+    const periodEnd = endDate ? new Date(endDate).toLocaleDateString('fr-FR') : 'Aujourd\'hui';
+    const periodLine = 'Periode: ' + periodStart + ' - ' + periodEnd;
+    text += periodLine.substring(0, LINE_WIDTH) + '\n';
+    text += 'Date: ' + new Date().toLocaleDateString('fr-FR') + '\n';
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    text += '\n';
+    
+    text += 'DETAIL DES OPERATIONS:\n';
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    
+    if (!statement.statement || statement.statement.length === 0) {
+      text += 'Aucune operation pour cette periode\n';
+    } else {
+      text += 'Date       Ref       Debit     Credit       Solde\n';
+      text += '-'.repeat(LINE_WIDTH) + '\n';
+      
+      statement.statement.forEach((item: any) => {
+        const date = new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+        const ref = (item.reference || '').substring(0, 12).padEnd(12);
+        const debit = item.debit > 0 ? item.debit.toFixed(3).padStart(10) : ''.padStart(10);
+        const credit = item.credit > 0 ? item.credit.toFixed(3).padStart(10) : ''.padStart(10);
+        const balanceValue = item.balance;
+        const balance = balanceValue < 0 
+          ? Math.abs(balanceValue).toFixed(3).padStart(9) + '-'
+          : balanceValue.toFixed(3).padStart(10);
+        
+        const line = date.padEnd(6) + ref + debit + credit + balance;
+        text += line.substring(0, LINE_WIDTH) + '\n';
+      });
+    }
+    
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    const merciLine = 'Merci!';
+    const padding = Math.floor((LINE_WIDTH - merciLine.length) / 2);
+    text += ' '.repeat(padding) + merciLine + '\n';
+    text += '='.repeat(LINE_WIDTH) + '\n\n\n\n';
     
     return text;
   }

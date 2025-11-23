@@ -536,8 +536,7 @@ router.post('/:id/movements', authenticateToken, async (req, res) => {
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
-        userId: req.user.id,
-        depotId: userDepotId, // Ensure depot isolation
+        depotId: userDepotId, // Ensure depot isolation - allow any user in same depot
         status: { in: ['OPEN', 'REOPENED'] }
       }
     });

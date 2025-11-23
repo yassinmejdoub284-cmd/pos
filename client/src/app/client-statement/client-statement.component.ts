@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { TicketDialogComponent } from '../shared/ticket-dialog/ticket-dialog.component';
 import { PaymentDialogComponent } from '../shared/payment-dialog/payment-dialog.component';
 import { AuthService } from '../core/services/auth.service';
+import { PrintService } from '../core/services/print.service';
 
 interface Client {
   id: number;
@@ -95,7 +96,8 @@ export class ClientStatementComponent implements OnInit {
   constructor(
     private http: HttpClient, 
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private printService: PrintService
   ) {}
 
   ngOnInit(): void {
@@ -269,7 +271,6 @@ export class ClientStatementComponent implements OnInit {
     }
 
     const useCurrent = this.statement && this.selectedClient && this.selectedClient.id === this.filters.clientId;
-
     if (useCurrent) {
       this.openPrintWindow();
       return;
@@ -294,6 +295,59 @@ export class ClientStatementComponent implements OnInit {
         this.loading = false;
         alert('Erreur lors du chargement du relevé pour impression');
       }
+    });
+  }
+
+  printStatementThermal(): void {
+    if (!this.filters.clientId) {
+      alert('Veuillez sélectionner un client');
+      return;
+    }
+
+    const useCurrent = this.statement && this.selectedClient && this.selectedClient.id === this.filters.clientId;
+    if (useCurrent) {
+      this.printThermalStatement();
+      return;
+    }
+
+    this.loading = true;
+    let url = `${environment.apiUrl}/client-statements/${this.filters.clientId}/statement?`;
+    const params = new URLSearchParams();
+    if (this.filters.startDate) params.append('startDate', this.filters.startDate);
+    if (this.filters.endDate) params.append('endDate', this.filters.endDate);
+    url += params.toString();
+
+    this.http.get<ClientStatement>(url).subscribe({
+      next: (statement) => {
+        this.statement = statement;
+        this.selectedClient = statement.client;
+        this.loading = false;
+        this.printThermalStatement();
+      },
+      error: (error) => {
+        console.error('Error loading statement for print:', error);
+        this.loading = false;
+        alert('Erreur lors du chargement du relevé pour impression');
+      }
+    });
+  }
+
+  private printThermalStatement(): void {
+    if (!this.statement || !this.selectedClient) {
+      alert('Aucun relevé à imprimer');
+      return;
+    }
+
+    const text = this.printService.buildClientStatementText(
+      this.statement,
+      this.selectedClient,
+      this.filters.startDate,
+      this.filters.endDate
+    );
+
+    this.printService.printPlainText(text).catch(error => {
+      console.error('Error printing statement:', error);
+      alert('Erreur lors de l\'impression: ' + (error.message || 'Erreur inconnue'));
     });
   }
 
