@@ -57,3 +57,4 @@ Start your server again. The multiple depot assignment feature will now work!
 - After migration, all new user assignments will save multiple depots
 - Existing users with single depot assignments will continue to work
 
+
