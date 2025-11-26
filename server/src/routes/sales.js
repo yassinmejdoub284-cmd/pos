@@ -695,7 +695,7 @@ router.post('/gift', authenticateToken, async (req, res) => {
   try {
     const { items, total, discount, finalTotal, reason, recipient, status, clientId, depotId } = req.body;
 
-    console.log(`[Gift Sale] Creating gift sale - Request depotId: ${depotId}, User depotId: ${req.user?.depotId}, User role: ${req.user?.role}`);
+
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Gift sale must have at least one item' });
@@ -705,7 +705,7 @@ router.post('/gift', authenticateToken, async (req, res) => {
     const userDepotId = req.user?.depotId;
     let targetDepotId = depotId ? parseInt(depotId) : userDepotId;
     
-    console.log(`[Gift Sale] Initial targetDepotId: ${targetDepotId} (from request: ${depotId}, user: ${userDepotId})`);
+
     
     // For admins, allow specifying any depot
     // For non-admins, validate depot access
@@ -736,7 +736,7 @@ router.post('/gift', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'DepotId is required to create gift sales' });
     }
 
-    console.log(`[Gift Sale] Final targetDepotId: ${targetDepotId}, processing ${items.length} items`);
+
 
     // Validate depotId is a valid number
     if (!targetDepotId || isNaN(targetDepotId) || targetDepotId <= 0) {
@@ -838,7 +838,7 @@ router.post('/gift', authenticateToken, async (req, res) => {
               // Calculate new quantity (can be negative)
               const newQuantity = parseFloat(currentInventory.quantity) - itemQuantity;
               
-              console.log(`[Gift Sale] Auto-approved cadeau - Removing stock for productId=${itemProductId}: current=${currentInventory.quantity}, removing=${itemQuantity}, new=${newQuantity}`);
+
               
               // Update inventory
               await tx.inventory.updateMany({
@@ -852,7 +852,7 @@ router.post('/gift', authenticateToken, async (req, res) => {
               });
             } else {
               // If no inventory record exists, create one with negative quantity
-              console.log(`[Gift Sale] Auto-approved cadeau - Creating inventory record with negative quantity for productId=${itemProductId}: -${itemQuantity}`);
+
               
               await tx.inventory.create({
                 data: {
@@ -885,7 +885,7 @@ router.post('/gift', authenticateToken, async (req, res) => {
     // Stock removal: 
     // - If status is CADEAU (auto-approved), stock was removed during creation
     // - If status is PENDING_ADMIN, stock will be removed upon approval
-    console.log(`[Gift Sale] Transaction completed. Status: ${saleStatus}, stock ${saleStatus === 'CADEAU' ? 'removed' : 'will be removed upon approval'}.`);
+
 
     const saleWithDetails = await prisma.sale.findUnique({
       where: { id: sale.id },
@@ -960,7 +960,7 @@ router.put('/gift/:id/approve', async (req, res) => {
     // Use the gift sale's depotId (should be same as userDepotId, but use sale's to be sure)
     const targetDepotId = giftSale.depotId || userDepotId;
     
-    console.log(`[gift approve] Starting approval for sale ${id}, depotId=${targetDepotId}, items count=${giftSale.items.length}`);
+
 
     const sale = await prisma.$transaction(async (tx) => {
       // Update status to CADEAU if it was PENDING_ADMIN
@@ -975,7 +975,7 @@ router.put('/gift/:id/approve', async (req, res) => {
       // Always remove stock when approving a cadeau
       // Check if stock was already removed by looking for existing stock movements
       // This ensures stock is removed even if the cadeau was already CADEAU but stock wasn't removed
-      console.log(`[gift approve] Processing stock removal for sale ${id} (status was ${giftSale.status}).`);
+
       
       // Get existing stock movements for this sale to check if stock was already removed
       const saleItemIds = giftSale.items.map(item => item.productId);
@@ -1008,7 +1008,7 @@ router.put('/gift/:id/approve', async (req, res) => {
             );
             
             if (hasMovement) {
-              console.log(`[gift approve] Stock movement already exists for productId=${itemProductId}, skipping.`);
+
               continue;
             }
             
@@ -1024,7 +1024,7 @@ router.put('/gift/:id/approve', async (req, res) => {
               // Calculate new quantity (can be negative)
               const newQuantity = parseFloat(currentInventory.quantity) - itemQuantity;
               
-              console.log(`[gift approve] Removing stock for productId=${itemProductId}: current=${currentInventory.quantity}, removing=${itemQuantity}, new=${newQuantity}`);
+
               
               // Update inventory
               await tx.inventory.updateMany({
@@ -1038,7 +1038,7 @@ router.put('/gift/:id/approve', async (req, res) => {
               });
             } else {
               // If no inventory record exists, create one with negative quantity
-              console.log(`[gift approve] Creating inventory record with negative quantity for productId=${itemProductId}: -${itemQuantity}`);
+
               
               await tx.inventory.create({
                 data: {
@@ -1061,7 +1061,7 @@ router.put('/gift/:id/approve', async (req, res) => {
               }
             });
             
-            console.log(`[gift approve] Stock removed and movement recorded for productId=${itemProductId}`);
+
           }
         } catch (itemError) {
           console.error(`[gift approve] Error processing productId=${item.productId}:`, itemError);
@@ -1069,7 +1069,7 @@ router.put('/gift/:id/approve', async (req, res) => {
         }
       }
       
-      console.log(`[gift approve] Transaction completed successfully`);
+
 
       return updatedSale;
     });
@@ -1087,7 +1087,7 @@ router.put('/gift/:id/approve', async (req, res) => {
           }
         });
         if (verifyInventory) {
-          console.log(`[gift approve] Verification: productId=${itemProductId}, final quantity=${verifyInventory.quantity}`);
+
         } else {
           console.warn(`[gift approve] Verification failed: productId=${itemProductId} not found in inventory`);
         }
@@ -1131,7 +1131,7 @@ router.put('/gift/:id/reject', async (req, res) => {
         data: { status: 'CANCELLED', updatedAt: new Date() } 
       });
 
-      console.log(`[gift reject] Rejecting sale ${id} (status was ${giftSale.status}). No stock to restore since it was never removed.`);
+
     });
 
     const saleWithDetails = await prisma.sale.findUnique({ 
@@ -1156,7 +1156,7 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
     }
 
     const forceMode = req.query.force === 'true' || req.body.force === true;
-    console.log(`[Gift Stock Fix] Starting retroactive stock fix... (force mode: ${forceMode})`);
+
 
     // Find all CADEAU sales
     const giftSales = await prisma.sale.findMany({
@@ -1178,7 +1178,7 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
       }
     });
 
-    console.log(`[Gift Stock Fix] Found ${giftSales.length} gift sales`);
+
 
     let fixedCount = 0;
     let skippedCount = 0;
@@ -1189,7 +1189,7 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
 
     for (const sale of giftSales) {
       if (!sale.depotId) {
-        console.log(`[Gift Stock Fix] Sale #${sale.id}: No depotId, skipping...`);
+
         skippedCount++;
         continue;
       }
@@ -1205,7 +1205,7 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
           const itemQuantity = parseFloat(item.quantity) || 0;
           return itemProductId && itemQuantity > 0;
         });
-        console.log(`[Gift Stock Fix] Force mode: Processing ALL ${itemsNeedingStock.length} items for sale #${sale.id}`);
+
       } else {
         // Normal mode: check for existing movements
         // Use a wider time window (30 minutes) to catch movements
@@ -1224,7 +1224,7 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
           }
         });
 
-        console.log(`[Gift Stock Fix] Sale #${sale.id}: Found ${existingMovements.length} existing movements in time window`);
+
 
         // Check if we need to process this sale
         itemsNeedingStock = sale.items.filter(item => {
@@ -1250,12 +1250,12 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
       }
 
       if (itemsNeedingStock.length === 0) {
-        console.log(`[Gift Stock Fix] Sale #${sale.id}: All items already have stock movements, skipping...`);
+
         skippedCount++;
         continue;
       }
 
-      console.log(`[Gift Stock Fix] Sale #${sale.id}: Processing ${itemsNeedingStock.length} items that need stock deduction`);
+
 
       try {
         await prisma.$transaction(async (tx) => {
@@ -1264,7 +1264,7 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
             const itemProductId = parseInt(item.productId);
 
             if (!itemProductId || itemQuantity <= 0) {
-              console.log(`[Gift Stock Fix] Sale #${sale.id}: Skipping invalid item - productId=${itemProductId}, quantity=${itemQuantity}`);
+
               continue;
             }
 
@@ -1281,7 +1281,7 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
             const currentQty = currentInventory ? parseFloat(currentInventory.quantity) || 0 : 0;
             const newQuantity = currentQty - itemQuantity;
 
-            console.log(`[Gift Stock Fix] Sale #${sale.id}, Product #${itemProductId}: ${currentQty} → ${newQuantity} (removing ${itemQuantity})`);
+
 
             // Update or create inventory
             await tx.inventory.upsert({
@@ -1316,12 +1316,12 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
 
             totalItemsProcessed++;
             totalStockRemoved += itemQuantity;
-            console.log(`[Gift Stock Fix] Sale #${sale.id}, Product #${itemProductId}: Stock removed and movement created`);
+
           }
         });
 
         fixedCount++;
-        console.log(`[Gift Stock Fix] ✅ Fixed sale #${sale.id} (${itemsNeedingStock.length} items)`);
+
       } catch (error) {
         errorCount++;
         errors.push({ saleId: sale.id, error: error.message });
@@ -1330,8 +1330,8 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
       }
     }
 
-    console.log(`[Gift Stock Fix] Completed: Fixed=${fixedCount}, Skipped=${skippedCount}, Errors=${errorCount}`);
-    console.log(`[Gift Stock Fix] Total items processed: ${totalItemsProcessed}, Total stock removed: ${totalStockRemoved}`);
+
+
 
     res.json({
       success: true,
@@ -1463,9 +1463,9 @@ router.get('/', authenticateToken, async (req, res) => {
     // Apply same date filtering to table sales
     if (startDate && endDate) {
       tableSalesWhereClause.createdAt = { gte: new Date(startDate), lte: new Date(endDate) };
-      console.log('Date filter applied:', { startDate, endDate });
+
     } else {
-      console.log('No date filter - will get all table sales');
+
     }
 
     if (status) {
@@ -1483,7 +1483,7 @@ router.get('/', authenticateToken, async (req, res) => {
       // tableSalesWhereClause.status = { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] };
     }
 
-    console.log('Table sales where clause:', tableSalesWhereClause);
+
     const tableSales = await prisma.tableSale.findMany({
       where: tableSalesWhereClause,
       include: {
@@ -1499,7 +1499,7 @@ router.get('/', authenticateToken, async (req, res) => {
       skip: (parseInt(page) - 1) * parseInt(limit),
       take: parseInt(limit)
     });
-    console.log('Found table sales:', tableSales.length);
+
 
     // Convert table sales to sale format for historique compatibility
     const convertedTableSales = tableSales.map(tableSale => ({
@@ -1799,23 +1799,29 @@ router.put('/:id/status', async (req, res) => {
 
           if (currentInventory) {
             // Restore quantity by adding it back
-            const newQuantity = parseFloat(currentInventory.quantity) + actualQuantityToRestore;
+            const currentQty = parseFloat(String(currentInventory.quantity || 0)) || 0;
+            const restoreQty = parseFloat(String(actualQuantityToRestore || 0)) || 0;
+            const newQuantity = currentQty + restoreQty;
+            // Ensure valid decimal format (max 3 decimal places)
+            const formattedQuantity = parseFloat(newQuantity.toFixed(3));
             await tx.inventory.updateMany({
               where: {
                 depotId: userDepotId,
                 productId: item.productId
               },
               data: {
-                quantity: newQuantity
+                quantity: String(formattedQuantity)
               }
             });
           } else {
             // If no inventory record exists, create one with the restored quantity
+            const restoreQty = parseFloat(String(actualQuantityToRestore || 0)) || 0;
+            const formattedQuantity = parseFloat(restoreQty.toFixed(3));
             await tx.inventory.create({
               data: {
                 depotId: userDepotId,
                 productId: item.productId,
-                quantity: actualQuantityToRestore
+                quantity: String(formattedQuantity)
               }
             });
           }
@@ -2027,6 +2033,30 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
       const advanceAmount = advancePayment !== undefined ? parseFloat(advancePayment) : (amountPaid !== undefined ? parseFloat(amountPaid) : 0);
       const advanceMethodId = advancePaymentMethod ? paymentMethodMap[advancePaymentMethod] : (paymentMethodId ? parseInt(paymentMethodId) : null);
 
+      // Compute session-based ticket number
+      let sessionTicketNumber = null;
+      if (activeSession && activeSession.id) {
+        const recent = await tx.sale.findMany({
+          where: { sessionId: activeSession.id },
+          orderBy: { createdAt: 'desc' },
+          select: { dailyTicketNumber: true },
+          take: 500
+        });
+        const parseNum = (raw) => {
+          if (!raw) return 0;
+          const s = String(raw);
+          if (s.includes('/')) {
+            const part = s.split('/')[1];
+            const n = parseInt(part, 10);
+            return isNaN(n) ? 0 : n;
+          }
+          const n = parseInt(s, 10);
+          return isNaN(n) ? 0 : n;
+        };
+        const maxNum = recent.reduce((mx, r) => Math.max(mx, parseNum(r.dailyTicketNumber)), 0);
+        sessionTicketNumber = (maxNum || 0) + 1;
+      }
+
       const newSale = await tx.sale.create({
         data: {
           total: parseFloat(total),
@@ -2044,7 +2074,9 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
           advancePayment: advanceAmount > 0 ? advanceAmount : 0,
           advancePaymentMethodId: advanceAmount > 0 ? advanceMethodId : null,
           advancePaymentDate: advanceAmount > 0 ? new Date() : null,
-          advancePaymentNotes: null
+          advancePaymentNotes: null,
+          // Store session-based ticket number in existing field (string)
+          dailyTicketNumber: sessionTicketNumber ? String(sessionTicketNumber).padStart(4, '0') : null
         }
       });
 
@@ -2296,6 +2328,17 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
       }
     });
 
+    // Emit socket notification for real-time ticket synchronization
+    if (req.app.get('io')) {
+      req.app.get('io').to(`depot_${userDepotId}`).emit('ticket_created', {
+        depotId: userDepotId,
+        ticketNumber: sale.newSale.dailyTicketNumber,
+        sessionId: sale.newSale.sessionId,
+        saleId: sale.newSale.id,
+        createdBy: req.user?.username || 'system'
+      });
+    }
+
     if (!saleWithDetails) {
       return res.status(500).json({ error: 'Sale created but could not be retrieved' });
     }
@@ -2374,6 +2417,30 @@ router.post('/wholesale', async (req, res) => {
         }
       });
 
+      // Compute session-based ticket number
+      let sessionTicketNumber = null;
+      if (activeSession && activeSession.id) {
+        const recent = await tx.sale.findMany({
+          where: { sessionId: activeSession.id },
+          orderBy: { createdAt: 'desc' },
+          select: { dailyTicketNumber: true },
+          take: 500
+        });
+        const parseNum = (raw) => {
+          if (!raw) return 0;
+          const s = String(raw);
+          if (s.includes('/')) {
+            const part = s.split('/')[1];
+            const n = parseInt(part, 10);
+            return isNaN(n) ? 0 : n;
+          }
+          const n = parseInt(s, 10);
+          return isNaN(n) ? 0 : n;
+        };
+        const maxNum = recent.reduce((mx, r) => Math.max(mx, parseNum(r.dailyTicketNumber)), 0);
+        sessionTicketNumber = (maxNum || 0) + 1;
+      }
+
       const newSale = await tx.sale.create({
         data: {
           total: parseFloat(total),
@@ -2386,7 +2453,9 @@ router.post('/wholesale', async (req, res) => {
           sessionId: activeSession ? activeSession.id : null,
           status: 'COMPLETED',
           paymentType: paymentType || 'COMPTANT',
-          isWholesale: true
+          isWholesale: true,
+          // Store session-based ticket number in existing field (string)
+          dailyTicketNumber: sessionTicketNumber ? String(sessionTicketNumber).padStart(4, '0') : null
         }
       });
 

@@ -176,12 +176,12 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   }
 
   loadRecentSessions(limit: number, after?: () => void): void {
-    console.log('Loading recent sessions with limit:', limit);
+
     this.sessionsService.getSessions({ 
       limit: limit
     }).subscribe({
       next: (sessions: any) => {
-        console.log('Sessions received:', sessions);
+
         // Sort sessions by openedAt/createdAt (newest first) and keep only last N
         const sorted = (sessions || [])
           .slice()
@@ -192,7 +192,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           })
           .slice(0, limit);
 
-         console.log('Sorted sessions:', sorted);
+
          this.sessions.set(sorted);
          // Auto-select first session if none selected and sessions exist
          if (sorted.length > 0 && !this.selectedSession()) {
@@ -232,7 +232,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     // fetch Z to enrich details and allow print/export
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (report) => {
-        console.log('Session report loaded:', report);
+
         const enriched: SessionCaisse = {
           ...session,
           cashMovements: report.session?.cashMovements || session.cashMovements,
@@ -240,7 +240,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           // Include sales data from the report (same as cloture component)
           sales: report.session?.sales || (session as any)?.sales || []
         } as any;
-        console.log('Enriched session:', enriched);
+
         this.selectedSession.set(enriched);
         // Ensure cash sales list is populated using X/Z report sales
         this.loadCashSalesDetails();
@@ -1486,7 +1486,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log(`Loading summary for ${sessionsNeedingSummary.length} sessions`);
+
 
     // Load summary for sessions that need it using forkJoin for better performance
     const summaryObservables = sessionsNeedingSummary.map(session => 
@@ -1600,7 +1600,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log('Fetching session summaries for date range:', validFromDate, 'to', validToDate);
+
     
     // Fetch session summaries with aggregated sales and expenses data
     const sessionSummariesQuery = this.sessionsService.getSessionSummaries({
@@ -1610,7 +1610,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
     sessionSummariesQuery.subscribe({
       next: (sessionsWithSummaries) => {
-        console.log('Session summaries received:', sessionsWithSummaries);
+
         
         // Filter sessions by the specific sessionId if provided
         const sessionsInRange = sessionsWithSummaries.filter(session => {
@@ -1620,12 +1620,12 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         // Sort sessions by opening date
         sessionsInRange.sort((a, b) => new Date(a.openedAt).getTime() - new Date(b.openedAt).getTime());
 
-        console.log('Processing sessions with summaries:', sessionsInRange.length);
+
         this.processReleveDataWithSummaries(sessionsInRange, entries, runningBalance, validFromDate, validToDate);
       },
       error: (error) => {
         console.error('Error fetching session summaries:', error);
-        console.log('Falling back to individual sales fetch...');
+
         this.generateReleveEntriesFallback(fromDate, toDate, sessionId);
       }
     });
@@ -2024,7 +2024,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     // Get session IDs for sales query
     const sessionIds = sessionsInRange.map(s => s.id);
 
-    console.log('Fetching sales and expenses for sessionIds:', sessionIds, 'from', validFromDate, 'to', validToDate);
+
     
     // Fetch both sales and expenses in parallel
     const salesQuery = this.salesService.getSales({});
@@ -2039,21 +2039,21 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       expenses: expensesQuery
     }).subscribe({
       next: (data) => {
-        console.log('Sales and expenses data received:', data);
+
         const sessionSales = data.sales.filter(sale => sessionIds.includes(sale.sessionId || 0));
-        console.log('Sales for target sessions:', sessionSales);
+
         
         if (sessionSales.length > 0 || data.expenses.length > 0) {
-          console.log('Found sales/expenses, processing with data...');
+
           this.processReleveData(sessionsInRange, sessionSales, entries, runningBalance, validFromDate, validToDate, data.expenses);
         } else {
-          console.log('No sales/expenses found, using session summary data...');
+
           this.processReleveDataFallback(sessionsInRange, entries, runningBalance, validFromDate, validToDate);
         }
       },
       error: (error) => {
         console.error('Error fetching sales/expenses data:', error);
-        console.log('Using fallback method...');
+
         this.processReleveDataFallback(sessionsInRange, entries, runningBalance, validFromDate, validToDate);
       }
     });
@@ -2182,20 +2182,20 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     const session = sessionId ? this.sessions().find(s => s.id === sessionId) : this.selectedSession();
     if (!session) return;
 
-    console.log('Opening expense details modal for designation:', designation, 'sessionId:', sessionId);
+
 
     // Always fetch fresh session report to get the most up-to-date expense data
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (report) => {
-        console.log('Session report received:', report);
+
         let expensesToShow: Array<{ id: number; amount: number; reason: string; createdAt: string; categoryName?: string; supplierName?: string; notes?: string }> = [];
 
         // Get expenses from the session summary (this is where the backend puts them)
         const summary = report?.summary as any;
         const summaryExpenses = summary?.expensesDetails || [];
         
-        console.log('Summary expenses from backend:', summaryExpenses);
-        console.log('Summary object:', summary);
+
+
 
         // Check if this is a "Sortie - Dépense" entry (individual cash movement)
         if (designation.includes('Sortie - Dépense')) {
@@ -2241,7 +2241,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
                 (movement.reason.includes('Dépense') || movement.reason.includes('depense'))
               );
               
-              console.log('Found expense movements:', expenseMovements);
+
               
               expensesToShow = expenseMovements.map((movement: any) => {
                 // Extract expense ID from reason like "Dépense approuvée #26: ..."
@@ -2262,14 +2262,14 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
             
             // If still no expenses found, try to fetch directly from expenses API
             if (expensesToShow.length === 0) {
-              console.log('No expenses found in session report, trying direct API call...');
+
               this.fetchExpensesDirectly(session, designation);
               return;
             }
           }
         }
 
-        console.log('Expenses to show:', expensesToShow);
+
         this.expenseDetails.set(expensesToShow);
         this.expenseDetailsTitle.set(designation);
         this.showExpenseDetailsModal.set(true);
@@ -2301,7 +2301,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       status: 'approved'
     }).subscribe({
       next: (expensesResponse: any) => {
-        console.log('Direct expenses API response:', expensesResponse);
+
         const expenses = expensesResponse.expenses || expensesResponse || [];
         
         // Filter for cash expenses only
@@ -2309,7 +2309,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           expense.paymentType === 'CASH' && expense.isApproved
         );
         
-        console.log('Cash expenses found:', cashExpenses);
+
         
         const expensesToShow = cashExpenses.map((expense: any) => ({
           id: expense.id,
@@ -2321,7 +2321,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           notes: expense.notes || ''
         }));
         
-        console.log('Expenses to show from direct API:', expensesToShow);
+
         this.expenseDetails.set(expensesToShow);
         this.expenseDetailsTitle.set(designation);
         this.showExpenseDetailsModal.set(true);
@@ -2344,12 +2344,12 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     const session = this.selectedSession();
     if (!session) return;
 
-    console.log('Opening credit sales details modal for session:', session.id);
+
 
     // Fetch fresh session report to get credit sales details
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (report) => {
-        console.log('Session report received for credit sales:', report);
+
         const sales = (report?.session?.sales || []) as Array<any>;
         
         // Filter credit sales (sales with CREDIT payment method)
@@ -2358,7 +2358,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           return paymentType === 'CREDIT' && !['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase());
         });
 
-        console.log('Credit sales found:', creditSales);
+
 
         // Build credit sales details from sales
         // For credit sales, the amount should be the DEBT amount (creditSalesTotal is sum of DEBT transactions)
@@ -2484,11 +2484,11 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
   // Debug method to check sales and expenses data
   debugSalesData(): void {
-    console.log('=== DEBUG: Checking all sales and expenses data ===');
+
     const session = this.selectedSession();
     
     if (!session) {
-      console.log('No session selected');
+
       return;
     }
 
@@ -2500,11 +2500,11 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       expenses: expensesQuery
     }).subscribe({
       next: (data) => {
-        console.log('All sales in system:', data.sales);
-        console.log('All expenses in system:', data.expenses);
+
+
         
         const sessionSales = data.sales.filter(sale => sale.sessionId === session.id);
-        console.log(`Sales for session ${session.id}:`, sessionSales);
+
         
         sessionSales.forEach(sale => {
           console.log(`Sale ${sale.id}:`, {
@@ -2527,7 +2527,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           return expenseDate >= sessionStart && expenseDate <= sessionEnd;
         });
         
-        console.log(`Expenses for session ${session.id} period:`, sessionExpenses);
+
         
         sessionExpenses.forEach(expense => {
           console.log(`Expense ${expense.id}:`, {

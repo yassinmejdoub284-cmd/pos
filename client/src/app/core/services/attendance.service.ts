@@ -48,7 +48,7 @@ export class AttendanceService {
   }
 
   punch(type: 'CHECK_IN' | 'CHECK_OUT', userId?: number): Observable<any> {
-    console.log(`Punch ${type} called`);
+
     const body: { type: 'CHECK_IN' | 'CHECK_OUT'; userId?: number } = { type };
     if (userId) {
       body.userId = userId;

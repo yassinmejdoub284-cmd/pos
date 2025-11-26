@@ -5158,7 +5158,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
       quantity: Number(it.quantity || 0),
       unitPrice: Number(it.unitPrice || 0),
       total: Number(it.total || (Number(it.quantity || 0) * Number(it.unitPrice || 0))),
-      discount: Number(it.discount || 0)
+      discount: Number(it.discount || 0),
+      isWholesale: it.isWholesale || false,
+      bundleQuantity: it.bundleQuantity || undefined,
+      bundleSize: it.bundleSize || undefined,
+      bundlePrice: it.bundlePrice || undefined
     }));
 
     // Totals
@@ -5363,6 +5367,54 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   isTicketInvoiceApproved(ticket: any): boolean {
     return this.approvedInvoicesSet.has(ticket?.id);
+  }
+
+  isTicketWholesale(ticket: any): boolean {
+    return ticket?.isWholesale || (ticket?.items && ticket.items.some((item: any) => item.isWholesale));
+  }
+
+  getTicketStatusClass(ticket: any): string {
+    if (this.isTicketPendingRefund(ticket)) {
+      return 'bg-orange-100 text-orange-700';
+    }
+    if (ticket.status === 'COMPLETED') {
+      return this.isTicketWholesale(ticket) ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700';
+    }
+    if (ticket.status === 'TEMPORARY') {
+      return 'bg-yellow-100 text-yellow-700';
+    }
+    if (ticket.status === 'PENDING') {
+      return 'bg-orange-100 text-orange-700';
+    }
+    if (ticket.status === 'REFUNDED') {
+      return 'bg-red-100 text-red-700';
+    }
+    if (ticket.status === 'CANCELLED') {
+      return 'bg-gray-200 text-gray-700';
+    }
+    return 'bg-gray-100 text-gray-700';
+  }
+
+  getTicketStatusText(ticket: any): string {
+    if (this.isTicketPendingRefund(ticket)) {
+      return 'Annulation en cours';
+    }
+    if (ticket.status === 'COMPLETED') {
+      return this.isTicketWholesale(ticket) ? 'Gros' : 'Terminé';
+    }
+    if (ticket.status === 'TEMPORARY') {
+      return 'Temporaire';
+    }
+    if (ticket.status === 'PENDING') {
+      return 'En attente';
+    }
+    if (ticket.status === 'REFUNDED') {
+      return 'Retourné';
+    }
+    if (ticket.status === 'CANCELLED') {
+      return 'Annulé';
+    }
+    return ticket.status || '';
   }
 
   onTicketSelect(ticket: Sale): void {
@@ -7052,7 +7104,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.depotsService.list().subscribe({
       next: (depots: any[]) => {
         this.depots = depots;
-        console.log('Loaded depots:', depots);
+
       },
       error: (error: any) => {
         console.error('Error loading depots:', error);
@@ -7314,11 +7366,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
       paidAmount: paidAmount // Pass the actual paid amount for cash movement calculation
     };
 
-    console.log('Creating expense with depotId:', currentDepotId, 'Payload:', payload);
+
 
     this.expenseService.createExpense(payload).subscribe({
       next: (createdExpense) => {
-        console.log('Expense created successfully:', createdExpense);
+
         this.showAlertMessage('Dépense enregistrée avec succès', 'success');
         this.submittingSupplierAction = false;
         this.showExpenseForm = false;
@@ -7384,10 +7436,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   confirmInstantRefund(): void {
-    console.log('confirmInstantRefund called');
+
     
     if (!this.instantRefundTicket) {
-      console.log('No instantRefundTicket found');
+
       this.showAlertMessage('Erreur: Aucun ticket sélectionné', 'error');
       return;
     }
@@ -7396,7 +7448,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const refundAmount = Number(ticket.finalTotal) || 0;
     const productsToReturn = ticket.items || [];
 
-    console.log('Processing refund for ticket:', ticket.id, 'Amount:', refundAmount);
+
 
     // Immediately update the UI to show "Annulation en cours"
     this.updateTicketStatusInstantly(ticket.id, 'PENDING_REFUND');
@@ -7423,12 +7475,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
       originalSaleTotal: ticket.finalTotal
     };
 
-    console.log('Return payload:', returnPayload);
+
 
     // Create return request in background
     this.returnsService.createReturnRequest(returnPayload).subscribe({
       next: (returnRequest) => {
-        console.log('Return request created successfully:', returnRequest);
+
         
         // Refresh data to get the actual server state
         this.loadTodaysTickets();

@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function seedWholesaleRules() {
   try {
-    console.log('Seeding wholesale rules...');
+
 
     // Create default wholesale rules
     const defaultRules = [
@@ -52,13 +52,13 @@ async function seedWholesaleRules() {
         await prisma.wholesaleRule.create({
           data: rule
         });
-        console.log(`Created rule: ${rule.description}`);
+
       } else {
-        console.log(`Rule already exists: ${rule.description}`);
+
       }
     }
 
-    console.log('Wholesale rules seeded successfully!');
+
   } catch (error) {
     console.error('Error seeding wholesale rules:', error);
   } finally {

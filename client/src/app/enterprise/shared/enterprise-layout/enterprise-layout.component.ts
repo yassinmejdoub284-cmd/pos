@@ -77,7 +77,7 @@ export class EnterpriseLayoutComponent implements OnInit, OnDestroy {
 
   onNavigateToSection(section: string): void {
     // This can be overridden by parent components if needed
-    console.log('Navigate to section:', section);
+
   }
 
   goBack(): void {

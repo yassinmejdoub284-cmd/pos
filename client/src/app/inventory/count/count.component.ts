@@ -252,10 +252,10 @@ export class CountComponent implements OnInit, OnDestroy {
   }
 
   initializeCountItems(): void {
-    console.log('initializeCountItems called');
-    console.log('showStockProductsDirectly:', this.showStockProductsDirectly);
-    console.log('hasStockProductsInDepot:', this.hasStockProductsInDepot);
-    console.log('items to process:', this.items.length);
+
+
+
+
     
     // Show ALL items from the session to allow editing
     const itemsToProcess = this.items;
@@ -276,7 +276,7 @@ export class CountComponent implements OnInit, OnDestroy {
           updatedAt: new Date()
         };
         
-        console.log('Processing item with productId:', item.productId, 'product name:', item.product?.name);
+
         
         if (this.showStockProductsDirectly && this.hasStockProductsInDepot) {
           // Find the stock product that matches this inventory item's productId
@@ -286,7 +286,7 @@ export class CountComponent implements OnInit, OnDestroy {
           );
           
           if (stockProduct) {
-            console.log('Found stock product:', stockProduct.name, 'for productId:', item.productId);
+
             // Convert stock product to Product format
             productData = {
               id: stockProduct.id,
@@ -304,7 +304,7 @@ export class CountComponent implements OnInit, OnDestroy {
               updatedAt: stockProduct.updatedAt
             } as Product;
           } else {
-            console.log('No stock product found for productId:', item.productId);
+
           }
         }
         
@@ -338,7 +338,7 @@ export class CountComponent implements OnInit, OnDestroy {
         } as CountItem;
       });
     
-    console.log('Count items initialized:', this.countItems.length);
+
   }
 
   updateStatistics(): void {

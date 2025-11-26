@@ -361,7 +361,7 @@ export class NewEntryComponent implements OnInit {
 
       this.supplierService.createSupplierPayment(paymentData).subscribe({
         next: (payment) => {
-          console.log('Cash payment record created:', payment);
+
           
           // If there's remaining amount, create a separate credit record (CREDIT method won't create cash movement)
           if (remainingAmount > 0) {
@@ -374,7 +374,7 @@ export class NewEntryComponent implements OnInit {
             
             this.supplierService.createSupplierPayment(creditData).subscribe({
               next: (credit) => {
-                console.log('Credit record created:', credit);
+
               },
               error: (err) => {
                 console.error('Error creating credit record:', err);
@@ -400,7 +400,7 @@ export class NewEntryComponent implements OnInit {
 
       this.supplierService.createSupplierPayment(combinedData).subscribe({
         next: (payment) => {
-          console.log('Combined payment record created:', payment);
+
         },
         error: (err) => {
           console.error('Error creating combined payment record:', err);
@@ -456,7 +456,7 @@ export class NewEntryComponent implements OnInit {
 
             this.supplierService.createSupplierPayment(creditData).subscribe({
               next: (credit) => {
-                console.log('Credit record created:', credit);
+
               },
               error: (err) => {
                 console.error('Error creating credit record:', err);

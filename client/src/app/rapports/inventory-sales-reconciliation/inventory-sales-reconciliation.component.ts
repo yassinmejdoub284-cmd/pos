@@ -2266,7 +2266,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     for (const discount of discounts) {
       // Skip if this is a gratuité sale (already processed in global ecarts)
       if (discount.isGratuiteSale) {
-        console.log(`⏭️ Skipping gratuité sale: ${discount.id} - ${discount.isSaleLevelDiscount ? 'Sale-level' : 'Item-level'} discount`);
+
         continue;
       }
       
@@ -2403,19 +2403,19 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     });
 
     // Display each transaction with its date/time
-    console.log('📅 Transactions by Date/Time (BEFORE sorting):');
+
     allTransactions.forEach((transaction, index) => {
       const dateTime = transaction.date ? transaction.date.toLocaleString('fr-FR') : 'No date';
       const createdAt = transaction.createdAt ? new Date(transaction.createdAt).toLocaleString('fr-FR') : 'No createdAt';
-      console.log(`${index + 1}. [${dateTime}] [${createdAt}] ${transaction.designation} - ${transaction.type}`);
+
     });
     
     // Display each transaction with its date/time AFTER sorting
-    console.log('📅 Transactions by Date/Time (AFTER sorting):');
+
     allTransactions.forEach((transaction, index) => {
       const dateTime = transaction.date ? transaction.date.toLocaleString('fr-FR') : 'No date';
       const createdAt = transaction.createdAt ? new Date(transaction.createdAt).toLocaleString('fr-FR') : 'No createdAt';
-      console.log(`${index + 1}. [${dateTime}] [${createdAt}] ${transaction.designation} - ${transaction.type}`);
+
     });
     
     // Calculate cumulative solde for inventory mode
@@ -2432,14 +2432,14 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
         row.credit = 0;
         inventoryFound = true;
         this.lastInventorySolde = runningSolde;
-        console.log(`🔍 Inventory Reset: ${row.designation}, New Baseline Solde: ${runningSolde}`);
+
       } else if (!this.isBonEntreeItem(row)) {
         // C'est une ligne parent - calculer le solde cumulatif
         // Solde = Previous Solde + Debit - Credit
         runningSolde = runningSolde + row.debut - row.credit;
         row.solde = runningSolde;
         previousSolde = runningSolde; // Update previous solde for inventory calculation
-        console.log(`🔍 Transaction: ${row.designation}, Debit: ${row.debut}, Credit: ${row.credit}, New Solde: ${runningSolde}`);
+
       } else {
         // C'est une ligne enfant - garder le solde de la ligne parent
         row.solde = runningSolde;
@@ -2448,7 +2448,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     
     // If no inventory found, start from 0
     if (!inventoryFound) {
-      console.log('⚠️ No inventory line found, starting from 0');
+
       runningSolde = 0;
       for (const row of releveRows) {
         if (!this.isBonEntreeItem(row)) {
@@ -2627,14 +2627,14 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
           // Get all RETRAIT_CENTRALE movements from cash movements - always grab them, no conditions
           const cashMovements = fullSession.cashMovements || [];
           
-          console.log(`🔍 Session ${fullSession.id} - Cash movements:`, cashMovements.length);
-          console.log(`🔍 RETRAIT_CENTRALE movements:`, cashMovements.filter((m: any) => m.type === 'RETRAIT_CENTRALE'));
+
+
           
           cashMovements.forEach((movement: any) => {
             // Always grab RETRAIT_CENTRALE movements, no conditions
             if (movement.type === 'RETRAIT_CENTRALE') {
               const withdrawalAmount = parseFloat(movement.amount || 0) || 0;
-              console.log(`✅ Adding RETRAIT_CENTRALE: ${withdrawalAmount} DT from session ${fullSession.id}`);
+
               withdrawals.push({
                 id: `retrait_${fullSession.id}_${movement.id}`,
                 sessionId: fullSession.id,
@@ -2675,7 +2675,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
         }
       }
       
-      console.log(`📊 Total withdrawals found: ${withdrawals.length}`, withdrawals);
+
 
       return withdrawals;
     } catch (err) {
@@ -3187,7 +3187,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       // Use the totalEcartValue directly from the session
       // Handle string values like "-601.2"
       const variance = latestSession.totalEcartValue;
-      console.log('🔍 Raw totalEcartValue:', variance, 'Type:', typeof variance);
+
       
       if (typeof variance === 'string') {
         return parseFloat(variance) || 0;
@@ -3388,7 +3388,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       console.error('Error loading existing credit entries:', error);
       // If it's a 503 error (table not available), that's expected
       if (error.status === 503) {
-        console.log('Credit entries table not available yet, continuing without existing entries');
+
       }
       this.creditEntries = []; // Initialize as empty array if loading fails
     }
@@ -3418,7 +3418,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       console.error('Error loading existing manual entries:', error);
       // If it's a 503 error (table not available), that's expected
       if (error.status === 503 || error.status === 404) {
-        console.log('Manual entries table not available yet, continuing without existing entries');
+
       }
       this.manualEntries = []; // Initialize as empty array if loading fails
     }
@@ -3540,14 +3540,14 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
         dateTo: this.endDate
       };
 
-      console.log('[saveManualEntry] Sending entry data:', entryData);
+
 
       // Save to database
       const savedEntry = await firstValueFrom(
         this.http.post<ManualEntry>(`${environment.apiUrl}/manual-entries`, entryData)
       );
       
-      console.log('[saveManualEntry] Saved entry:', savedEntry);
+
       
       // Convert saved entry date to Date object
       const savedEntryWithDate = {
@@ -3635,7 +3635,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
         if (oldCredit.id) {
           try {
             await firstValueFrom(this.http.delete(`${environment.apiUrl}/credit-entries/${oldCredit.id}`));
-            console.log('Removed old inventory ecart credit:', oldCredit.description);
+
           } catch (deleteError: any) {
             // If entry doesn't exist (404), just continue
             if (deleteError.status !== 404) {
@@ -3665,7 +3665,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
         if (credit.id) {
           try {
             await firstValueFrom(this.http.delete(`${environment.apiUrl}/credit-entries/${credit.id}`));
-            console.log('Removed inventory ecart credit:', credit.description);
+
           } catch (deleteError: any) {
             console.error('Error deleting inventory ecart credit:', deleteError);
           }

@@ -847,17 +847,15 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Computed signal for cash from sales - pure function, no side effects
   cashFromSalesNetOfCredit = computed(() => {
-    const session = this.currentSession();
-    if (!session) return 0;
+    // Use cashSalesDetails() which is the actual data source being displayed
+    // This ensures consistency with the displayed tickets
+    const cashDetails = this.cashSalesDetails();
     
-    // Get sales data from session
-    const sales = (session as any)?.sales || [];
-    
-    // Sum up all paid amounts (cash portions of sales), excluding canceled tickets and cadeau tickets
-    return sales.reduce((total: number, sale: any) => {
+    // Sum up all paid amounts, excluding canceled, refunded, and cadeau tickets
+    return cashDetails.reduce((total: number, sale: any) => {
       const status = (sale.status || '').toUpperCase();
       // Exclude canceled, refunded, and cadeau tickets from encaissement
-      // Cadeau tickets have amount = 0 and should only affect stock movements
+      // Cadeau tickets have amount = 0 and should not be counted in encaissement
       if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
         return total;
       }

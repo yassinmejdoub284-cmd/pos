@@ -1,6 +1,6 @@
 {
   "1": {
-    "companyName": "PATISSERIE TUNISIENNE",
+    "companyName": "",
     "logoUrl": "",
     "companyAddress": "",
     "companyPhone": "",
@@ -57,7 +57,8 @@
       "showCompanyDetails": true,
       "showClientInfo": true,
       "showPaymentMethod": true,
-      "showDiscountDetails": true
+      "showDiscountDetails": true,
+      "doubleImpression": false
     },
     "documentTypeDefaults": {
       "livraison": {
@@ -73,12 +74,12 @@
       "sortie": {
         "client": false,
         "depot": true,
-        "vehicle": true,
-        "driver": true,
-        "manualDestination": true,
+        "vehicle": false,
+        "driver": false,
+        "manualDestination": false,
         "autoInvoice": false,
         "tvaAndPrix": true,
-        "validity": true
+        "validity": false
       },
       "transfert": {
         "client": false,
@@ -173,13 +174,13 @@
     }
   },
   "3": {
-    "companyName": "",
-    "logoUrl": "",
-    "companyAddress": "",
-    "companyPhone": "",
+    "companyName": "STE PATISSERIE HENTATI",
+    "logoUrl": "/uploads/logos/logo-1763903263556-67959229.png",
+    "companyAddress": "BEB JEBLI SFAX SOUK OMRAN",
+    "companyPhone": "22212319",
     "companyEmail": "",
     "companyRC": "",
-    "companyMF": "",
+    "companyMF": "1151916J/P/M/000",
     "loyaltyEnabled": false,
     "loyaltyRate": 1,
     "maxDiscountPercent": 50,
@@ -213,7 +214,7 @@
     "ticketWidth": 58,
     "droitDeTimbre": false,
     "autoApproveExpenseBelow": 0,
-    "allowNegativeStock": false,
+    "allowNegativeStock": true,
     "printSettings": {
       "showLogo": true,
       "logoSize": "medium",
@@ -629,7 +630,7 @@
             "visible": true
           },
           "vente-tables": {
-            "visible": true
+            "visible": false
           },
           "tables-salon": {
             "visible": true
@@ -728,11 +729,15 @@
               "POINTAGE": true
             }
           },
+          "historique-ventes": {
+            "visible": false
+          },
           "stock": {
             "visible": true,
             "submodules": {
-              "stock-produits": true,
-              "stock-achat": true
+              "stock-achat": true,
+              "stock-gestion": true,
+              "stock-produits": true
             }
           }
         },
@@ -745,14 +750,13 @@
       "SUPER_ADMIN": {
         "blocks": {
           "extrait-par-article": {
-            "visible": true,
-            "submodules": {}
+            "visible": true
           }
         },
         "meta": {
-          "label": "super admin",
+          "label": "Super Admin",
           "color": "#10b981",
-          "icon": "M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0112 21.5 12.083 12.083 0 015.84 10.578L12 14z"
+          "icon": "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
         }
       }
     }

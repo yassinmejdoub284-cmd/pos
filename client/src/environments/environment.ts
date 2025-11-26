@@ -6,7 +6,7 @@
   };
 
 // DEVELOPMENT ENVIRONMENT - This file is used in development mode
-console.log('🟢 DEVELOPMENT ENVIRONMENT LOADED - apiUrl:', environment.apiUrl);
+
 
 // export const environment = {
 //   production: false,

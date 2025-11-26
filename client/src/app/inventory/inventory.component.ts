@@ -156,14 +156,14 @@ export class InventoryComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log('Starting inventory for depot:', this.depot);
+
     
     this.loading = true;
     this.error = null;
     
     this.inventoryService.createSession(this.depot.id).subscribe({
       next: (session) => {
-        console.log('Session created successfully:', session);
+
         this.loadSessions();
         this.loading = false;
         this.router.navigate(['/inventory', this.depot!.id, session.id, 'count']);

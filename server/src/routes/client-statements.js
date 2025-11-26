@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 // Import session helper functions
 async function updateExpectedCash(sessionId) {
@@ -413,7 +413,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
 });
 
 // Delete statement transaction (admin only)
-router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+router.delete('/statement/transaction', authenticateToken, async (req, res) => {
   try {
     const { transactionIds, saleId, isCredit, clientId } = req.body;
 
@@ -941,7 +941,7 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
             }
           });
 
-          console.log(`[client-statements] Found ${relatedMovements.length} potential cash movements to invalidate for ${saleId ? `sale #${saleId}` : 'standalone payment'}, amount: ${amountToMatch}`);
+
 
           // Invalidate cash movements that match
           for (const movement of relatedMovements) {
@@ -955,7 +955,7 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
               (saleId && movement.reason && movement.reason.includes(`#${saleId}`));
             
             if (shouldInvalidate) {
-              console.log(`[client-statements] Invalidating cash movement #${movement.id}: ${movement.reason}, amount: ${movementAmount}, session: ${movement.sessionId}`);
+
               
               await tx.cashMovement.update({
                 where: { id: movement.id },
@@ -970,11 +970,11 @@ router.delete('/statement/transaction', authenticateToken, requireRole(['ADMIN']
                 invalidatedSessionIds.add(movement.sessionId);
               }
             } else {
-              console.log(`[client-statements] Skipping cash movement #${movement.id}: ${movement.reason}, amount: ${movementAmount} (doesn't match)`);
+
             }
           }
         } else {
-          console.log(`[client-statements] No search conditions for cash movements (saleId: ${saleId}, amountToMatch: ${amountToMatch})`);
+
         }
       }
       

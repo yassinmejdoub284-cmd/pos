@@ -367,42 +367,36 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       .join(', ');
   }
 
-  // Calculate discounted bundle price (per fardeau) based on rule type
+  private roundTo3Decimals(value: number): number {
+    return Math.round(value * 1000) / 1000;
+  }
+
   calculateDiscountedBundlePrice(product: ClientGrosItem, rule: WholesaleRule): number {
     const config = this.getBundleConfig(product);
     const ruleVal = Number(rule.value) || 0;
 
     if (rule.ruleType === 'percentage') {
-      // Get base wholesale unit price from product configuration (bundlePrice / bundleSize)
-      // Example: bundlePrice = 75, bundleSize = 5 => baseUnitPrice = 15.000 dt
       if (config.bundleSize > 0) {
-        const baseUnitPrice = config.bundlePrice / config.bundleSize;
-        // Apply percentage discount on the base unit price
-        const discountedUnitPrice = baseUnitPrice * (1 - ruleVal / 100);
-        // Calculate discounted bundle price from discounted unit price
-        return Math.max(0, discountedUnitPrice * config.bundleSize);
+        const baseUnitPrice = this.roundTo3Decimals(config.bundlePrice / config.bundleSize);
+        const discountedUnitPrice = this.roundTo3Decimals(baseUnitPrice * (1 - ruleVal / 100));
+        return Math.max(0, this.roundTo3Decimals(discountedUnitPrice * config.bundleSize));
       }
-      // Fallback if bundleSize is 0 or invalid
-      return Math.max(0, config.bundlePrice * (1 - ruleVal / 100));
+      return Math.max(0, this.roundTo3Decimals(config.bundlePrice * (1 - ruleVal / 100)));
     } else if (rule.ruleType === 'fixed') {
-      // Fixed price per bundle (fardeau)
       return ruleVal;
     } else if (rule.ruleType === 'discount') {
-      // Discount amount per bundle (fardeau)
-      return Math.max(0, config.bundlePrice - ruleVal);
+      return Math.max(0, this.roundTo3Decimals(config.bundlePrice - ruleVal));
     }
     
-    // No rule or unknown type: return original bundle price
     return config.bundlePrice;
   }
 
   // Get calculated price per unit (for display)
   getCalculatedPrice(product: ClientGrosItem, rule: WholesaleRule): number {
-    // Calculate discounted bundle price, then convert to unit price
     const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, rule);
     const config = this.getBundleConfig(product);
     if (config.bundleSize > 0) {
-      return discountedBundlePrice / config.bundleSize;
+      return this.roundTo3Decimals(discountedBundlePrice / config.bundleSize);
     }
     return discountedBundlePrice;
   }
@@ -543,14 +537,11 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
         // Calculate discounted bundle price (discount applied on wholesale selling price for percentage)
         const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, appliedRule.rule);
         
-        // Convert to unit price for storage (price per unit after discount)
         const config = this.getBundleConfig(product);
         const finalUnitPrice = config.bundleSize > 0 
-          ? discountedBundlePrice / config.bundleSize 
+          ? this.roundTo3Decimals(discountedBundlePrice / config.bundleSize)
           : discountedBundlePrice;
 
-        // Store the new price for this product (will be saved to client-specific prices only)
-        // This is the unit price after discount
         productsToUpdate.push({
           productId: product.id,
           newPrice: finalUnitPrice
@@ -558,7 +549,6 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       });
     });
 
-    // Update product prices in database without creating sales
     this.updateProductPrices(productsToUpdate);
 
     // Clear applied rules after saving
@@ -582,24 +572,19 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       
       // Calculate new prices for each product (per bundle/fardeau)
       selectedProducts.forEach(product => {
-        // Calculate discounted bundle price (discount applied on wholesale selling price for percentage)
         const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, appliedRule.rule);
         
-        // Convert to unit price for storage (price per unit after discount)
         const config = this.getBundleConfig(product);
         const finalUnitPrice = config.bundleSize > 0 
-          ? discountedBundlePrice / config.bundleSize 
+          ? this.roundTo3Decimals(discountedBundlePrice / config.bundleSize)
           : discountedBundlePrice;
 
-        // Store the new price for this product (will be saved to client-specific prices only)
-        // This is the unit price after discount
         productsToUpdate.push({
           productId: product.id,
           newPrice: finalUnitPrice
         });
       });
 
-      // Create sale
       salePromises.push(
         new Promise<void>((resolve, reject) => {
           this.createWholesaleSale(appliedRule.rule, appliedRule.productIds, () => resolve(), reject);
@@ -702,23 +687,21 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     
     // Create sale items with wholesale pricing (per bundle/fardeau)
     const items = selectedProducts.map(product => {
-      // Calculate discounted bundle price (discount applied on wholesale selling price for percentage)
       const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, rule);
       
-      // Convert to unit price for sale item
       const config = this.getBundleConfig(product);
       const finalUnitPrice = config.bundleSize > 0 
-        ? discountedBundlePrice / config.bundleSize 
+        ? this.roundTo3Decimals(discountedBundlePrice / config.bundleSize)
         : discountedBundlePrice;
 
       return {
         productId: product.id,
         productName: product.name,
-        quantity: config.bundleSize || 1, // Quantity per bundle (fardeau)
+        quantity: config.bundleSize || 1,
         unitPrice: Number(finalUnitPrice) || 0,
-        total: Number(discountedBundlePrice) || 0, // Total per bundle
+        total: Number(discountedBundlePrice) || 0,
         isWholesale: true,
-        bundleQuantity: 1, // 1 bundle
+        bundleQuantity: 1,
         bundleSize: config.bundleSize,
         bundlePrice: discountedBundlePrice
       };
@@ -888,13 +871,10 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
 
   // Get base wholesale price from product configuration (for calculations)
   getBaseWholesalePrice(product: ClientGrosItem): number {
-    // Always use base wholesale price from product configuration (bundlePrice / bundleSize)
-    // This is the price BEFORE any discount rules are applied
     const config = this.getBundleConfig(product);
     if (config.bundlePrice > 0 && config.bundleSize > 0) {
-      return config.bundlePrice / config.bundleSize;
+      return this.roundTo3Decimals(config.bundlePrice / config.bundleSize);
     }
-    // No bundle info anywhere: use original unit price
     return Number(product.prix_vente_TTC) || 0;
   }
 
@@ -967,6 +947,25 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
       return text;
     }
     return text.substring(0, maxLength) + '...';
+  }
+
+  formatPrice(price: number): string {
+    if (isNaN(price) || !isFinite(price)) {
+      return '0.000';
+    }
+    const absPrice = Math.abs(price);
+    const sign = price < 0 ? '-' : '';
+    const str = absPrice.toString();
+    const parts = str.split('.');
+    const integerPart = parts[0];
+    if (parts.length === 1) {
+      return sign + integerPart + '.000';
+    }
+    const decimalPart = parts[1];
+    if (decimalPart.length >= 3) {
+      return sign + integerPart + '.' + decimalPart.substring(0, 3);
+    }
+    return sign + integerPart + '.' + decimalPart.padEnd(3, '0');
   }
 
   // TrackBy function for better Angular performance

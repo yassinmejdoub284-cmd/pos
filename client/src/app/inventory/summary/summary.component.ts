@@ -60,7 +60,7 @@ export class SummaryComponent implements OnInit {
     this.produitsDeStockService.getProduitsDeStock().subscribe({
       next: (stockProducts) => {
         this.stockProducts = stockProducts;
-        console.log('Loaded stock products:', stockProducts.length);
+
         this.checkDepotHasStockProducts();
         
         // Process data after stock products are loaded
@@ -83,31 +83,31 @@ export class SummaryComponent implements OnInit {
       stockProduct.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
     );
     
-    console.log('Depot has stock products:', this.hasStockProductsInDepot, 'for depot:', this.depotId);
-    console.log('Show stock products directly:', this.showStockProductsDirectly);
+
+
   }
 
   processDataAfterStockProductsLoaded(): void {
-    console.log('Processing data after stock products loaded...');
-    console.log('showStockProductsDirectly:', this.showStockProductsDirectly);
-    console.log('hasStockProductsInDepot:', this.hasStockProductsInDepot);
-    console.log('summary available:', !!this.summary);
-    console.log('session available:', !!this.session);
+
+
+
+
+
     
     // Process summary data to show stock products if needed
     if (this.summary && this.showStockProductsDirectly && this.hasStockProductsInDepot) {
-      console.log('Processing summary for stock products...');
+
       this.processSummaryForStockProducts();
     } else {
-      console.log('Not processing summary - conditions not met');
+
     }
     
     // Process session items to show stock products if needed
     if (this.session && this.showStockProductsDirectly && this.hasStockProductsInDepot) {
-      console.log('Processing session items for stock products...');
+
       this.processSessionItemsForStockProducts();
     } else {
-      console.log('Not processing session items - conditions not met');
+
     }
   }
 
@@ -123,7 +123,7 @@ export class SummaryComponent implements OnInit {
       this.session = session || null;
       this.summary = summary || null;
       
-      console.log('Session and summary loaded');
+
       this.loading = false;
     }).catch((err) => {
       this.error = err.error?.error || 'Erreur lors du chargement de la session';
@@ -133,18 +133,18 @@ export class SummaryComponent implements OnInit {
 
   processSummaryForStockProducts(): void {
     if (!this.summary || !this.showStockProductsDirectly) {
-      console.log('processSummaryForStockProducts: Not processing - summary:', !!this.summary, 'showStockProductsDirectly:', this.showStockProductsDirectly);
+
       return;
     }
 
-    console.log('processSummaryForStockProducts: Processing summary with', this.summary.ecarts.length, 'ecarts');
-    console.log('Available stock products:', this.stockProducts.length);
-    console.log('Depot ID:', this.depotId);
+
+
+
 
     // The productId in the summary is already the stock product ID (children ID)
     // We just need to update the product name to show the stock product name
     this.summary.ecarts = this.summary.ecarts.map(ecart => {
-      console.log('Processing ecart with productId:', ecart.productId, 'current name:', ecart.productName);
+
       
       // Find the stock product by its ID (since productId is already the stock product ID)
       const stockProduct = this.stockProducts.find(sp => 
@@ -153,14 +153,14 @@ export class SummaryComponent implements OnInit {
       );
       
       if (stockProduct) {
-        console.log('Found stock product:', stockProduct.name, 'for productId:', ecart.productId);
+
         return {
           ...ecart,
           productName: stockProduct.name
           // productId is already correct (it's the stock product ID)
         };
       } else {
-        console.log('No stock product found for productId:', ecart.productId);
+
       }
       
       return ecart;

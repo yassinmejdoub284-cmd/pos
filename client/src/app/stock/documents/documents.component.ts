@@ -668,7 +668,7 @@ export class DocumentsComponent implements OnInit {
 
   validateDocument(doc: StockDocument): void {
     // TODO: Implement document validation
-    console.log('Validate document:', doc);
+
   }
 
   previousPage(): void {

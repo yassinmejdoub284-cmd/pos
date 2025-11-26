@@ -183,8 +183,8 @@ fn print_raw_bytes(_app_handle: tauri::AppHandle, data_base64: String, printer_n
 
 #[tauri::command]
 fn open_cash_drawer(_app_handle: tauri::AppHandle) -> Result<(), String> {
-  // Not implemented in dialog mode
-  Err("Open cash drawer not implemented".into())
+  let cash_drawer_command = vec![0x1B, 0x70, 0x00, 0x19, 0xFA];
+  send_raw_to_printer(Some("POS-80C"), &cash_drawer_command)
 }
 
 #[tauri::command]

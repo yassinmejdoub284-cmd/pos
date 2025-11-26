@@ -17,7 +17,7 @@ export class PrintService {
   // Method to manually set desktop mode (for testing or override)
   setDesktopMode(isDesktop: boolean): void {
     this.isDesktop = isDesktop;
-    console.log('Desktop mode manually set to:', isDesktop);
+
   }
 
   // Method to get current desktop mode
@@ -33,7 +33,7 @@ export class PrintService {
         return 'Tauri not available';
       }
       const status = await tauriCore.invoke<string>('check_tauri_status');
-      console.log('Tauri Status:', status);
+
       return status;
     } catch (error) {
       console.error('Failed to check Tauri status:', error);
@@ -47,7 +47,7 @@ export class PrintService {
       this.settingsService.getSettings().subscribe({
         next: async (settings) => {
           if (settings?.isDesktopVersion) {
-            console.log('Desktop version enabled, using Tauri print...');
+
             try {
               await this.printPlainTextDesktop(text);
               resolve();
@@ -57,13 +57,13 @@ export class PrintService {
               resolve();
             }
           } else {
-            console.log('Web version, using browser print...');
+
             this.printPlainTextWeb(text);
             resolve();
           }
         },
         error: () => {
-          console.log('Settings error, falling back to web print...');
+
           this.printPlainTextWeb(text);
           resolve();
         }
@@ -78,7 +78,7 @@ export class PrintService {
         throw new Error('Tauri invoke is not available');
       }
       await tauriCore.invoke('print_text_direct', { text });
-      console.log('Tauri print successful');
+
     } catch (error) {
       console.error('Tauri print error:', error);
       throw error;
@@ -86,7 +86,6 @@ export class PrintService {
   }
 
   private printPlainTextWeb(text: string): void {
-    // Web fallback: open print dialog with plain text
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
@@ -96,16 +95,42 @@ export class PrintService {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Print</title>
             <style>
+              @page {
+                margin: 0;
+                size: auto;
+              }
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              html, body {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+              }
               body { 
                 font-family: monospace; 
                 white-space: pre-wrap; 
                 margin: 0; 
-                padding: 8px;
+                padding: 0;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
               }
               @media print {
-                body { margin: 0; padding: 4px; }
+                @page {
+                  margin: 0;
+                  size: auto;
+                }
+                body { 
+                  margin: 0; 
+                  padding: 0; 
+                }
+                * {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                }
               }
             </style>
           </head>
@@ -114,19 +139,22 @@ export class PrintService {
       `);
       printWindow.document.close();
       
-      // Wait for content to load before printing
+      let hasPrinted = false;
+
       printWindow.onload = () => {
         setTimeout(() => {
-          printWindow.print();
-          // Don't auto-close - let user close manually
+          if (!hasPrinted) {
+            printWindow.print();
+            hasPrinted = true;
+          }
         }, 500);
       };
 
-      // Fallback: if onload doesn't fire, try after a longer delay
       setTimeout(() => {
-        if (printWindow && !printWindow.closed) {
+        if (printWindow && !printWindow.closed && !hasPrinted) {
           try {
             printWindow.print();
+            hasPrinted = true;
           } catch (error) {
             console.error('Print failed:', error);
           }
@@ -168,7 +196,7 @@ export class PrintService {
         throw new Error('Tauri invoke is not available');
       }
       await tauriCore.invoke('print_html', { html });
-      console.log('Tauri HTML print successful');
+
     } catch (error) {
       console.error('Tauri HTML print error:', error);
       throw error;
@@ -182,19 +210,24 @@ export class PrintService {
       printWindow.document.write(html);
       printWindow.document.close();
       
+      let hasPrinted = false;
+
       // Wait for content to load before printing
       printWindow.onload = () => {
         setTimeout(() => {
-          printWindow.print();
-          // Don't auto-close - let user close manually
+          if (!hasPrinted) {
+            printWindow.print();
+            hasPrinted = true;
+          }
         }, 500);
       };
 
       // Fallback: if onload doesn't fire, try after a longer delay
       setTimeout(() => {
-        if (printWindow && !printWindow.closed) {
+        if (printWindow && !printWindow.closed && !hasPrinted) {
           try {
             printWindow.print();
+            hasPrinted = true;
           } catch (error) {
             console.error('Print failed:', error);
           }
@@ -225,7 +258,7 @@ export class PrintService {
         throw new Error('Tauri invoke is not available');
       }
       await tauriCore.invoke('print_pdf', { pdfBase64: pdfBase64 });
-      console.log('Tauri PDF print successful');
+
     } catch (error) {
       console.error('Tauri PDF print error:', error);
       throw error;
@@ -270,12 +303,8 @@ export class PrintService {
 
   private async printEscPosDesktop(escposData: string): Promise<void> {
     try {
-      const tauriCore = await import('@tauri-apps/api/core');
-      if (!tauriCore || !tauriCore.invoke) {
-        throw new Error('Tauri invoke is not available');
-      }
-      const base64 = this.toBase64(this.stringToBytes(escposData));
-      await tauriCore.invoke('print_raw_bytes', { data_base64: base64 });
+      const readableText = this.convertEscPosToReadable(escposData);
+      await this.printPlainTextDesktop(readableText);
     } catch (error) {
       console.error('Tauri ESC/POS print error:', error);
       throw error;
@@ -289,84 +318,58 @@ export class PrintService {
   }
 
   async openCashDrawer(): Promise<void> {
-    this.settingsService.getSettings().subscribe({
-      next: (settings) => {
-        if (settings?.isDesktopVersion) {
-          this.openCashDrawerDesktop();
-        } else {
+    return new Promise((resolve, reject) => {
+      this.settingsService.getSettings().subscribe({
+        next: async (settings) => {
+          if (settings?.isDesktopVersion) {
+            try {
+              await this.openCashDrawerDesktop();
+              resolve();
+            } catch (error) {
+              console.error('Desktop cash drawer failed, trying web fallback:', error);
+              this.openCashDrawerWebPrinter();
+              resolve();
+            }
+          } else {
+            this.openCashDrawerWebPrinter();
+            resolve();
+          }
+        },
+        error: () => {
           this.openCashDrawerWebPrinter();
+          resolve();
         }
-      },
-      error: () => {
-        this.openCashDrawerWebPrinter();
-      }
+      });
     });
   }
 
 
   private async openCashDrawerDesktop(): Promise<void> {
     try {
-      const tauriCore = await import('@tauri-apps/api/core');
-      if (!tauriCore || !tauriCore.invoke) {
-        throw new Error('Tauri invoke is not available');
-      }
-      await tauriCore.invoke('open_cash_drawer');
-      console.log('Tauri cash drawer opened successfully');
+      const cashDrawerCommand = '\x1B\x70\x00\x19\xFA';
+      await this.printPlainTextDesktop(cashDrawerCommand);
     } catch (error) {
-      console.error('Tauri cash drawer failed:', error);
-      this.openCashDrawerWebPrinter();
+      throw error;
     }
   }
 
   private openCashDrawerWebPrinter(): void {
-    // try {
-    //   // Create a hidden iframe with proper ESC/POS commands
-    //   const iframe = document.createElement('iframe');
-    //   iframe.style.display = 'none';
-    //   document.body.appendChild(iframe);
-      
-    //   const doc = iframe.contentDocument;
-    //   if (doc) {
-    //     doc.open();
-    //     doc.write(`
-    //       <html>
-    //         <head>
-    //           <style>
-    //             @media print {
-    //               body { margin: 0; }
-    //               .cash-drawer-command { 
-    //                 font-family: monospace; 
-    //                 font-size: 1px; 
-    //                 color: transparent;
-    //               }
-    //             }
-    //           </style>
-    //         </head>
-    //         <body>
-    //           <div class="cash-drawer-command">${String.fromCharCode(27, 112, 0, 25, 250)}</div>
-    //         </body>
-    //       </html>
-    //     `);
-    //     doc.close();
-        
-    //     // Trigger print with proper timing
-    //     setTimeout(() => {
-    //       iframe.contentWindow?.print();
-    //       setTimeout(() => {
-    //         document.body.removeChild(iframe);
-    //       }, 1000);
-    //     }, 100);
-    //   }
-    // } catch (error) {
-    //   console.error('Printer cash drawer failed:', error);
-    // }
+    const cashDrawerCommand = '\x1B\x70\x00\x19\xFA';
+    void this.printEscPos(cashDrawerCommand);
   }
 
 
-  // Receipts and reports route to Tauri print
   printZReport(zReportData: ZReportData): void {
-    const escposData = this.generateESCReport(zReportData, 'Z');
-    void this.printEscPos(escposData);
+    this.settingsService.getSettings().subscribe({
+      next: (settings) => {
+        const escposData = this.generateESCReport(zReportData, 'Z', settings);
+        void this.printEscPos(escposData);
+      },
+      error: () => {
+        const escposData = this.generateESCReport(zReportData, 'Z', null);
+        void this.printEscPos(escposData);
+      }
+    });
   }
 
   printDailyExtractWithWithdrawal(sessionReport: any, companyData?: any, withdrawalAmount: number = 0): void {
@@ -401,8 +404,16 @@ export class PrintService {
   }
 
   printXReport(xReportData: ZReportData): void {
-    const escposData = this.generateESCReport(xReportData, 'X');
-    void this.printEscPos(escposData);
+    this.settingsService.getSettings().subscribe({
+      next: (settings) => {
+        const escposData = this.generateESCReport(xReportData, 'X', settings);
+        void this.printEscPos(escposData);
+      },
+      error: () => {
+        const escposData = this.generateESCReport(xReportData, 'X', null);
+        void this.printEscPos(escposData);
+      }
+    });
   }
 
   printSaleReceipt(sale: Sale, options?: { openPreviewOnly?: boolean }): void {
@@ -413,9 +424,11 @@ export class PrintService {
         // Check if desktop version is enabled
         if (settings?.isDesktopVersion) {
           // Use Tauri direct printing with text format
+          // Cash drawer command is already included in text (same as web mode)
           const text = this.buildSaleReceiptText(sale, settings);
           try {
             await this.printPlainTextDesktop(text);
+            
             // Double print if enabled
             if (doublePrint) {
               // Small delay between prints
@@ -542,21 +555,25 @@ export class PrintService {
       printWindow.document.write(htmlContent);
       printWindow.document.close();
 
+      let hasPrinted = false;
+
       // Wait for content to load, then print - but don't auto-close
       printWindow.onload = () => {
         // Give more time for content to render, especially on tablets
         setTimeout(() => {
-          printWindow.print();
-          // Don't auto-close - let user close manually
-          // This prevents issues on tablets where content might not be fully rendered
+          if (!hasPrinted) {
+            printWindow.print();
+            hasPrinted = true;
+          }
         }, 500);
       };
 
       // Fallback: if onload doesn't fire, try after a longer delay
       setTimeout(() => {
-        if (printWindow && !printWindow.closed) {
+        if (printWindow && !printWindow.closed && !hasPrinted) {
           try {
             printWindow.print();
+            hasPrinted = true;
           } catch (error) {
             console.error('Print failed:', error);
           }
@@ -637,29 +654,27 @@ export class PrintService {
     return ticketNumber;
   }
 
-  // Print Z Report using ESC/POS commands
-  private generateESCReport(reportData: ZReportData, type: 'X' | 'Z'): string {
+  private generateESCReport(reportData: ZReportData, type: 'X' | 'Z', settings?: AppSettings | null): string {
     const { session, summary, closureData } = reportData;
 
     let escpos = '';
 
-    // Initialize printer
     escpos += '\x1B\x40';
 
-    // Set character size and alignment
-    escpos += '\x1B\x21\x00'; // Normal size
-    escpos += '\x1B\x61\x01'; // Center align
+    escpos += '\x1B\x21\x00';
+    escpos += '\x1B\x61\x01';
 
-    // Header
     escpos += '==================\n';
     escpos += 'RAPPORT ' + type + '\n';
     escpos += '==================\n\n';
 
-    // Company info (would come from settings)
-    escpos += 'PATISSERIE MODERNE\n';
-    escpos += '123 Rue de la Paix\n';
-    escpos += 'Tunis, Tunisie\n';
-    escpos += 'Tel: +216 71 123 456\n\n';
+    const companyName = settings?.companyName || 'PATISSERIE MODERNE';
+    const companyAddress = settings?.companyAddress || '123 Rue de la Paix, Tunis, Tunisie';
+    const companyPhone = settings?.companyPhone || 'Tel: +216 71 123 456';
+    
+    escpos += this.sanitizeForThermalPrinter(companyName) + '\n';
+    escpos += this.sanitizeForThermalPrinter(companyAddress) + '\n';
+    escpos += this.sanitizeForThermalPrinter(companyPhone) + '\n\n';
 
     // Session info
     escpos += '\x1B\x61\x00'; // Left align
@@ -770,12 +785,12 @@ export class PrintService {
     let escpos = '';
 
     // Debug: Log the session report structure to help identify data issues (remove in production)
-    console.log('Session Report Structure:', sessionReport);
-    console.log('Session data:', sessionReport.session);
-    console.log('Session sales:', sessionReport.session?.sales);
-    console.log('Opening fund from session:', sessionReport.session?.openingFund);
-    console.log('Families data:', sessionReport.families);
-    console.log('Summary data:', sessionReport.summary);
+
+
+
+
+
+
 
     // Initialize printer
     escpos += '\x1B\x40';
@@ -829,22 +844,22 @@ export class PrintService {
     const familyToProducts: Record<string, { name: string; quantity: number; revenue: number }[]> = {};
     const normalizeFamily = (name: any): string => (name ?? '').toString().trim();
 
-    console.log('Processing sales for product aggregation:', sales.length, 'sales');
+
     
     if (sales.length) {
       const tempMap: Record<string, Record<string, { name: string; quantity: number; revenue: number }>> = {};
       for (const sale of sales) {
         const items: any[] = (sale.items || []) as any[];
-        console.log('Sale items:', items.length, 'items in sale', sale.id);
+
         for (const it of items) {
-          console.log('Processing item:', it);
+
           const famCandidate = it.product?.famille?.name || it.product?.family?.name || it.familyName || it.categoryName || it.family || '';
           const fam = normalizeFamily(famCandidate);
           const familyName = fam && fam.length ? fam : 'AUTRES';
           const productName: string = (it.productName || it.name || 'Produit').toString();
           const qty: number = Math.round(parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0);
           const lineTotal: number = Math.round((parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0) * 1000) / 1000;
-          console.log('Item details:', { familyName, productName, qty, lineTotal });
+
           if (!tempMap[familyName]) tempMap[familyName] = {};
           if (!tempMap[familyName][productName]) {
             tempMap[familyName][productName] = { name: productName, quantity: 0, revenue: 0 };
@@ -859,7 +874,7 @@ export class PrintService {
           .filter(p => p.quantity > 0 && p.revenue > 0)
           .sort((a, b) => b.revenue - a.revenue);
       }
-      console.log('Final familyToProducts:', familyToProducts);
+
     }
 
     if (sessionReport.families && sessionReport.families.length > 0) {
@@ -1314,19 +1329,23 @@ export class PrintService {
           const bundleQty = Number(item.bundleQuantity || 0);
           const bundlePrice = Number(item.bundlePrice || 0);
           const bundleSize = Number(item.bundleSize || 1);
+          const qtyFormatted = bundleQty % 1 === 0 ? bundleQty.toString() : bundleQty.toFixed(2);
           return `
             <tr>
               <td class="name">${this.escapeHtml(name)}<br><small style="color: #8b5cf6; font-weight: bold;">GROS</small></td>
-              <td class="price">${bundlePrice.toFixed(3)}/fardeau</td>
-              <td class="total">${total}</td>
+              <td class="price" style="text-align:right">${qtyFormatted}</td>
+              <td class="price" style="text-align:right">${bundlePrice.toFixed(3)}/f</td>
+              <td class="total" style="text-align:right">${total}</td>
             </tr>
           `;
         } else {
+          const qtyFormatted = Number(qty) % 1 === 0 ? qty : Number(qty).toFixed(2);
           return `
             <tr>
               <td class="name">${this.escapeHtml(name)}</td>
-              <td class="price">${unit}</td>
-              <td class="total">${total}</td>
+              <td class="price" style="text-align:right">${qtyFormatted}</td>
+              <td class="price" style="text-align:right">${unit}</td>
+              <td class="total" style="text-align:right">${total}</td>
             </tr>
           `;
         }
@@ -1389,10 +1408,10 @@ export class PrintService {
             .double-line { border-top: 2px solid #000; margin: 8px 0; }
             table { width: 100%; border-collapse: collapse; }
             td { font-size: 12px; padding: 2px 0; }
-            td.name { width: 50%; }
+            td.name { width: 45%; }
             td.qty { display: none; }
-            td.price { width: 25%; text-align: right; }
-            td.total { width: 25%; text-align: right; }
+            td.price { width: 22%; text-align: right; padding-right: 8px; }
+            td.total { width: 33%; text-align: right; }
             .muted { color: #444; }
             .bold { font-weight: bold; }
             @media print {
@@ -1417,6 +1436,7 @@ export class PrintService {
               <thead>
                 <tr>
                   <td class="bold">ARTICLE</td>
+                  <td class="bold" style="text-align:right">QTE</td>
                   <td class="bold" style="text-align:right">P.U.</td>
                   <td class="bold" style="text-align:right">TOTAL</td>
                 </tr>
@@ -1566,7 +1586,7 @@ export class PrintService {
         // Format quantity: show as integer if whole number, otherwise 2 decimals
         const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
         
-        text += `${name}\n`;
+        text += `${name} ${qtyFormatted}\n`;
         text += `${qtyFormatted} × ${unit.toFixed(2)} dt Gros\n`;
         if (bundleQty > 0 && bundleSize > 0) {
           text += `Lot: ${bundleQty} × ${bundleSize} = ${totalUnits} unités\n`;
@@ -1631,10 +1651,18 @@ export class PrintService {
     text += ESC + '\x69'; // Full cut
     text += ESC + '\x64\x01'; // Feed 6 lines before cutting
     
-    // Open cash drawer for cash payments (espèces)
-    if (sale.paymentType === 'COMPTANT' && sale.paymentMethod?.id === 1) {
+    // Open cash drawer for cash payments (espèces) - same logic for web and desktop
+    const isCashPayment = sale.paymentType === 'COMPTANT' || 
+                         (sale.paymentMethod && (
+                           sale.paymentMethod.id === 1 || 
+                           sale.paymentMethod.name?.toLowerCase().includes('espèces') ||
+                           sale.paymentMethod.name?.toLowerCase().includes('especes') ||
+                           sale.paymentMethod.name?.toLowerCase().includes('cash')
+                         ));
+    
+    if (isCashPayment) {
       // ESC/POS command to open cash drawer: ESC p 0 25 250
-      text += ESC + '\x70\x00\x19\xFA'; // Open drawer command
+      text += ESC + '\x70\x00\x19\xFA';
     }
     
     return text;
@@ -1743,7 +1771,7 @@ export class PrintService {
         // Format quantity: show as integer if whole number, otherwise 2 decimals
         const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
         
-        text += `${name}\n`;
+        text += `${name} ${qtyFormatted}\n`;
         text += `${qtyFormatted} × ${unit.toFixed(2)} dt Gros\n`;
         if (bundleQty > 0 && bundleSize > 0) {
           text += `Lot: ${bundleQty} × ${bundleSize} = ${totalUnits} unités\n`;
@@ -1806,10 +1834,18 @@ export class PrintService {
     text += ESC + '\x69'; // Full cut
     text += ESC + '\x64\x01'; // Feed 6 lines before cutting
     
-    // Open cash drawer for cash payments (espèces)
-    if (sale.paymentType === 'COMPTANT' && sale.paymentMethod?.id === 1) {
+    // Open cash drawer for cash payments (espèces) - same logic for web and desktop
+    const isCashPayment = sale.paymentType === 'COMPTANT' || 
+                         (sale.paymentMethod && (
+                           sale.paymentMethod.id === 1 || 
+                           sale.paymentMethod.name?.toLowerCase().includes('espèces') ||
+                           sale.paymentMethod.name?.toLowerCase().includes('especes') ||
+                           sale.paymentMethod.name?.toLowerCase().includes('cash')
+                         ));
+    
+    if (isCashPayment) {
       // ESC/POS command to open cash drawer: ESC p 0 25 250
-      text += ESC + '\x70\x00\x19\xFA'; // Open drawer command
+      text += ESC + '\x70\x00\x19\xFA';
     }
     
     return text;
@@ -2062,21 +2098,25 @@ export class PrintService {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
 
+    let hasPrinted = false;
+
     // Wait for content to load, then print - but don't auto-close
     printWindow.onload = () => {
       // Give more time for content to render, especially on tablets
       setTimeout(() => {
-        printWindow.print();
-        // Don't auto-close - let user close manually
-        // This prevents issues on tablets where content might not be fully rendered
+        if (!hasPrinted) {
+          printWindow.print();
+          hasPrinted = true;
+        }
       }, 500);
     };
 
     // Fallback: if onload doesn't fire, try after a longer delay
     setTimeout(() => {
-      if (printWindow && !printWindow.closed) {
+      if (printWindow && !printWindow.closed && !hasPrinted) {
         try {
           printWindow.print();
+          hasPrinted = true;
         } catch (error) {
           console.error('Print failed:', error);
         }
@@ -2467,7 +2507,7 @@ export class PrintService {
     const familyTotals: Record<string, number> = {};
     const normalizeFamily = (name: any): string => (name ?? '').toString().trim();
 
-    console.log('Processing sales for family grouping:', sales.length, 'sales');
+
     
     if (sales.length) {
       for (const sale of sales) {
@@ -2583,7 +2623,7 @@ export class PrintService {
     const sales: any[] = (sessionReport?.session?.sales || []) as any[];
     const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number }>> = {};
 
-    console.log('Processing sales for article grouping with families:', sales.length, 'sales');
+
     
     if (sales.length) {
       for (const sale of sales) {
@@ -3887,16 +3927,22 @@ export class PrintService {
     printWindow.document.write(printHtml);
     printWindow.document.close();
 
+    let hasPrinted = false;
+
     printWindow.onload = () => {
       setTimeout(() => {
-        printWindow.print();
+        if (!hasPrinted) {
+          printWindow.print();
+          hasPrinted = true;
+        }
       }, 500);
     };
 
     setTimeout(() => {
-      if (printWindow && !printWindow.closed) {
+      if (printWindow && !printWindow.closed && !hasPrinted) {
         try {
           printWindow.print();
+          hasPrinted = true;
         } catch (error) {
           console.error('Print failed:', error);
         }
@@ -3992,6 +4038,67 @@ export class PrintService {
     
     // Cut paper
     text += '\x1D\x56\x00';
+    
+    return text;
+  }
+
+  buildClientStatementText(
+    statement: any,
+    client: any,
+    startDate: string | null,
+    endDate: string | null
+  ): string {
+    let text = '';
+    const LINE_WIDTH = 48;
+    
+    text += '='.repeat(LINE_WIDTH) + '\n';
+    text += 'CLIENT\n';
+    text += '\n';
+    
+    const clientName = this.sanitizeForThermalPrinter((client.firstName || '') + ' ' + (client.lastName || '')).trim() || 'N/A';
+    text += clientName.substring(0, LINE_WIDTH) + '\n';
+    if (client.code) {
+      text += 'Code: ' + this.sanitizeForThermalPrinter(client.code) + '\n';
+    }
+    
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    const periodStart = startDate ? new Date(startDate).toLocaleDateString('fr-FR') : 'Début';
+    const periodEnd = endDate ? new Date(endDate).toLocaleDateString('fr-FR') : 'Aujourd\'hui';
+    const periodLine = 'Periode: ' + periodStart + ' - ' + periodEnd;
+    text += periodLine.substring(0, LINE_WIDTH) + '\n';
+    text += 'Date: ' + new Date().toLocaleDateString('fr-FR') + '\n';
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    text += '\n';
+    
+    text += 'DETAIL DES OPERATIONS:\n';
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    
+    if (!statement.statement || statement.statement.length === 0) {
+      text += 'Aucune operation pour cette periode\n';
+    } else {
+      text += 'Date       Ref       Debit     Credit       Solde\n';
+      text += '-'.repeat(LINE_WIDTH) + '\n';
+      
+      statement.statement.forEach((item: any) => {
+        const date = new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+        const ref = (item.reference || '').substring(0, 12).padEnd(12);
+        const debit = item.debit > 0 ? item.debit.toFixed(3).padStart(10) : ''.padStart(10);
+        const credit = item.credit > 0 ? item.credit.toFixed(3).padStart(10) : ''.padStart(10);
+        const balanceValue = item.balance;
+        const balance = balanceValue < 0 
+          ? Math.abs(balanceValue).toFixed(3).padStart(9) + '-'
+          : balanceValue.toFixed(3).padStart(10);
+        
+        const line = date.padEnd(6) + ref + debit + credit + balance;
+        text += line.substring(0, LINE_WIDTH) + '\n';
+      });
+    }
+    
+    text += '-'.repeat(LINE_WIDTH) + '\n';
+    const merciLine = 'Merci!';
+    const padding = Math.floor((LINE_WIDTH - merciLine.length) / 2);
+    text += ' '.repeat(padding) + merciLine + '\n';
+    text += '='.repeat(LINE_WIDTH) + '\n\n\n\n';
     
     return text;
   }

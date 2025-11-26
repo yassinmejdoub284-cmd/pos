@@ -2,7 +2,7 @@ const express = require('express');
 const { prisma } = require('../lib/prisma');
 const fs = require('fs');
 const path = require('path');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { AuditLogger } = require('../lib/audit');
 const { sendPushToAll } = require('../lib/push');
 
@@ -33,7 +33,7 @@ async function getAutoApproveThreshold() {
       const settings = await prisma.appSettings.findFirst();
       if (settings && typeof settings.autoApproveExpenseBelow !== 'undefined') {
         const n = Number(settings.autoApproveExpenseBelow);
-        console.log('[settings] source=database autoApproveExpenseBelow=', n);
+
         return isNaN(n) ? 0 : n;
       }
     }
@@ -41,7 +41,7 @@ async function getAutoApproveThreshold() {
   // Fallback to file settings
   const fileSettings = readFileSettings();
   const n = Number(fileSettings.autoApproveExpenseBelow);
-  console.log('[settings] source=file autoApproveExpenseBelow=', n);
+
   return isNaN(n) ? 0 : n;
 }
 
@@ -124,7 +124,7 @@ router.post('/categories', authenticateToken, async (req, res) => {
 });
 
 // Update expense category
-router.put('/categories/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.put('/categories/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, color, icon, isActive } = req.body;
@@ -154,7 +154,7 @@ router.put('/categories/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER'
 });
 
 // Delete expense category
-router.delete('/categories/:id', authenticateToken, requireRole(['ADMIN', 'MANAGER']), async (req, res) => {
+router.delete('/categories/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -431,7 +431,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const numericAmount = Number(amount);
     const isAutoApproved = !isNaN(numericAmount) && numericAmount <= autoApproveThreshold;
-    console.log('[expenses.create] amount=', numericAmount, 'threshold=', autoApproveThreshold, 'isAutoApproved=', isAutoApproved);
+
 
     const expense = await prisma.$transaction(async (tx) => {
       // Create the expense
@@ -509,7 +509,7 @@ router.post('/', authenticateToken, async (req, res) => {
                   createdById: req.user?.id
                 }
               });
-              console.log('[expenses.create] Cash movement created immediately for expense:', newExpense.id, 'amount:', cashMovementAmount);
+
             }
           } else {
             console.warn('[expenses.create] No active session found for cash movement');
@@ -531,7 +531,7 @@ router.post('/', authenticateToken, async (req, res) => {
         body: `Dépense de ${expense.amount} DT - ${expense.category?.name || 'Divers'} par ${req.user.firstName} ${req.user.lastName}`,
         data: { type: 'EXPENSE', id: expense.id, depotId: expense.depotId }
       });
-      console.log('[expenses.create] Push notification sent for expense:', expense.id);
+
     } catch (e) {
       console.warn('[expenses.create] Failed to send push notification:', e);
     }
@@ -720,7 +720,7 @@ router.patch('/:id/approve', authenticateToken, async (req, res) => {
             }
           });
         }
-        console.log(`[expenses.reject] Marked ${cashMovements.length} cash movements as invalid for rejected expense ${existingExpense.id}`);
+
       } catch (e) {
         console.warn('[expenses.reject] Failed to handle cash movements for rejected expense', e);
       }
@@ -844,7 +844,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
               createdById: req.user?.id
             }
           });
-          console.log(`[expenses.delete] Created refund cash movement for deleted expense ${expenseId}, amount: ${refundAmount}, session: ${refundSessionId}`);
+
         }
       }
 

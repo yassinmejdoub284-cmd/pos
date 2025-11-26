@@ -127,7 +127,7 @@ export class PrepareLotComponent implements OnInit {
 
       const formData = this.form.getRawValue();
       
-      console.log('Sending expedition data:', formData);
+
       
       this.stockDocumentsService.createExpedition(
         formData.emetteurId,

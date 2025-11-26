@@ -288,7 +288,7 @@ router.put('/', async (req, res) => {
     // Do not enforce depot scoping for updates; write to 'default' if no depot
     const effectiveDepotKey = (!userDepotId || isNaN(parseInt(String(userDepotId), 10))) ? 'default' : userDepotId;
     const body = req.body || {};
-    console.log('[settings.update] incoming body=', body);
+
 
     // Try to parse JSON-like strings
     let keyboardShortcuts = body.keyboardShortcuts;
@@ -301,7 +301,7 @@ router.put('/', async (req, res) => {
       keyboardShortcuts,
       devicesConfig
     });
-    console.log('[settings.update] normalized data=', data);
+
 
     // Skip DB writes to avoid schema mismatches; persist via file only
     const savedDb = null;

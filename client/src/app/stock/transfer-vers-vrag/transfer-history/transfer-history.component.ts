@@ -88,11 +88,11 @@ export class TransferHistoryComponent implements OnInit {
       params.endDate = this.endDate;
     }
 
-    console.log('Loading transfer history with params:', params);
+
 
     this.productsService.getTransferHistory(params).subscribe({
       next: (response) => {
-        console.log('Transfer history response:', response);
+
         this.transferHistory = response.data || [];
         this.totalItems = response.pagination?.total || 0;
         this.totalPages = response.pagination?.totalPages || 0;

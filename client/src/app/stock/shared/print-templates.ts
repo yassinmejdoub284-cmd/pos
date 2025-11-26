@@ -98,12 +98,11 @@ function getAbsoluteLogoUrl(logoUrl: string | undefined, baseUrl: string = 'http
   return `${baseUrl}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`;
 }
 
-// Helper function to format quantity - display exact value without any rounding or modification
 function formatQuantity(value: number): string {
   if (value === 0) return '0';
   
-  // Return the exact value as a string without any rounding or modification
-  return value.toString();
+  const rounded = Math.round(value * 10) / 10;
+  return rounded.toFixed(1);
 }
 
 // Function to convert number to French words following Tunisian official document rules
@@ -249,10 +248,10 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
   // Helper: normalize TVA to fraction (0.07 for 7% or 0.07)
   const getTvaRateFraction = (raw: any): number => {
     const n = Number(raw);
-    console.log(`getTvaRateFraction: raw=${raw}, type=${typeof raw}, n=${n}`);
+
     if (!isFinite(n) || n < 0) return 0;
     const result = n <= 1 ? n : n / 100;
-    console.log(`getTvaRateFraction: result=${result}`);
+
     return result;
   };
   let itemsRows = '';
@@ -283,8 +282,8 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
     
     itemsRows = entryItems.map((raw, idx) => {
       const item: any = raw as any;
-      const quantity = Number(item.quantity ?? 0) || 0;
-      entryTotalQuantity += quantity;
+      const quantity = Math.round((Number(item.quantity ?? 0) || 0) * 10) / 10;
+      entryTotalQuantity = Math.round((entryTotalQuantity + quantity) * 10) / 10;
       const productName = item.product?.name || item.childProductName || item.famille || `Produit ${item.productId || ''}`.trim();
       const unitPrice = (() => {
         const purchase = Number(item.purchasePrice);
@@ -616,8 +615,8 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
 
   // Only show client if explicitly set on document (not from depot defaults)
   const client = (document as any).client || null;
-  console.log('Print template - Document client:', (document as any).client);
-  console.log('Print template - Final client:', client);
+
+
   
   // Only show client information if client exists
   const hasClient = client && (client.firstName || client.lastName || client.name);

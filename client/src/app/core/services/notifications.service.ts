@@ -26,7 +26,7 @@ export class NotificationsService {
   constructor(private http: HttpClient) {}
 
   fetchUnread(): Observable<Notification[]> {
-    console.log('NotificationsService: fetchUnread called, API_URL:', this.API_URL);
+
     return this.http.get<Notification[]>(`${this.API_URL}/unread`).pipe(
       tap(notifications => console.log('NotificationsService: fetchUnread success:', notifications)),
       catchError(error => {
@@ -53,10 +53,10 @@ export class NotificationsService {
   }
 
   updateUnreadCount(): void {
-    console.log('NotificationsService: updateUnreadCount called');
+
     this.fetchUnread().subscribe({
       next: (notifications) => {
-        console.log('NotificationsService: updateUnreadCount success, count:', notifications.length, 'notifications:', notifications);
+
         this.unreadCount.set(notifications.length);
         this.notifications.set(notifications);
       },

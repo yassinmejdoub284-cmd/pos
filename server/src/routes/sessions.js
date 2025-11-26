@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { logAudit } = require('../lib/audit');
 const fs = require('fs');
 const path = require('path');
@@ -25,7 +25,7 @@ function isSuperAdmin(userId) {
 }
 
 // Diagnostic route to check session existence (admin only)
-router.get('/:id/check', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+router.get('/:id/check', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const sessionId = parseInt(id);
@@ -199,7 +199,7 @@ router.get('/active-by-depot', authenticateToken, async (req, res) => {
     });
 
     if (!activeSession) {
-      console.log('[active-by-depot] No active session found for depot:', requestedDepotId);
+
       return res.json(null);
     }
 
@@ -228,7 +228,7 @@ router.get('/active-by-depot', authenticateToken, async (req, res) => {
 });
 
 // Open new session
-router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
+router.post('/open', authenticateToken, async (req, res) => {
   try {
     const { openingFund, posId, note, depotId } = req.body;
 
@@ -357,7 +357,7 @@ router.post('/open', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIE
 });
 
 // Open new session by depot only (no user linkage)
-router.post('/open-by-depot', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
+router.post('/open-by-depot', authenticateToken, async (req, res) => {
   try {
     const { openingFund, posId, note, depotId } = req.body;
 
@@ -518,7 +518,7 @@ router.post('/open-by-depot', authenticateToken, requireRole(['ADMIN', 'MANAGER'
 });
 
 // Add cash movement
-router.post('/:id/movements', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
+router.post('/:id/movements', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { type, amount, reason, ticketId } = req.body;
@@ -536,8 +536,7 @@ router.post('/:id/movements', authenticateToken, requireRole(['ADMIN', 'MANAGER'
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
-        userId: req.user.id,
-        depotId: userDepotId, // Ensure depot isolation
+        depotId: userDepotId, // Ensure depot isolation - allow any user in same depot
         status: { in: ['OPEN', 'REOPENED'] }
       }
     });
@@ -649,7 +648,7 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
 });
 
 // Close session
-router.post('/:id/close', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'CASHIER', 'RESPONSABLE_MAGASIN']), async (req, res) => {
+router.post('/:id/close', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { countedCash, fonds, retraitCentrale, denominations, isAdminCorrection } = req.body;
@@ -1035,17 +1034,17 @@ router.get('/', authenticateToken, async (req, res) => {
       limit = 50 
     } = req.query;
 
-    console.log('Sessions GET request - User:', req.user);
-    console.log('Sessions GET request - Query params:', { startDate, endDate, userId, posId, status, hasVariance, page, limit });
+
+
 
     // Check if user is super admin
     const isUserSuperAdmin = isSuperAdmin(req.user.id);
-    console.log('Sessions GET - isSuperAdmin:', isUserSuperAdmin, 'userId:', req.user.id, 'role:', req.user.role);
+
     
     // Check for visiting depot from header (set when super admin selects a depot)
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    console.log('Sessions GET - visitingDepotHeader:', visitingDepotHeader, 'visitingDepotId:', visitingDepotId);
+
     
     // Determine which depot to use: visiting > user's depot
     let targetDepotId = visitingDepotId || req.user.depotId;
@@ -1057,7 +1056,7 @@ router.get('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'User must be assigned to a depot to view session history' });
     }
     
-    console.log('Sessions GET - targetDepotId:', targetDepotId);
+
     
     const whereClause = {
       depotId: targetDepotId // Filter by selected depot (visiting depot for super admin, or user's depot)
@@ -1069,17 +1068,17 @@ router.get('/', authenticateToken, async (req, res) => {
       // Super admin: only filter by userId if explicitly requested
       if (userId) {
         whereClause.userId = parseInt(userId);
-        console.log('Sessions GET - Super admin filtering by userId:', userId);
+
       } else {
-        console.log('Sessions GET - Super admin: showing all sessions for depot', targetDepotId);
+
       }
       // Otherwise, show all sessions for the selected depot
     } else if (req.user?.role !== 'ADMIN') {
       whereClause.userId = req.user?.id;
-      console.log('Sessions GET - Non-admin filtering by userId:', req.user?.id);
+
     } else if (userId) {
       whereClause.userId = parseInt(userId);
-      console.log('Sessions GET - Admin filtering by userId:', userId);
+
     }
 
     if (startDate && endDate) {
@@ -1091,8 +1090,8 @@ router.get('/', authenticateToken, async (req, res) => {
       const start = new Date(startDateStr);
       const end = new Date(endDateStr);
       
-      console.log('Date range filter - startDate:', startDate, 'parsed as:', start);
-      console.log('Date range filter - endDate:', endDate, 'parsed as:', end);
+
+
       
       whereClause.openedAt = { 
         gte: start, 
@@ -1106,7 +1105,7 @@ router.get('/', authenticateToken, async (req, res) => {
       whereClause.variance = { not: 0 };
     }
 
-    console.log('Sessions query whereClause:', whereClause);
+
 
     const sessions = await prisma.sessionCaisse.findMany({
       where: whereClause,
@@ -1119,9 +1118,9 @@ router.get('/', authenticateToken, async (req, res) => {
       take: parseInt(limit)
     });
 
-    console.log('Found sessions:', sessions.length);
+
     if (sessions.length > 0) {
-      console.log('First session:', { id: sessions[0].id, openedAt: sessions[0].openedAt, status: sessions[0].status });
+
     }
 
     res.json(sessions);
@@ -1201,8 +1200,8 @@ router.get('/summaries', authenticateToken, async (req, res) => {
       const start = new Date(startDateStr);
       const end = new Date(endDateStr);
       
-      console.log('Date range filter - startDate:', startDate, 'parsed as:', start);
-      console.log('Date range filter - endDate:', endDate, 'parsed as:', end);
+
+
       
       whereClause.openedAt = { 
         gte: start, 
@@ -1395,7 +1394,7 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     const { type = 'Z', format = 'html' } = req.query;
     const sessionId = parseInt(id);
 
-    console.log(`[Session Report] Request for session ${sessionId}, user: ${req.user?.id}, role: ${req.user?.role}`);
+
 
     // Check if user is super admin
     const isUserSuperAdmin = isSuperAdmin(req.user.id);
@@ -1405,7 +1404,7 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     
-    console.log(`[Session Report] userDepotId: ${userDepotId}, visitingDepotId: ${visitingDepotId}, isSuperAdmin: ${isUserSuperAdmin}`);
+
     
     // Determine which depot to use: visiting > user's depot
     // For admins and super admins: only use depotId if explicitly provided via header (allows access to all depots if not specified)
@@ -1420,7 +1419,7 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
       targetDepotId = visitingDepotId || userDepotId;
     }
     
-    console.log(`[Session Report] targetDepotId: ${targetDepotId} (admin: ${isAdmin})`);
+
     
     // For non-admin users, depot is required
     if (!targetDepotId && !isAdmin) {
@@ -1460,11 +1459,11 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     });
 
     if (!sessionExists) {
-      console.log(`[Session Report] Session ${sessionId} does not exist in database`);
+
       return res.status(404).json({ error: `Session ${sessionId} non trouvée dans la base de données` });
     }
 
-    console.log(`[Session Report] Session ${sessionId} exists with depotId: ${sessionExists.depotId}, status: ${sessionExists.status}`);
+
 
     // Build where clause - for admins without depotId, use session's depotId
     const whereClause = {
@@ -1476,20 +1475,20 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
       // If session has a depotId, use it; if NULL, don't filter by depotId
       if (sessionExists.depotId !== null && sessionExists.depotId !== undefined) {
         whereClause.depotId = sessionExists.depotId;
-        console.log(`[Session Report] Admin/SuperAdmin access: using session's depotId ${sessionExists.depotId}`);
+
       } else {
-        console.log(`[Session Report] Admin/SuperAdmin access: session has NULL depotId, no depot filter applied`);
+
       }
     } else if (targetDepotId) {
       // Non-admin or admin/super admin with explicit depotId
       whereClause.depotId = targetDepotId;
-      console.log(`[Session Report] Using targetDepotId ${targetDepotId} in whereClause`);
+
     } else if (!isAdmin) {
       // Non-admins must have a depot specified
       return res.status(400).json({ error: 'Depot must be specified for non-admin users' });
     }
 
-    console.log(`[Session Report] Final whereClause:`, JSON.stringify(whereClause));
+
 
     let session = await prisma.sessionCaisse.findFirst({
       where: whereClause,
@@ -1501,14 +1500,14 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     });
 
     if (!session) {
-      console.log(`[Session Report] Session ${sessionId} not found with filters:`, JSON.stringify(whereClause));
-      console.log(`[Session Report] Session exists with depotId: ${sessionExists.depotId}, targetDepotId: ${targetDepotId}, isSuperAdmin: ${isUserSuperAdmin}, visitingDepotId: ${visitingDepotId}`);
+
+
       
       // For super admin with visiting depot, verify the session belongs to that depot
       if (isUserSuperAdmin && visitingDepotId) {
         if (sessionExists.depotId === visitingDepotId) {
           // Session belongs to the selected depot, but query failed - retry with explicit depot filter
-          console.log(`[Session Report] Super admin: retrying with explicit depot filter for depot ${visitingDepotId}`);
+
           const retrySession = await prisma.sessionCaisse.findFirst({
             where: {
               id: sessionId,
@@ -1523,7 +1522,7 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
           if (retrySession) {
             // Use the retry session
             session = retrySession;
-            console.log(`[Session Report] Super admin: successfully retrieved session ${sessionId} on retry`);
+
           } else {
             return res.status(404).json({ error: `Session ${sessionId} non trouvée pour le dépôt ${visitingDepotId}` });
           }
@@ -1556,7 +1555,7 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
       }
     }
 
-    console.log(`[Session Report] Session ${sessionId} found successfully`);
+
 
     const reportData = type === 'Z' ? 
       await generateZReport(parseInt(id)) : 
@@ -1579,7 +1578,7 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
 });
 
 // Admin: Reopen session
-router.post('/:id/reopen', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+router.post('/:id/reopen', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;

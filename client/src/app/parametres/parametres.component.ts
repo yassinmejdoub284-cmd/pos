@@ -16,7 +16,10 @@ export class ParametresComponent implements OnInit {
   denominationsInput = '';
   keyboardShortcutsInput = '';
   devicesConfigInput = '';
-  availablePrinters: {name: string, isDefault: boolean}[] = [];
+  availablePrinters: {name: string, isDefault: boolean}[] = [
+    { name: 'POS-80', isDefault: false },
+    { name: 'POS-80C', isDefault: false }
+  ];
   loadingPrinters = false;
   
   // Toast system
@@ -157,7 +160,7 @@ export class ParametresComponent implements OnInit {
 
   private ensureDocumentTypeDefaults(): void {
     if (!this.settings.documentTypeDefaults) {
-      console.log('Ensuring documentTypeDefaults is initialized');
+
       this.settings.documentTypeDefaults = {
         livraison: {
           client: true,
@@ -208,7 +211,7 @@ export class ParametresComponent implements OnInit {
     this.error = '';
     this.settingsService.getSettings().subscribe({
       next: (s) => {
-        console.log('Loaded settings from backend:', s);
+
         this.settings = s || {};
         
         // Ensure basic company info exists with default values
@@ -257,7 +260,7 @@ export class ParametresComponent implements OnInit {
         
         // Ensure documentDisplaySettings exists with default values
         if (!this.settings.documentDisplaySettings) {
-          console.log('Initializing documentDisplaySettings with default values');
+
           this.settings.documentDisplaySettings = {
             livraison: {
               showPackageCount: true
@@ -307,7 +310,7 @@ export class ParametresComponent implements OnInit {
         
         // Ensure documentTypeDefaults exists with default values
         if (!this.settings.documentTypeDefaults) {
-          console.log('Initializing documentTypeDefaults with default values');
+
           this.settings.documentTypeDefaults = {
             livraison: {
               client: true,
@@ -368,7 +371,7 @@ export class ParametresComponent implements OnInit {
           this.devicesConfigInput = this.settings.devicesConfig ? JSON.stringify(this.settings.devicesConfig, null, 2) : '';
         } catch { this.devicesConfigInput = ''; }
         
-        console.log('Loaded settings with devicesConfig:', this.settings.devicesConfig);
+
         
         // Ensure documentTypeDefaults is initialized
         this.ensureDocumentTypeDefaults();
@@ -526,9 +529,9 @@ export class ParametresComponent implements OnInit {
     // Ensure documentTypeDefaults is properly included in settings
     this.ensureDocumentTypeDefaults();
     
-    console.log('Saving settings with devicesConfig:', this.settings.devicesConfig);
-    console.log('Saving settings with documentTypeDefaults:', this.settings.documentTypeDefaults);
-    console.log('Saving settings with documentDisplaySettings:', this.settings.documentDisplaySettings);
+
+
+
     
     this.settingsService.updateSettings(this.settings).subscribe({
       next: (s) => {
@@ -537,7 +540,7 @@ export class ParametresComponent implements OnInit {
         try { this.keyboardShortcutsInput = this.settings.keyboardShortcuts ? JSON.stringify(this.settings.keyboardShortcuts, null, 2) : ''; } catch {}
         try { this.devicesConfigInput = this.settings.devicesConfig ? JSON.stringify(this.settings.devicesConfig, null, 2) : ''; } catch {}
         this.saving = false;
-        console.log('Settings saved successfully:', this.settings.devicesConfig);
+
         
         // Show success toast and navigate back
         this.showAlertMessage('Paramètres enregistrés avec succès.', 'success');
@@ -638,10 +641,10 @@ export class ParametresComponent implements OnInit {
   // Debug method to test printer selection and actual printing
   testPrinterSelection(): void {
     alert('Test Print button clicked!');
-    console.log('=== TEST PRINT BUTTON CLICKED ===');
-    console.log('Current settings before save:', this.settings);
-    console.log('Current devicesConfig:', this.settings.devicesConfig);
-    console.log('Selected printer:', this.settings.devicesConfig?.printer);
+
+
+
+
     
     // Force set a printer for testing
     if (!this.settings.devicesConfig) {
@@ -652,30 +655,30 @@ export class ParametresComponent implements OnInit {
     this.settings.devicesConfig.autoCut = true;
     this.settings.devicesConfig.printLogo = true;
     
-    console.log('After setting printer:', this.settings.devicesConfig);
+
     
     // Test if Tauri is available
-    console.log('Window object:', typeof window);
-    console.log('Window.__TAURI__:', (window as any).__TAURI__);
-    console.log('All window properties:', Object.keys(window).filter(k => k.includes('TAURI')));
+
+
+
     
     if (typeof window !== 'undefined' && (window as any).__TAURI__) {
-      console.log('Tauri is available');
+
       // Now test actual printing
       this.testActualPrint();
     } else {
-      console.log('Tauri is NOT available');
+
       // Try alternative detection
       try {
         import('@tauri-apps/api/core').then(({ invoke }) => {
-          console.log('Tauri invoke function found via dynamic import');
+
           this.testActualPrint();
         }).catch((e) => {
-          console.log('Tauri invoke not available via dynamic import:', e);
+
           alert('Tauri is not available - running in web mode');
         });
       } catch (e) {
-        console.log('Tauri invoke not available:', e);
+
         alert('Tauri is not available - running in web mode');
       }
     }
@@ -683,7 +686,7 @@ export class ParametresComponent implements OnInit {
 
   // Test actual printing functionality
   testActualPrint(): void {
-    console.log('Testing actual print functionality...');
+
     
     // Create a test sale object for printing with all required properties
     const testSale = {
@@ -727,12 +730,12 @@ export class ParametresComponent implements OnInit {
       tax: 0
     };
     
-    console.log('Sending test sale to print service:', testSale);
+
     
     // Use the print service to print the test receipt
     this.printService.printSaleReceipt(testSale);
     
-    console.log('Print command sent to print service');
+
   }
 
   private parseDenominations(raw: string): number[] {

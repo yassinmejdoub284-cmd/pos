@@ -556,7 +556,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
         payNow: this.payNow // Pass payment timing to server
       };
 
-      console.log('Creating expense with depotId:', currentDepotId, 'Expense:', expense);
+
 
       await this.expenseService.createExpense(expense).toPromise();
       

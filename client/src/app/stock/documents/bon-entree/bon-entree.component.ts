@@ -871,7 +871,7 @@ export class BonEntreeComponent implements OnInit {
 
     this.supplierService.createSupplierPayment(paymentData).subscribe({
       next: (payment) => {
-        console.log('Supplier payment created:', payment);
+
         this.success = `Document créé avec succès${this.paymentMethod === 'CASH' ? ' - Paiement en espèces enregistré' : ' - Crédit enregistré'}`;
         this.loading = false;
         setTimeout(() => this.success = '', 3000);

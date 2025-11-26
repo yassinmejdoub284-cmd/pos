@@ -12,13 +12,13 @@ export function authInterceptor(
   const router = inject(Router);
   
   // Log all requests for debugging
-  console.log('[AuthInterceptor] Intercepting request:', request.method, request.url);
+
   
   // Skip adding Authorization header for login and register endpoints
   const isAuthEndpoint = request.url.includes('/auth/login') || request.url.includes('/auth/register');
   
   if (!isAuthEndpoint) {
-    console.log('[AuthInterceptor] Not an auth endpoint, adding token if available');
+
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const headers: Record<string, string> = {};
     
@@ -34,9 +34,9 @@ export function authInterceptor(
     if (authToken && authToken.trim().length > 0) {
       headers['Authorization'] = `Bearer ${authToken.trim()}`;
       // Debug log to verify token is being added
-      console.log('[AuthInterceptor] Adding Authorization header for:', request.url);
-      console.log('[AuthInterceptor] Token preview:', authToken.substring(0, 30) + '...');
-      console.log('[AuthInterceptor] Visiting depot ID:', visitingDepotId);
+
+
+
     } else {
       // Log detailed warning if no token found for debugging
       console.error('[AuthInterceptor] No authentication token found for authenticated endpoint:', request.url);
@@ -52,19 +52,19 @@ export function authInterceptor(
     
     if (visitingDepotId && visitingDepotId.trim().length > 0) {
       headers['X-Depot-Id'] = visitingDepotId.trim();
-      console.log('[AuthInterceptor] Added X-Depot-Id header:', visitingDepotId);
+
     }
     
     // Always clone request with headers if we have any headers to add
     // This ensures X-Depot-Id header is added even if no token
     if (Object.keys(headers).length > 0) {
-      console.log('[AuthInterceptor] Cloning request with headers:', Object.keys(headers));
+
       request = request.clone({ setHeaders: headers });
     } else {
       console.warn('[AuthInterceptor] No headers to add for request:', request.url);
     }
   } else {
-    console.log('[AuthInterceptor] Skipping auth header for auth endpoint');
+
   }
   
   return next(request).pipe(

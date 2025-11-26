@@ -96,13 +96,9 @@ export class LoginComponent implements OnInit, OnDestroy {
         if (user && user.id) {
           this.authService.currentUser.set(user);
           this.authService.isAuthenticated.set(true);
-          // Redirect based on role or returnUrl
+          // Redirect based on role (will check returnUrl and admin depot selection)
           const role = user.role || '';
-          if (this.returnUrl) {
-            this.router.navigate([this.returnUrl]);
-          } else {
-            this.redirectBasedOnRole(role);
-          }
+          this.redirectBasedOnRole(role);
           return;
         }
       } catch (error) {
@@ -117,13 +113,8 @@ export class LoginComponent implements OnInit, OnDestroy {
     if (isAuthenticated && token && userStr) {
       const currentUser = this.authService.currentUser();
       if (currentUser) {
-        // Use returnUrl if available, otherwise show reminders and redirect
-        if (this.returnUrl) {
-          this.router.navigate([this.returnUrl]);
-        } else {
-          // Session restore: show due reminders if any
-          this.tryShowRemindersThenRedirect('SESSION');
-        }
+        // Show reminders and redirect (will check returnUrl and admin depot selection)
+        this.tryShowRemindersThenRedirect('SESSION');
       }
       return;
     }
@@ -174,15 +165,15 @@ export class LoginComponent implements OnInit, OnDestroy {
     // Add depotId if available (from selection or sessionStorage)
     if (this.selectedDepotId) {
       loginData.depotId = this.selectedDepotId;
-      console.log('Using selected depotId:', this.selectedDepotId);
+
     } else {
       // Try to get depotId from sessionStorage (from previous session or depot selection)
       const storedDepotId = sessionStorage.getItem('depotId') || sessionStorage.getItem('visitingDepotId');
       if (storedDepotId) {
         loginData.depotId = parseInt(storedDepotId);
-        console.log('Using stored depotId:', storedDepotId);
+
       } else {
-        console.log('No depotId available - will try login without depotId');
+
       }
     }
     
@@ -195,7 +186,7 @@ export class LoginComponent implements OnInit, OnDestroy {
 
     this.authService.login(loginData).subscribe({
       next: async (response) => {
-        console.log('Login successful, response:', response);
+
         this.loading = false;
         
         // Save depotId to sessionStorage for future logins
@@ -205,7 +196,7 @@ export class LoginComponent implements OnInit, OnDestroy {
         
         // Force PIN change if entered PIN starts with '00'
         if (!isToken && this.credentials.pin.startsWith('00')) {
-          console.log('PIN change required');
+
           // Keep token temporarily for PIN update, will logout after successful change
           this.currentUser = response.user;
           this.showPasswordChange = true;
@@ -213,7 +204,7 @@ export class LoginComponent implements OnInit, OnDestroy {
         }
         
         // After successful login, check reminders and notifications first
-        console.log('Calling tryShowRemindersThenRedirect with role:', response.user.role);
+
         this.postLoginRole = response.user.role;
         await this.tryShowRemindersThenRedirect('LOGIN');
       },
@@ -239,7 +230,7 @@ export class LoginComponent implements OnInit, OnDestroy {
         
         // If it's a 401 and we have a depotId, try removing it and retrying
         if (error.status === 401 && loginData.depotId && !isToken) {
-          console.log('401 error with depotId, trying without depotId...');
+
           // Clear depotId and retry
           const retryLoginData = { ...loginData };
           delete retryLoginData.depotId;
@@ -249,7 +240,7 @@ export class LoginComponent implements OnInit, OnDestroy {
           setTimeout(() => {
             this.authService.login(retryLoginData).subscribe({
               next: async (response) => {
-                console.log('Retry login successful:', response);
+
                 this.loading = false;
                 if (response.user.depotId) {
                   sessionStorage.setItem('depotId', String(response.user.depotId));
@@ -270,30 +261,30 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   private async redirectBasedOnRole(role: string): Promise<void> {
-    console.log('Redirecting user with role:', role);
+
+    
+    // For admin users, check depot selection first (even if returnUrl is set)
+    if (role === 'ADMIN') {
+
+      const existingDepotId = sessionStorage.getItem('visitingDepotId');
+      if (!existingDepotId) {
+
+        this.showDepotChoice = true;
+        await this.loadDepots();
+
+
+        return; // Don't redirect yet, wait for depot selection
+      } else {
+
+
+      }
+    }
     
     // Check if returnUrl is set (from auth guard redirect)
     if (this.returnUrl) {
-      console.log('Using returnUrl:', this.returnUrl);
+
       this.router.navigate([this.returnUrl]);
       return;
-    }
-    
-    // For admin users, check depot selection first
-    if (role === 'ADMIN') {
-      console.log('Admin user, checking depot selection before redirect');
-      const existingDepotId = sessionStorage.getItem('visitingDepotId');
-      if (!existingDepotId) {
-        console.log('No depot selected, showing depot choice');
-        this.showDepotChoice = true;
-        await this.loadDepots();
-        console.log('Depot choice dialog should be visible now, showDepotChoice:', this.showDepotChoice);
-        console.log('Depots loaded:', this.depots.length);
-        return; // Don't redirect yet, wait for depot selection
-      } else {
-        console.log('Depot already selected:', existingDepotId);
-        console.log('Admin with existing depot, proceeding to redirect to home');
-      }
     }
     
     switch (role) {
@@ -326,11 +317,11 @@ export class LoginComponent implements OnInit, OnDestroy {
   private postLoginRole: string | null = null;
 
   private async tryShowRemindersThenRedirect(source: 'LOGIN' | 'SESSION'): Promise<void> {
-    console.log('tryShowRemindersThenRedirect called, source:', source);
+
     
     // Only fetch if user is authenticated (avoid 401 errors after logout)
     if (!this.authService.isAuthenticated()) {
-      console.log('User not authenticated, skipping reminders/notifications');
+
       const role = this.authService.getCurrentUserRole();
       if (role) {
         await this.redirectBasedOnRole(role);
@@ -345,19 +336,19 @@ export class LoginComponent implements OnInit, OnDestroy {
       next: async (list) => {
         // Check again if still authenticated
         if (!this.authService.isAuthenticated()) {
-          console.log('User logged out during reminder fetch, skipping');
+
           return;
         }
         
-        console.log('Reminders fetched:', list);
+
         const due = (list || []).slice(0, 3);
         if (due.length === 0) {
           // No reminders: fetch notifications and redirect
-          console.log('No reminders found, fetching notifications...');
+
           await this.fetchNotificationsAndRedirect();
           return;
         }
-        console.log('Found', due.length, 'reminders, showing reminder surface');
+
         this.reminderQueue = [...due];
         this.currentReminder = this.reminderQueue.shift() || null;
         this.showReminderSurface = !!this.currentReminder;
@@ -365,7 +356,7 @@ export class LoginComponent implements OnInit, OnDestroy {
       error: async (error) => {
         // If 401, user is logged out, just redirect
         if (error.status === 401) {
-          console.log('Unauthorized during reminder fetch, user logged out');
+
           return;
         }
         console.error('Error fetching reminders:', error);
@@ -378,11 +369,11 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   private async fetchNotificationsAndRedirect(): Promise<void> {
-    console.log('fetchNotificationsAndRedirect called, postLoginRole:', this.postLoginRole);
+
     
     // Check if user is still authenticated before making API calls
     if (!this.authService.isAuthenticated()) {
-      console.log('User not authenticated, skipping notifications');
+
       const role = this.postLoginRole || this.authService.getCurrentUserRole();
       if (role) {
         await this.redirectBasedOnRole(role);
@@ -398,26 +389,26 @@ export class LoginComponent implements OnInit, OnDestroy {
       next: async (notifications) => {
         // Check again if still authenticated
         if (!this.authService.isAuthenticated()) {
-          console.log('User logged out during notification fetch, skipping');
+
           return;
         }
         
-        console.log('Notifications fetched on login:', notifications);
+
         if (notifications.length > 0) {
-          console.log('Found', notifications.length, 'unread notifications, showing notification surface');
+
           this.notifications = notifications;
           this.showNotificationSurface = true;
           // Don't redirect immediately if there are notifications to show
           return;
         }
-        console.log('No notifications found, redirecting to role:', this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
+
         // No notifications, proceed with redirect
         await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
       },
       error: async (error) => {
         // If 401, user is logged out, don't redirect
         if (error.status === 401) {
-          console.log('Unauthorized during notification fetch, user logged out');
+
           return;
         }
         console.error('Error fetching notifications on login:', error);
@@ -487,7 +478,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     // For admin users, don't automatically redirect - let them handle notifications first
     // The depot selection will happen when they try to access the main app
     if (this.postLoginRole === 'ADMIN') {
-      console.log('Admin user finished reminders, proceeding to notifications without auto-redirect');
+
     }
     
     this.fetchNotificationsAndRedirect();
@@ -840,10 +831,10 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   markAllNotificationsAsRead(): void {
-    console.log('markAllNotificationsAsRead called - user explicitly marked all as read');
+
     this.notificationsService.markAllAsRead().subscribe({
       next: () => {
-        console.log('Successfully marked all notifications as read');
+
         this.notifications = [];
         this.dismissNotifications();
       },
@@ -854,8 +845,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   async dismissNotifications(): Promise<void> {
-    console.log('dismissNotifications called, postLoginRole:', this.postLoginRole);
-    console.log('NOT marking notifications as read - just dismissing the surface');
+
+
     this.showNotificationSurface = false;
     this.notifications = [];
     await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');

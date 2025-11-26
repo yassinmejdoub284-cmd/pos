@@ -60,7 +60,7 @@ router.get('/table/:tableId', async (req, res) => {
 // Create or update table sale
 router.post('/', async (req, res) => {
   try {
-    console.log('Received table sale data:', req.body);
+
     const { tableId, salonId, items, totalAmount, paidAmount, remainingAmount } = req.body;
 
     // Check if there's an existing active sale for this table

@@ -160,20 +160,24 @@ export class SupplierStatementComponent implements OnInit {
 
   onReferenceClick(item: SupplierStatementItem): void {
     if (item.clickable) {
-      // If it's a bon d'entrée or bon de retour, navigate to the document edit page
-      if (item.bonId) {
-        // Check if it's a bon de retour (type is 'bon_retour' or documentType is 'BON_EXPEDITION')
+      let bonId = item.bonId;
+      
+      if (!bonId && item.reference && item.reference.startsWith('Bon d\'entrée #')) {
+        const match = item.reference.match(/Bon d'entrée #(\d+)/);
+        if (match) {
+          bonId = parseInt(match[1], 10);
+        }
+      }
+      
+      if (bonId) {
         const isBonRetour = item.type === 'bon_retour' || (item as any).documentType === 'BON_EXPEDITION';
         
         if (isBonRetour) {
-          // Navigate to bon de retour document edit page
-          this.router.navigate(['/stock/documents/bon-retour/edit', item.bonId]);
+          this.router.navigate(['/stock/documents/bon-retour/edit', bonId]);
         } else {
-          // Navigate to bon d'entrée document edit page
-          this.router.navigate(['/stock/documents/bon-entree/edit', item.bonId]);
+          this.router.navigate(['/stock/documents/bon-entree/edit', bonId]);
         }
       } else {
-        // For other references, show an alert for now
         alert(`Détails de ${item.reference}`);
       }
     }

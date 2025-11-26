@@ -233,7 +233,7 @@ export class ReviewComponent implements OnInit {
 
   editItem(item: InventoryItem): void {
     // Navigate to edit mode or open modal
-    console.log('Edit item:', item);
+
     // TODO: Implement edit functionality
   }
 

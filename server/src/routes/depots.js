@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { requireRole } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -51,7 +51,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', requireRole(['ADMIN']), async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { name, code, type, address, city, phone, email, managerId, companyId } = req.body;
 
@@ -80,7 +80,7 @@ router.post('/', requireRole(['ADMIN']), async (req, res) => {
   }
 });
 
-router.put('/:id', requireRole(['ADMIN']), async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, code, type, address, city, phone, email, managerId, isActive, companyId } = req.body;
@@ -108,7 +108,7 @@ router.put('/:id', requireRole(['ADMIN']), async (req, res) => {
   }
 });
 
-router.delete('/:id', requireRole(['ADMIN']), async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     await prisma.depot.delete({ where: { id: parseInt(id) } });

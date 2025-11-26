@@ -155,10 +155,10 @@ export class ScanningComponent implements OnInit, OnDestroy {
     // Also try to get the active session directly
     this.sessionsService.getActiveSessionByDepot().subscribe({
       next: (session) => {
-        console.log('Active session from getActiveSession:', session);
-        console.log('Session depotId:', session?.depotId);
-        console.log('Session depot:', session?.depot);
-        console.log('Full session object:', JSON.stringify(session, null, 2));
+
+
+
+
         
         if (session && session.depotId) {
           this.currentDepotId = session.depotId;
@@ -168,7 +168,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
             this.loadDepotById(session.depotId);
           }
         } else {
-          console.log('No session or no depotId found');
+
           // Try to get depot from user or other sources
           this.tryAlternativeDepotLoading();
         }
@@ -1391,7 +1391,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   private applyDocumentTypeDefaults(type: 'livraison' | 'sortie' | 'transfert' | 'facture'): void {
-    console.log('Applying document type defaults for:', type);
+
     
     // Define default configurations for each document type
     const defaultConfigs = {
@@ -1439,7 +1439,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
     // Apply the defaults immediately
     const defaults = defaultConfigs[type];
-    console.log('Applying defaults for', type, ':', defaults);
+
     
     this.documentConfig = {
       client: defaults.client,
@@ -1452,22 +1452,22 @@ export class ScanningComponent implements OnInit, OnDestroy {
       validity: defaults.validity
     };
     
-    console.log('Document config after applying defaults:', this.documentConfig);
+
   }
 
   private loadDocumentTypeDefaults(type: 'livraison' | 'sortie' | 'transfert' | 'facture'): void {
-    console.log('Loading document type defaults from server for:', type);
+
     
     // Try to load settings from server to override defaults
     this.settingsService.getSettings().subscribe({
       next: (settings) => {
-        console.log('Settings loaded:', settings);
-        console.log('Document type defaults from server:', settings?.documentTypeDefaults);
-        console.log('Specific type defaults from server:', settings?.documentTypeDefaults?.[type]);
+
+
+
         
         if (settings?.documentTypeDefaults?.[type]) {
           const serverDefaults = settings.documentTypeDefaults[type] as any;
-          console.log('Overriding with server defaults:', serverDefaults);
+
           this.documentConfig = {
             client: serverDefaults.client || false,
             depot: serverDefaults.depot || false,
@@ -1479,13 +1479,13 @@ export class ScanningComponent implements OnInit, OnDestroy {
             validity: serverDefaults.validity || false
           };
         }
-        console.log('Final document config after server override:', this.documentConfig);
+
         // Open the configuration modal after settings are loaded
         this.openDocumentConfigurationModal();
       },
       error: (error) => {
         console.error('Error loading document type defaults:', error);
-        console.log('Using default configuration due to error:', this.documentConfig);
+
         // Still open the modal with default values
         this.openDocumentConfigurationModal();
       }
@@ -1506,14 +1506,14 @@ export class ScanningComponent implements OnInit, OnDestroy {
   private loadCurrentDepot(): void {
     // First try to get the current session directly
     const currentSession = this.sessionsService.currentSession();
-    console.log('Direct current session:', currentSession);
+
     
     if (currentSession && currentSession.depotId) {
       this.currentDepotId = currentSession.depotId;
-      console.log('Current depot ID from direct session:', this.currentDepotId);
+
       if (currentSession.depot) {
         this.currentDepot = currentSession.depot;
-        console.log('Current depot from direct session:', this.currentDepot);
+
       } else {
         this.loadDepotById(currentSession.depotId);
       }
@@ -1522,21 +1522,21 @@ export class ScanningComponent implements OnInit, OnDestroy {
     // Also subscribe to changes
     this.sessionsService.currentSession$.subscribe({
       next: (session) => {
-        console.log('Current session from subscription:', session);
+
         if (session && session.depotId) {
           this.currentDepotId = session.depotId;
-          console.log('Current depot ID from subscription:', this.currentDepotId);
+
           // Store the depot information from the session if available
           if (session.depot) {
             this.currentDepot = session.depot;
-            console.log('Current depot from subscription:', this.currentDepot);
+
           } else {
             // If depot info is not in session, load it separately
-            console.log('Loading depot by ID from subscription:', session.depotId);
+
             this.loadDepotById(session.depotId);
           }
         } else {
-          console.log('No session or depot ID found in subscription');
+
         }
       },
       error: (error) => {
@@ -1548,12 +1548,12 @@ export class ScanningComponent implements OnInit, OnDestroy {
   private loadDepotById(depotId: number): void {
     this.depotsService.list().subscribe({
       next: (depots) => {
-        console.log('All depots:', depots);
+
         const depot = depots.find((d: any) => d.id === depotId);
-        console.log('Found depot:', depot);
+
         if (depot) {
           this.currentDepot = depot;
-          console.log('Set current depot:', this.currentDepot);
+
         }
       },
       error: (error) => {
@@ -1563,14 +1563,14 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   private tryAlternativeDepotLoading(): void {
-    console.log('Trying alternative depot loading methods...');
+
     
     // Try to get depot from user profile
     const currentUser = this.authService.currentUser();
-    console.log('Current user from auth service:', currentUser);
+
     
     if (currentUser && currentUser.depotId) {
-      console.log('Found depot ID in user profile:', currentUser.depotId);
+
       this.currentDepotId = currentUser.depotId;
       this.loadDepotById(this.currentDepotId);
       return;
@@ -1579,7 +1579,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     // Try to get depot from localStorage
     const storedDepotId = localStorage.getItem('currentDepotId');
     if (storedDepotId) {
-      console.log('Found depot ID in localStorage:', storedDepotId);
+
       this.currentDepotId = parseInt(storedDepotId);
       this.loadDepotById(this.currentDepotId);
       return;
@@ -1589,20 +1589,20 @@ export class ScanningComponent implements OnInit, OnDestroy {
     const ticketStateKeys = Object.keys(localStorage).filter(key => key.startsWith('pos_ticket_state_depot_'));
     if (ticketStateKeys.length > 0) {
       const depotIdFromTicket = ticketStateKeys[0].replace('pos_ticket_state_depot_', '');
-      console.log('Found depot ID from ticket counter:', depotIdFromTicket);
+
       this.currentDepotId = parseInt(depotIdFromTicket);
       this.loadDepotById(this.currentDepotId);
       return;
     }
     
-    console.log('No alternative depot sources found');
+
     
     // If no depot found, try to get the first available depot as fallback
     this.depotsService.list().subscribe({
       next: (depots) => {
         const activeDepots = depots.filter((d: any) => d.isActive);
         if (activeDepots.length > 0) {
-          console.log('Using first available depot as fallback:', activeDepots[0]);
+
           this.currentDepotId = activeDepots[0].id;
           this.currentDepot = activeDepots[0];
         }
@@ -1763,9 +1763,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   proceedToSelections(): void {
-    console.log('proceedToSelections called');
-    console.log('documentConfig:', this.documentConfig);
-    console.log('selectedDocumentType:', this.selectedDocumentType);
+
+
+
     
     this.closeDocumentConfigurationModal();
     
@@ -1775,20 +1775,20 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   private proceedToNextSelection(): void {
-    console.log('proceedToNextSelection called');
-    console.log('documentConfig:', this.documentConfig);
-    console.log('selectedClient:', this.selectedClient);
-    console.log('selectedDepot:', this.selectedDepot);
-    console.log('selectedVehicle:', this.selectedVehicle);
-    console.log('selectedDriver:', this.selectedDriver);
-    console.log('manualDestination:', this.manualDestination);
+
+
+
+
+
+
+
     
     // Check what selections are still needed in order
     if (this.documentConfig.client && !this.selectedClient) {
-      console.log('Opening client selection modal');
+
       this.showClientSelectionModal = true;
     } else if (this.documentConfig.depot && !this.selectedDepot) {
-      console.log('Opening depot selection modal');
+
       // Load appropriate depots based on document type
       if (this.selectedDocumentType === 'transfert') {
         this.loadDepotsForTransfer();
@@ -1797,20 +1797,20 @@ export class ScanningComponent implements OnInit, OnDestroy {
       }
       this.showDepotSelectionModal = true;
     } else if (this.documentConfig.vehicle && !this.selectedVehicle) {
-      console.log('Opening vehicle selection modal');
+
       this.showVehicleSelectionModal = true;
     } else if (this.documentConfig.driver && !this.selectedDriver) {
-      console.log('Opening driver selection modal');
+
       this.showDriverSelectionModal = true;
     } else if (this.documentConfig.manualDestination && !this.manualDestination) {
-      console.log('Opening manual destination modal');
+
       this.showManualDestinationModal = true;
     } else if (this.documentConfig.validity && (!this.validityFromDate || !this.validityToDate)) {
-      console.log('Opening validity modal');
+
       this.setDefaultValidityDates(); // Automatically set default dates
       this.showValidityModal = true;
     } else {
-      console.log('All selections completed, generating document');
+
       // All selections completed, generate document
       this.generateDocument();
     }
@@ -1907,7 +1907,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   // Document Generation
   private generateDocument(): void {
-    console.log('generateDocument called');
+
     
     // Validate that we have the required depot information
     if (!this.currentDepotId) {
@@ -1926,7 +1926,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     // Get next document number to avoid duplicates
     this.stockDocumentsService.getNextDocumentNumber(documentType).subscribe({
       next: (nextNumber) => {
-        console.log('Next document number:', nextNumber);
+
         
         const documentData = this.prepareDocumentData();
         // Set the generated number if not already set (for non-facture documents)
@@ -1934,11 +1934,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
           documentData.numero = nextNumber;
         }
         
-        console.log('Sending document data to server:', documentData);
+
 
         this.stockDocumentsService.createDocument(documentData).subscribe({
           next: (savedDocument) => {
-            console.log('Document created successfully:', savedDocument);
+
             this.loading = false;
             this.success = `Document ${savedDocument.numero} créé avec succès!`;
             
@@ -1970,7 +1970,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   private openDocumentForPrint(document: any): void {
-    console.log('Opening document for print:', document);
+
     
     // Navigate to the generic document details page for printing
     // This will open the document in a new tab/window for printing
@@ -1988,9 +1988,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
     // For documents that don't require a destination depot, use the same depot as sender
     const destinataireId = this.selectedDepot?.id || emetteurId;
     
-    console.log('Document data - emetteurId:', emetteurId, 'destinataireId:', destinataireId);
-    console.log('Current depot:', this.currentDepot);
-    console.log('Selected depot:', this.selectedDepot);
+
+
+
     
     const documentData: any = {
       type: documentType,
@@ -2171,7 +2171,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       next: (settings) => {
         // Settings are loaded and available for use
         this.currentSettings = settings;
-        console.log('Settings loaded successfully:', settings);
+
       },
       error: (error) => {
         console.error('Error loading settings:', error);

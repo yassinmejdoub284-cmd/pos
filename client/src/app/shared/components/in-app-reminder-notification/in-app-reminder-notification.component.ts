@@ -216,7 +216,7 @@ export class InAppReminderNotificationComponent implements OnInit, OnDestroy {
             const delay = nextSnoozeTime.getTime() - now.getTime();
             
             if (delay > 0) {
-              console.log(`Scheduling next reminder check in ${Math.round(delay / 1000)} seconds (at ${nextSnoozeTime.toLocaleTimeString()})`);
+
               this.checkInterval = interval(delay).subscribe(() => {
                 this.checkForReminders();
               });
@@ -226,7 +226,7 @@ export class InAppReminderNotificationComponent implements OnInit, OnDestroy {
             }
           } else {
             // No snoozed reminders, check in 5 minutes as fallback
-            console.log('No snoozed reminders found, checking again in 5 minutes');
+
             this.scheduleNextReminderCheck(5 * 60 * 1000);
           }
         },
@@ -243,7 +243,7 @@ export class InAppReminderNotificationComponent implements OnInit, OnDestroy {
       });
     } else {
       // Use provided delay
-      console.log(`Scheduling reminder check in ${Math.round(delayMs / 1000)} seconds`);
+
       this.checkInterval = interval(delayMs).subscribe(() => {
         this.checkForReminders();
       });

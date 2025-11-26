@@ -6,4 +6,3 @@ export const environment = {
 };
 
 // PRODUCTION ENVIRONMENT - This file is used when building with --configuration production
-console.log('🔴 PRODUCTION ENVIRONMENT LOADED - apiUrl:', environment.apiUrl);

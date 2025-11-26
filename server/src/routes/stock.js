@@ -1,6 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
-const { requireRole, authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -47,7 +47,7 @@ router.get('/inventory', async (req, res) => {
   }
 });
 
-router.post('/adjust', requireRole(['ADMIN', 'MANAGER', 'STOCK_MANAGER']), async (req, res) => {
+router.post('/adjust', authenticateToken, async (req, res) => {
   try {
     const { productId, quantity, reason, type } = req.body;
 
@@ -254,13 +254,13 @@ router.get('/transfers/:id', async (req, res) => {
 // ETAT MVT STOCK endpoint
 router.get('/etat-mvt-stock', authenticateToken, async (req, res) => {
   try {
-    console.log('ETAT MVT STOCK - Request received');
-    console.log('User:', req.user);
+
+
     
     const { startDate, endDate, depotId } = req.query;
     const targetDepotId = depotId ? parseInt(depotId) : (req.user?.depotId || 1);
     
-    console.log('Target depot ID:', targetDepotId);
+
 
     // Build date filter
     const dateFilter = {};
@@ -378,7 +378,7 @@ router.get('/etat-mvt-stock', authenticateToken, async (req, res) => {
 // Test endpoint without authentication for debugging
 router.get('/etat-mvt-stock-test', async (req, res) => {
   try {
-    console.log('ETAT MVT STOCK TEST - Starting...');
+
     
     // Get all stock movements without filters
     const movements = await prisma.stockMovement.findMany({
@@ -405,7 +405,7 @@ router.get('/etat-mvt-stock-test', async (req, res) => {
       }
     });
 
-    console.log('ETAT MVT STOCK TEST - Found movements:', movements.length);
+
     
     // Get inventory data
     const inventory = await prisma.inventory.findMany({
@@ -420,7 +420,7 @@ router.get('/etat-mvt-stock-test', async (req, res) => {
       }
     });
 
-    console.log('ETAT MVT STOCK TEST - Found inventory:', inventory.length);
+
 
     res.json({
       movements: movements,

@@ -67,19 +67,8 @@
                           <span class="font-mono text-sm font-bold text-blue-600">
                             #{{ getFormattedTicketNumber(ticket) }}
                           </span>
-                          <span class="text-xs px-2 py-1 rounded-full" [class]="(isTicketPendingRefund(ticket) ? 'bg-orange-100 text-orange-700' :
-                                         ticket.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 
-                                         ticket.status === 'TEMPORARY' ? 'bg-yellow-100 text-yellow-700' : 
-                                         ticket.status === 'PENDING' ? 'bg-orange-100 text-orange-700' : 
-                                         ticket.status === 'REFUNDED' ? 'bg-red-100 text-red-700' : 
-                                         ticket.status === 'CANCELLED' ? 'bg-gray-200 text-gray-700' : 
-                                         'bg-gray-100 text-gray-700')">
-                            {{ (isTicketPendingRefund(ticket) ? 'Annulation en cours' :
-                            ticket.status === 'COMPLETED' ? 'Terminé' :
-                            ticket.status === 'TEMPORARY' ? 'Temporaire' :
-                            ticket.status === 'PENDING' ? 'En attente' :
-                            ticket.status === 'REFUNDED' ? 'Retourné' :
-                            ticket.status === 'CANCELLED' ? 'Annulé' : ticket.status) }}
+                          <span class="text-xs px-2 py-1 rounded-full" [ngClass]="getTicketStatusClass(ticket)">
+                            {{ getTicketStatusText(ticket) }}
                           </span>
                         </div>
                         <div class="text-xs text-gray-600 mt-1">
@@ -141,7 +130,7 @@
         <!-- Categories -->
         <div class="mb-4">
           <!-- Quick Filter Buttons -->
-          <div class="flex flex-wrap gap-2 items-center">
+          <div class="flex flex-wrap gap-2 items-center max-h-[13vh] overflow-y-auto">
             <button title="Catégorie" *ngFor="let category of productCategories" (click)="selectCategory(category)"
               [class]="'px-4 py-3 rounded-full text-xs font-medium transition-all ' + 
                                (selectedCategory === category ? 
@@ -2196,7 +2185,7 @@
     class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-1"
     (click)="closeClientSearch()">
     <div
-      class="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border-2 border-blue-200/50 w-full max-w-5xl max-h-[98vh] overflow-hidden shadow-2xl"
+      class="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border-2 border-blue-200/50 w-full max-w-7xl max-h-[98vh] overflow-hidden shadow-2xl"
       (click)="$event.stopPropagation()">
 
       <!-- Header -->

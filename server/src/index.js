@@ -129,14 +129,14 @@ try {
       cert: fs.readFileSync(path.resolve(certPath))
     };
     server = https.createServer(sslOptions, app);
-    console.log('HTTPS enabled for backend (dev).');
+
   } else {
     server = http.createServer(app);
-    console.log('HTTPS not configured, running HTTP.');
+
   }
 } catch (e) {
   server = http.createServer(app);
-  console.log('Failed to initialize HTTPS, falling back to HTTP.');
+
 }
 
 const io = new Server(server, { cors: { origin: '*'} });
@@ -150,7 +150,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3255;
 server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`Server connected and listening on port ${PORT}`);
 });
 
 module.exports = server; 
