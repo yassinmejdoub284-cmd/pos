@@ -1,3 +1,59 @@
+<!-- Smart Notification -->
+<div *ngIf="showSmartNotification"
+  class="fixed top-4 right-4 z-[9999] max-w-md transform transition-all duration-500 ease-in-out"
+  [class.animate-slide-in-right]="showSmartNotification">
+  <div class="rounded-2xl shadow-2xl border-l-4 overflow-hidden"
+    [class.bg-gradient-to-r]="smartNotificationType === 'success'"
+    [class.from-emerald-500]="smartNotificationType === 'success'"
+    [class.to-green-600]="smartNotificationType === 'success'"
+    [class.bg-gradient-to-r]="smartNotificationType === 'error'"
+    [class.from-red-500]="smartNotificationType === 'error'"
+    [class.to-rose-600]="smartNotificationType === 'error'"
+    [class.bg-gradient-to-r]="smartNotificationType === 'info'"
+    [class.from-blue-500]="smartNotificationType === 'info'"
+    [class.to-indigo-600]="smartNotificationType === 'info'"
+    [class.border-emerald-300]="smartNotificationType === 'success'"
+    [class.border-red-300]="smartNotificationType === 'error'"
+    [class.border-blue-300]="smartNotificationType === 'info'">
+    <div class="p-4">
+      <div class="flex items-start justify-between">
+        <div class="flex items-start space-x-3 flex-1">
+          <div class="flex-shrink-0 mt-0.5">
+            <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center animate-pulse">
+              <svg *ngIf="smartNotificationType === 'success'" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <svg *ngIf="smartNotificationType === 'error'" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <svg *ngIf="smartNotificationType === 'info'" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-2 mb-1">
+              <span *ngIf="smartNotificationType === 'success'" class="text-sm font-bold text-emerald-100">✓ Succès</span>
+              <span *ngIf="smartNotificationType === 'error'" class="text-sm font-bold text-red-100">✗ Erreur</span>
+              <span *ngIf="smartNotificationType === 'info'" class="text-sm font-bold text-blue-100">ℹ Info</span>
+            </div>
+            <p class="text-sm font-semibold text-white mb-1">
+              {{ smartNotificationMessage }}
+            </p>
+          </div>
+          <button 
+            (click)="hideSmartNotification()" 
+            class="flex-shrink-0 text-white/80 hover:text-white transition-colors ml-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Toaster Notifications - Outside main container for proper positioning -->
 <div class="fixed top-4 right-4 z-[9999] space-y-2 pointer-events-none">
   <!-- Error Toaster -->
@@ -362,8 +418,9 @@
                   Sélectionner Dépôt
                 </button>
                 <button *ngIf="selectedDepot" (click)="showSupplierModal = true" 
-                  class="bg-purple-500 text-white px-3 py-1 rounded-lg text-sm font-medium">
-                  {{ selectedSupplier ? selectedSupplier.name : 'Fournisseur' }}
+                  [class]="selectedSupplier ? 'bg-purple-500 text-white' : 'bg-red-500 text-white border-2 border-red-600'"
+                  class="px-3 py-1 rounded-lg text-sm font-medium">
+                  {{ selectedSupplier ? selectedSupplier.name : '⚠ Sélectionner Fournisseur' }}
                 </button>
                 <!-- Payment Method Selection -->
                 <div *ngIf="selectedSupplier" class="flex items-center gap-2 bg-white px-3 py-1 rounded-lg border border-gray-300">
@@ -527,7 +584,7 @@
           <!-- Actions -->
           <div class="mt-3 flex gap-2">
             <button (click)="goBack()" class="px-4 py-2 rounded-lg border" title="Annuler">Annuler</button>
-            <button (click)="saveDocument()" [disabled]="loading || itemsArray.length===0 || !selectedDepot" class="px-4 py-2 rounded-lg bg-emerald-600 text-white" title="Enregistrer le bon d'entrée">
+            <button (click)="saveDocument()" [disabled]="loading || itemsArray.length===0 || !selectedDepot || !selectedSupplier" class="px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:bg-gray-400 disabled:cursor-not-allowed" title="Enregistrer le bon d'entrée">
               {{ loading ? 'Enregistrement...' : (documentId && documentId !== 'new' ? 'Mettre à jour' : 'Créer le bon d\'entrée') }}
             </button>
           </div>
@@ -572,13 +629,9 @@
       </div>
       <div class="p-6 max-h-96 overflow-y-auto">
         <div class="space-y-2">
-          <button (click)="selectedSupplier = null; showSupplierModal = false" 
-            class="w-full text-left p-3 rounded-lg border border-slate-200 transition-colors">
-            <div class="font-semibold text-slate-800">Aucun fournisseur</div>
-          </button>
           <button *ngFor="let supplier of suppliers" 
             (click)="selectSupplier(supplier)"
-            class="w-full text-left p-3 rounded-lg border border-slate-200 transition-colors">
+            class="w-full text-left p-3 rounded-lg border border-slate-200 transition-colors hover:bg-purple-50 hover:border-purple-300">
             <div class="font-semibold text-slate-800">{{ supplier.name }}</div>
             <div class="text-sm text-slate-500">{{ supplier.contactName }}</div>
           </button>

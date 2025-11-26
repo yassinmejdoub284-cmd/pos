@@ -374,31 +374,76 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
   calculateDiscountedBundlePrice(product: ClientGrosItem, rule: WholesaleRule): number {
     const config = this.getBundleConfig(product);
     const ruleVal = Number(rule.value) || 0;
+    const basePrice = (config.bundlePrice > 0 && config.bundleSize > 0) ? config.bundlePrice : (Number(product.prix_vente_TTC) || 0);
+    const bundleSize = (config.bundleSize > 0) ? config.bundleSize : 1;
 
     if (rule.ruleType === 'percentage') {
-      if (config.bundleSize > 0) {
-        const baseUnitPrice = this.roundTo3Decimals(config.bundlePrice / config.bundleSize);
-        const discountedUnitPrice = this.roundTo3Decimals(baseUnitPrice * (1 - ruleVal / 100));
-        return Math.max(0, this.roundTo3Decimals(discountedUnitPrice * config.bundleSize));
+      const basePriceNormalized = parseFloat(basePrice.toFixed(3));
+      const basePriceMillimes = Math.round(basePriceNormalized * 1000);
+      if (bundleSize > 1) {
+        const baseUnitPriceMillimes = Math.round(basePriceMillimes / bundleSize);
+        const discountedUnitPriceMillimes = Math.round((baseUnitPriceMillimes * (100 - ruleVal)) / 100);
+        const discountedBundlePriceMillimes = discountedUnitPriceMillimes * bundleSize;
+        return discountedBundlePriceMillimes / 1000;
       }
-      return Math.max(0, this.roundTo3Decimals(config.bundlePrice * (1 - ruleVal / 100)));
+      const discountedPriceMillimes = Math.round((basePriceMillimes * (100 - ruleVal)) / 100);
+      return discountedPriceMillimes / 1000;
     } else if (rule.ruleType === 'fixed') {
       return ruleVal;
     } else if (rule.ruleType === 'discount') {
-      return Math.max(0, this.roundTo3Decimals(config.bundlePrice - ruleVal));
+      const basePriceNormalized = parseFloat(basePrice.toFixed(3));
+      const basePriceMillimes = Math.round(basePriceNormalized * 1000);
+      const discountMillimes = Math.round(ruleVal * 1000);
+      const discountedPriceMillimes = Math.max(0, basePriceMillimes - discountMillimes);
+      return discountedPriceMillimes / 1000;
     }
     
-    return config.bundlePrice;
+    return basePrice;
   }
 
-  // Get calculated price per unit (for display)
   getCalculatedPrice(product: ClientGrosItem, rule: WholesaleRule): number {
-    const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, rule);
     const config = this.getBundleConfig(product);
-    if (config.bundleSize > 0) {
-      return this.roundTo3Decimals(discountedBundlePrice / config.bundleSize);
+    const ruleVal = Number(rule.value) || 0;
+    const basePrice = (config.bundlePrice > 0 && config.bundleSize > 0) ? config.bundlePrice : (Number(product.prix_vente_TTC) || 0);
+    const bundleSize = (config.bundleSize > 0) ? config.bundleSize : 1;
+
+    if (rule.ruleType === 'percentage') {
+      const basePriceNormalized = parseFloat(basePrice.toFixed(3));
+      const basePriceMillimes = Math.round(basePriceNormalized * 1000);
+      if (bundleSize > 1) {
+        const baseUnitPriceMillimes = Math.round(basePriceMillimes / bundleSize);
+        const discountedUnitPriceMillimes = Math.round((baseUnitPriceMillimes * (100 - ruleVal)) / 100);
+        return discountedUnitPriceMillimes / 1000;
+      }
+      const discountMultiplier = 100 - ruleVal;
+      const discountedPriceMillimes = Math.round((basePriceMillimes * discountMultiplier) / 100);
+      return discountedPriceMillimes / 1000;
+    } else if (rule.ruleType === 'fixed') {
+      if (bundleSize > 1) {
+        const fixedPriceMillimes = Math.round(ruleVal * 1000);
+        const unitPriceMillimes = Math.round(fixedPriceMillimes / bundleSize);
+        return unitPriceMillimes / 1000;
+      }
+      return ruleVal;
+    } else if (rule.ruleType === 'discount') {
+      const basePriceNormalized = parseFloat(basePrice.toFixed(3));
+      const basePriceMillimes = Math.round(basePriceNormalized * 1000);
+      const discountMillimes = Math.round(ruleVal * 1000);
+      const discountedPriceMillimes = Math.max(0, basePriceMillimes - discountMillimes);
+      if (bundleSize > 1) {
+        const unitPriceMillimes = Math.round(discountedPriceMillimes / bundleSize);
+        return unitPriceMillimes / 1000;
+      }
+      return discountedPriceMillimes / 1000;
     }
-    return discountedBundlePrice;
+    
+    if (bundleSize > 1) {
+      const basePriceNormalized = parseFloat(basePrice.toFixed(3));
+      const basePriceMillimes = Math.round(basePriceNormalized * 1000);
+      const unitPriceMillimes = Math.round(basePriceMillimes / bundleSize);
+      return unitPriceMillimes / 1000;
+    }
+    return basePrice;
   }
 
   openNewRuleDialog(): void {
@@ -532,15 +577,8 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     this.appliedRules.forEach(appliedRule => {
       const selectedProducts = this.products.filter(p => appliedRule.productIds.includes(p.id));
       
-      // Calculate new prices for each product (per bundle/fardeau)
       selectedProducts.forEach(product => {
-        // Calculate discounted bundle price (discount applied on wholesale selling price for percentage)
-        const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, appliedRule.rule);
-        
-        const config = this.getBundleConfig(product);
-        const finalUnitPrice = config.bundleSize > 0 
-          ? this.roundTo3Decimals(discountedBundlePrice / config.bundleSize)
-          : discountedBundlePrice;
+        const finalUnitPrice = this.getCalculatedPrice(product, appliedRule.rule);
 
         productsToUpdate.push({
           productId: product.id,
@@ -570,14 +608,8 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     this.appliedRules.forEach(appliedRule => {
       const selectedProducts = this.products.filter(p => appliedRule.productIds.includes(p.id));
       
-      // Calculate new prices for each product (per bundle/fardeau)
       selectedProducts.forEach(product => {
-        const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, appliedRule.rule);
-        
-        const config = this.getBundleConfig(product);
-        const finalUnitPrice = config.bundleSize > 0 
-          ? this.roundTo3Decimals(discountedBundlePrice / config.bundleSize)
-          : discountedBundlePrice;
+        const finalUnitPrice = this.getCalculatedPrice(product, appliedRule.rule);
 
         productsToUpdate.push({
           productId: product.id,
@@ -688,11 +720,8 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     // Create sale items with wholesale pricing (per bundle/fardeau)
     const items = selectedProducts.map(product => {
       const discountedBundlePrice = this.calculateDiscountedBundlePrice(product, rule);
-      
+      const finalUnitPrice = this.getCalculatedPrice(product, rule);
       const config = this.getBundleConfig(product);
-      const finalUnitPrice = config.bundleSize > 0 
-        ? this.roundTo3Decimals(discountedBundlePrice / config.bundleSize)
-        : discountedBundlePrice;
 
       return {
         productId: product.id,
@@ -873,7 +902,7 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
   getBaseWholesalePrice(product: ClientGrosItem): number {
     const config = this.getBundleConfig(product);
     if (config.bundlePrice > 0 && config.bundleSize > 0) {
-      return this.roundTo3Decimals(config.bundlePrice / config.bundleSize);
+      return config.bundlePrice / config.bundleSize;
     }
     return Number(product.prix_vente_TTC) || 0;
   }
@@ -953,19 +982,13 @@ export class ClientGrosComponent implements OnInit, OnDestroy {
     if (isNaN(price) || !isFinite(price)) {
       return '0.000';
     }
-    const absPrice = Math.abs(price);
-    const sign = price < 0 ? '-' : '';
-    const str = absPrice.toString();
-    const parts = str.split('.');
-    const integerPart = parts[0];
-    if (parts.length === 1) {
-      return sign + integerPart + '.000';
-    }
-    const decimalPart = parts[1];
-    if (decimalPart.length >= 3) {
-      return sign + integerPart + '.' + decimalPart.substring(0, 3);
-    }
-    return sign + integerPart + '.' + decimalPart.padEnd(3, '0');
+    const priceNormalized = parseFloat(price.toFixed(3));
+    const priceMillimes = Math.round(priceNormalized * 1000);
+    const absPriceMillimes = Math.abs(priceMillimes);
+    const sign = priceMillimes < 0 ? '-' : '';
+    const integerPart = Math.floor(absPriceMillimes / 1000).toString();
+    const decimalPart = (absPriceMillimes % 1000).toString().padStart(3, '0');
+    return sign + integerPart + '.' + decimalPart;
   }
 
   // TrackBy function for better Angular performance

@@ -452,7 +452,7 @@ model ClientProductPrice {
   id             Int      @id @default(autoincrement())
   clientId       Int      @map("client_id")
   productId      Int      @map("product_id")
-  prix_vente_TTC Decimal  @map("prix_vente_ttc") @db.Decimal(10, 2)
+  prix_vente_TTC Decimal  @map("prix_vente_ttc") @db.Decimal(10, 3)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
   client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)

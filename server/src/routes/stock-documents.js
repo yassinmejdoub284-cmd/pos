@@ -45,11 +45,25 @@ async function calculateSessionSummary(sessionId) {
           paymentMethod: true
         }
       },
-      cashMovements: true
+      cashMovements: {
+        where: {
+          sessionId: sessionId
+        }
+      }
     }
   });
 
   if (!session) return null;
+
+  // Additional safety: Filter cashMovements by sessionId after loading (double check)
+  if (session.cashMovements) {
+    const originalCount = session.cashMovements.length;
+    session.cashMovements = session.cashMovements.filter(m => m.sessionId === sessionId);
+    const filteredCount = session.cashMovements.length;
+    if (originalCount !== filteredCount) {
+      console.warn(`[calculateSessionSummary] Filtered cashMovements: ${originalCount} -> ${filteredCount} for session ${sessionId}`);
+    }
+  }
 
   // Get cancelled/refunded ticket IDs to exclude their movements
   const cancelledTicketIds = new Set(

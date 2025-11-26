@@ -1748,7 +1748,11 @@ async function calculateSessionSummary(sessionId) {
           }
         }
       },
-      cashMovements: true
+      cashMovements: {
+        where: {
+          sessionId: sessionId
+        }
+      }
     }
   });
 
@@ -1761,6 +1765,16 @@ async function calculateSessionSummary(sessionId) {
     const filteredCount = session.sales.length;
     if (originalCount !== filteredCount) {
       console.warn(`[calculateSessionSummary] Filtered sales: ${originalCount} -> ${filteredCount} for session ${sessionId}, depotId: ${sessionDepotId}`);
+    }
+  }
+
+  // Additional safety: Filter cashMovements by sessionId after loading (double check)
+  if (session.cashMovements) {
+    const originalCount = session.cashMovements.length;
+    session.cashMovements = session.cashMovements.filter(m => m.sessionId === sessionId);
+    const filteredCount = session.cashMovements.length;
+    if (originalCount !== filteredCount) {
+      console.warn(`[calculateSessionSummary] Filtered cashMovements: ${originalCount} -> ${filteredCount} for session ${sessionId}`);
     }
   }
 
@@ -1796,6 +1810,9 @@ async function calculateSessionSummary(sessionId) {
   // Calculate cash movements (exclude rejected movements, deleted movements, and movements from cancelled tickets)
   const entree = session.cashMovements
     .filter(m => {
+      if (m.sessionId !== sessionId) {
+        return false;
+      }
       const reason = String(m.reason || '');
       const amount = parseFloat(m.amount || 0);
       const isRejected = reason.includes('[REJETÉ]');
@@ -1805,28 +1822,33 @@ async function calculateSessionSummary(sessionId) {
     })
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
 
-  const sortie = session.cashMovements
-    .filter(m => {
-      const reason = String(m.reason || '');
-      const reasonLower = reason.toLowerCase();
-      const amount = parseFloat(m.amount || 0);
-      const isRejected = reason.includes('[REJETÉ]');
-      const isDeleted = reason.includes('[SUPPRIMÉ]');
-      const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
-      // CRITICAL: Exclude canceled ticket refunds - check both ticketId link and reason text
-      const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
-      // IMPORTANT: Include return refunds even if ticket is REFUNDED (they should reduce cash)
-      const isReturnRefund = reason.includes('Remboursement retour') || reason.includes('retour');
-      // CRITICAL: Exclude client credit payments from decaissement
-      const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
-                                     reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
-                                     reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
-      // Don't exclude return refunds even if ticket is cancelled/refunded
-      // But DO exclude canceled ticket refunds and client credit payments
-      const shouldExclude = (isFromCancelledTicket && !isReturnRefund) || isCanceledTicketRefund || isClientCreditPayment;
-      return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !shouldExclude && amount > 0;
-    })
-    .reduce((sum, m) => sum + parseFloat(m.amount), 0);
+  const sortieMovements = session.cashMovements.filter(m => {
+    if (m.sessionId !== sessionId) {
+      return false;
+    }
+    const reason = String(m.reason || '');
+    const reasonLower = reason.toLowerCase();
+    const amount = parseFloat(m.amount || 0);
+    const isRejected = reason.includes('[REJETÉ]');
+    const isDeleted = reason.includes('[SUPPRIMÉ]');
+    const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+    const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
+    const isReturnRefund = reason.includes('Remboursement retour') || reason.includes('retour');
+    const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
+                                   reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
+                                   reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
+    const shouldExclude = (isFromCancelledTicket && !isReturnRefund) || isCanceledTicketRefund || isClientCreditPayment;
+    const isValid = ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !shouldExclude && amount > 0;
+    return isValid;
+  });
+  
+  const sortie = sortieMovements.reduce((sum, m) => {
+    const amount = parseFloat(m.amount || 0);
+    if (m.sessionId !== sessionId) {
+      return sum;
+    }
+    return sum + amount;
+  }, 0);
 
   // Start expected cash from opening; we'll compute cash from sales as (totalSales - creditOutstanding)
   let expectedCash = parseFloat(session.openingFund);

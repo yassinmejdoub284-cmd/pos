@@ -443,6 +443,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
       icon: 'M9 5h6m-3 0v14m-7-7h14M4 9l2 2m0-2l-2 2m12-2l2 2m0-2l-2 2', // ticket with cut lines
       color: '#fdc54e', // Yellow-500: discount
       action: () => this.openRemisePaymentPopup()
+    },
+    {
+      id: 'retour-article',
+      label: 'Retour Article',
+      icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6', // return arrow icon
+      color: '#dc2626', // Red-600: rouge
+      action: () => this.handleRetourArticle()
     }
   ];
 
@@ -2450,6 +2457,102 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.showRemisePaymentPopup = true;
     this.remisePaymentAmount = undefined;
     this.remisePaymentInput = '';
+  }
+
+  handleRetourArticle(): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
+      this.showAlertMessage('Aucun article dans le panier', 'error');
+      return;
+    }
+
+    if (!this.currentShopDepotId || this.currentShopDepotId === 0) {
+      this.showAlertMessage('Dépôt non défini', 'error');
+      return;
+    }
+
+    const items = activeCart.items;
+    let totalAmount = 0;
+    const retourItems: any[] = [];
+
+    items.forEach(item => {
+      const quantity = parseFloat(String(item.quantity)) || 0;
+      const productId = item.product?.id;
+
+      if (!productId || quantity <= 0) {
+        return;
+      }
+
+      totalAmount += parseFloat(String(item.total)) || 0;
+      const quantityToAdd = quantity * 2;
+      retourItems.push({
+        productId: productId,
+        quantity: quantityToAdd
+      });
+    });
+
+    if (retourItems.length === 0) {
+      this.showAlertMessage('Aucun article valide à retourner', 'error');
+      return;
+    }
+
+    this.http.post(
+      `${environment.apiUrl}/stock/retour-article`,
+      {
+        depotId: this.currentShopDepotId,
+        items: retourItems,
+        updateStock: true
+      },
+      { withCredentials: true }
+    ).subscribe({
+      next: () => {
+        this.createRetourRefundOnly(totalAmount, items.length, activeCart.id);
+      },
+      error: (error: any) => {
+        console.error('Error processing retour article:', error);
+        this.showAlertMessage('Erreur lors du retour des articles', 'error');
+      }
+    });
+  }
+
+  private createRetourRefundOnly(totalAmount: number, itemsCount: number, cartId: number): void {
+    if (!this.currentSession || !this.currentSession.id) {
+      this.sessionsService.getActiveSessionByDepot(undefined, this.currentShopDepotId).subscribe({
+        next: (session: any) => {
+          if (!session || !session.id) {
+            this.showAlertMessage('Aucune session active trouvée', 'error');
+            this.clearCart(cartId);
+            return;
+          }
+          this.createRefundMovementForSession(session.id, totalAmount, itemsCount, cartId);
+        },
+        error: (error: any) => {
+          console.error('Error getting current session:', error);
+          this.showAlertMessage('Erreur lors de la récupération de la session', 'error');
+          this.clearCart(cartId);
+        }
+      });
+    } else {
+      this.createRefundMovementForSession(this.currentSession.id, totalAmount, itemsCount, cartId);
+    }
+  }
+
+  private createRefundMovementForSession(sessionId: number, totalAmount: number, itemsCount: number, cartId: number): void {
+    this.sessionsService.addCashMovement(sessionId, {
+      type: 'SORTIE',
+      amount: totalAmount,
+      reason: `Remboursement retour article - ${itemsCount} article(s)`
+    }).subscribe({
+      next: () => {
+        this.showAlertMessage(`Retour article effectué: ${totalAmount.toFixed(3)} dt remboursé`, 'success');
+        this.clearCart(cartId);
+      },
+      error: (error: any) => {
+        console.error('Error creating refund movement:', error);
+        this.showAlertMessage('Erreur lors de la création du remboursement', 'error');
+        this.clearCart(cartId);
+      }
+    });
   }
 
   cancelRemisePayment(): void {

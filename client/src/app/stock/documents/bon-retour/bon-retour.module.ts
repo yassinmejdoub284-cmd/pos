@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { BonRetourComponent } from './bon-retour.component';
 import { BonRetourRoutingModule } from './bon-retour-routing.module';
@@ -13,6 +13,7 @@ import { SharedModule } from '../../../shared/shared.module';
   imports: [
     CommonModule,
     FormsModule,
+    ReactiveFormsModule,
     BonRetourRoutingModule,
     SharedModule
   ],

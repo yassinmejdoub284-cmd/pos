@@ -576,7 +576,7 @@
           </button>
 
 
-          <button *ngFor="let button of (selectedClient ? commandButtons.slice(3, 4) : commandButtons.slice(2))"
+          <button *ngFor="let button of (selectedClient ? commandButtons.slice(3) : commandButtons.slice(2))"
             (click)="button.action()"
             class="text-white rounded-xl transition-all text-sm font-medium flex col-span-3 flex-col items-center justify-center py-4 relative  transform shadow-lg"
             [style.background-color]="button.color">

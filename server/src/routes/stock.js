@@ -103,6 +103,85 @@ router.post('/adjust', authenticateToken, async (req, res) => {
   }
 });
 
+router.post('/retour-article', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, items, updateStock } = req.body;
+
+    if (!depotId || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Dépôt et articles requis' });
+    }
+
+    const targetDepotId = parseInt(depotId);
+    const userId = req.user.id;
+    const shouldUpdateStock = updateStock === true;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updates = [];
+
+      for (const item of items) {
+        const productId = parseInt(item.productId);
+        const quantity = parseFloat(item.quantity) || 0;
+
+        if (!productId || quantity <= 0) {
+          continue;
+        }
+
+        if (shouldUpdateStock) {
+          const inventory = await tx.inventory.findUnique({
+            where: {
+              depotId_productId: {
+                depotId: targetDepotId,
+                productId: productId
+              }
+            }
+          });
+
+          if (inventory) {
+            const currentQuantity = parseFloat(inventory.quantity) || 0;
+            const newQuantity = currentQuantity + quantity;
+            
+            console.log(`[retour-article] Product ${productId}: Adding ${quantity} to stock (current: ${currentQuantity}, new: ${newQuantity})`);
+            
+            await tx.inventory.update({
+              where: { id: inventory.id },
+              data: { quantity: newQuantity }
+            });
+          } else {
+            console.log(`[retour-article] Product ${productId}: Creating new inventory with quantity ${quantity}`);
+            await tx.inventory.create({
+              data: {
+                depotId: targetDepotId,
+                productId: productId,
+                quantity: quantity
+              }
+            });
+          }
+
+          await tx.stockMovement.create({
+            data: {
+              productId: productId,
+              depotId: targetDepotId,
+              quantity: quantity,
+              type: 'IN',
+              reason: 'RETOUR_ARTICLE',
+              userId: userId
+            }
+          });
+        }
+
+        updates.push({ productId, quantity });
+      }
+
+      return { updates, stockUpdated: shouldUpdateStock };
+    });
+
+    res.json({ message: 'Retour article effectué avec succès', result });
+  } catch (error) {
+    console.error('Error processing retour article:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/movements', authenticateToken, async (req, res) => {
   try {
     const { startDate, endDate, type, productId, depotId, page = 1, limit = 50 } = req.query;

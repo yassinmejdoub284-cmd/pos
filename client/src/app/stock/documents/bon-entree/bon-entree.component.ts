@@ -29,6 +29,9 @@ export class BonEntreeComponent implements OnInit {
   error = '';
   success = '';
   isEditMode = false;
+  showSmartNotification = false;
+  smartNotificationMessage = '';
+  smartNotificationType: 'success' | 'error' | 'info' = 'success';
   showDocumentDetails = false;
   isReturnsMode = false;
   showDocumentsList = false;
@@ -459,6 +462,12 @@ export class BonEntreeComponent implements OnInit {
       return;
     }
 
+    if (!this.selectedSupplier) {
+      this.error = 'Veuillez sélectionner un fournisseur';
+      this.showSupplierModal = true;
+      return;
+    }
+
     this.loading = true;
     this.error = '';
 
@@ -500,19 +509,18 @@ export class BonEntreeComponent implements OnInit {
     };
 
     if (this.documentId && this.documentId !== 'new') {
-      // Update existing document
       this.stockDocsService.updateDocument(parseInt(this.documentId), documentData).subscribe({
         next: (doc) => {
           this.document = doc;
-          this.success = 'Document mis à jour avec succès';
           this.loading = false;
-          setTimeout(() => this.success = '', 3000);
+          this.showSmartNotificationMessage('success', `Bon d'entrée #${doc.numero} mis à jour avec succès`);
+          setTimeout(() => {
+            this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
+          }, 1500);
         },
         error: (error) => {
-          this.error = error.error?.error || 'Erreur lors de la mise à jour du document';
           this.loading = false;
-          // Auto-dismiss error message after 5 seconds
-          setTimeout(() => this.error = '', 5000);
+          this.showSmartNotificationMessage('error', error.error?.error || 'Erreur lors de la mise à jour du document');
         }
       });
     } else {
@@ -526,25 +534,20 @@ export class BonEntreeComponent implements OnInit {
         next: (doc) => {
           this.document = doc;
           
-          // If supplier is selected, create payment record
           if (documentData.supplierId && this.selectedSupplier && this.totalAmount > 0) {
             this.createSupplierPayment(documentData.supplierId, this.totalAmount, doc);
           } else {
-            this.success = 'Document créé avec succès';
             this.loading = false;
-            // Auto-dismiss success message after 3 seconds
-            setTimeout(() => this.success = '', 3000);
-            // Navigate to the new document edit view to avoid param confusion
-            this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
+            this.showSmartNotificationMessage('success', `Bon d'entrée #${doc.numero} créé avec succès`);
+            setTimeout(() => {
+              this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
+            }, 1500);
           }
         },
         error: (error) => {
-          console.error('Error creating bon d\'entrée:', error);
-          const errorMessage = error.error?.error || error.message || 'Erreur lors de la création du document';
-          this.error = errorMessage;
           this.loading = false;
-          // Auto-dismiss error message after 5 seconds
-          setTimeout(() => this.error = '', 5000);
+          const errorMessage = error.error?.error || error.message || 'Erreur lors de la création du document';
+          this.showSmartNotificationMessage('error', errorMessage);
         }
       });
     }
@@ -871,23 +874,35 @@ export class BonEntreeComponent implements OnInit {
 
     this.supplierService.createSupplierPayment(paymentData).subscribe({
       next: (payment) => {
-
-        this.success = `Document créé avec succès${this.paymentMethod === 'CASH' ? ' - Paiement en espèces enregistré' : ' - Crédit enregistré'}`;
         this.loading = false;
-        setTimeout(() => this.success = '', 3000);
-        this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
+        const paymentText = this.paymentMethod === 'CASH' ? ' - Paiement en espèces enregistré' : ' - Crédit enregistré';
+        this.showSmartNotificationMessage('success', `Bon d'entrée #${doc.numero} créé avec succès${paymentText}`);
+        setTimeout(() => {
+          this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
+        }, 1500);
       },
       error: (error) => {
-        console.error('Error creating supplier payment:', error);
-        // Document was created successfully, but payment failed
-        this.success = 'Document créé avec succès (Erreur lors de l\'enregistrement du paiement)';
         this.loading = false;
+        this.showSmartNotificationMessage('success', `Bon d'entrée #${doc.numero} créé avec succès (Erreur lors de l'enregistrement du paiement)`);
         setTimeout(() => {
-          this.success = '';
           this.router.navigate(['/stock/documents/bon-entree/edit', doc.id]);
-        }, 3000);
+        }, 1500);
       }
     });
+  }
+
+  showSmartNotificationMessage(type: 'success' | 'error' | 'info', message: string): void {
+    this.smartNotificationType = type;
+    this.smartNotificationMessage = message;
+    this.showSmartNotification = true;
+    setTimeout(() => {
+      this.hideSmartNotification();
+    }, 4000);
+  }
+
+  hideSmartNotification(): void {
+    this.showSmartNotification = false;
+    this.smartNotificationMessage = '';
   }
 
   deleteDocument(doc: StockDocument): void {

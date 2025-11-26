@@ -3,7 +3,7 @@
   apiUrl: 'https://localhost:3255/api',
      socketUrl: 'https://localhost:3255',
      enableRealtime: false
-  };
+  };                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 
 // DEVELOPMENT ENVIRONMENT - This file is used in development mode
 
