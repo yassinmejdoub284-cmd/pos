@@ -2356,6 +2356,91 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
   }
 });
 
+router.post('/return', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, items, total, discount, finalTotal } = req.body;
+
+    if (!depotId || !items || items.length === 0) {
+      return res.status(400).json({ error: 'Dépôt et articles requis' });
+    }
+
+    const targetDepotId = parseInt(depotId);
+    const userId = req.user.id;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const activeSession = await tx.sessionCaisse.findFirst({
+        where: {
+          depotId: targetDepotId,
+          status: 'OPEN'
+        },
+        orderBy: { openedAt: 'desc' }
+      });
+
+      if (!activeSession) {
+        throw new Error('Aucune session active trouvée pour ce dépôt');
+      }
+
+      for (const item of items) {
+        const productId = parseInt(item.productId);
+        const quantity = parseFloat(item.quantity) || 0;
+
+        if (!productId || quantity <= 0) {
+          console.log(`[return-sale] Skipping invalid item: productId=${productId}, quantity=${quantity}`);
+          continue;
+        }
+
+        console.log(`[return-sale] Processing return for product ${productId}, quantity: ${quantity}, depot: ${targetDepotId}`);
+
+        await tx.stockMovement.create({
+          data: {
+            productId: productId,
+            depotId: targetDepotId,
+            toDepotId: targetDepotId,
+            quantity: quantity,
+            type: 'IN',
+            reason: 'RETOUR_ARTICLE',
+            userId: userId,
+            date: new Date()
+          }
+        });
+        
+        console.log(`[return-sale] Stock movement created for product ${productId} - inventory will be recalculated from movements`);
+      }
+
+      const refundAmount = parseFloat(finalTotal) || 0;
+      
+      if (refundAmount > 0) {
+        await tx.cashMovement.create({
+          data: {
+            sessionId: activeSession.id,
+            type: 'SORTIE',
+            amount: refundAmount,
+            reason: `Remboursement retour article - ${items.length} article(s)`,
+            ticketId: null,
+            createdById: userId
+          }
+        });
+
+        const currentExpectedCash = parseFloat(activeSession.expectedCash || 0);
+        const newExpectedCash = Math.max(0, currentExpectedCash - refundAmount);
+        
+        await tx.sessionCaisse.update({
+          where: { id: activeSession.id },
+          data: { expectedCash: newExpectedCash }
+        });
+      }
+
+      return { success: true, itemsProcessed: items.length, refundAmount };
+    });
+
+    res.json({ message: 'Retour article effectué avec succès', result });
+  } catch (error) {
+    console.error('Error processing return sale:', error);
+    const errorMessage = error.message || 'Internal server error';
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
 // Public wholesale sales endpoint (no authentication required)
 router.post('/wholesale', async (req, res) => {
   try {

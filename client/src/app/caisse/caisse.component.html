@@ -1,4 +1,4 @@
-<div class="min-h-screen bg-gradient-to-br " [ngClass]="isWholesaleMode ? 'bg-red-300' : 'bg-purple-300'">
+<div class="min-h-screen bg-gradient-to-br " [ngClass]="isReturnMode ? 'bg-orange-300' : (isWholesaleMode ? 'bg-red-300' : 'bg-purple-300')">
   <!--bg-purple-300 default - gros bg-red-300 -->
   <!-- Home Button - Top Right -->
   <div class="fixed top-6 right-6 z-40">
@@ -96,7 +96,11 @@
               class="bg-gradient-to-r from-amber-400 to-amber-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md">
               TEMP
             </div>
-            <div *ngIf="isWholesaleMode && !lastValidatedSale"
+            <div *ngIf="isReturnMode && !lastValidatedSale"
+              class="bg-gradient-to-r from-orange-400 to-orange-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md">
+              RETOUR
+            </div>
+            <div *ngIf="isWholesaleMode && !isReturnMode && !lastValidatedSale"
               class="bg-gradient-to-r from-red-400 to-red-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md">
               GROS
             </div>
@@ -285,8 +289,25 @@
       <div class="h-full flex flex-col">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center space-x-4">
+            <!-- Return Mode Header -->
+            <div *ngIf="isReturnMode" class="relative">
+              <div class="absolute inset-0 bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl blur-sm opacity-75">
+              </div>
+              <div class="relative bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl px-6 py-3 shadow-lg">
+                <div class="flex items-center space-x-3">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                  <h3 class="text-lg font-bold text-white tracking-wide">
+                    RETOUR ARTICLE
+                  </h3>
+                </div>
+              </div>
+            </div>
+
             <!-- Wholesale Mode Header -->
-            <div *ngIf="isWholesaleMode" class="relative">
+            <div *ngIf="isWholesaleMode && !isReturnMode" class="relative">
               <div class="absolute inset-0 bg-gradient-to-r from-red-500 to-orange-600 rounded-2xl blur-sm opacity-75">
               </div>
               <div class="relative bg-gradient-to-r from-red-500 to-orange-600 rounded-2xl px-6 py-3 shadow-lg">
@@ -303,7 +324,7 @@
             </div>
 
             <!-- Retail Mode Header -->
-            <div *ngIf="!isWholesaleMode" class="relative">
+            <div *ngIf="!isWholesaleMode && !isReturnMode" class="relative">
               <div
                 class="absolute inset-0 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl blur-sm opacity-75">
               </div>
@@ -323,9 +344,9 @@
             <!-- Status Indicator -->
             <div class="flex items-center space-x-2">
               <div class="w-3 h-3 rounded-full animate-pulse"
-                [class]="isWholesaleMode ? 'bg-red-400' : 'bg-emerald-400'"></div>
-              <span class="text-sm font-medium" [class]="isWholesaleMode ? 'text-red-600' : 'text-emerald-600'">
-                {{isWholesaleMode ? 'Gros' : 'Détail'}}
+                [class]="isReturnMode ? 'bg-orange-400' : (isWholesaleMode ? 'bg-red-400' : 'bg-emerald-400')"></div>
+              <span class="text-sm font-medium" [class]="isReturnMode ? 'text-orange-600' : (isWholesaleMode ? 'text-red-600' : 'text-emerald-600')">
+                {{isReturnMode ? 'Retour' : (isWholesaleMode ? 'Gros' : 'Détail')}}
               </span>
             </div>
           </div>
@@ -551,11 +572,12 @@
         <h3 class="text-lg font-bold text-gray-800 mb-4">Commandes</h3>
         <div class="grid grid-cols-6 gap-3">
           <!-- ESPECE + Button (with print) -->
-          <button (click)="commandButtons[0].action()" [ngClass]="{
-              'animate-pulse': currentInput && currentInput !== '0' && !lastEnteredValue
+          <button (click)="commandButtons[0].action()" [disabled]="isReturnMode" [ngClass]="{
+              'animate-pulse': currentInput && currentInput !== '0' && !lastEnteredValue,
+              'opacity-50 cursor-not-allowed': isReturnMode
             }"
-            class="col-span-3 text-white rounded-xl transition-all text-sm font-medium flex flex-col items-center justify-center py-10 px-6   relative transform shadow-lg"
-            [style.background-color]="(currentInput && currentInput !== '0' && !lastEnteredValue) ? '#9ca3af' : commandButtons[0].color">
+            class="col-span-3 text-white rounded-xl transition-all text-sm font-medium flex flex-col items-center justify-center py-10 px-6   relative transform shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            [style.background-color]="isReturnMode ? '#9ca3af' : ((currentInput && currentInput !== '0' && !lastEnteredValue) ? '#9ca3af' : commandButtons[0].color)">
             <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="commandButtons[0].icon">
               </path>
@@ -563,11 +585,12 @@
             <span class="text-center text-xs">{{ commandButtons[0].label }}</span>
           </button>
 
-          <button (click)="commandButtons[1].action()" [ngClass]="{
-              'animate-pulse': currentInput && currentInput !== '0' && !lastEnteredValue
+          <button (click)="commandButtons[1].action()" [disabled]="isReturnMode" [ngClass]="{
+              'animate-pulse': currentInput && currentInput !== '0' && !lastEnteredValue,
+              'opacity-50 cursor-not-allowed': isReturnMode
             }"
-            class="col-span-3 text-white rounded-xl transition-all text-sm font-medium flex flex-col items-center justify-center py-8 relative transform shadow-lg"
-            [style.background-color]="(currentInput && currentInput !== '0' && !lastEnteredValue) ? '#9ca3af' : commandButtons[1].color">
+            class="col-span-3 text-white rounded-xl transition-all text-sm font-medium flex flex-col items-center justify-center py-8 relative transform shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            [style.background-color]="isReturnMode ? '#9ca3af' : ((currentInput && currentInput !== '0' && !lastEnteredValue) ? '#9ca3af' : commandButtons[1].color)">
             <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="commandButtons[1].icon">
               </path>
@@ -1165,6 +1188,47 @@
             Annuler
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Return Confirmation Dialog -->
+  <div *ngIf="showReturnConfirmationDialog" class="fixed inset-0 bg-black/60 z-60 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+      <div class="flex items-center justify-center mb-4">
+        <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
+          <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+        </div>
+      </div>
+      <h3 class="text-xl font-bold text-gray-800 text-center mb-2">Confirmer le retour</h3>
+      <p class="text-gray-600 text-center mb-4">
+        Êtes-vous sûr de vouloir retourner <strong>{{ receiptItems.length }}</strong> article(s) ?
+      </p>
+      <div class="bg-orange-50 rounded-lg p-4 mb-4">
+        <div class="text-sm text-gray-700">
+          <div class="font-semibold mb-2">Articles à retourner:</div>
+          <div *ngFor="let item of receiptItems" class="flex justify-between py-1">
+            <span>{{ item.product.name }} x{{ item.quantity }}</span>
+            <span class="font-medium">{{ item.total | number:'1.2-2' }} dt</span>
+          </div>
+          <div class="border-t border-orange-200 mt-2 pt-2 flex justify-between font-bold">
+            <span>Total à rembourser:</span>
+            <span class="text-orange-600">{{ netTotal | number:'1.2-2' }} dt</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex space-x-3">
+        <button (click)="cancelReturnConfirmation()"
+          class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 px-6 rounded-xl transition-all duration-200 shadow-sm hover:bg-gray-200">
+          Annuler
+        </button>
+        <button (click)="confirmReturnSale()"
+          class="flex-1 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
+          Confirmer le retour
+        </button>
       </div>
     </div>
   </div>

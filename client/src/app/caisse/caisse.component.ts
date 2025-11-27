@@ -156,6 +156,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   isTemporarySale: boolean = false;
   isWholesaleMode: boolean = false;
   pendingWholesaleToggle: boolean = false; // Track if we're waiting for client selection to enable wholesale
+  isReturnMode: boolean = false;
   
   // Quantity/Price toggle mode
   inputMode: 'quantity' | 'price' = 'quantity';
@@ -346,6 +347,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   showInstantRefundModal = false;
   instantRefundTicket: Sale | null = null;
 
+  // Return mode confirmation dialog
+  showReturnConfirmationDialog = false;
+
 
   // Action buttons configuration
   actionButtons = [
@@ -429,13 +433,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
       color: '#16a34a', // Green-600: cash OK without print
       action: () => this.validateESPWithoutPrint()
     },
-    
     {
-      id: 'reset',
-      label: 'Reset',
-      icon: 'M4 4v5h.582m15.356 2A8 8 0 004.582 9m0 0H9m11 11v-5h-.581',
-      color: '#ef4444', // Red-500: clear
-      action: () => this.resetSale()
+      id: 'retour-article',
+      label: 'Retour Article',
+      icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6', // return arrow icon
+      color: '#dc2626', // Red-600: rouge
+      action: () => this.handleRetourArticle()
     },
     {
       id: 'remise',
@@ -443,13 +446,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
       icon: 'M9 5h6m-3 0v14m-7-7h14M4 9l2 2m0-2l-2 2m12-2l2 2m0-2l-2 2', // ticket with cut lines
       color: '#fdc54e', // Yellow-500: discount
       action: () => this.openRemisePaymentPopup()
-    },
-    {
-      id: 'retour-article',
-      label: 'Retour Article',
-      icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6', // return arrow icon
-      color: '#dc2626', // Red-600: rouge
-      action: () => this.handleRetourArticle()
     }
   ];
 
@@ -1431,6 +1427,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
     
+    if (this.isReturnMode) {
+      this.addReturnProductToReceipt(product);
+      return;
+    }
     
     // Check if product supports wholesale and we're in wholesale mode
     if (this.isWholesaleMode && product.isWholesale && product.bundleSize && product.bundlePrice) {
@@ -1538,12 +1538,48 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.calculateTotals();
   }
 
+  addReturnProductToReceipt(product: Product): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart) return;
+    
+    const effectiveUnitPrice = this.getEffectiveUnitPrice(product);
+    
+    const existingItem = activeCart.items.find(item => item.product.id === product.id && !item.isWholesale);
+    
+    if (existingItem) {
+      existingItem.quantity = this.roundQuantity(Number(existingItem.quantity) + 1);
+      existingItem.unitPrice = effectiveUnitPrice;
+      existingItem.total = Number(existingItem.quantity) * Number(existingItem.unitPrice);
+      existingItem.unitPrice = Number(existingItem.unitPrice);
+      
+      this.selectedReceiptItem = existingItem;
+      this.selectedReceiptItemIndex = activeCart.items.indexOf(existingItem);
+    } else {
+      const newItem = {
+        product,
+        quantity: this.roundQuantity(1),
+        unitPrice: effectiveUnitPrice,
+        total: effectiveUnitPrice,
+        isGift: false,
+        isWholesale: false
+      };
+      activeCart.items.unshift(newItem as any);
+      this.selectedReceiptItem = newItem as any;
+      this.selectedReceiptItemIndex = 0;
+    }
+    this.calculateTotals();
+  }
+
   openProductDialog(product: Product, event: MouseEvent): void {
     event.preventDefault();
     // TODO: Implement product dialog for quantity/discount
   }
 
   toggleWholesaleMode(): void {
+    if (this.isReturnMode) {
+      this.isReturnMode = false;
+    }
+    
     // If trying to enable wholesale mode, check if client is selected
     if (!this.isWholesaleMode) {
       if (!this.selectedClient) {
@@ -2310,6 +2346,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
       return;
     }
     
+    if (this.isReturnMode) {
+      this.showReturnConfirmationDialog = true;
+      return;
+    }
+    
     // For credit sales, we need a client
     if (this.salePaymentType === 'CREDIT' && !this.selectedClient) {
       this.showAlertMessage('Un client est requis pour les ventes à crédit', 'error');
@@ -2461,58 +2502,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   handleRetourArticle(): void {
     const activeCart = this.getActiveCart();
-    if (!activeCart || activeCart.items.length === 0) {
-      this.showAlertMessage('Aucun article dans le panier', 'error');
-      return;
-    }
-
-    if (!this.currentShopDepotId || this.currentShopDepotId === 0) {
-      this.showAlertMessage('Dépôt non défini', 'error');
-      return;
-    }
-
-    const items = activeCart.items;
-    let totalAmount = 0;
-    const retourItems: any[] = [];
-
-    items.forEach(item => {
-      const quantity = parseFloat(String(item.quantity)) || 0;
-      const productId = item.product?.id;
-
-      if (!productId || quantity <= 0) {
-        return;
+    
+    if (!this.isReturnMode) {
+      this.isReturnMode = true;
+      this.isWholesaleMode = false;
+      this.showAlertMessage('Mode retour article activé', 'info');
+      this.filterProducts();
+    } else {
+      if (activeCart && activeCart.items.length > 0) {
+        this.validateSale();
+      } else {
+        this.isReturnMode = false;
+        this.showAlertMessage('Mode retour article désactivé', 'info');
+        this.filterProducts();
       }
-
-      totalAmount += parseFloat(String(item.total)) || 0;
-      const quantityToAdd = quantity * 2;
-      retourItems.push({
-        productId: productId,
-        quantity: quantityToAdd
-      });
-    });
-
-    if (retourItems.length === 0) {
-      this.showAlertMessage('Aucun article valide à retourner', 'error');
-      return;
     }
-
-    this.http.post(
-      `${environment.apiUrl}/stock/retour-article`,
-      {
-        depotId: this.currentShopDepotId,
-        items: retourItems,
-        updateStock: true
-      },
-      { withCredentials: true }
-    ).subscribe({
-      next: () => {
-        this.createRetourRefundOnly(totalAmount, items.length, activeCart.id);
-      },
-      error: (error: any) => {
-        console.error('Error processing retour article:', error);
-        this.showAlertMessage('Erreur lors du retour des articles', 'error');
-      }
-    });
   }
 
   private createRetourRefundOnly(totalAmount: number, itemsCount: number, cartId: number): void {
@@ -2686,6 +2690,54 @@ export class CaisseComponent implements OnInit, OnDestroy {
         }
       }
     }, 100);
+  }
+
+  confirmReturnSale(): void {
+    const activeCart = this.getActiveCart();
+    if (!activeCart || activeCart.items.length === 0) {
+      this.showAlertMessage('Aucun article dans le panier', 'error');
+      return;
+    }
+
+    if (!this.currentShopDepotId || this.currentShopDepotId === 0) {
+      this.showAlertMessage('Dépôt non défini', 'error');
+      return;
+    }
+
+    const items = activeCart.items.map(item => ({
+      productId: item.product.id,
+      productName: item.product.name,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      total: Number(item.total)
+    }));
+
+    const totalAmount = activeCart.netTotal;
+
+    this.salesService.createReturnSale({
+      depotId: this.currentShopDepotId,
+      items: items,
+      total: activeCart.subtotal,
+      discount: activeCart.discount,
+      finalTotal: totalAmount
+    }).subscribe({
+      next: () => {
+        this.showAlertMessage(`Retour effectué: ${totalAmount.toFixed(3)} dt remboursé`, 'success');
+        this.showReturnConfirmationDialog = false;
+        this.isReturnMode = false;
+        this.clearReceipt();
+        this.loadShopInventory();
+        this.sessionsService.getActiveSessionByDepot().subscribe();
+      },
+      error: (error: any) => {
+        console.error('Error processing return sale:', error);
+        this.showAlertMessage(error?.error?.error || 'Erreur lors du retour des articles', 'error');
+      }
+    });
+  }
+
+  cancelReturnConfirmation(): void {
+    this.showReturnConfirmationDialog = false;
   }
 
   // Main payment processing method
@@ -4751,6 +4803,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   validateESP(): void {
+    if (this.isReturnMode) {
+      return;
+    }
+    
     // Check if there's pending input that needs to be handled first
     if (this.currentInput && this.currentInput !== '0' && !this.lastEnteredValue) {
       this.showInputWarningModal = true;
@@ -4771,6 +4827,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   validateESPWithPrint(): void {
+    if (this.isReturnMode) {
+      return;
+    }
+    
     // Check if there's pending input that needs to be handled first
     if (this.currentInput && this.currentInput !== '0' && !this.lastEnteredValue) {
       this.showInputWarningModal = true;
@@ -4791,6 +4851,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   validateESPWithoutPrint(): void {
+    if (this.isReturnMode) {
+      return;
+    }
+    
     // Check if there's pending input that needs to be handled first
     if (this.currentInput && this.currentInput !== '0' && !this.lastEnteredValue) {
       this.showInputWarningModal = true;
@@ -4866,6 +4930,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const cartQuantity = activeCart.items
       .filter(item => item.product.id === productId)
       .reduce((total, item) => total + item.quantity, 0);
+    
+    if (this.isReturnMode) {
+      return this.roundQuantity(currentStock + cartQuantity);
+    }
     
     return this.roundQuantity(currentStock - cartQuantity);
   }

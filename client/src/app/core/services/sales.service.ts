@@ -179,4 +179,10 @@ export class SalesService {
       catchError((error) => throwError(() => error))
     );
   }
+
+  createReturnSale(returnData: { depotId: number; items: Array<{ productId: number; productName: string; quantity: number; unitPrice: number; total: number }>; total: number; discount: number; finalTotal: number }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/return`, returnData).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
 } 

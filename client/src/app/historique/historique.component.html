@@ -190,7 +190,7 @@
                   <button (click)="printReceipt(sale)" [class]="'px-2.5 py-1.5 rounded-lg text-xs border ' + (sale.isPrinted ? 'bg-emerald-200 text-emerald-800 border-emerald-300' : 'bg-rose-200 text-rose-800 border-rose-300')">Imprimer</button>
                   <button *ngIf="sale.status === 'COMPLETED' && !hasInvoiceRequest(sale.id)" (click)="requestInvoice(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-sky-200 text-sky-800 border border-sky-300">Facture</button>
                   <button *ngIf="sale.status === 'COMPLETED'" (click)="openReturnActionMenu(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-amber-200 text-amber-800 border border-amber-300">Retour/Échange</button>
-                  <button (click)="showSaleDetails(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-200 text-slate-800 border border-slate-300">Détails</button>
+                  <button (click)="showSaleDetails(sale)" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-200 text-slate-800 border border-slate-300"> ! </button>
                 </div>
               </td>
             </tr>
