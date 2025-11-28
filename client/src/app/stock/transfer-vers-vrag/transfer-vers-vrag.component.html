@@ -1,10 +1,27 @@
+<div *ngIf="showSuccessNotification" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] p-4" (click)="showSuccessNotification = false">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all duration-300 ease-in-out pointer-events-auto animate-scale-in" (click)="$event.stopPropagation()">
+    <div class="p-6 text-center">
+      <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+        <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+      </div>
+      <h3 class="text-2xl font-bold text-gray-800 mb-2">Conversion réussie!</h3>
+      <p class="text-gray-600 mb-6">{{ successMessage }}</p>
+      <button (click)="showSuccessNotification = false" class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+        OK
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-4">
   <div class="max-w-6xl mx-auto">
     <div class="bg-white rounded-2xl p-4 border border-indigo-100/50">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <span class="text-2xl font-semibold text-slate-800 block">Transférer vers JUS VRAC</span>
-          <span class="text-slate-600 text-xs block">Sélectionnez un produit source pour transférer vers la famille JUS VRAC</span>
+          <span class="text-2xl font-semibold text-slate-800 block">Transférer vers VRAC</span>
+          <span class="text-slate-600 text-xs block">Sélectionnez un produit source ayant des conversions VRAC configurées</span>
         </div>
         <div class="flex items-center gap-2">
           <button 
@@ -71,7 +88,7 @@
             <div class="grid grid-cols-2 gap-2 mt-3">
               <div class="bg-slate-50 rounded-xl p-2 border border-slate-200">
                 <div class="text-[11px] text-slate-500">Prix Vente</div>
-                <div class="text-sm font-semibold text-slate-800">{{ (product.prix_vente_vrac || product.prix_vente_TTC) | number:'1.2-2' }} DT</div>
+                <div class="text-sm font-semibold text-slate-800">{{ product.prix_vente_TTC | number:'1.2-2' }} DT</div>
               </div>
               <div class="bg-slate-50 rounded-xl p-2 border border-slate-200">
                 <div class="text-[11px] text-slate-500">Unité</div>
@@ -79,19 +96,15 @@
               </div>
             </div>
 
-            <div *ngIf="product.conversionRatio" class="mt-2 bg-indigo-50 rounded-xl p-2 border border-indigo-200">
-              <div class="text-[11px] text-indigo-600">Ratio de Conversion</div>
-              <div class="text-sm font-semibold text-indigo-800">1 = {{ product.conversionRatio | number:'1.0-3' }}</div>
-            </div>
 
-            <div *ngIf="product.prix_achat_vrac || product.prix_achat" class="mt-2 bg-slate-50 rounded-xl p-2 border border-slate-200">
+            <div *ngIf="product.prix_achat" class="mt-2 bg-slate-50 rounded-xl p-2 border border-slate-200">
               <div class="text-[11px] text-slate-500">Prix Achat</div>
-              <div class="text-sm font-semibold text-slate-800">{{ (product.prix_achat_vrac || product.prix_achat) | number:'1.2-2' }} DT</div>
+              <div class="text-sm font-semibold text-slate-800">{{ product.prix_achat | number:'1.2-2' }} DT</div>
             </div>
 
             <button (click)="openTransferModal(product); $event.stopPropagation()" 
               class="mt-3 w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2 px-3 rounded-xl text-sm font-medium transition-colors hover:from-indigo-600 hover:to-purple-700">
-              Transférer vers JUS VRAC
+              Transférer vers VRAC
             </button>
           </div>
         </div>
@@ -122,76 +135,93 @@
       <span class="text-indigo-800 text-lg font-bold block">{{ selectedProductForTransfer?.name }}</span>
     </div>
 
-    <div class="mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-      <div class="mb-3">
-        <span class="text-sm font-semibold text-slate-700 block mb-2">Type de Produit Cible *</span>
-        <div class="bg-white rounded-xl p-3 border-2 border-slate-300 cursor-not-allowed opacity-75">
-          <span class="text-slate-800 font-medium">Par Famille</span>
-        </div>
-      </div>
-      <div>
-        <span class="text-sm font-semibold text-slate-700 block mb-2">Famille de Produit *</span>
-        <div class="bg-white rounded-xl p-3 border-2 border-slate-300 cursor-not-allowed opacity-75">
-          <span class="text-slate-800 font-medium">JUS VRAC</span>
-        </div>
-      </div>
-      <div class="mt-2 text-xs text-slate-500 italic">
-        <span>Ces valeurs sont fixes et ne peuvent pas être modifiées</span>
-      </div>
+    <div *ngIf="loadingConversions" class="text-center py-8">
+      <div class="inline-block w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      <span class="text-slate-500 mt-2 block">Chargement des conversions VRAC...</span>
     </div>
 
-    <div class="mb-6">
-      <span class="text-sm font-semibold text-slate-700 mb-3 block">Sélectionnez un produit de la famille JUS VRAC :</span>
-      
-      <div *ngIf="juscVracProducts.length === 0" class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
-        <span class="text-slate-500">Aucun produit de la famille JUS VRAC trouvé</span>
-      </div>
-
-      <div *ngIf="juscVracProducts.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-        <div *ngFor="let product of juscVracProducts" 
-             (click)="selectTargetProduct(product)"
-             [class.border-indigo-500]="selectedTargetProduct?.id === product.id"
-             [class.bg-indigo-50]="selectedTargetProduct?.id === product.id"
-             class="bg-white rounded-xl p-4 border-2 cursor-pointer transition-all hover:border-indigo-300 hover:shadow-md"
-             [class.border-slate-200]="selectedTargetProduct?.id !== product.id">
-          <div class="font-semibold text-slate-800 mb-1">{{ product.name }}</div>
-          <div class="text-xs text-slate-500 mb-2">{{ product.famille?.name }}</div>
-          <div class="text-sm font-bold text-indigo-700">{{ product.prix_vente_TTC | number:'1.2-2' }} DT</div>
-          <div class="text-xs text-slate-600 mt-1">Unité: {{ product.unite }}</div>
-        </div>
-      </div>
-    </div>
-
-    <div *ngIf="selectedTargetProduct" class="space-y-4">
-      <div class="bg-green-50 border border-green-200 rounded-xl p-4">
-        <span class="text-sm font-semibold text-green-800 block mb-1">Produit Cible Sélectionné :</span>
-        <span class="text-lg font-bold text-green-900">{{ selectedTargetProduct.name }}</span>
-      </div>
-
+    <div *ngIf="!loadingConversions">
       <div>
         <label class="block text-sm font-medium text-slate-600 mb-2">Quantité Source *</label>
-        <input type="number" [(ngModel)]="transferQuantity" step="0.001" min="0.001"
+        <input type="number" [(ngModel)]="transferQuantity" (ngModelChange)="onQuantityChange()" step="0.001" min="0.001"
                class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all"
                placeholder="Quantité à transférer">
       </div>
 
-      <div *ngIf="selectedProductForTransfer && selectedProductForTransfer.conversionRatio" class="bg-slate-50 border border-slate-200 rounded-xl p-3">
-        <span class="text-sm font-semibold text-slate-700 block mb-1">Ratio de Conversion</span>
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-slate-600">1 produit source =</span>
-          <span class="text-sm font-bold text-slate-800">{{ selectedProductForTransfer.conversionRatio | number:'1.0-3' }}</span>
-          <span class="text-sm text-slate-600">produit cible</span>
+      <div *ngIf="vracConversions.length === 0" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
+        <div class="flex items-center gap-2 mb-2">
+          <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span class="text-amber-800 font-semibold">Aucune conversion VRAC configurée</span>
         </div>
-        <span class="text-xs text-slate-500 mt-1 block">
-          Ratio pré-configuré depuis le produit source (non modifiable)
-        </span>
+        <p class="text-amber-700 text-sm mt-2">
+          Le produit <strong>{{ selectedProductForTransfer?.name }}</strong> n'a pas de conversions VRAC configurées.
+        </p>
+        <p class="text-amber-700 text-sm mt-2">
+          Pour configurer les conversions :
+        </p>
+        <ol class="text-amber-700 text-sm mt-2 ml-4 list-decimal space-y-1">
+          <li>Allez sur <a routerLink="/stock/produits" (click)="closeTransferModal()" class="underline font-medium text-amber-800">/stock/produits</a></li>
+          <li>Recherchez le produit <strong>{{ selectedProductForTransfer?.name }}</strong></li>
+          <li>Cliquez sur le bouton "Convertir en Vrac" (icône de conversion)</li>
+          <li>Sélectionnez les produits VRAC destinataires et configurez les ratios</li>
+          <li>Cliquez sur "Convertir" pour sauvegarder</li>
+        </ol>
+      </div>
+    </div>
+
+    <div *ngIf="vracConversions.length > 0" class="space-y-4">
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+        <span class="text-sm font-semibold text-indigo-800 block mb-2">Produits Destinataires VRAC Configurés</span>
+        <span class="text-xs text-indigo-600">Les quantités seront calculées automatiquement selon les ratios configurés</span>
       </div>
 
-      <div *ngIf="transferQuantity > 0 && selectedProductForTransfer && selectedProductForTransfer.conversionRatio && selectedTargetProduct" class="bg-green-50 border border-green-200 rounded-xl p-3">
-        <span class="text-sm font-semibold text-green-800 block mb-1">Quantité Cible Calculée</span>
-        <span class="text-lg font-bold text-green-900">
-          {{ (transferQuantity * (selectedProductForTransfer.conversionRatio || 1)) | number:'1.0-3' }} {{ selectedTargetProduct.unite }}
-        </span>
+      <div class="space-y-3">
+        <div *ngFor="let conversion of vracConversions" 
+             class="bg-white rounded-xl p-4 border-2 border-indigo-200">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1">
+              <div class="font-semibold text-slate-800 mb-1">{{ conversion.targetProductName }}</div>
+              <div class="text-xs text-slate-500">Unité: {{ conversion.targetProductUnite }}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-slate-500 mb-1">Ratio</div>
+              <div class="text-sm font-bold text-indigo-700">1 = {{ conversion.conversionRatio | number:'1.0-3' }}</div>
+            </div>
+          </div>
+          
+          <div *ngIf="transferQuantity > 0" class="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-green-700 font-medium">Quantité calculée:</span>
+              <span class="text-lg font-bold text-green-900">
+                {{ conversion.calculatedQuantity | number:'1.0-3' }} {{ conversion.targetProductUnite }}
+              </span>
+            </div>
+            <div class="text-xs text-green-600 mt-1">
+              {{ transferQuantity | number:'1.0-3' }} × {{ conversion.conversionRatio | number:'1.0-3' }} = {{ conversion.calculatedQuantity | number:'1.0-3' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span class="text-sm font-semibold text-blue-800">Résumé du Transfert</span>
+        </div>
+        <div class="text-sm text-blue-700 space-y-1">
+          <div>Produit source: <span class="font-semibold">{{ selectedProductForTransfer?.name }}</span></div>
+          <div>Quantité source: <span class="font-semibold">{{ transferQuantity | number:'1.0-3' }} {{ selectedProductForTransfer?.unite }}</span></div>
+          <div>Produits destinataires: <span class="font-semibold">{{ vracConversions.length }}</span></div>
+          <div>Total quantité destinataires: 
+            <span class="font-semibold">
+              {{ getTotalCalculatedQuantity() | number:'1.0-3' }}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div class="flex space-x-3 pt-4">
@@ -200,16 +230,12 @@
           Annuler
         </button>
         <button type="button" (click)="onProductTransferred()" 
-                [disabled]="!selectedTargetProduct || transferQuantity <= 0 || loading"
+                [disabled]="vracConversions.length === 0 || transferQuantity <= 0 || loading"
                 class="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-          <span *ngIf="loading">Transfert...</span>
-          <span *ngIf="!loading">Transférer</span>
+          <span *ngIf="loading">Transfert en cours...</span>
+          <span *ngIf="!loading">Transférer vers {{ vracConversions.length }} produit(s) VRAC</span>
         </button>
       </div>
-    </div>
-
-    <div *ngIf="!selectedTargetProduct && juscVracProducts.length > 0" class="bg-amber-50 border border-amber-200 rounded-xl p-3">
-      <span class="text-sm text-amber-800">Veuillez sélectionner un produit cible de la famille JUS VRAC</span>
     </div>
   </div>
 </div>

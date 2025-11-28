@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { Product } from '../../../core/models/product.model';
+import { ProductsService } from '../../../core/services/products.service';
 
 interface VracConversion {
   vracProductId: number;
@@ -24,15 +25,46 @@ export class VracConversionFormComponent implements OnInit, OnChanges {
   availableVracProducts: Product[] = [];
   selectedConversions: VracConversion[] = [];
   searchVracQuery = '';
+  loading = false;
+
+  constructor(private productsService: ProductsService) {}
 
   ngOnInit(): void {
     this.loadAvailableVracProducts();
+    if (this.product) {
+      this.loadExistingConversions();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['allProducts'] && !changes['allProducts'].firstChange) {
       this.loadAvailableVracProducts();
     }
+    if (changes['product'] && this.product) {
+      this.loadExistingConversions();
+    }
+  }
+
+  loadExistingConversions(): void {
+    if (!this.product) return;
+
+    this.loading = true;
+    this.productsService.getVracConversions(this.product.id).subscribe({
+      next: (response) => {
+        this.selectedConversions = response.conversions.map(conv => ({
+          vracProductId: conv.targetProductId,
+          vracProductName: conv.targetProductName,
+          conversionRatio: conv.conversionRatio,
+          prix_vente_vrac: conv.prix_vente_vrac || 0,
+          prix_achat_vrac: conv.prix_achat_vrac || 0,
+          isStockable: conv.isStockable
+        }));
+        this.loading = false;
+      },
+      error: (error) => {
+        this.loading = false;
+      }
+    });
   }
 
   loadAvailableVracProducts(): void {
@@ -44,14 +76,12 @@ export class VracConversionFormComponent implements OnInit, OnChanges {
       if (vracProduct && vracProduct.famille) {
         this.availableVracProducts = this.allProducts.filter(p => 
           p.familleId === vracProduct.famille!.id && 
-          p.id !== this.product?.id &&
-          (!this.product || p.originalProductId !== this.product.id)
+          p.id !== this.product?.id
         );
       } else {
         this.availableVracProducts = this.allProducts.filter(p => 
           (p.isVrac || p.famille?.name?.toLowerCase() === 'vrac') &&
-          p.id !== this.product?.id &&
-          (!this.product || p.originalProductId !== this.product.id)
+          p.id !== this.product?.id
         );
       }
     }

@@ -53,9 +53,6 @@ export class ProductFormComponent implements OnInit, OnChanges {
       tva: [19, [Validators.required, Validators.min(0), Validators.max(100)]],
       duree_conservation: [null],
       isVraguable: [false],
-      conversionRatio: [null],
-      prix_vente_vrac: [0, [Validators.min(0)]],
-      prix_achat_vrac: [0, [Validators.min(0)]],
       isStockable: [false],
       // Wholesale fields
       isWholesale: [false],
@@ -133,9 +130,6 @@ export class ProductFormComponent implements OnInit, OnChanges {
         familleId: this.product.familleId,
         designation_legale: this.product.designation_legale || '',
         isVraguable: this.product.isVraguable || false,
-        conversionRatio: this.product.conversionRatio || null,
-        prix_vente_vrac: this.product.prix_vente_vrac || 0,
-        prix_achat_vrac: this.product.prix_achat_vrac || 0,
         isStockable: this.product.isStockable || false,
         // Wholesale fields
         isWholesale: this.product.isWholesale || false,
@@ -146,15 +140,11 @@ export class ProductFormComponent implements OnInit, OnChanges {
       // Set initial disabled state based on vraguable status
       const isVraguable = this.product.isVraguable || false;
       const stockableControl = this.productForm.get('isStockable');
-      const conversionRatioControl = this.productForm.get('conversionRatio');
       if (!isVraguable) {
         stockableControl?.disable();
-        conversionRatioControl?.clearValidators();
       } else {
         stockableControl?.enable();
-        conversionRatioControl?.setValidators([Validators.required, Validators.min(0.001)]);
       }
-      conversionRatioControl?.updateValueAndValidity();
       
       if (this.product.photo) {
         this.imagePreview = this.product.photo;
@@ -535,22 +525,15 @@ export class ProductFormComponent implements OnInit, OnChanges {
   onVraguableChange(): void {
     const isVraguable = this.productForm.get('isVraguable')?.value;
     const stockableControl = this.productForm.get('isStockable');
-    const conversionRatioControl = this.productForm.get('conversionRatio');
     
     if (!isVraguable) {
       this.productForm.patchValue({ 
-        isStockable: false, 
-        conversionRatio: null,
-        prix_vente_vrac: 0,
-        prix_achat_vrac: 0
+        isStockable: false
       });
       stockableControl?.disable();
-      conversionRatioControl?.clearValidators();
     } else {
       stockableControl?.enable();
-      conversionRatioControl?.setValidators([Validators.required, Validators.min(0.001)]);
     }
-    conversionRatioControl?.updateValueAndValidity();
   }
 
   onStockableChange(): void {
@@ -642,9 +625,21 @@ export class ProductFormComponent implements OnInit, OnChanges {
     const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
 
+    const transfersPayload = transfers.map(transfer => {
+      const sourceQuantity = transfer.conversionRatio > 0 
+        ? transfer.quantity / transfer.conversionRatio 
+        : transfer.quantity;
+      
+      return {
+        targetProductId: transfer.targetProductId,
+        quantity: sourceQuantity,
+        conversionRatio: transfer.conversionRatio
+      };
+    });
+
     const transferPayload = {
       sourceProductId: this.product.id,
-      transfers: transfers,
+      transfers: transfersPayload,
       depotId: currentDepotId
     };
 

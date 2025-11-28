@@ -14,14 +14,9 @@ export interface Product {
   duree_conservation?: number;
   // Vrac fields
   isVrac?: boolean;
-  originalProductId?: number;
-  originalProduct?: Product;
   isStockable?: boolean;
   // New configuration fields
   isVraguable?: boolean;
-  conversionRatio?: number;
-  prix_vente_vrac?: number;
-  prix_achat_vrac?: number;
   initialStock?: number;
   minStock?: number;
   maxStock?: number;

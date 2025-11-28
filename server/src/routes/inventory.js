@@ -993,7 +993,8 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
         const sales = await tx.sale.findMany({
           where: {
             depotId: session.depotId,
-            status: { in: ['COMPLETED', 'CMD_TERMINEE'] }
+            status: { in: ['COMPLETED', 'CMD_TERMINEE'] },
+            paymentType: { in: ['COMPTANT', 'CREDIT'] }
           },
           include: {
             items: {
@@ -1227,6 +1228,7 @@ router.delete('/sessions/:id', authenticateToken, async (req, res) => {
             where: {
               depotId: session.depotId,
               status: { in: ['COMPLETED', 'CMD_TERMINEE'] },
+              paymentType: { in: ['COMPTANT', 'CREDIT'] },
               createdAt: { gte: postedAt }
             },
             include: {

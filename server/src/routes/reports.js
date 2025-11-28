@@ -507,7 +507,10 @@ router.get('/daily-extracts', async (req, res) => {
           where: {
             ...(targetDepotId ? { depotId: targetDepotId } : {}),
             status: 'COMPLETED',
-            sessionId: { in: sessionIds }
+            sessionId: { in: sessionIds },
+            paymentType: {
+              in: ['COMPTANT', 'CREDIT']
+            }
           },
           include: {
             items: {
@@ -845,7 +848,13 @@ router.get('/session-extracts/:id', authenticateToken, async (req, res) => {
     }
 
     const sales = await prisma.sale.findMany({
-      where: { status: 'COMPLETED', sessionId: id },
+      where: { 
+        status: 'COMPLETED', 
+        sessionId: id,
+        paymentType: {
+          in: ['COMPTANT', 'CREDIT']
+        }
+      },
       include: {
         items: { include: { product: { include: { famille: true } } } }
       }
@@ -2359,42 +2368,27 @@ router.get('/sales-by-category', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Start date and end date are required' });
     }
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    let start = new Date(startDate);
+    let end = new Date(endDate);
+    
+    if (start > end) {
+      [start, end] = [end, start];
+    }
+    
+    start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
 
     const targetDepotId = parseInt(depotId || req.user.depotId);
 
-    // Get sessions that were active during the date range
-    const activeSessions = await prisma.sessionCaisse.findMany({
-      where: {
-        depotId: targetDepotId,
-        openedAt: {
-          lte: end
-        },
-        OR: [
-          {
-            closedAt: {
-              gte: start
-            }
-          },
-          {
-            status: 'OPEN'
-          }
-        ]
-      },
-      select: {
-        id: true
-      }
-    });
-
-    const sessionIds = activeSessions.map(s => s.id);
-
     const salesWhere = {
       status: 'COMPLETED',
       depotId: targetDepotId,
-      sessionId: {
-        in: sessionIds
+      createdAt: {
+        gte: start,
+        lte: end
+      },
+      paymentType: {
+        in: ['COMPTANT', 'CREDIT']
       }
     };
 
@@ -2417,6 +2411,10 @@ router.get('/sales-by-category', authenticateToken, async (req, res) => {
     const groupedData = {};
     
     sales.forEach(sale => {
+      const saleFinalTotal = parseFloat(sale.finalTotal || 0);
+      const saleItemsTotal = sale.items.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+      const proportionFactor = saleItemsTotal > 0 ? saleFinalTotal / saleItemsTotal : 0;
+      
       sale.items.forEach(item => {
         const key = filterType === 'family' 
           ? `family_${item.product.famille.id}`
@@ -2436,7 +2434,9 @@ router.get('/sales-by-category', authenticateToken, async (req, res) => {
         
         const group = groupedData[key];
         group.quantity += parseFloat(item.quantity);
-        group.totalTTC += parseFloat(item.total);
+        const itemTotal = parseFloat(item.total || 0);
+        const itemFinalTotal = itemTotal * proportionFactor;
+        group.totalTTC += itemFinalTotal;
         
         // Calculate purchase price (using prix_achat from product)
         const purchasePrice = parseFloat(item.product.prix_achat || 0) * parseFloat(item.quantity);
@@ -2567,7 +2567,10 @@ router.get('/credit-sales', authenticateToken, async (req, res) => {
       status: 'COMPLETED',
       depotId: targetDepotId,
       sessionId: { in: sessionIds },
-      clientId: { not: null } // Only sales with clients
+      clientId: { not: null },
+      paymentType: {
+        in: ['COMPTANT', 'CREDIT']
+      }
     };
 
     const sales = await prisma.sale.findMany({

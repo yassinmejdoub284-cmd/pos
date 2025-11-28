@@ -247,10 +247,32 @@ model Product {
   clientProductPrices      ClientProductPrice[]
   sourceProductLinks       ProductDepotLink[]      @relation("SourceProduct")
   destinationProductLinks  ProductDepotLink[]     @relation("DestinationProduct")
+  vracConversionsAsSource ProductVracConversion[] @relation("SourceProductVrac")
+  vracConversionsAsTarget ProductVracConversion[] @relation("TargetProductVrac")
 
   @@index([familleId], map: "products_famille_id_fkey")
   @@index([originalProductId], map: "products_original_product_id_fkey")
   @@map("products")
+}
+
+model ProductVracConversion {
+  id               Int      @id @default(autoincrement())
+  sourceProductId  Int      @map("source_product_id")
+  targetProductId  Int      @map("target_product_id")
+  conversionRatio  Decimal  @map("conversion_ratio") @db.Decimal(10, 3)
+  prix_vente_vrac  Decimal? @map("prix_vente_vrac") @db.Decimal(10, 2)
+  prix_achat_vrac  Decimal? @map("prix_achat_vrac") @db.Decimal(10, 3)
+  isStockable      Boolean  @default(true) @map("is_stockable")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  
+  sourceProduct    Product  @relation("SourceProductVrac", fields: [sourceProductId], references: [id], onDelete: Cascade)
+  targetProduct    Product  @relation("TargetProductVrac", fields: [targetProductId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceProductId, targetProductId], name: "unique_vrac_conversion")
+  @@index([sourceProductId], map: "product_vrac_conversions_source_product_id_fkey")
+  @@index([targetProductId], map: "product_vrac_conversions_target_product_id_fkey")
+  @@map("product_vrac_conversions")
 }
 
 model ProductDepot {

@@ -43,12 +43,7 @@ export class ProductTransferFormComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
-    // Initialize conversion ratio from source product if available
-    if (this.sourceProduct?.conversionRatio) {
-      this.transferForm.patchValue({ conversionRatio: this.sourceProduct.conversionRatio });
-      // Disable the conversion ratio field when pre-filled from product
-      this.transferForm.get('conversionRatio')?.disable();
-    }
+    // Conversion ratio is now entered manually by the user
     
     // If fixed vrac mode, set up fixed parameters
     if (this.fixedVracMode) {
@@ -199,14 +194,7 @@ export class ProductTransferFormComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['sourceProduct'] && this.sourceProduct?.conversionRatio) {
-      this.transferForm.patchValue({ conversionRatio: this.sourceProduct.conversionRatio });
-      // Disable the conversion ratio field when pre-filled from product
-      this.transferForm.get('conversionRatio')?.disable();
-    } else if (changes['sourceProduct'] && !this.sourceProduct?.conversionRatio) {
-      // Enable the field if product doesn't have conversion ratio
-      this.transferForm.get('conversionRatio')?.enable();
-    }
+    // Conversion ratio is now always editable by the user
   }
 }
 

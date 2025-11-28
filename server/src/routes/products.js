@@ -178,6 +178,183 @@ router.get('/familles', authenticateToken, async (req, res) => {
 });
 
 // IMPORTANT: Specific routes must come BEFORE parameterized routes like /:id
+
+router.get('/vrac-conversions/:sourceProductId', authenticateToken, async (req, res) => {
+  try {
+    const sourceProductId = parseInt(req.params.sourceProductId);
+    
+    if (isNaN(sourceProductId) || sourceProductId <= 0) {
+      return res.status(400).json({ error: 'ID produit source invalide' });
+    }
+
+    const conversions = await prisma.productVracConversion.findMany({
+      where: { sourceProductId },
+      include: {
+        targetProduct: {
+          select: {
+            id: true,
+            name: true,
+            unite: true,
+            prix_vente_TTC: true,
+            prix_achat: true,
+            isVrac: true
+          }
+        },
+        sourceProduct: {
+          select: {
+            id: true,
+            name: true,
+            unite: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    res.json({
+      sourceProductId,
+      conversions: conversions.map(c => ({
+        id: c.id,
+        targetProductId: c.targetProductId,
+        targetProductName: c.targetProduct.name,
+        targetProductUnite: c.targetProduct.unite,
+        conversionRatio: parseFloat(c.conversionRatio),
+        prix_vente_vrac: c.prix_vente_vrac ? parseFloat(c.prix_vente_vrac) : null,
+        prix_achat_vrac: c.prix_achat_vrac ? parseFloat(c.prix_achat_vrac) : null,
+        isStockable: c.isStockable
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching vrac conversions:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des conversions VRAC' });
+  }
+});
+
+router.post('/vrac-conversions', authenticateToken, async (req, res) => {
+  try {
+    const { sourceProductId, conversions } = req.body;
+
+    if (!sourceProductId || !conversions || !Array.isArray(conversions) || conversions.length === 0) {
+      return res.status(400).json({ error: 'sourceProductId et conversions (tableau non vide) sont requis' });
+    }
+
+    const sourceProduct = await prisma.product.findUnique({
+      where: { id: parseInt(sourceProductId) }
+    });
+
+    if (!sourceProduct) {
+      return res.status(404).json({ error: 'Produit source non trouvé' });
+    }
+
+    const targetProductIds = conversions.map(c => parseInt(c.targetProductId));
+    const targetProducts = await prisma.product.findMany({
+      where: { id: { in: targetProductIds } }
+    });
+
+    if (targetProducts.length !== targetProductIds.length) {
+      return res.status(404).json({ error: 'Un ou plusieurs produits destinataires non trouvés' });
+    }
+
+    const results = await prisma.$transaction(
+      conversions.map(conversion => {
+        const conversionRatio = parseFloat(conversion.conversionRatio);
+        if (isNaN(conversionRatio) || conversionRatio <= 0) {
+          throw new Error(`Ratio de conversion invalide pour le produit ${conversion.targetProductId}`);
+        }
+
+        return prisma.productVracConversion.upsert({
+          where: {
+            unique_vrac_conversion: {
+              sourceProductId: parseInt(sourceProductId),
+              targetProductId: parseInt(conversion.targetProductId)
+            }
+          },
+          create: {
+            sourceProductId: parseInt(sourceProductId),
+            targetProductId: parseInt(conversion.targetProductId),
+            conversionRatio: conversionRatio,
+            prix_vente_vrac: conversion.prix_vente_vrac ? parseFloat(conversion.prix_vente_vrac) : null,
+            prix_achat_vrac: conversion.prix_achat_vrac ? parseFloat(conversion.prix_achat_vrac) : null,
+            isStockable: conversion.isStockable !== undefined ? conversion.isStockable : true
+          },
+          update: {
+            conversionRatio: conversionRatio,
+            prix_vente_vrac: conversion.prix_vente_vrac ? parseFloat(conversion.prix_vente_vrac) : null,
+            prix_achat_vrac: conversion.prix_achat_vrac ? parseFloat(conversion.prix_achat_vrac) : null,
+            isStockable: conversion.isStockable !== undefined ? conversion.isStockable : true
+          }
+        });
+      })
+    );
+
+    await prisma.product.update({
+      where: { id: parseInt(sourceProductId) },
+      data: { isVraguable: true }
+    });
+
+    await logAudit(req.user.id, 'products', parseInt(sourceProductId), 'VRAC_CONVERSION_CREATED', null, {
+      sourceProductId,
+      conversionsCount: conversions.length
+    });
+
+    res.json({
+      success: true,
+      message: `${conversions.length} conversion(s) VRAC configurée(s)`,
+      conversions: results
+    });
+  } catch (error) {
+    console.error('Error creating vrac conversions:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de la création des conversions VRAC',
+      details: error.message 
+    });
+  }
+});
+
+router.delete('/vrac-conversions/:id', authenticateToken, async (req, res) => {
+  try {
+    const conversionId = parseInt(req.params.id);
+    
+    if (isNaN(conversionId) || conversionId <= 0) {
+      return res.status(400).json({ error: 'ID conversion invalide' });
+    }
+
+    const conversion = await prisma.productVracConversion.findUnique({
+      where: { id: conversionId },
+      include: { sourceProduct: true }
+    });
+
+    if (!conversion) {
+      return res.status(404).json({ error: 'Conversion non trouvée' });
+    }
+
+    await prisma.productVracConversion.delete({
+      where: { id: conversionId }
+    });
+
+    const remainingConversions = await prisma.productVracConversion.count({
+      where: { sourceProductId: conversion.sourceProductId }
+    });
+
+    if (remainingConversions === 0) {
+      await prisma.product.update({
+        where: { id: conversion.sourceProductId },
+        data: { isVraguable: false }
+      });
+    }
+
+    await logAudit(req.user.id, 'products', conversion.sourceProductId, 'VRAC_CONVERSION_DELETED', null, {
+      conversionId,
+      sourceProductId: conversion.sourceProductId
+    });
+
+    res.json({ success: true, message: 'Conversion VRAC supprimée' });
+  } catch (error) {
+    console.error('Error deleting vrac conversion:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de la conversion VRAC' });
+  }
+});
+
 // Get transfer history to vrac
 router.get('/transfer-history', authenticateToken, async (req, res) => {
   try {
@@ -440,10 +617,6 @@ router.post('/', authenticateToken, async (req, res) => {
       photo,
       isVrac,
       isVraguable,
-      conversionRatio,
-      prix_vente_vrac,
-      prix_achat_vrac,
-      originalProductId,
       isStockable,
       // Wholesale fields
       isWholesale,
@@ -512,10 +685,6 @@ router.post('/', authenticateToken, async (req, res) => {
       photo: photo || null,
       isVrac: isVrac || false,
       isVraguable: isVraguable !== undefined ? isVraguable : false,
-      conversionRatio: conversionRatio ? parseFloat(conversionRatio) : null,
-      prix_vente_vrac: prix_vente_vrac !== undefined ? parseFloat(prix_vente_vrac) : 0,
-      prix_achat_vrac: prix_achat_vrac !== undefined ? parseFloat(prix_achat_vrac) : 0,
-      originalProductId: originalProductId ? parseInt(originalProductId) : null,
       isStockable: isStockable !== undefined ? isStockable : true,
       // Wholesale fields
       isWholesale: isWholesale || false,
@@ -696,10 +865,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
       photo,
       isVrac,
       isVraguable,
-      conversionRatio,
-      prix_vente_vrac,
-      prix_achat_vrac,
-      originalProductId,
       isStockable,
       // Wholesale fields
       isWholesale,
@@ -716,8 +881,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       // Check if trying to update non-depot-price fields (but allow depotPrices)
       const restrictedFields = ['name', 'designation_legale', 'description', 'familleId', 'barcode', 
         'unite', 'prix_vente_TTC', 'prix_achat', 'tva', 'duree_conservation', 'photo', 'isVrac', 
-        'isVraguable', 'conversionRatio', 'prix_vente_vrac', 'prix_achat_vrac', 'originalProductId', 
-        'isStockable', 'isWholesale', 'bundleSize', 'bundlePrice', 'minMargin', 'requiresApproval'];
+        'isVraguable', 'isStockable', 'isWholesale', 'bundleSize', 'bundlePrice', 'minMargin', 'requiresApproval'];
       
       const hasRestrictedFields = restrictedFields.some(field => req.body[field] !== undefined);
       if (hasRestrictedFields) {
@@ -779,10 +943,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (photo !== undefined) updateData.photo = photo || null;
     if (isVrac !== undefined) updateData.isVrac = isVrac;
     if (isVraguable !== undefined) updateData.isVraguable = isVraguable;
-    if (conversionRatio !== undefined) updateData.conversionRatio = conversionRatio ? parseFloat(conversionRatio) : null;
-    if (prix_vente_vrac !== undefined) updateData.prix_vente_vrac = prix_vente_vrac !== undefined ? parseFloat(prix_vente_vrac) : 0;
-    if (prix_achat_vrac !== undefined) updateData.prix_achat_vrac = prix_achat_vrac !== undefined ? parseFloat(prix_achat_vrac) : 0;
-    if (originalProductId !== undefined) updateData.originalProductId = originalProductId ? parseInt(originalProductId) : null;
     if (isStockable !== undefined) updateData.isStockable = isStockable;
     // Wholesale fields
     if (isWholesale !== undefined) updateData.isWholesale = isWholesale;
@@ -1632,7 +1792,20 @@ router.post('/transfer', authenticateToken, async (req, res) => {
     await prisma.$transaction(async (tx) => {
       // Reduce source product inventory
       if (sourceInventory) {
-        const newSourceQuantity = currentSourceQuantity - sourceQuantity;
+        let currentSourceQty = 0;
+        const sourceQtyValue = sourceInventory.quantity;
+        if (sourceQtyValue === null || sourceQtyValue === undefined) {
+          currentSourceQty = 0;
+        } else if (typeof sourceQtyValue === 'object' && sourceQtyValue !== null) {
+          if ('toNumber' in sourceQtyValue && typeof sourceQtyValue.toNumber === 'function') {
+            currentSourceQty = sourceQtyValue.toNumber();
+          } else {
+            currentSourceQty = parseFloat(sourceQtyValue.toString()) || 0;
+          }
+        } else {
+          currentSourceQty = parseFloat(sourceQtyValue) || 0;
+        }
+        const newSourceQuantity = currentSourceQty - sourceQuantity;
         await tx.inventory.update({
           where: { id: sourceInventory.id },
           data: { quantity: newSourceQuantity }
@@ -1659,10 +1832,23 @@ router.post('/transfer', authenticateToken, async (req, res) => {
       });
 
       if (targetInventory) {
-        const currentTargetQuantity = parseFloat(targetInventory.quantity) || 0;
+        let currentTargetQty = 0;
+        const targetQtyValue = targetInventory.quantity;
+        if (targetQtyValue === null || targetQtyValue === undefined) {
+          currentTargetQty = 0;
+        } else if (typeof targetQtyValue === 'object' && targetQtyValue !== null) {
+          if ('toNumber' in targetQtyValue && typeof targetQtyValue.toNumber === 'function') {
+            currentTargetQty = targetQtyValue.toNumber();
+          } else {
+            currentTargetQty = parseFloat(targetQtyValue.toString()) || 0;
+          }
+        } else {
+          currentTargetQty = parseFloat(targetQtyValue) || 0;
+        }
+        const newTargetQuantity = currentTargetQty + targetQuantity;
         await tx.inventory.update({
           where: { id: targetInventory.id },
-          data: { quantity: currentTargetQuantity + targetQuantity }
+          data: { quantity: newTargetQuantity }
         });
       } else {
         await tx.inventory.create({
@@ -1722,6 +1908,45 @@ router.post('/transfer', authenticateToken, async (req, res) => {
       targetQuantity
     });
 
+    const io = req.app.get('io');
+    if (io) {
+      const sourceInventoryAfter = await prisma.inventory.findUnique({
+        where: {
+          depotId_productId: {
+            depotId: depotIdInt,
+            productId: parseInt(sourceProductId)
+          }
+        }
+      });
+      
+      if (sourceInventoryAfter) {
+        io.to(`depot_${depotIdInt}`).emit('stock_updated', {
+          productId: parseInt(sourceProductId),
+          quantity: parseFloat(sourceInventoryAfter.quantity?.toString() || '0'),
+          updatedBy: req.user.username,
+          updatedAt: new Date()
+        });
+      }
+
+      const targetInventoryAfter = await prisma.inventory.findUnique({
+        where: {
+          depotId_productId: {
+            depotId: depotIdInt,
+            productId: parseInt(targetProductId)
+          }
+        }
+      });
+      
+      if (targetInventoryAfter) {
+        io.to(`depot_${depotIdInt}`).emit('stock_updated', {
+          productId: parseInt(targetProductId),
+          quantity: parseFloat(targetInventoryAfter.quantity?.toString() || '0'),
+          updatedBy: req.user.username,
+          updatedAt: new Date()
+        });
+      }
+    }
+
     res.json({ 
       success: true,
       message: `Transfert réussi: ${sourceQuantity} ${sourceProduct.name} -> ${targetQuantity} ${targetProduct.name}`
@@ -1740,132 +1965,516 @@ router.post('/transfer', authenticateToken, async (req, res) => {
   }
 });
 
-// Transfer product to multiple target products
 router.post('/transfer-multiple', authenticateToken, async (req, res) => {
   try {
-
     const { sourceProductId, transfers, depotId } = req.body;
 
-    // Validate required fields
+    console.log('Received transfer-multiple request:', {
+      sourceProductId,
+      depotId,
+      transfersCount: transfers?.length,
+      transfers: transfers
+    });
+    
+    console.log('Extracting target product IDs:', transfers.map(t => t.targetProductId));
+
     if (!sourceProductId || !transfers || !Array.isArray(transfers) || transfers.length === 0 || !depotId) {
       return res.status(400).json({ 
-        error: 'Tous les champs sont requis et transfers doit être un tableau non vide'
+        error: 'Tous les champs sont requis et transfers doit être un tableau non vide',
+        received: { sourceProductId, transfers, depotId, transfersLength: transfers?.length }
+      });
+    }
+
+    const sourceProductIdInt = parseInt(sourceProductId);
+    const depotIdInt = parseInt(depotId);
+
+    if (isNaN(sourceProductIdInt) || sourceProductIdInt <= 0) {
+      return res.status(400).json({ 
+        error: 'ID produit source invalide',
+        received: sourceProductId,
+        parsed: sourceProductIdInt
+      });
+    }
+
+    if (isNaN(depotIdInt) || depotIdInt <= 0) {
+      return res.status(400).json({ 
+        error: 'ID dépôt invalide (doit être supérieur à 0)',
+        received: depotId,
+        parsed: depotIdInt
       });
     }
 
     const sourceProduct = await prisma.product.findUnique({
-      where: { id: parseInt(sourceProductId) }
+      where: { id: sourceProductIdInt }
     });
 
     if (!sourceProduct) {
       return res.status(404).json({ error: 'Produit source non trouvé' });
     }
 
-    // Validate all target products exist
     const targetProductIds = transfers.map(t => parseInt(t.targetProductId));
+    const uniqueTargetIds = [...new Set(targetProductIds)];
+    
+    if (uniqueTargetIds.length !== targetProductIds.length) {
+      return res.status(400).json({ 
+        error: 'Produits destinataires dupliqués détectés',
+        targetProductIds,
+        uniqueTargetIds
+      });
+    }
+
+    console.log('Looking for target products with IDs:', uniqueTargetIds);
     const targetProducts = await prisma.product.findMany({
-      where: { id: { in: targetProductIds } }
+      where: { id: { in: uniqueTargetIds } }
+    });
+    console.log('Found target products:', targetProducts.map(p => ({ id: p.id, name: p.name })));
+
+    if (targetProducts.length !== uniqueTargetIds.length) {
+      const foundIds = targetProducts.map(p => p.id);
+      const missingIds = uniqueTargetIds.filter(id => !foundIds.includes(id));
+      console.error('Missing target products:', missingIds);
+      return res.status(404).json({ 
+        error: 'Un ou plusieurs produits cibles non trouvés',
+        requestedIds: uniqueTargetIds,
+        foundIds: foundIds,
+        missingIds: missingIds
+      });
+    }
+
+    const transferDetails = [];
+    let totalSourceQuantity = 0;
+
+    if (transfers.length === 0) {
+      return res.status(400).json({ error: 'Aucun transfert spécifié' });
+    }
+
+    const firstTransfer = transfers[0];
+    if (!firstTransfer || firstTransfer.quantity === undefined || firstTransfer.quantity === null) {
+      return res.status(400).json({ 
+        error: 'Le premier transfert doit contenir une quantité source valide',
+        received: firstTransfer
+      });
+    }
+
+    const sourceQuantity = parseFloat(firstTransfer.quantity);
+
+    console.log('Source quantity from first transfer:', {
+      firstTransfer,
+      sourceQuantity,
+      sourceQuantityType: typeof sourceQuantity
     });
 
-    if (targetProducts.length !== targetProductIds.length) {
-      return res.status(404).json({ error: 'Un ou plusieurs produits cibles non trouvés' });
+    if (isNaN(sourceQuantity) || sourceQuantity <= 0) {
+      return res.status(400).json({ 
+        error: 'La quantité source doit être positive',
+        received: firstTransfer.quantity,
+        parsed: sourceQuantity
+      });
     }
 
-    const depotIdInt = parseInt(depotId);
+    totalSourceQuantity = sourceQuantity;
+    console.log('Total source quantity set to:', totalSourceQuantity);
 
-    // Validate all transfers
     for (const transfer of transfers) {
-      if (!transfer.targetProductId || transfer.quantity === undefined || transfer.quantity === null || 
-          transfer.conversionRatio === undefined || transfer.conversionRatio === null) {
-        return res.status(400).json({ error: 'Tous les champs de transfert sont requis' });
+      if (!transfer || !transfer.targetProductId || transfer.quantity === undefined || transfer.quantity === null || transfer.conversionRatio === undefined || transfer.conversionRatio === null) {
+        return res.status(400).json({ 
+          error: 'Chaque transfert doit contenir targetProductId, quantity et conversionRatio',
+          received: transfer,
+          hasTargetProductId: !!transfer?.targetProductId,
+          hasQuantity: transfer?.quantity !== undefined && transfer?.quantity !== null,
+          hasConversionRatio: transfer?.conversionRatio !== undefined && transfer?.conversionRatio !== null
+        });
       }
-      if (parseFloat(transfer.quantity) <= 0) {
-        return res.status(400).json({ error: 'La quantité doit être positive' });
+
+      const targetProductId = parseInt(transfer.targetProductId);
+      const transferSourceQuantity = parseFloat(transfer.quantity);
+      const ratio = parseFloat(transfer.conversionRatio);
+      
+      console.log('Processing transfer:', {
+        targetProductId,
+        transferSourceQuantity,
+        ratio,
+        sourceQuantity,
+        willUseSourceQuantity: sourceQuantity
+      });
+
+      if (isNaN(targetProductId) || targetProductId <= 0) {
+        return res.status(400).json({ 
+          error: 'ID produit destinataire invalide',
+          received: transfer.targetProductId,
+          parsed: targetProductId
+        });
       }
-      if (parseFloat(transfer.conversionRatio) <= 0) {
-        return res.status(400).json({ error: 'Le ratio de conversion doit être positif' });
+
+      if (isNaN(transferSourceQuantity) || transferSourceQuantity <= 0) {
+        return res.status(400).json({ 
+          error: 'La quantité source doit être positive',
+          received: transfer.quantity,
+          parsed: transferSourceQuantity
+        });
       }
+
+      if (Math.abs(transferSourceQuantity - sourceQuantity) > 0.001) {
+        return res.status(400).json({ 
+          error: 'Tous les transferts doivent utiliser la même quantité source',
+          expected: sourceQuantity,
+          received: transferSourceQuantity,
+          difference: Math.abs(transferSourceQuantity - sourceQuantity),
+          transfer: transfer
+        });
+      }
+
+      if (isNaN(ratio) || ratio <= 0) {
+        return res.status(400).json({ 
+          error: 'Le ratio de conversion doit être positif',
+          received: transfer.conversionRatio,
+          parsed: ratio
+        });
+      }
+
+      const targetProduct = targetProducts.find(p => p.id === targetProductId);
+      if (!targetProduct) {
+        return res.status(404).json({ error: `Produit destinataire ${targetProductId} non trouvé` });
+      }
+
+      const targetQuantity = parseFloat((sourceQuantity * ratio).toFixed(3));
+
+      console.log('Calculating target quantity:', {
+        targetProductId,
+        targetProductName: targetProduct.name,
+        sourceQuantity,
+        ratio,
+        calculatedTargetQuantity: targetQuantity
+      });
+
+      if (!isFinite(targetQuantity) || targetQuantity < 0) {
+        return res.status(400).json({ error: `Quantité calculée invalide pour le produit ${targetProduct.name}` });
+      }
+
+      transferDetails.push({
+        targetProductId,
+        targetProductName: targetProduct.name,
+        sourceQuantity,
+        ratio,
+        targetQuantity
+      });
+      
+      console.log('Added to transferDetails:', {
+        targetProductId,
+        targetQuantity,
+        sourceQuantity,
+        ratio
+      });
     }
 
-    // Calculate total source quantity needed
-    const totalSourceQuantity = transfers.reduce((sum, transfer) => {
-      return sum + parseFloat(transfer.quantity);
-    }, 0);
-
-    // Check source inventory
-    const sourceInventory = await prisma.inventory.findUnique({
+    let sourceInventory = await prisma.inventory.findUnique({
       where: {
         depotId_productId: {
           depotId: depotIdInt,
-          productId: parseInt(sourceProductId)
+          productId: sourceProductIdInt
         }
       }
     });
 
-    const currentSourceQuantity = parseFloat(sourceInventory?.quantity || 0);
+    if (!sourceInventory) {
+      sourceInventory = await prisma.inventory.findFirst({
+        where: {
+          depotId: depotIdInt,
+          productId: sourceProductIdInt
+        }
+      });
+    }
 
-    // Perform all transfers in a single transaction
-    await prisma.$transaction(async (tx) => {
-      // Reduce source product inventory
+    const allInventories = await prisma.inventory.findMany({
+      where: {
+        productId: sourceProductIdInt
+      }
+    });
+
+    console.log('Source inventory check:', {
+      depotId: depotIdInt,
+      productId: sourceProductIdInt,
+      found: !!sourceInventory,
+      quantity: sourceInventory?.quantity,
+      quantityType: typeof sourceInventory?.quantity,
+      totalSourceQuantity,
+      allInventoriesForProduct: allInventories.map(inv => ({
+        depotId: inv.depotId,
+        quantity: inv.quantity,
+        quantityString: inv.quantity?.toString()
+      }))
+    });
+
+    let currentSourceQuantity = 0;
+    if (sourceInventory) {
+      const quantityValue = sourceInventory.quantity;
+      
+      try {
+        if (quantityValue === null || quantityValue === undefined) {
+          currentSourceQuantity = 0;
+        } else if (typeof quantityValue === 'object' && quantityValue !== null) {
+          if ('toNumber' in quantityValue && typeof quantityValue.toNumber === 'function') {
+            currentSourceQuantity = quantityValue.toNumber();
+          } else if ('toString' in quantityValue && typeof quantityValue.toString === 'function') {
+            const strValue = quantityValue.toString();
+            currentSourceQuantity = parseFloat(strValue) || 0;
+          } else if (quantityValue.constructor && quantityValue.constructor.name === 'Decimal') {
+            currentSourceQuantity = parseFloat(quantityValue.toString()) || 0;
+          } else {
+            currentSourceQuantity = Number(quantityValue) || 0;
+          }
+        } else if (typeof quantityValue === 'string') {
+          currentSourceQuantity = parseFloat(quantityValue) || 0;
+        } else if (typeof quantityValue === 'number') {
+          currentSourceQuantity = quantityValue;
+        } else {
+          currentSourceQuantity = Number(quantityValue) || 0;
+        }
+        
+        if (isNaN(currentSourceQuantity) || !isFinite(currentSourceQuantity)) {
+          console.error('Failed to parse quantity, raw value:', quantityValue);
+          currentSourceQuantity = 0;
+        }
+      } catch (parseError) {
+        console.error('Error parsing quantity:', parseError, 'raw value:', quantityValue);
+        currentSourceQuantity = 0;
+      }
+      
+      console.log('Parsed quantity:', {
+        raw: quantityValue,
+        rawString: String(quantityValue),
+        rawJSON: JSON.stringify(quantityValue),
+        type: typeof quantityValue,
+        constructor: quantityValue?.constructor?.name,
+        parsed: currentSourceQuantity,
+        isNaN: isNaN(currentSourceQuantity),
+        isFinite: isFinite(currentSourceQuantity)
+      });
+    }
+
+    if (!sourceInventory) {
+      console.log('No inventory record found for product', sourceProductIdInt, 'in depot', depotIdInt);
+      console.log('Will allow transfer and create inventory record with negative quantity');
+    } else {
+      console.log('Inventory found:', {
+        inventoryId: sourceInventory.id,
+        quantity: sourceInventory.quantity,
+        currentSourceQuantity,
+        totalSourceQuantity
+      });
+    }
+
+    if (sourceInventory) {
+      if (isNaN(currentSourceQuantity)) {
+        console.error('Failed to parse quantity, using 0:', {
+          raw: sourceInventory.quantity,
+          type: typeof sourceInventory.quantity
+        });
+        currentSourceQuantity = 0;
+      }
+      
+      console.log('Stock validation:', {
+        currentSourceQuantity,
+        totalSourceQuantity,
+        hasEnough: currentSourceQuantity >= totalSourceQuantity,
+        comparison: `${currentSourceQuantity} >= ${totalSourceQuantity} = ${currentSourceQuantity >= totalSourceQuantity}`
+      });
+
+      if (currentSourceQuantity < totalSourceQuantity) {
+        const totalStockInAllDepots = allInventories.reduce((sum, inv) => {
+          const qty = parseFloat(inv.quantity?.toString() || '0') || 0;
+          return sum + qty;
+        }, 0);
+
+        console.warn('Stock insufficient in current depot:', {
+          currentSourceQuantity,
+          totalSourceQuantity,
+          difference: totalSourceQuantity - currentSourceQuantity,
+          totalStockInAllDepots,
+          allDepots: allInventories.map(inv => ({
+            depotId: inv.depotId,
+            quantity: parseFloat(inv.quantity?.toString() || '0') || 0
+          }))
+        });
+
+        if (totalStockInAllDepots >= totalSourceQuantity) {
+          const depotsWithStock = allInventories
+            .filter(inv => {
+              const qty = parseFloat(inv.quantity?.toString() || '0') || 0;
+              return qty > 0;
+            })
+            .map(inv => ({
+              depotId: inv.depotId,
+              quantity: parseFloat(inv.quantity?.toString() || '0') || 0
+            }));
+
+          console.warn('Stock available in other depots, but allowing transfer anyway');
+        }
+
+        console.log('Allowing transfer with insufficient stock (will create/update negative inventory)');
+      } else {
+        console.log('Stock validation passed:', {
+          currentSourceQuantity,
+          totalSourceQuantity
+        });
+      }
+    } else {
+      console.log('No inventory record exists, allowing transfer (will create negative inventory if needed)');
+    }
+
+    const results = await prisma.$transaction(async (tx) => {
       if (sourceInventory) {
-        const newSourceQuantity = currentSourceQuantity - totalSourceQuantity;
-        await tx.inventory.update({
+        let currentSourceQty = 0;
+        const sourceQtyValue = sourceInventory.quantity;
+        if (sourceQtyValue === null || sourceQtyValue === undefined) {
+          currentSourceQty = 0;
+        } else if (typeof sourceQtyValue === 'object' && sourceQtyValue !== null) {
+          if ('toNumber' in sourceQtyValue && typeof sourceQtyValue.toNumber === 'function') {
+            currentSourceQty = sourceQtyValue.toNumber();
+          } else {
+            currentSourceQty = parseFloat(sourceQtyValue.toString()) || 0;
+          }
+        } else {
+          currentSourceQty = parseFloat(sourceQtyValue) || 0;
+        }
+        
+        const newSourceQuantity = currentSourceQty - totalSourceQuantity;
+        console.log('Updating source inventory:', {
+          inventoryId: sourceInventory.id,
+          currentQuantity: currentSourceQty,
+          totalSourceQuantity,
+          newQuantity: newSourceQuantity
+        });
+        const updatedSource = await tx.inventory.update({
           where: { id: sourceInventory.id },
           data: { quantity: newSourceQuantity }
         });
+        console.log('Source inventory updated:', {
+          id: updatedSource.id,
+          quantity: updatedSource.quantity?.toString()
+        });
       } else {
-        await tx.inventory.create({
+        console.log('Creating new source inventory with negative quantity:', {
+          depotId: depotIdInt,
+          productId: sourceProductIdInt,
+          quantity: -totalSourceQuantity
+        });
+        const createdSource = await tx.inventory.create({
           data: {
             depotId: depotIdInt,
-            productId: parseInt(sourceProductId),
+            productId: sourceProductIdInt,
             quantity: -totalSourceQuantity
           }
         });
+        console.log('Source inventory created:', {
+          id: createdSource.id,
+          quantity: createdSource.quantity?.toString()
+        });
       }
 
-      // Process each transfer
-      for (const transfer of transfers) {
-        const targetProductId = parseInt(transfer.targetProductId);
-        const sourceQuantity = parseFloat(transfer.quantity);
-        const ratio = parseFloat(transfer.conversionRatio);
-        const targetQuantity = sourceQuantity * ratio;
+      const transferResults = [];
 
-        const targetProduct = targetProducts.find(p => p.id === targetProductId);
+      for (const detail of transferDetails) {
+        try {
+          console.log('Processing transfer detail:', {
+            targetProductId: detail.targetProductId,
+            targetProductName: detail.targetProductName,
+            sourceQuantity: detail.sourceQuantity,
+            ratio: detail.ratio,
+            targetQuantity: detail.targetQuantity,
+            targetQuantityType: typeof detail.targetQuantity,
+            depotId: depotIdInt
+          });
 
-        // Add target product inventory
-        const targetInventory = await tx.inventory.findUnique({
-          where: {
-            depotId_productId: {
-              depotId: depotIdInt,
-              productId: targetProductId
+          const targetInventory = await tx.inventory.findUnique({
+            where: {
+              depotId_productId: {
+                depotId: depotIdInt,
+                productId: detail.targetProductId
+              }
             }
+          });
+
+          console.log('Target inventory lookup result:', {
+            found: !!targetInventory,
+            targetProductId: detail.targetProductId,
+            depotId: depotIdInt
+          });
+
+          const targetQtyToAdd = parseFloat(detail.targetQuantity);
+          
+          if (isNaN(targetQtyToAdd) || !isFinite(targetQtyToAdd)) {
+            throw new Error(`Invalid target quantity: ${detail.targetQuantity} for product ${detail.targetProductId}`);
           }
-        });
-
-        if (targetInventory) {
-          const currentTargetQuantity = parseFloat(targetInventory.quantity) || 0;
-          await tx.inventory.update({
-            where: { id: targetInventory.id },
-            data: { quantity: currentTargetQuantity + targetQuantity }
-          });
-        } else {
-          await tx.inventory.create({
-            data: {
-              depotId: depotIdInt,
-              productId: targetProductId,
-              quantity: targetQuantity
+          
+          if (targetInventory) {
+            let currentTargetQty = 0;
+            const targetQtyValue = targetInventory.quantity;
+            if (targetQtyValue === null || targetQtyValue === undefined) {
+              currentTargetQty = 0;
+            } else if (typeof targetQtyValue === 'object' && targetQtyValue !== null) {
+              if ('toNumber' in targetQtyValue && typeof targetQtyValue.toNumber === 'function') {
+                currentTargetQty = targetQtyValue.toNumber();
+              } else {
+                currentTargetQty = parseFloat(targetQtyValue.toString()) || 0;
+              }
+            } else {
+              currentTargetQty = parseFloat(targetQtyValue) || 0;
             }
-          });
+            
+            const newTargetQuantity = parseFloat((currentTargetQty + targetQtyToAdd).toFixed(3));
+            
+            console.log('Updating target inventory:', {
+              targetProductId: detail.targetProductId,
+              inventoryId: targetInventory.id,
+              currentQuantity: currentTargetQty,
+              addingQuantity: targetQtyToAdd,
+              newQuantity: newTargetQuantity
+            });
+            
+            const updatedTarget = await tx.inventory.update({
+              where: { id: targetInventory.id },
+              data: { quantity: newTargetQuantity }
+            });
+            
+            console.log('Target inventory updated successfully:', {
+              id: updatedTarget.id,
+              quantity: updatedTarget.quantity?.toString(),
+              quantityType: typeof updatedTarget.quantity
+            });
+          } else {
+            console.log('Creating new target inventory:', {
+              depotId: depotIdInt,
+              targetProductId: detail.targetProductId,
+              quantity: targetQtyToAdd
+            });
+            
+            const createdTarget = await tx.inventory.create({
+              data: {
+                depotId: depotIdInt,
+                productId: detail.targetProductId,
+                quantity: parseFloat(targetQtyToAdd.toFixed(3))
+              }
+            });
+            
+            console.log('Target inventory created successfully:', {
+              id: createdTarget.id,
+              quantity: createdTarget.quantity?.toString(),
+              quantityType: typeof createdTarget.quantity
+            });
+          }
+        } catch (detailError) {
+          console.error(`Error processing transfer detail for product ${detail.targetProductId}:`, detailError);
+          throw detailError;
         }
 
-        // Create stock movement records
-        const referenceText = `Transfer ${sourceProduct.name} -> ${targetProduct.name} (${sourceQuantity} x ${ratio} = ${targetQuantity})`;
+        const referenceText = `Transfer ${sourceProduct.name} -> ${detail.targetProductName} (${detail.sourceQuantity} × ${detail.ratio} = ${detail.targetQuantity})`;
         
         await tx.stockMovement.create({
           data: {
-            productId: parseInt(sourceProductId),
+            productId: sourceProductIdInt,
             depotId: depotIdInt,
-            quantity: -sourceQuantity,
+            quantity: -detail.sourceQuantity,
             type: 'OUT',
             reason: 'PRODUCT_CONVERSION',
             reference: referenceText,
@@ -1875,37 +2484,104 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
 
         await tx.stockMovement.create({
           data: {
-            productId: targetProductId,
+            productId: detail.targetProductId,
             depotId: depotIdInt,
-            quantity: targetQuantity,
+            quantity: detail.targetQuantity,
             type: 'IN',
             reason: 'PRODUCT_CONVERSION',
             reference: referenceText,
             userId: req.user.id
           }
         });
+
+        transferResults.push({
+          targetProductId: detail.targetProductId,
+          targetProductName: detail.targetProductName,
+          sourceQuantity: detail.sourceQuantity,
+          targetQuantity: detail.targetQuantity,
+          ratio: detail.ratio
+        });
       }
+
+      return transferResults;
     });
 
-    await logAudit(req.user.id, 'products', parseInt(sourceProductId), 'TRANSFER_MULTIPLE', null, {
-      sourceProductId,
-      transfers: transfers.map(t => ({
-        targetProductId: t.targetProductId,
-        quantity: t.quantity,
-        conversionRatio: t.conversionRatio
-      })),
+    await logAudit(req.user.id, 'products', sourceProductIdInt, 'TRANSFER_MULTIPLE', null, {
+      sourceProductId: sourceProductIdInt,
+      sourceProductName: sourceProduct.name,
+      totalSourceQuantity,
+      transfers: results,
       depotId: depotIdInt
     });
 
+    const io = req.app.get('io');
+    if (io) {
+      const sourceInventoryAfter = await prisma.inventory.findUnique({
+        where: {
+          depotId_productId: {
+            depotId: depotIdInt,
+            productId: sourceProductIdInt
+          }
+        }
+      });
+      
+      if (sourceInventoryAfter) {
+        io.to(`depot_${depotIdInt}`).emit('stock_updated', {
+          productId: sourceProductIdInt,
+          quantity: parseFloat(sourceInventoryAfter.quantity?.toString() || '0'),
+          updatedBy: req.user.username,
+          updatedAt: new Date()
+        });
+      }
+
+      for (const result of results) {
+        const targetInventoryAfter = await prisma.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: depotIdInt,
+              productId: result.targetProductId
+            }
+          }
+        });
+        
+        if (targetInventoryAfter) {
+          io.to(`depot_${depotIdInt}`).emit('stock_updated', {
+            productId: result.targetProductId,
+            quantity: parseFloat(targetInventoryAfter.quantity?.toString() || '0'),
+            updatedBy: req.user.username,
+            updatedAt: new Date()
+          });
+        }
+      }
+    }
+
     res.json({ 
       success: true,
-      message: `Transfert réussi: ${transfers.length} produit(s) cible(s) transféré(s)`
+      message: `Transfert réussi: ${totalSourceQuantity} ${sourceProduct.unite} de ${sourceProduct.name} transféré(s) vers ${transfers.length} produit(s) destinataire(s)`,
+      summary: {
+        sourceProduct: {
+          id: sourceProductIdInt,
+          name: sourceProduct.name,
+          unite: sourceProduct.unite,
+          quantity: totalSourceQuantity
+        },
+        transfers: results,
+        totalTargetQuantity: results.reduce((sum, r) => sum + r.targetQuantity, 0)
+      }
     });
   } catch (error) {
     console.error('Error transferring products:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      name: error.name
+    });
     res.status(500).json({ 
       error: 'Erreur lors du transfert des produits',
-      details: error.message 
+      details: error.message,
+      code: error.code
     });
   }
 });

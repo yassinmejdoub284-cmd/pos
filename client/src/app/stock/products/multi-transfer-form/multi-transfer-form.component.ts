@@ -88,17 +88,11 @@ export class MultiTransferFormComponent implements OnInit {
   }
 
   addTransferItem(): void {
-    const conversionRatio = this.sourceProduct?.conversionRatio || 1;
     const itemForm = this.fb.group({
       targetProductId: [null, Validators.required],
       quantity: [1, [Validators.required, Validators.min(0.001)]],
-      conversionRatio: [conversionRatio, [Validators.required, Validators.min(0.001)]]
+      conversionRatio: [1, [Validators.required, Validators.min(0.001)]]
     });
-
-    // Disable conversion ratio if it comes from source product
-    if (this.sourceProduct?.conversionRatio) {
-      itemForm.get('conversionRatio')?.disable();
-    }
 
     this.transferItems.push(itemForm);
   }

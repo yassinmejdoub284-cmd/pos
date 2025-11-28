@@ -86,10 +86,7 @@
           placeholder="200">
         <span class="text-sm text-slate-600">produit cible</span>
       </div>
-      <span *ngIf="sourceProduct?.conversionRatio" class="text-xs text-blue-600 mt-1 block">
-        <span class="font-semibold">Ratio pré-rempli depuis le produit (non modifiable):</span> 1 article = {{ sourceProduct?.conversionRatio }} articles cibles
-      </span>
-      <span *ngIf="!sourceProduct?.conversionRatio" class="text-xs text-slate-500 mt-1 block">
+      <span class="text-xs text-slate-500 mt-1 block">
         Exemple: 1 JUS 1L = 200 JUS Vrac
       </span>
     </div>

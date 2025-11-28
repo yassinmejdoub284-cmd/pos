@@ -64,9 +64,6 @@
               placeholder="200">
             <span class="text-sm text-slate-600">produit cible</span>
           </div>
-          <span *ngIf="sourceProduct?.conversionRatio" class="text-xs text-blue-600 mt-1 block">
-            Ratio pré-rempli depuis le produit (non modifiable): 1 article = {{ sourceProduct?.conversionRatio }} articles cibles
-          </span>
         </div>
 
         <div *ngIf="transferItems.at(i).get('quantity')?.value && transferItems.at(i).get('conversionRatio')?.value" 

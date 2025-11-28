@@ -412,6 +412,7 @@
 
 .action-view { color: #3b82f6; }
 .action-edit { color: #6366f1; }
+.action-execute { color: #10b981; }
 .action-delete { color: #dc2626; }
 
 .action-btn:active {

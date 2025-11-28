@@ -1,19 +1,22 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { StockDocumentsService } from '../../core/services/stock-documents.service';
 import { DepotsService } from '../../core/services/depots.service';
 import { ProductsService } from '../../core/services/products.service';
 import { SalesService } from '../../core/services/sales.service';
+import { SocketService } from '../../core/services/socket.service';
 import { Depot } from '../../core/models/depot.model';
 import { Product } from '../../core/models/product.model';
+import { Subscription } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-shop-transfer',
   templateUrl: './shop-transfer.component.html',
   standalone: false
 })
-export class ShopTransferComponent implements OnInit {
+export class ShopTransferComponent implements OnInit, OnDestroy {
   depotType: string = '';
   currentDepot: any = null;
   pendingTransfers: any[] = [];
@@ -37,13 +40,16 @@ export class ShopTransferComponent implements OnInit {
   showEntriesDetails = false;
   showExitsDetails = false;
 
+  private stockUpdateSubscription?: Subscription;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private stockDocumentsService: StockDocumentsService,
     private depotsService: DepotsService,
     private productsService: ProductsService,
-    private salesService: SalesService
+    private salesService: SalesService,
+    private socketService: SocketService
   ) {}
 
   ngOnInit(): void {
@@ -51,7 +57,9 @@ export class ShopTransferComponent implements OnInit {
     this.route.paramMap.subscribe(params => {
       const depotId = params.get('depotId');
       if (depotId) {
-        this.loadData(parseInt(depotId, 10));
+        const depotIdNum = parseInt(depotId, 10);
+        this.loadData(depotIdNum);
+        this.setupSocketListeners(depotIdNum);
       } else {
         this.error = 'ID du dépôt manquant dans l\'URL';
       }
@@ -82,6 +90,30 @@ export class ShopTransferComponent implements OnInit {
         }
       }
     });
+  }
+
+  private setupSocketListeners(depotId: number): void {
+    if (!environment.enableRealtime) return;
+
+    this.socketService.joinDepot(depotId);
+
+    this.stockUpdateSubscription = this.socketService.on('stock_updated').subscribe((data: any) => {
+      if (data.productId && this.currentDepot && this.currentDepot.id === depotId) {
+        console.log('Stock updated via socket, refreshing inventory:', data);
+        setTimeout(() => {
+          this.loadAdditionalData(depotId, true);
+        }, 500);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.stockUpdateSubscription) {
+      this.stockUpdateSubscription.unsubscribe();
+    }
+    if (this.currentDepot && environment.enableRealtime) {
+      this.socketService.leaveDepot(this.currentDepot.id);
+    }
   }
 
   loadData(depotId: number): void {

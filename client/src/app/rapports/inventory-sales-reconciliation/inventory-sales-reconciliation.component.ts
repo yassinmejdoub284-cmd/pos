@@ -233,6 +233,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   isReconciliationTableCollapsed = true; // Collapsed by default
   isReleveInventaireTableCollapsed = true; // Collapsed by default
   isGlobalEcartTableCollapsed = true; // Collapsed by default
+  hideSmallCredits = true;
   
   private readonly printService = inject(PrintService);
   private readonly dialogService = inject(DialogService);
@@ -1941,6 +1942,39 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     }
   }
 
+  executerEnStock(inventoryId: number): void {
+    this.loading = true;
+    this.error = '';
+    
+    this.inventoryService.getSession(inventoryId).subscribe({
+      next: async (session) => {
+        try {
+          if (!session.items || session.items.length === 0) {
+            this.error = 'Aucun article trouvé dans cet inventaire';
+            this.loading = false;
+            return;
+          }
+
+          await firstValueFrom(this.inventoryService.postSession(inventoryId));
+          
+          this.success = `Stock mis à jour avec succès pour l'inventaire ${session.numero}`;
+          this.loading = false;
+          
+          setTimeout(() => {
+            this.success = '';
+          }, 3000);
+        } catch (err: any) {
+          this.error = err.error?.error || 'Erreur lors de la mise à jour du stock';
+          this.loading = false;
+        }
+      },
+      error: (err) => {
+        this.error = err.error?.error || 'Erreur lors du chargement de l\'inventaire';
+        this.loading = false;
+      }
+    });
+  }
+
   private downloadFile(content: string, filename: string, mime: string): void {
     const blob = new Blob([content], { type: mime + ';charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -2300,6 +2334,72 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
         details: `Document: ${return_.documentNumber} - ${return_.productName}`,
         date: new Date(return_.createdAt || return_.date) // Use createdAt for proper ordering
       });
+    }
+    
+    // 6.5. Lignes DÉBIT/CRÉDIT - Conversions vers vrac
+    const vracConversions = await this.getVracConversionsDetails();
+    
+    // Group conversions by reference and date (same transfer operation)
+    const conversionsByReference = new Map<string, any[]>();
+    for (const conversion of vracConversions) {
+      const conversionDate = conversion.date ? new Date(conversion.date).toISOString().split('T')[0] : '';
+      const ref = conversion.reference ? `${conversion.reference}_${conversionDate}` : `conversion_${conversionDate}_${conversion.id}`;
+      if (!conversionsByReference.has(ref)) {
+        conversionsByReference.set(ref, []);
+      }
+      conversionsByReference.get(ref)!.push(conversion);
+    }
+    
+    // Process each conversion group
+    for (const [ref, conversions] of conversionsByReference) {
+      // Find source product (OUT movement)
+      const sourceMovement = conversions.find(c => c.type === 'OUT');
+      // Find target products (IN movements)
+      const targetMovements = conversions.filter(c => c.type === 'IN');
+      
+      if (sourceMovement && targetMovements.length > 0) {
+        const sourceProduct = sourceMovement.product;
+        const sourceQuantity = Math.abs(parseFloat(sourceMovement.quantity || 0));
+        const sourcePrice = Number(sourceProduct?.prix_vente_TTC || 0);
+        const sourceAmount = sourceQuantity * sourcePrice;
+        
+        const conversionDate = sourceMovement.date ? new Date(sourceMovement.date) : new Date(sourceMovement.createdAt || new Date());
+        
+        // Add CREDIT line for source product
+        addTransactionIfNotDuplicate({
+          id: `vrac_source_${sourceMovement.id}`,
+          designation: `Conversion VRAC - ${sourceProduct?.name || 'Produit source'}`,
+          debut: 0,
+          credit: sourceAmount,
+          solde: -sourceAmount,
+          type: 'CREDIT' as const,
+          details: `Produit source: ${sourceProduct?.name || 'N/A'} | Quantité: ${sourceQuantity} | Montant: ${sourceAmount.toFixed(3)} DT`,
+          date: conversionDate,
+          createdAt: conversionDate
+        });
+        
+        // Add DEBIT lines for each target product
+        for (const targetMovement of targetMovements) {
+          const targetProduct = targetMovement.product;
+          const targetQuantity = parseFloat(targetMovement.quantity || 0);
+          const targetPrice = Number(targetProduct?.prix_vente_TTC || 0);
+          const targetAmount = targetQuantity * targetPrice;
+          
+          const targetDate = targetMovement.date ? new Date(targetMovement.date) : new Date(targetMovement.createdAt || new Date());
+          
+          addTransactionIfNotDuplicate({
+            id: `vrac_target_${targetMovement.id}`,
+            designation: `Conversion VRAC - ${targetProduct?.name || 'Produit destinataire'}`,
+            debut: targetAmount,
+            credit: 0,
+            solde: targetAmount,
+            type: 'ENTRY' as const,
+            details: `Produit destinataire: ${targetProduct?.name || 'N/A'} | Quantité: ${targetQuantity} | Montant: ${targetAmount.toFixed(3)} DT`,
+            date: targetDate,
+            createdAt: targetDate
+          });
+        }
+      }
     }
     
     // 7. (INVENTAIRE moved to beginning - section 0)
@@ -3085,6 +3185,78 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     } catch (err) {
       console.error('Error getting stock returns details:', err);
       return [];
+    }
+  }
+
+  private async getVracConversionsDetails(): Promise<any[]> {
+    try {
+      const dateFrom = new Date(this.startDate);
+      const dateTo = new Date(this.endDate);
+      dateTo.setHours(23, 59, 59, 999);
+      
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      
+      const response = await firstValueFrom(
+        this.http.get<any[]>(`${environment.apiUrl}/stock/movements`, {
+          params: {
+            depotId: depotId.toString(),
+            startDate: dateFrom.toISOString(),
+            endDate: dateTo.toISOString(),
+            limit: '1000'
+          }
+        })
+      );
+      
+      const movements = Array.isArray(response) ? response : [];
+      
+      const conversions = movements.filter(m => m.reason === 'PRODUCT_CONVERSION');
+      
+      const enrichedConversions = conversions.map(movement => {
+        const product = this.products.find(p => p.id === movement.productId);
+        return {
+          id: movement.id,
+          productId: movement.productId,
+          product: product,
+          quantity: movement.quantity,
+          type: movement.type,
+          reason: movement.reason,
+          reference: movement.reference,
+          date: movement.date,
+          createdAt: movement.date || movement.createdAt
+        };
+      });
+      
+      return enrichedConversions;
+    } catch (err) {
+      console.error('Error getting vrac conversions details:', err);
+      return [];
+    }
+  }
+
+  private getCurrentDepotId(): number | null {
+    try {
+      const depotIdParam = this.route.snapshot.queryParams['depotId'];
+      if (depotIdParam) {
+        return parseInt(depotIdParam, 10);
+      }
+      
+      const visitingDepotId = sessionStorage.getItem('visitingDepotId');
+      if (visitingDepotId) {
+        return parseInt(visitingDepotId, 10);
+      }
+      
+      const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      if (user?.depotId) {
+        return parseInt(user.depotId, 10);
+      }
+      
+      return null;
+    } catch (err) {
+      console.error('Error getting current depot ID:', err);
+      return null;
     }
   }
 
@@ -4039,6 +4211,20 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   toggleReleveInventaireTable(): void {
     this.isReleveInventaireTableCollapsed = !this.isReleveInventaireTableCollapsed;
+  }
+
+  toggleHideSmallCredits(): void {
+    this.hideSmallCredits = !this.hideSmallCredits;
+  }
+
+  shouldHideRow(row: ReleveInventaireRow): boolean {
+    if (!this.hideSmallCredits) {
+      return false;
+    }
+    if (row.isInventory) {
+      return false;
+    }
+    return row.credit > 0 && row.credit < 0.100;
   }
 
   toggleGlobalEcartTable(): void {

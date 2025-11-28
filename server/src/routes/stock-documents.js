@@ -1487,6 +1487,35 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
         }
       });
       
+      // Also include all products that have current inventory (even if not in POSTED session)
+      // This ensures products added via PRODUCT_CONVERSION are included
+      const currentInventoryProducts = await prisma.inventory.findMany({
+        where: { depotId },
+        select: { productId: true }
+      });
+      
+      currentInventoryProducts.forEach(inv => {
+        if (inv.productId != null) {
+          inventoryProductIds.add(inv.productId);
+        }
+      });
+      
+      // Also include products from PRODUCT_CONVERSION movements
+      const conversionMovements = await prisma.stockMovement.findMany({
+        where: {
+          depotId: depotId,
+          reason: 'PRODUCT_CONVERSION',
+          date: { gte: inventoryPostedAt }
+        },
+        select: { productId: true }
+      });
+      
+      conversionMovements.forEach(movement => {
+        if (movement.productId != null) {
+          inventoryProductIds.add(movement.productId);
+        }
+      });
+      
       // Load products and calculate current stock for each product
       const inventoryWithCurrentStock = await Promise.all(
         Array.from(inventoryProductIds).map(async (productId) => {
@@ -1509,9 +1538,55 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           
           // Find base quantity from last POSTED inventory (0 if not in inventory session)
           const inventoryItem = lastPostedSession.items.find(item => item.productId === productId);
-          const baseQuantity = inventoryItem 
-            ? parseFloat(inventoryItem.countedQuantity ?? inventoryItem.theoreticalQuantity ?? 0)
-            : 0;
+          let baseQuantity = 0;
+          
+          if (inventoryItem) {
+            baseQuantity = parseFloat(inventoryItem.countedQuantity ?? inventoryItem.theoreticalQuantity ?? 0);
+          } else {
+            // If product is not in POSTED session, get current inventory quantity as base
+            // and subtract movements since inventoryPostedAt to get base quantity
+            const currentInventory = await prisma.inventory.findUnique({
+              where: {
+                depotId_productId: {
+                  depotId: depotId,
+                  productId: productId
+                }
+              }
+            });
+            
+            if (currentInventory) {
+              let qtyValue = currentInventory.quantity;
+              if (qtyValue === null || qtyValue === undefined) {
+                baseQuantity = 0;
+              } else if (typeof qtyValue === 'object' && qtyValue !== null) {
+                if ('toNumber' in qtyValue && typeof qtyValue.toNumber === 'function') {
+                  baseQuantity = qtyValue.toNumber();
+                } else {
+                  baseQuantity = parseFloat(qtyValue.toString()) || 0;
+                }
+              } else {
+                baseQuantity = parseFloat(qtyValue) || 0;
+              }
+              
+              // Subtract movements since inventoryPostedAt to get base quantity at POSTED time
+              const movementsSincePosted = await prisma.stockMovement.findMany({
+                where: {
+                  depotId: depotId,
+                  productId: productId,
+                  date: { gte: inventoryPostedAt }
+                }
+              });
+              
+              movementsSincePosted.forEach(movement => {
+                const qty = parseFloat(movement.quantity || 0);
+                if (movement.type === 'IN') {
+                  baseQuantity -= qty;
+                } else if (movement.type === 'OUT') {
+                  baseQuantity += Math.abs(qty);
+                }
+              });
+            }
+          }
           
           // Calculate entries (entry documents) since last inventory POST
           let totalEntries = 0;
@@ -1555,6 +1630,36 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
                 totalExits += actualQuantity;
               }
             });
+          });
+          
+          // Include OUT movements for PRODUCT_CONVERSION (transfer to vrac)
+          const outConversionMovements = await prisma.stockMovement.findMany({
+            where: {
+              depotId: depotId,
+              productId: productId,
+              type: 'OUT',
+              reason: 'PRODUCT_CONVERSION',
+              date: { gte: inventoryPostedAt }
+            }
+          });
+          
+          outConversionMovements.forEach(movement => {
+            totalExits += Math.abs(parseFloat(movement.quantity || 0));
+          });
+          
+          // Include IN movements for PRODUCT_CONVERSION (transfer to vrac - target products)
+          const inConversionMovements = await prisma.stockMovement.findMany({
+            where: {
+              depotId: depotId,
+              productId: productId,
+              type: 'IN',
+              reason: 'PRODUCT_CONVERSION',
+              date: { gte: inventoryPostedAt }
+            }
+          });
+          
+          inConversionMovements.forEach(movement => {
+            totalEntries += parseFloat(movement.quantity || 0);
           });
           
           // Calculate returns (return documents) since last inventory POST
@@ -1623,7 +1728,28 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
     const inventoryMap = new Map();
     inventory.forEach(item => {
       if (item.productId != null && !inventoryMap.has(item.productId)) {
-        inventoryMap.set(item.productId, item);
+        let quantityValue = 0;
+        const qtyValue = item.quantity;
+        if (qtyValue === null || qtyValue === undefined) {
+          quantityValue = 0;
+        } else if (typeof qtyValue === 'object' && qtyValue !== null) {
+          if ('toNumber' in qtyValue && typeof qtyValue.toNumber === 'function') {
+            quantityValue = qtyValue.toNumber();
+          } else {
+            quantityValue = parseFloat(qtyValue.toString()) || 0;
+          }
+        } else {
+          quantityValue = parseFloat(qtyValue) || 0;
+        }
+        
+        inventoryMap.set(item.productId, {
+          id: item.id,
+          depotId: item.depotId,
+          productId: item.productId,
+          quantity: quantityValue,
+          purchasePrice: item.product?.prix_achat ?? null,
+          product: item.product
+        });
       }
     });
     

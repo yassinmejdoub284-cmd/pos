@@ -229,4 +229,49 @@ export class ProductsService {
     httpParams = httpParams.set('destinationDepotId', params.destinationDepotId.toString());
     return this.http.get<Product | null>(`${this.apiUrl}/depot-links/destination`, { params: httpParams });
   }
+
+  getVracConversions(sourceProductId: number): Observable<{
+    sourceProductId: number;
+    conversions: Array<{
+      id: number;
+      targetProductId: number;
+      targetProductName: string;
+      targetProductUnite: string;
+      conversionRatio: number;
+      prix_vente_vrac: number | null;
+      prix_achat_vrac: number | null;
+      isStockable: boolean;
+    }>;
+  }> {
+    return this.http.get<{
+      sourceProductId: number;
+      conversions: Array<{
+        id: number;
+        targetProductId: number;
+        targetProductName: string;
+        targetProductUnite: string;
+        conversionRatio: number;
+        prix_vente_vrac: number | null;
+        prix_achat_vrac: number | null;
+        isStockable: boolean;
+      }>;
+    }>(`${this.apiUrl}/vrac-conversions/${sourceProductId}`);
+  }
+
+  createVracConversions(sourceProductId: number, conversions: Array<{
+    targetProductId: number;
+    conversionRatio: number;
+    prix_vente_vrac?: number;
+    prix_achat_vrac?: number;
+    isStockable?: boolean;
+  }>): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/vrac-conversions`, {
+      sourceProductId,
+      conversions
+    });
+  }
+
+  deleteVracConversion(conversionId: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/vrac-conversions/${conversionId}`);
+  }
 } 

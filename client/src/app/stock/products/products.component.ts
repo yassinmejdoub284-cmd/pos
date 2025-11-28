@@ -4,7 +4,8 @@ import { Product, ProductFamily, Depot as ProductDepot } from '../../core/models
 import { AuthService } from '../../core/services/auth.service';
 import { DepotsService } from '../../core/services/depots.service';
 import { Depot } from '../../core/models/depot.model';
-import { forkJoin, firstValueFrom } from 'rxjs';
+import { forkJoin, firstValueFrom, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 @Component({
   selector: 'app-products',
@@ -44,6 +45,7 @@ export class ProductsComponent implements OnInit {
   viewMode: 'table' | 'grid' = 'table';
   depots: Depot[] = [];
   selectedDepotId: number | null = null;
+  productVracConversionsCount: Map<number, number> = new Map();
 
   // Palette classes for family badges (light vibrant colors)
   private familyColorClasses: string[] = [
@@ -176,6 +178,7 @@ export class ProductsComponent implements OnInit {
           });
 
           this.allProducts = Array.from(productMap.values());
+          this.loadVracConversionsCount();
           this.applyFilters();
           this.loading = false;
         },
@@ -197,6 +200,7 @@ export class ProductsComponent implements OnInit {
             }
             return product;
           });
+          this.loadVracConversionsCount();
           this.applyFilters();
           this.loading = false;
         },
@@ -368,6 +372,45 @@ export class ProductsComponent implements OnInit {
     this.loadProducts();
   }
 
+  loadVracConversionsCount(): void {
+    this.productVracConversionsCount.clear();
+    const productIds = this.allProducts.map(p => p.id);
+    
+    if (productIds.length === 0) return;
+    
+    const conversionRequests = productIds.map(productId => 
+      this.productsService.getVracConversions(productId).pipe(
+        catchError(() => {
+          return of({ sourceProductId: productId, conversions: [] });
+        })
+      )
+    );
+    
+    forkJoin(conversionRequests).subscribe({
+      next: (responses) => {
+        responses.forEach(response => {
+          if (response && response.conversions) {
+            this.productVracConversionsCount.set(response.sourceProductId, response.conversions.length);
+            if (response.conversions.length > 0 && !this.allProducts.find(p => p.id === response.sourceProductId)?.isVraguable) {
+              const product = this.allProducts.find(p => p.id === response.sourceProductId);
+              if (product) {
+                product.isVraguable = true;
+              }
+            }
+          }
+        });
+      }
+    });
+  }
+
+  getVracConversionsCount(productId: number): number {
+    return this.productVracConversionsCount.get(productId) || 0;
+  }
+
+  hasVracConversions(productId: number): boolean {
+    return this.getVracConversionsCount(productId) > 0;
+  }
+
   onImportCompleted(): void {
     this.closeModal();
     this.loadProducts();
@@ -499,60 +542,34 @@ export class ProductsComponent implements OnInit {
     this.loading = true;
     this.error = '';
 
-    const updateRequests = conversions.map(conversion => {
-      const vracProduct = this.allProducts.find(p => p.id === conversion.vracProductId);
-      if (!vracProduct) {
-        return null;
-      }
+    const conversionsPayload = conversions.map(conversion => ({
+      targetProductId: conversion.vracProductId,
+      conversionRatio: conversion.conversionRatio,
+      prix_vente_vrac: conversion.prix_vente_vrac || undefined,
+      prix_achat_vrac: conversion.prix_achat_vrac || undefined,
+      isStockable: conversion.isStockable
+    }));
 
-      const updatedVracProduct = {
-        ...vracProduct,
-        isStockable: conversion.isStockable,
-        conversionRatio: conversion.conversionRatio,
-        originalProductId: this.selectedProductForVrac!.id,
-        prix_vente_vrac: conversion.prix_vente_vrac || 0,
-        prix_achat_vrac: conversion.prix_achat_vrac || 0
-      };
-
-      return this.productsService.updateProduct(conversion.vracProductId, updatedVracProduct);
-    }).filter(req => req !== null) as any[];
-
-    if (updateRequests.length === 0) {
-      this.error = 'Aucun produit vrac valide trouvé';
-      this.loading = false;
-      return;
-    }
-
-    forkJoin(updateRequests).subscribe({
+    this.productsService.createVracConversions(
+      this.selectedProductForVrac.id,
+      conversionsPayload
+    ).subscribe({
       next: () => {
-        if (!this.selectedProductForVrac) return;
-        
-        const updatedSourceProduct = {
-          ...this.selectedProductForVrac,
-          isVraguable: true
-        };
-        
-        this.productsService.updateProduct(this.selectedProductForVrac.id, updatedSourceProduct).subscribe({
-          next: () => {
-            this.closeVracModal();
-            this.loadProducts();
-            this.loading = false;
-          },
-          error: (error) => {
-            this.error = 'Erreur lors de la mise à jour du produit source';
-            this.loading = false;
-          }
-        });
+        this.closeVracModal();
+        this.loadProducts();
+        this.loading = false;
       },
       error: (error) => {
-        this.error = error.error?.error || 'Erreur lors de la mise à jour des produits vrac';
+        this.error = error.error?.error || 'Erreur lors de la création des conversions VRAC';
         this.loading = false;
       }
     });
   }
 
   getVracConvertibleCount(): number {
-    return this.displayedProducts.filter(product => product.isVraguable === true).length;
+    return this.displayedProducts.filter(product => 
+      product.isVraguable === true || this.hasVracConversions(product.id)
+    ).length;
   }
 
   getStockableCount(): number {

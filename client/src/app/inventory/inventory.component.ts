@@ -223,6 +223,30 @@ export class InventoryComponent implements OnInit, OnDestroy {
     }
   }
 
+  executerEnStock(session: InventorySession, event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    if (confirm(`Êtes-vous sûr de vouloir exécuter l'inventaire ${session.numero} en stock ?`)) {
+      this.loading = true;
+      this.error = null;
+      
+      this.inventoryService.postSession(session.id).subscribe({
+        next: () => {
+          this.loadSessions();
+          this.loading = false;
+          alert(`Stock mis à jour avec succès pour l'inventaire ${session.numero}`);
+        },
+        error: (error) => {
+          console.error('Error posting session:', error);
+          this.error = error.error?.error || 'Erreur lors de l\'exécution en stock';
+          this.loading = false;
+        }
+      });
+    }
+  }
+
   onStatusFilterChange(): void {
     // Filter logic is handled in the template with *ngFor
   }

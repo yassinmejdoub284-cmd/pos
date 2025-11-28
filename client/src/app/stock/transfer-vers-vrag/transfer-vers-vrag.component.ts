@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { ProductsService } from '../../core/services/products.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Product, ProductFamily } from '../../core/models/product.model';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-transfer-vers-vrag',
@@ -13,13 +14,17 @@ export class TransferVersVragComponent implements OnInit {
   products: Product[] = [];
   vraguableProducts: Product[] = [];
   filteredVraguableProducts: Product[] = [];
-  juscVracFamilyId: number | null = null;
   families: ProductFamily[] = [];
   loading = false;
   error = '';
   showTransferModal = false;
   selectedProductForTransfer: Product | null = null;
   searchQuery = '';
+  vracConversions: VracConversion[] = [];
+  transferQuantity = 1;
+  loadingConversions = false;
+  showSuccessNotification = false;
+  successMessage = '';
 
   constructor(
     private router: Router,
@@ -28,32 +33,7 @@ export class TransferVersVragComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.loadFamilies();
     this.loadProducts();
-  }
-
-  loadFamilies(): void {
-    this.productsService.getFamilles().subscribe({
-      next: (families) => {
-        this.families = families;
-        // Try different variations of JUS VRAC name
-        const juscVracFamily = families.find(f => 
-          f.name === 'JUS VRAC' || 
-          f.name === 'JUS VRAC' || 
-          f.name.toUpperCase() === 'JUS VRAC' ||
-          f.name.toUpperCase().includes('JUS') && f.name.toUpperCase().includes('VRAC')
-        );
-        if (juscVracFamily) {
-          this.juscVracFamilyId = juscVracFamily.id;
-        } else {
-          // If not found, log available families for debugging
-          console.warn('Famille JUS VRAC non trouvée. Familles disponibles:', families.map(f => f.name));
-        }
-      },
-      error: (error) => {
-        console.error('Error loading families:', error);
-      }
-    });
   }
 
   loadProducts(): void {
@@ -65,20 +45,27 @@ export class TransferVersVragComponent implements OnInit {
     const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
 
     this.productsService.getProducts(currentDepotId || undefined).subscribe({
-      next: (products) => {
+      next: async (products) => {
         this.products = products;
-        this.vraguableProducts = products.filter(product => {
-          const isSourceProduct = !product.isVrac && !product.originalProductId;
-          if (!isSourceProduct) return false;
-          
-          const isConvertible = product.isVraguable === true;
-          const hasConversionRatio = product.conversionRatio && product.conversionRatio > 0;
-          const hasVracProducts = products.some(p => 
-            p.isVrac && p.originalProductId === product.id
-          );
-          
-          return isConvertible || hasConversionRatio || hasVracProducts;
-        });
+        
+        const vraguableProductIds = new Set<number>();
+        
+        for (const product of products) {
+          if (product.isVraguable === true) {
+            vraguableProductIds.add(product.id);
+          } else {
+            try {
+              const conversions = await firstValueFrom(this.productsService.getVracConversions(product.id));
+              if (conversions && conversions.conversions && conversions.conversions.length > 0) {
+                vraguableProductIds.add(product.id);
+              }
+            } catch (error) {
+              // Ignore errors for products without conversions
+            }
+          }
+        }
+        
+        this.vraguableProducts = products.filter(product => vraguableProductIds.has(product.id));
         this.applySearchFilter();
         this.loading = false;
       },
@@ -108,7 +95,6 @@ export class TransferVersVragComponent implements OnInit {
     this.applySearchFilter();
   }
 
-
   goBack(): void {
     this.router.navigate(['/stock']);
   }
@@ -117,88 +103,90 @@ export class TransferVersVragComponent implements OnInit {
     return product.id;
   }
 
-  juscVracProducts: Product[] = [];
-  selectedTargetProduct: Product | null = null;
-  transferQuantity = 1;
+  getTotalCalculatedQuantity(): number {
+    if (!this.vracConversions || this.vracConversions.length === 0) {
+      return 0;
+    }
+    return this.vracConversions.reduce((sum, c) => sum + (c.calculatedQuantity || 0), 0);
+  }
 
   openTransferModal(product: Product): void {
     this.selectedProductForTransfer = product;
-    this.selectedTargetProduct = null;
     this.transferQuantity = 1;
-    // Conversion ratio is taken from source product, not editable
-    this.loadJuscVracProducts();
+    this.vracConversions = [];
+    this.error = '';
+    this.loadingConversions = true;
     this.showTransferModal = true;
+    this.loadVracConversions();
   }
 
   closeTransferModal(): void {
     this.showTransferModal = false;
     this.selectedProductForTransfer = null;
-    this.selectedTargetProduct = null;
+    this.vracConversions = [];
+    this.transferQuantity = 1;
+    this.loadingConversions = false;
   }
 
-  loadJuscVracProducts(): void {
-    if (!this.juscVracFamilyId) {
-      this.error = 'Famille JUS VRAC non trouvée';
-      return;
-    }
-
+  loadVracConversions(): void {
     if (!this.selectedProductForTransfer) {
+      this.loadingConversions = false;
       return;
     }
 
-    const userDepotId = this.authService.currentUser()?.depotId || 0;
-    const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
-    const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
-
-    this.productsService.getProducts(currentDepotId || undefined).subscribe({
-      next: (products) => {
-        const allJusVracProducts = products.filter(product => {
-          const isVracProduct = product.isVrac === true;
-          const isInJusVracFamily = product.familleId === this.juscVracFamilyId;
-          return isVracProduct && isInJusVracFamily && 
-                 product.id !== this.selectedProductForTransfer?.id;
-        });
-        
-        const relatedProducts = allJusVracProducts.filter(product => 
-          product.originalProductId === this.selectedProductForTransfer?.id
-        );
-        
-        this.juscVracProducts = relatedProducts.length > 0 
-          ? relatedProducts 
-          : allJusVracProducts;
-        
-        if (this.juscVracProducts.length === 0) {
-          this.error = 'Aucun produit vrac trouvé dans la famille JUS VRAC';
+    this.loadingConversions = true;
+    this.error = '';
+    
+    this.productsService.getVracConversions(this.selectedProductForTransfer.id).subscribe({
+      next: (response) => {
+        if (response && response.conversions && Array.isArray(response.conversions)) {
+          this.vracConversions = response.conversions.map(conv => ({
+            ...conv,
+            calculatedQuantity: this.transferQuantity * conv.conversionRatio
+          }));
+          
+          if (this.vracConversions.length === 0) {
+            this.error = 'Aucune conversion VRAC configurée pour ce produit. Veuillez d\'abord configurer les conversions dans /stock/produits';
+          } else {
+            this.error = '';
+          }
         } else {
-          this.error = '';
+          this.vracConversions = [];
+          this.error = 'Format de réponse invalide du serveur';
         }
+        this.loadingConversions = false;
       },
       error: (error) => {
-        this.error = 'Erreur lors du chargement des produits JUS VRAC';
+        console.error('Error loading vrac conversions:', error);
+        this.error = error.error?.error || error.message || 'Erreur lors du chargement des conversions VRAC';
+        this.vracConversions = [];
+        this.loadingConversions = false;
       }
     });
   }
 
-  selectTargetProduct(product: Product): void {
-    this.selectedTargetProduct = product;
+  onQuantityChange(): void {
+    if (this.transferQuantity > 0) {
+      this.vracConversions = this.vracConversions.map(conv => ({
+        ...conv,
+        calculatedQuantity: this.transferQuantity * conv.conversionRatio
+      }));
+    }
   }
 
   onProductTransferred(): void {
-    if (!this.selectedProductForTransfer || !this.selectedTargetProduct) {
-      this.error = 'Veuillez sélectionner un produit cible';
+    if (!this.selectedProductForTransfer) {
+      this.error = 'Aucun produit source sélectionné';
+      return;
+    }
+
+    if (this.vracConversions.length === 0) {
+      this.error = 'Aucune conversion VRAC configurée';
       return;
     }
 
     if (this.transferQuantity <= 0) {
       this.error = 'La quantité doit être positive';
-      return;
-    }
-
-    // Use conversion ratio from source product, default to 1 if not available
-    const conversionRatio = this.selectedProductForTransfer.conversionRatio || 1;
-    
-    if (conversionRatio <= 0) {
-      this.error = 'Le ratio de conversion doit être positif';
       return;
     }
 
@@ -209,25 +197,78 @@ export class TransferVersVragComponent implements OnInit {
     const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
 
+    if (!currentDepotId || currentDepotId <= 0) {
+      this.error = 'Dépôt invalide. Veuillez sélectionner un dépôt valide.';
+      this.loading = false;
+      return;
+    }
+
+    const transfersPayload = this.vracConversions
+      .filter(conv => {
+        const hasTargetId = conv.targetProductId && conv.targetProductId > 0;
+        const hasRatio = conv.conversionRatio !== undefined && conv.conversionRatio !== null;
+        const ratioValue = parseFloat(conv.conversionRatio?.toString() || '0');
+        const isValidRatio = !isNaN(ratioValue) && ratioValue > 0;
+        return hasTargetId && hasRatio && isValidRatio;
+      })
+      .map(conv => {
+        const quantity = parseFloat(this.transferQuantity.toString());
+        const ratio = parseFloat(conv.conversionRatio.toString());
+        return {
+          targetProductId: parseInt(conv.targetProductId.toString()),
+          quantity: isNaN(quantity) ? 0 : quantity,
+          conversionRatio: isNaN(ratio) ? 0 : ratio
+        };
+      })
+      .filter(transfer => transfer.quantity > 0 && transfer.conversionRatio > 0);
+
+    if (transfersPayload.length === 0) {
+      this.error = 'Aucun transfert valide. Vérifiez que tous les produits destinataires ont un ratio de conversion valide.';
+      this.loading = false;
+      return;
+    }
+
     const transferPayload = {
       sourceProductId: this.selectedProductForTransfer.id,
-      targetProductId: this.selectedTargetProduct.id,
-      quantity: parseFloat(this.transferQuantity.toString()),
-      conversionRatio: conversionRatio,
+      transfers: transfersPayload,
       depotId: currentDepotId
     };
 
-    this.productsService.transferProduct(transferPayload).subscribe({
-      next: () => {
+    console.log('Sending transfer payload:', JSON.stringify(transferPayload, null, 2));
+
+    this.productsService.transferProductMultiple(transferPayload).subscribe({
+      next: (response) => {
         this.closeTransferModal();
         this.loadProducts();
         this.loading = false;
+        this.successMessage = response?.message || `Transfert réussi: ${this.transferQuantity} ${this.selectedProductForTransfer?.unite} de ${this.selectedProductForTransfer?.name} transféré(s) vers ${this.vracConversions.length} produit(s) VRAC`;
+        this.showSuccessNotification = true;
+        setTimeout(() => {
+          this.showSuccessNotification = false;
+        }, 5000);
       },
       error: (error) => {
-        this.error = error.error?.error || 'Erreur lors du transfert du produit';
         this.loading = false;
+        console.error('Transfer error full:', error);
+        console.error('Transfer error response:', error.error);
+        console.error('Transfer error response stringified:', JSON.stringify(error.error, null, 2));
+        const errorMessage = error.error?.error || error.error?.message || 'Erreur lors du transfert des produits';
+        const errorDetails = error.error ? JSON.stringify(error.error, null, 2) : '';
+        this.error = errorMessage + (errorDetails ? `\n\nDétails complets:\n${errorDetails}` : '');
+        alert(`Erreur: ${errorMessage}\n\nDétails dans la console.`);
       }
     });
   }
 }
 
+interface VracConversion {
+  id: number;
+  targetProductId: number;
+  targetProductName: string;
+  targetProductUnite: string;
+  conversionRatio: number;
+  prix_vente_vrac: number | null;
+  prix_achat_vrac: number | null;
+  isStockable: boolean;
+  calculatedQuantity?: number;
+}
