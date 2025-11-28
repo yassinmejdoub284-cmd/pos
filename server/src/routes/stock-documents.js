@@ -103,8 +103,10 @@ async function calculateSessionSummary(sessionId) {
       const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
                                      reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
                                      reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
-      // Exclude canceled ticket refunds and client credit payments
-      const shouldExclude = isFromCancelledTicket || isCanceledTicketRefund || isClientCreditPayment;
+      // CRITICAL: Exclude bon de retour from decaissement (creates supplier credit, not cash outflow)
+      const isBonRetour = reasonLower.includes('bon de retour');
+      // Exclude canceled ticket refunds, client credit payments, and bon de retour
+      const shouldExclude = isFromCancelledTicket || isCanceledTicketRefund || isClientCreditPayment || isBonRetour;
       return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !shouldExclude && amount > 0;
     })
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
@@ -647,6 +649,33 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
       // Handle stock synchronization
       await synchronizeStockForDocumentUpdate(existingDocument, originalItems, updateData.items, req.user.id);
+
+      // Update associated expense for bon de retour if it exists
+      if (existingDocument.type === 'BON_EXPEDITION' && existingDocument.notes && existingDocument.notes.includes('Supplier:')) {
+        const totalAmount = updateData.items.reduce((sum, item) => {
+          const quantity = Math.abs(item.quantity || 0);
+          const price = parseFloat(item.purchasePrice || 0);
+          return sum + (quantity * price);
+        }, 0);
+
+        if (totalAmount > 0) {
+          const depotId = existingDocument.emetteurId || existingDocument.destinataireId;
+          
+          const associatedExpense = await prisma.expense.findFirst({
+            where: {
+              notes: { contains: `Bon de retour ${existingDocument.numero}` },
+              depotId: depotId
+            }
+          });
+
+          if (associatedExpense) {
+            await prisma.expense.update({
+              where: { id: associatedExpense.id },
+              data: { amount: totalAmount }
+            });
+          }
+        }
+      }
 
       // Fetch updated document with items
       const finalDocument = await prisma.stockDocument.findUnique({
@@ -1405,7 +1434,8 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
         where: {
           depotId: depotId,
           status: { in: ['COMPLETED', 'CMD_TERMINEE'] },
-          createdAt: { gte: inventoryPostedAt }
+          createdAt: { gte: inventoryPostedAt },
+          paymentType: { in: ['COMPTANT', 'CREDIT'] }
         },
         include: {
           items: true
@@ -3095,9 +3125,9 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    // Only allow deletion of BON_ENTREE_DEPOT and BON_TRANSFERT documents
-    if (document.type !== 'BON_ENTREE_DEPOT' && document.type !== 'BON_TRANSFERT') {
-      return res.status(400).json({ error: 'Only bon entree and transfer documents can be deleted' });
+    // Only allow deletion of BON_ENTREE_DEPOT, BON_TRANSFERT, and BON_EXPEDITION documents
+    if (document.type !== 'BON_ENTREE_DEPOT' && document.type !== 'BON_TRANSFERT' && document.type !== 'BON_EXPEDITION') {
+      return res.status(400).json({ error: 'Only bon entree, transfer, and bon retour documents can be deleted' });
     }
 
     // Only allow deletion of RECEIVED documents
@@ -3114,12 +3144,58 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       for (const item of document.items) {
         // Use parentProductId if available (for grouped products), otherwise use productId
         const targetProductId = item.parentProductId || item.productId;
-        const quantity = parseFloat(item.quantity) || 0;
+        const quantity = Math.abs(parseFloat(item.quantity) || 0);
         const destinataireDepotId = document.destinataireId;
         const emetteurDepotId = document.emetteurId;
         const isTransfer = document.type === 'BON_TRANSFERT';
+        const isBonRetour = document.type === 'BON_EXPEDITION';
 
         if (quantity > 0) {
+          // For bon de retour: add stock back (reverse the return)
+          if (isBonRetour) {
+            const depotInventory = await tx.inventory.findUnique({
+              where: {
+                depotId_productId: {
+                  depotId: destinataireDepotId,
+                  productId: targetProductId
+                }
+              }
+            });
+
+            if (depotInventory) {
+              const currentQuantity = parseFloat(depotInventory.quantity) || 0;
+              const newQuantity = currentQuantity + quantity;
+              
+              await tx.inventory.update({
+                where: { id: depotInventory.id },
+                data: { quantity: newQuantity }
+              });
+            } else {
+              await tx.inventory.create({
+                data: {
+                  depotId: destinataireDepotId,
+                  productId: targetProductId,
+                  quantity: quantity
+                }
+              });
+            }
+
+            // Create reverse stock movement
+            await tx.stockMovement.create({
+              data: {
+                productId: targetProductId,
+                depotId: destinataireDepotId,
+                quantity: quantity,
+                type: 'IN',
+                fromDepotId: null,
+                toDepotId: destinataireDepotId,
+                reason: 'RETURN_DELETED_REVERSED',
+                reference: document.numero,
+                userId: req.user.id
+              }
+            });
+            continue;
+          }
           // For transfers: remove from destination, add back to source
           // For entries: remove from destination only
           
@@ -3233,6 +3309,23 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       }
 
       // Delete related records first (due to foreign key constraints)
+      
+      // For bon de retour: delete associated expense
+      if (document.type === 'BON_EXPEDITION' && document.notes && document.notes.includes('Supplier:')) {
+        const associatedExpenses = await tx.expense.findMany({
+          where: {
+            notes: { contains: `Bon de retour ${document.numero}` },
+            depotId: document.destinataireId
+          }
+        });
+
+        for (const expense of associatedExpenses) {
+          await tx.expense.delete({
+            where: { id: expense.id }
+          });
+        }
+      }
+      
       // Delete supplier payments linked to this bon d'entrée
       // Look for payments with notes containing various formats:
       // - "Bon d'entrée #<id>"

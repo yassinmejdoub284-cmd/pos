@@ -729,11 +729,14 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     return movements
       .filter(m => {
         const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const amount = parseFloat((m as any).amount || 0) || 0;
+        const isBonRetour = reasonLower.includes('bon de retour');
         return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && 
                amount > 0 && 
                !reason.includes('[REJETÉ]') && 
-               !reason.includes('[SUPPRIMÉ]');
+               !reason.includes('[SUPPRIMÉ]') &&
+               !isBonRetour;
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }

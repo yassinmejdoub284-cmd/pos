@@ -5,6 +5,7 @@ import { StockDocumentsService } from '../../../core/services/stock-documents.se
 import { DepotsService } from '../../../core/services/depots.service';
 import { ProductsService } from '../../../core/services/products.service';
 import { SuppliersService } from '../../../core/services/suppliers.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { StockDocument, StockDocumentItem } from '../../../core/models/stock-document.model';
 import { buildScanLikeDocumentHtmlFromDocument, getScanPrintStyles } from '../../shared/print-templates';
 import { Depot } from '../../../core/models/stock-document.model';
@@ -78,7 +79,8 @@ export class BonRetourComponent implements OnInit {
     private stockDocsService: StockDocumentsService,
     private depotsService: DepotsService,
     private productsService: ProductsService,
-    private suppliersService: SuppliersService
+    private suppliersService: SuppliersService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -321,8 +323,70 @@ export class BonRetourComponent implements OnInit {
   }
 
   viewDocument(document: StockDocument): void {
-    this.selectedDocument = document;
-    this.showDocumentDetails = true;
+    this.loading = true;
+    this.stockDocsService.getDocument(document.id).subscribe({
+      next: (fullDocument) => {
+        this.selectedDocument = fullDocument;
+        this.showDocumentDetails = true;
+        this.loading = false;
+        
+        if (fullDocument.supplier) {
+          const supplier = this.suppliers.find(s => s.id === fullDocument.supplier!.id);
+          this.selectedSupplier = supplier || fullDocument.supplier;
+        } else if (fullDocument.notes && fullDocument.notes.includes('Supplier:')) {
+          const supplierMatch = fullDocument.notes.match(/Supplier:(\d+)/);
+          if (supplierMatch) {
+            const supplierId = parseInt(supplierMatch[1]);
+            const supplier = this.suppliers.find(s => s.id === supplierId);
+            if (supplier) {
+              this.selectedSupplier = supplier;
+            }
+          }
+        }
+      },
+      error: () => {
+        this.selectedDocument = document;
+        this.showDocumentDetails = true;
+        this.loading = false;
+        
+        if (document.notes && document.notes.includes('Supplier:')) {
+          const supplierMatch = document.notes.match(/Supplier:(\d+)/);
+          if (supplierMatch) {
+            const supplierId = parseInt(supplierMatch[1]);
+            const supplier = this.suppliers.find(s => s.id === supplierId);
+            if (supplier) {
+              this.selectedSupplier = supplier;
+            }
+          }
+        }
+      }
+    });
+  }
+
+  getDocumentTotalAmount(document: StockDocument): number {
+    if (!document.items || document.items.length === 0) return 0;
+    return document.items.reduce((total, item) => {
+      const quantity = Math.abs(item.quantity || 0);
+      const price = typeof item.purchasePrice === 'number' ? item.purchasePrice : parseFloat(String(item.purchasePrice || 0));
+      return total + (quantity * price);
+    }, 0);
+  }
+
+  getDocumentSupplierName(document: StockDocument): string {
+    if (document.supplier) {
+      return document.supplier.name;
+    }
+    if (document.notes && document.notes.includes('Supplier:')) {
+      const supplierMatch = document.notes.match(/Supplier:(\d+)/);
+      if (supplierMatch) {
+        const supplierId = parseInt(supplierMatch[1]);
+        const supplier = this.suppliers.find(s => s.id === supplierId);
+        if (supplier) {
+          return supplier.name;
+        }
+      }
+    }
+    return 'Non spécifié';
   }
 
   closeDocumentDetails(): void {
@@ -754,5 +818,49 @@ export class BonRetourComponent implements OnInit {
     this.selectedSupplier = null;
     this.error = '';
     this.success = '';
+  }
+
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
+  deleteDocument(doc: StockDocument): void {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le bon de retour ${doc.numero}? Cette action est irréversible et restaurera le stock.`)) {
+      return;
+    }
+
+    this.loading = true;
+    this.error = '';
+    this.success = '';
+
+    this.stockDocsService.deleteDocument(doc.id).subscribe({
+      next: () => {
+        this.success = 'Bon de retour supprimé avec succès';
+        this.successMessage = `Bon de retour ${doc.numero} supprimé avec succès!`;
+        this.showSuccessNotification = true;
+        this.loading = false;
+        setTimeout(() => {
+          this.showSuccessNotification = false;
+          this.success = '';
+          this.showDocumentDetails = false;
+          this.selectedDocument = null;
+          if (this.depotId) {
+            this.loadDocumentsForDepot();
+          } else if (this.documentId && doc.id === parseInt(this.documentId)) {
+            this.router.navigate(['/stock']);
+          }
+        }, 2000);
+      },
+      error: (error) => {
+        this.error = error.error?.error || 'Erreur lors de la suppression du bon de retour';
+        this.errorMessage = error.error?.error || 'Erreur lors de la suppression du bon de retour';
+        this.showErrorNotification = true;
+        this.loading = false;
+        setTimeout(() => {
+          this.showErrorNotification = false;
+          this.error = '';
+        }, 5000);
+      }
+    });
   }
 }

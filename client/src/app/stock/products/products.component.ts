@@ -486,54 +486,50 @@ export class ProductsComponent implements OnInit {
     this.selectedProductForVrac = null;
   }
 
-  convertToVrac(vracData: { 
-    isStockable: boolean; 
-    price: number; 
+  convertToVrac(conversions: Array<{
+    vracProductId: number;
+    vracProductName: string;
     conversionRatio: number;
     prix_vente_vrac: number;
     prix_achat_vrac: number;
-  }): void {
-    if (!this.selectedProductForVrac) return;
-
-    // Find the vrac family
-    const vracFamily = this.families.find(f => f.name === 'Vrac');
-    if (!vracFamily) {
-      this.error = 'Famille Vrac non trouvée';
-      return;
-    }
+    isStockable: boolean;
+  }>): void {
+    if (!this.selectedProductForVrac || conversions.length === 0) return;
 
     this.loading = true;
     this.error = '';
 
-    const vracProduct = {
-      name: `${this.selectedProductForVrac.name} (Vrac)`,
-      description: `Version vrac de ${this.selectedProductForVrac.name}`,
-      familleId: vracFamily.id,
-      barcode: '', // Will be generated or left empty
-      unite: this.selectedProductForVrac.unite,
-      prix_vente_TTC: vracData.price,
-      tva: this.selectedProductForVrac.tva,
-      photo: this.selectedProductForVrac.photo,
-      duree_conservation: this.selectedProductForVrac.duree_conservation,
-      isVrac: true,
-      originalProductId: this.selectedProductForVrac.id,
-      isStockable: vracData.isStockable,
-      conversionRatio: vracData.conversionRatio,
-      prix_vente_vrac: vracData.prix_vente_vrac || 0,
-      prix_achat_vrac: vracData.prix_achat_vrac || 0
-    };
+    const updateRequests = conversions.map(conversion => {
+      const vracProduct = this.allProducts.find(p => p.id === conversion.vracProductId);
+      if (!vracProduct) {
+        return null;
+      }
 
-    this.productsService.createProduct(vracProduct).subscribe({
+      const updatedVracProduct = {
+        ...vracProduct,
+        isStockable: conversion.isStockable,
+        conversionRatio: conversion.conversionRatio,
+        originalProductId: this.selectedProductForVrac!.id,
+        prix_vente_vrac: conversion.prix_vente_vrac || 0,
+        prix_achat_vrac: conversion.prix_achat_vrac || 0
+      };
+
+      return this.productsService.updateProduct(conversion.vracProductId, updatedVracProduct);
+    }).filter(req => req !== null) as any[];
+
+    if (updateRequests.length === 0) {
+      this.error = 'Aucun produit vrac valide trouvé';
+      this.loading = false;
+      return;
+    }
+
+    forkJoin(updateRequests).subscribe({
       next: () => {
         if (!this.selectedProductForVrac) return;
         
-        // Update the source product with the conversion ratio and vrac prices
         const updatedSourceProduct = {
           ...this.selectedProductForVrac,
-          conversionRatio: vracData.conversionRatio,
-          isVraguable: true,
-          prix_vente_vrac: vracData.prix_vente_vrac || 0,
-          prix_achat_vrac: vracData.prix_achat_vrac || 0
+          isVraguable: true
         };
         
         this.productsService.updateProduct(this.selectedProductForVrac.id, updatedSourceProduct).subscribe({
@@ -549,7 +545,7 @@ export class ProductsComponent implements OnInit {
         });
       },
       error: (error) => {
-        this.error = error.error?.error || 'Erreur lors de la création du produit vrac';
+        this.error = error.error?.error || 'Erreur lors de la mise à jour des produits vrac';
         this.loading = false;
       }
     });

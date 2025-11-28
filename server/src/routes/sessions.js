@@ -1734,7 +1734,8 @@ async function calculateSessionSummary(sessionId) {
       sales: {
         where: {
           // CRITICAL: Filter sales by session's depotId to ensure depot isolation
-          depotId: sessionDepotId
+          depotId: sessionDepotId,
+          paymentType: { in: ['COMPTANT', 'CREDIT'] }
         },
         include: {
           paymentMethod: true,
@@ -1834,10 +1835,11 @@ async function calculateSessionSummary(sessionId) {
     const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
     const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
     const isReturnRefund = reason.includes('Remboursement retour') || reason.includes('retour');
+    const isBonRetour = reasonLower.includes('bon de retour');
     const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
                                    reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
                                    reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
-    const shouldExclude = (isFromCancelledTicket && !isReturnRefund) || isCanceledTicketRefund || isClientCreditPayment;
+    const shouldExclude = (isFromCancelledTicket && !isReturnRefund) || isCanceledTicketRefund || isClientCreditPayment || isBonRetour;
     const isValid = ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !shouldExclude && amount > 0;
     return isValid;
   });
@@ -2307,6 +2309,9 @@ async function generateZReport(sessionId, closureData = {}) {
       user: { select: { firstName: true, lastName: true } },
       depot: { select: { name: true, code: true, address: true, city: true, phone: true } },
       sales: {
+        where: {
+          paymentType: { in: ['COMPTANT', 'CREDIT'] }
+        },
         include: {
           paymentMethod: true,
           user: { select: { firstName: true, lastName: true } },

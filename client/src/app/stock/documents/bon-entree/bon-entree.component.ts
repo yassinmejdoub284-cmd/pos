@@ -358,8 +358,70 @@ export class BonEntreeComponent implements OnInit {
   }
 
   viewDocument(document: StockDocument): void {
-    this.selectedDocument = document;
-    this.showDocumentDetails = true;
+    this.loading = true;
+    this.stockDocsService.getDocument(document.id).subscribe({
+      next: (fullDocument) => {
+        this.selectedDocument = fullDocument;
+        this.showDocumentDetails = true;
+        this.loading = false;
+        
+        if (fullDocument.supplier) {
+          const supplier = this.suppliers.find(s => s.id === fullDocument.supplier!.id);
+          this.selectedSupplier = supplier || fullDocument.supplier;
+        } else if (fullDocument.notes && fullDocument.notes.includes('Supplier:')) {
+          const supplierMatch = fullDocument.notes.match(/Supplier:(\d+)/);
+          if (supplierMatch) {
+            const supplierId = parseInt(supplierMatch[1]);
+            const supplier = this.suppliers.find(s => s.id === supplierId);
+            if (supplier) {
+              this.selectedSupplier = supplier;
+            }
+          }
+        }
+      },
+      error: () => {
+        this.selectedDocument = document;
+        this.showDocumentDetails = true;
+        this.loading = false;
+        
+        if (document.notes && document.notes.includes('Supplier:')) {
+          const supplierMatch = document.notes.match(/Supplier:(\d+)/);
+          if (supplierMatch) {
+            const supplierId = parseInt(supplierMatch[1]);
+            const supplier = this.suppliers.find(s => s.id === supplierId);
+            if (supplier) {
+              this.selectedSupplier = supplier;
+            }
+          }
+        }
+      }
+    });
+  }
+
+  getDocumentTotalAmount(document: StockDocument): number {
+    if (!document.items || document.items.length === 0) return 0;
+    return document.items.reduce((total, item) => {
+      const quantity = Math.abs(item.quantity || 0);
+      const price = typeof item.purchasePrice === 'number' ? item.purchasePrice : parseFloat(String(item.purchasePrice || 0));
+      return total + (quantity * price);
+    }, 0);
+  }
+
+  getDocumentSupplierName(document: StockDocument): string {
+    if (document.supplier) {
+      return document.supplier.name;
+    }
+    if (document.notes && document.notes.includes('Supplier:')) {
+      const supplierMatch = document.notes.match(/Supplier:(\d+)/);
+      if (supplierMatch) {
+        const supplierId = parseInt(supplierMatch[1]);
+        const supplier = this.suppliers.find(s => s.id === supplierId);
+        if (supplier) {
+          return supplier.name;
+        }
+      }
+    }
+    return 'Non spécifié';
   }
 
   closeDocumentDetails(): void {

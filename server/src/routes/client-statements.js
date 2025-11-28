@@ -1220,8 +1220,10 @@ router.delete('/statement/transaction', authenticateToken, async (req, res) => {
                   const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
                                                  reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
                                                  reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
-                  // Exclude canceled ticket refunds and client credit payments
-                  const shouldExclude = isFromCancelledTicket || isCanceledTicketRefund || isClientCreditPayment;
+                  // CRITICAL: Exclude bon de retour from decaissement (creates supplier credit, not cash outflow)
+                  const isBonRetour = reasonLower.includes('bon de retour');
+                  // Exclude canceled ticket refunds, client credit payments, and bon de retour
+                  const shouldExclude = isFromCancelledTicket || isCanceledTicketRefund || isClientCreditPayment || isBonRetour;
                   return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !shouldExclude && amount > 0;
                 })
                 .reduce((sum, m) => sum + parseFloat(m.amount || 0), 0);

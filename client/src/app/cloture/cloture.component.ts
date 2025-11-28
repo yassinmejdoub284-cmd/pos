@@ -707,7 +707,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
 
-  // Refunds (Remboursements)
+  // Refunds (Remboursements) - excludes bon de retour (supplier returns)
   recentRefunds(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
     const movements = (this.currentSession()?.cashMovements || []) as any[];
     const sales = ((this.currentSession() as any)?.sales || []) as any[];
@@ -723,7 +723,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
       .filter(m => {
         const reason = String(m.reason || '');
         const reasonLower = reason.toLowerCase();
-        const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
+        const isBonRetour = reasonLower.includes('bon de retour');
+        const isRefund = reasonLower.includes('remboursement') && !isBonRetour;
         const amount = parseFloat((m as any).amount || 0) || 0;
         const isRejected = reason.includes('[REJETÉ]');
         const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
@@ -753,11 +754,14 @@ export class ClotureComponent implements OnInit, OnDestroy {
     return movements
       .filter(m => {
         const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const amount = parseFloat((m as any).amount || 0) || 0;
+        const isBonRetour = reasonLower.includes('bon de retour');
         return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && 
                amount > 0 && 
                !reason.includes('[REJETÉ]') && 
-               !reason.includes('[SUPPRIMÉ]');
+               !reason.includes('[SUPPRIMÉ]') &&
+               !isBonRetour;
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
@@ -777,7 +781,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
       .filter(m => {
         const reason = String(m.reason || '');
         const reasonLower = reason.toLowerCase();
-        const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
+        const isBonRetour = reasonLower.includes('bon de retour');
+        const isRefund = reasonLower.includes('remboursement') && !isBonRetour;
         const amount = parseFloat((m as any).amount || 0) || 0;
         const isRejected = reason.includes('[REJETÉ]');
         const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
@@ -916,14 +921,17 @@ export class ClotureComponent implements OnInit, OnDestroy {
       return fromSummary;
     }
     
-    // Final fallback: movements tagged as expenses (exclude rejected)
+    // Final fallback: movements tagged as expenses or bon de retour (exclude rejected)
     const movements = this.currentSession()?.cashMovements || [];
     const totalFromMovements = movements
       .filter(m => {
         const reason = String(m.reason || '');
+        const reasonLower = reason.toLowerCase();
         const amount = parseFloat((m as any).amount || 0) || 0;
+        const isExpense = reasonLower.includes('dépense') || reasonLower.includes('depense');
+        const isBonRetour = reasonLower.includes('bon de retour');
         return m.type === 'SORTIE' && 
-               (reason.toLowerCase().includes('dépense') || reason.toLowerCase().includes('depense')) &&
+               (isExpense || isBonRetour) &&
                !reason.includes('[REJETÉ]') && 
                amount > 0;
       })

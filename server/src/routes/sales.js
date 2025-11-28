@@ -1419,6 +1419,8 @@ router.get('/', authenticateToken, async (req, res) => {
 
     if (paymentMethod) whereClause.paymentMethodId = parseInt(paymentMethod);
 
+    whereClause.paymentType = { in: ['COMPTANT', 'CREDIT'] };
+
     // Get regular sales
     const sales = await prisma.sale.findMany({
       where: whereClause,
@@ -1610,7 +1612,11 @@ router.get('/current-session/tickets', async (req, res) => {
     }
 
     const tickets = await prisma.sale.findMany({
-      where: { sessionId: activeSession.id, depotId: userDepotId },
+      where: { 
+        sessionId: activeSession.id, 
+        depotId: userDepotId,
+        paymentType: { in: ['COMPTANT', 'CREDIT'] }
+      },
       include: {
         paymentMethod: { select: { name: true } },
         advancePaymentMethod: { select: { name: true } },

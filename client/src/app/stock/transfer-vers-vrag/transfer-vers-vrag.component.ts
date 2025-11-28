@@ -12,12 +12,14 @@ import { Product, ProductFamily } from '../../core/models/product.model';
 export class TransferVersVragComponent implements OnInit {
   products: Product[] = [];
   vraguableProducts: Product[] = [];
+  filteredVraguableProducts: Product[] = [];
   juscVracFamilyId: number | null = null;
   families: ProductFamily[] = [];
   loading = false;
   error = '';
   showTransferModal = false;
   selectedProductForTransfer: Product | null = null;
+  searchQuery = '';
 
   constructor(
     private router: Router,
@@ -65,8 +67,19 @@ export class TransferVersVragComponent implements OnInit {
     this.productsService.getProducts(currentDepotId || undefined).subscribe({
       next: (products) => {
         this.products = products;
-        // Filter products that are vraguable and can be transferred to JUS VRAC family
-        this.vraguableProducts = products.filter(product => product.isVraguable === true);
+        this.vraguableProducts = products.filter(product => {
+          const isSourceProduct = !product.isVrac && !product.originalProductId;
+          if (!isSourceProduct) return false;
+          
+          const isConvertible = product.isVraguable === true;
+          const hasConversionRatio = product.conversionRatio && product.conversionRatio > 0;
+          const hasVracProducts = products.some(p => 
+            p.isVrac && p.originalProductId === product.id
+          );
+          
+          return isConvertible || hasConversionRatio || hasVracProducts;
+        });
+        this.applySearchFilter();
         this.loading = false;
       },
       error: (error) => {
@@ -74,6 +87,25 @@ export class TransferVersVragComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  applySearchFilter(): void {
+    if (!this.searchQuery || this.searchQuery.trim() === '') {
+      this.filteredVraguableProducts = this.vraguableProducts;
+      return;
+    }
+
+    const query = this.searchQuery.toLowerCase().trim();
+    this.filteredVraguableProducts = this.vraguableProducts.filter(product => 
+      product.name?.toLowerCase().includes(query) ||
+      product.barcode?.toLowerCase().includes(query) ||
+      product.designation_legale?.toLowerCase().includes(query) ||
+      product.famille?.name?.toLowerCase().includes(query)
+    );
+  }
+
+  onSearchChange(): void {
+    this.applySearchFilter();
   }
 
 
@@ -110,16 +142,36 @@ export class TransferVersVragComponent implements OnInit {
       return;
     }
 
+    if (!this.selectedProductForTransfer) {
+      return;
+    }
+
     const userDepotId = this.authService.currentUser()?.depotId || 0;
     const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
 
     this.productsService.getProducts(currentDepotId || undefined).subscribe({
       next: (products) => {
-        this.juscVracProducts = products.filter(product => 
-          product.familleId === this.juscVracFamilyId && 
-          product.id !== this.selectedProductForTransfer?.id
+        const allJusVracProducts = products.filter(product => {
+          const isVracProduct = product.isVrac === true;
+          const isInJusVracFamily = product.familleId === this.juscVracFamilyId;
+          return isVracProduct && isInJusVracFamily && 
+                 product.id !== this.selectedProductForTransfer?.id;
+        });
+        
+        const relatedProducts = allJusVracProducts.filter(product => 
+          product.originalProductId === this.selectedProductForTransfer?.id
         );
+        
+        this.juscVracProducts = relatedProducts.length > 0 
+          ? relatedProducts 
+          : allJusVracProducts;
+        
+        if (this.juscVracProducts.length === 0) {
+          this.error = 'Aucun produit vrac trouvé dans la famille JUS VRAC';
+        } else {
+          this.error = '';
+        }
       },
       error: (error) => {
         this.error = 'Erreur lors du chargement des produits JUS VRAC';

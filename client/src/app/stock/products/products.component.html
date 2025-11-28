@@ -453,7 +453,7 @@
 
 <!-- Vrac Conversion Modal -->
 <div *ngIf="showVracModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-indigo-200">
+  <div class="bg-white rounded-3xl p-6 w-full max-w-4xl shadow-2xl border border-indigo-200 max-h-[90vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-5">
       <span class="text-2xl font-bold text-indigo-800 flex items-center block">
         <svg class="w-7 h-7 mr-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -475,6 +475,7 @@
     
     <app-vrac-conversion-form
       [product]="selectedProductForVrac"
+      [allProducts]="allProducts"
       (converted)="convertToVrac($event)"
       (cancelled)="closeVracModal()">
     </app-vrac-conversion-form>
