@@ -25,6 +25,7 @@ export class TransferVersVragComponent implements OnInit {
   loadingConversions = false;
   showSuccessNotification = false;
   successMessage = '';
+  productConversionsMap: Map<number, VracConversion[]> = new Map();
 
   constructor(
     private router: Router,
@@ -36,7 +37,7 @@ export class TransferVersVragComponent implements OnInit {
     this.loadProducts();
   }
 
-  loadProducts(): void {
+  async loadProducts(): Promise<void> {
     this.loading = true;
     this.error = '';
 
@@ -44,51 +45,57 @@ export class TransferVersVragComponent implements OnInit {
     const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
 
-    this.productsService.getProducts(currentDepotId || undefined).subscribe({
-      next: async (products) => {
-        this.products = products;
-        
-        const vraguableProductIds = new Set<number>();
-        
-        for (const product of products) {
-          if (product.isVraguable === true) {
-            vraguableProductIds.add(product.id);
-          } else {
-            try {
-              const conversions = await firstValueFrom(this.productsService.getVracConversions(product.id));
-              if (conversions && conversions.conversions && conversions.conversions.length > 0) {
-                vraguableProductIds.add(product.id);
-              }
-            } catch (error) {
-              // Ignore errors for products without conversions
+    try {
+      const products = await firstValueFrom(this.productsService.getProducts(currentDepotId || undefined));
+      this.products = products;
+      
+      const vraguableProductIds = new Set<number>();
+      
+      for (const product of products) {
+        if (product.isVraguable === true) {
+          vraguableProductIds.add(product.id);
+        } else {
+          try {
+            const conversions = await firstValueFrom(this.productsService.getVracConversions(product.id));
+            if (conversions && conversions.conversions && conversions.conversions.length > 0) {
+              vraguableProductIds.add(product.id);
             }
+          } catch (error) {
           }
         }
-        
-        this.vraguableProducts = products.filter(product => vraguableProductIds.has(product.id));
-        this.applySearchFilter();
-        this.loading = false;
-      },
-      error: (error) => {
-        this.error = 'Erreur lors du chargement des produits';
-        this.loading = false;
       }
-    });
+      
+      this.vraguableProducts = products.filter(product => vraguableProductIds.has(product.id));
+      await this.loadAllConversions();
+      this.vraguableProducts = this.vraguableProducts.filter(product => {
+        const conversions = this.productConversionsMap.get(product.id);
+        return conversions && conversions.length > 0;
+      });
+      this.applySearchFilter();
+      this.loading = false;
+    } catch (error) {
+      this.error = 'Erreur lors du chargement des produits';
+      this.loading = false;
+    }
   }
 
   applySearchFilter(): void {
-    if (!this.searchQuery || this.searchQuery.trim() === '') {
-      this.filteredVraguableProducts = this.vraguableProducts;
-      return;
+    let filtered = this.vraguableProducts.filter(product => {
+      const conversions = this.productConversionsMap.get(product.id);
+      return conversions && conversions.length > 0;
+    });
+
+    if (this.searchQuery && this.searchQuery.trim() !== '') {
+      const query = this.searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(product => 
+        product.name?.toLowerCase().includes(query) ||
+        product.barcode?.toLowerCase().includes(query) ||
+        product.designation_legale?.toLowerCase().includes(query) ||
+        product.famille?.name?.toLowerCase().includes(query)
+      );
     }
 
-    const query = this.searchQuery.toLowerCase().trim();
-    this.filteredVraguableProducts = this.vraguableProducts.filter(product => 
-      product.name?.toLowerCase().includes(query) ||
-      product.barcode?.toLowerCase().includes(query) ||
-      product.designation_legale?.toLowerCase().includes(query) ||
-      product.famille?.name?.toLowerCase().includes(query)
-    );
+    this.filteredVraguableProducts = filtered;
   }
 
   onSearchChange(): void {
@@ -101,6 +108,27 @@ export class TransferVersVragComponent implements OnInit {
 
   trackByProduct = (_index: number, product: Product): number => {
     return product.id;
+  }
+
+  async loadAllConversions(): Promise<void> {
+    this.productConversionsMap.clear();
+    for (const product of this.vraguableProducts) {
+      try {
+        const conversions = await firstValueFrom(this.productsService.getVracConversions(product.id));
+        if (conversions && conversions.conversions && conversions.conversions.length > 0) {
+          this.productConversionsMap.set(product.id, conversions.conversions);
+        }
+      } catch (error) {
+      }
+    }
+  }
+
+  getProductDestinations(productId: number): string[] {
+    const conversions = this.productConversionsMap.get(productId);
+    if (!conversions || conversions.length === 0) {
+      return [];
+    }
+    return conversions.map(c => c.targetProductName);
   }
 
   getTotalCalculatedQuantity(): number {
@@ -237,9 +265,9 @@ export class TransferVersVragComponent implements OnInit {
     console.log('Sending transfer payload:', JSON.stringify(transferPayload, null, 2));
 
     this.productsService.transferProductMultiple(transferPayload).subscribe({
-      next: (response) => {
+      next: async (response) => {
         this.closeTransferModal();
-        this.loadProducts();
+        await this.loadProducts();
         this.loading = false;
         this.successMessage = response?.message || `Transfert réussi: ${this.transferQuantity} ${this.selectedProductForTransfer?.unite} de ${this.selectedProductForTransfer?.name} transféré(s) vers ${this.vracConversions.length} produit(s) VRAC`;
         this.showSuccessNotification = true;

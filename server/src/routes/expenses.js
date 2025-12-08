@@ -261,6 +261,7 @@ router.get('/', authenticateToken, async (req, res) => {
         include: {
           category: true,
           depot: true,
+          supplier: true,
           user: {
             select: {
               id: true,
@@ -993,25 +994,28 @@ router.get('/stats/summary', authenticateToken, async (req, res) => {
         categoryName: category?.name || 'Inconnu',
         categoryColor: category?.color,
         categoryIcon: category?.icon,
-        totalAmount: stat._sum.amount || 0,
+        totalAmount: stat._sum.amount ? parseFloat(stat._sum.amount.toString()) : 0,
         count: stat._count
       };
     });
 
     res.json({
       total: {
-        amount: totalExpenses._sum.amount || 0,
+        amount: totalExpenses._sum.amount ? parseFloat(totalExpenses._sum.amount.toString()) : 0,
         count: totalExpenses._count
       },
       approved: {
-        amount: approvedExpenses._sum.amount || 0,
+        amount: approvedExpenses._sum.amount ? parseFloat(approvedExpenses._sum.amount.toString()) : 0,
         count: approvedExpenses._count
       },
       pending: {
-        amount: pendingExpenses._sum.amount || 0,
+        amount: pendingExpenses._sum.amount ? parseFloat(pendingExpenses._sum.amount.toString()) : 0,
         count: pendingExpenses._count
       },
-      byCategory: categoryStatsWithDetails
+      byCategory: categoryStatsWithDetails.map(stat => ({
+        ...stat,
+        totalAmount: stat.totalAmount ? parseFloat(stat.totalAmount.toString()) : 0
+      }))
     });
   } catch (error) {
     console.error('Error fetching expense statistics:', error);

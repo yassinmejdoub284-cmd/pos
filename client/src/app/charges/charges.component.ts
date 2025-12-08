@@ -5,8 +5,10 @@ import { ActivatedRoute } from '@angular/router';
 import { ExpenseService, ExpenseCategory, Expense, ExpenseStats, PaymentType } from '../core/services/expense.service';
 import { SupplierService } from '../core/services/supplier.service';
 import { AuthService } from '../core/services/auth.service';
+import { DepotsService } from '../core/services/depots.service';
 import { Chart, ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { registerables } from 'chart.js';
+import { forkJoin, of } from 'rxjs';
 
 Chart.register(...registerables);
 
@@ -21,6 +23,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   
   categories: ExpenseCategory[] = [];
   suppliers: any[] = [];
+  depots: any[] = [];
   supplierSearch = '';
   expenses: Expense[] = [];
   stats: ExpenseStats | null = null;
@@ -38,6 +41,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   activeFilter = 'all';
   selectedSupplierFilter: number | null = null;
   selectedCategoryFilter: number | null = null;
+  selectedDepotId: number | null = null;
   expensesViewMode: 'grid' | 'table' = 'table';
   // Wizard state
   addExpenseStep: 'category' | 'payment' | 'supplier' | 'notes' = 'category';
@@ -86,15 +90,14 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     private expenseService: ExpenseService,
     private authService: AuthService,
     private route: ActivatedRoute,
-    private supplierService: SupplierService
+    private supplierService: SupplierService,
+    private depotsService: DepotsService
   ) {}
 
   ngOnInit() {
-    this.setDefaultDates();
     this.loadCurrentUser();
     this.loadData();
     
-    // Check for action query parameter
     this.route.queryParams.subscribe(params => {
       if (params['action']) {
         switch (params['action']) {
@@ -113,7 +116,6 @@ export class ChargesComponent implements OnInit, AfterViewInit {
   }
 
   setDefaultDates(): void {
-    // Set to current month (first day to last day)
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -136,47 +138,59 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     this.loading = true;
     this.error = '';
 
-    // Get current user from auth service directly
     const user = this.authService.currentUser();
     const isAdminUser = user?.role === 'ADMIN';
     
-    // Build filters for expenses and stats (only for admin)
-    const filters: any = {};
+    const filters: any = {
+      limit: 10000
+    };
     if (isAdminUser && this.startDate && this.endDate) {
       filters.startDate = this.startDate;
       filters.endDate = this.endDate;
     }
+    if (this.selectedDepotId) {
+      filters.depotId = this.selectedDepotId;
+    }
     
-    const promises: Promise<any>[] = [
-      this.expenseService.getCategories().toPromise(),
-      this.expenseService.getExpenses(isAdminUser ? filters : undefined).toPromise(),
-      this.supplierService.getSuppliers().toPromise()
-    ];
+    const requests: any = {
+      categories: this.expenseService.getCategories(),
+      expenses: this.expenseService.getExpenses(filters),
+      suppliers: this.supplierService.getSuppliers(),
+      depots: this.depotsService.list()
+    };
 
-    // Only load stats for admin users
     if (isAdminUser) {
-      promises.push(this.expenseService.getStats(filters).toPromise());
+      const statsFilters: any = {};
+      if (this.startDate && this.endDate) {
+        statsFilters.startDate = this.startDate;
+        statsFilters.endDate = this.endDate;
+      }
+      if (this.selectedDepotId) {
+        statsFilters.depotId = this.selectedDepotId;
+      }
+      requests.stats = this.expenseService.getStats(Object.keys(statsFilters).length > 0 ? statsFilters : undefined);
     }
 
-    Promise.all(promises).then((results) => {
-      this.categories = results[0] || [];
-      this.expenses = results[1] || [];
-      this.suppliers = (results[2] || []).filter((s: any) => s.isActive !== false);
-      
-      // Stats are only loaded for admin users
-      if (isAdminUser && results.length > 3) {
-        this.stats = results[3] || null;
-      } else {
-        this.stats = null;
+    forkJoin(requests).subscribe({
+      next: (results: any) => {
+        this.categories = results.categories || [];
+        this.expenses = results.expenses || [];
+        this.suppliers = (results.suppliers || []).filter((s: any) => s.isActive !== false);
+        this.depots = (results.depots || []).filter((d: any) => d.isActive !== false);
+        
+        if (isAdminUser && results.stats) {
+          this.stats = results.stats || null;
+        } else {
+          this.stats = null;
+        }
+        
+        this.pendingExpenses = this.expenses.filter(e => !e.isApproved);
+        this.loading = false;
+      },
+      error: (error) => {
+        this.error = 'Erreur lors du chargement des données';
+        this.loading = false;
       }
-      
-      this.pendingExpenses = this.expenses.filter(e => !e.isApproved);
-      this.loading = false;
-    }).catch(error => {
-      console.error('Error loading data:', error);
-      this.error = 'Erreur lors du chargement des données';
-      this.loading = false;
-      console.error('Error loading data:', error);
     });
   }
 
@@ -184,6 +198,15 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     if (this.isAdmin()) {
       this.loadData();
     }
+  }
+
+  onDepotFilterChange(): void {
+    this.loadData();
+  }
+
+  clearDepotFilter(): void {
+    this.selectedDepotId = null;
+    this.loadData();
   }
 
   selectCategory(category: ExpenseCategory) {

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { ProduitsDeStockService } from './produits-de-caisse.service';
 
@@ -191,16 +192,20 @@ export class InventoryService {
 
   // Get products for a specific depot based on depot type
   getProductsForDepot(depotId: number, depotType?: string): Observable<any[]> {
-    // IMPORTANT: Product source depends on depot type
-    // - SHOP depots: Use general 'produits' table
-    // - Other depot types (MAIN, BRANCH, WAREHOUSE): Use 'produits-de-caisse' table
-    // - If depot type is unknown: Default to 'produits-de-caisse' (NOT SHOP)
-    // This is because SHOP depots sell products, while other depots manage stock
     if (depotType === 'SHOP') {
-      return this.http.get<any[]>(`${environment.apiUrl}/products?depotId=${depotId}`);
+      const url = `${environment.apiUrl}/products?depotId=${depotId}`;
+      return this.http.get<any[]>(url).pipe(
+        catchError((error) => {
+          return throwError(() => error);
+        })
+      );
     } else {
-      // Default to produits-de-caisse for all non-SHOP depots or unknown types
-      return this.http.get<any[]>(`${environment.apiUrl}/produits-de-caisse?depotId=${depotId}`);
+      const url = `${environment.apiUrl}/produits-de-caisse?depotId=${depotId}`;
+      return this.http.get<any[]>(url).pipe(
+        catchError((error) => {
+          return throwError(() => error);
+        })
+      );
     }
   }
 }

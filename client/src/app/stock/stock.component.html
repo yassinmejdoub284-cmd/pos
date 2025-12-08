@@ -136,6 +136,20 @@
       </div>
     </a>
 
+    <!-- Gestion Dépôt/Point de Vente Card -->
+    <div (click)="openDepotManagement()" class="cursor-pointer">
+      <div class="bg-white/80 rounded-2xl border border-slate-200/50 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
+        <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+          </svg>
+        </div>
+        
+        <span class="text-lg font-bold text-slate-800 mb-2 block">Gestion Dépôt/Point de Vente</span>
+        <span class="text-slate-500 text-sm block">Gérer les dépôts et points de vente</span>
+      </div>
+    </div>
+
     <a *ngIf="hasStockSubmodule('stock-vente-gros')" routerLink="/stock/wholesale">
       <div class="bg-white/80 rounded-xl border border-primary-200/50 p-6 text-center h-full flex flex-col justify-center relative overflow-hidden">
         <div class="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -150,114 +164,6 @@
     </a>
   </div>
 
-  <!-- Bon de Retour Grid Section -->
-  <div class="bg-white/80 rounded-2xl border border-slate-200/50 p-6 mb-4 shadow-lg">
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 bg-gradient-to-br from-rose-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-          </svg>
-        </div>
-        <div>
-          <span class="text-xl font-bold text-slate-800 block">Bon de retour</span>
-          <span class="text-slate-600 font-medium block">Retour de produits au fournisseur</span>
-        </div>
-      </div>
-      <button (click)="navigateToBonRetour()" 
-              class="bg-gradient-to-r from-rose-500 to-red-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2 hover:from-rose-600 hover:to-red-700">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-        </svg>
-        Nouveau retour
-      </button>
-    </div>
-
-    <!-- Loading State -->
-    <div *ngIf="loadingBonRetour" class="text-center py-12">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-rose-600"></div>
-      <span class="block mt-4 text-slate-600">Chargement des bons de retour...</span>
-    </div>
-
-    <!-- Empty State -->
-    <div *ngIf="!loadingBonRetour && bonRetourDocuments.length === 0" class="text-center py-12">
-      <div class="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-        </svg>
-      </div>
-      <span class="text-lg font-semibold text-slate-800 block mb-2">Aucun bon de retour</span>
-      <span class="text-slate-600 block mb-4">Aucun document de retour trouvé</span>
-      <button (click)="navigateToBonRetour()" 
-              class="bg-rose-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-rose-700 transition-colors">
-        Créer un bon de retour
-      </button>
-    </div>
-
-    <!-- Documents Grid -->
-    <div *ngIf="!loadingBonRetour && bonRetourDocuments.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      <div *ngFor="let doc of bonRetourDocuments" 
-           (click)="viewBonRetourDocument(doc)"
-           class="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-lg transition-all duration-200 cursor-pointer hover:border-rose-300">
-        <div class="flex items-start justify-between mb-3">
-          <div class="flex-1">
-            <div class="flex items-center gap-2 mb-2">
-              <div class="w-8 h-8 bg-rose-100 rounded-lg flex items-center justify-center">
-                <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-                </svg>
-              </div>
-              <span class="font-bold text-slate-800">{{ doc.numero }}</span>
-            </div>
-            <div class="space-y-1 text-sm">
-              <div class="flex items-center gap-2 text-slate-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
-                <span>{{ formatDate(doc.createdAt) }}</span>
-              </div>
-              <div *ngIf="doc.destinataire" class="flex items-center gap-2 text-slate-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                </svg>
-                <span>{{ doc.destinataire.name }}</span>
-              </div>
-              <div *ngIf="doc.emetteur" class="flex items-center gap-2 text-slate-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                </svg>
-                <span>{{ doc.emetteur.name }}</span>
-              </div>
-              <div class="flex items-center gap-2 text-slate-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                </svg>
-                <span>{{ doc.items?.length || 0 }} article(s)</span>
-              </div>
-            </div>
-          </div>
-          <div class="flex flex-col items-end gap-2">
-            <span class="px-2 py-1 rounded-lg text-xs font-semibold"
-                  [ngClass]="{
-                    'bg-yellow-100 text-yellow-800': doc.status === 'PREPARED',
-                    'bg-blue-100 text-blue-800': doc.status === 'SENT',
-                    'bg-green-100 text-green-800': doc.status === 'RECEIVED' || doc.status === 'COMPLETED',
-                    'bg-red-100 text-red-800': doc.status === 'CANCELLED',
-                    'bg-gray-100 text-gray-800': !doc.status
-                  }">
-              {{ getStatusLabel(doc.status) }}
-            </span>
-          </div>
-        </div>
-        <div *ngIf="doc.items && doc.items.length > 0" class="mt-3 pt-3 border-t border-slate-200">
-          <div class="text-xs text-slate-500">
-            <span class="font-semibold text-slate-700">Total:</span>
-            {{ getDocumentTotal(doc).toFixed(3) }} TND
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
 
@@ -327,64 +233,63 @@
 <!-- Achat Selection Dialog -->
 <div *ngIf="showAchatDialog"
   class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
-  <div class="bg-white rounded-xl border border-gray-200 w-full max-w-md">
-    <div class="flex justify-between items-center p-4 border-b border-gray-200">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+  <div class="bg-white rounded-2xl border border-slate-200 w-full max-w-2xl">
+    <div class="bg-gradient-to-br from-emerald-500 to-green-600 rounded-t-2xl p-6">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
           </svg>
         </div>
         <div>
-          <h3 class="text-lg font-semibold text-slate-800">Achat</h3>
-          <p class="text-sm text-slate-500">Que souhaitez-vous faire ?</p>
+            <h3 class="text-2xl font-bold text-white">Achat</h3>
+            <p class="text-emerald-50 text-sm font-medium">Sélectionnez une action</p>
+          </div>
         </div>
-      </div>
-      <button (click)="closeAchatDialog()" class="text-slate-400" title="Fermer">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button (click)="closeAchatDialog()" class="text-white/80" title="Fermer">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
         </svg>
       </button>
+      </div>
     </div>
 
-    <div class="p-6">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div class="p-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <button (click)="onAchatActionSelected('entry')"
-          class="bg-white border border-slate-200 rounded-xl p-4 flex items-center space-x-4 text-left transition-colors">
-          <div class="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          class="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-2xl p-6 flex flex-col items-center text-center">
+          <div class="w-20 h-20 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center mb-4">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
             </svg>
           </div>
-          <div class="flex-1">
-            <h4 class="font-semibold text-slate-800">Bon d'entrée</h4>
-            <p class="text-sm text-slate-500">Ajouter des produits depuis un fournisseur</p>
-          </div>
+          <h4 class="text-xl font-bold text-slate-800 mb-2">Bon d'entrée</h4>
+          <p class="text-sm text-slate-600 leading-relaxed">Ajouter des produits depuis un fournisseur</p>
         </button>
 
         <button (click)="onAchatActionSelected('bon-retour')"
-          class="bg-white border border-slate-200 rounded-xl p-4 flex items-center space-x-4 text-left transition-colors">
-          <div class="w-12 h-12 bg-gradient-to-br from-rose-500 to-red-600 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          class="bg-gradient-to-br from-rose-50 to-red-50 border-2 border-rose-200 rounded-2xl p-6 flex flex-col items-center text-center">
+          <div class="w-20 h-20 bg-gradient-to-br from-rose-500 to-red-600 rounded-2xl flex items-center justify-center mb-4">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
             </svg>
           </div>
-          <div class="flex-1">
-            <h4 class="font-semibold text-slate-800">Bon de retour</h4>
-            <p class="text-sm text-slate-500">Retour de produits au fournisseur</p>
-          </div>
+          <h4 class="text-xl font-bold text-slate-800 mb-2">Bon de retour</h4>
+          <p class="text-sm text-slate-600 leading-relaxed">Retour de produits au fournisseur</p>
         </button>
       </div>
     </div>
 
-    <div class="p-4 border-t border-gray-200">
+    <div class="px-8 pb-6">
       <button (click)="closeAchatDialog()"
-        class="w-full bg-gray-200 text-slate-800 font-semibold py-3 px-4 rounded-xl">
+        class="w-full bg-slate-100 text-slate-700 font-semibold py-3 px-4 rounded-xl">
         Annuler
       </button>
     </div>
   </div>
 </div>
+
 
 <!-- Fleet Management Selection Dialog -->
 <div *ngIf="showFleetManagementDialog"
@@ -453,6 +358,379 @@
       <button (click)="closeFleetManagementDialog()"
         class="w-full bg-gray-200 text-slate-800 font-semibold py-3 px-4 rounded-xl">
         Annuler
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Depot Management Modal -->
+<div *ngIf="showDepotManagementModal"
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+  <div class="bg-white rounded-xl border border-gray-200 w-full max-w-6xl max-h-[95vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-gray-200">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-slate-800">Gestion Dépôt/Point de Vente</h3>
+          <p class="text-sm text-slate-500">Sélectionnez un dépôt pour ouvrir son espace de travail</p>
+        </div>
+      </div>
+      <button (click)="closeDepotManagementModal()" class="text-slate-400" title="Fermer">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-6 overflow-y-auto flex-1">
+      <!-- Loading State -->
+      <div *ngIf="loading" class="text-center py-12">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <span class="block mt-4 text-slate-600">Chargement des dépôts...</span>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!loading && (!depots || depots.length === 0)" class="text-center py-12">
+        <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+          </svg>
+        </div>
+        <span class="text-lg font-semibold text-slate-800 block mb-2">Aucun dépôt</span>
+        <span class="text-slate-600 block">Aucun dépôt ou point de vente trouvé</span>
+      </div>
+
+      <!-- Depots Grid -->
+      <div *ngIf="!loading && depots && depots.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div *ngFor="let depot of getNonShopDepots()" 
+             (click)="openWorkspace(depot)"
+             class="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-lg transition-all duration-200 cursor-pointer hover:border-indigo-300">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center shadow-md" [ngClass]="'bg-gradient-to-br ' + getDepotGradient(depot)">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="getDepotIcon(depot)"></path>
+                  </svg>
+                </div>
+                <span class="font-bold text-slate-800">{{ depot.name }}</span>
+              </div>
+              <div class="space-y-1 text-sm">
+                <div class="flex items-center gap-2 text-slate-600">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  </svg>
+                  <span>{{ depot.city }}</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-600">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                  </svg>
+                  <span>{{ getDepotTypeLabel(depot) }}</span>
+                </div>
+                <div *ngIf="depot.code" class="flex items-center gap-2 text-slate-600">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                  </svg>
+                  <span class="font-mono text-xs">{{ depot.code }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-col items-end gap-2">
+              <span class="px-2 py-1 rounded-lg text-xs font-semibold"
+                    [ngClass]="depot.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">
+                {{ depot.isActive ? 'Actif' : 'Inactif' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state for SHOP depots -->
+    <div *ngIf="selectedDepot && isShopDepot(selectedDepot)" class="p-6 overflow-y-auto flex-1">
+      <div class="text-center py-12">
+        <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+          </svg>
+        </div>
+        <span class="text-lg font-semibold text-slate-800 block mb-2">Dépôt Magasin</span>
+        <span class="text-slate-600 block">Ce dépôt ne nécessite pas de gestion de transfert de produits</span>
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-gray-200 flex gap-3">
+      <button (click)="viewProductLinks()"
+        class="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold py-3 px-4 rounded-xl hover:from-indigo-600 hover:to-purple-700 transition-all flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+        </svg>
+        Voir les liaisons
+      </button>
+      <button (click)="closeDepotManagementModal()"
+        class="flex-1 bg-gray-200 text-slate-800 font-semibold py-3 px-4 rounded-xl hover:bg-gray-300 transition-all">
+        Fermer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Depot Products Modal -->
+<div *ngIf="showDepotProductsModal"
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+  <div class="bg-white rounded-xl border border-gray-200 w-full max-w-7xl max-h-[95vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-gray-200">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-slate-800">Produits - {{ selectedDepot?.name }}</h3>
+          <p class="text-sm text-slate-500">{{ selectedDepot?.city }} - {{ selectedDepot ? getDepotTypeLabel(selectedDepot) : '' }}</p>
+        </div>
+      </div>
+      <button (click)="closeDepotProductsModal()" class="text-slate-400 hover:text-slate-600" title="Fermer">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Transfer Mode (for non-SHOP depots) -->
+    <div *ngIf="selectedDepot && isNonShopDepot(selectedDepot)" class="p-6 overflow-y-auto flex-1">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Source Depot Section -->
+        <div class="flex flex-col">
+          <div class="mb-4">
+            <label class="block text-sm font-semibold text-slate-700 mb-2">Dépôt Source</label>
+            <select 
+              [(ngModel)]="sourceDepotId"
+              (change)="onSourceDepotChange()"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              [ngClass]="{'bg-indigo-50': selectedDepot && isNonShopDepot(selectedDepot)}"
+              [disabled]="selectedDepot && isNonShopDepot(selectedDepot)">
+              <option [value]="null">Sélectionner un dépôt source...</option>
+              <option *ngFor="let depot of depots" [value]="depot.id">{{ depot.name }} ({{ depot.city }})</option>
+            </select>
+            <p *ngIf="selectedDepot && isNonShopDepot(selectedDepot)" class="text-xs text-gray-500 mt-1">
+              Dépôt source: {{ selectedDepot.name }}
+            </p>
+          </div>
+
+          <!-- Source Products List -->
+          <div *ngIf="sourceDepotId" class="mb-4">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="relative flex-1">
+                <input 
+                  type="text" 
+                  [(ngModel)]="sourceSearchTerm"
+                  (input)="filterSourceProducts()"
+                  placeholder="Rechercher un produit source..."
+                  class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
+              <button 
+                (click)="refreshSourceProducts()"
+                class="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
+                title="Actualiser la liste">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+              </button>
+            </div>
+            
+            <div class="border border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto bg-gray-50">
+              <div *ngIf="loadingSourceProducts" class="text-center py-4">
+                <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                <p class="text-xs text-gray-500 mt-2">Chargement...</p>
+              </div>
+              <div *ngIf="!loadingSourceProducts && sourceProductsError" class="text-center py-4">
+                <p class="text-sm text-red-600 mb-2">{{ sourceProductsError }}</p>
+                <p class="text-xs text-gray-500">Vérifiez que les produits sont assignés à ce dépôt</p>
+              </div>
+              <div *ngIf="!loadingSourceProducts && !sourceProductsError && getFilteredSourceProducts().length === 0" class="text-center py-4 text-sm text-gray-500">
+                <p>Aucun produit trouvé</p>
+                <p class="text-xs text-gray-400 mt-1">Les produits doivent être assignés à ce dépôt</p>
+              </div>
+              <div *ngIf="!loadingSourceProducts && !sourceProductsError && getFilteredSourceProducts().length > 0" class="space-y-2">
+                <div 
+                  *ngFor="let product of getFilteredSourceProducts()"
+                  draggable="true"
+                  (dragstart)="onSourceProductDragStart($event, product)"
+                  class="bg-white border border-gray-200 rounded-lg p-2 cursor-move hover:shadow-md transition-shadow">
+                  <div class="font-semibold text-sm text-slate-800">{{ product.name }}</div>
+                  <div class="text-xs text-gray-500">{{ product.famille?.name || product.familleName || 'N/A' }}</div>
+                  <div *ngIf="product.barcode" class="text-xs text-gray-400 font-mono">{{ product.barcode }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Source Drop Zone -->
+          <div class="flex-1">
+            <label class="block text-sm font-semibold text-slate-700 mb-2">Zone de Drop - Produits Source</label>
+            <div 
+              (dragover)="onSourceDropZoneDragOver($event)"
+              (drop)="onSourceDropZoneDrop($event)"
+              class="border-2 border-dashed border-indigo-300 rounded-lg p-4 min-h-48 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+              <div *ngIf="droppedSourceProducts.length === 0" class="text-center text-gray-400 py-8">
+                <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <p class="text-sm" *ngIf="!isBothDepotsNonShop()">Glissez-déposez un ou plusieurs produits ici</p>
+                <p class="text-sm" *ngIf="isBothDepotsNonShop()">Glissez-déposez un produit ici</p>
+              </div>
+              <div *ngIf="droppedSourceProducts.length > 0" class="space-y-2">
+                <div 
+                  *ngFor="let product of droppedSourceProducts; let i = index"
+                  class="bg-white border border-indigo-200 rounded-lg p-3 flex items-center justify-between">
+                  <div class="flex-1">
+                    <div class="font-semibold text-sm text-slate-800">{{ product.name }}</div>
+                    <div class="text-xs text-gray-500">{{ product.famille?.name || product.familleName || 'N/A' }}</div>
+                    <div class="text-xs text-gray-400 font-mono">ID: {{ product.id }}</div>
+                  </div>
+                  <button 
+                    (click)="removeSourceProduct(i)"
+                    class="text-red-500 hover:text-red-700 ml-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Destination Depot Section -->
+        <div class="flex flex-col">
+          <div class="mb-4">
+            <label class="block text-sm font-semibold text-slate-700 mb-2">Dépôt/Boutique Destination</label>
+            <select 
+              [(ngModel)]="destinationDepotId"
+              (change)="onDestinationDepotChange()"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option [value]="null">Sélectionner un dépôt/boutique destination...</option>
+              <option *ngFor="let depot of getAvailableDestinations()" [value]="depot.id">{{ depot.name }} ({{ depot.city }})</option>
+            </select>
+          </div>
+
+          <!-- Destination Products List -->
+          <div *ngIf="destinationDepotId" class="mb-4">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="relative flex-1">
+                <input 
+                  type="text" 
+                  [(ngModel)]="destinationSearchTerm"
+                  (input)="filterDestinationProducts()"
+                  placeholder="Rechercher un produit destination..."
+                  class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
+              <button 
+                (click)="refreshDestinationProducts()"
+                class="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
+                title="Actualiser la liste">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+              </button>
+            </div>
+            
+            <div class="border border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto bg-gray-50">
+              <div *ngIf="loadingDestinationProducts" class="text-center py-4">
+                <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                <p class="text-xs text-gray-500 mt-2">Chargement...</p>
+              </div>
+              <div *ngIf="!loadingDestinationProducts && destinationProductsError" class="text-center py-4">
+                <p class="text-sm text-red-600 mb-2">{{ destinationProductsError }}</p>
+                <p class="text-xs text-gray-500">Vérifiez que les produits sont assignés à ce dépôt</p>
+              </div>
+              <div *ngIf="!loadingDestinationProducts && !destinationProductsError && getFilteredDestinationProducts().length === 0" class="text-center py-4 text-sm text-gray-500">
+                <p>Aucun produit trouvé</p>
+                <p class="text-xs text-gray-400 mt-1">Les produits doivent être assignés à ce dépôt</p>
+              </div>
+              <div *ngIf="!loadingDestinationProducts && !destinationProductsError && getFilteredDestinationProducts().length > 0" class="space-y-2">
+                <div 
+                  *ngFor="let product of getFilteredDestinationProducts()"
+                  draggable="true"
+                  (dragstart)="onDestinationProductDragStart($event, product)"
+                  class="bg-white border border-gray-200 rounded-lg p-2 cursor-move hover:shadow-md transition-shadow">
+                  <div class="font-semibold text-sm text-slate-800">{{ product.name }}</div>
+                  <div class="text-xs text-gray-500">{{ product.famille?.name || product.familleName || 'N/A' }}</div>
+                  <div *ngIf="product.barcode" class="text-xs text-gray-400 font-mono">{{ product.barcode }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Destination Drop Zone -->
+          <div class="flex-1">
+            <label class="block text-sm font-semibold text-slate-700 mb-2">Zone de Drop - Produit Destination</label>
+            <div 
+              (dragover)="onDestinationDropZoneDragOver($event)"
+              (drop)="onDestinationDropZoneDrop($event)"
+              class="border-2 border-dashed border-green-300 rounded-lg p-4 min-h-48 bg-green-50 hover:bg-green-100 transition-colors">
+              <div *ngIf="!droppedDestinationProduct" class="text-center text-gray-400 py-8">
+                <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <p class="text-sm">Glissez-déposez un produit ici</p>
+              </div>
+              <div *ngIf="droppedDestinationProduct" class="bg-white border border-green-200 rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                  <div class="flex-1">
+                    <div class="font-semibold text-sm text-slate-800">{{ droppedDestinationProduct.name }}</div>
+                    <div class="text-xs text-gray-500">{{ droppedDestinationProduct.famille?.name || droppedDestinationProduct.familleName || 'N/A' }}</div>
+                    <div class="text-xs text-gray-400 font-mono">ID: {{ droppedDestinationProduct.id }}</div>
+                    <div *ngIf="droppedDestinationProduct.barcode" class="text-xs text-gray-400 font-mono">Code-barres: {{ droppedDestinationProduct.barcode }}</div>
+                  </div>
+                  <button 
+                    (click)="clearDestinationProduct()"
+                    class="text-red-500 hover:text-red-700 ml-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="p-4 border-t border-gray-200 flex gap-3">
+      <button (click)="closeDepotProductsModal()"
+        class="flex-1 bg-gray-200 text-slate-800 font-semibold py-3 px-4 rounded-xl hover:bg-gray-300">
+        Fermer
+      </button>
+      <button 
+        *ngIf="selectedDepot && isNonShopDepot(selectedDepot) && sourceDepotId && destinationDepotId && droppedSourceProducts.length > 0 && droppedDestinationProduct && (!isBothDepotsNonShop() || droppedSourceProducts.length === 1)"
+        (click)="saveProductLinks()"
+        [disabled]="savingLinks"
+        class="flex-1 bg-indigo-600 text-white font-semibold py-3 px-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+        <span *ngIf="!savingLinks">Enregistrer</span>
+        <span *ngIf="savingLinks" class="flex items-center justify-center gap-2">
+          <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Enregistrement...
+        </span>
       </button>
     </div>
   </div>

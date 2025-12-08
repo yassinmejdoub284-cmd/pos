@@ -2314,6 +2314,7 @@ async function generateZReport(sessionId, closureData = {}) {
         },
         include: {
           paymentMethod: true,
+          client: { select: { id: true, firstName: true, lastName: true } },
           user: { select: { firstName: true, lastName: true } },
           items: {
             include: {

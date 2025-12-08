@@ -3136,6 +3136,14 @@ export class PrintService {
                     <td class="amount">${withdrawalAmount.toFixed(3)} TND</td>
                 </tr>
                 <tr>
+                    <td class="label">Montant Crédit Client</td>
+                    <td class="amount">${((summary as any)?.creditOutstanding || 0).toFixed(3)} TND</td>
+                </tr>
+                <tr>
+                    <td class="label">Montant Règlement Client</td>
+                    <td class="amount">${((summary as any)?.clientPaymentsTotal || 0).toFixed(3)} TND</td>
+                </tr>
+                <tr>
                     <td class="label">Totale Reste Caisse</td>
                     <td class="amount"><strong>${remainingCash.toFixed(3)} TND</strong></td>
                 </tr>
@@ -3763,6 +3771,14 @@ export class PrintService {
                 <tr>
                     <td class="label">Retrait</td>
                     <td class="amount">${withdrawalAmount.toFixed(3)} TND</td>
+                </tr>
+                <tr>
+                    <td class="label">Montant Crédit Client</td>
+                    <td class="amount">${((summary as any)?.creditOutstanding || 0).toFixed(3)} TND</td>
+                </tr>
+                <tr>
+                    <td class="label">Montant Règlement Client</td>
+                    <td class="amount">${((summary as any)?.clientPaymentsTotal || 0).toFixed(3)} TND</td>
                 </tr>
                 <tr>
                     <td class="label">Totale Reste Caisse</td>

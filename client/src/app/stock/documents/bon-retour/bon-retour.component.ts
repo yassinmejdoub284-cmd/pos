@@ -87,6 +87,7 @@ export class BonRetourComponent implements OnInit {
     const url = this.router.url;
     this.documentId = this.route.snapshot.paramMap.get('documentId');
     const idParam = this.route.snapshot.paramMap.get('id');
+    const depotIdParam = this.route.snapshot.paramMap.get('depotId');
     
     if (url.includes('/edit/')) {
       if (this.documentId) {
@@ -95,16 +96,14 @@ export class BonRetourComponent implements OnInit {
         this.documentId = idParam;
       }
     } else {
-      if (idParam) {
-        if (!isNaN(Number(idParam))) {
-          this.depotId = idParam;
-        } else {
-          this.depotId = idParam;
-        }
+      if (depotIdParam) {
+        this.depotId = depotIdParam;
+      } else if (idParam && !isNaN(Number(idParam)) && !url.includes('/edit/')) {
+        this.depotId = idParam;
       }
     }
     
-    if (!this.depotId) {
+    if (!this.depotId && !this.documentId) {
       this.depotId = this.route.snapshot.paramMap.get('depotId');
     }
     
@@ -123,7 +122,7 @@ export class BonRetourComponent implements OnInit {
     this.loadInitialData().then(() => {
       if (this.documentId && this.documentId !== 'new' && url.includes('/edit/')) {
         this.loadDocument();
-      } else if (this.depotId) {
+      } else if (this.depotId && !url.includes('/edit/')) {
         const depot = this.depots.find(d => d.id.toString() === this.depotId);
         if (depot) {
           this.selectedDepot = depot;
@@ -207,11 +206,18 @@ export class BonRetourComponent implements OnInit {
   loadDocument(): void {
     if (!this.documentId) return;
     
+    const docId = parseInt(this.documentId);
+    if (isNaN(docId)) {
+      this.error = 'ID de document invalide';
+      return;
+    }
+    
     this.loading = true;
-    this.stockDocsService.getDocument(parseInt(this.documentId)).subscribe({
+    this.error = '';
+    this.stockDocsService.getDocument(docId).subscribe({
       next: (doc) => {
         if (!doc) {
-          this.error = 'Document non trouvé';
+          this.error = `Document non trouvé (ID: ${docId})`;
           this.loading = false;
           this.documentId = null;
           return;
@@ -287,7 +293,7 @@ export class BonRetourComponent implements OnInit {
               return;
             }
           }
-          this.error = 'Document non trouvé (ID: ' + this.documentId + ')';
+          this.error = `Document non trouvé (ID: ${docId})`;
           this.documentId = null;
           this.isEditMode = false;
           setTimeout(() => {
@@ -584,6 +590,13 @@ export class BonRetourComponent implements OnInit {
           }, 4000);
         }
       });
+    }
+  }
+
+  goToConsultation(): void {
+    const targetDepotId = this.document?.destinataire?.id || (this.depotId ? parseInt(this.depotId) : null);
+    if (targetDepotId) {
+      this.router.navigate(['/stock/achat-consultation', 'bon-retour', targetDepotId]);
     }
   }
 

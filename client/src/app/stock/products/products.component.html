@@ -657,24 +657,37 @@
       </div>
     </div>
 
-    <!-- Destination Depot Selection (if no source product selected) -->
-    <div *ngIf="!selectedSourceProduct || selectedSourceDepots.length === 0" class="mb-6">
+    <!-- Destination Depot Selection -->
+    <div class="mb-6">
       <label class="block text-sm font-bold text-indigo-700 mb-2">Sélectionner un dépôt destination</label>
       <select [(ngModel)]="selectedDepotForAssignment"
         class="w-full px-4 py-3 bg-white border-2 border-indigo-200 rounded-xl text-indigo-800 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm">
         <option [ngValue]="null">Choisir un dépôt...</option>
-        <option *ngFor="let depot of getAvailableDepots()" [ngValue]="depot.id">
+        <option *ngFor="let depot of getAllDepotsForDestination()" [ngValue]="depot.id">
           {{ depot.name }}
         </option>
       </select>
-      <div *ngIf="getAvailableDepots().length === 0" class="mt-2 text-sm text-amber-600">
-        Tous les dépôts sont déjà assignés à ce produit.
+      <div *ngIf="getAllDepotsForDestination().length === 0" class="mt-2 text-sm text-amber-600">
+        Aucun dépôt disponible.
       </div>
+    </div>
+
+    <!-- Option: Link by Famille -->
+    <div *ngIf="selectedSourceDepots.length > 0 && selectedDepotForAssignment" class="mb-6">
+      <label class="flex items-center space-x-2 cursor-pointer">
+        <input type="checkbox" 
+          [(ngModel)]="linkByFamille"
+          class="w-4 h-4 text-green-600 border-indigo-300 rounded focus:ring-green-500">
+        <span class="text-sm font-medium text-indigo-700">Lier tous les produits de la même famille</span>
+      </label>
+      <p class="text-xs text-gray-600 mt-1 ml-6">
+        Si activé, tous les produits de la même famille que le produit source seront liés au produit destination
+      </p>
     </div>
     
     <div class="flex space-x-3">
-      <button (click)="addProductToDepot()"
-        [disabled]="((!selectedSourceProduct || selectedSourceDepots.length === 0) && !selectedDepotForAssignment) || loading"
+      <button (click)="selectedSourceProduct || linkByFamille ? createProductDepotLink() : addProductToDepot()"
+        [disabled]="(!selectedDepotForAssignment || ((!selectedSourceProduct || selectedSourceDepots.length === 0) && !linkByFamille)) || loading"
         class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-5 py-3 rounded-xl transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed">
         <span class="flex items-center justify-center">
           <svg *ngIf="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -684,7 +697,7 @@
           <svg *ngIf="!loading" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
           </svg>
-          {{ loading ? 'Traitement en cours...' : (selectedSourceProduct ? 'Créer le lien' : 'Ajouter au dépôt') }}
+          {{ loading ? 'Traitement en cours...' : (linkByFamille ? 'Créer consolidation par famille' : (selectedSourceProduct ? 'Créer le lien' : 'Ajouter au dépôt')) }}
         </span>
       </button>
       <button (click)="closeAddToDepotModal()"

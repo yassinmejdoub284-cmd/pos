@@ -615,6 +615,14 @@ export class BonEntreeComponent implements OnInit {
     }
   }
 
+  goToConsultation(): void {
+    const targetDepotId = this.document?.destinataire?.id || (this.depotId ? parseInt(this.depotId) : null);
+    if (targetDepotId) {
+      const actionType = this.isReturnsMode ? 'bon-retour' : 'entry';
+      this.router.navigate(['/stock/achat-consultation', actionType, targetDepotId]);
+    }
+  }
+
   printDocument(doc?: StockDocument): void {
     const target = doc || this.document;
     if (!target) return;

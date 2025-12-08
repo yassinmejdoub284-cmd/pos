@@ -604,8 +604,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getAllStockMovements(dateFrom: Date, dateTo: Date): Promise<any[]> {
     try {
-      // Get all stock documents in one call
-      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+      const depotResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
         params: {
           type: 'BON_ENTREE_DEPOT',
           limit: '1000',
@@ -614,17 +613,29 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
         }
       }));
 
-      // Handle different response formats
-      let stockDocs = [];
-      if (Array.isArray(response)) {
-        stockDocs = response;
-      } else if (response && Array.isArray(response.data)) {
-        stockDocs = response.data;
-      } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
-        stockDocs = response.stockDocuments;
-      } else {
+      const magasinResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+        params: {
+          type: 'BON_ENTREE_MAGASIN',
+          limit: '1000',
+          dateFrom: dateFrom.toISOString(),
+          dateTo: dateTo.toISOString()
+        }
+      }));
+
+      const handleResponse = (response: any): any[] => {
+        if (Array.isArray(response)) {
+          return response;
+        } else if (response && Array.isArray(response.data)) {
+          return response.data;
+        } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+          return response.stockDocuments;
+        }
         return [];
-      }
+      };
+
+      const depotDocs = handleResponse(depotResponse);
+      const magasinDocs = handleResponse(magasinResponse).filter((doc: any) => doc.status === 'RECEIVED');
+      const stockDocs = [...depotDocs, ...magasinDocs];
 
       const movements: any[] = [];
       
@@ -1798,7 +1809,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
       // Get stock entry data
       try {
-        const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+        const depotResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
           params: {
             type: 'BON_ENTREE_DEPOT',
             dateFrom: dateFrom.toISOString(),
@@ -1806,17 +1817,29 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
           }
         }));
 
-        // Handle different response formats
-        let entries = [];
-        if (Array.isArray(response)) {
-          entries = response;
-        } else if (response && Array.isArray(response.data)) {
-          entries = response.data;
-        } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
-          entries = response.stockDocuments;
-        } else {
-          entries = [];
-        }
+        const magasinResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+          params: {
+            type: 'BON_ENTREE_MAGASIN',
+            dateFrom: dateFrom.toISOString(),
+            dateTo: dateTo.toISOString()
+          }
+        }));
+
+        const handleResponse = (response: any): any[] => {
+          if (Array.isArray(response)) {
+            return response;
+          } else if (response && Array.isArray(response.data)) {
+            return response.data;
+          } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+            return response.stockDocuments;
+          }
+          return [];
+        };
+
+        const depotEntries = handleResponse(depotResponse);
+        const magasinEntries = handleResponse(magasinResponse).filter((doc: any) => doc.status === 'RECEIVED');
+        const entries = [...depotEntries, ...magasinEntries];
+
         for (const entry of entries) {
           const items = entry.items?.filter((item: any) => item.productId === productId) || [];
           for (const item of items) {
@@ -2566,26 +2589,33 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async calculateTotalDebut(): Promise<number> {
     try {
-      // Get all stock entries
-      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+      const depotEntriesResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
         params: { type: 'BON_ENTREE_DEPOT' }
       }));
 
-      // Handle different response formats
-      let entries = [];
-      if (Array.isArray(response)) {
-        entries = response;
-      } else if (response && Array.isArray(response.data)) {
-        entries = response.data;
-      } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
-        entries = response.stockDocuments;
-      } else {
-        return 0;
-      }
+      const magasinEntriesResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+        params: { type: 'BON_ENTREE_MAGASIN' }
+      }));
+
+      const handleResponse = (response: any): any[] => {
+        if (Array.isArray(response)) {
+          return response;
+        } else if (response && Array.isArray(response.data)) {
+          return response.data;
+        } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+          return response.stockDocuments;
+        }
+        return [];
+      };
+
+      const depotEntries = handleResponse(depotEntriesResponse);
+      const magasinEntries = handleResponse(magasinEntriesResponse);
+
+      const allEntries = [...depotEntries, ...magasinEntries.filter((doc: any) => doc.status === 'RECEIVED')];
 
       let totalDebut = 0;
       
-      for (const entry of entries) {
+      for (const entry of allEntries) {
         for (const item of entry.items || []) {
           const product = this.products.find(p => p.id === item.productId);
           if (product) {
@@ -2605,33 +2635,40 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getStockEntriesDetails(): Promise<any[]> {
     try {
-      // Use the correct API endpoint with proper type parameter
-      
-      const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+      const depotResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
         params: {
           type: 'BON_ENTREE_DEPOT',
-          limit: '1000' // Increase limit to get more entries
+          limit: '1000'
+        }
+      }));
+
+      const magasinResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
+        params: {
+          type: 'BON_ENTREE_MAGASIN',
+          limit: '1000'
         }
       }));
       
-      // Handle different response formats
-      let stockDocs = [];
-      if (Array.isArray(response)) {
-        stockDocs = response;
-      } else if (response && Array.isArray(response.data)) {
-        stockDocs = response.data;
-      } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
-        stockDocs = response.stockDocuments;
-      } else {
+      const handleResponse = (response: any): any[] => {
+        if (Array.isArray(response)) {
+          return response;
+        } else if (response && Array.isArray(response.data)) {
+          return response.data;
+        } else if (response && response.stockDocuments && Array.isArray(response.stockDocuments)) {
+          return response.stockDocuments;
+        }
         return [];
-      }
+      };
+
+      const depotDocs = handleResponse(depotResponse);
+      const magasinDocs = handleResponse(magasinResponse).filter((doc: any) => doc.status === 'RECEIVED');
       
+      const stockDocs = [...depotDocs, ...magasinDocs];
       
       const entries = [];
-      const processedEntries = new Set(); // Avoid duplicates
+      const processedEntries = new Set();
       
       for (const doc of stockDocs) {
-        // Skip if no items
         if (!doc.items || doc.items.length === 0) {
           continue;
         }
@@ -2639,7 +2676,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
         for (const item of doc.items) {
           const entryKey = `${doc.id}_${item.id}`;
           if (processedEntries.has(entryKey)) {
-            continue; // Skip duplicates
+            continue;
           }
           processedEntries.add(entryKey);
           
@@ -2662,7 +2699,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
                 unitPrice: price,
                 documentId: doc.id,
                 itemId: item.id,
-                createdAt: doc.createdAt, // Include createdAt for proper ordering
+                createdAt: doc.createdAt,
                 depotName: doc.destinataire?.name || 'Dépôt principal',
                 supplierName: doc.emetteur?.name || 'Fournisseur inconnu'
               };

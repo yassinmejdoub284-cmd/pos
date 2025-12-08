@@ -178,3 +178,6 @@ npm start
 
 Les champs `originalProductId` et `conversionRatio` restent dans la table `products` pour compatibilité, mais ne sont plus utilisés pour la nouvelle logique. Le script de migration transfère automatiquement les données existantes.
 
+
+
+

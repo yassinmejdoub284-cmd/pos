@@ -165,3 +165,6 @@ En cas de problème lors de la migration:
 3. Vérifier que tous les produits référencés existent
 4. Vérifier les permissions utilisateur
 
+
+
+

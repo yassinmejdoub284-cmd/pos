@@ -199,6 +199,20 @@
             <div class="text-left">
               <span class="text-gray-900 font-bold">{{ formatCurrency(extract.withdrawals || 0) }}</span>
             </div>
+            
+            <div class="text-right">
+              <span class="text-gray-700 font-semibold">Montant Crédit Client</span>
+            </div>
+            <div class="text-left">
+              <span class="text-gray-900 font-bold">{{ formatCurrency(extract.clientCreditAmount || 0) }}</span>
+            </div>
+            
+            <div class="text-right">
+              <span class="text-gray-700 font-semibold">Montant Règlement Client</span>
+            </div>
+            <div class="text-left">
+              <span class="text-gray-900 font-bold">{{ formatCurrency(extract.clientPaymentAmount || 0) }}</span>
+            </div>
           </div>
         </div>
       </div>

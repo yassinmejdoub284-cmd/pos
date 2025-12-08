@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ProductsService } from '../core/services/products.service';
@@ -480,7 +480,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
     private imagePreloadService: ImagePreloadService,
     private ticketCounterService: TicketCounterService,
     private socketService: SocketService,
-    private inventoryService: InventoryService
+    private inventoryService: InventoryService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -1854,6 +1855,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
           }
           // Exclude warehouse clients (depot.type = 'WAREHOUSE', 'MAIN', 'BRANCH')
           return false;
+        }).map((client: any) => {
+          client.statementBalance = undefined;
+          return client;
         });
         this.searchingClients = false;
         this.filterClients();
@@ -1870,6 +1874,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     if (!q) {
       // Show first 100 clients when no search query
       this.searchResults = this.allClientsCache.slice(0, 100);
+      this.fetchClientStatementBalances(this.searchResults);
       return;
     }
     
@@ -1911,6 +1916,41 @@ export class CaisseComponent implements OnInit, OnDestroy {
     
     // Show up to 200 results to ensure all matching clients are visible
     this.searchResults = filteredClients.slice(0, 200);
+    this.fetchClientStatementBalances(this.searchResults);
+  }
+
+  fetchClientStatementBalances(clients: any[]): void {
+    if (!clients || clients.length === 0) return;
+    
+    const clientsToFetch = clients.filter(client => client.statementBalance === undefined || client.statementBalance === null);
+    
+    if (clientsToFetch.length === 0) return;
+
+    const statementRequests = clientsToFetch.map(client => 
+      this.http.get<any>(`${environment.apiUrl}/client-statements/${client.id}/statement`, { withCredentials: true }).pipe(
+        map(response => ({ clientId: client.id, balance: response.currentBalance || 0 })),
+        catchError(() => of({ clientId: client.id, balance: 0 }))
+      )
+    );
+
+    forkJoin(statementRequests).subscribe({
+      next: (results: any[]) => {
+        results.forEach(result => {
+          const cachedClient = this.allClientsCache.find(c => c.id === result.clientId);
+          if (cachedClient) {
+            cachedClient.statementBalance = result.balance;
+          }
+        });
+        this.searchResults = this.searchResults.map(client => {
+          const updatedClient = this.allClientsCache.find(c => c.id === client.id);
+          return updatedClient || client;
+        });
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   searchClients(): void {

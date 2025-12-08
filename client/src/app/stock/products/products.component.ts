@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ProductsService } from '../../core/services/products.service';
+import { ProduitsDeCaisseService } from '../../core/services/produits-de-caisse.service';
 import { Product, ProductFamily, Depot as ProductDepot } from '../../core/models/product.model';
 import { AuthService } from '../../core/services/auth.service';
 import { DepotsService } from '../../core/services/depots.service';
@@ -46,6 +47,7 @@ export class ProductsComponent implements OnInit {
   depots: Depot[] = [];
   selectedDepotId: number | null = null;
   productVracConversionsCount: Map<number, number> = new Map();
+  linkByFamille = false;
 
   // Palette classes for family badges (light vibrant colors)
   private familyColorClasses: string[] = [
@@ -59,6 +61,7 @@ export class ProductsComponent implements OnInit {
 
   constructor(
     private productsService: ProductsService,
+    private produitsDeCaisseService: ProduitsDeCaisseService,
     private authService: AuthService,
     private depotsService: DepotsService
   ) {}
@@ -189,26 +192,91 @@ export class ProductsComponent implements OnInit {
       });
     } else {
       // Load products from selected depot
-      this.productsService.getProducts(this.selectedDepotId).subscribe({
-        next: (products) => {
-          // Transform depotAssignments to assignedDepots for all products
-          this.allProducts = products.map(product => {
-            if (product.depotAssignments && product.depotAssignments.length > 0 && !product.assignedDepots) {
-              product.assignedDepots = product.depotAssignments
-                .map(assignment => assignment.depot)
-                .filter((depot): depot is NonNullable<typeof depot> => depot !== null && depot !== undefined);
-            }
-            return product;
-          });
-          this.loadVracConversionsCount();
-          this.applyFilters();
-          this.loading = false;
-        },
-        error: (error) => {
-          this.error = 'Erreur lors du chargement des produits';
-          this.loading = false;
-        }
+      // First, get depot info to determine if it's SHOP or not
+      const selectedDepot = this.depots.find(d => d.id === this.selectedDepotId);
+      
+      if (!selectedDepot) {
+        console.error('Selected depot not found in depots list:', this.selectedDepotId);
+        this.error = 'Dépôt sélectionné introuvable';
+        this.loading = false;
+        return;
+      }
+      
+      console.log('Loading products for depot:', { 
+        selectedDepotId: this.selectedDepotId, 
+        depotName: selectedDepot.name,
+        depotType: selectedDepot.type
       });
+      
+      if (selectedDepot.type === 'SHOP') {
+        console.log('Using Product table for SHOP depot');
+        // For SHOP depots, use Product table
+        this.productsService.getProducts(this.selectedDepotId).subscribe({
+          next: (products) => {
+            console.log(`Loaded ${products.length} products from Product table`);
+            // Transform depotAssignments to assignedDepots for all products
+            this.allProducts = products.map(product => {
+              if (product.depotAssignments && product.depotAssignments.length > 0 && !product.assignedDepots) {
+                product.assignedDepots = product.depotAssignments
+                  .map(assignment => assignment.depot)
+                  .filter((depot): depot is NonNullable<typeof depot> => depot !== null && depot !== undefined);
+              }
+              return product;
+            });
+            this.loadVracConversionsCount();
+            this.applyFilters();
+            this.loading = false;
+          },
+          error: (error) => {
+            console.error('Error loading products:', error);
+            this.error = 'Erreur lors du chargement des produits';
+            this.loading = false;
+          }
+        });
+      } else {
+        // For non-SHOP depots (MAIN, BRANCH, WAREHOUSE), use ProduitDeCaisse table
+        console.log('Using ProduitDeCaisse table for non-SHOP depot (type:', selectedDepot.type, ')');
+        this.produitsDeCaisseService.getProduitsDeCaisse(this.selectedDepotId!).subscribe({
+          next: (produits) => {
+            // Transform ProduitDeCaisse to Product format for compatibility
+            this.allProducts = produits.map(produit => ({
+              id: produit.id,
+              name: produit.name,
+              barcode: produit.barcode,
+              prix_vente_TTC: produit.prix_vente_TTC,
+              prix_achat: produit.prix_achat,
+              unite: produit.unite,
+              tva: produit.tva,
+              familleId: produit.familleId,
+              famille: produit.famille ? { id: produit.famille.id, name: produit.famille.name } : null,
+              assignedDepots: produit.assignedDepots || [],
+              depotAssignments: produit.depotAssignments?.map(da => ({ depot: da.depot })) || [],
+              isVrac: produit.isVrac,
+              isVraguable: produit.isVraguable,
+              isStockable: produit.isStockable,
+              isWholesale: produit.isWholesale,
+              bundleSize: produit.bundleSize,
+              bundlePrice: produit.bundlePrice,
+              photo: produit.photo,
+              description: produit.description,
+              designation_legale: produit.designation_legale,
+              duree_conservation: produit.duree_conservation,
+              minStock: produit.minStock,
+              maxStock: produit.maxStock,
+              initialStock: produit.initialStock,
+              displayIndex: produit.displayIndex
+            } as Product));
+            this.loadVracConversionsCount();
+            this.applyFilters();
+            this.loading = false;
+          },
+          error: (error) => {
+            console.error('Error loading produits de caisse:', error);
+            this.error = 'Erreur lors du chargement des produits';
+            this.loading = false;
+          }
+        });
+      }
     }
   }
 
@@ -591,6 +659,7 @@ export class ProductsComponent implements OnInit {
     this.similarProducts = [];
     this.selectedSourceProduct = null;
     this.searchProductName = '';
+    this.linkByFamille = false;
     this.showAddToDepotModal = true;
   }
 
@@ -600,6 +669,10 @@ export class ProductsComponent implements OnInit {
     }
     const assignedDepotIds = this.selectedProductForDepot.assignedDepots?.map(d => d.id) || [];
     return this.depots.filter(depot => !assignedDepotIds.includes(depot.id));
+  }
+
+  getAllDepotsForDestination(): Depot[] {
+    return this.depots.filter(d => d.isActive);
   }
 
   getSelectedProductAssignedDepots(): ProductDepot[] {
@@ -614,6 +687,7 @@ export class ProductsComponent implements OnInit {
     this.similarProducts = [];
     this.selectedSourceProduct = null;
     this.searchProductName = '';
+    this.linkByFamille = false;
   }
 
   toggleSourceDepot(depotId: number): void {
@@ -673,15 +747,8 @@ export class ProductsComponent implements OnInit {
       return;
     }
 
-    // If source product is selected, create a link instead of just assigning depot
-    if (this.selectedSourceProduct && this.selectedSourceDepots.length > 0) {
-      this.createProductDepotLink();
-      return;
-    }
-
-    // Otherwise, just assign product to depot (original behavior)
     if (!this.selectedDepotForAssignment) {
-      this.error = 'Veuillez sélectionner un dépôt';
+      this.error = 'Veuillez sélectionner un dépôt destination';
       return;
     }
 
@@ -720,37 +787,35 @@ export class ProductsComponent implements OnInit {
   }
 
   createProductDepotLink(): void {
-    if (!this.selectedProductForDepot || !this.selectedSourceProduct || this.selectedSourceDepots.length === 0) {
+    if (!this.selectedProductForDepot) {
+      this.error = 'Aucun produit destination sélectionné';
+      return;
+    }
+
+    if (!this.selectedDepotForAssignment) {
+      this.error = 'Veuillez sélectionner un dépôt destination';
+      return;
+    }
+
+    if (this.linkByFamille) {
+      this.createFamilleConsolidation();
+      return;
+    }
+
+    if (!this.selectedSourceProduct || this.selectedSourceDepots.length === 0) {
       this.error = 'Veuillez sélectionner un produit source et un dépôt source';
       return;
     }
 
-    // Get destination depot - use selectedDepotForAssignment or first assigned depot
-    const destinationDepotId = this.selectedDepotForAssignment || 
-      (this.selectedProductForDepot.assignedDepots && this.selectedProductForDepot.assignedDepots.length > 0 
-        ? this.selectedProductForDepot.assignedDepots[0].id 
-        : null);
+    const destinationDepotId = this.selectedDepotForAssignment;
 
-    if (!destinationDepotId) {
-      this.error = 'Le produit destination doit être assigné à un dépôt';
-      return;
-    }
-
-    // For each source depot, create a link
     this.loading = true;
     this.error = '';
 
-    if (!this.selectedSourceProduct || !this.selectedProductForDepot) {
-      this.error = 'Produits non sélectionnés';
-      this.loading = false;
-      return;
-    }
-
     const linkPromises = this.selectedSourceDepots.map(async (sourceDepotId) => {
-      // Find which depot the source product is assigned to
       const sourceProductDepots = this.selectedSourceProduct!.assignedDepots?.map(d => d.id) || [];
       if (!sourceProductDepots.includes(sourceDepotId)) {
-        return null; // Skip if product not assigned to this depot
+        return null;
       }
 
       try {
@@ -773,6 +838,38 @@ export class ProductsComponent implements OnInit {
     }).catch((error) => {
       this.error = error.error?.error || 'Erreur lors de la création du lien';
       this.loading = false;
+    });
+  }
+
+  createFamilleConsolidation(): void {
+    if (!this.selectedProductForDepot || !this.selectedDepotForAssignment || this.selectedSourceDepots.length === 0) {
+      this.error = 'Veuillez sélectionner un produit destination, un dépôt destination et au moins un dépôt source';
+      return;
+    }
+
+    if (!this.selectedSourceProduct) {
+      this.error = 'Veuillez sélectionner un produit source pour déterminer la famille';
+      return;
+    }
+
+    this.loading = true;
+    this.error = '';
+
+    this.productsService.createFamilleConsolidation({
+      sourceFamilleId: this.selectedSourceProduct.familleId,
+      sourceDepotIds: this.selectedSourceDepots,
+      destinationProductId: this.selectedProductForDepot.id,
+      destinationDepotId: this.selectedDepotForAssignment
+    }).subscribe({
+      next: () => {
+        this.closeAddToDepotModal();
+        this.loadProducts();
+        this.loading = false;
+      },
+      error: (error) => {
+        this.error = error.error?.error || 'Erreur lors de la création de la consolidation par famille';
+        this.loading = false;
+      }
     });
   }
 } 

@@ -203,6 +203,14 @@
           </svg>
           Retour
         </button>
+        <button (click)="goToConsultation()" *ngIf="document || depotId"
+          class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+          </svg>
+          Consulter
+        </button>
         <button (click)="printDocument()" *ngIf="document"
           class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -289,75 +297,7 @@
       </div>
     </div>
 
-    <ng-container *ngIf="isEditMode || depotId || documentId">
-      <div class="mb-4 flex justify-end">
-        <button (click)="showDocumentsList = !showDocumentsList" 
-          class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          {{ showDocumentsList ? 'Masquer la liste' : 'Voir les bons de retour créés' }}
-        </button>
-      </div>
 
-      <div *ngIf="showDocumentsList && depotId" class="mb-4 bg-white/80 rounded-2xl shadow-lg border border-slate-200/50 p-6">
-        <div class="flex justify-between items-center mb-4">
-          <span class="text-xl font-bold text-slate-800">Documents créés ({{ documents.length }})</span>
-          <button (click)="loadDocumentsForDepot()" class="text-red-600 text-sm">Actualiser</button>
-        </div>
-        <div *ngIf="documents.length === 0" class="text-center py-8 text-gray-500">
-          Aucun document trouvé pour ce dépôt.
-        </div>
-        <div *ngIf="documents.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div *ngFor="let doc of documents" 
-               class="bg-white border border-gray-200 rounded-xl p-4 transition-shadow duration-200 hover:shadow-md">
-            <div class="flex justify-between items-start mb-3">
-              <div class="flex items-center gap-2">
-                <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
-                  Bon de Retour
-                </span>
-                <span [class]="doc.status === 'PREPARED' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'" 
-                      class="px-2 py-1 rounded-full text-xs font-medium">
-                  {{ getStatusLabel(doc.status) }}
-                </span>
-              </div>
-            </div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ doc.numero }}</h3>
-            <div class="text-sm text-gray-600 space-y-1 mb-3">
-              <div *ngIf="doc.destinataire">
-                <span class="font-medium">Dépôt:</span> {{ doc.destinataire.name }}
-              </div>
-              <div>
-                <span class="font-medium">Créé le:</span> {{ formatDate(doc.createdAt) }}
-              </div>
-              <div *ngIf="doc.items && doc.items.length > 0">
-                <span class="font-medium">Articles:</span> {{ doc.items.length }} produit{{ doc.items.length > 1 ? 's' : '' }}
-              </div>
-            </div>
-            <div class="flex flex-col gap-2">
-              <button (click)="viewDocument(doc)" 
-                class="w-full bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium py-2 px-3 transition-colors duration-200">
-                Voir détails
-              </button>
-              <div class="flex gap-2">
-                <button (click)="editDocumentFromList(doc)" 
-                  class="flex-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-medium py-2 px-3 transition-colors duration-200">
-                  Modifier
-                </button>
-                <button (click)="printDocument(doc)" 
-                  class="flex-1 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium py-2 px-3 transition-colors duration-200">
-                  Imprimer
-                </button>
-                <button *ngIf="isAdmin()" 
-                  (click)="deleteDocument(doc)" 
-                  class="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium py-2 px-3 transition-colors duration-200">
-                  Supprimer
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div class="md:grid md:grid-cols-12 gap-2 h-screen p-2">
         <div class="col-span-8 flex flex-col max-h-screen">
@@ -513,7 +453,6 @@
           <div *ngIf="success" class="text-green-600 mt-3 text-sm">{{ success }}</div>
         </div>
       </div>
-    </ng-container>
   </div>
 </div>
 

@@ -69,21 +69,9 @@ export class VracConversionFormComponent implements OnInit, OnChanges {
 
   loadAvailableVracProducts(): void {
     if (this.allProducts && this.allProducts.length > 0) {
-      const vracProduct = this.allProducts.find(p => 
-        p.famille?.name === 'Vrac' || p.famille?.name === 'VRAC' || p.isVrac
+      this.availableVracProducts = this.allProducts.filter(p => 
+        p.id !== this.product?.id
       );
-      
-      if (vracProduct && vracProduct.famille) {
-        this.availableVracProducts = this.allProducts.filter(p => 
-          p.familleId === vracProduct.famille!.id && 
-          p.id !== this.product?.id
-        );
-      } else {
-        this.availableVracProducts = this.allProducts.filter(p => 
-          (p.isVrac || p.famille?.name?.toLowerCase() === 'vrac') &&
-          p.id !== this.product?.id
-        );
-      }
     }
   }
 

@@ -214,6 +214,10 @@ export class ProductsService {
     return this.http.get<any[]>(`${this.apiUrl}/${productId}/depot-links`);
   }
 
+  getAllProductDepotLinks(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/depot-links`);
+  }
+
   deleteProductDepotLink(linkId: number): Observable<any> {
     return this.http.delete<any>(`${this.apiUrl}/depot-links/${linkId}`);
   }
@@ -273,5 +277,14 @@ export class ProductsService {
 
   deleteVracConversion(conversionId: number): Observable<any> {
     return this.http.delete<any>(`${this.apiUrl}/vrac-conversions/${conversionId}`);
+  }
+
+  createFamilleConsolidation(data: {
+    sourceFamilleId: number;
+    sourceDepotIds: number[];
+    destinationProductId: number;
+    destinationDepotId: number;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/famille-consolidations`, data);
   }
 } 

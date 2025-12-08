@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { DepotsService } from '../core/services/depots.service';
 import { Depot } from '../core/models/depot.model';
@@ -8,6 +8,9 @@ import { StockDocumentActionDialogComponent } from '../shared/stock-document-act
 import { SessionsService } from '../core/services/sessions.service';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
 import { StockDocument } from '../core/models/stock-document.model';
+import { ProductsService } from '../core/services/products.service';
+import { InventoryService } from '../core/services/inventory.service';
+import { Product } from '../core/models/product.model';
 
 @Component({
   selector: 'app-stock',
@@ -19,25 +22,40 @@ export class StockComponent implements OnInit {
   loading = false;
   error = '';
   pendingDocumentsCount = 0;
-  bonRetourDocuments: StockDocument[] = [];
-  loadingBonRetour = false;
 
-  // Modal properties
   showActionDepotModal = false;
   selectedAction: string | null = null;
   documentsSelectedType: string = '';
-  // Transport modal removed
   showDocumentsDialog = false;
   showFleetManagementDialog = false;
   showAchatDialog = false;
+  showDepotManagementModal = false;
+  showDepotProductsModal = false;
+  selectedDepot: Depot | null = null;
+  depotProducts: any[] = [];
+  filteredProducts: any[] = [];
+  searchProductTerm = '';
+  loadingProducts = false;
+  
+  sourceDepotId: number | null = null;
+  destinationDepotId: number | null = null;
+  sourceDepotProducts: any[] = [];
+  destinationDepotProducts: any[] = [];
+  sourceSearchTerm = '';
+  destinationSearchTerm = '';
+  loadingSourceProducts = false;
+  loadingDestinationProducts = false;
+  droppedSourceProducts: any[] = [];
+  droppedDestinationProduct: any | null = null;
+  sourceProductsError: string | null = null;
+  destinationProductsError: string | null = null;
+  savingLinks = false;
+  private isLoadingProducts = false;
+  private isSettingSourceDepotProgrammatically = false;
 
-  // Action cards shown in UI (populated only after access filtering)
   actionCards: Array<{ id: string; title: string; description: string; icon: string; color: string; }> = [];
 
-  // Settings cache
   private appSettings: AppSettings | null = null;
-
-  // Scan UI state (moved to dedicated page)
 
   constructor(
     private depotsService: DepotsService,
@@ -45,14 +63,15 @@ export class StockComponent implements OnInit {
     private stockDocs: StockDocumentsService,
     private authService: AuthService,
     private sessionsService: SessionsService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private productsService: ProductsService,
+    private inventoryService: InventoryService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.loadDepots();
     this.loadPendingDocumentsCount();
-    this.loadBonRetourDocuments();
-    // Load role access settings and filter visible action cards
     this.settingsService.getSettings().subscribe({
       next: (s) => {
         this.appSettings = s;
@@ -60,12 +79,10 @@ export class StockComponent implements OnInit {
       },
       error: () => {}
     });
-    // React to session depot changes
     this.sessionsService.currentSession$?.subscribe({
       next: (sess: any) => {
         if (sess?.depotId) {
           this.loadPendingDocumentsCount();
-          this.loadBonRetourDocuments();
         }
       }
     });
@@ -97,7 +114,6 @@ export class StockComponent implements OnInit {
       this.actionCards = [];
       return;
     }
-    // Define all possible cards locally; only permitted ones will be emitted to the UI
     const allCards: Array<{ id: string; title: string; description: string; icon: string; color: string; }> = [
       { id: 'achat', title: 'Achat', description: 'Créer un bon d\'entrée ou un bon de retour', icon: 'M12 4v16m8-8H4', color: 'from-emerald-500 to-green-600' },
       { id: 'documents-reception', title: 'Centre de Réception', description: 'Réceptionner les documents de stock', icon: 'M9 12l2 2 4-4m2-4h-3.18A2 2 0 0012 2a2 2 0 00-1.82 2H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2z', color: 'from-teal-500 to-cyan-600' },
@@ -149,7 +165,6 @@ export class StockComponent implements OnInit {
     const depotId = this.sessionsService.getActiveDepotId();
     if (!depotId) return;
 
-    // Do not filter by status at API; filter locally for SENT/PREPARED destined to current depot
     this.stockDocs.getDocuments(1, 50, 'BON_ENTREE_MAGASIN', undefined, depotId).subscribe({
       next: (response) => {
         const documents = Array.isArray(response) ? response : (response?.data ?? []);
@@ -166,35 +181,423 @@ export class StockComponent implements OnInit {
   }
 
   openWorkspace(depot: Depot): void {
-    switch (depot.type) {
-      case 'SHOP':
-        // For shops, go to shop transfer module
-        this.router.navigate(['/stock/shop-transfer', depot.id]);
-        break;
-      case 'MAIN':
-        // For main depot, go to prepare lot module
-        this.router.navigate(['/stock/prepare-lot', depot.id]);
-        break;
-      case 'BRANCH':
-        // For branch depot, go to branch inventory module
-        this.router.navigate(['/stock/branch-inventory', depot.id]);
-        break;
-      default:
-        // Fallback to generic site module
-        this.router.navigate(['/stock/site', depot.id, 'workspace']);
-        break;
+    if (!depot) {
+      return;
+    }
+
+    this.showDepotProductsModal = false;
+    this.selectedDepot = null;
+    this.cdr.detectChanges();
+
+    requestAnimationFrame(() => {
+    this.selectedDepot = depot;
+    this.showDepotProductsModal = true;
+    this.searchProductTerm = '';
+      this.depotProducts = [];
+      this.filteredProducts = [];
+      this.loadingProducts = false;
+      
+      this.destinationDepotId = null;
+      this.sourceDepotProducts = [];
+      this.destinationDepotProducts = [];
+      this.droppedSourceProducts = [];
+      this.droppedDestinationProduct = null;
+      this.sourceSearchTerm = '';
+      this.destinationSearchTerm = '';
+      this.sourceProductsError = null;
+      this.destinationProductsError = null;
+      
+      this.cdr.detectChanges();
+      
+      if (depot.type !== 'SHOP') {
+        requestAnimationFrame(() => {
+    this.loadDepotProducts(depot);
+        });
+      }
+    });
+  }
+
+  loadDepotProducts(depot: Depot): void {
+    if (this.isLoadingProducts) {
+      return;
+    }
+    
+    this.isLoadingProducts = true;
+    this.loadingProducts = true;
+    this.depotProducts = [];
+    this.filteredProducts = [];
+    this.destinationDepotId = null;
+    this.sourceDepotProducts = [];
+    this.destinationDepotProducts = [];
+    this.droppedSourceProducts = [];
+    this.droppedDestinationProduct = null;
+    this.sourceSearchTerm = '';
+    this.destinationSearchTerm = '';
+    this.sourceProductsError = null;
+    this.destinationProductsError = null;
+
+    if (depot.type !== 'SHOP') {
+      this.isSettingSourceDepotProgrammatically = true;
+      this.sourceDepotId = depot.id;
+      this.loadSourceDepotProducts(depot.id);
+      setTimeout(() => {
+        this.isSettingSourceDepotProgrammatically = false;
+      }, 100);
+    } else {
+      this.sourceDepotId = null;
+          this.loadingProducts = false;
+      this.isLoadingProducts = false;
     }
   }
 
-  // Action depot selection methods
+  loadSourceDepotProducts(depotId: number): void {
+    if (this.loadingSourceProducts) {
+      return;
+    }
+    
+    this.loadingSourceProducts = true;
+    this.sourceDepotProducts = [];
+    this.sourceProductsError = null;
+    
+    let sourceDepot = this.depots.find(d => d.id === depotId);
+    
+    if (!sourceDepot) {
+      this.depotsService.get(depotId).subscribe({
+        next: (depot) => {
+          sourceDepot = depot;
+          this.loadProductsForSourceDepot(depotId, depot.type);
+        },
+        error: () => {
+          this.sourceProductsError = 'Dépôt source introuvable';
+          this.loadingSourceProducts = false;
+        }
+      });
+      return;
+    }
+
+    this.loadProductsForSourceDepot(depotId, sourceDepot.type);
+  }
+
+  private loadProductsForSourceDepot(depotId: number, depotType: string): void {
+    this.inventoryService.getProductsForDepot(depotId, depotType).subscribe({
+      next: (products) => {
+        this.sourceDepotProducts = products || [];
+        this.depotProducts = products || [];
+        this.filteredProducts = products || [];
+        this.sourceProductsError = null;
+        this.loadingSourceProducts = false;
+        this.loadingProducts = false;
+        this.isLoadingProducts = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        this.sourceDepotProducts = [];
+        this.depotProducts = [];
+        this.filteredProducts = [];
+        this.sourceProductsError = error.error?.error || error.message || 'Erreur lors du chargement des produits';
+        this.loadingSourceProducts = false;
+        this.loadingProducts = false;
+        this.isLoadingProducts = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  loadDestinationDepotProducts(depotId: number): void {
+    this.loadingDestinationProducts = true;
+    this.destinationDepotProducts = [];
+    this.destinationProductsError = null;
+    
+    let destinationDepot = this.depots.find(d => d.id === depotId);
+    
+    if (!destinationDepot) {
+      this.depotsService.get(depotId).subscribe({
+        next: (depot) => {
+          destinationDepot = depot;
+          this.loadProductsForDestinationDepot(depotId, depot.type);
+        },
+        error: () => {
+          this.destinationProductsError = 'Dépôt destination introuvable';
+          this.loadingDestinationProducts = false;
+        }
+      });
+      return;
+    }
+
+    this.loadProductsForDestinationDepot(depotId, destinationDepot.type);
+  }
+
+  private loadProductsForDestinationDepot(depotId: number, depotType: string): void {
+    this.inventoryService.getProductsForDepot(depotId, depotType).subscribe({
+      next: (products) => {
+        this.destinationDepotProducts = products || [];
+        this.destinationProductsError = null;
+        this.loadingDestinationProducts = false;
+      },
+      error: (error) => {
+        this.destinationDepotProducts = [];
+        
+        if (error.status === 403) {
+          this.destinationProductsError = 'Accès refusé : Vous n\'avez pas les permissions pour accéder à ce dépôt';
+        } else if (error.status === 400) {
+          this.destinationProductsError = error.error?.error || 'Dépôt invalide ou manquant';
+        } else {
+          this.destinationProductsError = error.error?.error || error.message || 'Erreur lors du chargement des produits';
+        }
+        this.loadingDestinationProducts = false;
+      }
+    });
+  }
+
+  filterSourceProducts(): void {
+    if (!this.sourceSearchTerm.trim()) {
+      return;
+    }
+  }
+
+  filterDestinationProducts(): void {
+    if (!this.destinationSearchTerm.trim()) {
+      return;
+    }
+  }
+
+  getFilteredSourceProducts(): any[] {
+    if (!this.sourceSearchTerm.trim()) {
+      return this.sourceDepotProducts;
+    }
+    const searchTerm = this.sourceSearchTerm.toLowerCase().trim();
+    return this.sourceDepotProducts.filter(product => {
+      const name = (product.name || '').toLowerCase();
+      const barcode = (product.barcode || '').toLowerCase();
+      const famille = (product.famille?.name || product.familleName || '').toLowerCase();
+      return name.includes(searchTerm) || barcode.includes(searchTerm) || famille.includes(searchTerm);
+    });
+  }
+
+  getFilteredDestinationProducts(): any[] {
+    if (!this.destinationSearchTerm.trim()) {
+      return this.destinationDepotProducts;
+    }
+    const searchTerm = this.destinationSearchTerm.toLowerCase().trim();
+    return this.destinationDepotProducts.filter(product => {
+      const name = (product.name || '').toLowerCase();
+      const barcode = (product.barcode || '').toLowerCase();
+      const famille = (product.famille?.name || product.familleName || '').toLowerCase();
+      return name.includes(searchTerm) || barcode.includes(searchTerm) || famille.includes(searchTerm);
+    });
+  }
+
+  onSourceProductDragStart(event: DragEvent, product: any): void {
+    if (event.dataTransfer) {
+      event.dataTransfer.setData('application/json', JSON.stringify({ type: 'source', product }));
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  }
+
+  onDestinationProductDragStart(event: DragEvent, product: any): void {
+    if (event.dataTransfer) {
+      event.dataTransfer.setData('application/json', JSON.stringify({ type: 'destination', product }));
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  }
+
+  onSourceDropZoneDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onDestinationDropZoneDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onSourceDropZoneDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    try {
+      const data = event.dataTransfer?.getData('application/json');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed.type === 'source' && parsed.product) {
+          if (this.isBothDepotsNonShop()) {
+            this.droppedSourceProducts = [parsed.product];
+          } else {
+            const exists = this.droppedSourceProducts.some(p => p.id === parsed.product.id);
+            if (!exists) {
+              this.droppedSourceProducts.push(parsed.product);
+            }
+          }
+        }
+      }
+    } catch (error) {
+    }
+  }
+
+  onDestinationDropZoneDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    try {
+      const data = event.dataTransfer?.getData('application/json');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed.type === 'destination' && parsed.product) {
+          this.droppedDestinationProduct = parsed.product;
+        }
+      }
+    } catch (error) {
+    }
+  }
+
+  removeSourceProduct(index: number): void {
+    this.droppedSourceProducts.splice(index, 1);
+  }
+
+  clearDestinationProduct(): void {
+    this.droppedDestinationProduct = null;
+  }
+
+  onSourceDepotChange(): void {
+    if (this.isSettingSourceDepotProgrammatically) {
+      return;
+    }
+    
+    if (this.isLoadingProducts || this.loadingSourceProducts) {
+      return;
+    }
+    
+    if (this.sourceDepotId) {
+      this.loadSourceDepotProducts(this.sourceDepotId);
+      this.droppedSourceProducts = [];
+    } else {
+      this.sourceDepotProducts = [];
+      this.droppedSourceProducts = [];
+    }
+  }
+
+  onDestinationDepotChange(): void {
+    if (this.destinationDepotId) {
+      this.loadDestinationDepotProducts(this.destinationDepotId);
+      this.droppedDestinationProduct = null;
+    } else {
+      this.destinationDepotProducts = [];
+      this.droppedDestinationProduct = null;
+    }
+  }
+
+  refreshDestinationProducts(): void {
+    if (this.destinationDepotId) {
+      this.loadDestinationDepotProducts(this.destinationDepotId);
+    }
+  }
+
+  refreshSourceProducts(): void {
+    if (this.sourceDepotId) {
+      this.loadSourceDepotProducts(this.sourceDepotId);
+    }
+  }
+
+  getAvailableDestinations(): Depot[] {
+    return this.depots.filter(d => d.id !== this.selectedDepot?.id);
+  }
+
+  isNonShopDepot(depot: Depot | null): boolean {
+    if (!depot) return false;
+    return depot.type === 'MAIN' || depot.type === 'BRANCH' || depot.type === 'WAREHOUSE';
+  }
+
+  isShopDepot(depot: Depot | null): boolean {
+    if (!depot) return false;
+    return depot.type === 'SHOP';
+  }
+
+  isBothDepotsNonShop(): boolean {
+    if (!this.sourceDepotId || !this.destinationDepotId) {
+      return false;
+    }
+    
+    const sourceDepot = this.depots.find(d => d.id === this.sourceDepotId);
+    const destinationDepot = this.depots.find(d => d.id === this.destinationDepotId);
+    
+    return sourceDepot !== undefined && 
+           destinationDepot !== undefined && 
+           sourceDepot.type !== 'SHOP' && 
+           destinationDepot.type !== 'SHOP';
+  }
+
+  filterProducts(): void {
+    if (!this.searchProductTerm.trim()) {
+      this.filteredProducts = this.depotProducts;
+      return;
+    }
+
+    const searchTerm = this.searchProductTerm.toLowerCase().trim();
+    this.filteredProducts = this.depotProducts.filter(product => {
+      const name = (product.name || '').toLowerCase();
+      const barcode = (product.barcode || '').toLowerCase();
+      const famille = (product.famille?.name || '').toLowerCase();
+      return name.includes(searchTerm) || barcode.includes(searchTerm) || famille.includes(searchTerm);
+    });
+  }
+
+  closeDepotProductsModal(): void {
+    if (!this.showDepotProductsModal) {
+      return;
+    }
+    this.showDepotProductsModal = false;
+    this.selectedDepot = null;
+    this.depotProducts = [];
+    this.filteredProducts = [];
+    this.searchProductTerm = '';
+    this.sourceDepotId = null;
+    this.destinationDepotId = null;
+    this.sourceDepotProducts = [];
+    this.destinationDepotProducts = [];
+    this.droppedSourceProducts = [];
+    this.droppedDestinationProduct = null;
+    this.sourceSearchTerm = '';
+    this.destinationSearchTerm = '';
+    this.sourceProductsError = null;
+    this.destinationProductsError = null;
+    this.loadingProducts = false;
+    this.loadingSourceProducts = false;
+    this.loadingDestinationProducts = false;
+    this.isLoadingProducts = false;
+    this.isSettingSourceDepotProgrammatically = false;
+    this.cdr.detectChanges();
+  }
+
   openActionDepotSelection(action: string): void {
     this.selectedAction = action;
-    this.error = ''; // Clear any previous errors
+    this.error = '';
     
     const currentUser = this.authService.currentUser();
 
+    if (action === 'stock') {
+      if (this.isAdmin()) {
+        this.showActionDepotModal = true;
+        return;
+      }
+      
+      const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
+      const userDepotId = currentUser?.depotId;
+      const depotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
+      
+      if (depotId) {
+        this.router.navigate(['/stock/shop-transfer', depotId]);
+      } else {
+        this.router.navigate(['/stock/produits']);
+      }
+      return;
+    }
 
-    // Actions that do NOT require depot selection
     if (action === 'fleet-management' || action === 'documents' || action === 'achat' || action === 'client-gros') {
       if (action === 'achat') {
         this.showAchatDialog = true;
@@ -216,19 +619,13 @@ export class StockComponent implements OnInit {
       return;
     }
     
-    // For non-admin users, auto-route to their assigned depot
     if (!this.isAdmin()) {
-
       this.routeToAssignedDepot(action);
       return;
     }
-    
-    // For admin users, show depot selection dialog
 
     this.showActionDepotModal = true;
   }
-
-  // Transport modal removed; use direct navigation cards
 
   onDocumentsActionSelected(actionId: 'all' | 'factures' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert'): void {
     this.showDocumentsDialog = false;
@@ -243,13 +640,11 @@ export class StockComponent implements OnInit {
       : '';
     const currentUser = this.authService.currentUser();
     if (this.isAdmin()) {
-      // Ask admin which depot to use
       this.documentsSelectedType = type;
       this.selectedAction = 'documents-list-select';
       this.showActionDepotModal = true;
       return;
     }
-    // Non-admin: use assigned depot automatically
     const depotId = currentUser?.depotId;
     const queryParams: any = {};
     if (type) queryParams.type = type;
@@ -272,21 +667,24 @@ export class StockComponent implements OnInit {
 
   onAchatActionSelected(actionId: 'entry' | 'bon-retour'): void {
     this.showAchatDialog = false;
-    this.selectedAction = actionId;
+    
     if (this.isAdmin()) {
-      // Ask admin which depot to use for the selected sub-action
+      this.selectedAction = actionId === 'entry' ? 'consult-entry' : 'consult-bon-retour';
       this.showActionDepotModal = true;
-      return;
+    } else {
+      const currentUser = this.authService.currentUser();
+      const depotId = currentUser?.depotId;
+      if (depotId) {
+        this.router.navigate(['/stock/achat-consultation', actionId, depotId]);
+      } else {
+        this.error = 'Utilisateur non connecté ou dépôt non assigné';
+      }
     }
-    // Non-admin: route using assigned depot
-    this.routeToAssignedDepot(actionId);
   }
 
   closeAchatDialog(): void {
     this.showAchatDialog = false;
   }
-
-  // Removed goToVehicles/goToDrivers; handled by routerLink in template
 
   closeActionDepotModal(): void {
     this.showActionDepotModal = false;
@@ -295,29 +693,36 @@ export class StockComponent implements OnInit {
 
   getAvailableDepots(): Depot[] {
     if (this.selectedAction === 'stock-history' || this.selectedAction === 'fleet-management') {
-      // Exclude SHOP type depots for stock-history and fleet-management actions
       return this.depots.filter(depot => depot.type !== 'SHOP');
     }
     return this.depots;
   }
 
+  getNonShopDepots(): Depot[] {
+    return this.depots.filter(depot => depot.type !== 'SHOP');
+  }
+
   selectDepotForAction(depot: Depot): void {
     if (!this.selectedAction) return;
 
-    // Store the action before closing the modal
     const action = this.selectedAction;
     this.closeActionDepotModal();
 
     switch (action) {
       case 'stock':
-        this.openWorkspace(depot);
+        this.router.navigate(['/stock/shop-transfer', depot.id]);
         break;
       case 'entry':
         this.router.navigate(['/stock/documents/bon-entree', depot.id]);
         break;
       case 'bon-retour':
-        // Navigate to dedicated returns list route
         this.router.navigate(['/stock/documents/bon-retour', depot.id]);
+        break;
+      case 'consult-entry':
+        this.router.navigate(['/stock/achat-consultation', 'entry', depot.id]);
+        break;
+      case 'consult-bon-retour':
+        this.router.navigate(['/stock/achat-consultation', 'bon-retour', depot.id]);
         break;
       case 'documents-reception':
         this.router.navigate(['/documents-reception', depot.id]);
@@ -424,7 +829,6 @@ export class StockComponent implements OnInit {
 
 
 
-  // Depot type styling methods
   getDepotIcon(depot: Depot): string {
     switch (depot.type) {
       case 'MAIN':
@@ -528,52 +932,41 @@ export class StockComponent implements OnInit {
   routeToAssignedDepot(action: string): void {
     const currentUser = this.authService.currentUser();
     if (!currentUser?.depotId) {
-      console.error('No assigned depot found for user');
       this.error = 'Aucun dépôt assigné trouvé pour cet utilisateur';
       return;
     }
 
-    // Find the assigned depot
     const assignedDepot = this.depots.find(depot => depot.id === currentUser.depotId);
     if (!assignedDepot) {
-      console.error('Assigned depot not found in available depots');
       this.error = 'Dépôt assigné non trouvé dans les dépôts disponibles';
       return;
     }
 
-
-    
-    // Handle documents-reception action directly for non-admin users
     if (action === 'documents-reception') {
       this.router.navigate(['/documents-reception', assignedDepot.id]);
       return;
     }
     
-    // Handle entry action directly for non-admin users - use their assigned depot
     if (action === 'entry') {
       this.router.navigate(['/stock/documents/bon-entree', assignedDepot.id]);
       return;
     }
     
-    // Handle bon-retour action directly for non-admin users - use their assigned depot
     if (action === 'bon-retour') {
       this.router.navigate(['/stock/documents/bon-retour', assignedDepot.id]);
       return;
     }
     
-    // Handle inventory action directly for non-admin users - use their assigned depot
     if (action === 'inventory') {
       this.router.navigate(['/inventory', assignedDepot.id]);
       return;
     }
     
-    // Handle stock-history action directly for non-admin users - use their assigned depot
     if (action === 'stock-history') {
       this.router.navigate(['/stock/stock-history', assignedDepot.id]);
       return;
     }
     
-    // Route directly to the assigned depot for other actions
     this.selectDepotForAction(assignedDepot);
   }
 
@@ -583,24 +976,6 @@ export class StockComponent implements OnInit {
 
   refreshPendingCount(): void {
     this.loadPendingDocumentsCount();
-  }
-
-  loadBonRetourDocuments(): void {
-    this.loadingBonRetour = true;
-    const currentUser = this.authService.currentUser();
-    const depotId = this.isAdmin() ? undefined : currentUser?.depotId;
-    
-    this.stockDocs.getDocuments(1, 100, 'BON_EXPEDITION', undefined, depotId).subscribe({
-      next: (response) => {
-        const allDocs = Array.isArray(response) ? response : (response?.data ?? []);
-        this.bonRetourDocuments = allDocs.filter((d: StockDocument) => d.type === 'BON_EXPEDITION');
-        this.loadingBonRetour = false;
-      },
-      error: () => {
-        this.bonRetourDocuments = [];
-        this.loadingBonRetour = false;
-      }
-    });
   }
 
   formatDate(date: string | Date): string {
@@ -619,26 +994,6 @@ export class StockComponent implements OnInit {
     return statusLabels[status] || status;
   }
 
-  navigateToBonRetour(depotId?: number): void {
-    if (depotId) {
-      this.router.navigate(['/stock/documents/bon-retour', depotId]);
-    } else {
-      const currentUser = this.authService.currentUser();
-      const userDepotId = currentUser?.depotId;
-      if (userDepotId) {
-        this.router.navigate(['/stock/documents/bon-retour', userDepotId]);
-      } else if (this.isAdmin() && this.depots.length > 0) {
-        this.openActionDepotSelection('bon-retour');
-      }
-    }
-  }
-
-  viewBonRetourDocument(document: StockDocument): void {
-    if (document.destinataireId) {
-      this.router.navigate(['/stock/documents/bon-retour', document.destinataireId]);
-    }
-  }
-
   getDocumentTotal(document: StockDocument): number {
     if (!document.items || document.items.length === 0) {
       return 0;
@@ -651,5 +1006,89 @@ export class StockComponent implements OnInit {
   logout(): void {
     this.authService.logout();
     this.router.navigate(['/auth/login']);
+  }
+
+  openDepotManagement(): void {
+    this.showDepotManagementModal = true;
+  }
+
+  closeDepotManagementModal(): void {
+    this.showDepotManagementModal = false;
+  }
+
+  viewProductLinks(): void {
+    this.closeDepotManagementModal();
+    this.router.navigate(['/stock/product-links']);
+  }
+
+  saveProductLinks(): void {
+    if (!this.sourceDepotId || !this.destinationDepotId || !this.droppedDestinationProduct || this.droppedSourceProducts.length === 0) {
+      return;
+    }
+
+    if (this.isBothDepotsNonShop() && this.droppedSourceProducts.length > 1) {
+      this.droppedSourceProducts = [this.droppedSourceProducts[0]];
+    }
+
+    const invalidSourceProducts = this.droppedSourceProducts.filter(p => !p.id || isNaN(parseInt(String(p.id))));
+    if (invalidSourceProducts.length > 0) {
+      alert('Erreur: Certains produits source ont des IDs invalides');
+      return;
+    }
+
+    if (!this.droppedDestinationProduct.id || isNaN(parseInt(String(this.droppedDestinationProduct.id)))) {
+      alert('Erreur: Le produit destination a un ID invalide');
+      return;
+    }
+
+    this.savingLinks = true;
+    
+    const linkPromises = this.droppedSourceProducts.map((sourceProduct) => {
+      const sourceProductId = parseInt(String(sourceProduct.id));
+      const destinationProductId = parseInt(String(this.droppedDestinationProduct.id));
+      
+      const linkData = {
+        sourceProductId: sourceProductId,
+        sourceDepotId: parseInt(String(this.sourceDepotId!)),
+        destinationProductId: destinationProductId,
+        destinationDepotId: parseInt(String(this.destinationDepotId!))
+      };
+      
+      return this.productsService.createProductDepotLink(linkData).toPromise();
+    });
+
+    Promise.allSettled(linkPromises)
+      .then((results) => {
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+        
+        const errors: string[] = [];
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const error = result.reason;
+            const productName = this.droppedSourceProducts[index]?.name || 'Unknown';
+            const errorMsg = error.error?.error || error.message || 'Erreur inconnue';
+            errors.push(`${productName}: ${errorMsg}`);
+          }
+        });
+        
+        this.savingLinks = false;
+        
+        if (failed > 0) {
+          const errorMessage = errors.length > 0 
+            ? `Erreurs lors de l'enregistrement:\n${errors.join('\n')}`
+            : `${failed} lien(s) n'ont pas pu être créés`;
+          
+          if (successful > 0) {
+            alert(`${successful} lien(s) créé(s) avec succès.\n\n${errorMessage}`);
+          } else {
+            alert(errorMessage);
+            return;
+          }
+        }
+        
+        this.closeDepotProductsModal();
+        this.router.navigate(['/stock/product-links']);
+      });
   }
 } 

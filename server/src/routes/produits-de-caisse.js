@@ -44,6 +44,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const targetDepotId = depotId ? parseInt(depotId) : userDepotId;
     
     // For non-admin users, only allow access to their own depot
+    // ADMIN users can access any depot
     if (req.user?.role !== 'ADMIN' && targetDepotId !== userDepotId) {
       return res.status(403).json({ error: 'Access denied: Cannot access other depot products' });
     }
@@ -53,9 +54,29 @@ router.get('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'depotId is required to fetch products' });
     }
     
+    // Check if depot exists
+    const depot = await prisma.depot.findUnique({
+      where: { id: targetDepotId },
+      select: { id: true, name: true, code: true, type: true }
+    });
+
+    if (!depot) {
+      return res.status(404).json({ error: `Dépôt avec ID ${targetDepotId} introuvable` });
+    }
+
+    console.log(`[produits-de-caisse] Fetching products for depot: ${depot.name} (ID: ${targetDepotId}, Type: ${depot.type})`);
+
+    // First, check how many depot assignments exist for this depot
+    const depotAssignmentsCount = await prisma.produitDeCaisseDepot.count({
+      where: { depotId: targetDepotId }
+    });
+
+    console.log(`[produits-de-caisse] Found ${depotAssignmentsCount} depot assignments for depot ${targetDepotId}`);
+
     // Filter produits by depot - ALWAYS filter for isolation
     const produits = await prisma.produitDeCaisse.findMany({
       where: {
+        isActive: true,
         depotAssignments: {
           some: {
             depotId: targetDepotId
@@ -75,6 +96,12 @@ router.get('/', authenticateToken, async (req, res) => {
             }
           }
         },
+        famille: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         parentProduct: {
           select: {
             id: true,
@@ -85,13 +112,18 @@ router.get('/', authenticateToken, async (req, res) => {
       },
       orderBy: { createdAt: 'desc' }
     });
+
+    console.log(`[produits-de-caisse] Found ${produits.length} active produits for depot ${targetDepotId}`);
     
     // Parse productIds from JSON string to array and add assignedDepots computed field
     const produitsWithParsedIds = produits.map(produit => ({
       ...produit,
       productIds: JSON.parse(produit.productIds || '[]'),
-      assignedDepots: produit.depotAssignments?.map(assignment => assignment.depot) || []
+      assignedDepots: produit.depotAssignments?.map(assignment => assignment.depot) || [],
+      familleName: produit.famille?.name || null
     }));
+
+    console.log(`[produits-de-caisse] Returning ${produitsWithParsedIds.length} produits for depot ${targetDepotId}`);
     
     res.json(produitsWithParsedIds);
   } catch (error) {

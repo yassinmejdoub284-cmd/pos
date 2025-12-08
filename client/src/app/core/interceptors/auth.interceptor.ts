@@ -73,10 +73,10 @@ export function authInterceptor(
         // Skip logout for auth endpoints to avoid loops
         const isAuthEndpoint = request.url.includes('/auth/login') || request.url.includes('/auth/register');
         
-        // Skip auto-logout for certain endpoints that should handle errors themselves
         const isReportEndpoint = request.url.includes('/reports/') || request.url.includes('/article-extracts');
+        const isStockDocumentEndpoint = request.url.includes('/stock-documents/');
         
-        if (!isAuthEndpoint && !isReportEndpoint) {
+        if (!isAuthEndpoint && !isReportEndpoint && !isStockDocumentEndpoint) {
           // Only logout for other endpoints if we actually had a token
           const currentToken = authService.getToken();
           if (currentToken) {
@@ -90,10 +90,10 @@ export function authInterceptor(
               router.navigate(['/auth/login']);
             }
           }
-        } else if (isReportEndpoint) {
-          // For report endpoints, just log the error but don't logout
+        } else if (isReportEndpoint || isStockDocumentEndpoint) {
+          // For report and stock document endpoints, just log the error but don't logout
           // Let the component handle the error (it might be a permission issue, not auth issue)
-          console.warn('[AuthInterceptor] 401/403 error on report endpoint - letting component handle it:', request.url);
+          console.warn('[AuthInterceptor] 401/403 error on endpoint - letting component handle it:', request.url);
         }
       }
       return throwError(() => error);

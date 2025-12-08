@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, signal, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ProductsService } from '../../../core/services/products.service';
+import { ProduitsDeCaisseService } from '../../../core/services/produits-de-caisse.service';
 import { Product, ProductFamily, ProductDepotPrice } from '../../../core/models/product.model';
 import { Depot } from '../../../core/models/depot.model';
 import { DepotsService } from '../../../core/services/depots.service';
@@ -26,6 +27,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
   imagePreview: string | null = null;
   families: ProductFamily[] = [];
   depots: Depot[] = [];
+  userDepot: Depot | null = null;
   imageInputType: 'file' | 'url' = 'file';
   selectedDepotIds = signal<number[]>([]);
   depotPrices = signal<Map<number, number>>(new Map()); // Map<depotId, price>
@@ -37,6 +39,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
   constructor(
     private fb: FormBuilder,
     private productsService: ProductsService,
+    private produitsDeCaisseService: ProduitsDeCaisseService,
     private depotsService: DepotsService,
     private authService: AuthService,
     private sessionsService: SessionsService
@@ -180,18 +183,19 @@ export class ProductFormComponent implements OnInit, OnChanges {
       // Admin can see and select all depots
       this.depotsService.list().subscribe({
         next: (depots) => {
-          this.depots = depots.filter(d => d.isActive && d.type === 'SHOP');
+          this.depots = depots.filter(d => d.isActive);
         },
         error: (error) => {
           console.error('Error loading depots:', error);
         }
       });
     } else {
-      // Non-admin users can only see their assigned depot
+      // Non-admin users can see their assigned depot (all types, not just SHOP)
       const userDepotId = currentUser?.depotId;
       if (userDepotId) {
         this.depotsService.get(userDepotId).subscribe({
           next: (depot) => {
+            this.userDepot = depot;
             this.depots = [depot];
             // Auto-assign user's depot if no depots are selected
             if (this.selectedDepotIds().length === 0) {
@@ -476,16 +480,114 @@ export class ProductFormComponent implements OnInit, OnChanges {
             }
           });
         } else {
-          this.productsService.createProduct(formData).subscribe({
-            next: (product) => {
-              this.loading.set(false);
-              this.saved.emit(product);
-            },
-            error: (error) => {
-              this.loading.set(false);
-              this.error.set('Erreur lors de la création du produit');
-            }
-          });
+          // Determine which API to use based on depot type
+          const depotIdsToUse = formData.depotIds && formData.depotIds.length > 0 ? formData.depotIds : 
+            (this.userDepot ? [this.userDepot.id] : []);
+          
+          if (depotIdsToUse.length === 0) {
+            this.loading.set(false);
+            this.error.set('Veuillez sélectionner au moins un dépôt');
+            return;
+          }
+          
+          // Get depot info to determine type
+          const firstDepotId = depotIdsToUse[0];
+          const selectedDepot = this.depots.find(d => d.id === firstDepotId) || this.userDepot;
+          
+          if (selectedDepot && selectedDepot.type !== 'SHOP') {
+            // For non-SHOP depots (MAIN, BRANCH, WAREHOUSE), use ProduitDeCaisse
+            console.log('Creating produit de caisse for non-SHOP depot:', selectedDepot.type);
+            
+            const produitData = {
+              name: formData.name,
+              designation_legale: formData.designation_legale || null,
+              description: formData.description || null,
+              familleId: formData.familleId,
+              barcode: formData.barcode || null,
+              unite: formData.unite || 'pcs',
+              prix_vente_TTC: formData.prix_vente_TTC,
+              prix_achat: formData.prix_achat || null,
+              tva: formData.tva || 19,
+              photo: formData.photo || null,
+              duree_conservation: formData.duree_conservation || null,
+              isVrac: formData.isVrac || false,
+              isVraguable: formData.isVraguable || false,
+              isStockable: formData.isStockable !== undefined ? formData.isStockable : true,
+              isWholesale: formData.isWholesale || false,
+              bundleSize: formData.bundleSize || null,
+              bundlePrice: formData.bundlePrice || null,
+              depotIds: depotIdsToUse,
+              isActive: true
+            };
+            
+            this.produitsDeCaisseService.createProduitDeCaisse(produitData).subscribe({
+              next: (produit) => {
+                // Transform ProduitDeCaisse to Product format for compatibility
+                const product: Product = {
+                  id: produit.id,
+                  name: produit.name,
+                  barcode: produit.barcode || undefined,
+                  prix_vente_TTC: produit.prix_vente_TTC,
+                  prix_achat: produit.prix_achat || undefined,
+                  unite: produit.unite,
+                  tva: produit.tva,
+                  familleId: produit.familleId,
+                  famille: produit.famille ? { 
+                    id: produit.famille.id, 
+                    name: produit.famille.name,
+                    isActive: true,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                  } : undefined,
+                  assignedDepots: produit.assignedDepots || [],
+                  depotAssignments: produit.depotAssignments?.filter(da => da.depot).map(da => ({
+                    id: da.id,
+                    productId: da.produitDeCaisseId,
+                    depotId: da.depotId,
+                    depot: da.depot!,
+                    createdAt: da.createdAt,
+                    updatedAt: da.updatedAt
+                  })) || [],
+                  isVrac: produit.isVrac,
+                  isVraguable: produit.isVraguable,
+                  isStockable: produit.isStockable,
+                  isWholesale: produit.isWholesale,
+                  bundleSize: produit.bundleSize || undefined,
+                  bundlePrice: produit.bundlePrice || undefined,
+                  photo: produit.photo || undefined,
+                  description: produit.description || undefined,
+                  designation_legale: produit.designation_legale || undefined,
+                  duree_conservation: produit.duree_conservation || undefined,
+                  minStock: produit.minStock || undefined,
+                  maxStock: produit.maxStock || undefined,
+                  initialStock: produit.initialStock || undefined,
+                  displayIndex: produit.displayIndex || undefined,
+                  createdAt: produit.createdAt,
+                  updatedAt: produit.updatedAt
+                };
+                this.loading.set(false);
+                this.saved.emit(product);
+              },
+              error: (error) => {
+                console.error('Error creating produit de caisse:', error);
+                this.loading.set(false);
+                this.error.set(error.error?.error || 'Erreur lors de la création du produit');
+              }
+            });
+          } else {
+            // For SHOP depots, use Product table
+            console.log('Creating product for SHOP depot');
+            this.productsService.createProduct(formData).subscribe({
+              next: (product) => {
+                this.loading.set(false);
+                this.saved.emit(product);
+              },
+              error: (error) => {
+                this.loading.set(false);
+                this.error.set(error.error?.error || 'Erreur lors de la création du produit');
+              }
+            });
+          }
         }
       };
 

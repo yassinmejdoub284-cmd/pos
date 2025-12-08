@@ -483,15 +483,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
         
         // Only include if there's outstanding credit
         if (outstanding > 0) {
-          // Try to get client name from sale.client, or from clientId if client object not loaded
           let clientName = 'Client inconnu';
           if (sale.client) {
             const firstName = sale.client.firstName || '';
             const lastName = sale.client.lastName || '';
             clientName = `${firstName} ${lastName}`.trim() || 'Client inconnu';
-          } else if (sale.clientId) {
-            // If client object not loaded, show client ID
-            clientName = `Client #${sale.clientId}`;
           }
           
           creditSales.push({
@@ -708,6 +704,32 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   // Refunds (Remboursements) - excludes bon de retour (supplier returns)
+  recentCancelledTickets(): Array<{ createdAt: string; type: string; reason: string; amount: number; ticketId: number }> {
+    const session = this.currentSession();
+    if (!session) return [];
+    
+    const zSales = this.zReportSales();
+    const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
+    
+    return sales
+      .filter((sale: any) => {
+        const status = (sale.status || '').toUpperCase();
+        return status === 'CANCELLED' || status === 'REFUNDED';
+      })
+      .map((sale: any) => {
+        const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
+        return {
+          createdAt: sale.createdAt || session.openedAt,
+          type: 'SORTIE',
+          reason: `Ticket N°${sale.id} annulé`,
+          amount: amount,
+          ticketId: sale.id
+        };
+      })
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10);
+  }
+
   recentRefunds(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
     const movements = (this.currentSession()?.cashMovements || []) as any[];
     const sales = ((this.currentSession() as any)?.sales || []) as any[];
@@ -764,6 +786,23 @@ export class ClotureComponent implements OnInit, OnDestroy {
                !isBonRetour;
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
+  }
+
+  getCancelledTicketsTotal(): number {
+    const session = this.currentSession();
+    if (!session) return 0;
+    
+    const zSales = this.zReportSales();
+    const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
+    
+    return sales.reduce((total: number, sale: any) => {
+      const status = (sale.status || '').toUpperCase();
+      if (status === 'CANCELLED' || status === 'REFUNDED') {
+        const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
+        return total + amount;
+      }
+      return total;
+    }, 0);
   }
 
   getRefundsTotal(): number {
@@ -952,8 +991,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   // Get the actual expected cash from the session (not calculated)
+  // Subtract cancelled tickets amount from the balance
   getSessionExpectedCash(): number {
-    return parseFloat((this.currentSession()?.expectedCash as any) || 0) || 0;
+    const baseExpectedCash = parseFloat((this.currentSession()?.expectedCash as any) || 0) || 0;
+    const cancelledTicketsTotal = this.getCancelledTicketsTotal();
+    return baseExpectedCash - cancelledTicketsTotal;
   }
 
   // Opening fund as computed signal for auto-updates

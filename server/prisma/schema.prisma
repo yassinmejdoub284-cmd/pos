@@ -121,6 +121,10 @@ model Depot {
   userDepots            UserDepot[]
   sourceDepotLinks      ProductDepotLink[]     @relation("SourceDepot")
   destinationDepotLinks ProductDepotLink[]    @relation("DestinationDepot")
+  sourceProduitDeCaisseDepotLinks ProduitDeCaisseDepotLink[] @relation("SourceDepotProduitDeCaisseLink")
+  destinationProduitDeCaisseDepotLinks ProduitDeCaisseDepotLink[] @relation("DestinationDepotProduitDeCaisseLink")
+  familleConsolidationsAsSource ProductFamilleConsolidation[] @relation("FamilleConsolidationSourceDepot")
+  familleConsolidationsAsDestination ProductFamilleConsolidation[] @relation("FamilleConsolidationDestinationDepot")
   releveInventaire      ReleveInventaire[]
   suppliers             Supplier[]
 
@@ -191,6 +195,7 @@ model ProductFamily {
   updatedAt        DateTime          @updatedAt @map("updated_at")
   products         Product[]
   produitsDeCaisse ProduitDeCaisse[]
+  familleConsolidations ProductFamilleConsolidation[]
 
   @@map("product_families")
 }
@@ -249,6 +254,7 @@ model Product {
   destinationProductLinks  ProductDepotLink[]     @relation("DestinationProduct")
   vracConversionsAsSource ProductVracConversion[] @relation("SourceProductVrac")
   vracConversionsAsTarget ProductVracConversion[] @relation("TargetProductVrac")
+  familleConsolidationsAsDestination ProductFamilleConsolidation[] @relation("FamilleConsolidationDestinationProduct")
 
   @@index([familleId], map: "products_famille_id_fkey")
   @@index([originalProductId], map: "products_original_product_id_fkey")
@@ -328,6 +334,50 @@ model ProductDepotLink {
   @@map("product_depot_links")
 }
 
+model ProduitDeCaisseDepotLink {
+  id                  Int      @id @default(autoincrement())
+  sourceProductId     Int      @map("source_product_id")
+  sourceDepotId       Int      @map("source_depot_id")
+  destinationProductId Int      @map("destination_product_id")
+  destinationDepotId  Int      @map("destination_depot_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  
+  sourceProduct       ProduitDeCaisse @relation("SourceProduitDeCaisseLink", fields: [sourceProductId], references: [id], onDelete: Cascade)
+  sourceDepot         Depot    @relation("SourceDepotProduitDeCaisseLink", fields: [sourceDepotId], references: [id], onDelete: Cascade)
+  destinationProduct  ProduitDeCaisse @relation("DestinationProduitDeCaisseLink", fields: [destinationProductId], references: [id], onDelete: Cascade)
+  destinationDepot    Depot    @relation("DestinationDepotProduitDeCaisseLink", fields: [destinationDepotId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceProductId, sourceDepotId, destinationProductId, destinationDepotId], name: "unique_produit_de_caisse_depot_link")
+  @@index([sourceProductId], map: "produit_de_caisse_depot_links_source_product_id_fkey")
+  @@index([sourceDepotId], map: "produit_de_caisse_depot_links_source_depot_id_fkey")
+  @@index([destinationProductId], map: "produit_de_caisse_depot_links_destination_product_id_fkey")
+  @@index([destinationDepotId], map: "produit_de_caisse_depot_links_destination_depot_id_fkey")
+  @@map("produit_de_caisse_depot_links")
+}
+
+model ProductFamilleConsolidation {
+  id                  Int      @id @default(autoincrement())
+  sourceFamilleId     Int      @map("source_famille_id")
+  sourceDepotId        Int      @map("source_depot_id")
+  destinationProductId Int      @map("destination_product_id")
+  destinationDepotId  Int      @map("destination_depot_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  
+  sourceFamille       ProductFamily @relation(fields: [sourceFamilleId], references: [id], onDelete: Cascade)
+  sourceDepot         Depot         @relation("FamilleConsolidationSourceDepot", fields: [sourceDepotId], references: [id], onDelete: Cascade)
+  destinationProduct  Product       @relation("FamilleConsolidationDestinationProduct", fields: [destinationProductId], references: [id], onDelete: Cascade)
+  destinationDepot    Depot         @relation("FamilleConsolidationDestinationDepot", fields: [destinationDepotId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceFamilleId, sourceDepotId, destinationDepotId], name: "unique_famille_consolidation")
+  @@index([sourceFamilleId], map: "product_famille_consolidations_source_famille_id_fkey")
+  @@index([sourceDepotId], map: "product_famille_consolidations_source_depot_id_fkey")
+  @@index([destinationProductId], map: "product_famille_consolidations_destination_product_id_fkey")
+  @@index([destinationDepotId], map: "product_famille_consolidations_destination_depot_id_fkey")
+  @@map("product_famille_consolidations")
+}
+
 model ProductConservation {
   id                Int      @id @default(autoincrement())
   productId         Int      @map("product_id")
@@ -381,6 +431,8 @@ model ProduitDeCaisse {
   famille            ProductFamily          @relation(fields: [familleId], references: [id])
   originalProduct    Product?               @relation("OriginalProduitDeCaisse", fields: [originalProductId], references: [id])
   parentProduct      Product?               @relation("SubProducts", fields: [parentProductId], references: [id])
+  sourceProductLinks ProduitDeCaisseDepotLink[] @relation("SourceProduitDeCaisseLink")
+  destinationProductLinks ProduitDeCaisseDepotLink[] @relation("DestinationProduitDeCaisseLink")
 
   @@index([familleId], map: "produits_de_caisse_famille_id_fkey")
   @@index([originalProductId], map: "produits_de_caisse_original_product_id_fkey")
@@ -873,7 +925,7 @@ model StockDocumentItem {
   childProductName String?       @map("child_product_name") @db.VarChar(255)
   childProductId   Int?          @map("child_product_id")
   document         StockDocument @relation(fields: [documentId], references: [id])
-  product          Product       @relation(fields: [productId], references: [id])
+  product          Product?      @relation(fields: [productId], references: [id])
 
   @@index([documentId], map: "stock_document_items_document_id_fkey")
   @@index([productId], map: "stock_document_items_product_id_fkey")

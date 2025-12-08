@@ -2378,7 +2378,7 @@
               <!-- Stats -->
               <div class="flex justify-between items-center pt-4 border-t border-slate-100 mb-4">
                 <div class="text-center">
-                  <div class="text-lg font-bold text-green-600">{{ client.totalSpent | number:'1.0-0' }} dt</div>
+                  <div class="text-lg font-bold text-green-600">{{ (client.statementBalance ?? client.currentDebt ?? 0) | number:'1.0-0' }} dt</div>
                   <div class="text-xs text-slate-500">Total dépensé</div>
                 </div>
                 <div class="text-center">
@@ -2485,7 +2485,7 @@
 
                 <!-- Total -->
                 <div class="col-span-2">
-                  <div class="text-sm font-bold text-green-600">{{ client.totalSpent | number:'1.0-0' }} dt</div>
+                  <div class="text-sm font-bold text-green-600">{{ (client.statementBalance ?? client.currentDebt ?? 0) | number:'1.0-0' }} dt</div>
                 </div>
 
                 <!-- Points -->

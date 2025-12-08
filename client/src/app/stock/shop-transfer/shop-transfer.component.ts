@@ -4,10 +4,11 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { StockDocumentsService } from '../../core/services/stock-documents.service';
 import { DepotsService } from '../../core/services/depots.service';
 import { ProductsService } from '../../core/services/products.service';
+import { ProduitsDeCaisseService } from '../../core/services/produits-de-caisse.service';
 import { SalesService } from '../../core/services/sales.service';
 import { SocketService } from '../../core/services/socket.service';
 import { Depot } from '../../core/models/depot.model';
-import { Product } from '../../core/models/product.model';
+import { Product, ProductFamily } from '../../core/models/product.model';
 import { Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
@@ -26,9 +27,15 @@ export class ShopTransferComponent implements OnInit, OnDestroy {
 
   // Current inventory
   inventory: any[] = [];
+  filteredInventory: any[] = [];
   products: Product[] = [];
   showCurrentInventory = true;
   viewMode: 'table' | 'grid' = 'table';
+  
+  // Filters
+  families: ProductFamily[] = [];
+  selectedFamilyId: number | null = null;
+  searchQuery: string = '';
 
   // Transfer details
   selectedTransfer: any = null;
@@ -48,6 +55,7 @@ export class ShopTransferComponent implements OnInit, OnDestroy {
     private stockDocumentsService: StockDocumentsService,
     private depotsService: DepotsService,
     private productsService: ProductsService,
+    private produitsDeCaisseService: ProduitsDeCaisseService,
     private salesService: SalesService,
     private socketService: SocketService
   ) {}
@@ -146,14 +154,115 @@ export class ShopTransferComponent implements OnInit, OnDestroy {
     
     Promise.all([
       this.productsService.getProducts().toPromise().catch(() => []),
+      this.produitsDeCaisseService.getProduitsDeCaisse().toPromise().catch(() => []),
       inventoryRequest,
       this.loadEntryDocuments(depotId),
       this.loadSalesData(depotId)
-    ]).then(([products, inventory, entryDocs, sales]) => {
-      if (products) this.products = products;
-      if (inventory) this.inventory = inventory;
+    ]).then(async ([products, produitsDeCaisse, inventory, entryDocs, sales]) => {
+      // Combine products from both Product and ProduitDeCaisse tables
+      const allProducts: Product[] = [];
+      if (products) {
+        allProducts.push(...products);
+      }
+      if (produitsDeCaisse) {
+        // Transform ProduitDeCaisse to Product format for compatibility
+        const transformedProducts = produitsDeCaisse.map(pdc => ({
+          id: pdc.id,
+          name: pdc.name,
+          barcode: pdc.barcode,
+          prix_vente_TTC: pdc.prix_vente_TTC,
+          prix_achat: pdc.prix_achat,
+          unite: pdc.unite,
+          tva: pdc.tva,
+          familleId: pdc.familleId,
+          famille: pdc.famille,
+          isVrac: pdc.isVrac,
+          isStockable: pdc.isStockable,
+          createdAt: pdc.createdAt,
+          updatedAt: pdc.updatedAt
+        } as Product));
+        allProducts.push(...transformedProducts);
+      }
+      
+      // If inventory has products not in our list, fetch them individually
+      if (inventory && inventory.length > 0) {
+        const inventoryProductIds = new Set(inventory.map((item: any) => item.productId));
+        const loadedProductIds = new Set(allProducts.map(p => p.id));
+        const missingProductIds = Array.from(inventoryProductIds).filter(id => !loadedProductIds.has(id));
+        
+        // Also check if inventory items have product info embedded
+        inventory.forEach((item: any) => {
+          if (item.product) {
+            const existingProduct = allProducts.find(p => p.id === item.productId);
+            if (!existingProduct) {
+              allProducts.push(item.product);
+            } else if (item.product.famille && !existingProduct.famille) {
+              existingProduct.famille = item.product.famille;
+              existingProduct.familleId = item.product.familleId || item.product.famille?.id;
+            }
+          }
+        });
+        
+        // Fetch remaining missing products individually
+        const stillMissingIds = missingProductIds.filter(id => !allProducts.find(p => p.id === id));
+        
+        if (stillMissingIds.length > 0) {
+          console.log(`Fetching ${stillMissingIds.length} missing products:`, stillMissingIds);
+          
+          // Fetch missing products in parallel
+          const missingProductsPromises = stillMissingIds.map(async (missingId: number) => {
+            try {
+              // Try Product table first
+              const product = await this.productsService.getProduct(missingId).toPromise().catch(() => null);
+              if (product) {
+                return product;
+              }
+              
+              // Try ProduitDeCaisse table
+              const produitDeCaisse = await this.produitsDeCaisseService.getProduitDeCaisse(missingId).toPromise().catch(() => null);
+              if (produitDeCaisse) {
+                return {
+                  id: produitDeCaisse.id,
+                  name: produitDeCaisse.name,
+                  barcode: produitDeCaisse.barcode,
+                  prix_vente_TTC: produitDeCaisse.prix_vente_TTC,
+                  prix_achat: produitDeCaisse.prix_achat,
+                  unite: produitDeCaisse.unite,
+                  tva: produitDeCaisse.tva,
+                  familleId: produitDeCaisse.familleId,
+                  famille: produitDeCaisse.famille,
+                  isVrac: produitDeCaisse.isVrac,
+                  isStockable: produitDeCaisse.isStockable,
+                  createdAt: produitDeCaisse.createdAt,
+                  updatedAt: produitDeCaisse.updatedAt
+                } as Product;
+              }
+              
+              return null;
+            } catch (error) {
+              console.warn(`Could not fetch product ${missingId}:`, error);
+              return null;
+            }
+          });
+          
+          const fetchedProducts = await Promise.all(missingProductsPromises);
+          fetchedProducts.forEach(product => {
+            if (product) {
+              allProducts.push(product);
+            }
+          });
+        }
+      }
+      
+      this.products = allProducts;
+      if (inventory) {
+        this.inventory = inventory;
+        this.filteredInventory = inventory;
+        this.applyFilters();
+      }
       if (entryDocs) this.entryDocuments = entryDocs;
       if (sales) this.salesData = sales;
+      this.loadFamilies();
       this.loadPendingTransfers();
       this.loading = false;
     }).catch((error) => {
@@ -198,9 +307,19 @@ export class ShopTransferComponent implements OnInit, OnDestroy {
   }
 
   getProductName(productId: number): string {
-    if (!productId || !this.products.length) return 'Chargement...';
-    const product = this.products.find(p => p.id === productId);
-    return product ? product.name : `Produit ID: ${productId}`;
+    if (!productId) return 'Chargement...';
+    
+    // First try to find in loaded products
+    if (this.products.length > 0) {
+      const product = this.products.find(p => p.id === productId);
+      if (product && product.name) {
+        return product.name;
+      }
+    }
+    
+    // If not found, try to fetch it on demand (fallback)
+    // This handles cases where products weren't loaded initially
+    return `Produit ID: ${productId}`;
   }
 
   toggleCurrentInventory(): void {
@@ -452,5 +571,65 @@ export class ShopTransferComponent implements OnInit, OnDestroy {
 
   closeExitsDetails(): void {
     this.showExitsDetails = false;
+  }
+
+  loadFamilies(): void {
+    this.productsService.getFamilles().subscribe({
+      next: (families) => {
+        this.families = families;
+      },
+      error: (error) => {
+        console.error('Error loading families:', error);
+      }
+    });
+  }
+
+  onFamilyFilterChange(familyId: string): void {
+    this.selectedFamilyId = familyId ? parseInt(familyId) : null;
+    this.applyFilters();
+  }
+
+  onSearchChange(searchQuery: string): void {
+    this.searchQuery = searchQuery.toLowerCase().trim();
+    this.applyFilters();
+  }
+
+  applyFilters(): void {
+    if (!this.inventory || this.inventory.length === 0) {
+      this.filteredInventory = [];
+      return;
+    }
+
+    let filtered = [...this.inventory];
+
+    if (this.selectedFamilyId) {
+      filtered = filtered.filter(item => {
+        const product = item.product || this.getProduct(item.productId);
+        if (!product) return false;
+        const familleId = product.familleId || product.famille?.id;
+        return familleId === this.selectedFamilyId;
+      });
+    }
+
+    if (this.searchQuery) {
+      filtered = filtered.filter(item => {
+        const product = item.product || this.getProduct(item.productId);
+        if (!product) {
+          const productName = this.getProductName(item.productId).toLowerCase();
+          return productName.includes(this.searchQuery);
+        }
+        const productName = product.name?.toLowerCase() || '';
+        const barcode = product.barcode?.toLowerCase() || '';
+        return productName.includes(this.searchQuery) || barcode.includes(this.searchQuery);
+      });
+    }
+
+    this.filteredInventory = filtered;
+  }
+
+  getProductFamilyName(productId: number, item?: any): string {
+    const product = item?.product || this.getProduct(productId);
+    if (!product) return '';
+    return product.famille?.name || '';
   }
 }

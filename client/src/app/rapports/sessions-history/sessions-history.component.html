@@ -648,26 +648,34 @@
                 <thead class="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Ticket</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Client</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Montant</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total Vente</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Payé</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Restant (Crédit)</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-slate-200">
                   <tr *ngFor="let sale of creditSalesDetails()" class="hover:bg-slate-50">
                     <td class="px-4 py-3 text-sm text-slate-900 font-mono">#{{sale.ticketNumber || sale.saleId}}</td>
-                    <td class="px-4 py-3 text-sm text-slate-900 font-mono">{{sale.createdAt | date:'dd/MM/yyyy HH:mm'}}</td>
                     <td class="px-4 py-3 text-sm text-slate-900">{{sale.clientName}}</td>
-                    <td class="px-4 py-3 text-sm text-right font-medium text-violet-600">
+                    <td class="px-4 py-3 text-sm text-right text-slate-700">{{formatCurrency(sale.saleTotal)}}</td>
+                    <td class="px-4 py-3 text-sm text-right text-green-600">{{formatCurrency(sale.paidAmount)}}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold text-violet-600">
                       {{formatCurrency(sale.amount)}}
                     </td>
                   </tr>
                   <tr *ngIf="creditSalesDetails().length === 0" class="hover:bg-slate-50">
-                    <td colspan="4" class="px-4 py-8 text-center text-sm text-slate-500">
+                    <td colspan="5" class="px-4 py-8 text-center text-sm text-slate-500">
                       Aucune vente à crédit trouvée pour cette session
                     </td>
                   </tr>
                 </tbody>
+                <tfoot class="bg-slate-100">
+                  <tr>
+                    <td colspan="4" class="px-4 py-3 text-right font-semibold text-slate-800">Total Crédit:</td>
+                    <td class="px-4 py-3 text-right font-bold text-violet-900">{{formatCurrency(getCreditSalesDetailsTotal())}}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>

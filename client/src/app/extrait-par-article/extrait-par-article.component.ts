@@ -36,6 +36,8 @@ interface SessionExtract {
   supplierPayments?: number;
   withdrawals?: number;
   totalCash?: number;
+  clientCreditAmount?: number;
+  clientPaymentAmount?: number;
   cancelledTickets?: Array<{ id: number; ticketNumber: string; amount: number }>;
   families: FamilyData[];
   session?: SessionCaisse;
@@ -230,7 +232,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
     // First, get all sessions for this depot
     this.sessionsService.getSessions({ 
       depotId: depotIdNum,
-      limit: 100 
+      limit: 10 
     })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -412,14 +414,55 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
 
                     const totalCash = totalRevenue - totalDiscount - totalExpenses - supplierPayments - withdrawals;
 
-                    // Format cancelled tickets
+                    let clientCreditAmount = 0;
+                    let clientPaymentAmount = 0;
+
+                    if (summary && typeof summary === 'object') {
+                      clientCreditAmount = parseFloat(String(summary.creditOutstanding || summary['creditOutstanding'] || 0)) || 0;
+                      clientPaymentAmount = parseFloat(String(summary.clientPaymentsTotal || summary['clientPaymentsTotal'] || 0)) || 0;
+                    }
+
+                    if (clientCreditAmount === 0) {
+                      const creditSales = completedSales.filter(s => {
+                        const paymentType = (s.paymentType || '').toUpperCase();
+                        return paymentType === 'CREDIT';
+                      });
+                      
+                      if (creditSales.length > 0) {
+                        const totalCreditSales = creditSales.reduce((sum, s) => {
+                          const total = parseFloat(s.finalTotal || 0);
+                          const advance = parseFloat(s.advancePayment || 0);
+                          return sum + Math.max(0, total - advance);
+                        }, 0);
+                        clientCreditAmount = totalCreditSales;
+                      }
+                    }
+
+                    if (clientPaymentAmount === 0) {
+                      const clientPaymentMovements = cashMovements.filter((m: CashMovement) => {
+                        const reason = String(m.reason || '').toLowerCase();
+                        return (m.type === 'ENTREE' || m.type === 'SORTIE') && 
+                               (reason.includes('crédit client') || reason.includes('credit client') ||
+                                reason.includes('encaissement crédit') || reason.includes('encaissement credit') ||
+                                reason.includes('règlement crédit') || reason.includes('reglement credit')) &&
+                               !reason.includes('[REJETÉ]') && !reason.includes('[SUPPRIMÉ]');
+                      });
+                      
+                      if (clientPaymentMovements.length > 0) {
+                        clientPaymentAmount = clientPaymentMovements.reduce((sum: number, m: CashMovement) => {
+                          const amount = parseFloat(String(m.amount || 0));
+                          return m.type === 'ENTREE' ? sum + amount : sum - amount;
+                        }, 0);
+                        clientPaymentAmount = Math.max(0, clientPaymentAmount);
+                      }
+                    }
+
                     const cancelledTickets = cancelledSales.map(s => ({
                       id: s.id,
                       ticketNumber: s.ticketNumber || s.dailyTicketNumber || `#${s.id}`,
                       amount: parseFloat(s.finalTotal || 0)
                     }));
 
-                    // Get date - handle both Date objects and strings
                     const sessionDate = session.closedAt || session.openedAt;
                     const dateStr = sessionDate instanceof Date 
                       ? sessionDate.toISOString().split('T')[0]
@@ -435,6 +478,8 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
                       supplierPayments,
                       withdrawals,
                       totalCash,
+                      clientCreditAmount,
+                      clientPaymentAmount,
                       cancelledTickets,
                       families,
                       session: {

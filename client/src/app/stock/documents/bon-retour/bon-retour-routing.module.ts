@@ -5,7 +5,7 @@ import { BonRetourComponent } from './bon-retour.component';
 const routes: Routes = [
   { path: '', component: BonRetourComponent },
   { path: 'edit/:documentId', component: BonRetourComponent },
-  { path: ':id', component: BonRetourComponent }
+  { path: ':depotId', component: BonRetourComponent }
 ];
 
 @NgModule({

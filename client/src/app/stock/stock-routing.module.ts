@@ -13,6 +13,10 @@ const routes: Routes = [
     loadChildren: () => import('./site/site.module').then(m => m.SiteModule) 
   },
   { 
+    path: 'documents/bon-retour', 
+    loadChildren: () => import('./documents/bon-retour/bon-retour.module').then(m => m.BonRetourModule) 
+  },
+  { 
     path: 'documents', 
     loadChildren: () => import('./documents/documents.module').then(m => m.DocumentsModule) 
   },
@@ -42,9 +46,13 @@ const routes: Routes = [
   { path: 'transport', loadChildren: () => import('./transport/transport.module').then(m => m.TransportModule) },
   { path: 'vehicles', loadChildren: () => import('./vehicles/vehicles.module').then(m => m.VehiclesModule) },
   { path: 'drivers', loadChildren: () => import('./drivers/drivers.module').then(m => m.DriversModule) },
-  { 
-    path: 'documents/bon-retour', 
-    loadChildren: () => import('./documents/bon-retour/bon-retour.module').then(m => m.BonRetourModule) 
+  {
+    path: 'product-links',
+    loadComponent: () => import('./product-links/product-links.component').then(m => m.ProductLinksComponent)
+  },
+  {
+    path: 'achat-consultation/:actionType/:depotId',
+    loadComponent: () => import('./achat-consultation/achat-consultation.component').then(m => m.AchatConsultationComponent)
   }
 ];
 

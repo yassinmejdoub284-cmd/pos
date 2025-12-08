@@ -91,7 +91,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
   // Credit sales details modal state
   showCreditSalesDetailsModal = signal(false);
-  creditSalesDetails = signal<Array<{ id: number; saleId: number; amount: number; clientName: string; createdAt: string; ticketNumber?: number | string; outstanding?: number; paid?: number }>>([]);
+  creditSalesDetails = signal<Array<{ id: number; saleId: number; amount: number; saleTotal: number; paidAmount: number; clientName: string; createdAt: string; ticketNumber?: number | string }>>([]);
   creditSalesDetailsTitle = signal('');
 
   // Cash sales detail state
@@ -2355,38 +2355,37 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
         const sales = (report?.session?.sales || []) as Array<any>;
         
-        // Filter credit sales (sales with CREDIT payment method)
         const creditSales = sales.filter((sale: any) => {
-          const paymentType = (sale.paymentMethod?.type || sale.paymentType || '').toUpperCase();
-          return paymentType === 'CREDIT' && !['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase());
+          const status = (sale.status || '').toUpperCase();
+          if (['CANCELLED', 'REFUNDED'].includes(status)) {
+            return false;
+          }
+          const paymentType = (sale.paymentType || sale.paymentMethod?.type || '').toUpperCase();
+          return paymentType === 'CREDIT';
         });
 
 
 
-        // Build credit sales details from sales
-        // For credit sales, the amount should be the DEBT amount (creditSalesTotal is sum of DEBT transactions)
-        // We'll use finalTotal as the credit amount since that's what was sold on credit
         const creditSalesDetailsList = creditSales.map((sale: any) => {
-          const finalTotal = parseFloat(sale.finalTotal || 0) || 0;
-          const clientName = sale.client 
-            ? `${sale.client.firstName || ''} ${sale.client.lastName || ''}`.trim() || 'Client'
-            : 'Client';
+          const saleTotal = parseFloat(sale.finalTotal || 0) || 0;
+          const paidAmount = parseFloat(sale.paidAmount ?? sale.advancePayment ?? 0) || 0;
+          const outstanding = Math.max(0, saleTotal - paidAmount);
           
-          // The credit amount is the finalTotal (what was sold on credit)
-          // This matches the creditSalesTotal calculation which sums DEBT transactions
-          const creditAmount = finalTotal;
+          const clientName = sale.client 
+            ? `${sale.client.firstName || ''} ${sale.client.lastName || ''}`.trim() || 'Client inconnu'
+            : 'Client inconnu';
           
           return {
             id: sale.id,
             saleId: sale.id,
-            amount: creditAmount,
+            amount: outstanding,
+            saleTotal: saleTotal,
+            paidAmount: paidAmount,
             clientName: clientName,
             createdAt: sale.createdAt,
-            ticketNumber: sale.dailyTicketNumber || sale.sessionTicketNumber || sale.ticketNumber || sale.id,
-            outstanding: creditAmount,
-            paid: 0
+            ticketNumber: sale.dailyTicketNumber || sale.sessionTicketNumber || sale.ticketNumber || sale.id
           };
-        });
+        }).filter(sale => sale.amount > 0);
 
         // Sort by date (newest first)
         creditSalesDetailsList.sort((a, b) => 

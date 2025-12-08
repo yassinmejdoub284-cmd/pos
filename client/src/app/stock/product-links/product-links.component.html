@@ -1,0 +1,143 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white/80 rounded-2xl border border-slate-200/50 p-6 mb-6 shadow-lg">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-slate-800">Liaisons de Produits</h1>
+            <p class="text-slate-600 mt-1">Visualisation des liens entre produits source et destination</p>
+          </div>
+        </div>
+        <button 
+          (click)="loadLinks()"
+          class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          Actualiser
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-600"></div>
+      <p class="mt-4 text-slate-600">Chargement des liaisons...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error && !loading" class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+      <p class="text-red-800">{{ error }}</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && !error && groupedLinks.length === 0" class="text-center py-12 bg-white/80 rounded-2xl border border-slate-200/50">
+      <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+        </svg>
+      </div>
+      <h3 class="text-lg font-semibold text-slate-800 mb-2">Aucune liaison</h3>
+      <p class="text-slate-600">Aucune liaison de produit n'a été créée pour le moment</p>
+    </div>
+
+    <!-- Links Grid - Grouped by Destination -->
+    <div *ngIf="!loading && !error && groupedLinks.length > 0" class="grid grid-cols-1 gap-6">
+      <div *ngFor="let group of groupedLinks" class="bg-white rounded-xl border border-slate-200 p-6 shadow-lg hover:shadow-xl transition-shadow">
+        <!-- Destination Section (Top) -->
+        <div class="mb-6">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-md">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-lg font-bold text-slate-800">Produit Destination</h3>
+              <p class="text-sm text-slate-500">{{ group.destinationDepot.name }} - {{ group.destinationDepot.city }}</p>
+            </div>
+          </div>
+          <div class="bg-green-50 rounded-lg p-4 border-2 border-green-200">
+            <p class="font-bold text-lg text-slate-800 mb-1">{{ group.destinationProduct.name }}</p>
+            <p *ngIf="group.destinationProduct.barcode" class="text-xs text-slate-500 font-mono mb-2">{{ group.destinationProduct.barcode }}</p>
+            <div class="flex items-center gap-2">
+              <span class="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-sm font-semibold">
+                {{ group.destinationDepot.city }}
+              </span>
+              <span class="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-sm">
+                {{ group.destinationDepot.code }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="flex items-center justify-center my-6">
+          <div class="flex items-center gap-2 w-full">
+            <div class="h-1 bg-gradient-to-r from-green-500 to-blue-500 flex-1 rounded"></div>
+            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+              </svg>
+            </div>
+            <div class="h-1 bg-gradient-to-r from-blue-500 to-green-500 flex-1 rounded"></div>
+          </div>
+        </div>
+
+        <!-- Source Products Section -->
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h3 class="font-bold text-slate-800">Produits Source ({{ group.sourceLinks.length }})</h3>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div *ngFor="let link of group.sourceLinks" class="bg-blue-50 rounded-lg p-4 border border-blue-200 relative">
+              <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                  <p class="font-semibold text-slate-800 mb-1 truncate">{{ link.sourceProduct.name }}</p>
+                  <p *ngIf="link.sourceProduct.barcode" class="text-xs text-slate-500 font-mono mb-2 truncate">{{ link.sourceProduct.barcode }}</p>
+                  <div class="flex flex-col gap-1">
+                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold w-fit">
+                      {{ link.sourceDepot.name }}
+                    </span>
+                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs w-fit">
+                      {{ link.sourceDepot.city }}
+                    </span>
+                  </div>
+                </div>
+                <button 
+                  (click)="deleteLink(link.id)"
+                  class="ml-2 flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
+                  title="Supprimer cette liaison">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+              <!-- Arrow pointing down -->
+              <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
+                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

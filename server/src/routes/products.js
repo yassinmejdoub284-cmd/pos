@@ -163,6 +163,127 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// Get all product depot links (MUST be before /:id route)
+router.get('/depot-links', authenticateToken, async (req, res) => {
+  try {
+    const productLinksRaw = await prisma.productDepotLink.findMany({
+      include: {
+        sourceProduct: {
+          select: {
+            id: true,
+            name: true,
+            barcode: true
+          }
+        },
+        sourceDepot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            city: true,
+            type: true
+          }
+        },
+        destinationProduct: {
+          select: {
+            id: true,
+            name: true,
+            barcode: true
+          }
+        },
+        destinationDepot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            city: true,
+            type: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    
+    const produitDeCaisseLinksRaw = await prisma.produitDeCaisseDepotLink.findMany({
+      include: {
+        sourceProduct: {
+          select: {
+            id: true,
+            name: true,
+            barcode: true
+          }
+        },
+        sourceDepot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            city: true,
+            type: true
+          }
+        },
+        destinationProduct: {
+          select: {
+            id: true,
+            name: true,
+            barcode: true
+          }
+        },
+        destinationDepot: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            city: true,
+            type: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    
+    const allLinks = [
+      ...productLinksRaw.map(link => ({
+        id: link.id,
+        sourceProductId: link.sourceProductId,
+        sourceDepotId: link.sourceDepotId,
+        destinationProductId: link.destinationProductId,
+        destinationDepotId: link.destinationDepotId,
+        createdAt: link.createdAt,
+        updatedAt: link.updatedAt,
+        linkType: 'Product',
+        sourceProduct: link.sourceProduct,
+        sourceDepot: link.sourceDepot,
+        destinationProduct: link.destinationProduct,
+        destinationDepot: link.destinationDepot
+      })),
+      ...produitDeCaisseLinksRaw.map(link => ({
+        id: link.id,
+        sourceProductId: link.sourceProductId,
+        sourceDepotId: link.sourceDepotId,
+        destinationProductId: link.destinationProductId,
+        destinationDepotId: link.destinationDepotId,
+        createdAt: link.createdAt,
+        updatedAt: link.updatedAt,
+        linkType: 'ProduitDeCaisse',
+        sourceProduct: link.sourceProduct,
+        sourceDepot: link.sourceDepot,
+        destinationProduct: link.destinationProduct,
+        destinationDepot: link.destinationDepot
+      }))
+    ];
+    
+    res.json(allLinks);
+  } catch (error) {
+    console.error('Error fetching all product depot links:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des liens' });
+  }
+});
+
 router.get('/familles', authenticateToken, async (req, res) => {
   try {
     const familles = await prisma.productFamily.findMany({
@@ -178,6 +299,206 @@ router.get('/familles', authenticateToken, async (req, res) => {
 });
 
 // IMPORTANT: Specific routes must come BEFORE parameterized routes like /:id
+
+// Get similar products from source depot(s) for linking
+router.get('/similar-products', authenticateToken, async (req, res) => {
+  console.log('✅ Route /similar-products reached');
+  try {
+    const { sourceDepotIds, productName, barcode, destinationProductId } = req.query;
+    
+    console.log('Raw query params:', {
+      sourceDepotIds,
+      productName,
+      barcode,
+      destinationProductId,
+      sourceDepotIdsType: typeof sourceDepotIds,
+      isArray: Array.isArray(sourceDepotIds),
+      fullQuery: req.query
+    });
+    
+    if (!sourceDepotIds || 
+        (Array.isArray(sourceDepotIds) && sourceDepotIds.length === 0) ||
+        (typeof sourceDepotIds === 'string' && sourceDepotIds.trim() === '')) {
+      return res.status(400).json({ 
+        error: 'Source depot IDs are required',
+        received: sourceDepotIds,
+        type: typeof sourceDepotIds,
+        isEmpty: typeof sourceDepotIds === 'string' ? sourceDepotIds.trim() === '' : false
+      });
+    }
+    
+    // Handle both array and comma-separated string formats
+    let depotIds = [];
+    
+    try {
+      if (Array.isArray(sourceDepotIds)) {
+        depotIds = sourceDepotIds
+          .map(id => parseInt(String(id)))
+          .filter(id => !isNaN(id) && id > 0);
+      } else {
+        const strValue = String(sourceDepotIds).trim();
+        if (strValue.includes(',')) {
+          depotIds = strValue
+            .split(',')
+            .map(id => parseInt(id.trim()))
+            .filter(id => !isNaN(id) && id > 0);
+        } else {
+          const parsed = parseInt(strValue);
+          if (!isNaN(parsed) && parsed > 0) {
+            depotIds = [parsed];
+          }
+        }
+      }
+    } catch (parseError) {
+      console.error('Error parsing sourceDepotIds:', parseError);
+      return res.status(400).json({ 
+        error: 'Error parsing source depot IDs',
+        received: sourceDepotIds,
+        details: parseError.message
+      });
+    }
+    
+    if (depotIds.length === 0) {
+      console.error('❌ No valid depot IDs parsed:', {
+        received: sourceDepotIds,
+        type: typeof sourceDepotIds,
+        parsed: depotIds
+      });
+      return res.status(400).json({ 
+        error: 'Invalid source depot IDs format - no valid IDs found',
+        received: sourceDepotIds,
+        type: typeof sourceDepotIds,
+        parsed: depotIds
+      });
+    }
+    
+    console.log('✅ Parsed depot IDs successfully:', depotIds);
+    
+    console.log('Processing similar products request:', {
+      sourceDepotIds: req.query.sourceDepotIds,
+      depotIds,
+      productName,
+      barcode,
+      destinationProductId
+    });
+    
+    // Get excluded product IDs first
+    let excludedProductIds = [];
+    if (destinationProductId) {
+      const destProductId = parseInt(destinationProductId);
+      
+      if (isNaN(destProductId)) {
+        return res.status(400).json({ 
+          error: 'Invalid destination product ID format',
+          received: destinationProductId
+        });
+      }
+      
+      // Get existing links to avoid duplicates
+      const existingLinks = await prisma.productDepotLink.findMany({
+        where: {
+          destinationProductId: destProductId
+        },
+        select: {
+          sourceProductId: true,
+          sourceDepotId: true
+        }
+      });
+      
+      excludedProductIds = existingLinks.map(link => link.sourceProductId);
+      excludedProductIds.push(destProductId);
+    }
+    
+    // First, get all ProductDepot assignments for the selected depots
+    const depotAssignments = await prisma.productDepot.findMany({
+      where: {
+        depotId: { in: depotIds }
+      },
+      select: {
+        productId: true,
+        depotId: true
+      }
+    });
+    
+    if (depotAssignments.length === 0) {
+      return res.json([]);
+    }
+    
+    // Get unique product IDs
+    const productIds = [...new Set(depotAssignments.map(da => da.productId))];
+    
+    // Exclude products that are already linked or are the destination product
+    const filteredProductIds = excludedProductIds.length > 0
+      ? productIds.filter(id => !excludedProductIds.includes(id))
+      : productIds;
+    
+    if (filteredProductIds.length === 0) {
+      return res.json([]);
+    }
+    
+    // Build search conditions
+    const whereConditions = {
+      id: { in: filteredProductIds }
+    };
+    
+    // Add name or barcode filter if provided
+    if (productName) {
+      whereConditions.name = { 
+        contains: productName,
+        mode: 'insensitive'
+      };
+    }
+    if (barcode) {
+      whereConditions.barcode = barcode;
+    }
+    
+    const products = await prisma.product.findMany({
+      where: whereConditions,
+      include: {
+        depotAssignments: {
+          where: {
+            depotId: { in: depotIds }
+          },
+          include: {
+            depot: {
+              select: {
+                id: true,
+                name: true,
+                code: true
+              }
+            }
+          }
+        },
+        famille: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      take: 100
+    });
+    
+    // Transform depotAssignments to assignedDepots for frontend compatibility
+    const productsWithAssignedDepots = products.map(product => ({
+      ...product,
+      assignedDepots: product.depotAssignments.map(da => da.depot)
+    }));
+    
+    res.json(productsWithAssignedDepots);
+  } catch (error) {
+    console.error('Error fetching similar products:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    res.status(500).json({ 
+      error: 'Erreur lors de la récupération des produits similaires',
+      details: error.message 
+    });
+  }
+});
 
 router.get('/vrac-conversions/:sourceProductId', authenticateToken, async (req, res) => {
   try {
@@ -535,6 +856,11 @@ router.get('/transfer-history', authenticateToken, async (req, res) => {
 
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    // Prevent /similar-products and /depot-links from being caught by this route
+    if (req.params.id === 'similar-products' || req.params.id === 'depot-links') {
+      return res.status(404).json({ error: 'Route not found. Please restart the server.' });
+    }
+    
     const productId = parseInt(req.params.id);
     const { depotId } = req.query;
     
@@ -2586,7 +2912,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
   }
 });
 
-// IMPORTANT: This route must come BEFORE router.get('/:id') to avoid route conflicts
 // Get transfer history to vrac
 router.get('/transfer-history', authenticateToken, async (req, res) => {
   try {
@@ -2772,259 +3097,577 @@ router.get('/transfer-history', authenticateToken, async (req, res) => {
   }
 });
 
-// Get similar products from source depot(s) for linking
-router.get('/similar-products', authenticateToken, async (req, res) => {
-  try {
-    const { sourceDepotIds, productName, barcode, destinationProductId } = req.query;
-    
-    if (!sourceDepotIds) {
-      return res.status(400).json({ error: 'Source depot IDs are required' });
-    }
-    
-    // Handle both array and comma-separated string formats
-    let depotIds = [];
-    if (Array.isArray(sourceDepotIds)) {
-      depotIds = sourceDepotIds.map(id => parseInt(id));
-    } else if (typeof sourceDepotIds === 'string' && sourceDepotIds.includes(',')) {
-      // Handle comma-separated string: "1,2,3"
-      depotIds = sourceDepotIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-    } else {
-      // Single value
-      depotIds = [parseInt(sourceDepotIds)];
-    }
-    
-    if (depotIds.length === 0 || depotIds.some(id => isNaN(id))) {
-      return res.status(400).json({ error: 'Invalid source depot IDs format' });
-    }
-    
-    console.log('Processing similar products request:', {
-      depotIds,
-      productName,
-      barcode,
-      destinationProductId
-    });
-    
-    // Get excluded product IDs first
-    let excludedProductIds = [];
-    if (destinationProductId) {
-      const destProductId = parseInt(destinationProductId);
-      
-      // Get existing links to avoid duplicates
-      const existingLinks = await prisma.productDepotLink.findMany({
-        where: {
-          destinationProductId: destProductId
-        },
-        select: {
-          sourceProductId: true,
-          sourceDepotId: true
-        }
-      });
-      
-      excludedProductIds = existingLinks.map(link => link.sourceProductId);
-      excludedProductIds.push(destProductId);
-    }
-    
-    // First, get all ProductDepot assignments for the selected depots
-    const depotAssignments = await prisma.productDepot.findMany({
-      where: {
-        depotId: { in: depotIds }
-      },
-      select: {
-        productId: true,
-        depotId: true
-      }
-    });
-    
-
-    
-    if (depotAssignments.length === 0) {
-      return res.json([]);
-    }
-    
-    // Get unique product IDs
-    const productIds = [...new Set(depotAssignments.map(da => da.productId))];
-    
-    // Exclude products that are already linked or are the destination product
-    const filteredProductIds = excludedProductIds.length > 0
-      ? productIds.filter(id => !excludedProductIds.includes(id))
-      : productIds;
-    
-    if (filteredProductIds.length === 0) {
-      return res.json([]);
-    }
-    
-    // Build search conditions
-    const whereConditions = {
-      id: { in: filteredProductIds }
-    };
-    
-    // Add name or barcode filter if provided
-    if (productName) {
-      whereConditions.name = { 
-        contains: productName,
-        mode: 'insensitive'
-      };
-    }
-    if (barcode) {
-      whereConditions.barcode = barcode;
-    }
-    
-
-    
-    const products = await prisma.product.findMany({
-      where: whereConditions,
-      include: {
-        depotAssignments: {
-          where: {
-            depotId: { in: depotIds }
-          },
-          include: {
-            depot: {
-              select: {
-                id: true,
-                name: true,
-                code: true
-              }
-            }
-          }
-        },
-        famille: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      },
-      take: 100 // Increased limit
-    });
-    
-
-    
-    // Transform depotAssignments to assignedDepots for frontend compatibility
-    const productsWithAssignedDepots = products.map(product => ({
-      ...product,
-      assignedDepots: product.depotAssignments.map(da => da.depot)
-    }));
-    
-    res.json(productsWithAssignedDepots);
-  } catch (error) {
-    console.error('Error fetching similar products:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code
-    });
-    res.status(500).json({ 
-      error: 'Erreur lors de la récupération des produits similaires',
-      details: error.message 
-    });
-  }
-});
-
 // Create product depot link
 router.post('/depot-links', authenticateToken, async (req, res) => {
   try {
     const { sourceProductId, sourceDepotId, destinationProductId, destinationDepotId } = req.body;
     
+    console.log('=== CREATE PRODUCT DEPOT LINK REQUEST ===');
+    console.log('Request body:', {
+      sourceProductId,
+      sourceDepotId,
+      destinationProductId,
+      destinationDepotId,
+      sourceProductIdType: typeof sourceProductId,
+      destinationProductIdType: typeof destinationProductId
+    });
+    
     if (!sourceProductId || !sourceDepotId || !destinationProductId || !destinationDepotId) {
       return res.status(400).json({ error: 'Tous les champs sont requis' });
     }
+
+    const parsedSourceProductId = parseInt(sourceProductId);
+    const parsedSourceDepotId = parseInt(sourceDepotId);
+    const parsedDestinationProductId = parseInt(destinationProductId);
+    const parsedDestinationDepotId = parseInt(destinationDepotId);
     
-    // Check if link already exists
-    const existingLink = await prisma.productDepotLink.findFirst({
-      where: {
-        sourceProductId: parseInt(sourceProductId),
-        sourceDepotId: parseInt(sourceDepotId),
-        destinationProductId: parseInt(destinationProductId),
-        destinationDepotId: parseInt(destinationDepotId)
-      }
+    console.log('Parsed IDs:', {
+      parsedSourceProductId,
+      parsedSourceDepotId,
+      parsedDestinationProductId,
+      parsedDestinationDepotId
     });
+
+    // Allow same product to be linked (sourceProductId === destinationProductId is valid)
+    // This is useful when consolidating products from different depots
     
-    if (existingLink) {
-      return res.status(400).json({ error: 'Ce lien existe déjà' });
-    }
     
     // Verify products are assigned to their respective depots
-    const sourceAssignment = await prisma.productDepot.findUnique({
+    // Check both Product (for SHOP depots) and ProduitDeCaisse (for other depots)
+    const sourceProductAssignment = await prisma.productDepot.findUnique({
       where: {
         productId_depotId: {
-          productId: parseInt(sourceProductId),
-          depotId: parseInt(sourceDepotId)
+          productId: parsedSourceProductId,
+          depotId: parsedSourceDepotId
         }
       }
     });
     
-    const destAssignment = await prisma.productDepot.findUnique({
+    const sourceProduitDeCaisseAssignment = await prisma.produitDeCaisseDepot.findFirst({
+      where: {
+        produitDeCaisseId: parsedSourceProductId,
+        depotId: parsedSourceDepotId
+      }
+    });
+    
+    const destProductAssignment = await prisma.productDepot.findUnique({
       where: {
         productId_depotId: {
-          productId: parseInt(destinationProductId),
-          depotId: parseInt(destinationDepotId)
+          productId: parsedDestinationProductId,
+          depotId: parsedDestinationDepotId
         }
       }
     });
     
-    if (!sourceAssignment) {
+    const destProduitDeCaisseAssignment = await prisma.produitDeCaisseDepot.findFirst({
+      where: {
+        produitDeCaisseId: parsedDestinationProductId,
+        depotId: parsedDestinationDepotId
+      }
+    });
+    
+    console.log('Checking product assignments:', {
+      sourceProductId: parsedSourceProductId,
+      sourceDepotId: parsedSourceDepotId,
+      destinationProductId: parsedDestinationProductId,
+      destinationDepotId: parsedDestinationDepotId,
+      sourceProductAssignment: !!sourceProductAssignment,
+      sourceProduitDeCaisseAssignment: !!sourceProduitDeCaisseAssignment,
+      destProductAssignment: !!destProductAssignment,
+      destProduitDeCaisseAssignment: !!destProduitDeCaisseAssignment
+    });
+    
+    if (!sourceProductAssignment && !sourceProduitDeCaisseAssignment) {
+      console.error('Source product not assigned:', {
+        sourceProductId: parsedSourceProductId,
+        sourceDepotId: parsedSourceDepotId
+      });
       return res.status(400).json({ error: 'Le produit source n\'est pas assigné au dépôt source' });
     }
     
-    if (!destAssignment) {
+    if (!destProductAssignment && !destProduitDeCaisseAssignment) {
+      console.error('Destination product not assigned:', {
+        destinationProductId: parsedDestinationProductId,
+        destinationDepotId: parsedDestinationDepotId
+      });
       return res.status(400).json({ error: 'Le produit destination n\'est pas assigné au dépôt destination' });
     }
     
-    const link = await prisma.productDepotLink.create({
-      data: {
-        sourceProductId: parseInt(sourceProductId),
-        sourceDepotId: parseInt(sourceDepotId),
-        destinationProductId: parseInt(destinationProductId),
-        destinationDepotId: parseInt(destinationDepotId)
-      },
-      include: {
-        sourceProduct: {
-          select: {
-            id: true,
-            name: true,
-            barcode: true
+    // Check if products exist in Product or ProduitDeCaisse tables
+    const sourceProductExists = await prisma.product.findUnique({
+      where: { id: parsedSourceProductId },
+      select: { id: true, name: true }
+    });
+    
+    const sourceProduitDeCaisseExists = await prisma.produitDeCaisse.findUnique({
+      where: { id: parsedSourceProductId },
+      select: { id: true, name: true }
+    });
+    
+    const destProductExists = await prisma.product.findUnique({
+      where: { id: parsedDestinationProductId },
+      select: { id: true, name: true }
+    });
+    
+    const destProduitDeCaisseExists = await prisma.produitDeCaisse.findUnique({
+      where: { id: parsedDestinationProductId },
+      select: { id: true, name: true }
+    });
+    
+    if (!sourceProductExists && !sourceProduitDeCaisseExists) {
+      return res.status(400).json({ 
+        error: `Le produit source (ID: ${parsedSourceProductId}) n'existe pas.` 
+      });
+    }
+    
+    if (!destProductExists && !destProduitDeCaisseExists) {
+      return res.status(400).json({ 
+        error: `Le produit destination (ID: ${parsedDestinationProductId}) n'existe pas.` 
+      });
+    }
+    
+    const sourceIsProduct = !!sourceProductAssignment;
+    const sourceIsProduitDeCaisse = !!sourceProduitDeCaisseAssignment;
+    const destIsProduct = !!destProductAssignment;
+    const destIsProduitDeCaisse = !!destProduitDeCaisseAssignment;
+    
+    if (sourceIsProduct && sourceIsProduitDeCaisse) {
+      console.error('ERROR: Source product has assignments in BOTH tables!', {
+        sourceProductId: parsedSourceProductId,
+        sourceDepotId: parsedSourceDepotId
+      });
+      return res.status(400).json({ 
+        error: `Le produit source (ID: ${parsedSourceProductId}) a des assignments dans les deux tables. Contactez l'administrateur.` 
+      });
+    }
+    
+    if (destIsProduct && destIsProduitDeCaisse) {
+      console.error('ERROR: Destination product has assignments in BOTH tables!', {
+        destinationProductId: parsedDestinationProductId,
+        destinationDepotId: parsedDestinationDepotId
+      });
+      return res.status(400).json({ 
+        error: `Le produit destination (ID: ${parsedDestinationProductId}) a des assignments dans les deux tables. Contactez l'administrateur.` 
+      });
+    }
+    
+    console.log('Product type determination:', {
+      sourceProductId: parsedSourceProductId,
+      sourceProductName: sourceProductExists?.name || sourceProduitDeCaisseExists?.name || 'Unknown',
+      sourceIsProduct,
+      sourceIsProduitDeCaisse,
+      destinationProductId: parsedDestinationProductId,
+      destinationProductName: destProductExists?.name || destProduitDeCaisseExists?.name || 'Unknown',
+      destIsProduct,
+      destIsProduitDeCaisse
+    });
+    
+    const useProductTable = sourceIsProduct && destIsProduct;
+    const useProduitDeCaisseTable = sourceIsProduitDeCaisse && destIsProduitDeCaisse;
+    const isMixed = (sourceIsProduct && destIsProduitDeCaisse) || (sourceIsProduitDeCaisse && destIsProduct);
+    
+    if (!useProductTable && !useProduitDeCaisseTable && !isMixed) {
+      console.error('ERROR: Cannot determine table to use', {
+        sourceIsProduct,
+        sourceIsProduitDeCaisse,
+        destIsProduct,
+        destIsProduitDeCaisse
+      });
+      return res.status(400).json({ 
+        error: 'Impossible de déterminer la table à utiliser pour créer le lien. Vérifiez que les produits sont correctement assignés aux dépôts.' 
+      });
+    }
+    
+    try {
+      let link;
+      let useProduitDeCaisseTableForLink;
+      
+      if (useProductTable) {
+        useProduitDeCaisseTableForLink = false;
+      } else if (useProduitDeCaisseTable) {
+        useProduitDeCaisseTableForLink = true;
+      } else if (isMixed) {
+        useProduitDeCaisseTableForLink = sourceIsProduitDeCaisse;
+      } else {
+        return res.status(400).json({ 
+          error: 'Impossible de déterminer la table à utiliser pour créer le lien' 
+        });
+      }
+      
+      console.log('Link table selection:', {
+        useProductTable,
+        useProduitDeCaisseTable,
+        isMixed,
+        useProduitDeCaisseTableForLink,
+        sourceProductId: parsedSourceProductId,
+        sourceProductName: sourceProductExists?.name || sourceProduitDeCaisseExists?.name || 'Unknown',
+        sourceProductActualName: sourceIsProduct ? sourceProductExists?.name : sourceProduitDeCaisseExists?.name,
+        destinationProductName: destProductExists?.name || destProduitDeCaisseExists?.name || 'Unknown',
+        destinationProductActualName: destIsProduct ? destProductExists?.name : destProduitDeCaisseExists?.name
+      });
+      
+      if (useProduitDeCaisseTableForLink) {
+        if (!sourceProduitDeCaisseExists || !destProduitDeCaisseExists) {
+          console.error('ERROR: Trying to create ProduitDeCaisseDepotLink but products do not exist in ProduitDeCaisse table', {
+            sourceProductId: parsedSourceProductId,
+            sourceProductExists: !!sourceProduitDeCaisseExists,
+            destinationProductId: parsedDestinationProductId,
+            destProductExists: !!destProduitDeCaisseExists
+          });
+          return res.status(400).json({ 
+            error: 'Les produits doivent exister dans la table ProduitDeCaisse pour créer ce type de lien' 
+          });
+        }
+        
+        const existingLink = await prisma.produitDeCaisseDepotLink.findFirst({
+          where: {
+            sourceProductId: parsedSourceProductId,
+            sourceDepotId: parsedSourceDepotId,
+            destinationProductId: parsedDestinationProductId,
+            destinationDepotId: parsedDestinationDepotId
           }
-        },
-        sourceDepot: {
-          select: {
-            id: true,
-            name: true,
-            code: true
+        });
+        
+        if (existingLink) {
+          return res.status(400).json({ error: 'Ce lien existe déjà' });
+        }
+        
+        console.log('Creating ProduitDeCaisseDepotLink with:', {
+          sourceProductId: parsedSourceProductId,
+          sourceProductName: sourceProduitDeCaisseExists.name,
+          sourceDepotId: parsedSourceDepotId,
+          destinationProductId: parsedDestinationProductId,
+          destinationProductName: destProduitDeCaisseExists.name,
+          destinationDepotId: parsedDestinationDepotId
+        });
+        
+        try {
+          link = await prisma.produitDeCaisseDepotLink.create({
+            data: {
+              sourceProductId: parsedSourceProductId,
+              sourceDepotId: parsedSourceDepotId,
+              destinationProductId: parsedDestinationProductId,
+              destinationDepotId: parsedDestinationDepotId
+            },
+            include: {
+              sourceProduct: {
+                select: {
+                  id: true,
+                  name: true,
+                  barcode: true
+                }
+              },
+              sourceDepot: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true
+                }
+              },
+              destinationProduct: {
+                select: {
+                  id: true,
+                  name: true,
+                  barcode: true
+                }
+              },
+              destinationDepot: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true
+                }
+              }
+            }
+          });
+        } catch (fkError) {
+          if (isMixed && (fkError.code === 'P2003' || fkError.message?.includes('Foreign key constraint'))) {
+            useProduitDeCaisseTableForLink = false;
+            const existingProductLink = await prisma.productDepotLink.findFirst({
+              where: {
+                sourceProductId: parsedSourceProductId,
+                sourceDepotId: parsedSourceDepotId,
+                destinationProductId: parsedDestinationProductId,
+                destinationDepotId: parsedDestinationDepotId
+              }
+            });
+            
+            if (existingProductLink) {
+              return res.status(400).json({ error: 'Ce lien existe déjà' });
+            }
+            
+            link = await prisma.productDepotLink.create({
+              data: {
+                sourceProductId: parsedSourceProductId,
+                sourceDepotId: parsedSourceDepotId,
+                destinationProductId: parsedDestinationProductId,
+                destinationDepotId: parsedDestinationDepotId
+              },
+              include: {
+                sourceProduct: {
+                  select: {
+                    id: true,
+                    name: true,
+                    barcode: true
+                  }
+                },
+                sourceDepot: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true
+                  }
+                },
+                destinationProduct: {
+                  select: {
+                    id: true,
+                    name: true,
+                    barcode: true
+                  }
+                },
+                destinationDepot: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true
+                  }
+                }
+              }
+            });
+          } else {
+            throw fkError;
           }
-        },
-        destinationProduct: {
-          select: {
-            id: true,
-            name: true,
-            barcode: true
+        }
+      } else {
+        if (!sourceProductExists || !destProductExists) {
+          console.error('ERROR: Trying to create ProductDepotLink but products do not exist in Product table', {
+            sourceProductId: parsedSourceProductId,
+            sourceProductExists: !!sourceProductExists,
+            destinationProductId: parsedDestinationProductId,
+            destProductExists: !!destProductExists
+          });
+          return res.status(400).json({ 
+            error: 'Les produits doivent exister dans la table Product pour créer ce type de lien' 
+          });
+        }
+        
+        const existingProductLink = await prisma.productDepotLink.findFirst({
+          where: {
+            sourceProductId: parsedSourceProductId,
+            sourceDepotId: parsedSourceDepotId,
+            destinationProductId: parsedDestinationProductId,
+            destinationDepotId: parsedDestinationDepotId
           }
-        },
-        destinationDepot: {
-          select: {
-            id: true,
-            name: true,
-            code: true
+        });
+        
+        if (existingProductLink) {
+          return res.status(400).json({ error: 'Ce lien existe déjà' });
+        }
+        
+        console.log('Creating ProductDepotLink with:', {
+          sourceProductId: parsedSourceProductId,
+          sourceProductName: sourceProductExists.name,
+          sourceDepotId: parsedSourceDepotId,
+          destinationProductId: parsedDestinationProductId,
+          destinationProductName: destProductExists.name,
+          destinationDepotId: parsedDestinationDepotId
+        });
+        
+        try {
+          link = await prisma.productDepotLink.create({
+            data: {
+              sourceProductId: parsedSourceProductId,
+              sourceDepotId: parsedSourceDepotId,
+              destinationProductId: parsedDestinationProductId,
+              destinationDepotId: parsedDestinationDepotId
+            },
+            include: {
+              sourceProduct: {
+                select: {
+                  id: true,
+                  name: true,
+                  barcode: true
+                }
+              },
+              sourceDepot: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true
+                }
+              },
+              destinationProduct: {
+                select: {
+                  id: true,
+                  name: true,
+                  barcode: true
+                }
+              },
+              destinationDepot: {
+                select: {
+                  id: true,
+                  name: true,
+                  code: true
+                }
+              }
+            }
+          });
+        } catch (fkError) {
+          if (isMixed && (fkError.code === 'P2003' || fkError.message?.includes('Foreign key constraint'))) {
+            useProduitDeCaisseTableForLink = true;
+            const existingLink = await prisma.produitDeCaisseDepotLink.findFirst({
+              where: {
+                sourceProductId: parsedSourceProductId,
+                sourceDepotId: parsedSourceDepotId,
+                destinationProductId: parsedDestinationProductId,
+                destinationDepotId: parsedDestinationDepotId
+              }
+            });
+            
+            if (existingLink) {
+              return res.status(400).json({ error: 'Ce lien existe déjà' });
+            }
+            
+            link = await prisma.produitDeCaisseDepotLink.create({
+              data: {
+                sourceProductId: parsedSourceProductId,
+                sourceDepotId: parsedSourceDepotId,
+                destinationProductId: parsedDestinationProductId,
+                destinationDepotId: parsedDestinationDepotId
+              },
+              include: {
+                sourceProduct: {
+                  select: {
+                    id: true,
+                    name: true,
+                    barcode: true
+                  }
+                },
+                sourceDepot: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true
+                  }
+                },
+                destinationProduct: {
+                  select: {
+                    id: true,
+                    name: true,
+                    barcode: true
+                  }
+                },
+                destinationDepot: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true
+                  }
+                }
+              }
+            });
+          } else {
+            throw fkError;
           }
         }
       }
-    });
-    
-    await logAudit(req.user.id, 'products', 'CREATE', `Product depot link created: ${link.id}`);
-    
-    res.status(201).json(link);
+      
+      const createdSourceProductId = link.sourceProductId || link.sourceProduct?.id;
+      const createdSourceProductName = link.sourceProduct?.name || 'Unknown';
+      const createdDestProductId = link.destinationProductId || link.destinationProduct?.id;
+      const createdDestProductName = link.destinationProduct?.name || 'Unknown';
+      
+      if (createdSourceProductId !== parsedSourceProductId) {
+        console.error('CRITICAL ERROR: Created link has wrong source product ID!', {
+          requestedSourceProductId: parsedSourceProductId,
+          requestedSourceProductName: sourceIsProduct ? sourceProductExists?.name : sourceProduitDeCaisseExists?.name,
+          createdSourceProductId,
+          createdSourceProductName
+        });
+        await (useProduitDeCaisseTableForLink 
+          ? prisma.produitDeCaisseDepotLink.delete({ where: { id: link.id } })
+          : prisma.productDepotLink.delete({ where: { id: link.id } }));
+        return res.status(500).json({ 
+          error: 'Erreur critique: Le lien créé a un produit source incorrect. Le lien a été supprimé.' 
+        });
+      }
+      
+      if (createdDestProductId !== parsedDestinationProductId) {
+        console.error('CRITICAL ERROR: Created link has wrong destination product ID!', {
+          requestedDestProductId: parsedDestinationProductId,
+          requestedDestProductName: destIsProduct ? destProductExists?.name : destProduitDeCaisseExists?.name,
+          createdDestProductId,
+          createdDestProductName
+        });
+        await (useProduitDeCaisseTableForLink 
+          ? prisma.produitDeCaisseDepotLink.delete({ where: { id: link.id } })
+          : prisma.productDepotLink.delete({ where: { id: link.id } }));
+        return res.status(500).json({ 
+          error: 'Erreur critique: Le lien créé a un produit destination incorrect. Le lien a été supprimé.' 
+        });
+      }
+      
+      console.log('Link created successfully:', {
+        linkId: link.id,
+        linkType: useProduitDeCaisseTableForLink ? 'ProduitDeCaisseDepotLink' : 'ProductDepotLink',
+        sourceProductId: createdSourceProductId,
+        sourceProductName: createdSourceProductName,
+        destinationProductId: createdDestProductId,
+        destinationProductName: createdDestProductName,
+        sourceDepotId: link.sourceDepotId || link.sourceDepot?.id,
+        destinationDepotId: link.destinationDepotId || link.destinationDepot?.id,
+        verification: 'PASSED - Product IDs match requested IDs'
+      });
+      
+      try {
+        await logAudit(req.user.id, useProduitDeCaisseTableForLink ? 'produit_de_caisse_depot_links' : 'products', link.id, 'CREATE', null, { linkId: link.id });
+      } catch (auditError) {
+        console.error('Error logging audit (non-fatal):', auditError);
+      }
+      
+      res.status(201).json(link);
+    } catch (createError) {
+      console.error('Error creating product depot link:', createError);
+      console.error('Error details:', {
+        message: createError.message,
+        code: createError.code,
+        meta: createError.meta
+      });
+      
+      if (createError.code === 'P2002') {
+        return res.status(400).json({ error: 'Ce lien existe déjà' });
+      }
+      
+      if (createError.code === 'P2003') {
+        return res.status(400).json({ error: 'Produit ou dépôt introuvable' });
+      }
+      
+      res.status(500).json({ 
+        error: 'Erreur lors de la création du lien',
+        details: createError.message 
+      });
+    }
   } catch (error) {
     console.error('Error creating product depot link:', error);
+    console.error('Error stack:', error.stack);
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Ce lien existe déjà' });
     }
-    res.status(500).json({ error: 'Erreur lors de la création du lien' });
+    res.status(500).json({ 
+      error: 'Erreur lors de la création du lien',
+      details: error.message 
+    });
   }
 });
 
 // Get product depot links for a destination product
 router.get('/:id/depot-links', authenticateToken, async (req, res) => {
   try {
+    // Prevent /depot-links from being caught by this route
+    if (req.params.id === 'depot-links') {
+      return res.status(404).json({ error: 'Route not found' });
+    }
+    
     const productId = parseInt(req.params.id);
     
     if (isNaN(productId)) {
@@ -3080,7 +3723,7 @@ router.delete('/depot-links/:id', authenticateToken, async (req, res) => {
       where: { id: linkId }
     });
     
-    await logAudit(req.user.id, 'products', 'DELETE', `Product depot link deleted: ${linkId}`);
+    await logAudit(req.user.id, 'products', linkId, 'DELETE', { linkId }, null);
     
     res.json({ message: 'Lien supprimé avec succès' });
   } catch (error) {
@@ -3126,4 +3769,127 @@ router.get('/depot-links/destination', authenticateToken, async (req, res) => {
   }
 });
 
+// Create famille consolidation
+router.post('/famille-consolidations', authenticateToken, async (req, res) => {
+  try {
+    const { sourceFamilleId, sourceDepotIds, destinationProductId, destinationDepotId } = req.body;
+    
+    if (!sourceFamilleId || !sourceDepotIds || !Array.isArray(sourceDepotIds) || sourceDepotIds.length === 0 || !destinationProductId || !destinationDepotId) {
+      return res.status(400).json({ error: 'Tous les champs sont requis' });
+    }
+    
+    const destinationProduct = await prisma.product.findUnique({
+      where: { id: parseInt(destinationProductId) }
+    });
+    
+    if (!destinationProduct) {
+      return res.status(404).json({ error: 'Produit destination non trouvé' });
+    }
+    
+    const destinationDepot = await prisma.depot.findUnique({
+      where: { id: parseInt(destinationDepotId) }
+    });
+    
+    if (!destinationDepot) {
+      return res.status(404).json({ error: 'Dépôt destination non trouvé' });
+    }
+    
+    const sourceFamille = await prisma.productFamily.findUnique({
+      where: { id: parseInt(sourceFamilleId) }
+    });
+    
+    if (!sourceFamille) {
+      return res.status(404).json({ error: 'Famille source non trouvée' });
+    }
+    
+    const createdLinks = [];
+    const errors = [];
+    
+    for (const sourceDepotId of sourceDepotIds) {
+      try {
+        const sourceDepot = await prisma.depot.findUnique({
+          where: { id: parseInt(sourceDepotId) }
+        });
+        
+        if (!sourceDepot) {
+          errors.push(`Dépôt source ${sourceDepotId} non trouvé`);
+          continue;
+        }
+        
+        const existingConsolidation = await prisma.productFamilleConsolidation.findUnique({
+          where: {
+            unique_famille_consolidation: {
+              sourceFamilleId: parseInt(sourceFamilleId),
+              sourceDepotId: parseInt(sourceDepotId),
+              destinationDepotId: parseInt(destinationDepotId)
+            }
+          }
+        });
+        
+        if (existingConsolidation) {
+          errors.push(`Consolidation existe déjà pour ${sourceFamille.name} depuis ${sourceDepot.name}`);
+          continue;
+        }
+        
+        const consolidation = await prisma.productFamilleConsolidation.create({
+          data: {
+            sourceFamilleId: parseInt(sourceFamilleId),
+            sourceDepotId: parseInt(sourceDepotId),
+            destinationProductId: parseInt(destinationProductId),
+            destinationDepotId: parseInt(destinationDepotId)
+          },
+          include: {
+            sourceFamille: true,
+            sourceDepot: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            destinationProduct: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            destinationDepot: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        });
+        
+        createdLinks.push(consolidation);
+        
+        await logAudit(req.user.id, 'products', 'CREATE', `Famille consolidation created: ${consolidation.id}`);
+      } catch (error) {
+        console.error(`Error creating consolidation for depot ${sourceDepotId}:`, error);
+        errors.push(`Erreur pour dépôt ${sourceDepotId}: ${error.message}`);
+      }
+    }
+    
+    if (createdLinks.length === 0) {
+      return res.status(400).json({ 
+        error: 'Aucune consolidation créée',
+        errors: errors
+      });
+    }
+    
+    res.status(201).json({
+      success: true,
+      created: createdLinks.length,
+      consolidations: createdLinks,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('Error creating famille consolidation:', error);
+    res.status(500).json({ error: 'Erreur lors de la création de la consolidation par famille' });
+  }
+});
+
+module.exports = router; 
+module.exports = router; 
+module.exports = router; 
 module.exports = router; 

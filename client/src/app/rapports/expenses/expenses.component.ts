@@ -4,6 +4,7 @@ import { ExpenseService, Expense, ExpenseCategory, ExpenseStats } from '../../co
 import { AuthService } from '../../core/services/auth.service';
 import Chart from 'chart.js/auto';
 import { PrintService } from '../../core/services/print.service';
+import { forkJoin, of } from 'rxjs';
 
 interface ExpenseFilters {
   startDate: string;
@@ -82,25 +83,38 @@ export class ExpensesComponent implements OnInit, AfterViewInit {
     if (this.filters.depotId) params.depotId = this.filters.depotId;
     if (this.filters.status) params.status = this.filters.status;
 
-    Promise.all([
-      this.expenseService.getCategories().toPromise(),
-      this.expenseService.getExpenses(params).toPromise(),
-      this.expenseService.getStats(params).toPromise(),
-      this.loadDepots()
-    ]).then(([categories, expenses, stats, depots]) => {
-      this.categories = categories || [];
-      this.expenses = expenses || [];
-      this.stats = stats || null;
-      this.depots = depots || [];
-      this.loading = false;
-      if (this.showChart) {
-        this.createChart();
+    forkJoin({
+      categories: this.expenseService.getCategories(),
+      expenses: this.expenseService.getExpenses(params),
+      stats: this.expenseService.getStats(params),
+      depots: this.loadDepotsObservable()
+    }).subscribe({
+      next: ({ categories, expenses, stats, depots }) => {
+        this.categories = categories || [];
+        this.expenses = expenses || [];
+        this.stats = stats || null;
+        this.depots = depots || [];
+        this.loading = false;
+        if (this.showChart) {
+          this.createChart();
+        }
+      },
+      error: (error) => {
+        this.error = 'Erreur lors du chargement des données';
+        this.loading = false;
       }
-    }).catch(error => {
-      console.error('Error loading data:', error);
-      this.error = 'Erreur lors du chargement des données';
-      this.loading = false;
     });
+  }
+
+  loadDepotsObservable() {
+    const depots = [
+      { id: 'all', name: 'Tous' },
+      { id: '1', name: 'Pt Vte Sfax' },
+      { id: '2', name: 'Pt Vte Tunis' },
+      { id: '3', name: 'Atelier' },
+      { id: '4', name: 'Dépôt Tunis' }
+    ];
+    return of(depots);
   }
 
   loadDepots(): Promise<any[]> {

@@ -408,32 +408,56 @@ router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { depotId } = req.query;
     
-    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
+    const documentId = parseInt(req.params.id);
+    
+    if (isNaN(documentId)) {
+      return res.status(400).json({ error: 'ID de document invalide' });
+    }
+    
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
+    const isAdmin = req.user?.role === 'ADMIN';
     
-    // For non-admin users, check depot access
-    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
-      return res.status(403).json({ error: 'Access denied: Cannot access other depot documents' });
+    let whereClause = {
+      id: documentId
+    };
+
+    if (!isAdmin) {
+      if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot documents' });
+      }
+      
+      if (targetDepotId) {
+        whereClause = {
+          AND: [
+            { id: documentId },
+            {
+              OR: [
+                { emetteurId: targetDepotId },
+                { destinataireId: targetDepotId }
+              ]
+            }
+          ]
+        };
+      } else if (userDepotId) {
+        whereClause = {
+          AND: [
+            { id: documentId },
+            {
+              OR: [
+                { emetteurId: userDepotId },
+                { destinataireId: userDepotId }
+              ]
+            }
+          ]
+        };
+      }
     }
-    
+
     const document = await prisma.stockDocument.findFirst({
-      where: {
-        id: parseInt(req.params.id),
-        ...(targetDepotId ? {
-          OR: [
-            { emetteurId: targetDepotId },
-            { destinataireId: targetDepotId }
-          ]
-        } : (req.user?.role === 'ADMIN' ? {} : {
-          OR: [
-            { emetteurId: userDepotId },
-            { destinataireId: userDepotId }
-          ]
-        }))
-      },
+      where: whereClause,
       include: {
       emetteur: { include: { company: true } },
       destinataire: { include: { company: true } },
@@ -475,7 +499,26 @@ router.get('/:id', authenticateToken, async (req, res) => {
     });
     
     if (!document) {
-      return res.status(404).json({ error: 'Document non trouvé' });
+      const documentExists = await prisma.stockDocument.findUnique({
+        where: { id: documentId },
+        select: { id: true, emetteurId: true, destinataireId: true, type: true }
+      });
+      
+      if (!documentExists) {
+        return res.status(404).json({ error: 'Document non trouvé' });
+      } else if (!isAdmin) {
+        return res.status(403).json({ 
+          error: 'Accès refusé: Ce document n\'appartient pas à votre dépôt',
+          documentInfo: {
+            id: documentExists.id,
+            type: documentExists.type,
+            emetteurId: documentExists.emetteurId,
+            destinataireId: documentExists.destinataireId
+          }
+        });
+      } else {
+        return res.status(404).json({ error: 'Document non trouvé' });
+      }
     }
 
     // Debug: Log TVA values from database
@@ -2196,7 +2239,39 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
               destinationDepotId: destinationDepotId
             });
             targetProductId = productLink.destinationProductId;
-            sourceProductId = productLink.destinationProductId; // Update for grouping
+            sourceProductId = productLink.destinationProductId;
+          } else {
+            // Check for famille consolidation if no direct product link
+            const sourceProduct = await tx.product.findUnique({
+              where: { id: sourceProductId },
+              select: { familleId: true }
+            });
+            
+            if (sourceProduct) {
+              const familleConsolidation = await tx.productFamilleConsolidation.findUnique({
+                where: {
+                  unique_famille_consolidation: {
+                    sourceFamilleId: sourceProduct.familleId,
+                    sourceDepotId: sourceDepotId,
+                    destinationDepotId: destinationDepotId
+                  }
+                },
+                include: {
+                  destinationProduct: true
+                }
+              });
+              
+              if (familleConsolidation) {
+                console.log('🔗 Found famille consolidation:', {
+                  sourceFamilleId: sourceProduct.familleId,
+                  sourceDepotId: sourceDepotId,
+                  destinationProductId: familleConsolidation.destinationProductId,
+                  destinationDepotId: destinationDepotId
+                });
+                targetProductId = familleConsolidation.destinationProductId;
+                sourceProductId = familleConsolidation.destinationProductId;
+              }
+            }
           }
         }
         
@@ -2228,14 +2303,49 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
           });
 
         } else if (item.famille) {
-
-          
-          // Try exact match first
-          parentProduct = await tx.product.findFirst({
-            where: {
-              name: item.famille
+          // First check for famille consolidation
+          if (sourceDepotId && destinationDepotId) {
+            const famille = await tx.productFamily.findFirst({
+              where: {
+                name: item.famille
+              }
+            });
+            
+            if (famille) {
+              const familleConsolidation = await tx.productFamilleConsolidation.findUnique({
+                where: {
+                  unique_famille_consolidation: {
+                    sourceFamilleId: famille.id,
+                    sourceDepotId: sourceDepotId,
+                    destinationDepotId: destinationDepotId
+                  }
+                },
+                include: {
+                  destinationProduct: true
+                }
+              });
+              
+              if (familleConsolidation) {
+                console.log('🔗 Found famille consolidation by name:', {
+                  familleName: item.famille,
+                  sourceDepotId: sourceDepotId,
+                  destinationProductId: familleConsolidation.destinationProductId,
+                  destinationDepotId: destinationDepotId
+                });
+                targetProductId = familleConsolidation.destinationProductId;
+                parentProduct = familleConsolidation.destinationProduct;
+              }
             }
-          });
+          }
+          
+          // If no consolidation found, try exact match by product name
+          if (!parentProduct) {
+            parentProduct = await tx.product.findFirst({
+              where: {
+                name: item.famille
+              }
+            });
+          }
           
           // If no exact match, try contains
           if (!parentProduct) {
@@ -2248,11 +2358,8 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
             });
           }
           
-          if (parentProduct) {
-
+          if (parentProduct && !targetProductId) {
             targetProductId = parentProduct.id;
-          } else {
-
           }
         }
         
@@ -2547,6 +2654,47 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     }
     
+    // Validate that all products exist in either Product or ProduitDeCaisse tables
+    for (const item of items) {
+      const productId = item.produitId || item.productId;
+      
+      if (!productId) {
+        return res.status(400).json({ 
+          error: 'Un ou plusieurs produits n\'ont pas d\'ID valide.' 
+        });
+      }
+      
+      const parsedProductId = parseInt(productId);
+      if (isNaN(parsedProductId)) {
+        return res.status(400).json({ 
+          error: `ID de produit invalide: ${productId}` 
+        });
+      }
+      
+      try {
+        const productExists = await prisma.product.findUnique({
+          where: { id: parsedProductId },
+          select: { id: true }
+        });
+        
+        const produitDeCaisseExists = await prisma.produitDeCaisse.findUnique({
+          where: { id: parsedProductId },
+          select: { id: true }
+        });
+        
+        if (!productExists && !produitDeCaisseExists) {
+          return res.status(400).json({ 
+            error: `Le produit (ID: ${parsedProductId}) n'existe pas dans Product ni ProduitDeCaisse.` 
+          });
+        }
+      } catch (validationError) {
+        console.error('Error validating product:', validationError);
+        return res.status(400).json({ 
+          error: `Erreur lors de la validation du produit (ID: ${parsedProductId}): ${validationError.message}` 
+        });
+      }
+    }
+    
     const document = await prisma.$transaction(async (tx) => {
       // Create the document
       const doc = await tx.stockDocument.create({
@@ -2602,9 +2750,22 @@ router.post('/', authenticateToken, async (req, res) => {
       });
 
       // Update inventory based on document type
+      // Note: Inventory and StockMovement only support Product table, not ProduitDeCaisse
       for (const item of items) {
         const productId = item.produitId || item.productId;
         const quantity = parseFloat(item.quantity);
+        
+        // Check if product exists in Product table (required for inventory operations)
+        const productExists = await tx.product.findUnique({
+          where: { id: productId },
+          select: { id: true }
+        });
+        
+        // Skip inventory operations if product is in ProduitDeCaisse (not supported yet)
+        if (!productExists) {
+          console.log(`Skipping inventory operations for product ${productId} (ProduitDeCaisse)`);
+          continue;
+        }
         
         // Use fromDepotId as fallback if depotId is not provided
         const effectiveDepotId = depotId || fromDepotId;
@@ -2710,7 +2871,27 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json(document);
   } catch (error) {
     console.error('Error creating document:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du document' });
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta
+    });
+    
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Un document avec ce numéro existe déjà' });
+    }
+    
+    if (error.code === 'P2003') {
+      return res.status(400).json({ 
+        error: 'Erreur de contrainte de clé étrangère. Vérifiez que tous les produits et dépôts existent.' 
+      });
+    }
+    
+    res.status(500).json({ 
+      error: 'Erreur lors de la création du document',
+      details: error.message 
+    });
   }
 });
 

@@ -16,7 +16,7 @@ import { StockDocumentActionDialogComponent } from '../shared/stock-document-act
     CommonModule,
     StockRoutingModule,
     FormsModule,
-    StockDocumentActionDialogComponent
+    StockDocumentActionDialogComponent,
   ]
 })
 export class StockModule { }
