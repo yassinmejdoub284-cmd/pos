@@ -12,6 +12,8 @@ import { Sale, SaleItem } from '../../core/models/sale.model';
 import { PrintService } from '../../core/services/print.service';
 import { DialogService } from '../../shared/services/dialog.service';
 import { ErrorDialogData } from '../../core/services/error-handling.service';
+import { DepotsService } from '../../core/services/depots.service';
+import { Depot } from '../../core/models/depot.model';
 
 export interface ReconciliationRow {
   date: Date;
@@ -182,6 +184,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   inventorySessions: InventorySession[] = [];
   reconciliationData: ReconciliationData[] = [];
   globalEcartSummary: GlobalEcartSummary | null = null;
+  depots: Depot[] = [];
   
   // Relevé Inventaire data
   releveInventaireData: ReleveInventaireRow[] = [];
@@ -246,7 +249,8 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     private inventoryService: InventoryService,
     private salesService: SalesService,
     private sessionsService: SessionsService,
-    private productsService: ProductsService
+    private productsService: ProductsService,
+    private depotsService: DepotsService
   ) {}
 
   ngOnInit(): void {
@@ -302,7 +306,15 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   loadInitialData(): void {
     this.loading = true;
     
-    // Load products and categories
+    this.depotsService.list().subscribe({
+      next: (depots) => {
+        this.depots = depots.filter(d => d.isActive);
+      },
+      error: (err) => {
+        console.error('Error loading depots:', err);
+      }
+    });
+    
     this.productsService.getProducts().subscribe({
       next: (products) => {
         this.products = products;
@@ -314,7 +326,6 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       }
     });
 
-    // Load categories
     this.productsService.getFamilles().subscribe({
       next: (categories) => {
         this.categories = categories;
@@ -324,7 +335,6 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       }
     });
 
-    // Load inventory sessions
     this.inventoryService.getSessions().subscribe({
       next: (sessions) => {
         this.inventorySessions = sessions.filter(s => s.status === 'POSTED');
@@ -447,6 +457,11 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   }
 
   private validateInputs(): boolean {
+    if (!this.depotId) {
+      this.error = 'Veuillez sélectionner un dépôt';
+      return false;
+    }
+
     if (this.rangeMode === 'DATE') {
       if (!this.startDate || !this.endDate) {
         this.error = 'Veuillez sélectionner une plage de dates';
@@ -534,7 +549,10 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getAllSalesData(): Promise<any[]> {
     try {
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      const url = this.depotId 
+        ? `${environment.apiUrl}/sales?depotId=${this.depotId}`
+        : `${environment.apiUrl}/sales`;
+      const allSales = await firstValueFrom(this.http.get<any[]>(url));
       return Array.isArray(allSales) ? allSales : [];
     } catch (err) {
       console.error('Error getting all sales data:', err);
@@ -544,7 +562,10 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getAllInventoryData(): Promise<any[]> {
     try {
-      const inventory = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock/inventory`));
+      const url = this.depotId 
+        ? `${environment.apiUrl}/stock/inventory?depotId=${this.depotId}`
+        : `${environment.apiUrl}/stock/inventory`;
+      const inventory = await firstValueFrom(this.http.get<any>(url));
       return Array.isArray(inventory) ? inventory : [];
     } catch (err) {
       console.error('Error getting all inventory data:', err);
@@ -604,22 +625,32 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getAllStockMovements(dateFrom: Date, dateTo: Date): Promise<any[]> {
     try {
+      const depotParams: any = {
+        type: 'BON_ENTREE_DEPOT',
+        limit: '1000',
+        dateFrom: dateFrom.toISOString(),
+        dateTo: dateTo.toISOString()
+      };
+      if (this.depotId) {
+        depotParams.depotId = this.depotId.toString();
+      }
+
       const depotResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
-        params: {
-          type: 'BON_ENTREE_DEPOT',
-          limit: '1000',
-          dateFrom: dateFrom.toISOString(),
-          dateTo: dateTo.toISOString()
-        }
+        params: depotParams
       }));
 
+      const magasinParams: any = {
+        type: 'BON_ENTREE_MAGASIN',
+        limit: '1000',
+        dateFrom: dateFrom.toISOString(),
+        dateTo: dateTo.toISOString()
+      };
+      if (this.depotId) {
+        magasinParams.depotId = this.depotId.toString();
+      }
+
       const magasinResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
-        params: {
-          type: 'BON_ENTREE_MAGASIN',
-          limit: '1000',
-          dateFrom: dateFrom.toISOString(),
-          dateTo: dateTo.toISOString()
-        }
+        params: magasinParams
       }));
 
       const handleResponse = (response: any): any[] => {
@@ -2635,18 +2666,32 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getStockEntriesDetails(): Promise<any[]> {
     try {
+      if (!this.depotId) {
+        return [];
+      }
+
+      const depotParams: any = {
+        type: 'BON_ENTREE_DEPOT',
+        limit: '1000'
+      };
+      if (this.depotId) {
+        depotParams.depotId = this.depotId.toString();
+      }
+
       const depotResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
-        params: {
-          type: 'BON_ENTREE_DEPOT',
-          limit: '1000'
-        }
+        params: depotParams
       }));
 
+      const magasinParams: any = {
+        type: 'BON_ENTREE_MAGASIN',
+        limit: '1000'
+      };
+      if (this.depotId) {
+        magasinParams.depotId = this.depotId.toString();
+      }
+
       const magasinResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
-        params: {
-          type: 'BON_ENTREE_MAGASIN',
-          limit: '1000'
-        }
+        params: magasinParams
       }));
       
       const handleResponse = (response: any): any[] => {
@@ -2663,7 +2708,14 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       const depotDocs = handleResponse(depotResponse);
       const magasinDocs = handleResponse(magasinResponse).filter((doc: any) => doc.status === 'RECEIVED');
       
-      const stockDocs = [...depotDocs, ...magasinDocs];
+      let stockDocs = [...depotDocs, ...magasinDocs];
+      
+      if (this.depotId) {
+        stockDocs = stockDocs.filter((doc: any) => {
+          const destinataireId = doc.destinataire?.id || doc.destinataireId || doc.depotId || doc.toDepotId;
+          return destinataireId === this.depotId;
+        });
+      }
       
       const entries = [];
       const processedEntries = new Set();
@@ -2719,21 +2771,24 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getCashClosuresDetails(): Promise<any[]> {
     try {
+      if (!this.depotId) {
+        return [];
+      }
+
       const dateFrom = new Date(this.startDate);
       const dateTo = new Date(this.endDate);
       dateTo.setHours(23, 59, 59, 999);
 
-      // Fetch ALL sessions without date filtering to get all data
       const sessions = await firstValueFrom(
         this.sessionsService.getSessions({
-          limit: 1000 // Increase limit to get more sessions
+          limit: 1000
         })
       );
 
       const sessionsArray = Array.isArray(sessions) ? sessions : [];
-      // Filter for CLOSED sessions within the date range based on closed_at
       const closedSessions = sessionsArray.filter(s => {
         if (s.status !== 'CLOSED' || !s.closedAt) return false;
+        if (this.depotId && s.depotId !== this.depotId) return false;
         
         const closedDate = new Date(s.closedAt);
         return closedDate >= dateFrom && closedDate <= dateTo;
@@ -2823,13 +2878,16 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getExpensesDetails(): Promise<any[]> {
     try {
-      // Get real expenses from your database within the date range
+      if (!this.depotId) {
+        return [];
+      }
+
       const dateFrom = new Date(this.startDate);
       const dateTo = new Date(this.endDate);
       dateTo.setHours(23, 59, 59, 999);
       
-      
-      const expensesResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/expenses?startDate=${dateFrom.toISOString().split('T')[0]}&endDate=${dateTo.toISOString().split('T')[0]}&limit=100`));
+      const url = `${environment.apiUrl}/expenses?startDate=${dateFrom.toISOString().split('T')[0]}&endDate=${dateTo.toISOString().split('T')[0]}&depotId=${this.depotId}&limit=100`;
+      const expensesResponse = await firstValueFrom(this.http.get<any>(url));
       
       // Handle different response formats
       let expenses = [];
@@ -3227,19 +3285,18 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getVracConversionsDetails(): Promise<any[]> {
     try {
+      if (!this.depotId) {
+        return [];
+      }
+
       const dateFrom = new Date(this.startDate);
       const dateTo = new Date(this.endDate);
       dateTo.setHours(23, 59, 59, 999);
       
-      const depotId = this.getCurrentDepotId();
-      if (!depotId) {
-        return [];
-      }
-      
       const response = await firstValueFrom(
         this.http.get<any[]>(`${environment.apiUrl}/stock/movements`, {
           params: {
-            depotId: depotId.toString(),
+            depotId: this.depotId.toString(),
             startDate: dateFrom.toISOString(),
             endDate: dateTo.toISOString(),
             limit: '1000'
@@ -3524,16 +3581,19 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   }
 
   async saveInventoryToReleveInventaire(): Promise<void> {
+    if (!this.depotId) {
+      this.error = 'Veuillez sélectionner un dépôt avant de générer le relevé inventaire';
+      return;
+    }
+
     try {
       this.loading = true;
       this.error = '';
 
-      // Get current inventory data
       const inventoryData = await firstValueFrom(
         this.http.get<any[]>(`${environment.apiUrl}/inventory?depotId=${this.depotId}`)
       );
 
-      // Get products data
       const productsData = await firstValueFrom(
         this.http.get<any[]>(`${environment.apiUrl}/products?depotId=${this.depotId}`)
       );
@@ -3946,13 +4006,20 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async findAllGratuitSalesForProduct(productId: number): Promise<any[]> {
     try {
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      if (!this.depotId) {
+        return [];
+      }
+
+      const url = `${environment.apiUrl}/sales?depotId=${this.depotId}`;
+      const allSales = await firstValueFrom(this.http.get<any[]>(url));
       const salesArray = Array.isArray(allSales) ? allSales : [];
       
       const gratuitSales = [];
       
-      // Find ALL gratuit sales for this product
       for (const sale of salesArray) {
+        if (this.depotId && sale.depotId !== this.depotId) {
+          continue;
+        }
         const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
         for (const item of saleItems) {
           if (sale.status === 'CADEAU' || Number(item.total) === 0) {
@@ -3980,11 +4047,18 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async findWholesaleSaleForProduct(productId: number): Promise<any> {
     try {
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      if (!this.depotId) {
+        return null;
+      }
+
+      const url = `${environment.apiUrl}/sales?depotId=${this.depotId}`;
+      const allSales = await firstValueFrom(this.http.get<any[]>(url));
       const salesArray = Array.isArray(allSales) ? allSales : [];
       
-      // Find the most recent wholesale sale for this product
       for (const sale of salesArray.reverse()) {
+        if (this.depotId && sale.depotId !== this.depotId) {
+          continue;
+        }
         const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
         for (const item of saleItems) {
           if (item.isWholesale || sale.isWholesale) {
@@ -4001,13 +4075,20 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async findAllWholesaleSalesForProduct(productId: number): Promise<any[]> {
     try {
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      if (!this.depotId) {
+        return [];
+      }
+
+      const url = `${environment.apiUrl}/sales?depotId=${this.depotId}`;
+      const allSales = await firstValueFrom(this.http.get<any[]>(url));
       const salesArray = Array.isArray(allSales) ? allSales : [];
       
       const wholesaleSales = [];
       
-      // Find ALL wholesale sales for this product
       for (const sale of salesArray) {
+        if (this.depotId && sale.depotId !== this.depotId) {
+          continue;
+        }
         const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
         for (const item of saleItems) {
           if (item.isWholesale || sale.isWholesale) {
@@ -4037,11 +4118,18 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async findDiscountSaleForProduct(productId: number): Promise<any> {
     try {
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      if (!this.depotId) {
+        return null;
+      }
+
+      const url = `${environment.apiUrl}/sales?depotId=${this.depotId}`;
+      const allSales = await firstValueFrom(this.http.get<any[]>(url));
       const salesArray = Array.isArray(allSales) ? allSales : [];
       
-      // Find the most recent sale with discount for this product
       for (const sale of salesArray.reverse()) {
+        if (this.depotId && sale.depotId !== this.depotId) {
+          continue;
+        }
         const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
         for (const item of saleItems) {
           if (Number(item.discount) > 0) {

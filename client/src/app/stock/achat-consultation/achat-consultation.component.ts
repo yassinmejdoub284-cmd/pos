@@ -1,9 +1,11 @@
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { StockDocumentsService } from '../../core/services/stock-documents.service';
 import { CookieService } from '../../core/services/cookie.service';
 import { StockDocument } from '../../core/models/stock-document.model';
+import { buildScanLikeDocumentHtmlFromDocument, getScanPrintStyles } from '../shared/print-templates';
 
 @Component({
   selector: 'app-achat-consultation',
@@ -16,6 +18,7 @@ export class AchatConsultationComponent implements OnInit {
   private router = inject(Router);
   private documentsService = inject(StockDocumentsService);
   private cookieService = inject(CookieService);
+  private sanitizer = inject(DomSanitizer);
 
   actionType = signal<'entry' | 'bon-retour'>('entry');
   depotId = signal<number | null>(null);
@@ -25,6 +28,9 @@ export class AchatConsultationComponent implements OnInit {
 
   isCompactMode = signal(false);
   isGridView = signal(false);
+  showViewModal = signal(false);
+  viewingDocument = signal<StockDocument | null>(null);
+  documentHtml = signal<SafeHtml>('');
 
   displayedDocuments = computed(() => {
     return this.documents();
@@ -66,7 +72,7 @@ export class AchatConsultationComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    const documentType = this.actionType() === 'entry' ? 'BON_ENTREE_MAGASIN' : 'BON_EXPEDITION';
+    const documentType = this.actionType() === 'entry' ? 'BON_ENTREE_DEPOT' : 'BON_EXPEDITION';
 
     this.documentsService.getDocuments(1, 1000, documentType, undefined, depotId).subscribe({
       next: (response) => {
@@ -151,7 +157,60 @@ export class AchatConsultationComponent implements OnInit {
   }
 
   viewDocument(documentId: number): void {
-    this.editDocument(documentId);
+    this.loading.set(true);
+    this.documentsService.getDocument(documentId).subscribe({
+      next: (doc) => {
+        const sessionType = this.actionType() === 'entry' ? 'entree' : 'sortie';
+        const html = buildScanLikeDocumentHtmlFromDocument(doc, sessionType, null);
+        this.viewingDocument.set(doc);
+        this.documentHtml.set(this.sanitizer.bypassSecurityTrustHtml(html));
+        this.showViewModal.set(true);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.error.set(err.error?.error || 'Erreur lors du chargement du document');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  closeViewModal(): void {
+    this.showViewModal.set(false);
+    this.viewingDocument.set(null);
+    this.documentHtml.set('');
+  }
+
+  printDocument(): void {
+    const doc = this.viewingDocument();
+    if (!doc) return;
+    
+    const sessionType = this.actionType() === 'entry' ? 'entree' : 'sortie';
+    const html = buildScanLikeDocumentHtmlFromDocument(doc, sessionType, null);
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      this.error.set('Impossible d\'ouvrir la fenêtre d\'impression');
+      return;
+    }
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Bon d'Entrée - ${doc.numero}</title>
+        <style>${getScanPrintStyles()}</style>
+      </head>
+      <body>
+        ${html}
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
   }
 
   editDocument(documentId: number): void {
