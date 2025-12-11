@@ -28,7 +28,7 @@
       <!-- User info card -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <div class="flex items-center gap-4">
-          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+          <div class="w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
             {{ currentUser?.firstName?.charAt(0) || 'U' }}
           </div>
           <div>
@@ -130,6 +130,53 @@
               </span>
               <span class="text-sm text-slate-600">{{ punch.time }}</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- All users logins -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="text-lg font-semibold text-slate-900 mb-4">Connexions de tous les utilisateurs</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-slate-200">
+                <th class="text-left py-3 px-4 text-sm font-semibold text-slate-700">Utilisateur</th>
+                <th class="text-left py-3 px-4 text-sm font-semibold text-slate-700">Statut</th>
+                <th class="text-left py-3 px-4 text-sm font-semibold text-slate-700">Heure d'entrée</th>
+                <th class="text-left py-3 px-4 text-sm font-semibold text-slate-700">Heure de sortie</th>
+                <th class="text-left py-3 px-4 text-sm font-semibold text-slate-700">Temps travaillé</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let userStatus of allUsersStatus" class="border-b border-slate-100">
+                <td class="py-3 px-4">
+                  <span class="font-medium text-slate-900">{{ userStatus.firstName }} {{ userStatus.lastName }}</span>
+                </td>
+                <td class="py-3 px-4">
+                  <span [ngClass]="{
+                    'bg-green-100 text-green-700': userStatus.isCheckedIn,
+                    'bg-slate-100 text-slate-700': !userStatus.isCheckedIn && !userStatus.hasCheckedIn,
+                    'bg-orange-100 text-orange-700': userStatus.hasCheckedOut
+                  }" class="px-2 py-1 rounded text-xs font-semibold">
+                    {{ userStatus.isCheckedIn ? 'En service' : (userStatus.hasCheckedOut ? 'Sorti' : 'Non connecté') }}
+                  </span>
+                  <span *ngIf="userStatus.isLate" class="ml-2 text-xs text-red-600 font-medium">Retard</span>
+                </td>
+                <td class="py-3 px-4 text-sm text-slate-600">
+                  {{ formatTime(userStatus.firstCheckIn) }}
+                </td>
+                <td class="py-3 px-4 text-sm text-slate-600">
+                  {{ formatTime(userStatus.lastCheckOut) }}
+                </td>
+                <td class="py-3 px-4 text-sm text-slate-600">
+                  {{ formatDuration(userStatus.workedSeconds) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div *ngIf="allUsersStatus.length === 0" class="text-center py-8 text-slate-500">
+            Aucune donnée disponible
           </div>
         </div>
       </div>

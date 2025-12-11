@@ -20,6 +20,27 @@ interface TodayStatus {
   }>;
 }
 
+interface UserTodayStatus {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  depotId: number | null;
+  hasCheckedIn: boolean;
+  hasCheckedOut: boolean;
+  isCheckedIn: boolean;
+  firstCheckIn: string | null;
+  lastCheckOut: string | null;
+  workedSeconds: number;
+  overtimeSeconds: number;
+  isLate: boolean;
+  isComplete: boolean;
+  punches: Array<{
+    type: string;
+    timestamp: string;
+    time: string;
+  }>;
+}
+
 @Component({
   selector: 'app-pointage',
   templateUrl: './pointage.component.html',
@@ -31,6 +52,7 @@ export class PointageComponent implements OnInit, OnDestroy {
   private router = inject(Router);
 
   todayStatus: TodayStatus | null = null;
+  allUsersStatus: UserTodayStatus[] = [];
   loading = false;
   error = '';
   currentUser = this.authService.currentUser();
@@ -56,10 +78,22 @@ export class PointageComponent implements OnInit, OnDestroy {
     this.attendanceService.getTodayStatus().subscribe({
       next: (data) => {
         this.todayStatus = data;
-        this.loading = false;
+        this.loadAllUsersStatus();
       },
       error: (err) => {
         this.error = 'Erreur lors du chargement du statut';
+        this.loading = false;
+      }
+    });
+  }
+
+  loadAllUsersStatus(): void {
+    this.attendanceService.getAllUsersTodayStatus().subscribe({
+      next: (data) => {
+        this.allUsersStatus = data;
+        this.loading = false;
+      },
+      error: (err) => {
         this.loading = false;
       }
     });
@@ -70,6 +104,7 @@ export class PointageComponent implements OnInit, OnDestroy {
     this.attendanceService.punch('CHECK_IN').subscribe({
       next: () => {
         this.loadTodayStatus();
+        this.loadAllUsersStatus();
       },
       error: (err) => {
         this.error = 'Erreur lors de l\'enregistrement de l\'entrée';
@@ -83,6 +118,7 @@ export class PointageComponent implements OnInit, OnDestroy {
     this.attendanceService.punch('CHECK_OUT').subscribe({
       next: () => {
         this.loadTodayStatus();
+        this.loadAllUsersStatus();
       },
       error: (err) => {
         this.error = 'Erreur lors de l\'enregistrement de la sortie';

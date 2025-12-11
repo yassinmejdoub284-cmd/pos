@@ -71,6 +71,10 @@ export class AttendanceService {
   getTodayStatus(): Observable<any> {
     return this.http.get<any>(`${this.API}/today`);
   }
+
+  getAllUsersTodayStatus(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.API}/today/all`);
+  }
 }
 
 

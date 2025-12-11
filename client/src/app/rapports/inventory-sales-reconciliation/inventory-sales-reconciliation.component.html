@@ -361,32 +361,6 @@
         </div>
       </div>
 
-      <!-- Depot Selection -->
-      <div class="mt-6 pt-6 border-t border-gray-200">
-        <div class="mb-4">
-          <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
-            <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-            </svg>
-            Dépôt
-          </label>
-          <div class="relative">
-            <select 
-              [(ngModel)]="depotId" 
-              title="Sélectionner un dépôt"
-              class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 appearance-none bg-white">
-              <option [value]="null">Sélectionner un dépôt...</option>
-              <option *ngFor="let depot of depots" [value]="depot.id">
-                {{ depot.name }}
-              </option>
-            </select>
-            <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-          </div>
-        </div>
-      </div>
-
       <!-- Actions -->
       <div class="flex items-center justify-between mt-6 pt-6 border-t border-gray-200">
         <div class="text-sm text-gray-600">
@@ -398,7 +372,7 @@
           <button 
             (click)="generateReport()" 
             [disabled]="loading"
-            class="bg-green-500 text-white px-8 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg transform disabled:transform-none flex items-center">
+            class="bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg transform disabled:transform-none flex items-center">
             <svg class="w-4 h-4 mr-2" [class.animate-spin]="loading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
             </svg>
@@ -407,8 +381,8 @@
           
           <button 
             (click)="saveInventoryToReleveInventaire()" 
-            [disabled]="loading || !depotId"
-            class="bg-blue-500 text-white px-6 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg transform disabled:transform-none flex items-center">
+            [disabled]="loading"
+            class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg transform disabled:transform-none flex items-center">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
             </svg>

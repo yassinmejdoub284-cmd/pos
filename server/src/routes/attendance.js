@@ -304,6 +304,97 @@ router.get('/today', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/today/all', authenticateToken, async (req, res) => {
+  try {
+    const now = new Date();
+    const dayDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+    const allUsers = await prisma.user.findMany({
+      where: {
+        isActive: true
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        depotId: true
+      },
+      orderBy: [
+        { firstName: 'asc' },
+        { lastName: 'asc' }
+      ]
+    });
+
+    const userIds = allUsers.map(u => u.id);
+
+    const todayAttendances = await prisma.attendanceDay.findMany({
+      where: {
+        userId: { in: userIds },
+        date: dayDate
+      }
+    });
+
+    const todayPunches = await prisma.attendancePunch.findMany({
+      where: {
+        userId: { in: userIds },
+        timestamp: {
+          gte: new Date(dayDate),
+          lt: new Date(dayDate.getTime() + 24 * 60 * 60 * 1000)
+        }
+      },
+      orderBy: { timestamp: 'desc' }
+    });
+
+    const attendanceMap = new Map();
+    todayAttendances.forEach(att => {
+      attendanceMap.set(att.userId, att);
+    });
+
+    const punchesMap = new Map();
+    todayPunches.forEach(punch => {
+      if (!punchesMap.has(punch.userId)) {
+        punchesMap.set(punch.userId, []);
+      }
+      punchesMap.get(punch.userId).push(punch);
+    });
+
+    const result = allUsers.map(user => {
+      const attendance = attendanceMap.get(user.id);
+      const punches = punchesMap.get(user.id) || [];
+
+      return {
+        userId: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        depotId: user.depotId,
+        hasCheckedIn: !!attendance?.firstCheckIn,
+        hasCheckedOut: !!attendance?.lastCheckOut,
+        isCheckedIn: !!attendance?.firstCheckIn && !attendance?.lastCheckOut,
+        firstCheckIn: attendance?.firstCheckIn?.toISOString() || null,
+        lastCheckOut: attendance?.lastCheckOut?.toISOString() || null,
+        workedSeconds: attendance?.workedSeconds || 0,
+        overtimeSeconds: attendance?.overtimeSeconds || 0,
+        isLate: attendance?.isLate || false,
+        isComplete: attendance?.isComplete || false,
+        punches: punches.map(p => ({
+          type: p.type,
+          timestamp: p.timestamp.toISOString(),
+          time: p.timestamp.toLocaleTimeString('fr-FR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          })
+        }))
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Get all users today attendance error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Punch endpoint for login/leave
 router.post('/punch', authenticateToken, async (req, res) => {
   try {
