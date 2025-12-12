@@ -1,6 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ProductsService } from '../../core/services/products.service';
 import { CommonModule } from '@angular/common';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 
 interface ProductLink {
   id: number;
@@ -54,16 +57,35 @@ interface GroupedLink {
   templateUrl: './product-links.component.html',
   styleUrls: ['./product-links.component.css']
 })
-export class ProductLinksComponent implements OnInit {
+export class ProductLinksComponent implements OnInit, OnDestroy {
   links: ProductLink[] = [];
   groupedLinks: GroupedLink[] = [];
   loading = false;
   error: string | null = null;
+  private destroy$ = new Subject<void>();
 
-  constructor(private productsService: ProductsService) {}
+  constructor(
+    private productsService: ProductsService,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
     this.loadLinks();
+    this.router.events
+      .pipe(
+        filter(event => event instanceof NavigationEnd),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((event: NavigationEnd) => {
+        if (event.urlAfterRedirects === '/stock/product-links' || event.urlAfterRedirects.startsWith('/stock/product-links')) {
+          this.loadLinks();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadLinks(): void {

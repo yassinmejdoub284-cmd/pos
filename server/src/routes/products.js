@@ -246,21 +246,48 @@ router.get('/depot-links', authenticateToken, async (req, res) => {
       }
     });
     
+    const enrichedProductLinks = await Promise.all(
+      productLinksRaw.map(async (link) => {
+        let sourceProduct = link.sourceProduct;
+        let destinationProduct = link.destinationProduct;
+        
+        const sourceProduitDeCaisse = await prisma.produitDeCaisse.findUnique({
+          where: { id: link.sourceProductId },
+          select: { id: true, name: true, barcode: true }
+        });
+        
+        if (sourceProduitDeCaisse) {
+          sourceProduct = sourceProduitDeCaisse;
+        }
+        
+        const destProduitDeCaisse = await prisma.produitDeCaisse.findUnique({
+          where: { id: link.destinationProductId },
+          select: { id: true, name: true, barcode: true }
+        });
+        
+        if (destProduitDeCaisse) {
+          destinationProduct = destProduitDeCaisse;
+        }
+        
+        return {
+          id: link.id,
+          sourceProductId: link.sourceProductId,
+          sourceDepotId: link.sourceDepotId,
+          destinationProductId: link.destinationProductId,
+          destinationDepotId: link.destinationDepotId,
+          createdAt: link.createdAt,
+          updatedAt: link.updatedAt,
+          linkType: 'Product',
+          sourceProduct,
+          sourceDepot: link.sourceDepot,
+          destinationProduct,
+          destinationDepot: link.destinationDepot
+        };
+      })
+    );
+    
     const allLinks = [
-      ...productLinksRaw.map(link => ({
-        id: link.id,
-        sourceProductId: link.sourceProductId,
-        sourceDepotId: link.sourceDepotId,
-        destinationProductId: link.destinationProductId,
-        destinationDepotId: link.destinationDepotId,
-        createdAt: link.createdAt,
-        updatedAt: link.updatedAt,
-        linkType: 'Product',
-        sourceProduct: link.sourceProduct,
-        sourceDepot: link.sourceDepot,
-        destinationProduct: link.destinationProduct,
-        destinationDepot: link.destinationDepot
-      })),
+      ...enrichedProductLinks,
       ...produitDeCaisseLinksRaw.map(link => ({
         id: link.id,
         sourceProductId: link.sourceProductId,
@@ -3287,7 +3314,7 @@ router.post('/depot-links', authenticateToken, async (req, res) => {
       } else if (useProduitDeCaisseTable) {
         useProduitDeCaisseTableForLink = true;
       } else if (isMixed) {
-        useProduitDeCaisseTableForLink = sourceIsProduitDeCaisse;
+        useProduitDeCaisseTableForLink = false;
       } else {
         return res.status(400).json({ 
           error: 'Impossible de déterminer la table à utiliser pour créer le lien' 

@@ -957,10 +957,18 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     });
 
     // Get debt transactions
+    // Include all DEBT type transactions (initial balances) regardless of date
+    // Only filter PAYMENT type transactions by date range
     const debtTransactions = await prisma.supplierDebtTransaction.findMany({
       where: { 
         supplierId: parseInt(supplierId),
-        createdAt: { gte: start, lte: end }
+        OR: [
+          { type: 'DEBT' },
+          { 
+            type: 'PAYMENT',
+            createdAt: { gte: start, lte: end }
+          }
+        ]
       },
       select: {
         id: true,

@@ -10,7 +10,17 @@
           <p class="text-amber-600/70 mt-2">Consultation des relevés clients</p>
         </div>
         <div class="flex space-x-3">
-          <a routerLink="/home"
+          <button *ngIf="!showSummary"
+             (click)="backToSummary()"
+             title="Retour"
+             class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-white transition-colors shadow-md">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Retour</span>
+          </button>
+          <a *ngIf="showSummary"
+             routerLink="/home"
              title="Retour"
              class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-white transition-colors shadow-md">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -41,7 +51,7 @@
             [(ngModel)]="filters.clientId" 
             (change)="onClientChange()"
             class="w-full px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
-            <option value="">Tous les clients</option>
+            <option [ngValue]="null">Tous les clients</option>
             <option *ngFor="let client of clientSummaries" [value]="client.id">
               {{ getClientFullName(client) }} ({{ client.code }})
             </option>

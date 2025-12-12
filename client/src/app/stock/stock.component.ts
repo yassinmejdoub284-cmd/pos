@@ -11,6 +11,7 @@ import { StockDocument } from '../core/models/stock-document.model';
 import { ProductsService } from '../core/services/products.service';
 import { InventoryService } from '../core/services/inventory.service';
 import { Product } from '../core/models/product.model';
+import { MessageDialogComponent } from '../shared/message-dialog/message-dialog.component'; '../shared/message-dialog/message-dialog.component';
 
 @Component({
   selector: 'app-stock',
@@ -52,6 +53,11 @@ export class StockComponent implements OnInit {
   savingLinks = false;
   private isLoadingProducts = false;
   private isSettingSourceDepotProgrammatically = false;
+
+  showMessageDialog = false;
+  messageDialogTitle = '';
+  messageDialogMessage = '';
+  messageDialogType: 'error' | 'success' | 'warning' | 'info' = 'info';
 
   actionCards: Array<{ id: string; title: string; description: string; icon: string; color: string; }> = [];
 
@@ -281,9 +287,15 @@ export class StockComponent implements OnInit {
   private loadProductsForSourceDepot(depotId: number, depotType: string): void {
     this.inventoryService.getProductsForDepot(depotId, depotType).subscribe({
       next: (products) => {
-        this.sourceDepotProducts = products || [];
-        this.depotProducts = products || [];
-        this.filteredProducts = products || [];
+        const validProducts = (products || []).filter(p => {
+          if (!p || !p.id || isNaN(parseInt(String(p.id)))) {
+            return false;
+          }
+          return this.canProductBeLinked(p, depotId, depotType);
+        });
+        this.sourceDepotProducts = validProducts;
+        this.depotProducts = validProducts;
+        this.filteredProducts = validProducts;
         this.sourceProductsError = null;
         this.loadingSourceProducts = false;
         this.loadingProducts = false;
@@ -330,7 +342,13 @@ export class StockComponent implements OnInit {
   private loadProductsForDestinationDepot(depotId: number, depotType: string): void {
     this.inventoryService.getProductsForDepot(depotId, depotType).subscribe({
       next: (products) => {
-        this.destinationDepotProducts = products || [];
+        const validProducts = (products || []).filter(p => {
+          if (!p || !p.id || isNaN(parseInt(String(p.id)))) {
+            return false;
+          }
+          return this.canProductBeLinked(p, depotId, depotType);
+        });
+        this.destinationDepotProducts = validProducts;
         this.destinationProductsError = null;
         this.loadingDestinationProducts = false;
       },
@@ -347,6 +365,27 @@ export class StockComponent implements OnInit {
         this.loadingDestinationProducts = false;
       }
     });
+  }
+
+  private canProductBeLinked(product: any, depotId: number, depotType: string): boolean {
+    if (!product || !product.id || isNaN(parseInt(String(product.id)))) {
+      return false;
+    }
+
+    const productId = parseInt(String(product.id));
+    if (isNaN(productId) || productId <= 0) {
+      return false;
+    }
+
+    if (depotType === 'SHOP') {
+      return true;
+    }
+
+    if (depotType === 'MAIN' || depotType === 'BRANCH' || depotType === 'WAREHOUSE') {
+      return true;
+    }
+
+    return false;
   }
 
   filterSourceProducts(): void {
@@ -486,10 +525,32 @@ export class StockComponent implements OnInit {
     if (this.destinationDepotId) {
       this.loadDestinationDepotProducts(this.destinationDepotId);
       this.droppedDestinationProduct = null;
+      this.filterSourceProductsForCompatibility();
     } else {
       this.destinationDepotProducts = [];
       this.droppedDestinationProduct = null;
     }
+  }
+
+  private filterSourceProductsForCompatibility(): void {
+    if (!this.sourceDepotId || !this.destinationDepotId) {
+      return;
+    }
+
+    const sourceDepot = this.depots.find(d => d.id === this.sourceDepotId);
+    const destinationDepot = this.depots.find(d => d.id === this.destinationDepotId);
+
+    if (!sourceDepot || !destinationDepot) {
+      return;
+    }
+
+    this.sourceDepotProducts = this.sourceDepotProducts.filter(p => 
+      this.canProductBeLinked(p, this.sourceDepotId!, sourceDepot.type)
+    );
+
+    this.droppedSourceProducts = this.droppedSourceProducts.filter(p => 
+      this.canProductBeLinked(p, this.sourceDepotId!, sourceDepot.type)
+    );
   }
 
   refreshDestinationProducts(): void {
@@ -1021,24 +1082,110 @@ export class StockComponent implements OnInit {
     this.router.navigate(['/stock/product-links']);
   }
 
+  showMessage(title: string, message: string, type: 'error' | 'success' | 'warning' | 'info' = 'info'): void {
+    this.messageDialogTitle = title;
+    this.messageDialogMessage = message;
+    this.messageDialogType = type;
+    this.showMessageDialog = true;
+  }
+
+  closeMessageDialog(): void {
+    this.showMessageDialog = false;
+  }
+
   saveProductLinks(): void {
     if (!this.sourceDepotId || !this.destinationDepotId || !this.droppedDestinationProduct || this.droppedSourceProducts.length === 0) {
       return;
     }
 
-    if (this.isBothDepotsNonShop() && this.droppedSourceProducts.length > 1) {
-      this.droppedSourceProducts = [this.droppedSourceProducts[0]];
+    let sourceDepot = this.depots.find(d => d.id === this.sourceDepotId);
+    let destinationDepot = this.depots.find(d => d.id === this.destinationDepotId);
+
+    const loadDepots = () => {
+      const promises: Promise<Depot>[] = [];
+
+      if (!sourceDepot) {
+        promises.push(
+          new Promise<Depot>((resolve, reject) => {
+            this.depotsService.get(this.sourceDepotId!).subscribe({
+              next: (depot) => {
+                sourceDepot = depot;
+                resolve(depot);
+              },
+              error: reject
+            });
+          })
+        );
+      }
+
+      if (!destinationDepot) {
+        promises.push(
+          new Promise<Depot>((resolve, reject) => {
+            this.depotsService.get(this.destinationDepotId!).subscribe({
+              next: (depot) => {
+                destinationDepot = depot;
+                resolve(depot);
+              },
+              error: reject
+            });
+          })
+        );
+      }
+
+      if (promises.length === 0) {
+        this.continueSaveProductLinks(sourceDepot!, destinationDepot!);
+        return;
+      }
+
+      Promise.all(promises)
+        .then(() => {
+          this.continueSaveProductLinks(sourceDepot!, destinationDepot!);
+        })
+        .catch(() => {
+          this.showMessage('Erreur', 'Impossible de trouver les informations des dépôts', 'error');
+          this.savingLinks = false;
+        });
+    };
+
+    loadDepots();
+  }
+
+  private continueSaveProductLinks(sourceDepot: Depot, destinationDepot: Depot | null): void {
+    if (!sourceDepot || !destinationDepot) {
+      this.showMessage('Erreur', 'Impossible de trouver les informations des dépôts', 'error');
+      this.savingLinks = false;
+      return;
     }
 
-    const invalidSourceProducts = this.droppedSourceProducts.filter(p => !p.id || isNaN(parseInt(String(p.id))));
+    const invalidSourceProducts = this.droppedSourceProducts.filter(p => {
+      if (!p || !p.id || isNaN(parseInt(String(p.id)))) {
+        return true;
+      }
+      return !this.canProductBeLinked(p, this.sourceDepotId!, sourceDepot.type);
+    });
+
     if (invalidSourceProducts.length > 0) {
-      alert('Erreur: Certains produits source ont des IDs invalides');
+      const productNames = invalidSourceProducts.map(p => p.name || 'Produit inconnu').join(', ');
+      this.showMessage('Erreur', `Les produits suivants ne peuvent pas être liés: ${productNames}`, 'error');
+      this.droppedSourceProducts = this.droppedSourceProducts.filter(p => !invalidSourceProducts.includes(p));
+      this.savingLinks = false;
       return;
     }
 
     if (!this.droppedDestinationProduct.id || isNaN(parseInt(String(this.droppedDestinationProduct.id)))) {
-      alert('Erreur: Le produit destination a un ID invalide');
+      this.showMessage('Erreur', 'Le produit destination a un ID invalide', 'error');
+      this.savingLinks = false;
       return;
+    }
+
+    if (!this.canProductBeLinked(this.droppedDestinationProduct, this.destinationDepotId!, destinationDepot.type)) {
+      this.showMessage('Erreur', 'Le produit destination ne peut pas être lié', 'error');
+      this.savingLinks = false;
+      return;
+    }
+
+    if (this.isBothDepotsNonShop() && this.droppedSourceProducts.length > 1) {
+      this.droppedSourceProducts = [this.droppedSourceProducts[0]];
     }
 
     this.savingLinks = true;
@@ -1080,15 +1227,25 @@ export class StockComponent implements OnInit {
             : `${failed} lien(s) n'ont pas pu être créés`;
           
           if (successful > 0) {
-            alert(`${successful} lien(s) créé(s) avec succès.\n\n${errorMessage}`);
+            this.showMessage(
+              'Enregistrement partiel', 
+              `${successful} lien(s) créé(s) avec succès.\n\n${errorMessage}`, 
+              'warning'
+            );
           } else {
-            alert(errorMessage);
+            this.showMessage('Erreur', errorMessage, 'error');
             return;
           }
+        } else if (successful > 0) {
+          this.showMessage('Succès', `${successful} lien(s) créé(s) avec succès`, 'success');
         }
         
-        this.closeDepotProductsModal();
-        this.router.navigate(['/stock/product-links']);
+        if (failed === 0) {
+          this.closeDepotProductsModal();
+          setTimeout(() => {
+            this.router.navigate(['/stock/product-links']);
+          }, 1500);
+        }
       });
   }
 } 

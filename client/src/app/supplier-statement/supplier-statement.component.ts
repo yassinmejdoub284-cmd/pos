@@ -142,7 +142,8 @@ export class SupplierStatementComponent implements OnInit {
       'payment': 'Règlement',
       'bon_entree': 'Bon d\'entrée',
       'bon_retour': 'Bon de retour',
-      'credit': 'Crédit'
+      'credit': 'Crédit',
+      'debt': 'Dette initiale'
     };
     return types[type] || type;
   }
@@ -153,7 +154,8 @@ export class SupplierStatementComponent implements OnInit {
       'payment': 'text-green-600 bg-green-50',
       'bon_entree': 'text-blue-600 bg-blue-50',
       'bon_retour': 'text-purple-600 bg-purple-50',
-      'credit': 'text-orange-600 bg-orange-50'
+      'credit': 'text-orange-600 bg-orange-50',
+      'debt': 'text-yellow-600 bg-yellow-50'
     };
     return colors[type] || 'text-gray-600 bg-gray-50';
   }
@@ -364,6 +366,7 @@ export class SupplierStatementComponent implements OnInit {
     .badge-bon_entree { color: #1d4ed8; background: #dbeafe; border-color: #93c5fd; }
     .badge-bon_retour { color: #7c3aed; background: #ede9fe; border-color: #a78bfa; }
     .badge-credit { color: #9a3412; background: #ffedd5; border-color: #fdba74; }
+    .badge-debt { color: #a16207; background: #fef3c7; border-color: #fcd34d; }
     tr { page-break-inside: avoid; }
     .footer { position: fixed; bottom: 8mm; left: 12mm; right: 12mm; font-size: 11px; color: #64748b; display: flex; justify-content: space-between; }
     @media print { .no-print { display: none; } }
@@ -426,6 +429,7 @@ export class SupplierStatementComponent implements OnInit {
     if (type === 'bon_entree') return 'badge-bon_entree';
     if (type === 'bon_retour') return 'badge-bon_retour';
     if (type === 'credit') return 'badge-credit';
+    if (type === 'debt') return 'badge-debt';
     return 'badge';
   }
 
