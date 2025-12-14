@@ -1,9 +1,10 @@
 import { Component, OnInit, signal, inject, computed } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ProduitsDeStockService } from '../../core/services/produits-de-caisse.service';
 import { ProductsService } from '../../core/services/products.service';
 import { SessionsService } from '../../core/services/sessions.service';
-import { Product } from '../../core/models/product.model';
+import { Product, ProductFamily } from '../../core/models/product.model';
 import { ProduitDeStock } from '../../core/models/produit-de-caisse.model';
 
 @Component({
@@ -15,6 +16,7 @@ export class ProduitsDeStockComponent implements OnInit {
   private produitsDeStockService = inject(ProduitsDeStockService);
   private productsService = inject(ProductsService);
   private sessionsService = inject(SessionsService);
+  private fb = inject(FormBuilder);
 
   produitsDeStock = signal<ProduitDeStock[]>([]);
   allProducts = signal<Product[]>([]);
@@ -22,6 +24,10 @@ export class ProduitsDeStockComponent implements OnInit {
   error = signal('');
   showForm = signal(false);
   editingProduit = signal<ProduitDeStock | null>(null);
+  showParentProductForm = signal(false);
+  families = signal<ProductFamily[]>([]);
+  parentProductForm!: FormGroup;
+  creatingParentProduct = signal(false);
   
   // Filtering
   searchQuery = signal('');
@@ -54,7 +60,31 @@ export class ProduitsDeStockComponent implements OnInit {
   viewMode = signal<'table' | 'grid'>('table');
 
   ngOnInit(): void {
+    this.initializeParentProductForm();
+    this.loadFamilies();
     this.loadData();
+  }
+
+  private initializeParentProductForm(): void {
+    this.parentProductForm = this.fb.group({
+      name: ['', [Validators.required, Validators.minLength(2)]],
+      familleId: [null, Validators.required],
+      prix_vente_TTC: [0, [Validators.required, Validators.min(0)]],
+      prix_achat: [null, [Validators.min(0)]],
+      tva: [19, [Validators.required, Validators.min(0), Validators.max(100)]],
+      unite: ['pcs', Validators.required]
+    });
+  }
+
+  private loadFamilies(): void {
+    this.productsService.getFamilles().subscribe({
+      next: (families) => {
+        this.families.set(families);
+      },
+      error: (err) => {
+        console.error('Error loading families:', err);
+      }
+    });
   }
 
   private async loadData(): Promise<void> {
@@ -166,5 +196,70 @@ export class ProduitsDeStockComponent implements OnInit {
 
   toggleViewMode(): void {
     this.viewMode.set(this.viewMode() === 'table' ? 'grid' : 'table');
+  }
+
+  onParentProductAdded(): void {
+    this.error.set('');
+    this.parentProductForm.reset({
+      name: '',
+      familleId: null,
+      prix_vente_TTC: 0,
+      prix_achat: null,
+      tva: 19,
+      unite: 'pcs'
+    });
+    this.showParentProductForm.set(true);
+  }
+
+  onCreateParentProduct(): void {
+    if (this.parentProductForm.valid) {
+      this.creatingParentProduct.set(true);
+      const formValue = this.parentProductForm.value;
+      
+      const productData: Partial<Product> = {
+        name: formValue.name,
+        familleId: parseInt(formValue.familleId),
+        prix_vente_TTC: formValue.prix_vente_TTC,
+        prix_achat: formValue.prix_achat || null,
+        tva: formValue.tva,
+        unite: formValue.unite,
+        isStockable: false,
+        isVraguable: false
+      };
+
+      this.productsService.createProduct(productData).subscribe({
+        next: () => {
+          this.error.set('');
+          this.loadData();
+          this.showParentProductForm.set(false);
+          this.creatingParentProduct.set(false);
+          this.parentProductForm.reset({
+            name: '',
+            familleId: null,
+            prix_vente_TTC: 0,
+            prix_achat: null,
+            tva: 19,
+            unite: 'pcs'
+          });
+        },
+        error: (err) => {
+          this.error.set(err.error?.error || 'Erreur lors de la création du produit parent');
+          this.creatingParentProduct.set(false);
+        }
+      });
+    }
+  }
+
+  onParentProductFormClose(): void {
+    this.error.set('');
+    this.showParentProductForm.set(false);
+    this.parentProductForm.reset({
+      name: '',
+      familleId: null,
+      prix_vente_TTC: 0,
+      prix_achat: null,
+      tva: 19,
+      unite: 'pcs'
+    });
   }
 }

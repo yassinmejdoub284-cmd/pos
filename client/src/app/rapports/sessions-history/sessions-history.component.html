@@ -127,8 +127,13 @@
                     📄 A4 Format
                   </button>
                   <button (click)="printWithFamily(selectedSession()!, '80mm')" 
-                          class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-b-lg">
+                          class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
                     🧾 80mm Thermal
+                  </button>
+                  <div class="border-t border-slate-200 my-1"></div>
+                  <button (click)="exportSessionDataByFamily(selectedSession()!)" 
+                          class="w-full text-left px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50 rounded-b-lg">
+                    💾 Exporter JSON
                   </button>
                 </div>
               </div>
@@ -152,8 +157,13 @@
                     📄 A4 Format
                   </button>
                   <button (click)="printByArticle(selectedSession()!, '80mm')" 
-                          class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-b-lg">
+                          class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
                     🧾 80mm Thermal
+                  </button>
+                  <div class="border-t border-slate-200 my-1"></div>
+                  <button (click)="exportSessionDataByArticle(selectedSession()!)" 
+                          class="w-full text-left px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50 rounded-b-lg">
+                    💾 Exporter JSON
                   </button>
                 </div>
               </div>

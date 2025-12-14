@@ -1407,10 +1407,8 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
     this.loading.set(true);
     
-    // Get session report data
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
-        // Prepare export data
         const exportData = {
           sessionInfo: {
             id: session.id,
@@ -1437,7 +1435,6 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           exportType: 'session_closure'
         };
 
-        // Create and download JSON file
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
@@ -1455,6 +1452,215 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         this.error.set('Erreur lors de l\'export des données: ' + (error.error?.error || error.message || 'Erreur inconnue'));
+        this.loading.set(false);
+      }
+    });
+  }
+
+  exportSessionDataByFamily(session: SessionCaisse): void {
+    if (!session) {
+      this.error.set('Aucune session active trouvée');
+      return;
+    }
+
+    this.showFamilyDropdown = false;
+    this.loading.set(true);
+    
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (sessionReport) => {
+        const sales: any[] = (sessionReport?.session?.sales || []) as any[];
+        const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number; discount: number }>> = {};
+
+        if (sales.length) {
+          for (const sale of sales) {
+            const status = (sale.status || '').toUpperCase();
+            if (status === 'CANCELLED' || status === 'REFUNDED') {
+              continue;
+            }
+
+            const items: any[] = (sale.items || []) as any[];
+            for (const it of items) {
+              const productName: string = (it.productName || it.product?.name || it.name || 'Produit').toString();
+              const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
+              const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
+              const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+              const lineDiscount: number = parseFloat(String(it.discount ?? 0)) || 0;
+              
+              if (!familyArticleTotals[familyName]) {
+                familyArticleTotals[familyName] = {};
+              }
+              
+              if (!familyArticleTotals[familyName][productName]) {
+                familyArticleTotals[familyName][productName] = { quantity: 0, total: 0, discount: 0 };
+              }
+              
+              familyArticleTotals[familyName][productName].quantity += qty;
+              familyArticleTotals[familyName][productName].total += lineTotal;
+              familyArticleTotals[familyName][productName].discount += lineDiscount;
+            }
+          }
+        }
+
+        const families = Object.keys(familyArticleTotals).sort().map(familyName => {
+          const articles = Object.keys(familyArticleTotals[familyName]).sort().map(articleName => ({
+            nom: articleName,
+            quantite: familyArticleTotals[familyName][articleName].quantity,
+            total: familyArticleTotals[familyName][articleName].total,
+            remise: familyArticleTotals[familyName][articleName].discount
+          }));
+
+          const familyTotal = articles.reduce((sum, art) => sum + art.total, 0);
+          const familyDiscount = articles.reduce((sum, art) => sum + art.remise, 0);
+
+          return {
+            nom: familyName,
+            articles: articles,
+            total: familyTotal,
+            remise: familyDiscount
+          };
+        });
+
+        const exportData = {
+          sessionInfo: {
+            id: session.id,
+            openedAt: session.openedAt,
+            closedAt: session.closedAt,
+            user: session.user,
+            depot: sessionReport.session?.depot,
+            openingFund: session.openingFund
+          },
+          summary: {
+            totalSales: sessionReport.summary?.totalSales || 0,
+            totalTickets: sessionReport.summary?.totalTickets || 0,
+            expectedCash: sessionReport.summary?.expectedCash || 0
+          },
+          familles: families,
+          exportDate: new Date().toISOString(),
+          exportType: 'session_by_family'
+        };
+
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `session_${session.id}_par_famille_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        this.loading.set(false);
+        this.error.set('');
+      },
+      error: (error) => {
+        this.error.set('Erreur lors de l\'export par famille: ' + (error.error?.error || error.message || 'Erreur inconnue'));
+        this.loading.set(false);
+      }
+    });
+  }
+
+  exportSessionDataByArticle(session: SessionCaisse): void {
+    if (!session) {
+      this.error.set('Aucune session active trouvée');
+      return;
+    }
+
+    this.showArticleDropdown = false;
+    this.loading.set(true);
+    
+    this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
+      next: (sessionReport) => {
+        const sales: any[] = (sessionReport?.session?.sales || []) as any[];
+        const articleMap: Record<string, { 
+          nom: string; 
+          famille: string; 
+          quantite: number; 
+          total: number; 
+          remise: number;
+          productId?: number;
+        }> = {};
+
+        if (sales.length) {
+          for (const sale of sales) {
+            const status = (sale.status || '').toUpperCase();
+            if (status === 'CANCELLED' || status === 'REFUNDED') {
+              continue;
+            }
+
+            const items: any[] = (sale.items || []) as any[];
+            for (const it of items) {
+              const productName: string = (it.productName || it.product?.name || it.name || 'Produit').toString();
+              const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
+              const productId = it.product?.id || it.productId;
+              const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
+              const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+              const lineDiscount: number = parseFloat(String(it.discount ?? 0)) || 0;
+              
+              const key = `${productName}_${productId || ''}`;
+              
+              if (!articleMap[key]) {
+                articleMap[key] = {
+                  nom: productName,
+                  famille: familyName,
+                  quantite: 0,
+                  total: 0,
+                  remise: 0,
+                  productId: productId
+                };
+              }
+              
+              articleMap[key].quantite += qty;
+              articleMap[key].total += lineTotal;
+              articleMap[key].remise += lineDiscount;
+            }
+          }
+        }
+
+        const articles = Object.values(articleMap).sort((a, b) => {
+          if (a.famille !== b.famille) {
+            return a.famille.localeCompare(b.famille);
+          }
+          return a.nom.localeCompare(b.nom);
+        });
+
+        const exportData = {
+          sessionInfo: {
+            id: session.id,
+            openedAt: session.openedAt,
+            closedAt: session.closedAt,
+            user: session.user,
+            depot: sessionReport.session?.depot,
+            openingFund: session.openingFund
+          },
+          summary: {
+            totalSales: sessionReport.summary?.totalSales || 0,
+            totalTickets: sessionReport.summary?.totalTickets || 0,
+            expectedCash: sessionReport.summary?.expectedCash || 0
+          },
+          articles: articles,
+          exportDate: new Date().toISOString(),
+          exportType: 'session_by_article'
+        };
+
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `session_${session.id}_par_article_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        this.loading.set(false);
+        this.error.set('');
+      },
+      error: (error) => {
+        this.error.set('Erreur lors de l\'export par article: ' + (error.error?.error || error.message || 'Erreur inconnue'));
         this.loading.set(false);
       }
     });
