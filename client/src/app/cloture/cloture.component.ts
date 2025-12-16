@@ -762,23 +762,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
       }));
   }
 
-  // Get total of all sorties (cash outflows) from session summary
   getAllSortiesTotal(): number {
     const summary: any = this.currentSession()?.summary || {};
-    // Use sortie from summary if available (includes all SORTIE, DEPOT_COFFRE, RETRAIT_CENTRALE)
     const sortieFromSummary = parseFloat(summary.sortie || 0) || 0;
     if (sortieFromSummary > 0) {
       return sortieFromSummary;
     }
     
-    // Fallback: calculate from movements
     const movements = this.currentSession()?.cashMovements || [];
     return movements
       .filter(m => {
         const reason = String(m.reason || '');
         const reasonLower = reason.toLowerCase();
         const amount = parseFloat((m as any).amount || 0) || 0;
-        const isBonRetour = reasonLower.includes('bon de retour');
+        const isBonRetour = reasonLower.includes('bon de retour') || 
+                           reasonLower.includes('bon retour') ||
+                           reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
         return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && 
                amount > 0 && 
                !reason.includes('[REJETÉ]') && 

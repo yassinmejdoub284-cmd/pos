@@ -1214,15 +1214,13 @@ router.delete('/statement/transaction', authenticateToken, async (req, res) => {
                   const reasonLower = reason.toLowerCase();
                   const amount = parseFloat(m.amount || 0);
                   const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
-                  // CRITICAL: Exclude canceled ticket refunds - check both ticketId link and reason text
                   const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
-                  // CRITICAL: Exclude client credit payments from decaissement
                   const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
                                                  reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
                                                  reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
-                  // CRITICAL: Exclude bon de retour from decaissement (creates supplier credit, not cash outflow)
-                  const isBonRetour = reasonLower.includes('bon de retour');
-                  // Exclude canceled ticket refunds, client credit payments, and bon de retour
+                  const isBonRetour = reasonLower.includes('bon de retour') || 
+                                     reasonLower.includes('bon retour') ||
+                                     reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
                   const shouldExclude = isFromCancelledTicket || isCanceledTicketRefund || isClientCreditPayment || isBonRetour;
                   return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !shouldExclude && amount > 0;
                 })

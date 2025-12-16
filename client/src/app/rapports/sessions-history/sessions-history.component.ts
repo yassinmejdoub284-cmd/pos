@@ -714,24 +714,22 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   }
 
   getDecaissementTotal(): number {
-    // Get total of all sorties (cash outflows) from session summary
-    // Same formula as cloture component
     const session = this.selectedSession();
     const summary: any = session?.summary || {};
-    // Use sortie from summary if available (includes all SORTIE, DEPOT_COFFRE, RETRAIT_CENTRALE)
     const sortieFromSummary = parseFloat(summary.sortie || 0) || 0;
     if (sortieFromSummary > 0) {
       return sortieFromSummary;
     }
     
-    // Fallback: calculate from movements
     const movements = session?.cashMovements || [];
     return movements
       .filter(m => {
         const reason = String(m.reason || '');
         const reasonLower = reason.toLowerCase();
         const amount = parseFloat((m as any).amount || 0) || 0;
-        const isBonRetour = reasonLower.includes('bon de retour');
+        const isBonRetour = reasonLower.includes('bon de retour') || 
+                           reasonLower.includes('bon retour') ||
+                           reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
         return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && 
                amount > 0 && 
                !reason.includes('[REJETÉ]') && 

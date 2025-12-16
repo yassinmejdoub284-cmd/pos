@@ -1835,7 +1835,9 @@ async function calculateSessionSummary(sessionId) {
     const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
     const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
     const isReturnRefund = reason.includes('Remboursement retour') || reason.includes('retour');
-    const isBonRetour = reasonLower.includes('bon de retour');
+    const isBonRetour = reasonLower.includes('bon de retour') || 
+                       reasonLower.includes('bon retour') ||
+                       reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
     const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
                                    reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
                                    reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
