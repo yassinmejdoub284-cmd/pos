@@ -596,11 +596,19 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         orderBy: { createdAt: 'asc' }
       });
 
-      // Get debt transactions for this supplier in period
+      // Get debt transactions for this supplier
+      // Include ALL DEBT type transactions (initial balances) regardless of date
+      // Only filter PAYMENT type transactions by date range (same logic as statement endpoint)
       const debtTransactions = await prisma.supplierDebtTransaction.findMany({
         where: { 
           supplierId: supplier.id,
-          createdAt: { gte: start, lte: end }
+          OR: [
+            { type: 'DEBT' },
+            { 
+              type: 'PAYMENT',
+              createdAt: { gte: start, lte: end }
+            }
+          ]
         },
         select: {
           id: true,
@@ -726,10 +734,79 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         return dateA - dateB;
       });
 
+      // Calculate initial debt (DEBT transactions created before the period)
+      const initialDebt = debtTransactions
+        .filter(t => t.type === 'DEBT' && new Date(t.createdAt) < start)
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+      // Calculate period debt transactions (DEBT transactions created in the period)
+      const periodDebtTransactions = debtTransactions
+        .filter(t => t.type === 'DEBT' && new Date(t.createdAt) >= start && new Date(t.createdAt) <= end)
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+      // Calculate period totals: only transactions within the period
+      const periodTransactions = allTransactions.filter(t => {
+        const txDate = t.date ? new Date(t.date) : new Date(0);
+        return txDate >= start && txDate <= end;
+      });
+
       // Calculate totals: sum of all debit operations and sum of all credit operations
       // Use the exact same formula as statement route: statement.reduce((sum, item) => sum + item.debit, 0)
       const totalDebit = allTransactions.reduce((sum, item) => sum + (item.debit || 0), 0);
       const totalCredit = allTransactions.reduce((sum, item) => sum + (item.credit || 0), 0);
+
+      // Calculate period-specific totals
+      const periodDebit = periodTransactions.reduce((sum, item) => sum + (item.debit || 0), 0);
+      const periodCredit = periodTransactions.reduce((sum, item) => sum + (item.credit || 0), 0);
+      
+      // Calculate period expenses: credit from expenses in period (excluding initial debt and bon de retour)
+      const periodExpensesCredit = periodExpenses
+        .filter(expense => {
+          if (expense.notes && expense.notes.includes('Bon de retour')) {
+            const bonRetourMatch = expense.notes.match(/Bon de retour (BR-[-\d]+)/);
+            if (bonRetourMatch) {
+              const bonRetourNumero = bonRetourMatch[1];
+              const isDuplicate = bonRetourDocuments.some(doc => doc.numero === bonRetourNumero);
+              if (isDuplicate) return false;
+            }
+          }
+          if (expense.notes) {
+            const bonEntreeMatch = expense.notes.match(/Bon d'entrée #(\d+)|(BE-[-\d]+)/i);
+            if (bonEntreeMatch) {
+              const bonEntreeId = bonEntreeMatch[1];
+              const bonEntreeNumero = bonEntreeMatch[2];
+              const isDuplicate = bonEntreeDocuments.some(doc => 
+                (bonEntreeId && doc.id.toString() === bonEntreeId) || 
+                (bonEntreeNumero && doc.numero === bonEntreeNumero)
+              );
+              if (isDuplicate) return false;
+            }
+          }
+          return true;
+        })
+        .reduce((sum, expense) => {
+          const totalAmount = parseFloat(expense.amount);
+          if (expense.isAdvance) {
+            return sum + totalAmount;
+          } else if (expense.isPaid) {
+            return sum + totalAmount;
+          } else {
+            return sum + totalAmount;
+          }
+        }, 0);
+
+      // Calculate period payments: sum of supplier payments in period (debit from payments)
+      const periodPaymentsDebit = periodPayments
+        .filter(payment => {
+          const paymentDate = new Date(payment.createdAt);
+          return paymentDate >= start && paymentDate <= end;
+        })
+        .reduce((sum, payment) => {
+          const amount = parseFloat(payment.amount);
+          const normalized = Math.abs(amount);
+          const isCreditEntry = amount < 0 || payment.paymentMethod === 'CREDIT';
+          return sum + (isCreditEntry ? 0 : normalized);
+        }, 0);
 
       // Calculate current debt from ALL transactions (not just period)
       const allExpenseWhere = { supplierId: supplier.id };
@@ -872,10 +949,10 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         name: supplier.name,
         currentDebt: currentDebt,
         totalExpenses: allExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0),
-        periodExpenses: totalCredit, // Period credit (what we owe in period)
-        periodPayments: totalDebit,  // Period debit (what we paid in period)
-        periodDebts: totalCredit - totalDebit,
-        periodBalance: totalCredit - totalDebit,
+        periodExpenses: periodExpensesCredit,
+        periodPayments: periodPaymentsDebit,
+        periodDebts: initialDebt + periodDebtTransactions + periodExpensesCredit - periodPaymentsDebit,
+        periodBalance: initialDebt + periodDebtTransactions + periodExpensesCredit - periodPaymentsDebit,
         _count: supplier._count
       };
     }));
@@ -913,15 +990,26 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Fournisseur non trouvé' });
     }
 
-    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const end = endDate ? new Date(endDate) : new Date();
-    end.setHours(23, 59, 59, 999);
+    const hasDateFilter = startDate || endDate;
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    if (end) {
+      end.setHours(23, 59, 59, 999);
+    }
 
     // Get expenses - filter by depotId
     const expensesWhere = { 
-        supplierId: parseInt(supplierId),
-        date: { gte: start, lte: end }
+        supplierId: parseInt(supplierId)
     };
+    if (hasDateFilter) {
+      if (start && end) {
+        expensesWhere.date = { gte: start, lte: end };
+      } else if (start) {
+        expensesWhere.date = { gte: start };
+      } else if (end) {
+        expensesWhere.date = { lte: end };
+      }
+    }
     if (targetDepotId) {
       expensesWhere.depotId = targetDepotId;
     } else if (req.user?.role !== 'ADMIN') {
@@ -941,11 +1029,20 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     });
 
     // Get payments (include paymentMethod to check if cash payment)
+    const paymentsWhere = { 
+        supplierId: parseInt(supplierId)
+    };
+    if (hasDateFilter) {
+      if (start && end) {
+        paymentsWhere.createdAt = { gte: start, lte: end };
+      } else if (start) {
+        paymentsWhere.createdAt = { gte: start };
+      } else if (end) {
+        paymentsWhere.createdAt = { lte: end };
+      }
+    }
     const payments = await prisma.supplierPayment.findMany({
-      where: { 
-        supplierId: parseInt(supplierId),
-        createdAt: { gte: start, lte: end }
-      },
+      where: paymentsWhere,
       select: {
         id: true,
         amount: true,
@@ -958,18 +1055,21 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
 
     // Get debt transactions
     // Include all DEBT type transactions (initial balances) regardless of date
-    // Only filter PAYMENT type transactions by date range
+    // Only filter PAYMENT type transactions by date range if dates are provided
+    const debtTransactionsWhere = { 
+        supplierId: parseInt(supplierId)
+    };
+    if (hasDateFilter) {
+      debtTransactionsWhere.OR = [
+        { type: 'DEBT' },
+        { 
+          type: 'PAYMENT',
+          createdAt: start && end ? { gte: start, lte: end } : start ? { gte: start } : { lte: end }
+        }
+      ];
+    }
     const debtTransactions = await prisma.supplierDebtTransaction.findMany({
-      where: { 
-        supplierId: parseInt(supplierId),
-        OR: [
-          { type: 'DEBT' },
-          { 
-            type: 'PAYMENT',
-            createdAt: { gte: start, lte: end }
-          }
-        ]
-      },
+      where: debtTransactionsWhere,
       select: {
         id: true,
         amount: true,
@@ -1015,17 +1115,36 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     });
 
     // Get bon de retour documents for this supplier
-    // Include documents created in the date range OR updated in the date range
-    const bonRetourDocuments = await prisma.stockDocument.findMany({
-      where: {
-        type: 'BON_EXPEDITION',
-        notes: { contains: `Supplier:${supplierId}` },
-        status: 'RECEIVED',
-        OR: [
+    // Include documents created in the date range OR updated in the date range (only if dates are provided)
+    const bonRetourWhere = {
+      type: 'BON_EXPEDITION',
+      notes: { contains: `Supplier:${supplierId}` },
+      status: 'RECEIVED'
+    };
+    if (hasDateFilter) {
+      const dateConditions = [];
+      if (start && end) {
+        dateConditions.push(
           { createdAt: { gte: start, lte: end } },
           { updatedAt: { gte: start, lte: end } }
-        ]
-      },
+        );
+      } else if (start) {
+        dateConditions.push(
+          { createdAt: { gte: start } },
+          { updatedAt: { gte: start } }
+        );
+      } else if (end) {
+        dateConditions.push(
+          { createdAt: { lte: end } },
+          { updatedAt: { lte: end } }
+        );
+      }
+      if (dateConditions.length > 0) {
+        bonRetourWhere.OR = dateConditions;
+      }
+    }
+    const bonRetourDocuments = await prisma.stockDocument.findMany({
+      where: bonRetourWhere,
       include: {
         items: true
       },
