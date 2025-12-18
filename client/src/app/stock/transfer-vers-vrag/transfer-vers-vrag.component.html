@@ -208,7 +208,10 @@
         </div>
         <div class="text-sm text-blue-700 space-y-1">
           <div>Produit source: <span class="font-semibold">{{ selectedProductForTransfer?.name }}</span></div>
-          <div>Quantité source: <span class="font-semibold">{{ transferQuantity | number:'1.0-3' }} {{ selectedProductForTransfer?.unite }}</span></div>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-2 mt-2">
+            <span class="text-red-800 font-semibold">Quantité retirée du produit source: </span>
+            <span class="text-lg font-bold text-red-900">{{ transferQuantity | number:'1.0-3' }} {{ selectedProductForTransfer?.unite }}</span>
+          </div>
           <div>Produits destinataires: <span class="font-semibold">{{ vracConversions.length }}</span></div>
           <div>Total quantité destinataires: 
             <span class="font-semibold">

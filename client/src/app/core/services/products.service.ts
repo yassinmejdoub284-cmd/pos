@@ -180,6 +180,22 @@ export class ProductsService {
     return this.http.get<any>(`${this.apiUrl}/transfer-history`, { params: httpParams });
   }
 
+  updateTransferTransaction(transferId: number, depotId: number, updates: Array<{
+    targetProductId: number;
+    newQuantity: number;
+    originalQuantity: number;
+  }>): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/transfer-history/${transferId}`, {
+      depotId,
+      updates
+    });
+  }
+
+  deleteTransferTransaction(transferId: number, depotId: number): Observable<any> {
+    const params = new HttpParams().set('depotId', depotId.toString());
+    return this.http.delete<any>(`${this.apiUrl}/transfer-history/${transferId}`, { params });
+  }
+
   // Product Depot Links
   getSimilarProducts(params: {
     sourceDepotIds: number[];

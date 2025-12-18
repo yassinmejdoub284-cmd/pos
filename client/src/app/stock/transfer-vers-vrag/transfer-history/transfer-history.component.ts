@@ -3,6 +3,16 @@ import { Router } from '@angular/router';
 import { ProductsService } from '../../../core/services/products.service';
 import { AuthService } from '../../../core/services/auth.service';
 
+interface TargetProduct {
+  id: number;
+  name: string;
+  famille: any;
+  quantity: number;
+  unite: string;
+  isVrac: boolean;
+  conversionRatio: number;
+}
+
 interface TransferHistoryItem {
   id: number;
   date: Date;
@@ -13,15 +23,7 @@ interface TransferHistoryItem {
     quantity: number;
     unite: string | null;
   };
-  targetProduct: {
-    id: number;
-    name: string;
-    famille: any;
-    quantity: number;
-    unite: string;
-    isVrac: boolean;
-  };
-  conversionRatio: number;
+  targetProducts: TargetProduct[];
   depot: {
     name: string;
     code: string;
@@ -49,6 +51,7 @@ export class TransferHistoryComponent implements OnInit {
   totalPages = 0;
   startDate: string = '';
   endDate: string = '';
+  deletingId: number | null = null;
 
   constructor(
     private productsService: ProductsService,
@@ -92,8 +95,16 @@ export class TransferHistoryComponent implements OnInit {
 
     this.productsService.getTransferHistory(params).subscribe({
       next: (response) => {
-
-        this.transferHistory = response.data || [];
+        const data = response.data || [];
+        this.transferHistory = data.map((item: any) => {
+          if (!item.targetProducts || !Array.isArray(item.targetProducts)) {
+            item.targetProducts = [];
+          }
+          if (item.date && typeof item.date === 'string') {
+            item.date = new Date(item.date);
+          }
+          return item;
+        });
         this.totalItems = response.pagination?.total || 0;
         this.totalPages = response.pagination?.totalPages || 0;
         this.loading = false;
@@ -130,5 +141,30 @@ export class TransferHistoryComponent implements OnInit {
       minute: '2-digit'
     });
   }
+
+  deleteTransfer(transferId: number): void {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action annulera les mouvements de stock.')) {
+      return;
+    }
+
+    this.deletingId = transferId;
+    this.error = '';
+
+    const userDepotId = this.authService.currentUser()?.depotId || 0;
+    const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
+    const currentDepotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : (userDepotId || 1);
+
+    this.productsService.deleteTransferTransaction(transferId, currentDepotId).subscribe({
+      next: () => {
+        this.deletingId = null;
+        this.loadTransferHistory();
+      },
+      error: (err) => {
+        this.deletingId = null;
+        this.error = err.error?.error || err.error?.details || 'Erreur lors de la suppression de la transaction';
+      }
+    });
+  }
+
 }
 

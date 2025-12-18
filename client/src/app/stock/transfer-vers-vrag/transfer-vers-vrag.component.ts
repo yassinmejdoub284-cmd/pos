@@ -50,19 +50,32 @@ export class TransferVersVragComponent implements OnInit {
       this.products = products;
       
       const vraguableProductIds = new Set<number>();
+      const productsToCheck: Product[] = [];
       
       for (const product of products) {
         if (product.isVraguable === true) {
           vraguableProductIds.add(product.id);
         } else {
-          try {
-            const conversions = await firstValueFrom(this.productsService.getVracConversions(product.id));
-            if (conversions && conversions.conversions && conversions.conversions.length > 0) {
-              vraguableProductIds.add(product.id);
-            }
-          } catch (error) {
-          }
+          productsToCheck.push(product);
         }
+      }
+      
+      if (productsToCheck.length > 0) {
+        const conversionPromises = productsToCheck.map(product =>
+          firstValueFrom(this.productsService.getVracConversions(product.id))
+            .then(conversions => ({
+              productId: product.id,
+              hasConversions: conversions && conversions.conversions && conversions.conversions.length > 0
+            }))
+            .catch(() => ({ productId: product.id, hasConversions: false }))
+        );
+        
+        const conversionResults = await Promise.all(conversionPromises);
+        conversionResults.forEach(result => {
+          if (result.hasConversions) {
+            vraguableProductIds.add(result.productId);
+          }
+        });
       }
       
       this.vraguableProducts = products.filter(product => vraguableProductIds.has(product.id));
@@ -112,15 +125,26 @@ export class TransferVersVragComponent implements OnInit {
 
   async loadAllConversions(): Promise<void> {
     this.productConversionsMap.clear();
-    for (const product of this.vraguableProducts) {
-      try {
-        const conversions = await firstValueFrom(this.productsService.getVracConversions(product.id));
-        if (conversions && conversions.conversions && conversions.conversions.length > 0) {
-          this.productConversionsMap.set(product.id, conversions.conversions);
-        }
-      } catch (error) {
-      }
+    
+    if (this.vraguableProducts.length === 0) {
+      return;
     }
+    
+    const conversionPromises = this.vraguableProducts.map(product =>
+      firstValueFrom(this.productsService.getVracConversions(product.id))
+        .then(conversions => ({
+          productId: product.id,
+          conversions: conversions && conversions.conversions ? conversions.conversions : []
+        }))
+        .catch(() => ({ productId: product.id, conversions: [] }))
+    );
+    
+    const results = await Promise.all(conversionPromises);
+    results.forEach(result => {
+      if (result.conversions.length > 0) {
+        this.productConversionsMap.set(result.productId, result.conversions);
+      }
+    });
   }
 
   getProductDestinations(productId: number): string[] {

@@ -804,18 +804,32 @@ router.get('/transfer-history', authenticateToken, async (req, res) => {
 
     // Get corresponding OUT movements (source products) to get full transfer details
     const transferHistory = await Promise.all(inMovements.map(async (inMovement) => {
-      // Parse reference to extract source product name
+      // Parse reference to extract source product name and quantities
       const referenceMatch = inMovement.reference?.match(/Transfer (.+?) -> (.+)/);
       const sourceProductName = referenceMatch ? referenceMatch[1] : null;
       const targetProductName = referenceMatch ? referenceMatch[2] : null;
+      
+      // Parse source quantity from reference: format is "Transfer X -> Y (sourceQty x ratio = targetQty)"
+      let sourceQuantityFromRef = 0;
+      const quantityMatch = inMovement.reference?.match(/\(([\d.]+)\s*[x×]\s*[\d.]+\s*=\s*[\d.]+\)/);
+      if (quantityMatch) {
+        sourceQuantityFromRef = parseFloat(quantityMatch[1]) || 0;
+      }
 
-      // Find corresponding OUT movement (source product)
+      // Find corresponding OUT movement (source product) - use date range to handle millisecond differences
+      const movementDate = new Date(inMovement.date);
+      const dateStart = new Date(movementDate.getTime() - 1000);
+      const dateEnd = new Date(movementDate.getTime() + 1000);
+      
       const outMovement = await prisma.stockMovement.findFirst({
         where: {
           reason: 'PRODUCT_CONVERSION',
           type: 'OUT',
           depotId: currentDepotId,
-          date: inMovement.date,
+          date: {
+            gte: dateStart,
+            lte: dateEnd
+          },
           reference: inMovement.reference
         },
         include: {
@@ -827,8 +841,8 @@ router.get('/transfer-history', authenticateToken, async (req, res) => {
         }
       });
 
-      // Calculate conversion ratio
-      const sourceQuantity = outMovement ? Math.abs(parseFloat(outMovement.quantity)) : 0;
+      // Calculate source quantity - prefer OUT movement, fallback to reference parsing
+      const sourceQuantity = outMovement ? Math.abs(parseFloat(outMovement.quantity)) : sourceQuantityFromRef;
       const targetQuantity = parseFloat(inMovement.quantity);
       const conversionRatio = sourceQuantity > 0 ? targetQuantity / sourceQuantity : 0;
 
@@ -2725,6 +2739,21 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
         });
       }
 
+      const targetProductsList = transferDetails.map(d => d.targetProductName).join(', ');
+      const sourceReferenceText = `Transfer ${sourceProduct.name} -> ${targetProductsList} (${totalSourceQuantity} source → ${transferDetails.length} destinations)`;
+      
+      await tx.stockMovement.create({
+        data: {
+          productId: sourceProductIdInt,
+          depotId: depotIdInt,
+          quantity: -totalSourceQuantity,
+          type: 'OUT',
+          reason: 'PRODUCT_CONVERSION',
+          reference: sourceReferenceText,
+          userId: req.user.id
+        }
+      });
+
       const transferResults = [];
 
       for (const detail of transferDetails) {
@@ -2823,18 +2852,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
 
         const referenceText = `Transfer ${sourceProduct.name} -> ${detail.targetProductName} (${detail.sourceQuantity} × ${detail.ratio} = ${detail.targetQuantity})`;
         
-        await tx.stockMovement.create({
-          data: {
-            productId: sourceProductIdInt,
-            depotId: depotIdInt,
-            quantity: -detail.sourceQuantity,
-            type: 'OUT',
-            reason: 'PRODUCT_CONVERSION',
-            reference: referenceText,
-            userId: req.user.id
-          }
-        });
-
         await tx.stockMovement.create({
           data: {
             productId: detail.targetProductId,
@@ -3031,77 +3048,132 @@ router.get('/transfer-history', authenticateToken, async (req, res) => {
       return movement.product !== null; // Only filter out movements without products
     });
 
-    // Apply pagination after filtering
     const pageNum = parseInt(page.toString());
     const limitNum = parseInt(limit.toString());
-    const totalCount = inMovements.length;
-    const startIndex = (pageNum - 1) * limitNum;
-    const endIndex = startIndex + limitNum;
-    inMovements = inMovements.slice(startIndex, endIndex);
-
-    // Get corresponding OUT movements (source products) to get full transfer details
-    const transferHistory = await Promise.all(inMovements.map(async (inMovement) => {
-      // Parse reference to extract source product name
-      const referenceMatch = inMovement.reference?.match(/Transfer (.+?) -> (.+)/);
-      const sourceProductName = referenceMatch ? referenceMatch[1] : null;
-      const targetProductName = referenceMatch ? referenceMatch[2] : null;
-
-      // Find corresponding OUT movement (source product)
-      const outMovement = await prisma.stockMovement.findFirst({
-        where: {
-          reason: 'PRODUCT_CONVERSION',
-          type: 'OUT',
-          depotId: currentDepotId,
-          date: inMovement.date,
-          reference: inMovement.reference
-        },
-        include: {
-          product: {
-            include: {
-              famille: true
-            }
+    
+    const allOutMovements = await prisma.stockMovement.findMany({
+      where: {
+        reason: 'PRODUCT_CONVERSION',
+        type: 'OUT',
+        depotId: currentDepotId,
+        date: {
+          gte: dateFilter.gte || new Date('2000-01-01'),
+          lte: dateFilter.lte || new Date('2100-01-01')
+        }
+      },
+      include: {
+        product: {
+          include: {
+            famille: true
           }
         }
-      });
+      },
+      orderBy: {
+        date: 'desc'
+      }
+    });
 
-      // Calculate conversion ratio
+    const transferGroupsMap = new Map();
+    
+    for (const inMovement of inMovements) {
+      const movementDate = new Date(inMovement.date);
+      const dateStart = new Date(movementDate.getTime() - 2000);
+      const dateEnd = new Date(movementDate.getTime() + 2000);
+      
+      let outMovement = allOutMovements.find(out => {
+        const outDate = new Date(out.date);
+        return out.reason === 'PRODUCT_CONVERSION' &&
+               out.type === 'OUT' &&
+               out.depotId === currentDepotId &&
+               out.userId === inMovement.userId &&
+               outDate >= dateStart &&
+               outDate <= dateEnd &&
+               (out.reference?.includes('source →') || out.reference?.includes('destinations') || 
+                (inMovement.reference && out.reference && out.reference.includes(inMovement.reference.split(' -> ')[0]?.replace('Transfer ', '') || '')));
+      });
+      
+      if (!outMovement && inMovement.reference) {
+        const refParts = inMovement.reference.split(' -> ');
+        if (refParts.length > 0) {
+          const sourceName = refParts[0].replace('Transfer ', '').trim();
+          outMovement = allOutMovements.find(out => {
+            const outDate = new Date(out.date);
+            return out.reason === 'PRODUCT_CONVERSION' &&
+                   out.type === 'OUT' &&
+                   out.depotId === currentDepotId &&
+                   out.userId === inMovement.userId &&
+                   outDate >= dateStart &&
+                   outDate <= dateEnd &&
+                   (out.reference?.includes(sourceName) || out.product?.name === sourceName);
+          });
+        }
+      }
+
       const sourceQuantity = outMovement ? Math.abs(parseFloat(outMovement.quantity)) : 0;
       const targetQuantity = parseFloat(inMovement.quantity);
       const conversionRatio = sourceQuantity > 0 ? targetQuantity / sourceQuantity : 0;
-
-      return {
-        id: inMovement.id,
-        date: inMovement.date,
-        sourceProduct: outMovement ? {
-          id: outMovement.productId,
-          name: outMovement.product.name,
-          famille: outMovement.product.famille,
-          quantity: sourceQuantity,
-          unite: outMovement.product.unite
-        } : {
-          id: null,
-          name: sourceProductName || 'Produit inconnu',
-          famille: null,
-          quantity: sourceQuantity,
-          unite: null
-        },
-        targetProduct: {
+      
+      const timeKey = Math.floor(movementDate.getTime() / 1000);
+      const groupKey = outMovement ? `${outMovement.id}_${inMovement.userId}_${timeKey}` : `${inMovement.userId}_${timeKey}`;
+      
+      if (!transferGroupsMap.has(groupKey)) {
+        transferGroupsMap.set(groupKey, {
+          id: outMovement?.id || inMovement.id,
+          date: inMovement.date,
+          sourceProduct: outMovement ? {
+            id: outMovement.productId,
+            name: outMovement.product.name,
+            famille: outMovement.product.famille,
+            quantity: sourceQuantity,
+            unite: outMovement.product.unite
+          } : {
+            id: null,
+            name: 'Produit inconnu',
+            famille: null,
+            quantity: sourceQuantity,
+            unite: null
+          },
+          targetProducts: [],
+          depot: inMovement.depot,
+          user: inMovement.user,
+          reference: outMovement?.reference || inMovement.reference
+        });
+      }
+      
+      const transferGroup = transferGroupsMap.get(groupKey);
+      if (transferGroup) {
+        transferGroup.targetProducts.push({
           id: inMovement.productId,
           name: inMovement.product.name,
           famille: inMovement.product.famille,
           quantity: targetQuantity,
           unite: inMovement.product.unite,
-          isVrac: inMovement.product.isVrac
-        },
-        conversionRatio: conversionRatio,
-        depot: inMovement.depot,
-        user: inMovement.user,
-        reference: inMovement.reference
-      };
-    }));
+          isVrac: inMovement.product.isVrac,
+          conversionRatio: conversionRatio
+        });
+      }
+    }
+    
+    const transferHistory = Array.from(transferGroupsMap.values())
+      .filter(item => item.targetProducts && item.targetProducts.length > 0)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    const totalCount = transferHistory.length;
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = startIndex + limitNum;
+    const paginatedHistory = transferHistory.slice(startIndex, endIndex);
+
+    console.log('Transfer history grouped:', {
+      totalGroups: transferHistory.length,
+      paginatedCount: paginatedHistory.length,
+      sampleItem: paginatedHistory[0] ? {
+        id: paginatedHistory[0].id,
+        targetProductsCount: paginatedHistory[0].targetProducts?.length || 0
+      } : null
+    });
 
     res.json({
-      data: transferHistory,
+      data: paginatedHistory,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -3120,6 +3192,404 @@ router.get('/transfer-history', authenticateToken, async (req, res) => {
     res.status(500).json({ 
       error: 'Erreur lors de la récupération de l\'historique des transferts',
       details: error.message 
+    });
+  }
+});
+
+router.put('/transfer-history/:id', authenticateToken, async (req, res) => {
+  try {
+    const transferId = parseInt(req.params.id);
+    const { depotId, updates } = req.body;
+
+    if (isNaN(transferId) || transferId <= 0) {
+      return res.status(400).json({ error: 'ID de transfert invalide' });
+    }
+
+    if (!updates || !Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ error: 'Les mises à jour sont requises' });
+    }
+
+    let currentDepotId;
+    if (depotId) {
+      currentDepotId = Number(depotId);
+      if (isNaN(currentDepotId) || currentDepotId <= 0) {
+        return res.status(400).json({ error: 'Dépôt invalide dans la requête' });
+      }
+    } else if (req.user?.depotId) {
+      currentDepotId = Number(req.user.depotId);
+      if (isNaN(currentDepotId) || currentDepotId <= 0) {
+        currentDepotId = 1;
+      }
+    } else {
+      currentDepotId = 1;
+    }
+
+    const inMovement = await prisma.stockMovement.findUnique({
+      where: { id: transferId },
+      include: {
+        product: true
+      }
+    });
+
+    if (!inMovement) {
+      return res.status(404).json({ error: 'Transaction de transfert non trouvée' });
+    }
+
+    if (inMovement.reason !== 'PRODUCT_CONVERSION' || inMovement.type !== 'IN') {
+      return res.status(400).json({ error: 'Cette transaction n\'est pas un transfert valide' });
+    }
+
+    if (inMovement.depotId !== currentDepotId) {
+      return res.status(403).json({ error: 'Vous n\'avez pas accès à ce dépôt' });
+    }
+
+    const movementDate = new Date(inMovement.date);
+    const dateStart = new Date(movementDate.getTime() - 1000);
+    const dateEnd = new Date(movementDate.getTime() + 1000);
+
+    const allInMovements = await prisma.stockMovement.findMany({
+      where: {
+        reason: 'PRODUCT_CONVERSION',
+        type: 'IN',
+        depotId: currentDepotId,
+        date: {
+          gte: dateStart,
+          lte: dateEnd
+        },
+        userId: inMovement.userId
+      },
+      include: {
+        product: true
+      }
+    });
+
+    const relatedInMovements = allInMovements.filter(m => {
+      const mDate = new Date(m.date);
+      return Math.abs(mDate.getTime() - movementDate.getTime()) < 2000;
+    });
+
+    const result = await prisma.$transaction(async (tx) => {
+      for (const update of updates) {
+        const relatedMovement = relatedInMovements.find(m => m.productId === update.targetProductId);
+        if (!relatedMovement) {
+          continue;
+        }
+
+        const oldQuantity = parseFloat(relatedMovement.quantity);
+        const newQuantity = parseFloat(update.newQuantity);
+        const quantityDiff = newQuantity - oldQuantity;
+
+        if (Math.abs(quantityDiff) < 0.001) {
+          continue;
+        }
+
+        const targetInventory = await tx.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: currentDepotId,
+              productId: update.targetProductId
+            }
+          }
+        });
+
+        if (targetInventory) {
+          const currentTargetQty = parseFloat(targetInventory.quantity);
+          const newTargetQty = currentTargetQty + quantityDiff;
+
+          if (newTargetQty < 0) {
+            throw new Error(`La quantité ne peut pas être négative pour le produit ${relatedMovement.product.name}`);
+          }
+
+          if (newTargetQty === 0) {
+            await tx.inventory.delete({
+              where: { id: targetInventory.id }
+            });
+          } else {
+            await tx.inventory.update({
+              where: { id: targetInventory.id },
+              data: { quantity: newTargetQty }
+            });
+          }
+        } else if (quantityDiff > 0) {
+          await tx.inventory.create({
+            data: {
+              depotId: currentDepotId,
+              productId: update.targetProductId,
+              quantity: quantityDiff
+            }
+          });
+        }
+
+        await tx.stockMovement.update({
+          where: { id: relatedMovement.id },
+          data: { quantity: newQuantity }
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            productId: update.targetProductId,
+            depotId: currentDepotId,
+            quantity: quantityDiff,
+            type: quantityDiff > 0 ? 'IN' : 'OUT',
+            reason: 'TRANSFER_UPDATED',
+            reference: `MISE À JOUR: ${relatedMovement.reference}`,
+            userId: req.user.id
+          }
+        });
+      }
+
+      return { updated: true };
+    });
+
+    await logAudit(req.user.id, 'products', transferId, 'TRANSFER_UPDATED', null, {
+      transferId,
+      updates,
+      depotId: currentDepotId
+    });
+
+    res.json({
+      success: true,
+      message: 'Transaction mise à jour avec succès',
+      result
+    });
+  } catch (error) {
+    console.error('Error updating transfer:', error);
+    res.status(500).json({
+      error: 'Erreur lors de la mise à jour de la transaction',
+      details: error.message
+    });
+  }
+});
+
+router.delete('/transfer-history/:id', authenticateToken, async (req, res) => {
+  try {
+    const transferId = parseInt(req.params.id);
+    const { depotId } = req.query;
+
+    if (isNaN(transferId) || transferId <= 0) {
+      return res.status(400).json({ error: 'ID de transfert invalide' });
+    }
+
+    let currentDepotId;
+    if (depotId) {
+      currentDepotId = Number(depotId);
+      if (isNaN(currentDepotId) || currentDepotId <= 0) {
+        return res.status(400).json({ error: 'Dépôt invalide dans la requête' });
+      }
+    } else if (req.user?.depotId) {
+      currentDepotId = Number(req.user.depotId);
+      if (isNaN(currentDepotId) || currentDepotId <= 0) {
+        currentDepotId = 1;
+      }
+    } else {
+      currentDepotId = 1;
+    }
+
+    const inMovement = await prisma.stockMovement.findUnique({
+      where: { id: transferId },
+      include: {
+        product: true
+      }
+    });
+
+    if (!inMovement) {
+      return res.status(404).json({ error: 'Transaction de transfert non trouvée' });
+    }
+
+    if (inMovement.reason !== 'PRODUCT_CONVERSION' || inMovement.type !== 'IN') {
+      return res.status(400).json({ error: 'Cette transaction n\'est pas un transfert valide' });
+    }
+
+    if (inMovement.depotId !== currentDepotId) {
+      return res.status(403).json({ error: 'Vous n\'avez pas accès à ce dépôt' });
+    }
+
+    const movementDate = new Date(inMovement.date);
+    const dateStart = new Date(movementDate.getTime() - 1000);
+    const dateEnd = new Date(movementDate.getTime() + 1000);
+
+    let outMovement = await prisma.stockMovement.findFirst({
+      where: {
+        reason: 'PRODUCT_CONVERSION',
+        type: 'OUT',
+        depotId: currentDepotId,
+        date: {
+          gte: dateStart,
+          lte: dateEnd
+        },
+        userId: inMovement.userId
+      },
+      include: {
+        product: true
+      },
+      orderBy: {
+        date: 'desc'
+      }
+    });
+
+    if (!outMovement) {
+      const refParts = inMovement.reference?.split(' -> ');
+      if (refParts && refParts.length > 0) {
+        const sourceName = refParts[0].replace('Transfer ', '').trim();
+        outMovement = await prisma.stockMovement.findFirst({
+          where: {
+            reason: 'PRODUCT_CONVERSION',
+            type: 'OUT',
+            depotId: currentDepotId,
+            date: {
+              gte: dateStart,
+              lte: dateEnd
+            },
+            reference: {
+              contains: sourceName
+            }
+          },
+          include: {
+            product: true
+          }
+        });
+      }
+    }
+
+    if (!outMovement) {
+      return res.status(404).json({ error: 'Mouvement source correspondant non trouvé' });
+    }
+
+    const allInMovements = await prisma.stockMovement.findMany({
+      where: {
+        reason: 'PRODUCT_CONVERSION',
+        type: 'IN',
+        depotId: currentDepotId,
+        date: {
+          gte: dateStart,
+          lte: dateEnd
+        },
+        userId: inMovement.userId
+      },
+      include: {
+        product: true
+      }
+    });
+
+    const relatedInMovements = allInMovements.filter(m => {
+      const mDate = new Date(m.date);
+      return Math.abs(mDate.getTime() - movementDate.getTime()) < 2000;
+    });
+
+    const sourceQuantity = Math.abs(parseFloat(outMovement.quantity));
+
+    const result = await prisma.$transaction(async (tx) => {
+      const sourceInventory = await tx.inventory.findUnique({
+        where: {
+          depotId_productId: {
+            depotId: currentDepotId,
+            productId: outMovement.productId
+          }
+        }
+      });
+
+      if (sourceInventory) {
+        const currentSourceQty = parseFloat(sourceInventory.quantity);
+        const newSourceQty = currentSourceQty + sourceQuantity;
+        await tx.inventory.update({
+          where: { id: sourceInventory.id },
+          data: { quantity: newSourceQty }
+        });
+      } else {
+        await tx.inventory.create({
+          data: {
+            depotId: currentDepotId,
+            productId: outMovement.productId,
+            quantity: sourceQuantity
+          }
+        });
+      }
+
+      for (const relatedInMovement of relatedInMovements) {
+        const targetQuantity = parseFloat(relatedInMovement.quantity);
+        const targetInventory = await tx.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: currentDepotId,
+              productId: relatedInMovement.productId
+            }
+          }
+        });
+
+        if (targetInventory) {
+          const currentTargetQty = parseFloat(targetInventory.quantity);
+          const newTargetQty = currentTargetQty - targetQuantity;
+          
+          if (newTargetQty < 0) {
+            throw new Error(`La quantité cible ne peut pas être négative après suppression pour ${relatedInMovement.product.name}`);
+          }
+
+          if (newTargetQty === 0) {
+            await tx.inventory.delete({
+              where: { id: targetInventory.id }
+            });
+          } else {
+            await tx.inventory.update({
+              where: { id: targetInventory.id },
+              data: { quantity: newTargetQty }
+            });
+          }
+        }
+
+        await tx.stockMovement.create({
+          data: {
+            productId: relatedInMovement.productId,
+            depotId: currentDepotId,
+            quantity: -targetQuantity,
+            type: 'OUT',
+            reason: 'TRANSFER_DELETED_REVERSED',
+            reference: `SUPPRESSION: ${relatedInMovement.reference}`,
+            userId: req.user.id
+          }
+        });
+
+        await tx.stockMovement.delete({
+          where: { id: relatedInMovement.id }
+        });
+      }
+
+      await tx.stockMovement.create({
+        data: {
+          productId: outMovement.productId,
+          depotId: currentDepotId,
+          quantity: sourceQuantity,
+          type: 'IN',
+          reason: 'TRANSFER_DELETED_REVERSED',
+          reference: `SUPPRESSION: ${outMovement.reference}`,
+          userId: req.user.id
+        }
+      });
+
+      await tx.stockMovement.delete({
+        where: { id: outMovement.id }
+      });
+
+      return {
+        deleted: true,
+        sourceProductId: outMovement.productId,
+        targetProducts: relatedInMovements.map(m => ({
+          id: m.productId,
+          quantity: parseFloat(m.quantity)
+        })),
+        sourceQuantity,
+        deletedMovementsCount: relatedInMovements.length
+      };
+    });
+
+    res.json({
+      message: 'Transaction de transfert supprimée avec succès',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error deleting transfer transaction:', error);
+    res.status(500).json({
+      error: 'Erreur lors de la suppression de la transaction',
+      details: error.message
     });
   }
 });
