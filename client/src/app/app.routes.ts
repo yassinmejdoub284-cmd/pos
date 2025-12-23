@@ -147,5 +147,10 @@ export const routes: Routes = [
     path: 'extrait-par-article', 
     canActivate: [authGuard],
     loadChildren: () => import('./extrait-par-article/extrait-par-article.module').then(m => m.ExtraitParArticleModule) 
+  },
+  { 
+    path: 'admin-home', 
+    canActivate: [authGuard],
+    loadChildren: () => import('./admin-home/admin-home.module').then(m => m.AdminHomeModule) 
   }
 ];

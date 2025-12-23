@@ -52,6 +52,7 @@ const tablesRoutes = require('./routes/tables');
 const creditEntriesRoutes = require('./routes/credit-entries');
 const releveInventaireRoutes = require('./routes/releve-inventaire');
 const manualEntriesRoutes = require('./routes/manual-entries');
+const adminDashboardRoutes = require('./routes/admin-dashboard');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -117,6 +118,7 @@ app.use('/api/tables', authenticateToken, tablesRoutes);
 app.use('/api/credit-entries', authenticateToken, creditEntriesRoutes);
 app.use('/api/releve-inventaire', authenticateToken, releveInventaireRoutes);
 app.use('/api/manual-entries', authenticateToken, manualEntriesRoutes);
+app.use('/api/admin-dashboard', authenticateToken, adminDashboardRoutes);
 
 // Create HTTP or HTTPS server based on env
 let server;

@@ -3519,21 +3519,13 @@ router.delete('/transfer-history/:id', authenticateToken, async (req, res) => {
         if (targetInventory) {
           const currentTargetQty = parseFloat(targetInventory.quantity);
           const newTargetQty = currentTargetQty - targetQuantity;
-          
-          if (newTargetQty < 0) {
-            throw new Error(`La quantité cible ne peut pas être négative après suppression pour ${relatedInMovement.product.name}`);
-          }
 
-          if (newTargetQty === 0) {
-            await tx.inventory.delete({
-              where: { id: targetInventory.id }
-            });
-          } else {
-            await tx.inventory.update({
-              where: { id: targetInventory.id },
-              data: { quantity: newTargetQty }
-            });
-          }
+          await tx.inventory.update({
+            where: { id: targetInventory.id },
+            data: { quantity: newTargetQty }
+          });
+        } else {
+          throw new Error(`L'inventaire du produit destinataire ${relatedInMovement.product.name} n'existe pas. Impossible de retirer la quantité.`);
         }
 
         await tx.stockMovement.create({

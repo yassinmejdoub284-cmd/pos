@@ -263,20 +263,12 @@ export class LoginComponent implements OnInit, OnDestroy {
   private async redirectBasedOnRole(role: string): Promise<void> {
 
     
-    // For admin users, check depot selection first (even if returnUrl is set)
-    if (role === 'ADMIN') {
-
+    if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
       const existingDepotId = sessionStorage.getItem('visitingDepotId');
       if (!existingDepotId) {
-
         this.showDepotChoice = true;
         await this.loadDepots();
-
-
-        return; // Don't redirect yet, wait for depot selection
-      } else {
-
-
+        return;
       }
     }
     
@@ -289,7 +281,8 @@ export class LoginComponent implements OnInit, OnDestroy {
     
     switch (role) {
       case 'ADMIN':
-        this.router.navigate(['/home']);
+      case 'SUPER_ADMIN':
+        this.router.navigate(['/admin-home']);
         break;
       case 'MANAGER':
         this.router.navigate(['/home']);
@@ -298,7 +291,6 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.router.navigate(['/caisse']);
         break;
       case 'STOCK_MANAGER':
-        // No automatic redirect to /stock; go to Home and let access config drive modules
         this.router.navigate(['/home']);
         break;
       default:

@@ -367,7 +367,7 @@ router.post('/temporary', async (req, res) => {
       // Find active caisse session for cash movements
       const activeSession = await tx.sessionCaisse.findFirst({
         where: {
-          depotId: targetDepotId,
+          depotId: userDepotId,
           status: 'OPEN'
         }
       });
@@ -380,7 +380,7 @@ router.post('/temporary', async (req, res) => {
           paymentMethodId: null,
           userId: req.user?.id,
           clientId: clientId ? parseInt(clientId) : null,
-          depotId: targetDepotId, // Use shop depot for caisse operations
+          depotId: userDepotId,
           status: 'TEMPORARY',
           expectedDate: new Date(`${expectedDate}T${expectedTime}`),
           notes: notes || '',
@@ -509,7 +509,7 @@ router.put('/temporary/:id/complete', async (req, res) => {
         // Get current inventory quantity first
         const currentInventory = await tx.inventory.findFirst({
           where: {
-            depotId: targetDepotId,
+            depotId: userDepotId,
             productId: item.productId
           }
         });
@@ -526,7 +526,7 @@ router.put('/temporary/:id/complete', async (req, res) => {
           // If no inventory record exists, create one with negative quantity
           await tx.inventory.create({
             data: {
-              depotId: targetDepotId,
+              depotId: userDepotId,
               productId: item.productId,
               quantity: -item.quantity
             }
@@ -536,7 +536,7 @@ router.put('/temporary/:id/complete', async (req, res) => {
         await tx.stockMovement.create({
           data: {
             productId: item.productId,
-            depotId: targetDepotId, // Use shop depot for caisse operations
+            depotId: userDepotId,
             quantity: item.quantity,
             type: 'OUT',
             reason: 'Temporary Sale Completed',
@@ -863,7 +863,7 @@ router.post('/gift', authenticateToken, async (req, res) => {
               });
             }
             
-            // Create stock movement record
+            // Create stock movement record with sale ID in reference
             await tx.stockMovement.create({
               data: {
                 productId: itemProductId,
@@ -871,6 +871,7 @@ router.post('/gift', authenticateToken, async (req, res) => {
                 quantity: itemQuantity,
                 type: 'OUT',
                 reason: 'Gift Sale',
+                reference: String(newSale.id),
                 userId: req.user?.id
               }
             });
@@ -973,26 +974,25 @@ router.put('/gift/:id/approve', async (req, res) => {
       });
 
       // Always remove stock when approving a cadeau
-      // Check if stock was already removed by looking for existing stock movements
-      // This ensures stock is removed even if the cadeau was already CADEAU but stock wasn't removed
-
+      // If status was PENDING_ADMIN, stock was never deducted, so always deduct now
+      // If status was already CADEAU, check if stock was already deducted
+      const saleIdStr = String(parseInt(id));
+      const wasPending = giftSale.status === 'PENDING_ADMIN';
       
-      // Get existing stock movements for this sale to check if stock was already removed
-      const saleItemIds = giftSale.items.map(item => item.productId);
-      const timeWindowStart = new Date(giftSale.createdAt.getTime() - 5 * 60 * 1000); // 5 minutes before
-      const timeWindowEnd = new Date(giftSale.createdAt.getTime() + 5 * 60 * 1000); // 5 minutes after
+      console.log(`[gift approve] Processing sale ${saleIdStr}, wasPending: ${wasPending}, items: ${giftSale.items.length}, depotId: ${targetDepotId}`);
       
-      const existingMovements = await tx.stockMovement.findMany({
-        where: {
-          productId: { in: saleItemIds },
-          depotId: targetDepotId,
-          reason: { in: ['Gift Sale', 'Gift Sale Created', 'Gift Sale Approved'] },
-          date: {
-            gte: timeWindowStart,
-            lte: timeWindowEnd
+      // Get existing stock movements for this specific sale (only if already CADEAU)
+      let existingMovements = [];
+      if (!wasPending) {
+        existingMovements = await tx.stockMovement.findMany({
+          where: {
+            depotId: targetDepotId,
+            reason: { in: ['Gift Sale', 'Gift Sale Created', 'Gift Sale Approved'] },
+            reference: saleIdStr
           }
-        }
-      });
+        });
+        console.log(`[gift approve] Found ${existingMovements.length} existing movements for sale ${saleIdStr}`);
+      }
       
       // Remove stock for each item
       for (const item of giftSale.items) {
@@ -1001,16 +1001,19 @@ router.put('/gift/:id/approve', async (req, res) => {
           const itemQuantity = parseFloat(item.quantity) || 0;
           
           if (itemProductId && itemQuantity > 0) {
-            // Check if stock movement already exists for this item
-            const hasMovement = existingMovements.some(m => 
-              m.productId === itemProductId && 
-              Math.abs(parseFloat(m.quantity.toString()) - itemQuantity) < 0.001
-            );
-            
-            if (hasMovement) {
-
-              continue;
+            // Only check for existing movement if cadeau was already approved
+            if (!wasPending) {
+              const hasMovement = existingMovements.some(m => 
+                m.productId === itemProductId
+              );
+              
+              if (hasMovement) {
+                console.log(`[gift approve] Skipping productId ${itemProductId} - movement already exists`);
+                continue;
+              }
             }
+            
+            console.log(`[gift approve] Deducting stock for productId ${itemProductId}, quantity ${itemQuantity}`);
             
             // Get current inventory
             const currentInventory = await tx.inventory.findFirst({
@@ -1022,9 +1025,10 @@ router.put('/gift/:id/approve', async (req, res) => {
 
             if (currentInventory) {
               // Calculate new quantity (can be negative)
-              const newQuantity = parseFloat(currentInventory.quantity) - itemQuantity;
+              const oldQuantity = parseFloat(currentInventory.quantity);
+              const newQuantity = oldQuantity - itemQuantity;
               
-
+              console.log(`[gift approve] Updating inventory: ${oldQuantity} -> ${newQuantity}`);
               
               // Update inventory
               await tx.inventory.updateMany({
@@ -1037,9 +1041,9 @@ router.put('/gift/:id/approve', async (req, res) => {
                 }
               });
             } else {
-              // If no inventory record exists, create one with negative quantity
-
+              console.log(`[gift approve] Creating new inventory record with quantity -${itemQuantity}`);
               
+              // If no inventory record exists, create one with negative quantity
               await tx.inventory.create({
                 data: {
                   depotId: targetDepotId,
@@ -1049,7 +1053,7 @@ router.put('/gift/:id/approve', async (req, res) => {
               });
             }
             
-            // Create stock movement record
+            // Create stock movement record with sale ID in reference
             await tx.stockMovement.create({
               data: {
                 productId: itemProductId,
@@ -1057,15 +1061,24 @@ router.put('/gift/:id/approve', async (req, res) => {
                 quantity: itemQuantity,
                 type: 'OUT',
                 reason: 'Gift Sale Approved',
+                reference: saleIdStr,
                 userId: req.user?.id
               }
             });
             
-
+            console.log(`[gift approve] Stock movement created for productId ${itemProductId}`);
           }
         } catch (itemError) {
           console.error(`[gift approve] Error processing productId=${item.productId}:`, itemError);
-          // Continue with other items even if one fails
+          console.error(`[gift approve] Error details:`, {
+            productId: itemProductId,
+            quantity: itemQuantity,
+            depotId: targetDepotId,
+            saleId: saleIdStr,
+            error: itemError.message,
+            stack: itemError.stack
+          });
+          throw itemError;
         }
       }
       

@@ -2129,50 +2129,31 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const monthlySessionIds = monthlySessions.map(s => s.id);
     const yearlySessionIds = yearlySessions.map(s => s.id);
 
-    // Get sales data from sessions
+    const buildSalesQuery = (sessionIds) => {
+      if (!sessionIds || sessionIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return prisma.sale.findMany({
+        where: {
+          status: 'COMPLETED',
+          depotId: targetDepotId,
+          sessionId: { in: sessionIds },
+          paymentType: { in: ['COMPTANT', 'CREDIT'] }
+        },
+        include: {
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+    };
+
     const [dailySales, monthlySales, yearlySales] = await Promise.all([
-      prisma.sale.findMany({
-        where: {
-          status: 'COMPLETED',
-          depotId: targetDepotId,
-          sessionId: { in: dailySessionIds }
-        },
-        include: {
-          items: {
-            include: {
-              product: true
-            }
-          }
-        }
-      }),
-      prisma.sale.findMany({
-        where: {
-          status: 'COMPLETED',
-          depotId: targetDepotId,
-          sessionId: { in: monthlySessionIds }
-        },
-        include: {
-          items: {
-            include: {
-              product: true
-            }
-          }
-        }
-      }),
-      prisma.sale.findMany({
-        where: {
-          status: 'COMPLETED',
-          depotId: targetDepotId,
-          sessionId: { in: yearlySessionIds }
-        },
-        include: {
-          items: {
-            include: {
-              product: true
-            }
-          }
-        }
-      })
+      buildSalesQuery(dailySessionIds),
+      buildSalesQuery(monthlySessionIds),
+      buildSalesQuery(yearlySessionIds)
     ]);
 
     // Calculate sales totals
