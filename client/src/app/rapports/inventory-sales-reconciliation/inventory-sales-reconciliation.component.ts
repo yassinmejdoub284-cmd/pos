@@ -12,6 +12,8 @@ import { Sale, SaleItem } from '../../core/models/sale.model';
 import { PrintService } from '../../core/services/print.service';
 import { DialogService } from '../../shared/services/dialog.service';
 import { ErrorDialogData } from '../../core/services/error-handling.service';
+import { DepotsService } from '../../core/services/depots.service';
+import { Depot } from '../../core/models/depot.model';
 
 export interface ReconciliationRow {
   date: Date;
@@ -182,6 +184,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   inventorySessions: InventorySession[] = [];
   reconciliationData: ReconciliationData[] = [];
   globalEcartSummary: GlobalEcartSummary | null = null;
+  depots: Depot[] = [];
   
   // Relevé Inventaire data
   releveInventaireData: ReleveInventaireRow[] = [];
@@ -219,6 +222,10 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   selectedGratuitSales: any[] = [];
   selectedGratuitProduct = '';
   
+  // Ticket details modal state
+  showTicketDetailsModal = false;
+  selectedTicket: Sale | null = null;
+  
   // UI state
   loading = false;
   error = '';
@@ -246,7 +253,8 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     private inventoryService: InventoryService,
     private salesService: SalesService,
     private sessionsService: SessionsService,
-    private productsService: ProductsService
+    private productsService: ProductsService,
+    private depotsService: DepotsService
   ) {}
 
   ngOnInit(): void {
@@ -331,6 +339,19 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       },
       error: (err) => {
         console.error('Error loading inventory sessions:', err);
+      }
+    });
+
+    // Load depots
+    this.depotsService.list().subscribe({
+      next: (depots) => {
+        this.depots = depots.filter(d => d.isActive);
+        if (this.depots.length > 0 && !this.depotId) {
+          this.depotId = this.depots[0].id;
+        }
+      },
+      error: (err) => {
+        console.error('Error loading depots:', err);
       }
     });
   }
@@ -447,6 +468,11 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   }
 
   private validateInputs(): boolean {
+    if (!this.depotId) {
+      this.error = 'Veuillez sélectionner un dépôt';
+      return false;
+    }
+
     if (this.rangeMode === 'DATE') {
       if (!this.startDate || !this.endDate) {
         this.error = 'Veuillez sélectionner une plage de dates';
@@ -492,29 +518,34 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     ]);
 
 
-    // Filter sales by date range
+    const depotId = this.getCurrentDepotId();
+    
     const salesInRange = allSales.filter(sale => {
       const saleDate = new Date(sale.createdAt);
-      return saleDate >= dateFrom && saleDate <= dateTo;
+      const inDateRange = saleDate >= dateFrom && saleDate <= dateTo;
+      const matchesDepot = !depotId || sale.depotId === depotId || sale.session?.depotId === depotId;
+      return inDateRange && matchesDepot;
+    });
+    
+    const stockMovementsInRange = allStockMovements.filter(movement => {
+      const movementDate = new Date(movement.date || movement.createdAt);
+      const inDateRange = movementDate >= dateFrom && movementDate <= dateTo;
+      const matchesDepot = !depotId || movement.depotId === depotId || movement.destinataireId === depotId;
+      return inDateRange && matchesDepot;
     });
 
-    // Filter out products with no activity to optimize processing
-    const activeProducts = this.filterActiveProducts(products, salesInRange, allStockMovements, allInventory);
+    const activeProducts = this.filterActiveProducts(products, salesInRange, stockMovementsInRange, allInventory);
     
-    // Store counts for UI display
     this.totalProducts = products.length;
     this.activeProducts = activeProducts.length;
     
-    // Choose which products to process based on user preference
     const productsToProcess = this.showInactiveProducts ? products : activeProducts;
-    
 
-    // Process selected products using pre-fetched data (no more API calls)
     const reconciliationPromises = productsToProcess.map(product => 
       this.generateProductReconciliationBulk(
         product, 
         salesInRange, 
-        allStockMovements, 
+        stockMovementsInRange, 
         allInventory
       )
     );
@@ -534,7 +565,11 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getAllSalesData(): Promise<any[]> {
     try {
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      const allSales = await firstValueFrom(this.salesService.getSales({ depotId: depotId } as any));
       return Array.isArray(allSales) ? allSales : [];
     } catch (err) {
       console.error('Error getting all sales data:', err);
@@ -544,7 +579,11 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getAllInventoryData(): Promise<any[]> {
     try {
-      const inventory = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock/inventory`));
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      const inventory = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock/inventory?depotId=${depotId}`));
       return Array.isArray(inventory) ? inventory : [];
     } catch (err) {
       console.error('Error getting all inventory data:', err);
@@ -604,9 +643,15 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getAllStockMovements(dateFrom: Date, dateTo: Date): Promise<any[]> {
     try {
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      
       const depotResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
         params: {
           type: 'BON_ENTREE_DEPOT',
+          depotId: depotId.toString(),
           limit: '1000',
           dateFrom: dateFrom.toISOString(),
           dateTo: dateTo.toISOString()
@@ -616,6 +661,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       const magasinResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
         params: {
           type: 'BON_ENTREE_MAGASIN',
+          depotId: depotId.toString(),
           limit: '1000',
           dateFrom: dateFrom.toISOString(),
           dateTo: dateTo.toISOString()
@@ -2635,9 +2681,15 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getStockEntriesDetails(): Promise<any[]> {
     try {
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      
       const depotResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
         params: {
           type: 'BON_ENTREE_DEPOT',
+          depotId: depotId.toString(),
           limit: '1000'
         }
       }));
@@ -2645,6 +2697,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       const magasinResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
         params: {
           type: 'BON_ENTREE_MAGASIN',
+          depotId: depotId.toString(),
           limit: '1000'
         }
       }));
@@ -2719,21 +2772,26 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getCashClosuresDetails(): Promise<any[]> {
     try {
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      
       const dateFrom = new Date(this.startDate);
       const dateTo = new Date(this.endDate);
       dateTo.setHours(23, 59, 59, 999);
 
-      // Fetch ALL sessions without date filtering to get all data
       const sessions = await firstValueFrom(
         this.sessionsService.getSessions({
-          limit: 1000 // Increase limit to get more sessions
-        })
+          depotId: depotId,
+          limit: 1000
+        } as any)
       );
 
       const sessionsArray = Array.isArray(sessions) ? sessions : [];
-      // Filter for CLOSED sessions within the date range based on closed_at
       const closedSessions = sessionsArray.filter(s => {
         if (s.status !== 'CLOSED' || !s.closedAt) return false;
+        if (s.depotId && s.depotId !== depotId) return false;
         
         const closedDate = new Date(s.closedAt);
         return closedDate >= dateFrom && closedDate <= dateTo;
@@ -2823,13 +2881,16 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getExpensesDetails(): Promise<any[]> {
     try {
-      // Get real expenses from your database within the date range
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      
       const dateFrom = new Date(this.startDate);
       const dateTo = new Date(this.endDate);
       dateTo.setHours(23, 59, 59, 999);
       
-      
-      const expensesResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/expenses?startDate=${dateFrom.toISOString().split('T')[0]}&endDate=${dateTo.toISOString().split('T')[0]}&limit=100`));
+      const expensesResponse = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/expenses?depotId=${depotId}&startDate=${dateFrom.toISOString().split('T')[0]}&endDate=${dateTo.toISOString().split('T')[0]}&limit=100`));
       
       // Handle different response formats
       let expenses = [];
@@ -3019,13 +3080,16 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getDiscountsDetails(): Promise<any[]> {
     try {
-      // Get real sales data from your database within the date range
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      
       const dateFrom = new Date(this.startDate);
       const dateTo = new Date(this.endDate);
       dateTo.setHours(23, 59, 59, 999);
       
-      
-      const sales = await firstValueFrom(this.salesService.getSales());
+      const sales = await firstValueFrom(this.salesService.getSales({ depotId: depotId } as any));
       const salesArray = Array.isArray(sales) ? sales : [];
       
       // Filter sales by date range from your real database
@@ -3142,22 +3206,25 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getStockReturnsDetails(): Promise<any[]> {
     try {
-      // Only use valid DocumentType values to avoid API errors
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      
       const dateFrom = new Date(this.startDate);
       const dateTo = new Date(this.endDate);
       dateTo.setHours(23, 59, 59, 999);
       
-      
-      // Only use valid DocumentType values
-      const validReturnTypes = ['BON_EXPEDITION']; // Only use valid types
+      const validReturnTypes = ['BON_EXPEDITION'];
       const returns = [];
-      const processedReturns = new Set(); // Avoid duplicates
+      const processedReturns = new Set();
       
       for (const type of validReturnTypes) {
         try {
           const response = await firstValueFrom(this.http.get<any>(`${environment.apiUrl}/stock-documents`, {
             params: {
               type: type,
+              depotId: depotId.toString(),
               dateFrom: dateFrom.toISOString(),
               dateTo: dateTo.toISOString(),
               limit: '100'
@@ -3275,6 +3342,10 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private getCurrentDepotId(): number | null {
     try {
+      if (this.depotId) {
+        return this.depotId;
+      }
+      
       const depotIdParam = this.route.snapshot.queryParams['depotId'];
       if (depotIdParam) {
         return parseInt(depotIdParam, 10);
@@ -3946,7 +4017,12 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async findAllGratuitSalesForProduct(productId: number): Promise<any[]> {
     try {
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      
+      const allSales = await firstValueFrom(this.salesService.getSales({ depotId: depotId } as any));
       const salesArray = Array.isArray(allSales) ? allSales : [];
       
       const gratuitSales = [];
@@ -3980,7 +4056,12 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async findWholesaleSaleForProduct(productId: number): Promise<any> {
     try {
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return null;
+      }
+      
+      const allSales = await firstValueFrom(this.salesService.getSales({ depotId: depotId } as any));
       const salesArray = Array.isArray(allSales) ? allSales : [];
       
       // Find the most recent wholesale sale for this product
@@ -4001,7 +4082,12 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async findAllWholesaleSalesForProduct(productId: number): Promise<any[]> {
     try {
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return [];
+      }
+      
+      const allSales = await firstValueFrom(this.salesService.getSales({ depotId: depotId } as any));
       const salesArray = Array.isArray(allSales) ? allSales : [];
       
       const wholesaleSales = [];
@@ -4037,10 +4123,14 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async findDiscountSaleForProduct(productId: number): Promise<any> {
     try {
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return null;
+      }
+      
+      const allSales = await firstValueFrom(this.salesService.getSales({ depotId: depotId } as any));
       const salesArray = Array.isArray(allSales) ? allSales : [];
       
-      // Find the most recent sale with discount for this product
       for (const sale of salesArray.reverse()) {
         const saleItems = sale.items?.filter((item: any) => item.productId === productId) || [];
         for (const item of saleItems) {
@@ -4058,10 +4148,47 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   openSaleDetails(saleId: number): void {
     if (saleId) {
-      // Open sale details in a new tab or modal
-      const saleUrl = `${environment.apiUrl}/sales/${saleId}`;
-      window.open(saleUrl, '_blank');
+      this.loading = true;
+      this.salesService.getSale(saleId).subscribe({
+        next: (sale) => {
+          this.selectedTicket = sale;
+          this.showTicketDetailsModal = true;
+          this.loading = false;
+        },
+        error: (err) => {
+          console.error('Error loading sale details:', err);
+          this.error = 'Erreur lors du chargement des détails du ticket';
+          this.loading = false;
+        }
+      });
     }
+  }
+
+  closeTicketDetailsModal(): void {
+    this.showTicketDetailsModal = false;
+    this.selectedTicket = null;
+  }
+
+  onTicketDetailsPrintRequested(ticket: Sale): void {
+    this.printService.printSaleReceipt(ticket);
+    this.closeTicketDetailsModal();
+  }
+
+  onTicketDetailsReturnExchangeRequested(_ticket: Sale): void {
+    this.closeTicketDetailsModal();
+  }
+
+  extractSaleIdFromLink(link: string): number | null {
+    if (!link) return null;
+    const match = link.match(/\/sales\/(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
+  }
+
+  getSaleIdFromDetails(details: string): number | null {
+    if (!details || !details.includes('Lien:')) return null;
+    const linkPart = details.split('Lien:')[1];
+    if (!linkPart) return null;
+    return this.extractSaleIdFromLink(linkPart.trim());
   }
 
 
@@ -4340,10 +4467,13 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   }
 
   private getDepotId(): number | null {
-    // Prefer current open session depot if available
+    if (this.depotId) {
+      return this.depotId;
+    }
+    
     const sessionDepotId = this.sessionsService.currentSession()?.depotId;
     if (sessionDepotId) return sessionDepotId;
-    // Fallback to any loaded inventory session depot
+    
     const invDepotId = this.inventorySessions?.[0]?.depotId;
     return invDepotId ?? null;
   }
@@ -4438,8 +4568,12 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getCashClosuresForProduct(productId: number): Promise<number> {
     try {
-      // Get all sales data and filter by product
-      const allSales = await firstValueFrom(this.salesService.getSales());
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return 0;
+      }
+      
+      const allSales = await firstValueFrom(this.salesService.getSales({ depotId: depotId } as any));
       const salesArray = Array.isArray(allSales) ? allSales : [];
       
       let total = 0;
@@ -4461,8 +4595,12 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
 
   private async getExpensesForProduct(productId: number): Promise<number> {
     try {
-      // Get expenses data
-      const expenses = await firstValueFrom(this.http.get<any[]>(`${environment.apiUrl}/expenses`));
+      const depotId = this.getCurrentDepotId();
+      if (!depotId) {
+        return 0;
+      }
+      
+      const expenses = await firstValueFrom(this.http.get<any[]>(`${environment.apiUrl}/expenses?depotId=${depotId}`));
       const expensesArray = Array.isArray(expenses) ? expenses : [];
       
       let total = 0;

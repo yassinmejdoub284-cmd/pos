@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule, Routes } from '@angular/router';
 
 import { InventorySalesReconciliationComponent } from './inventory-sales-reconciliation.component';
+import { TicketDetailsModalComponent } from '../../shared/ticket-details-modal/ticket-details-modal.component';
 
 const routes: Routes = [
   { path: '', component: InventorySalesReconciliationComponent }
@@ -16,7 +17,8 @@ const routes: Routes = [
   imports: [
     CommonModule,
     FormsModule,
-    RouterModule.forChild(routes)
+    RouterModule.forChild(routes),
+    TicketDetailsModalComponent
   ]
 })
 export class InventorySalesReconciliationModule { }

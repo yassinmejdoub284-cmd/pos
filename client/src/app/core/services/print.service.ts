@@ -1358,12 +1358,14 @@ export class PrintService {
     const totalAPayer = Number(sale.finalTotal || subtotal - discount);
     const payment = sale.paymentMethod?.name || '—';
     const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
-    // Check if it's a credit payment - explicitly check for CREDIT type
+    // Check if it's a credit payment or temporary sale - explicitly check for CREDIT type or TEMPORARY status
     const isCredit = sale.paymentType === 'CREDIT';
+    const isTemporary = sale.status === 'TEMPORARY';
     // Get advancePayment from database (montant payé maintenant)
     const montantPayeMaintenant = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
     // Calculate remaining amount: TOTAL A PAYER - Montant payé maintenant
     const resteAPayer = Math.max(0, totalAPayer - montantPayeMaintenant);
+    const advancePaymentMethod = sale.advancePaymentMethod?.name || '';
 
     // Generate logo HTML if enabled
     let logoHtml = '';
@@ -1450,8 +1452,8 @@ export class PrintService {
               <tr><td class="bold">Sous-total</td><td style="text-align:right" class="bold">${subtotal.toFixed(3)} dt</td></tr>
               ${discount > 0 ? `<tr><td>Remise</td><td style="text-align:right">-${discount.toFixed(3)} dt</td></tr>` : ''}
               <tr><td class="bold">TOTAL A PAYER</td><td style="text-align:right" class="bold">${totalAPayer.toFixed(3)} dt</td></tr>
-              ${isCredit ? `<tr><td>Montant payé maintenant</td><td style="text-align:right">${montantPayeMaintenant.toFixed(3)} dt</td></tr>` : ''}
-              ${isCredit ? `<tr><td class="bold">Reste à payer</td><td style="text-align:right" class="bold">${resteAPayer.toFixed(3)} dt</td></tr>` : ''}
+              ${(isCredit || isTemporary) && montantPayeMaintenant > 0 ? `<tr><td>Avance payée${advancePaymentMethod ? ` (${this.escapeHtml(advancePaymentMethod)})` : ''}</td><td style="text-align:right">${montantPayeMaintenant.toFixed(3)} dt</td></tr>` : ''}
+              ${(isCredit || isTemporary) && resteAPayer > 0 ? `<tr><td class="bold">Reste à payer</td><td style="text-align:right" class="bold">${resteAPayer.toFixed(3)} dt</td></tr>` : ''}
               <tr><td>Paiement</td><td style="text-align:right">${this.escapeHtml(payment)}</td></tr>
             </table>
             <div class="line"></div>
@@ -1606,29 +1608,6 @@ export class PrintService {
     
     text += '--------------------------------------------\n\n';
     
-    // Payment section
-    text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
-    
-    // Payment type
-    const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
-    text += leftAlign + `Type de paiement: ${paymentTypeText}\n`;
-    
-    // Payment method
-    if (sale.paymentMethod) {
-      text += leftAlign + `Méthode: ${this.sanitizeForThermalPrinter(sale.paymentMethod.name)}\n`;
-    }
-    
-    // Advance payment (acompte)
-    const advancePayment = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
-    if (advancePayment > 0) {
-      text += leftAlign + `Acompte: ${advancePayment.toFixed(2)} dt\n`;
-      if (sale.advancePaymentMethod) {
-        text += leftAlign + `Méthode acompte: ${this.sanitizeForThermalPrinter(sale.advancePaymentMethod.name)}\n`;
-      }
-    }
-    
-    text += '\n';
-    
     // Totals
     const discount = Number(sale.discount || 0);
     const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
@@ -1639,7 +1618,37 @@ export class PrintService {
     if (discount > 0) {
       text += leftAlign + `Remise: -${discount.toFixed(2)} dt\n`;
     }
-    text += leftAlign + boldOn + `Total: ${total.toFixed(2)} dt` + boldOff + '\n';
+    text += leftAlign + boldOn + `TOTAL A PAYER: ${total.toFixed(2)} dt` + boldOff + '\n';
+    
+    // Advance payment (acompte) and remaining balance for temporary sales
+    const advancePayment = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
+    if (advancePayment > 0) {
+      text += leftAlign + `Avance payée: ${advancePayment.toFixed(2)} dt`;
+      if (sale.advancePaymentMethod) {
+        text += ` (${this.sanitizeForThermalPrinter(sale.advancePaymentMethod.name)})`;
+      }
+      text += '\n';
+      const remainingBalance = total - advancePayment;
+      if (remainingBalance > 0) {
+        text += leftAlign + boldOn + `Reste à payer: ${remainingBalance.toFixed(2)} dt` + boldOff + '\n';
+      }
+    }
+    
+    text += '--------------------------------------------\n';
+    
+    // Payment section
+    text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
+    
+    // Payment type
+    const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
+    text += leftAlign + `Type de paiement: ${paymentTypeText}\n`;
+    
+    // Payment method
+    if (sale.paymentMethod) {
+      text += leftAlign + `Méthode: ${this.sanitizeForThermalPrinter(sale.paymentMethod.name)}\n`;
+    } else if (sale.status === 'TEMPORARY') {
+      text += leftAlign + `Méthode: —\n`;
+    }
     
     text += '=========================================\n';
     

@@ -1698,11 +1698,21 @@
             (click)="selectExistingTemporarySale(sale)">
             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
               <div class="flex-1">
-                <div class="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
-                  <span class="text-base sm:text-lg font-bold text-gray-800">#{{ sale.id }}</span>
-                  <span class="px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-                    Temporaire
-                  </span>
+                <div class="flex items-center justify-between mb-2 sm:mb-3">
+                  <div class="flex items-center space-x-2 sm:space-x-3">
+                    <span class="text-base sm:text-lg font-bold text-gray-800">#{{ sale.id }}</span>
+                    <span class="px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                      Temporaire
+                    </span>
+                  </div>
+                  <button 
+                    (click)="$event.stopPropagation(); printTicket(sale)"
+                    class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Imprimer le ticket">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                    </svg>
+                  </button>
                 </div>
                 <div class="text-xs sm:text-sm text-gray-600 mb-2">
                   <div class="font-medium">📅 {{ sale.expectedDate | date:'shortDate' }} à {{ sale.expectedDate |
@@ -1715,8 +1725,14 @@
                       sale.advancePaymentMethod.name }})</span>
                   </div>
                 </div>
-                <div class="text-xs sm:text-sm text-gray-500">
-                  📦 {{ sale.items.length }} article{{ sale.items.length > 1 ? 's' : '' }}
+                <div class="text-xs sm:text-sm text-gray-500 mt-2">
+                  <div class="font-medium mb-1">📦 {{ sale.items.length }} article{{ sale.items.length > 1 ? 's' : '' }}</div>
+                  <div class="space-y-1 mt-2">
+                    <div *ngFor="let item of sale.items" class="flex justify-between items-center">
+                      <span class="text-gray-700">{{ item.productName }}</span>
+                      <span class="text-gray-600 font-medium ml-2">x{{ item.quantity | number:'1.0-3' }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="text-left sm:text-right">

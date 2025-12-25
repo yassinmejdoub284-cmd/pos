@@ -281,8 +281,10 @@ export class LoginComponent implements OnInit, OnDestroy {
     
     switch (role) {
       case 'ADMIN':
-      case 'SUPER_ADMIN':
         this.router.navigate(['/admin-home']);
+        break;
+      case 'SUPER_ADMIN':
+        this.router.navigate(['/home']);
         break;
       case 'MANAGER':
         this.router.navigate(['/home']);
