@@ -1,11 +1,11 @@
-<div class="min-h-screen bg-gray-50">
-  <div class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+<div class="min-h-screen bg-slate-100">
+  <div class="bg-violet-600 shadow-lg sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-gray-900">Tableau de Bord Administrateur</h1>
+        <h1 class="text-3xl font-bold text-white">Tableau de Bord Administrateur</h1>
         <button
           (click)="goToHome()"
-          class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-violet-600 rounded-xl font-semibold shadow-md"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -19,31 +19,33 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     @if (loading()) {
       <div class="flex items-center justify-center py-20">
-        <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
+        <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-violet-600"></div>
       </div>
     } @else if (error()) {
-      <div class="bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm">
-        <span class="text-red-800 font-medium">{{ error() }}</span>
+      <div class="bg-rose-100 border-2 border-rose-400 rounded-xl p-6 shadow-md">
+        <span class="text-rose-800 font-semibold text-lg">{{ error() }}</span>
       </div>
     } @else if (stats()) {
-      <div class="space-y-8">
+      <div class="space-y-10">
         <section>
-          <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Solde de Caisse par Boutique
+          <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
+            <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span>Solde de Caisse par Boutique</span>
           </h2>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @for (depot of stats()!.depots; track depot.id) {
-              <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-                <div class="flex items-center justify-between mb-4">
-                  <h3 class="text-lg font-bold text-gray-900">{{ depot.name }}</h3>
-                  <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">{{ depot.code }}</span>
+              <div class="bg-white rounded-2xl shadow-lg border-2 border-emerald-200 p-6">
+                <div class="flex items-center justify-between mb-5">
+                  <h3 class="text-lg font-bold text-slate-800">{{ depot.name }}</h3>
+                  <span class="px-3 py-1 text-xs font-bold bg-emerald-500 text-white rounded-full">{{ depot.code }}</span>
                 </div>
                 <div class="mt-4">
-                  <span class="text-sm text-gray-600 block mb-1">Solde de Caisse</span>
-                  <div class="text-3xl font-bold text-blue-600">{{ formatCurrency(depot.soldeCaisse) }}</div>
+                  <span class="text-sm font-medium text-slate-600 block mb-2">Solde de Caisse</span>
+                  <div class="text-3xl font-bold text-emerald-600">{{ formatCurrency(depot.soldeCaisse) }}</div>
                 </div>
               </div>
             }
@@ -51,95 +53,99 @@
         </section>
 
         <section>
-          <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Statistiques de Ventes
+          <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
+            <div class="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <span>Statistiques de Ventes</span>
           </h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-              <div class="flex items-center justify-between mb-4">
-                <span class="text-sm font-medium text-gray-600">Aujourd'hui</span>
-                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-white rounded-2xl shadow-lg border-2 border-emerald-300 p-6">
+              <div class="flex items-center justify-between mb-5">
+                <span class="text-sm font-semibold text-slate-700">Aujourd'hui</span>
+                <div class="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
-              <div class="text-2xl font-bold text-gray-900 mb-1">{{ formatCurrency(stats()!.statistics.sales.today.revenue) }}</div>
-              <div class="text-sm text-gray-500">{{ stats()!.statistics.sales.today.transactions }} transactions</div>
+              <div class="text-3xl font-bold text-emerald-600 mb-2">{{ formatCurrency(stats()!.statistics.sales.today.revenue) }}</div>
+              <div class="text-sm font-medium text-slate-600">{{ stats()!.statistics.sales.today.transactions }} transactions</div>
             </div>
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-              <div class="flex items-center justify-between mb-4">
-                <span class="text-sm font-medium text-gray-600">Ce Mois</span>
-                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-white rounded-2xl shadow-lg border-2 border-indigo-300 p-6">
+              <div class="flex items-center justify-between mb-5">
+                <span class="text-sm font-semibold text-slate-700">Ce Mois</span>
+                <div class="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
               </div>
-              <div class="text-2xl font-bold text-gray-900 mb-1">{{ formatCurrency(stats()!.statistics.sales.month.revenue) }}</div>
-              <div class="text-sm text-gray-500">{{ stats()!.statistics.sales.month.transactions }} transactions</div>
+              <div class="text-3xl font-bold text-indigo-600 mb-2">{{ formatCurrency(stats()!.statistics.sales.month.revenue) }}</div>
+              <div class="text-sm font-medium text-slate-600">{{ stats()!.statistics.sales.month.transactions }} transactions</div>
             </div>
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-              <div class="flex items-center justify-between mb-4">
-                <span class="text-sm font-medium text-gray-600">Cette Année</span>
-                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-white rounded-2xl shadow-lg border-2 border-violet-300 p-6">
+              <div class="flex items-center justify-between mb-5">
+                <span class="text-sm font-semibold text-slate-700">Cette Année</span>
+                <div class="w-12 h-12 bg-violet-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
               </div>
-              <div class="text-2xl font-bold text-gray-900 mb-1">{{ formatCurrency(stats()!.statistics.sales.year.revenue) }}</div>
-              <div class="text-sm text-gray-500">{{ stats()!.statistics.sales.year.transactions }} transactions</div>
+              <div class="text-3xl font-bold text-violet-600 mb-2">{{ formatCurrency(stats()!.statistics.sales.year.revenue) }}</div>
+              <div class="text-sm font-medium text-slate-600">{{ stats()!.statistics.sales.year.transactions }} transactions</div>
             </div>
           </div>
         </section>
 
         <section>
-          <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            État des Dépenses par Point de Vente
+          <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
+            <div class="w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span>État des Dépenses par Point de Vente</span>
           </h2>
-          <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div class="bg-white rounded-2xl shadow-lg border-2 border-rose-200 overflow-hidden">
             <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+              <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-rose-500">
                   <tr>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Boutique</th>
-                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Aujourd'hui</th>
-                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Mois Actuel</th>
-                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Année</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Boutique</th>
+                    <th class="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Aujourd'hui</th>
+                    <th class="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Mois Actuel</th>
+                    <th class="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Année</th>
                   </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="bg-white divide-y divide-slate-200">
                   @for (depot of stats()!.depots; track depot.id) {
-                    <tr class="hover:bg-gray-50 transition-colors">
+                    <tr class="bg-white">
                       <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-semibold text-gray-900">{{ depot.name }}</div>
-                        <div class="text-sm text-gray-500">{{ depot.code }}</div>
+                        <div class="text-sm font-bold text-slate-800">{{ depot.name }}</div>
+                        <div class="text-sm text-slate-600">{{ depot.code }}</div>
                       </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-rose-600">
                         {{ formatCurrency(depot.expenses.today) }}
                       </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-rose-600">
                         {{ formatCurrency(depot.expenses.month) }}
                       </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-rose-600">
                         {{ formatCurrency(depot.expenses.year) }}
                       </td>
                     </tr>
                   }
                 </tbody>
-                <tfoot class="bg-gray-50">
+                <tfoot class="bg-rose-100">
                   <tr>
-                    <td class="px-6 py-4 text-sm font-bold text-gray-900">Total</td>
-                    <td class="px-6 py-4 text-right text-sm font-bold text-red-600">{{ formatCurrency(stats()!.statistics.expenses.today) }}</td>
-                    <td class="px-6 py-4 text-right text-sm font-bold text-red-600">{{ formatCurrency(stats()!.statistics.expenses.month) }}</td>
-                    <td class="px-6 py-4 text-right text-sm font-bold text-red-600">{{ formatCurrency(stats()!.statistics.expenses.year) }}</td>
+                    <td class="px-6 py-4 text-sm font-bold text-slate-800">Total</td>
+                    <td class="px-6 py-4 text-right text-sm font-bold text-rose-700">{{ formatCurrency(stats()!.statistics.expenses.today) }}</td>
+                    <td class="px-6 py-4 text-right text-sm font-bold text-rose-700">{{ formatCurrency(stats()!.statistics.expenses.month) }}</td>
+                    <td class="px-6 py-4 text-right text-sm font-bold text-rose-700">{{ formatCurrency(stats()!.statistics.expenses.year) }}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -148,63 +154,65 @@
         </section>
 
         <section>
-          <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Statistiques Générales
+          <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
+            <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <span>Statistiques Générales</span>
           </h2>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div class="bg-white rounded-2xl shadow-lg border-2 border-blue-300 p-6">
               <div class="flex items-center justify-between">
                 <div>
-                  <span class="text-sm font-medium text-gray-600 block mb-1">Nombre de Clients</span>
-                  <div class="text-3xl font-bold text-gray-900">{{ stats()!.statistics.totalClients }}</div>
+                  <span class="text-sm font-semibold text-slate-600 block mb-2">Nombre de Clients</span>
+                  <div class="text-3xl font-bold text-blue-600">{{ stats()!.statistics.totalClients }}</div>
                 </div>
-                <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-16 h-16 bg-blue-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
               </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div class="bg-white rounded-2xl shadow-lg border-2 border-indigo-300 p-6">
               <div class="flex items-center justify-between">
                 <div>
-                  <span class="text-sm font-medium text-gray-600 block mb-1">Nombre de Fournisseurs</span>
-                  <div class="text-3xl font-bold text-gray-900">{{ stats()!.statistics.totalSuppliers }}</div>
+                  <span class="text-sm font-semibold text-slate-600 block mb-2">Nombre de Fournisseurs</span>
+                  <div class="text-3xl font-bold text-indigo-600">{{ stats()!.statistics.totalSuppliers }}</div>
                 </div>
-                <div class="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center">
-                  <svg class="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-16 h-16 bg-indigo-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
               </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div class="bg-white rounded-2xl shadow-lg border-2 border-amber-300 p-6">
               <div class="flex items-center justify-between">
                 <div>
-                  <span class="text-sm font-medium text-gray-600 block mb-1">Crédit Clients</span>
-                  <div class="text-2xl font-bold text-orange-600">{{ formatCurrency(stats()!.statistics.totalClientCredit) }}</div>
+                  <span class="text-sm font-semibold text-slate-600 block mb-2">Crédit Clients</span>
+                  <div class="text-2xl font-bold text-amber-600">{{ formatCurrency(stats()!.statistics.totalClientCredit) }}</div>
                 </div>
-                <div class="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center">
-                  <svg class="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-16 h-16 bg-amber-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div class="bg-white rounded-2xl shadow-lg border-2 border-rose-300 p-6">
               <div class="flex items-center justify-between">
                 <div>
-                  <span class="text-sm font-medium text-gray-600 block mb-1">Crédit Fournisseurs</span>
-                  <div class="text-2xl font-bold text-red-600">{{ formatCurrency(stats()!.statistics.totalSupplierCredit) }}</div>
+                  <span class="text-sm font-semibold text-slate-600 block mb-2">Crédit Fournisseurs</span>
+                  <div class="text-2xl font-bold text-rose-600">{{ formatCurrency(stats()!.statistics.totalSupplierCredit) }}</div>
                 </div>
-                <div class="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center">
-                  <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-16 h-16 bg-rose-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
@@ -215,32 +223,34 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <section>
-            <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-              </svg>
-              Meilleurs Clients
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
+              <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+              <span>Meilleurs Clients</span>
             </h2>
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-lg border-2 border-emerald-200 overflow-hidden">
               <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                  <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-slate-200">
+                  <thead class="bg-emerald-500">
                     <tr>
-                      <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Code</th>
-                      <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Nom</th>
-                      <th class="px-6 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Total Dépensé</th>
-                      <th class="px-6 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Commandes</th>
+                      <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Code</th>
+                      <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Nom</th>
+                      <th class="px-6 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">Total Dépensé</th>
+                      <th class="px-6 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">Commandes</th>
                     </tr>
                   </thead>
-                  <tbody class="bg-white divide-y divide-gray-200">
+                  <tbody class="bg-white divide-y divide-slate-200">
                     @for (client of stats()!.statistics.bestClients; track client.id) {
-                      <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{{ client.code }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ client.name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-green-600">
+                      <tr class="bg-white">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">{{ client.code }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{{ client.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-emerald-600">
                           {{ formatCurrency(client.totalSpent) }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-slate-700">
                           {{ client.orderCount }}
                         </td>
                       </tr>
@@ -252,47 +262,49 @@
           </section>
 
           <section>
-            <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-              Meilleurs Produits Vendus
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
+              <div class="w-10 h-10 bg-violet-500 rounded-xl flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <span>Meilleurs Produits Vendus</span>
             </h2>
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-lg border-2 border-violet-200 overflow-hidden">
               <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                  <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-slate-200">
+                  <thead class="bg-violet-500">
                     <tr>
-                      <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Produit</th>
-                      <th class="px-6 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Quantité</th>
-                      <th class="px-6 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Revenu</th>
-                      <th class="px-6 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Ventes</th>
+                      <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Produit</th>
+                      <th class="px-6 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">Quantité</th>
+                      <th class="px-6 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">Revenu</th>
+                      <th class="px-6 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">Ventes</th>
                     </tr>
                   </thead>
-                  <tbody class="bg-white divide-y divide-gray-200">
+                  <tbody class="bg-white divide-y divide-slate-200">
                     @for (product of stats()!.statistics.bestProducts; track product.id) {
-                      <tr class="hover:bg-gray-50 transition-colors">
+                      <tr class="bg-white">
                         <td class="px-6 py-4 whitespace-nowrap">
                           <div class="flex items-center gap-3">
                             @if (product.photo) {
                               <img [src]="getProductImageUrl(product.photo)" [alt]="product.name" class="w-10 h-10 rounded-lg object-cover" (error)="onImageError($event)">
                             } @else {
-                              <div class="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div class="w-10 h-10 bg-violet-200 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                 </svg>
                               </div>
                             }
-                            <span class="text-sm font-semibold text-gray-900">{{ product.name }}</span>
+                            <span class="text-sm font-bold text-slate-800">{{ product.name }}</span>
                           </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-slate-800">
                           {{ product.quantitySold.toFixed(2) }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-blue-600">
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-violet-600">
                           {{ formatCurrency(product.totalRevenue) }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-slate-700">
                           {{ product.saleCount }}
                         </td>
                       </tr>
