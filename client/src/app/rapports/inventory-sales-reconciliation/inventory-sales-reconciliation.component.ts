@@ -3119,14 +3119,18 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
           Number(item.total) === 0
         );
         
+        // Skip credit sales - the difference between total and finalTotal is credit, not discount
+        const isCreditSale = sale.paymentType === 'CREDIT';
+        
         // Check for sale-level discount first
         const saleDiscount = Number(sale.discount) || 0;
         const saleTotal = Number(sale.total) || 0;
         const saleFinalTotal = Number(sale.finalTotal) || 0;
         const saleLevelDiscount = saleTotal - saleFinalTotal;
         
-        if (saleLevelDiscount >= 0.001) {
+        if (saleLevelDiscount >= 0.001 && !isCreditSale) {
           // This is a sale-level discount - create one total discount entry
+          // Exclude credit sales as the difference is credit owed, not a discount
           processedSales.add(sale.id);
           
           discounts.push({

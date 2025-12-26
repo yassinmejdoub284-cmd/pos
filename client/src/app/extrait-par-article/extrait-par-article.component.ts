@@ -4,6 +4,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { DepotsService } from '../core/services/depots.service';
 import { SessionsService, SessionCaisse, CashMovement } from '../core/services/sessions.service';
 import { AuthService } from '../core/services/auth.service';
+import { ReturnsService, ReturnRequest } from '../core/services/returns.service';
 import { Depot } from '../core/models/depot.model';
 import { Subject, takeUntil, forkJoin, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
@@ -16,6 +17,7 @@ interface ProductData {
   revenue: number;
   discount: number;
   unitPrice?: number;
+  returnAmount?: number;
 }
 
 interface FamilyData {
@@ -38,6 +40,7 @@ interface SessionExtract {
   totalCash?: number;
   clientCreditAmount?: number;
   clientPaymentAmount?: number;
+  totalReturnAmount?: number;
   cancelledTickets?: Array<{ id: number; ticketNumber: string; amount: number }>;
   families: FamilyData[];
   session?: SessionCaisse;
@@ -68,6 +71,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
     private depotsService: DepotsService,
     private sessionsService: SessionsService,
     private authService: AuthService,
+    private returnsService: ReturnsService,
     private http: HttpClient
   ) {}
 
@@ -284,18 +288,24 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
                 } else {
                   sessionStorage.removeItem('visitingDepotId');
                 }
-                // Process each session report and convert to SessionExtract format
-                this.extracts = sessionReports
-                  .filter(({ report }) => report !== null)
-                  .map(({ session, report }) => {
+                
+                // Fetch return requests and process extracts
+                this.fetchReturnRequestsForSessions(sortedSessions, depotIdNum).then(returnRequestsBySession => {
+                  // Process each session report and convert to SessionExtract format
+                  this.extracts = sessionReports
+                    .filter(({ report }) => report !== null)
+                    .map(({ session, report }) => {
                     const sessionReport = report as any;
                     const sessionData = sessionReport.session;
                     const summary = sessionReport.summary || {};
                     
                     // Build article grouping from session sales (same as print service)
                     const sales: any[] = (sessionData?.sales || []) as any[];
-                    const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number; discount: number }>> = {};
+                    const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number; discount: number; returnAmount: number }>> = {};
                     const cancelledSales: any[] = [];
+                    
+                    // Get return requests for this session
+                    const sessionReturnRequests = returnRequestsBySession.get(session.id) || [];
 
                     // Separate completed, cancelled, and gift sales
                     sales.forEach(sale => {
@@ -326,12 +336,44 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
                           
                           // Initialize article if not exists
                           if (!familyArticleTotals[familyName][productName]) {
-                            familyArticleTotals[familyName][productName] = { quantity: 0, total: 0, discount: 0 };
+                            familyArticleTotals[familyName][productName] = { quantity: 0, total: 0, discount: 0, returnAmount: 0 };
                           }
                           
                           familyArticleTotals[familyName][productName].quantity += qty;
                           familyArticleTotals[familyName][productName].total += lineTotal;
                           familyArticleTotals[familyName][productName].discount += lineDiscount;
+                        });
+                      }
+                    });
+                    
+                    // Process return requests to calculate return amounts by article
+                    sessionReturnRequests.forEach((returnRequest: ReturnRequest) => {
+                      if (returnRequest.status === 'PROCESSED' && returnRequest.items) {
+                        const totalRefund = parseFloat(String(returnRequest.originalSaleTotal || 0)) || 0;
+                        
+                        returnRequest.items.forEach(item => {
+                          if (!item.product) return;
+                          
+                          const productName = item.product.name || 'Produit';
+                          const familyName = item.product.famille?.name || 'Sans famille';
+                          const nonRebutQty = parseFloat(String(item.nonRebutQty || item.requestedQty || 0)) || 0;
+                          
+                          if (nonRebutQty > 0) {
+                            // Initialize family/article if not exists
+                            if (!familyArticleTotals[familyName]) {
+                              familyArticleTotals[familyName] = {};
+                            }
+                            if (!familyArticleTotals[familyName][productName]) {
+                              familyArticleTotals[familyName][productName] = { quantity: 0, total: 0, discount: 0, returnAmount: 0 };
+                            }
+                            
+                            // Calculate return amount: use unit price from product or distribute total refund proportionally
+                            const unitPrice = parseFloat(String(item.product.prix_vente_TTC || 0)) || 0;
+                            const itemReturnAmount = unitPrice > 0 ? nonRebutQty * unitPrice : 0;
+                            
+                            familyArticleTotals[familyName][productName].returnAmount = 
+                              (familyArticleTotals[familyName][productName].returnAmount || 0) + itemReturnAmount;
+                          }
                         });
                       }
                     });
@@ -344,12 +386,13 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
                           .map(productName => {
                             const productData = familyArticleTotals[familyName][productName];
                             return {
-                              id: 0, // Will be set if available
+                              id: 0,
                               name: productName,
                               quantity: productData.quantity,
                               revenue: productData.total,
                               discount: productData.discount,
-                              unitPrice: productData.quantity > 0 ? productData.total / productData.quantity : 0
+                              unitPrice: productData.quantity > 0 ? productData.total / productData.quantity : 0,
+                              returnAmount: productData.returnAmount || 0
                             };
                           });
                         
@@ -412,6 +455,19 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
                       })
                       .reduce((sum: number, m: CashMovement) => sum + parseFloat(String(m.amount || 0)), 0);
 
+                    const totalReturnAmount = cashMovements
+                      .filter((m: CashMovement) => {
+                        const reason = String(m.reason || '').toLowerCase();
+                        return (m.type === 'SORTIE' || m.type === 'ENTREE') &&
+                               (reason.includes('remboursement retour article') || reason.includes('retour article')) &&
+                               !reason.includes('[REJETÉ]') &&
+                               !reason.includes('[SUPPRIMÉ]');
+                      })
+                      .reduce((sum: number, m: CashMovement) => {
+                        const amount = Math.abs(parseFloat(String(m.amount || 0)));
+                        return sum + amount;
+                      }, 0);
+
                     const totalCash = totalRevenue - totalDiscount - totalExpenses - supplierPayments - withdrawals;
 
                     let clientCreditAmount = 0;
@@ -468,48 +524,50 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
                       ? sessionDate.toISOString().split('T')[0]
                       : new Date(sessionDate).toISOString().split('T')[0];
 
-                    return {
-                      sessionId: session.id,
-                      date: dateStr,
-                      totalRevenue,
-                      totalDiscount,
-                      totalExpenses,
-                      totalCancelled,
-                      supplierPayments,
-                      withdrawals,
-                      totalCash,
-                      clientCreditAmount,
-                      clientPaymentAmount,
-                      cancelledTickets,
-                      families,
-                      session: {
-                        ...session,
-                        user: sessionData.user,
-                        depot: sessionData.depot,
-                        cashMovements: sessionData.cashMovements
-                      }
-                    };
+                      return {
+                        sessionId: session.id,
+                        date: dateStr,
+                        totalRevenue,
+                        totalDiscount,
+                        totalExpenses,
+                        totalCancelled,
+                        supplierPayments,
+                        withdrawals,
+                        totalCash,
+                        clientCreditAmount,
+                        clientPaymentAmount,
+                        totalReturnAmount,
+                        cancelledTickets,
+                        families,
+                        session: {
+                          ...session,
+                          user: sessionData.user,
+                          depot: sessionData.depot,
+                          cashMovements: sessionData.cashMovements
+                        }
+                      };
+                    });
+
+                  // Sort extracts by date descending (most recent first)
+                  this.extracts.sort((a, b) => {
+                    const dateA = new Date(a.date).getTime();
+                    const dateB = new Date(b.date).getTime();
+                    return dateB - dateA;
                   });
 
-                // Sort extracts by date descending (most recent first)
-                this.extracts.sort((a, b) => {
-                  const dateA = new Date(a.date).getTime();
-                  const dateB = new Date(b.date).getTime();
-                  return dateB - dateA;
+                  // Extract sessions from extracts
+                  this.sessions = this.extracts
+                    .map(e => e.session)
+                    .filter((s): s is SessionCaisse => s !== undefined && s !== null);
+
+                  // Set first session as selected
+                  if (this.extracts.length > 0) {
+                    this.currentSessionIndex = 0;
+                    this.selectedSessionId = this.extracts[0]?.sessionId || null;
+                  }
+
+                  this.loading = false;
                 });
-
-                // Extract sessions from extracts
-                this.sessions = this.extracts
-                  .map(e => e.session)
-                  .filter((s): s is SessionCaisse => s !== undefined && s !== null);
-
-                // Set first session as selected
-                if (this.extracts.length > 0) {
-                  this.currentSessionIndex = 0;
-                  this.selectedSessionId = this.extracts[0]?.sessionId || null;
-                }
-
-                this.loading = false;
               },
               error: (err) => {
                 // Restore original visitingDepotId on error
@@ -664,11 +722,74 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
 
   formatQuantity(quantity: number): string {
     const formatted = quantity.toFixed(3);
-    // If decimal part is .000, return only integer part
     if (formatted.endsWith('.000')) {
       return Math.floor(quantity).toString();
     }
     return formatted;
+  }
+
+  getFamilyReturnTotal(family: FamilyData): number {
+    return family.products.reduce((sum, p) => sum + (p.returnAmount || 0), 0);
+  }
+
+  getTotalReturnAmount(extract: SessionExtract): number {
+    if (extract.totalReturnAmount !== undefined) {
+      return extract.totalReturnAmount;
+    }
+    return extract.families.reduce((total, family) => {
+      return total + family.products.reduce((sum, p) => sum + (p.returnAmount || 0), 0);
+    }, 0);
+  }
+
+  private async fetchReturnRequestsForSessions(sessions: SessionCaisse[], depotId: number): Promise<Map<number, ReturnRequest[]>> {
+    const returnRequestsMap = new Map<number, ReturnRequest[]>();
+    
+    try {
+      const token = this.authService.getToken() || sessionStorage.getItem('token');
+      if (!token) return returnRequestsMap;
+      
+      const headers = new HttpHeaders({
+        'Authorization': `Bearer ${token}`,
+        'X-Depot-Id': depotId.toString()
+      });
+      
+      const allReturnRequests = await this.returnsService.listReturnRequests('PROCESSED')
+        .pipe(catchError(() => of([] as ReturnRequest[])))
+        .toPromise();
+      
+      if (!allReturnRequests || allReturnRequests.length === 0) {
+        sessions.forEach(s => returnRequestsMap.set(s.id, []));
+        return returnRequestsMap;
+      }
+      
+      const depotReturnRequests = allReturnRequests.filter(req => req.depotId === depotId);
+      
+      for (const session of sessions) {
+        const sessionStart = session.openedAt instanceof Date 
+          ? session.openedAt 
+          : new Date(session.openedAt);
+        const sessionEnd = session.closedAt 
+          ? (session.closedAt instanceof Date ? session.closedAt : new Date(session.closedAt))
+          : new Date();
+        
+        const sessionRequests = depotReturnRequests.filter(req => {
+          const approvedAt = req.approvedAt ? new Date(req.approvedAt) : null;
+          if (!approvedAt) {
+            const createdAt = req.createdAt ? new Date(req.createdAt) : null;
+            if (!createdAt) return false;
+            return createdAt >= sessionStart && createdAt <= sessionEnd;
+          }
+          return approvedAt >= sessionStart && approvedAt <= sessionEnd;
+        });
+        
+        returnRequestsMap.set(session.id, sessionRequests);
+      }
+    } catch (error) {
+      console.error('Error fetching return requests:', error);
+      sessions.forEach(s => returnRequestsMap.set(s.id, []));
+    }
+    
+    return returnRequestsMap;
   }
 
   goBack(): void {
