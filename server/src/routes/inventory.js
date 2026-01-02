@@ -968,6 +968,136 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
       orderBy: { id: 'asc' }
     });
 
+    // Fetch all entry documents and sales once (outside the loop) to optimize performance
+    const allEntryDocuments = await prisma.stockDocument.findMany({
+      where: {
+        destinataireId: sessionToPost.depotId,
+        type: { in: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'] },
+        status: 'RECEIVED'
+      },
+      include: {
+        items: true
+      }
+    });
+
+    const allSales = await prisma.sale.findMany({
+      where: {
+        depotId: sessionToPost.depotId,
+        status: { in: ['COMPLETED', 'CMD_TERMINEE'] },
+        paymentType: { in: ['COMPTANT', 'CREDIT'] }
+      },
+      include: {
+        items: true
+      }
+    });
+
+    // Pre-calculate theoretical stock per product in memory
+    const theoreticalStockMap = new Map();
+    const productIds = sessionToPost.items.map(item => item.productId);
+    
+    productIds.forEach(productId => {
+      let totalEntries = 0;
+      allEntryDocuments.forEach(doc => {
+        doc.items.forEach(docItem => {
+          if (docItem.productId === productId) {
+            totalEntries += parseFloat(docItem.quantity || 0);
+          }
+        });
+      });
+
+      let totalExits = 0;
+      allSales.forEach(sale => {
+        sale.items.forEach(saleItem => {
+          if (saleItem.productId === productId) {
+            const actualQuantity = sale.isWholesale && saleItem.isWholesale && saleItem.bundleSize
+              ? (parseFloat(saleItem.bundleQuantity || saleItem.quantity || 0)) * parseFloat(saleItem.bundleSize || 1)
+              : parseFloat(saleItem.quantity || 0);
+            totalExits += actualQuantity;
+          }
+        });
+      });
+
+      theoreticalStockMap.set(productId, totalEntries - totalExits);
+    });
+
+    // Get all existing inventory entries in one query
+    const existingInventories = await prisma.inventory.findMany({
+      where: {
+        depotId: sessionToPost.depotId,
+        productId: { in: productIds }
+      }
+    });
+    const inventoryMap = new Map();
+    existingInventories.forEach(inv => {
+      inventoryMap.set(inv.productId, inv);
+    });
+
+    // Prepare batch operations
+    const inventoryUpdates = [];
+    const inventoryCreates = [];
+    const stockMovements = [];
+
+    // Process all items and prepare batch operations
+    for (const item of sessionToPost.items) {
+      const productId = item.productId;
+      
+      // Handle Prisma Decimal types - convert to number
+      const countedQty = item.countedQuantity !== null && item.countedQuantity !== undefined
+        ? (typeof item.countedQuantity === 'object' && item.countedQuantity.toNumber 
+            ? item.countedQuantity.toNumber() 
+            : parseFloat(item.countedQuantity))
+        : null;
+      
+      const theoreticalQty = item.theoreticalQuantity !== null && item.theoreticalQuantity !== undefined
+        ? (typeof item.theoreticalQuantity === 'object' && item.theoreticalQuantity.toNumber
+            ? item.theoreticalQuantity.toNumber()
+            : parseFloat(item.theoreticalQuantity))
+        : 0;
+      
+      // Use counted quantity if available, otherwise use theoretical quantity, default to 0
+      const countedQuantity = countedQty !== null ? countedQty : theoreticalQty;
+      
+      // Ensure countedQuantity is a valid number
+      const newStockQuantity = isNaN(countedQuantity) ? 0 : Math.max(0, countedQuantity);
+      
+      console.log(`Updating stock for product ${productId}: ${newStockQuantity} (counted: ${countedQty}, theoretical: ${theoreticalQty})`);
+      
+      // Prepare inventory update/create
+      const existingInventory = inventoryMap.get(productId);
+      if (existingInventory) {
+        inventoryUpdates.push({
+          where: { id: existingInventory.id },
+          data: { quantity: newStockQuantity }
+        });
+      } else {
+        inventoryCreates.push({
+          depotId: sessionToPost.depotId,
+          productId: productId,
+          quantity: newStockQuantity
+        });
+      }
+
+      // Calculate theoretical stock and difference
+      const theoreticalStock = theoreticalStockMap.get(productId) || 0;
+      const ecartQuantity = newStockQuantity - theoreticalStock;
+      
+      // Prepare stock movement if there's a difference
+      if (Math.abs(ecartQuantity) > 0.001) {
+        const movementType = ecartQuantity > 0 ? 'IN' : 'OUT';
+        stockMovements.push({
+          productId: productId,
+          depotId: sessionToPost.depotId,
+          quantity: Math.abs(ecartQuantity),
+          type: movementType,
+          toDepotId: movementType === 'IN' ? sessionToPost.depotId : null,
+          reason: 'INVENTORY_ADJUSTMENT',
+          reference: sessionToPost.numero,
+          userId: req.user.id
+        });
+      }
+    }
+
+    // Execute all operations in a single transaction with increased timeout
     const result = await prisma.$transaction(async (tx) => {
       // Update session with totals and mark as posted
       const updateData = {
@@ -989,130 +1119,31 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
         data: updateData
       });
 
-      // Initialize stock directly from counted quantities in inventory
-      for (const item of sessionToPost.items) {
-        const productId = item.productId;
-        
-        // Handle Prisma Decimal types - convert to number
-        const countedQty = item.countedQuantity !== null && item.countedQuantity !== undefined
-          ? (typeof item.countedQuantity === 'object' && item.countedQuantity.toNumber 
-              ? item.countedQuantity.toNumber() 
-              : parseFloat(item.countedQuantity))
-          : null;
-        
-        const theoreticalQty = item.theoreticalQuantity !== null && item.theoreticalQuantity !== undefined
-          ? (typeof item.theoreticalQuantity === 'object' && item.theoreticalQuantity.toNumber
-              ? item.theoreticalQuantity.toNumber()
-              : parseFloat(item.theoreticalQuantity))
-          : 0;
-        
-        // Use counted quantity if available, otherwise use theoretical quantity, default to 0
-        const countedQuantity = countedQty !== null ? countedQty : theoreticalQty;
-        
-        // Ensure countedQuantity is a valid number
-        const newStockQuantity = isNaN(countedQuantity) ? 0 : Math.max(0, countedQuantity);
-        
-        console.log(`Updating stock for product ${productId}: ${newStockQuantity} (counted: ${countedQty}, theoretical: ${theoreticalQty})`);
-        
-        // Update or create inventory entry - set stock directly to counted quantity
-        const inventory = await tx.inventory.findUnique({
-          where: {
-            depotId_productId: {
-              depotId: sessionToPost.depotId,
-              productId: productId
-            }
-          }
-        });
+      // Batch update existing inventory entries
+      await Promise.all(
+        inventoryUpdates.map(update => 
+          tx.inventory.update(update)
+        )
+      );
 
-        if (inventory) {
-          await tx.inventory.update({
-            where: { id: inventory.id },
-            data: { quantity: newStockQuantity }
-          });
-        } else {
-          // Create new inventory entry if it doesn't exist
-          await tx.inventory.create({
-            data: {
-              depotId: sessionToPost.depotId,
-              productId: productId,
-              quantity: newStockQuantity
-            }
-          });
-        }
+      // Batch create new inventory entries
+      if (inventoryCreates.length > 0) {
+        await tx.inventory.createMany({
+          data: inventoryCreates
+        });
+      }
 
-        // Calculate theoretical stock for movement tracking
-        // Get current theoretical stock from documents and sales
-        const entryDocuments = await tx.stockDocument.findMany({
-          where: {
-            destinataireId: sessionToPost.depotId,
-            type: { in: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'] },
-            status: 'RECEIVED'
-          },
-          include: {
-            items: {
-              where: {
-                productId: productId
-              }
-            }
-          }
+      // Batch create stock movements
+      if (stockMovements.length > 0) {
+        await tx.stockMovement.createMany({
+          data: stockMovements
         });
-        
-        let totalEntries = 0;
-        entryDocuments.forEach(doc => {
-          doc.items.forEach(docItem => {
-            totalEntries += parseFloat(docItem.quantity || 0);
-          });
-        });
-        
-        // Calculate total exits from sales
-        const sales = await tx.sale.findMany({
-          where: {
-            depotId: sessionToPost.depotId,
-            status: { in: ['COMPLETED', 'CMD_TERMINEE'] },
-            paymentType: { in: ['COMPTANT', 'CREDIT'] }
-          },
-          include: {
-            items: {
-              where: {
-                productId: productId
-              }
-            }
-          }
-        });
-        
-        let totalExits = 0;
-        sales.forEach(sale => {
-          sale.items.forEach(saleItem => {
-            const actualQuantity = sale.isWholesale && saleItem.isWholesale && saleItem.bundleSize
-              ? (parseFloat(saleItem.bundleQuantity || saleItem.quantity || 0)) * parseFloat(saleItem.bundleSize || 1)
-              : parseFloat(saleItem.quantity || 0);
-            totalExits += actualQuantity;
-          });
-        });
-        
-        // Calculate theoretical stock and difference
-        const theoreticalStock = totalEntries - totalExits;
-        const ecartQuantity = newStockQuantity - theoreticalStock;
-        
-        // Create stock movement record for inventory adjustment if there's a difference
-        if (Math.abs(ecartQuantity) > 0.001) {
-          const movementType = ecartQuantity > 0 ? 'IN' : 'OUT';
-          await tx.stockMovement.create({
-            data: {
-              productId: productId,
-              depotId: sessionToPost.depotId,
-              quantity: Math.abs(ecartQuantity),
-              type: movementType,
-              toDepotId: movementType === 'IN' ? sessionToPost.depotId : null,
-              reason: 'INVENTORY_ADJUSTMENT',
-              reference: sessionToPost.numero,
-              userId: req.user.id
-            }
-          });
-        }
       }
 
       return updatedSession;
+    }, {
+      maxWait: 10000, // Maximum time to wait for a transaction slot
+      timeout: 30000  // Maximum time the transaction can run (30 seconds)
     });
 
     await logAudit(req.user.id, 'inventory_sessions', sessionId, 'UPDATE', sessionToPost, result);
