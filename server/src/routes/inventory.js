@@ -844,6 +844,10 @@ router.delete('/sessions/:sessionId/items/:itemId', authenticateToken, async (re
 router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
+    
+    if (isNaN(sessionId)) {
+      return res.status(400).json({ error: 'Invalid session ID' });
+    }
 
     const session = await prisma.inventorySession.findUnique({
       where: { id: sessionId },
@@ -860,22 +864,84 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Inventory session not found' });
     }
 
-    if (session.status !== 'CLOSED') {
+    console.log(`Attempting to post session ${sessionId}, current status: ${session.status}`);
+
+    // Allow posting from any status - auto-close if not already closed or posted
+    if (session.status === 'POSTED') {
       return res.status(400).json({ 
-        error: 'Can only post closed inventory sessions',
+        error: 'Inventory session has already been posted',
         currentStatus: session.status,
         sessionId: sessionId
       });
     }
 
-    // Calculate totals
-    const itemsWithEcart = session.items.filter(item => item.ecartQuantity !== null && item.ecartQuantity !== 0);
-    const totalEcartValue = itemsWithEcart.reduce((sum, item) => sum + parseFloat(item.ecartValue || 0), 0);
-    const totalEcartQty = itemsWithEcart.reduce((sum, item) => sum + parseFloat(item.ecartQuantity || 0), 0);
+    if (!session.items || session.items.length === 0) {
+      return res.status(400).json({ 
+        error: 'Cannot post inventory session with no items',
+        sessionId: sessionId
+      });
+    }
+
+    // Auto-close session if it's not already closed
+    let sessionToPost = session;
+    if (session.status !== 'CLOSED') {
+      console.log(`Auto-closing session ${sessionId} from status ${session.status}`);
+      sessionToPost = await prisma.inventorySession.update({
+        where: { id: sessionId },
+        data: {
+          status: 'CLOSED',
+          closedBy: req.user.id,
+          closedAt: new Date()
+        },
+        include: {
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+    }
+
+    // Calculate totals - calculate ecart for all items if not already calculated
+    let totalEcartValue = 0;
+    let totalEcartQty = 0;
+    
+    for (const item of sessionToPost.items) {
+      let ecartQty = item.ecartQuantity;
+      
+      // Calculate ecart if not already set
+      if (ecartQty === null || ecartQty === undefined) {
+        const counted = item.countedQuantity !== null && item.countedQuantity !== undefined
+          ? parseFloat(item.countedQuantity)
+          : null;
+        const theoretical = item.theoreticalQuantity !== null && item.theoreticalQuantity !== undefined
+          ? parseFloat(item.theoreticalQuantity)
+          : 0;
+        
+        if (counted !== null) {
+          ecartQty = counted - theoretical;
+        }
+      }
+      
+      if (ecartQty !== null && ecartQty !== undefined && Math.abs(parseFloat(ecartQty)) > 0.001) {
+        totalEcartQty += parseFloat(ecartQty);
+        
+        // Calculate ecart value if not set
+        let ecartVal = item.ecartValue;
+        if ((ecartVal === null || ecartVal === undefined) && item.product && item.product.prix_vente_TTC) {
+          ecartVal = parseFloat(ecartQty) * parseFloat(item.product.prix_vente_TTC || 0);
+        }
+        
+        if (ecartVal !== null && ecartVal !== undefined) {
+          totalEcartValue += parseFloat(ecartVal);
+        }
+      }
+    }
 
     // Get session depot info to find related depots
     const sessionDepot = await prisma.depot.findUnique({
-      where: { id: session.depotId }
+      where: { id: sessionToPost.depotId }
     });
 
     // Find primary SHOP depot (caisse) - get the first active SHOP depot
@@ -904,26 +970,81 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
 
     const result = await prisma.$transaction(async (tx) => {
       // Update session with totals and mark as posted
+      const updateData = {
+        status: 'POSTED',
+        postedBy: req.user.id,
+        postedAt: new Date()
+      };
+      
+      // Only set totals if they are meaningful (not zero or null)
+      if (totalEcartValue !== null && totalEcartValue !== undefined && totalEcartValue !== 0) {
+        updateData.totalEcartValue = totalEcartValue;
+      }
+      if (totalEcartQty !== null && totalEcartQty !== undefined && totalEcartQty !== 0) {
+        updateData.totalEcartQty = totalEcartQty;
+      }
+      
       const updatedSession = await tx.inventorySession.update({
         where: { id: sessionId },
-        data: {
-          status: 'POSTED',
-          postedBy: req.user.id,
-          postedAt: new Date(),
-          totalEcartValue,
-          totalEcartQty
-        }
+        data: updateData
       });
 
-      // Recalculate stock from entry documents and sales for each item
-      for (const item of session.items) {
+      // Initialize stock directly from counted quantities in inventory
+      for (const item of sessionToPost.items) {
         const productId = item.productId;
-        const countedQuantity = parseFloat(item.countedQuantity ?? item.theoreticalQuantity ?? 0);
         
-        // Calculate total entries from entry documents (BON_ENTREE_DEPOT, BON_ENTREE_MAGASIN) for this depot
+        // Handle Prisma Decimal types - convert to number
+        const countedQty = item.countedQuantity !== null && item.countedQuantity !== undefined
+          ? (typeof item.countedQuantity === 'object' && item.countedQuantity.toNumber 
+              ? item.countedQuantity.toNumber() 
+              : parseFloat(item.countedQuantity))
+          : null;
+        
+        const theoreticalQty = item.theoreticalQuantity !== null && item.theoreticalQuantity !== undefined
+          ? (typeof item.theoreticalQuantity === 'object' && item.theoreticalQuantity.toNumber
+              ? item.theoreticalQuantity.toNumber()
+              : parseFloat(item.theoreticalQuantity))
+          : 0;
+        
+        // Use counted quantity if available, otherwise use theoretical quantity, default to 0
+        const countedQuantity = countedQty !== null ? countedQty : theoreticalQty;
+        
+        // Ensure countedQuantity is a valid number
+        const newStockQuantity = isNaN(countedQuantity) ? 0 : Math.max(0, countedQuantity);
+        
+        console.log(`Updating stock for product ${productId}: ${newStockQuantity} (counted: ${countedQty}, theoretical: ${theoreticalQty})`);
+        
+        // Update or create inventory entry - set stock directly to counted quantity
+        const inventory = await tx.inventory.findUnique({
+          where: {
+            depotId_productId: {
+              depotId: sessionToPost.depotId,
+              productId: productId
+            }
+          }
+        });
+
+        if (inventory) {
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: { quantity: newStockQuantity }
+          });
+        } else {
+          // Create new inventory entry if it doesn't exist
+          await tx.inventory.create({
+            data: {
+              depotId: sessionToPost.depotId,
+              productId: productId,
+              quantity: newStockQuantity
+            }
+          });
+        }
+
+        // Calculate theoretical stock for movement tracking
+        // Get current theoretical stock from documents and sales
         const entryDocuments = await tx.stockDocument.findMany({
           where: {
-            destinataireId: session.depotId,
+            destinataireId: sessionToPost.depotId,
             type: { in: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'] },
             status: 'RECEIVED'
           },
@@ -936,63 +1057,17 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
           }
         });
         
-        // Also include any other RECEIVED documents that have IN movements for this product
-        // Get all IN movements for this product and depot
-        const inMovements = await tx.stockMovement.findMany({
-          where: {
-            toDepotId: session.depotId,
-            productId: productId,
-            type: 'IN'
-          },
-          select: {
-            reference: true
-          }
-        });
-        
-        // Get unique document numbers from movements
-        const entryDocumentNumbers = new Set(inMovements.map(m => m.reference).filter(ref => ref != null));
-        
-        // Find documents that have IN movements but aren't already in entryDocuments
-        // Only query if there are document numbers to search for
-        let additionalEntryDocs = [];
-        if (entryDocumentNumbers.size > 0) {
-          // Get document numbers that are already in entryDocuments to avoid duplicates
-          const existingDocumentNumbers = new Set(entryDocuments.map(doc => doc.numero));
-          const numbersToSearch = Array.from(entryDocumentNumbers).filter(num => !existingDocumentNumbers.has(num));
-          
-          if (numbersToSearch.length > 0) {
-            additionalEntryDocs = await tx.stockDocument.findMany({
-              where: {
-                destinataireId: session.depotId,
-                status: 'RECEIVED',
-                numero: { in: numbersToSearch },
-                type: { notIn: ['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN', 'BON_EXPEDITION'] }
-              },
-              include: {
-                items: {
-                  where: {
-                    productId: productId
-                  }
-                }
-              }
-            });
-          }
-        }
-        
-        // Combine both sets of entry documents
-        const allEntryDocuments = [...entryDocuments, ...additionalEntryDocs];
-        
         let totalEntries = 0;
-        allEntryDocuments.forEach(doc => {
+        entryDocuments.forEach(doc => {
           doc.items.forEach(docItem => {
             totalEntries += parseFloat(docItem.quantity || 0);
           });
         });
         
-        // Calculate total exits from sales (COMPLETED, not CANCELLED) for this depot
+        // Calculate total exits from sales
         const sales = await tx.sale.findMany({
           where: {
-            depotId: session.depotId,
+            depotId: sessionToPost.depotId,
             status: { in: ['COMPLETED', 'CMD_TERMINEE'] },
             paymentType: { in: ['COMPTANT', 'CREDIT'] }
           },
@@ -1008,7 +1083,6 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
         let totalExits = 0;
         sales.forEach(sale => {
           sale.items.forEach(saleItem => {
-            // Handle wholesale bundle quantities
             const actualQuantity = sale.isWholesale && saleItem.isWholesale && saleItem.bundleSize
               ? (parseFloat(saleItem.bundleQuantity || saleItem.quantity || 0)) * parseFloat(saleItem.bundleSize || 1)
               : parseFloat(saleItem.quantity || 0);
@@ -1016,47 +1090,22 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
           });
         });
         
-        // Stock should be: entries - exits
-        // But we use the counted quantity from inventory session
-        const newStockQuantity = countedQuantity;
+        // Calculate theoretical stock and difference
+        const theoreticalStock = totalEntries - totalExits;
+        const ecartQuantity = newStockQuantity - theoreticalStock;
         
-        // Update inventory for session depot
-        const inventory = await tx.inventory.findUnique({
-          where: {
-            depotId_productId: {
-              depotId: session.depotId,
-              productId: productId
-            }
-          }
-        });
-
-        if (inventory) {
-          await tx.inventory.update({
-            where: { id: inventory.id },
-            data: { quantity: newStockQuantity }
-          });
-        } else {
-          // Create new inventory entry if it doesn't exist
-          await tx.inventory.create({
-            data: {
-              depotId: session.depotId,
-              productId: productId,
-              quantity: newStockQuantity
-            }
-          });
-        }
-
-        // Create stock movement record for inventory adjustment
-        const ecartQuantity = countedQuantity - (totalEntries - totalExits);
+        // Create stock movement record for inventory adjustment if there's a difference
         if (Math.abs(ecartQuantity) > 0.001) {
+          const movementType = ecartQuantity > 0 ? 'IN' : 'OUT';
           await tx.stockMovement.create({
             data: {
               productId: productId,
-              depotId: session.depotId,
+              depotId: sessionToPost.depotId,
               quantity: Math.abs(ecartQuantity),
-              type: ecartQuantity > 0 ? 'IN' : 'OUT',
+              type: movementType,
+              toDepotId: movementType === 'IN' ? sessionToPost.depotId : null,
               reason: 'INVENTORY_ADJUSTMENT',
-              reference: session.numero,
+              reference: sessionToPost.numero,
               userId: req.user.id
             }
           });
@@ -1066,18 +1115,56 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
       return updatedSession;
     });
 
-    await logAudit(req.user.id, 'inventory_sessions', sessionId, 'UPDATE', session, result);
+    await logAudit(req.user.id, 'inventory_sessions', sessionId, 'UPDATE', sessionToPost, result);
+
+    // Count items with adjustments
+    const adjustmentsCount = sessionToPost.items.filter(item => {
+      const ecartQty = item.ecartQuantity !== null && item.ecartQuantity !== undefined
+        ? parseFloat(item.ecartQuantity)
+        : null;
+      return ecartQty !== null && Math.abs(ecartQty) > 0.001;
+    }).length;
 
     res.json({
       message: 'Inventory session posted successfully',
       session: result,
-      adjustmentsApplied: itemsWithEcart.length,
-      totalEcartValue,
-      totalEcartQty
+      adjustmentsApplied: adjustmentsCount,
+      totalEcartValue: totalEcartValue || 0,
+      totalEcartQty: totalEcartQty || 0
     });
   } catch (error) {
     console.error('Error posting inventory session:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    
+    // Return more detailed error information
+    if (error.code === 'P2002') {
+      return res.status(400).json({ 
+        error: 'Validation error',
+        details: error.meta?.target || 'Unique constraint violation',
+        message: error.message
+      });
+    }
+    if (error.code === 'P2003') {
+      return res.status(400).json({ 
+        error: 'Foreign key constraint violation',
+        details: error.meta?.field_name || 'Invalid reference',
+        message: error.message
+      });
+    }
+    if (error.code && error.code.startsWith('P')) {
+      return res.status(400).json({ 
+        error: 'Database error',
+        code: error.code,
+        message: error.message,
+        meta: error.meta
+      });
+    }
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message || 'An unexpected error occurred',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

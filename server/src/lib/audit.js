@@ -65,6 +65,37 @@ class AuditLogger {
       userAgent: req?.get('User-Agent')
     });
   }
+
+  static async log({
+    userId,
+    action,
+    entityType,
+    entityId = null,
+    details = null,
+    oldValues = null,
+    newValues = null,
+    req = null
+  }) {
+    // Convert entityType to tableName (convert PascalCase to snake_case)
+    const tableName = entityType
+      .replace(/([A-Z])/g, '_$1')
+      .toLowerCase()
+      .replace(/^_/, '');
+
+    // If details is provided and newValues is not, store details in newValues
+    const finalNewValues = newValues || (details ? { details } : null);
+
+    return this.logAction({
+      tableName,
+      recordId: entityId || 0,
+      action,
+      oldValues,
+      newValues: finalNewValues,
+      userId,
+      ipAddress: req?.ip,
+      userAgent: req?.get('User-Agent')
+    });
+  }
 }
 
 const auditMiddleware = (tableName) => {
