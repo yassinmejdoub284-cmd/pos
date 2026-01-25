@@ -11,15 +11,15 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { depotId } = req.query;
-    
+
     // Enforce depot isolation - use user's depot, visiting depot, or provided depot
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    
+
     // Determine which depot to use: requested > visiting > user's depot
     let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-    
+
     // For non-admin users, check depot access
     if (req.user?.role !== 'ADMIN') {
       // Allow if accessing own depot
@@ -55,7 +55,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const suppliersWhere = {
       isActive: true
     };
-    
+
     // If targetDepotId is specified, filter by depotId OR by expenses in that depot
     if (targetDepotId) {
       suppliersWhere.OR = [
@@ -81,7 +81,7 @@ router.get('/', authenticateToken, async (req, res) => {
         }
       ];
     }
-    
+
     const suppliers = await prisma.supplier.findMany({
       where: suppliersWhere,
       include: {
@@ -130,12 +130,12 @@ router.get('/', authenticateToken, async (req, res) => {
       } else if (req.user?.role !== 'ADMIN') {
         expenseWhere.depotId = userDepotId;
       }
-      
+
       const allExpenses = await prisma.expense.findMany({
         where: expenseWhere,
         select: { amount: true, isPaid: true, isAdvance: true, notes: true }
       });
-      
+
       const allPayments = await prisma.supplierPayment.findMany({
         where: { supplierId: supplier.id },
         select: { amount: true, notes: true, paymentMethod: true }
@@ -145,11 +145,11 @@ router.get('/', authenticateToken, async (req, res) => {
       let totalDebit = 0;
       let totalCredit = 0;
       let currentDebt = 0;
-      
+
       // Process all expenses using the same logic as statement
       allExpenses.forEach(expense => {
         const totalAmount = parseFloat(expense.amount);
-        
+
         if (expense.isAdvance) {
           // Advance expenses: extract paid amount from notes
           let paidAmount = 0;
@@ -173,17 +173,17 @@ router.get('/', authenticateToken, async (req, res) => {
           currentDebt += 0 - totalAmount; // debit - credit = -amount
         }
       });
-      
+
       // Process all payments using the same logic as statement
       allPayments.forEach(payment => {
         const amount = parseFloat(payment.amount);
         const notes = payment.notes || '';
-        
+
         // Extract bon d'entrée details from notes (same as statement logic)
         const bonMatch = notes.match(/Bon d'entrée #(\d+)/);
         const paidMatch = notes.match(/Payé: ([\d.]+) dt/);
         const totalMatch = notes.match(/Total: ([\d.]+) dt/);
-        
+
         if (bonMatch && paidMatch && totalMatch) {
           // Partial payment with both paid amount and total amount (like statement)
           const paidAmount = parseFloat(paidMatch[1]);
@@ -226,18 +226,18 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { depotId } = req.query;
-    
+
     // Enforce depot isolation
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-    
+
     // For non-admin users, check depot access
     if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
       return res.status(403).json({ error: 'Access denied: Cannot access other depot suppliers' });
     }
-    
+
     const supplier = await prisma.supplier.findUnique({
       where: { id: parseInt(req.params.id) },
       include: {
@@ -259,11 +259,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     if (!supplier) {
       return res.status(404).json({ error: 'Fournisseur non trouvé' });
     }
-    
+
     res.json(supplier);
   } catch (error) {
     console.error('Error fetching supplier:', error);
@@ -275,7 +275,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const { name, contactName, email, phone, address, city, postalCode, taxNumber, paymentTerms, notes, depotId, currentDebt } = req.body;
-    
+
     if (!name) {
       return res.status(400).json({ error: 'Le nom du fournisseur est requis' });
     }
@@ -283,7 +283,7 @@ router.post('/', authenticateToken, async (req, res) => {
     // Enforce depot isolation - use provided depotId for admin, or user's depotId for non-admin
     const userDepotId = req.user?.depotId;
     let targetDepotId = null;
-    
+
     if (req.user?.role === 'ADMIN') {
       // Admin can choose depotId from request body (-1 means null, no depot assigned)
       targetDepotId = depotId ? (parseInt(depotId) === -1 ? null : parseInt(depotId)) : null;
@@ -334,13 +334,13 @@ router.post('/', authenticateToken, async (req, res) => {
       if (initialDebt !== 0) {
         const transactionType = initialDebt > 0 ? 'DEBT' : 'PAYMENT';
         const transactionAmount = Math.abs(initialDebt);
-        
+
         await tx.supplierDebtTransaction.create({
-          data: { 
-            supplierId: newSupplier.id, 
-            expenseId: null, 
-            amount: transactionAmount, 
-            type: transactionType, 
+          data: {
+            supplierId: newSupplier.id,
+            expenseId: null,
+            amount: transactionAmount,
+            type: transactionType,
             notes: 'Solde de départ',
             userId: req.user?.id || null
           }
@@ -361,11 +361,11 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { name, contactName, email, phone, address, city, postalCode, taxNumber, paymentTerms, notes, isActive, depotId } = req.body;
-    
+
     // Enforce depot isolation - use provided depotId for admin, or user's depotId for non-admin
     const userDepotId = req.user?.depotId;
     let targetDepotId = undefined;
-    
+
     if (req.user?.role === 'ADMIN' && depotId !== undefined) {
       // Admin can choose depotId from request body (-1 means null, no depot assigned)
       targetDepotId = parseInt(depotId) === -1 ? null : parseInt(depotId);
@@ -388,24 +388,24 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     const updateData = {
-        name,
-        contactName,
-        email,
-        phone,
-        address,
-        city,
-        postalCode,
-        taxNumber,
-        paymentTerms,
-        notes,
-        isActive
+      name,
+      contactName,
+      email,
+      phone,
+      address,
+      city,
+      postalCode,
+      taxNumber,
+      paymentTerms,
+      notes,
+      isActive
     };
 
     // Only update depotId if it's provided (for admin) or set it to user's depot (for non-admin)
     if (targetDepotId !== undefined) {
       updateData.depotId = targetDepotId;
-      }
-    
+    }
+
     const supplier = await prisma.supplier.update({
       where: { id: parseInt(req.params.id) },
       data: updateData
@@ -459,18 +459,18 @@ router.patch('/:id/toggle-status', authenticateToken, async (req, res) => {
 router.get('/statements/summary', authenticateToken, async (req, res) => {
   try {
     const { startDate, endDate, depotId } = req.query;
-    
+
     // Enforce depot isolation
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-    
+
     // For non-admin users, check depot access
     if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
       return res.status(403).json({ error: 'Access denied: Cannot access other depot suppliers' });
     }
-    
+
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
@@ -479,7 +479,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
     const suppliersWhere = {
       isActive: true
     };
-    
+
     // If targetDepotId is specified, filter by depotId OR by expenses in that depot
     if (targetDepotId) {
       suppliersWhere.OR = [
@@ -538,7 +538,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
 
     const summaries = await Promise.all(suppliers.map(async (supplier) => {
       // Get period expenses - filter by depotId and date
-      const expenseWhere = { 
+      const expenseWhere = {
         supplierId: supplier.id,
         date: { gte: start, lte: end }
       };
@@ -547,7 +547,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       } else if (req.user?.role !== 'ADMIN') {
         expenseWhere.depotId = userDepotId;
       }
-      
+
       const periodExpenses = await prisma.expense.findMany({
         where: expenseWhere,
         include: {
@@ -559,10 +559,10 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         },
         orderBy: { date: 'asc' }
       });
-      
+
       // Get period payments
       const periodPayments = await prisma.supplierPayment.findMany({
-        where: { 
+        where: {
           supplierId: supplier.id,
           createdAt: { gte: start, lte: end }
         },
@@ -600,11 +600,11 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       // Include ALL DEBT type transactions (initial balances) regardless of date
       // Only filter PAYMENT type transactions by date range (same logic as statement endpoint)
       const debtTransactions = await prisma.supplierDebtTransaction.findMany({
-        where: { 
+        where: {
           supplierId: supplier.id,
           OR: [
             { type: 'DEBT' },
-            { 
+            {
               type: 'PAYMENT',
               createdAt: { gte: start, lte: end }
             }
@@ -622,10 +622,21 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       });
 
       // Build transactions array using the same logic as statement route
-      // Note: Bon d'entrée documents are NOT included here because they're already represented
-      // through supplierDebtTransaction (type='DEBT') or supplier payments
       const allTransactions = [
-        // 1. Bon de retour documents: calculate total from items (crédit fournisseur - réduit la dette)
+        // 1. Bon d'entrée documents: calculate total from items (what we owe - increases debt)
+        ...bonEntreeDocuments.map(doc => {
+          const totalAmount = doc.items.reduce((sum, item) => {
+            const qty = Math.abs(parseFloat(item.quantity || 0));
+            const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
+            return sum + (qty * price);
+          }, 0);
+          return {
+            date: doc.createdAt,
+            debit: 0,
+            credit: totalAmount  // Credit = what we owe the supplier
+          };
+        }),
+        // 2. Bon de retour documents: calculate total from items (crédit fournisseur - réduit la dette)
         ...bonRetourDocuments.map(doc => {
           const totalAmount = doc.items.reduce((sum, item) => {
             const qty = Math.abs(parseFloat(item.quantity || 0));
@@ -638,7 +649,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
             credit: totalAmount
           };
         }),
-        // 2. Debt transactions: standalone debt/payment adjustments (includes bon d'entrée debt)
+        // 3. Debt transactions: standalone debt/payment adjustments (includes initial balances)
         ...debtTransactions.map(transaction => {
           const amount = parseFloat(transaction.amount);
           return {
@@ -647,7 +658,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
             credit: transaction.type === 'DEBT' ? amount : 0
           };
         }),
-        // 3. Expenses: what we owe the supplier (increases debt)
+        // 4. Expenses: what we owe the supplier (increases debt)
         // Filter out expenses that are linked to bon de retour or bon d'entrée documents (already handled above)
         ...periodExpenses
           .filter(expense => {
@@ -670,8 +681,8 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
                 const bonEntreeId = bonEntreeMatch[1];
                 const bonEntreeNumero = bonEntreeMatch[2];
                 // Check if this bon d'entrée is already in our documents list
-                const isDuplicate = bonEntreeDocuments.some(doc => 
-                  (bonEntreeId && doc.id.toString() === bonEntreeId) || 
+                const isDuplicate = bonEntreeDocuments.some(doc =>
+                  (bonEntreeId && doc.id.toString() === bonEntreeId) ||
                   (bonEntreeNumero && doc.numero === bonEntreeNumero)
                 );
                 if (isDuplicate) {
@@ -683,7 +694,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           })
           .map(expense => {
             const totalAmount = parseFloat(expense.amount);
-            
+
             if (expense.isAdvance) {
               // Advance expenses: extract paid amount from notes
               let paidAmount = 0;
@@ -714,7 +725,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
               };
             }
           }),
-        // 4. Supplier payments: positifs = débit (règlements), négatifs = crédit (avoirs)
+        // 5. Supplier payments: positifs = débit (règlements), négatifs = crédit (avoirs)
         ...periodPayments.map(payment => {
           const amount = parseFloat(payment.amount);
           const normalized = Math.abs(amount);
@@ -758,7 +769,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       // Calculate period-specific totals
       const periodDebit = periodTransactions.reduce((sum, item) => sum + (item.debit || 0), 0);
       const periodCredit = periodTransactions.reduce((sum, item) => sum + (item.credit || 0), 0);
-      
+
       // Calculate period expenses: credit from expenses in period (excluding initial debt and bon de retour)
       const periodExpensesCredit = periodExpenses
         .filter(expense => {
@@ -775,8 +786,8 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
             if (bonEntreeMatch) {
               const bonEntreeId = bonEntreeMatch[1];
               const bonEntreeNumero = bonEntreeMatch[2];
-              const isDuplicate = bonEntreeDocuments.some(doc => 
-                (bonEntreeId && doc.id.toString() === bonEntreeId) || 
+              const isDuplicate = bonEntreeDocuments.some(doc =>
+                (bonEntreeId && doc.id.toString() === bonEntreeId) ||
                 (bonEntreeNumero && doc.numero === bonEntreeNumero)
               );
               if (isDuplicate) return false;
@@ -815,12 +826,12 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       } else if (req.user?.role !== 'ADMIN') {
         allExpenseWhere.depotId = userDepotId;
       }
-      
+
       const allExpenses = await prisma.expense.findMany({
         where: allExpenseWhere,
         select: { amount: true, isPaid: true, isAdvance: true, notes: true }
       });
-      
+
       const allPayments = await prisma.supplierPayment.findMany({
         where: { supplierId: supplier.id },
         select: { amount: true, notes: true }
@@ -887,7 +898,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
             if (bonEntreeMatch) {
               const bonEntreeId = bonEntreeMatch[1];
               const bonEntreeNumero = bonEntreeMatch[2];
-              const isDuplicate = allBonEntreeDocs.some(doc => 
+              const isDuplicate = allBonEntreeDocs.some(doc =>
                 (bonEntreeId && doc.id.toString() === bonEntreeId) ||
                 (bonEntreeNumero && doc.numero === bonEntreeNumero)
               );
@@ -975,7 +986,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-    
+
     // For non-admin users, check depot access
     if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
       return res.status(403).json({ error: 'Access denied: Cannot access other depot suppliers' });
@@ -998,8 +1009,8 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     }
 
     // Get expenses - filter by depotId
-    const expensesWhere = { 
-        supplierId: parseInt(supplierId)
+    const expensesWhere = {
+      supplierId: parseInt(supplierId)
     };
     if (hasDateFilter) {
       if (start && end) {
@@ -1015,7 +1026,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     } else if (req.user?.role !== 'ADMIN') {
       expensesWhere.depotId = userDepotId;
     }
-    
+
     const expenses = await prisma.expense.findMany({
       where: expensesWhere,
       include: {
@@ -1029,8 +1040,8 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     });
 
     // Get payments (include paymentMethod to check if cash payment)
-    const paymentsWhere = { 
-        supplierId: parseInt(supplierId)
+    const paymentsWhere = {
+      supplierId: parseInt(supplierId)
     };
     if (hasDateFilter) {
       if (start && end) {
@@ -1056,13 +1067,13 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     // Get debt transactions
     // Include all DEBT type transactions (initial balances) regardless of date
     // Only filter PAYMENT type transactions by date range if dates are provided
-    const debtTransactionsWhere = { 
-        supplierId: parseInt(supplierId)
+    const debtTransactionsWhere = {
+      supplierId: parseInt(supplierId)
     };
     if (hasDateFilter) {
       debtTransactionsWhere.OR = [
         { type: 'DEBT' },
-        { 
+        {
           type: 'PAYMENT',
           createdAt: start && end ? { gte: start, lte: end } : start ? { gte: start } : { lte: end }
         }
@@ -1091,7 +1102,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         return bonMatch ? parseInt(bonMatch[1]) : null;
       })
       .filter(id => id !== null);
-    
+
     // Get bon d'entrée documents for this supplier
     // Always include ALL bon d'entrée for this supplier to show complete debt picture
     // The date filter is applied at the transaction level, not at document level
@@ -1173,7 +1184,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         }, 0);
 
         const reference = `Bon de retour #${doc.id}`;
-        
+
         return {
           type: 'bon_retour',
           date: doc.createdAt,
@@ -1187,10 +1198,35 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
           description: `Bon de retour #${doc.id} - ${doc.numero || ''}`
         };
       }),
+      // Bon d'entrée documents: calculate total from items (what we owe - augmente la dette)
+      ...bonEntreeDocuments.map(doc => {
+        // Calculate total amount from items
+        const totalAmount = doc.items.reduce((sum, item) => {
+          const qty = parseFloat(item.quantity || 0);
+          const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
+          return sum + (qty * price);
+        }, 0);
+
+        const reference = `Bon d'entrée #${doc.numero || doc.id}`;
+
+        return {
+          type: 'bon_entree',
+          date: doc.createdAt,
+          reference: reference,
+          debit: 0,
+          credit: totalAmount, // L'entrée crédite le fournisseur (augmente notre dette)
+          id: doc.id,
+          clickable: true,
+          bonId: doc.id.toString(),
+          documentType: 'BON_ENTREE_DEPOT',
+          description: `Bon d'entrée #${doc.numero || doc.id}`,
+          journal: totalAmount // Add journal amount for display
+        };
+      }),
       // Debt transactions: standalone debt/payment adjustments
       ...debtTransactions.map(transaction => {
         const amount = parseFloat(transaction.amount);
-        
+
         return {
           type: transaction.type.toLowerCase(),
           date: transaction.createdAt,
@@ -1230,8 +1266,8 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
               const bonEntreeId = bonEntreeMatch[1];
               const bonEntreeNumero = bonEntreeMatch[2];
               // Check if this bon d'entrée is already in our documents list
-              const isDuplicate = bonEntreeDocuments.some(doc => 
-                (bonEntreeId && doc.id.toString() === bonEntreeId) || 
+              const isDuplicate = bonEntreeDocuments.some(doc =>
+                (bonEntreeId && doc.id.toString() === bonEntreeId) ||
                 (bonEntreeNumero && doc.numero === bonEntreeNumero)
               );
               if (isDuplicate) {
@@ -1242,109 +1278,132 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
           return true; // Keep expenses not linked to bon de retour or bon d'entrée
         })
         .map(expense => {
-        const totalAmount = parseFloat(expense.amount);
-        
-        if (expense.isAdvance) {
-          // Advance expenses: extract paid amount from notes
-          let paidAmount = 0;
-          if (expense.notes && expense.notes.includes('Paiement partiel:')) {
-            const match = expense.notes.match(/Paiement partiel:\s*(\d+(?:\.\d+)?)dt payé/);
-            if (match) {
-              paidAmount = parseFloat(match[1]);
+          const totalAmount = parseFloat(expense.amount);
+
+          if (expense.isAdvance) {
+            // Advance expenses: extract paid amount from notes
+            let paidAmount = 0;
+            if (expense.notes && expense.notes.includes('Paiement partiel:')) {
+              const match = expense.notes.match(/Paiement partiel:\s*(\d+(?:\.\d+)?)dt payé/);
+              if (match) {
+                paidAmount = parseFloat(match[1]);
+              }
+            }
+
+            return {
+              type: 'advance',
+              date: expense.date,
+              reference: `EXPENSE-${expense.id}`,
+              debit: paidAmount, // Advance amount paid (reduces debt)
+              credit: totalAmount, // Full expense amount (increases debt)
+              id: expense.id,
+              clickable: true,
+              expenseId: expense.id,
+              description: expense.description || expense.category?.name || 'Dépense'
+            };
+          } else if (expense.isPaid) {
+            // Paid expenses: show as both debit and credit (like cash sales in client)
+            return {
+              type: 'paid',
+              date: expense.date,
+              reference: `EXPENSE-${expense.id}`,
+              debit: totalAmount, // Full amount as debit (what we owe)
+              credit: totalAmount, // Full amount as credit (payment made)
+              id: expense.id,
+              clickable: true,
+              expenseId: expense.id,
+              description: expense.description || expense.category?.name || 'Dépense'
+            };
+          } else {
+            // Unpaid expenses: show as credit only (like credit sales in client)
+            return {
+              type: 'unpaid',
+              date: expense.date,
+              reference: `EXPENSE-${expense.id}`,
+              debit: 0,
+              credit: totalAmount, // Unpaid amount as credit (what we owe)
+              id: expense.id,
+              clickable: true,
+              expenseId: expense.id,
+              description: expense.description || expense.category?.name || 'Dépense'
+            };
+          }
+        }),
+      // Supplier payments: positive amounts = débit (règlement), negative amounts = crédit (crédits fournisseur)
+      // FILTER OUT payments that reference bon d'entrée documents already included above
+      ...payments
+        .filter(payment => {
+          const notes = payment.notes || '';
+          // Check if this payment references a bon d'entrée
+          const bonMatchNumeric = notes.match(/Bon d'entrée #(\d+)/);
+          const bonMatchNumero = notes.match(/Bon d'entrée #(BE-[-\d]+)/i);
+
+          if (bonMatchNumeric) {
+            const bonEntreeId = parseInt(bonMatchNumeric[1]);
+            // Skip if this bon d'entrée is already in our documents list
+            return !bonEntreeDocuments.some(doc => doc.id === bonEntreeId);
+          }
+
+          if (bonMatchNumero) {
+            const bonNumero = bonMatchNumero[1];
+            // Skip if this bon d'entrée is already in our documents list
+            return !bonEntreeDocuments.some(doc => doc.numero === bonNumero);
+          }
+
+          // Keep all payments that don't reference bon d'entrée
+          return true;
+        })
+        .map(payment => {
+          const rawAmount = parseFloat(payment.amount);
+          const amount = Math.abs(rawAmount);
+          const notes = payment.notes || '';
+          const isCreditEntry = rawAmount < 0 || payment.paymentMethod === 'CREDIT';
+
+          let reference = `PAYMENT-${payment.id}`;
+          let bonId = null;
+
+          const bonMatchNumeric = notes.match(/Bon d'entrée #(\d+)/);
+          const bonMatchNumero = notes.match(/Bon d'entrée #(BE-[-\d]+)/i);
+
+          if (bonMatchNumeric) {
+            const bonEntreeId = bonMatchNumeric[1];
+            reference = `Bon d'entrée #${bonEntreeId}`;
+            bonId = bonEntreeId;
+          } else if (bonMatchNumero) {
+            const bonNumero = bonMatchNumero[1];
+            reference = `Bon d'entrée #${bonNumero}`;
+            const docId = bonEntreeMap.get(bonNumero);
+            if (docId) {
+              bonId = docId;
             }
           }
-          
-          return {
-            type: 'advance',
-            date: expense.date,
-            reference: `EXPENSE-${expense.id}`,
-            debit: paidAmount, // Advance amount paid (reduces debt)
-            credit: totalAmount, // Full expense amount (increases debt)
-            id: expense.id,
-            clickable: true,
-            expenseId: expense.id,
-            description: expense.description || expense.category?.name || 'Dépense'
-          };
-        } else if (expense.isPaid) {
-          // Paid expenses: show as both debit and credit (like cash sales in client)
-          return {
-            type: 'paid',
-            date: expense.date,
-            reference: `EXPENSE-${expense.id}`,
-            debit: totalAmount, // Full amount as debit (what we owe)
-            credit: totalAmount, // Full amount as credit (payment made)
-            id: expense.id,
-            clickable: true,
-            expenseId: expense.id,
-            description: expense.description || expense.category?.name || 'Dépense'
-          };
-        } else {
-          // Unpaid expenses: show as credit only (like credit sales in client)
-          return {
-            type: 'unpaid',
-            date: expense.date,
-            reference: `EXPENSE-${expense.id}`,
-            debit: 0,
-            credit: totalAmount, // Unpaid amount as credit (what we owe)
-            id: expense.id,
-            clickable: true,
-            expenseId: expense.id,
-            description: expense.description || expense.category?.name || 'Dépense'
-          };
-        }
-      }),
-      // Supplier payments: positive amounts = débit (règlement), negative amounts = crédit (crédits fournisseur)
-      ...payments.map(payment => {
-        const rawAmount = parseFloat(payment.amount);
-        const amount = Math.abs(rawAmount);
-        const notes = payment.notes || '';
-        const isCreditEntry = rawAmount < 0 || payment.paymentMethod === 'CREDIT';
 
-        let reference = `PAYMENT-${payment.id}`;
-        let bonId = null;
-
-        const bonMatchNumeric = notes.match(/Bon d'entrée #(\d+)/);
-        const bonMatchNumero = notes.match(/Bon d'entrée #(BE-[-\d]+)/i);
-        
-        if (bonMatchNumeric) {
-          const bonEntreeId = bonMatchNumeric[1];
-          reference = `Bon d'entrée #${bonEntreeId}`;
-          bonId = bonEntreeId;
-        } else if (bonMatchNumero) {
-          const bonNumero = bonMatchNumero[1];
-          reference = `Bon d'entrée #${bonNumero}`;
-          const docId = bonEntreeMap.get(bonNumero);
-          if (docId) {
-            bonId = docId;
+          if (isCreditEntry) {
+            return {
+              type: 'credit',
+              date: payment.createdAt,
+              reference,
+              debit: 0,
+              credit: amount,
+              id: payment.id,
+              clickable: true,
+              bonId: bonId,
+              description: notes || 'Crédit fournisseur'
+            };
           }
-        }
 
-        if (isCreditEntry) {
           return {
-            type: 'credit',
+            type: 'payment',
             date: payment.createdAt,
             reference,
-            debit: 0,
-            credit: amount,
+            debit: amount,
+            credit: 0,
             id: payment.id,
             clickable: true,
             bonId: bonId,
-            description: notes || 'Crédit fournisseur'
+            description: notes || 'Règlement fournisseur'
           };
-        }
-
-        return {
-          type: 'payment',
-          date: payment.createdAt,
-          reference,
-          debit: amount,
-          credit: 0,
-          id: payment.id,
-          clickable: true,
-          bonId: bonId,
-          description: notes || 'Règlement fournisseur'
-        };
-      })
+        })
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     // Calculate running balance
@@ -1382,7 +1441,7 @@ router.post('/:id/solde/init', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { amount, notes } = req.body;
 
-    const supplier = await prisma.supplier.findUnique({ 
+    const supplier = await prisma.supplier.findUnique({
       where: { id: parseInt(id) },
       include: {
         _count: {
@@ -1397,10 +1456,10 @@ router.post('/:id/solde/init', authenticateToken, async (req, res) => {
     if (!supplier) return res.status(404).json({ error: 'Fournisseur introuvable' });
 
     // Check if supplier already has any movements (debt transactions, expenses, or payments)
-    const hasAnyMovement = supplier._count.debtTransactions > 0 || 
-                          supplier._count.expenses > 0 || 
-                          supplier._count.payments > 0;
-    
+    const hasAnyMovement = supplier._count.debtTransactions > 0 ||
+      supplier._count.expenses > 0 ||
+      supplier._count.payments > 0;
+
     if (hasAnyMovement) {
       return res.status(400).json({ error: 'Ce fournisseur a déjà des mouvements. Impossible de définir un solde de départ.' });
     }
@@ -1415,28 +1474,28 @@ router.post('/:id/solde/init', authenticateToken, async (req, res) => {
 
     const updated = await prisma.$transaction(async (tx) => {
       // Set currentDebt to the new amount
-      const s = await tx.supplier.update({ 
-        where: { id: supplier.id }, 
-        data: { currentDebt: newAmount } 
+      const s = await tx.supplier.update({
+        where: { id: supplier.id },
+        data: { currentDebt: newAmount }
       });
-      
+
       // Create a debt transaction to record the initial balance
       if (difference !== 0) {
         const transactionType = difference > 0 ? 'DEBT' : 'PAYMENT';
         const transactionAmount = Math.abs(difference);
-        
+
         await tx.supplierDebtTransaction.create({
-          data: { 
-            supplierId: supplier.id, 
-            expenseId: null, 
-            amount: transactionAmount, 
-            type: transactionType, 
+          data: {
+            supplierId: supplier.id,
+            expenseId: null,
+            amount: transactionAmount,
+            type: transactionType,
             notes: notes || 'Solde de départ',
             userId: req.user?.id || null
           }
         });
       }
-      
+
       return s;
     });
 

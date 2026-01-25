@@ -1,4 +1,5 @@
-<div class="min-h-screen bg-gradient-to-br " [ngClass]="isReturnMode ? 'bg-orange-300' : (isWholesaleMode ? 'bg-red-300' : 'bg-purple-300')">
+<div class="min-h-screen bg-gradient-to-br "
+  [ngClass]="isReturnMode ? 'bg-orange-300' : (isWholesaleMode ? 'bg-red-300' : 'bg-purple-300')">
   <!--bg-purple-300 default - gros bg-red-300 -->
   <!-- Home Button - Top Right -->
   <div class="fixed top-6 right-6 z-40">
@@ -146,31 +147,29 @@
                                   category === 'Local' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-white text-gray-600  border border-blue-200'))">
               {{ category }}
             </button>
-            
+
             <!-- Drag Mode Toggle Button -->
-            <button 
-              (click)="toggleDragMode()" 
+            <button (click)="toggleDragMode()"
               [class]="'px-3 py-2 rounded-full text-xs font-medium transition-all border-2 flex items-center gap-1 ' + 
                        (dragModeEnabled ? 'bg-purple-500 text-white border-purple-500 shadow-md' : 'bg-white text-gray-600 border-gray-300')"
               [title]="dragModeEnabled ? 'Désactiver le mode modification' : 'Activer le mode modification'"
               [attr.aria-label]="dragModeEnabled ? 'Désactiver le mode modification' : 'Activer le mode modification'">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                      d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
               </svg>
               <span>{{ dragModeEnabled ? 'Modifier' : 'Modifier' }}</span>
             </button>
 
             <!-- Products Per Page Selection Button (hidden in wholesale mode) -->
-            <button 
-              *ngIf="!isWholesaleMode"
-              (click)="openProductSelectorForPage()" 
+            <button *ngIf="!isWholesaleMode" (click)="openProductSelectorForPage()"
               class="px-3 py-2 rounded-full text-xs font-medium transition-all border-2 flex items-center gap-1 bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
               title="Sélectionner les produits à afficher sur cette page (max 20)"
               [attr.aria-label]="'Sélectionner produits pour la page ' + (currentPage + 1)">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+                </path>
               </svg>
               <span>Produit par page</span>
               <span *ngIf="pageProductsMap.get(currentPage)?.length" class="ml-1 font-bold text-blue-600">
@@ -204,11 +203,11 @@
             <div #productGrid class="flex flex-wrap justify-start items-start w-full product-grid"
               [class.dragging]="isDragMode" (mousemove)="onProductMouseMove($event)"
               (touchmove)="onProductTouchMove($event)">
-              <button *ngFor="let product of getCurrentPageProducts(); trackBy: trackByProduct" (mousedown)="onProductMouseDown($event, product)"
-                (mouseup)="onProductMouseUp($event, product)" (mousemove)="onProductMouseMove($event)"
-                (touchstart)="onProductTouchStart($event, product)" (touchend)="onProductTouchEnd($event, product)"
-                (touchmove)="onProductTouchMove($event)" [class.dragging]="isDragMode"
-                [class.drag-origin]="isDragMode && draggedProduct?.id === product.id"
+              <button *ngFor="let product of getCurrentPageProducts(); trackBy: trackByProduct"
+                (mousedown)="onProductMouseDown($event, product)" (mouseup)="onProductMouseUp($event, product)"
+                (mousemove)="onProductMouseMove($event)" (touchstart)="onProductTouchStart($event, product)"
+                (touchend)="onProductTouchEnd($event, product)" (touchmove)="onProductTouchMove($event)"
+                [class.dragging]="isDragMode" [class.drag-origin]="isDragMode && draggedProduct?.id === product.id"
                 class="product-button bg-white  border border-blue-200 rounded-lg p-2 text-center transition-all duration-300 transform  cursor-pointer shadow-sm  relative select-none"
                 [style.user-select]="isDragMode ? 'none' : 'auto'">
                 <!-- Product Image -->
@@ -291,13 +290,15 @@
           <div class="flex items-center space-x-4">
             <!-- Return Mode Header -->
             <div *ngIf="isReturnMode" class="relative">
-              <div class="absolute inset-0 bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl blur-sm opacity-75">
+              <div
+                class="absolute inset-0 bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl blur-sm opacity-75">
               </div>
               <div class="relative bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl px-6 py-3 shadow-lg">
                 <div class="flex items-center space-x-3">
                   <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                    </path>
                   </svg>
                   <h3 class="text-lg font-bold text-white tracking-wide">
                     RETOUR ARTICLE
@@ -345,7 +346,8 @@
             <div class="flex items-center space-x-2">
               <div class="w-3 h-3 rounded-full animate-pulse"
                 [class]="isReturnMode ? 'bg-orange-400' : (isWholesaleMode ? 'bg-red-400' : 'bg-emerald-400')"></div>
-              <span class="text-sm font-medium" [class]="isReturnMode ? 'text-orange-600' : (isWholesaleMode ? 'text-red-600' : 'text-emerald-600')">
+              <span class="text-sm font-medium"
+                [class]="isReturnMode ? 'text-orange-600' : (isWholesaleMode ? 'text-red-600' : 'text-emerald-600')">
                 {{isReturnMode ? 'Retour' : (isWholesaleMode ? 'Gros' : 'Détail')}}
               </span>
             </div>
@@ -689,8 +691,7 @@
             </div>
             <h2 class="text-xl font-bold">Saisie en cours</h2>
           </div>
-          <button (click)="closeInputWarningModal()" class="text-white/80  transition-colors p-1"
-            title="Fermer">
+          <button (click)="closeInputWarningModal()" class="text-white/80  transition-colors p-1" title="Fermer">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -1199,7 +1200,8 @@
         <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
           <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+            </path>
           </svg>
         </div>
       </div>
@@ -1705,12 +1707,13 @@
                       Temporaire
                     </span>
                   </div>
-                  <button 
-                    (click)="$event.stopPropagation(); printTicket(sale)"
+                  <button (click)="$event.stopPropagation(); printTicket(sale)"
                     class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     title="Imprimer le ticket">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                      </path>
                     </svg>
                   </button>
                 </div>
@@ -1726,7 +1729,8 @@
                   </div>
                 </div>
                 <div class="text-xs sm:text-sm text-gray-500 mt-2">
-                  <div class="font-medium mb-1">📦 {{ sale.items.length }} article{{ sale.items.length > 1 ? 's' : '' }}</div>
+                  <div class="font-medium mb-1">📦 {{ sale.items.length }} article{{ sale.items.length > 1 ? 's' : '' }}
+                  </div>
                   <div class="space-y-1 mt-2">
                     <div *ngFor="let item of sale.items" class="flex justify-between items-center">
                       <span class="text-gray-700">{{ item.productName }}</span>
@@ -1771,6 +1775,18 @@
             <span class="text-gray-900 font-semibold text-sm sm:text-base">{{ selectedTemporarySale.items.length }}
               article{{
               selectedTemporarySale.items.length > 1 ? 's' : '' }}</span>
+          </div>
+
+          <!-- Article List -->
+          <div class="mb-2 border-t border-b border-green-200 py-2 max-h-32 overflow-y-auto">
+            <div *ngFor="let item of selectedTemporarySale.items"
+              class="flex justify-between text-xs text-gray-700 mb-1 px-1">
+              <span class="truncate pr-2 flex-1 font-medium">{{ item.productName || 'Article' }}</span>
+              <div class="whitespace-nowrap flex space-x-2">
+                <span>x{{ item.quantity }}</span>
+                <span class="font-bold text-gray-900">{{ item.total | number:'1.3-3' }}</span>
+              </div>
+            </div>
           </div>
           <div class="flex justify-between text-gray-700">
             <span class="font-medium text-sm sm:text-base">Total:</span>
@@ -2078,13 +2094,15 @@
 
   <!-- Gift Popup -->
   <div *ngIf="showGiftPopup" class="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-2">
-    <div class="bg-white rounded-xl border border-gray-200 max-w-xl w-full max-h-[95vh] overflow-hidden shadow-lg flex flex-col">
+    <div
+      class="bg-white rounded-xl border border-gray-200 max-w-xl w-full max-h-[95vh] overflow-hidden shadow-lg flex flex-col">
       <!-- Header -->
       <div class="bg-gray-100 p-4 flex justify-between items-center flex-shrink-0">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
             <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zM5 12h14M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v13m0-13V6a2 2 0 112 2h-2zM5 12h14M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
             </svg>
           </div>
           <div>
@@ -2094,8 +2112,7 @@
         </div>
         <button (click)="cancelGift()" title="Fermer"
           class="w-8 h-8 bg-white rounded-xl flex items-center justify-center">
-          <svg class="w-5 h-5 text-gray-700" fill="none"
-            stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </button>
@@ -2109,7 +2126,8 @@
             <div class="flex items-center gap-2 mb-3">
               <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
                 </svg>
               </div>
               <span class="text-base font-bold text-gray-800">Résumé de la commande</span>
@@ -2133,8 +2151,7 @@
           <div class="mb-4">
             <label class="block text-sm font-semibold text-gray-700 mb-2">Raison du cadeau *</label>
             <div class="grid grid-cols-2 gap-2">
-              <button *ngFor="let reason of quickGiftReasons" (click)="setQuickGiftReason(reason)"
-                [class]="isQuickReasonSelected(reason) 
+              <button *ngFor="let reason of quickGiftReasons" (click)="setQuickGiftReason(reason)" [class]="isQuickReasonSelected(reason) 
                   ? 'px-3 py-3 bg-purple-600 border border-purple-600 rounded-lg text-white text-sm font-medium'
                   : 'px-3 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 text-sm font-medium'">
                 <span>{{ reason }}</span>
@@ -2161,12 +2178,15 @@
             <div class="flex items-start gap-3">
               <div class="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z">
+                  </path>
                 </svg>
               </div>
               <div>
                 <span class="font-bold text-amber-800 mb-1 text-sm">Approbation requise</span>
-                <span class="block text-amber-700 text-xs">Cette demande de cadeau sera envoyée à l'administrateur pour approbation avant d'être finalisée.</span>
+                <span class="block text-amber-700 text-xs">Cette demande de cadeau sera envoyée à l'administrateur pour
+                  approbation avant d'être finalisée.</span>
               </div>
             </div>
           </div>
@@ -2184,7 +2204,8 @@
             class="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm">
             <span class="flex items-center gap-1">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
               </svg>
               Envoyer pour Approbation
             </span>
@@ -2223,14 +2244,13 @@
               <div class="flex-1">
                 <div class="flex items-center space-x-3 mb-2">
                   <span class="text-lg font-bold text-slate-800">#{{ sale.id }}</span>
-                  <span
-                    [class]="'px-2 py-1 rounded-full text-xs font-medium ' + 
+                  <span [class]="'px-2 py-1 rounded-full text-xs font-medium ' + 
                     (sale.status === 'PENDING_ADMIN' ? 'bg-orange-500/20 text-orange-400' : 
                      sale.status === 'CADEAU' ? 'bg-green-500/20 text-green-400' : 
                      'bg-gray-500/20 text-gray-400')">
-                    {{ sale.status === 'PENDING_ADMIN' ? 'En attente Admin' : 
-                       sale.status === 'CADEAU' ? 'Cadeau approuvé' : 
-                       sale.status }}
+                    {{ sale.status === 'PENDING_ADMIN' ? 'En attente Admin' :
+                    sale.status === 'CADEAU' ? 'Cadeau approuvé' :
+                    sale.status }}
                   </span>
                 </div>
                 <div class="text-sm text-slate-600 mb-2">
@@ -2247,7 +2267,8 @@
                 <button (click)="showTicketDetails(sale)"
                   class="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-300 text-slate-700 bg-white text-xs">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                   Voir ticket
                 </button>
@@ -2261,8 +2282,7 @@
   </div>
 
   <!-- Client Search Popup - Optimized for 1366px -->
-  <div *ngIf="showClientSearchPopup"
-    class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-1"
+  <div *ngIf="showClientSearchPopup" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-1"
     (click)="closeClientSearch()">
     <div
       class="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border-2 border-blue-200/50 w-full max-w-7xl max-h-[98vh] overflow-hidden shadow-2xl"
@@ -2394,7 +2414,8 @@
               <!-- Stats -->
               <div class="flex justify-between items-center pt-4 border-t border-slate-100 mb-4">
                 <div class="text-center">
-                  <div class="text-lg font-bold text-green-600">{{ (client.statementBalance ?? client.currentDebt ?? 0) | number:'1.0-0' }} dt</div>
+                  <div class="text-lg font-bold text-green-600">{{ (client.statementBalance ?? client.currentDebt ?? 0)
+                    | number:'1.0-0' }} dt</div>
                   <div class="text-xs text-slate-500">Total dépensé</div>
                 </div>
                 <div class="text-center">
@@ -2412,16 +2433,16 @@
 
               <!-- Action Buttons -->
               <div class="flex gap-2 pt-4 border-t border-slate-100" (click)="$event.stopPropagation()">
-                <button 
-                  (click)="openClientPaymentFromSearch(client)"
+                <button (click)="openClientPaymentFromSearch(client)"
                   class="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-md">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                    </path>
                   </svg>
                   Règlement
                 </button>
-                <button 
-                  (click)="selectClient(client)"
+                <button (click)="selectClient(client)"
                   class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-md">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -2501,7 +2522,8 @@
 
                 <!-- Total -->
                 <div class="col-span-2">
-                  <div class="text-sm font-bold text-green-600">{{ (client.statementBalance ?? client.currentDebt ?? 0) | number:'1.0-0' }} dt</div>
+                  <div class="text-sm font-bold text-green-600">{{ (client.statementBalance ?? client.currentDebt ?? 0)
+                    | number:'1.0-0' }} dt</div>
                 </div>
 
                 <!-- Points -->
@@ -2511,12 +2533,13 @@
 
                 <!-- Actions -->
                 <div class="col-span-1 flex items-center gap-2" (click)="$event.stopPropagation()">
-                  <button 
-                    (click)="openClientPaymentFromSearch(client)"
+                  <button (click)="openClientPaymentFromSearch(client)"
                     class="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1 shadow-md"
                     title="Règlement client">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                      </path>
                     </svg>
                     Règlement
                   </button>
@@ -2568,7 +2591,8 @@
               <button (click)="openAddDebtModal()" title="Ajouter un débit au relevé"
                 class="w-10 h-10 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full flex items-center justify-center transition-all duration-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                  </path>
                 </svg>
               </button>
               <button (click)="clearSelectedClient()" title="Effacer le client sélectionné"
@@ -2601,8 +2625,8 @@
         </div>
         <button (click)="closeQuickAddClient()" title="Fermer"
           class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center transition-all duration-300 group">
-          <svg class="w-6 h-6 text-white transition-transform duration-300" fill="none"
-            stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-6 h-6 text-white transition-transform duration-300" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </button>
@@ -2720,15 +2744,16 @@
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+              </path>
             </svg>
           </div>
           <h2 class="text-2xl font-bold text-white">Ajouter un débit au relevé</h2>
         </div>
         <button (click)="closeAddDebtModal()" title="Fermer"
           class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center transition-all duration-300 group">
-          <svg class="w-6 h-6 text-white transition-transform duration-300" fill="none"
-            stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-6 h-6 text-white transition-transform duration-300" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </button>
@@ -2737,43 +2762,31 @@
       <div class="p-6">
         <div *ngIf="selectedClient" class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <div class="text-sm text-blue-600 font-medium mb-1">Client sélectionné</div>
-          <div class="text-lg font-semibold text-slate-800">{{ selectedClient.firstName }} {{ selectedClient.lastName }}</div>
+          <div class="text-lg font-semibold text-slate-800">{{ selectedClient.firstName }} {{ selectedClient.lastName }}
+          </div>
           <div class="text-sm text-slate-600">{{ selectedClient.code }}</div>
         </div>
 
         <form (ngSubmit)="addDebtToClient()" class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Montant (dt) *</label>
-            <input 
-              type="number" 
-              step="0.001"
-              min="0.001"
-              [(ngModel)]="debtAmount" 
-              name="debtAmount"
-              placeholder="Entrez le montant"
-              required
+            <input type="number" step="0.001" min="0.001" [(ngModel)]="debtAmount" name="debtAmount"
+              placeholder="Entrez le montant" required
               class="w-full bg-white border-2 border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
           </div>
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Notes (optionnel)</label>
-            <textarea 
-              [(ngModel)]="debtNotes" 
-              name="debtNotes"
-              placeholder="Ajoutez des notes..."
-              rows="3"
+            <textarea [(ngModel)]="debtNotes" name="debtNotes" placeholder="Ajoutez des notes..." rows="3"
               class="w-full bg-white border-2 border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></textarea>
           </div>
 
           <div class="flex gap-3 pt-4">
-            <button 
-              type="button"
-              (click)="closeAddDebtModal()" 
+            <button type="button" (click)="closeAddDebtModal()"
               class="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-all duration-200">
               Annuler
             </button>
-            <button 
-              type="submit"
+            <button type="submit"
               class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg font-medium transition-all duration-200 shadow-md">
               Ajouter au relevé
             </button>
@@ -2800,8 +2813,8 @@
         </div>
         <button (click)="closeQuickAddSupplier()" title="Fermer"
           class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center transition-all duration-300 group">
-          <svg class="w-6 h-6 text-white transition-transform duration-300" fill="none"
-            stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-6 h-6 text-white transition-transform duration-300" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </button>
@@ -2934,8 +2947,8 @@
           </div>
           <div>
             <div class="text-slate-800 font-medium text-lg">{{ selectedProduct.name }}</div>
-            <div class="text-primary-600 font-bold text-xl">{{ getEffectiveUnitPrice(selectedProduct) | number:'1.3-3' }}<span
-                class="text-sm font-serif">dt</span></div>
+            <div class="text-primary-600 font-bold text-xl">{{ getEffectiveUnitPrice(selectedProduct) | number:'1.3-3'
+              }}<span class="text-sm font-serif">dt</span></div>
           </div>
         </div>
 
@@ -3113,8 +3126,7 @@
   </div>
 
   <!-- Credit Modal -->
-  <div *ngIf="showCreditModal"
-    class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+  <div *ngIf="showCreditModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-sm w-full">
       <div class="p-4 border-b border-gray-200 flex items-center justify-between">
         <h3 class="text-lg font-bold text-gray-800">Créditer</h3>
@@ -3202,11 +3214,7 @@
         <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <div class="mb-3">
             <label class="block text-amber-700 font-medium mb-2">Montant du règlement (dt)</label>
-            <input 
-              type="number" 
-              step="0.001"
-              min="0"
-              [(ngModel)]="pendingPaymentAmount" 
+            <input type="number" step="0.001" min="0" [(ngModel)]="pendingPaymentAmount"
               class="w-full bg-white border-2 border-amber-200 rounded-lg px-4 py-3 text-2xl font-bold text-amber-800 text-right focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               placeholder="0.000">
           </div>
@@ -3355,7 +3363,8 @@
                     <td class="px-3 py-2 text-gray-700">{{ item.product?.famille?.name || 'N/A' }}</td>
                     <td class="px-3 py-2 text-gray-700">{{ item.product?.designation_legale || item.product?.name ||
                       item.productName }}</td>
-                    <td class="px-3 py-2 text-right text-gray-700">{{ item.quantity | number:'1.3-3' }} {{ item.product?.unite || '' }}
+                    <td class="px-3 py-2 text-right text-gray-700">{{ item.quantity | number:'1.3-3' }} {{
+                      item.product?.unite || '' }}
                     </td>
                     <td class="px-3 py-2 text-right text-gray-700">{{ item.unitPrice | number:'1.3-3' }} dt</td>
                     <td class="px-3 py-2 text-right font-medium text-gray-800">{{ item.total | number:'1.3-3' }} dt</td>
@@ -3677,8 +3686,7 @@
   </div>
 
   <!-- Client Selection Dialog -->
-  <div *ngIf="showClientSelectionDialog"
-    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+  <div *ngIf="showClientSelectionDialog" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
     (click)="closeClientSelectionDialog()">
     <div
       class="bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 rounded-2xl border-2 border-purple-200/50 max-w-md w-full shadow-2xl transform transition-all duration-300"
@@ -3864,12 +3872,16 @@
         <div class="text-lg font-bold text-slate-800">Confirmer l'annulation</div>
       </div>
       <div class="p-5 text-sm text-slate-700">
-        <div class="mb-2">Vous êtes sur le point d'annuler le ticket <span class="font-mono font-semibold">#{{ ticketToCancel?.id }}</span>.</div>
-        <div class="">Cette action soustrait le montant du ticket de la caisse et marque le ticket comme <span class="font-semibold">Annulé</span>.</div>
+        <div class="mb-2">Vous êtes sur le point d'annuler le ticket <span class="font-mono font-semibold">#{{
+            ticketToCancel?.id }}</span>.</div>
+        <div class="">Cette action soustrait le montant du ticket de la caisse et marque le ticket comme <span
+            class="font-semibold">Annulé</span>.</div>
       </div>
       <div class="p-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex gap-2">
-        <button (click)="closeCancelTicketModal()" class="flex-1 px-4 py-2 rounded-md border border-slate-300 text-slate-700 bg-white">Annuler</button>
-        <button (click)="confirmCancelTicket()" class="flex-1 px-4 py-2 rounded-md bg-red-600 text-white">Confirmer</button>
+        <button (click)="closeCancelTicketModal()"
+          class="flex-1 px-4 py-2 rounded-md border border-slate-300 text-slate-700 bg-white">Annuler</button>
+        <button (click)="confirmCancelTicket()"
+          class="flex-1 px-4 py-2 rounded-md bg-red-600 text-white">Confirmer</button>
       </div>
     </div>
   </div>
@@ -4148,8 +4160,7 @@
       <div class="px-8 py-6 border-b border-amber-100 rounded-t-3xl bg-gradient-to-r from-amber-50 to-emerald-50">
         <div class="flex items-center justify-between">
           <h3 class="text-2xl font-bold text-amber-900">Nouveau Règlement</h3>
-          <button title="Fermer" (click)="showSupplierPaymentForm = false"
-            class="text-gray-400 transition-colors">
+          <button title="Fermer" (click)="showSupplierPaymentForm = false" class="text-gray-400 transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -4249,8 +4260,7 @@
   </div>
 
   <!-- Product Selector Modal for Page -->
-  <div *ngIf="showProductSelectorModal"
-    class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+  <div *ngIf="showProductSelectorModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
       <!-- Modal Header -->
       <div class="flex items-center justify-between p-4 border-b border-gray-200">
@@ -4270,11 +4280,9 @@
       <!-- Modal Content - Product List -->
       <div class="flex-1 overflow-y-auto p-4">
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          <button
-            *ngFor="let product of allProducts; trackBy: trackByProduct"
+          <button *ngFor="let product of allProducts; trackBy: trackByProduct"
             (click)="toggleProductSelection(product.id)"
-            [disabled]="isProductUsedInOtherPage(product.id) && !isProductSelected(product.id)"
-            [class]="'p-3 rounded-lg border-2 transition-all text-left relative ' + 
+            [disabled]="isProductUsedInOtherPage(product.id) && !isProductSelected(product.id)" [class]="'p-3 rounded-lg border-2 transition-all text-left relative ' + 
                      (isProductSelected(product.id) 
                        ? 'bg-blue-100 border-blue-500 shadow-md' 
                        : (isProductUsedInOtherPage(product.id)
@@ -4284,7 +4292,7 @@
               <div class="flex-1 min-w-0">
                 <div class="text-xs font-semibold text-gray-800 truncate">{{ product.name }}</div>
                 <div class="text-xs text-gray-500 mt-1">{{ getEffectiveUnitPrice(product) | number:'1.3-3' }} dt</div>
-                <div *ngIf="isProductUsedInOtherPage(product.id) && !isProductSelected(product.id)" 
+                <div *ngIf="isProductUsedInOtherPage(product.id) && !isProductSelected(product.id)"
                   class="text-xs text-orange-600 mt-1 font-medium">
                   Page {{ getProductUsedInPage(product.id)! + 1 }}
                 </div>
@@ -4295,11 +4303,15 @@
                               : (isProductUsedInOtherPage(product.id)
                                 ? 'bg-gray-300 border-gray-400'
                                 : 'border-gray-300'))">
-                <svg *ngIf="isProductSelected(product.id)" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg *ngIf="isProductSelected(product.id)" class="w-3 h-3 text-white" fill="none" stroke="currentColor"
+                  viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
                 </svg>
-                <svg *ngIf="isProductUsedInOtherPage(product.id) && !isProductSelected(product.id)" class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                <svg *ngIf="isProductUsedInOtherPage(product.id) && !isProductSelected(product.id)"
+                  class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                  </path>
                 </svg>
               </div>
             </div>
@@ -4309,16 +4321,16 @@
 
       <!-- Modal Footer -->
       <div class="flex items-center justify-between p-4 border-t border-gray-200 bg-gray-50">
-        <button (click)="clearProductsForCurrentPage()" 
+        <button (click)="clearProductsForCurrentPage()"
           class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors">
           Effacer la sélection
         </button>
         <div class="flex gap-2">
-          <button (click)="closeProductSelectorModal()" 
+          <button (click)="closeProductSelectorModal()"
             class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
             Annuler
           </button>
-          <button (click)="saveProductsForCurrentPage()" 
+          <button (click)="saveProductsForCurrentPage()"
             class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors">
             Enregistrer ({{ selectedProductsForPage.length }})
           </button>
@@ -4339,8 +4351,7 @@
           </svg>
           Nouvelle Dépense
         </h3>
-        <button title="Fermer" (click)="showExpenseForm = false"
-          class="text-gray-400 transition-colors">
+        <button title="Fermer" (click)="showExpenseForm = false" class="text-gray-400 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -4435,7 +4446,8 @@
               <div>
                 <label class="block text-sm font-bold text-indigo-700 mb-2">Montant Total (TND)</label>
                 <div class="relative">
-                  <input type="text" [(ngModel)]="expenseTotalAmount" (click)="openAmountInput('total'); $event.preventDefault(); $event.stopPropagation();" 
+                  <input type="text" [(ngModel)]="expenseTotalAmount"
+                    (click)="openAmountInput('total'); $event.preventDefault(); $event.stopPropagation();"
                     class="w-full pl-8 pr-4 py-3 bg-white border-2 border-indigo-200 rounded-xl text-indigo-800 placeholder-indigo-400 font-mono text-2xl text-center tracking-wider cursor-pointer"
                     placeholder="0.000" readonly>
                 </div>
@@ -4445,10 +4457,11 @@
               <div>
                 <label class="block text-sm font-bold text-indigo-700 mb-2">Montant Payé (TND)</label>
                 <div class="relative">
-                  <input type="text" [(ngModel)]="expensePaidAmount" (click)="openAmountInput('paid'); $event.preventDefault(); $event.stopPropagation();" 
+                  <input type="text" [(ngModel)]="expensePaidAmount"
+                    (click)="openAmountInput('paid'); $event.preventDefault(); $event.stopPropagation();"
                     class="w-full pl-8 pr-4 py-3 bg-white border-2 border-indigo-200 rounded-xl text-indigo-800 placeholder-indigo-400 font-mono text-2xl text-center tracking-wider cursor-pointer"
                     placeholder="0.000" readonly>
-                  </div>
+                </div>
                 <div class="mt-2 text-sm text-indigo-600">
                   <span *ngIf="getExpenseRemainingAmount() > 0" class="text-orange-600">
                     Reste: {{ getExpenseRemainingAmount() | number:'1.3-3' }} dt

@@ -171,8 +171,10 @@
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Photo</th>
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Code-barres</th>
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Nom</th>
+              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Désignation</th>
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Famille</th>
-              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Prix TTC</th>
+              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Prix Achat</th>
+              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Prix Vente TTC</th>
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Magasins Assignés</th>
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Actions</th>
             </tr>
@@ -216,11 +218,17 @@
                 </div>
               </td>
               <td class="px-5 py-4">
+                <div class="text-sm text-slate-600">{{ product.designation_legale || '-' }}</div>
+              </td>
+              <td class="px-5 py-4">
                 <div *ngIf="product.famille" class="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-lg"
                   [ngClass]="getFamilyClass(product.familleId)">
                   {{ product.famille.name }}
                 </div>
                 <div *ngIf="!product.famille" class="text-slate-500 text-sm">Non classé</div>
+              </td>
+              <td class="px-5 py-4">
+                <div class="font-medium text-slate-700">{{ (product.prix_achat | currency:'TND':'symbol':'1.3-3') || '-' }}</div>
               </td>
               <td class="px-5 py-4">
                 <div class="text-lg font-bold text-purple-700">{{ product.prix_vente_TTC | currency:'TND' }}</div>

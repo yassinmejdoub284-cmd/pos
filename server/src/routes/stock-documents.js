@@ -24,14 +24,14 @@ function hasRoleOrRoleKey(user, allowedRoles) {
   if (allowedRoles.includes(user.role)) {
     return true;
   }
-  
+
   // Check roleKey from user-roles.json
   const userRoles = readUserRoles();
   const roleKey = userRoles[String(user.id)];
   if (roleKey && allowedRoles.includes(roleKey)) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -74,7 +74,7 @@ async function calculateSessionSummary(sessionId) {
 
   // Calculate cash from sales (exclude cancelled/refunded)
   const cashSales = session.sales
-    .filter(sale => sale.paymentMethod?.type === 'CASH' && !['REFUNDED','CANCELLED'].includes((sale.status || '').toUpperCase()))
+    .filter(sale => sale.paymentMethod?.type === 'CASH' && !['REFUNDED', 'CANCELLED'].includes((sale.status || '').toUpperCase()))
     .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
 
   // Calculate cash movements (exclude rejected movements, deleted movements, and movements from cancelled tickets)
@@ -98,12 +98,12 @@ async function calculateSessionSummary(sessionId) {
       const isDeleted = reason.includes('[SUPPRIMÉ]');
       const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
       const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
-      const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
-                                     reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
-                                     reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
-      const isBonRetour = reasonLower.includes('bon de retour') || 
-                         reasonLower.includes('bon retour') ||
-                         reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
+      const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') ||
+        reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
+        reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
+      const isBonRetour = reasonLower.includes('bon de retour') ||
+        reasonLower.includes('bon retour') ||
+        reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
       const shouldExclude = isFromCancelledTicket || isCanceledTicketRefund || isClientCreditPayment || isBonRetour;
       return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !shouldExclude && amount > 0;
     })
@@ -122,7 +122,7 @@ async function calculateSessionSummary(sessionId) {
       }
     });
     creditOutstanding = debtTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-  } catch (e) {}
+  } catch (e) { }
 
   // Add standalone client payments (credit encashments) to expected cash
   let clientPaymentsTotal = 0;
@@ -139,7 +139,7 @@ async function calculateSessionSummary(sessionId) {
       }
     });
     clientPaymentsTotal = standalonePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-  } catch (e) {}
+  } catch (e) { }
 
   expectedCash = expectedCash + clientPaymentsTotal;
 
@@ -149,19 +149,19 @@ async function calculateSessionSummary(sessionId) {
   let cashFromSalesNetCredit = 0;
   try {
     const saleIds = session.sales
-      .filter(s => !['REFUNDED','CANCELLED','CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
+      .filter(s => !['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
       .map(s => s.id);
-    
+
     if (saleIds.length > 0) {
       // Get all DEBT transactions for sales in this session
       const debts = await prisma.clientDebtTransaction.findMany({
-        where: { 
-          type: 'DEBT', 
-          saleId: { in: saleIds } 
+        where: {
+          type: 'DEBT',
+          saleId: { in: saleIds }
         },
         select: { saleId: true, amount: true }
       });
-      
+
       // Group debt by saleId
       const debtBySaleId = {};
       debts.forEach(t => {
@@ -171,11 +171,11 @@ async function calculateSessionSummary(sessionId) {
           debtBySaleId[sid] = (debtBySaleId[sid] || 0) + amt;
         }
       });
-      
+
       // Calculate paidAmount for each sale and sum them up
       // Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
       session.sales
-        .filter(s => !['REFUNDED','CANCELLED','CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
+        .filter(s => !['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
         .forEach(sale => {
           const total = parseFloat(sale.finalTotal || 0) || 0;
           const debtForSale = debtBySaleId[sale.id] || 0;
@@ -187,11 +187,11 @@ async function calculateSessionSummary(sessionId) {
     // Fallback: if we can't calculate paidAmount, use old method
     // Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
     const totalSalesAmount = session.sales
-      .filter(s => !['REFUNDED','CANCELLED','CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
+      .filter(s => !['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
       .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
     cashFromSalesNetCredit = Math.max(0, totalSalesAmount - creditOutstanding);
   }
-  
+
   expectedCash = expectedCash + cashFromSalesNetCredit + entree - sortie;
 
   return {
@@ -200,9 +200,9 @@ async function calculateSessionSummary(sessionId) {
     entree,
     sortie,
     totalSales: session.sales
-      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+      .filter(s => !['REFUNDED', 'CANCELLED'].includes((s.status || '').toUpperCase()))
       .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0),
-    totalTickets: session.sales.filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase())).length,
+    totalTickets: session.sales.filter(s => !['REFUNDED', 'CANCELLED'].includes((s.status || '').toUpperCase())).length,
     creditOutstanding,
     clientPaymentsTotal
   };
@@ -211,37 +211,37 @@ async function calculateSessionSummary(sessionId) {
 const router = express.Router();
 
 async function generateDocumentNumber(type) {
-  const prefix = type === 'BON_EXPEDITION' ? 'BS' : 
-                 type === 'BON_ENTREE_DEPOT' ? 'BE' :
-                 type === 'BON_TRANSFERT' ? 'BT' :
-                 type === 'BON_ENTREE_MAGASIN' ? 'BL' :
-                 type === 'FACTURE' ? 'FAC' : 'DOC';
-  
+  const prefix = type === 'BON_EXPEDITION' ? 'BS' :
+    type === 'BON_ENTREE_DEPOT' ? 'BE' :
+      type === 'BON_TRANSFERT' ? 'BT' :
+        type === 'BON_ENTREE_MAGASIN' ? 'BL' :
+          type === 'FACTURE' ? 'FAC' : 'DOC';
+
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
-  
+
   // Get the next sequential number for this document type
   const nextId = await getNextDocumentId(type);
   const sequenceNumber = String(nextId).padStart(4, '0');
-  
+
   return `${prefix}-${year}${month}-${sequenceNumber}`;
 }
 
 async function getNextDocumentId(type) {
   try {
     // Get the highest sequence number from existing document numbers of this type
-    const prefix = type === 'BON_EXPEDITION' ? 'BS' : 
-                   type === 'BON_ENTREE_DEPOT' ? 'BE' :
-                   type === 'BON_TRANSFERT' ? 'BT' :
-                   type === 'BON_ENTREE_MAGASIN' ? 'BL' :
-                   type === 'FACTURE' ? 'FAC' : 'DOC';
-    
+    const prefix = type === 'BON_EXPEDITION' ? 'BS' :
+      type === 'BON_ENTREE_DEPOT' ? 'BE' :
+        type === 'BON_TRANSFERT' ? 'BT' :
+          type === 'BON_ENTREE_MAGASIN' ? 'BL' :
+            type === 'FACTURE' ? 'FAC' : 'DOC';
+
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const yearMonth = `${year}${month}`;
-    
+
     // Find documents with the same prefix and year-month
     const documents = await prisma.stockDocument.findMany({
       where: {
@@ -251,7 +251,7 @@ async function getNextDocumentId(type) {
       },
       select: { numero: true }
     });
-    
+
     // Extract sequence numbers and find the highest
     let maxSequence = 0;
     documents.forEach(doc => {
@@ -263,7 +263,7 @@ async function getNextDocumentId(type) {
         }
       }
     });
-    
+
     return maxSequence + 1;
   } catch (error) {
     console.error('Error getting next document ID:', error);
@@ -290,28 +290,28 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 20, type, status, depotId, clientId, dateFrom, dateTo, fromDepotOnly, toDepotOnly } = req.query;
     const skip = (page - 1) * limit;
-        
+
     const where = {};
-    
+
     if (type) {
       // Only allow valid DocumentType enum values
       const validTypes = ['BON_EXPEDITION', 'BON_ENTREE_DEPOT', 'BON_TRANSFERT', 'BON_ENTREE_MAGASIN', 'FACTURE'];
-      
+
       if (!validTypes.includes(type)) {
 
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: `Invalid document type: ${type}. Valid types are: ${validTypes.join(', ')}`,
-          validTypes 
+          validTypes
         });
       }
-      
+
       where.type = type;
     }
-    
+
     if (status) {
       where.status = status;
     }
-    
+
     if (depotId) {
       const depotIdNum = parseInt(depotId);
       if (String(fromDepotOnly).toLowerCase() === 'true') {
@@ -328,15 +328,15 @@ router.get('/', authenticateToken, async (req, res) => {
     if (clientId) {
       where.notes = { contains: `Client:${parseInt(clientId)}` };
     }
-    
+
     if (dateFrom || dateTo) {
       where.createdAt = {};
       if (dateFrom) where.createdAt.gte = new Date(dateFrom);
       if (dateTo) where.createdAt.lte = new Date(dateTo);
     }
-    
 
-    
+
+
     const [documents, total] = await Promise.all([
       prisma.stockDocument.findMany({
         where,
@@ -362,9 +362,9 @@ router.get('/', authenticateToken, async (req, res) => {
       }),
       prisma.stockDocument.count({ where })
     ]);
-    
 
-    
+
+
     // Attach client objects for docs that reference a client in notes
     const clientIdMatches = documents
       .map(d => (typeof d.notes === 'string' ? d.notes.match(/Client:(\d+)/) : null))
@@ -405,19 +405,19 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { depotId } = req.query;
-    
+
     const documentId = parseInt(req.params.id);
-    
+
     if (isNaN(documentId)) {
       return res.status(400).json({ error: 'ID de document invalide' });
     }
-    
+
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
     const isAdmin = req.user?.role === 'ADMIN';
-    
+
     let whereClause = {
       id: documentId
     };
@@ -426,7 +426,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       if (targetDepotId && userDepotId && targetDepotId !== userDepotId) {
         return res.status(403).json({ error: 'Access denied: Cannot access other depot documents' });
       }
-      
+
       if (targetDepotId) {
         whereClause = {
           AND: [
@@ -457,11 +457,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const document = await prisma.stockDocument.findFirst({
       where: whereClause,
       include: {
-      emetteur: { include: { company: true } },
-      destinataire: { include: { company: true } },
-      client: true,
-      vehicle: { include: { brand: true } },
-      driver: true,
+        emetteur: { include: { company: true } },
+        destinataire: { include: { company: true } },
+        client: true,
+        vehicle: { include: { brand: true } },
+        driver: true,
         items: {
           include: {
             product: true
@@ -495,17 +495,17 @@ router.get('/:id', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     if (!document) {
       const documentExists = await prisma.stockDocument.findUnique({
         where: { id: documentId },
         select: { id: true, emetteurId: true, destinataireId: true, type: true }
       });
-      
+
       if (!documentExists) {
         return res.status(404).json({ error: 'Document non trouvé' });
       } else if (!isAdmin) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Accès refusé: Ce document n\'appartient pas à votre dépôt',
           documentInfo: {
             id: documentExists.id,
@@ -557,7 +557,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 
 
-    
+
     let client = document.client;
     if (!client && document.notes && document.notes.includes('Client:')) {
       const m = document.notes.match(/Client:(\d+)/);
@@ -579,7 +579,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       supplier: supplierInfo,
       client
     };
-    
+
     res.json(documentWithSupplier);
   } catch (error) {
     console.error('Error fetching stock document:', error);
@@ -592,7 +592,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
-    
+
     // Check if document exists
     const existingDocument = await prisma.stockDocument.findUnique({
       where: { id: parseInt(id) }
@@ -604,7 +604,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     // Prepare update data
     const dataToUpdate = {};
-    
+
     // Update basic fields
     if (updateData.clientId !== undefined) {
       dataToUpdate.clientId = updateData.clientId ? parseInt(updateData.clientId) : null;
@@ -691,30 +691,98 @@ router.put('/:id', authenticateToken, async (req, res) => {
       // Handle stock synchronization
       await synchronizeStockForDocumentUpdate(existingDocument, originalItems, updateData.items, req.user.id);
 
-      // Update associated expense for bon de retour if it exists
-      if (existingDocument.type === 'BON_EXPEDITION' && existingDocument.notes && existingDocument.notes.includes('Supplier:')) {
-        const totalAmount = updateData.items.reduce((sum, item) => {
-          const quantity = Math.abs(item.quantity || 0);
-          const price = parseFloat(item.purchasePrice || 0);
-          return sum + (quantity * price);
-        }, 0);
+      // Calculate total amount for the updated items
+      const totalAmount = updateData.items.reduce((sum, item) => {
+        const quantity = Math.abs(parseFloat(item.quantity) || 0);
+        // Use purchasePrice for supplier documents, fallback to 0
+        const price = parseFloat(item.purchasePrice || 0);
+        return sum + (quantity * price);
+      }, 0);
 
-        if (totalAmount > 0) {
-          const depotId = existingDocument.emetteurId || existingDocument.destinataireId;
-          
-          const associatedExpense = await prisma.expense.findFirst({
-            where: {
-              notes: { contains: `Bon de retour ${existingDocument.numero}` },
-              depotId: depotId
-            }
-          });
+      // Handle financial updates (Expenses & Debt Transactions)
+      // Check for Supplier ID in notes
+      let supplierId = null;
+      if (existingDocument.notes && existingDocument.notes.includes('Supplier:')) {
+        const match = existingDocument.notes.match(/Supplier:(\d+)/);
+        if (match) {
+          supplierId = parseInt(match[1]);
+        }
+      }
 
-          if (associatedExpense) {
-            await prisma.expense.update({
-              where: { id: associatedExpense.id },
-              data: { amount: totalAmount }
-            });
+      const depotId = existingDocument.emetteurId || existingDocument.destinataireId;
+
+      // 1. Handle Bon de Retour (Return)
+      if (existingDocument.type === 'BON_EXPEDITION' && supplierId) {
+        // Update associated Expense (acting as credit)
+        const associatedExpense = await prisma.expense.findFirst({
+          where: {
+            notes: { contains: `Bon de retour ${existingDocument.numero}` },
+            depotId: depotId
           }
+        });
+
+        if (associatedExpense) {
+          await prisma.expense.update({
+            where: { id: associatedExpense.id },
+            data: { amount: totalAmount }
+          });
+        }
+
+        // Update associated SupplierDebtTransaction (if any exists for this return)
+        const associatedDebtTx = await prisma.supplierDebtTransaction.findFirst({
+          where: {
+            supplierId: supplierId,
+            notes: { contains: `Bon de retour ${existingDocument.numero}` }
+          }
+        });
+
+        if (associatedDebtTx) {
+          await prisma.supplierDebtTransaction.update({
+            where: { id: associatedDebtTx.id },
+            data: { amount: totalAmount }
+          });
+        }
+      }
+
+      // 2. Handle Bon d'Entrée (Entry)
+      if (['BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'].includes(existingDocument.type) && supplierId) {
+        // Update associated SupplierDebtTransaction (Main debt record)
+        // Matches notes like "Bon d'entrée #BE-2023..." or just the document number
+        const associatedDebtTx = await prisma.supplierDebtTransaction.findFirst({
+          where: {
+            supplierId: supplierId,
+            notes: { contains: existingDocument.numero }
+          }
+        });
+
+        if (associatedDebtTx) {
+          await prisma.supplierDebtTransaction.update({
+            where: { id: associatedDebtTx.id },
+            data: { amount: totalAmount }
+          });
+        }
+
+        // Update associated Expense (if payment was recorded as expense)
+        const associatedExpense = await prisma.expense.findFirst({
+          where: {
+            notes: { contains: existingDocument.numero },
+            depotId: depotId
+          }
+        });
+
+        if (associatedExpense) {
+          // Note: If expense is partial payment, we might not want to update it to full total
+          // But if it represents the full "purchase" (credit), we should.
+          // Assuming expense matching document number often tracks the debt amount or full payment.
+          // Safest is to check if it's paid or not? 
+          // For now, if an expense links directly to this document, we update it to reflect the new total
+          // ONLY if it wasn't a partial payment (which usually has different notes or manual entry)
+          // To be safe, we only update if the amount matches the OLD total (approx) or logic dictates.
+          // Let's rely on the user's request: "make the new montant updated".
+          await prisma.expense.update({
+            where: { id: associatedExpense.id },
+            data: { amount: totalAmount }
+          });
         }
       }
 
@@ -764,16 +832,16 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.post('/expedition', authenticateToken, async (req, res) => {
   try {
     const { emetteurId, destinataireId, items, notes } = req.body;
-    
 
-    
+
+
     if (!emetteurId || !destinataireId || !items || items.length === 0) {
 
       return res.status(400).json({ error: 'Données manquantes' });
     }
-    
+
     const numero = await generateDocumentNumber('BON_EXPEDITION');
-    
+
 
     const document = await prisma.$transaction(async (tx) => {
       // Create the document
@@ -838,7 +906,7 @@ router.post('/expedition', authenticateToken, async (req, res) => {
           const currentQuantity = parseFloat(inventory.quantity) || 0;
           const reduceQuantity = parseFloat(quantity) || 0;
           const newQuantity = currentQuantity - reduceQuantity;
-          
+
           await tx.inventory.update({
             where: { id: inventory.id },
             data: {
@@ -875,9 +943,9 @@ router.post('/expedition', authenticateToken, async (req, res) => {
 
       return doc;
     });
-    
+
     await logAudit(req.user.id, 'stock_documents', document.id, 'CREATE', null, document);
-    
+
     res.status(201).json(document);
   } catch (error) {
     console.error('Error creating expedition document:', error);
@@ -1009,12 +1077,12 @@ router.post('/entry', authenticateToken, async (req, res) => {
         if (inventory) {
           const currentQuantity = parseFloat(inventory.quantity);
           const newQuantity = isReturn ? (currentQuantity - Math.abs(quantity)) : (currentQuantity + quantity);
-          
+
           // For returns, ensure we don't go below zero
           if (isReturn && newQuantity < 0) {
             throw new Error(`Cannot return ${Math.abs(quantity)} units of product ${productId}: only ${currentQuantity} units available`);
           }
-          
+
           await tx.inventory.update({
             where: { id: inventory.id },
             data: { quantity: newQuantity }
@@ -1068,13 +1136,13 @@ router.post('/entry', authenticateToken, async (req, res) => {
 router.post('/prepare-lot', authenticateToken, async (req, res) => {
   try {
     const { emetteurId, destinataireId, items, notes } = req.body;
-    
+
     if (!emetteurId || !destinataireId || !items || items.length === 0) {
       return res.status(400).json({ error: 'Données manquantes' });
     }
-    
+
     const numero = await generateDocumentNumber('BON_EXPEDITION');
-    
+
     const document = await prisma.stockDocument.create({
       data: {
         numero,
@@ -1111,9 +1179,9 @@ router.post('/prepare-lot', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     await logAudit(req.user.id, 'stock_documents', document.id, 'CREATE', null, document);
-    
+
     res.status(201).json(document);
   } catch (error) {
     console.error('Error preparing lot:', error);
@@ -1125,7 +1193,7 @@ router.post('/:id/validate', authenticateToken, async (req, res) => {
   try {
     const documentId = parseInt(req.params.id);
     const { status, notes } = req.body;
-    
+
     const document = await prisma.stockDocument.findUnique({
       where: { id: documentId },
       include: {
@@ -1134,17 +1202,17 @@ router.post('/:id/validate', authenticateToken, async (req, res) => {
         destinataire: true
       }
     });
-    
+
     if (!document) {
       return res.status(404).json({ error: 'Document non trouvé' });
     }
-    
+
     if (document.status === 'CANCELLED') {
       return res.status(400).json({ error: 'Document annulé, impossible de modifier' });
     }
-    
+
     const oldStatus = document.status;
-    
+
     const updatedDocument = await prisma.stockDocument.update({
       where: { id: documentId },
       data: {
@@ -1167,9 +1235,9 @@ router.post('/:id/validate', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     await logAudit(req.user.id, 'stock_documents', documentId, 'UPDATE', { status: oldStatus }, { status });
-    
+
     res.json(updatedDocument);
   } catch (error) {
     console.error('Error updating document status:', error);
@@ -1180,16 +1248,16 @@ router.post('/:id/validate', authenticateToken, async (req, res) => {
 router.post('/scan', authenticateToken, async (req, res) => {
   try {
     const { barcode, depotId, documentType } = req.body;
-    
+
     if (!barcode || !depotId) {
       return res.status(400).json({ error: 'Code-barres et dépôt requis' });
     }
-    
+
     // If documentType is provided, create a new document with auto-incrementing ID
     if (documentType) {
       const nextId = await getNextDocumentId(documentType);
       const numero = await generateDocumentNumber(documentType);
-      
+
       // Create a new document for the scan
       const newDocument = await prisma.stockDocument.create({
         data: {
@@ -1229,7 +1297,7 @@ router.post('/scan', authenticateToken, async (req, res) => {
           }
         }
       });
-      
+
       return res.json({
         document: newDocument,
         item: newDocument.items[0],
@@ -1237,7 +1305,7 @@ router.post('/scan', authenticateToken, async (req, res) => {
         isNewDocument: true
       });
     }
-    
+
     // Original scan logic for existing documents
     const item = await prisma.stockDocumentItem.findUnique({
       where: { barcode },
@@ -1256,31 +1324,31 @@ router.post('/scan', authenticateToken, async (req, res) => {
         product: true
       }
     });
-    
+
     if (!item) {
       return res.status(404).json({ error: 'Code-barres non trouvé' });
     }
-    
+
     const document = item.document;
-    
+
     if (document.status === 'CANCELLED') {
       return res.status(400).json({ error: 'Document annulé' });
     }
-    
+
     if (document.destinataireId !== parseInt(depotId)) {
-      return res.status(400).json({ 
-        error: `Document destiné à ${document.destinataire.name}, pas à ce dépôt` 
+      return res.status(400).json({
+        error: `Document destiné à ${document.destinataire.name}, pas à ce dépôt`
       });
     }
-    
+
     if (document.status === 'PREPARED') {
       return res.status(400).json({ error: 'Document non encore envoyé' });
     }
-    
+
     if (document.status === 'RECEIVED') {
       return res.status(400).json({ error: 'Document déjà reçu' });
     }
-    
+
     res.json({
       document,
       item,
@@ -1296,11 +1364,11 @@ router.post('/scan', authenticateToken, async (req, res) => {
 router.post('/scan-transfer', authenticateToken, async (req, res) => {
   try {
     const { fromDepotId, toDepotId, barcode } = req.body;
-    
+
     if (!fromDepotId || !toDepotId || !barcode) {
       return res.status(400).json({ error: 'Données manquantes' });
     }
-    
+
     const item = await prisma.stockDocumentItem.findUnique({
       where: { barcode },
       include: {
@@ -1318,31 +1386,31 @@ router.post('/scan-transfer', authenticateToken, async (req, res) => {
         product: true
       }
     });
-    
+
     if (!item) {
       return res.status(404).json({ error: 'Code-barres non trouvé' });
     }
-    
+
     const document = item.document;
-    
+
     if (document.status === 'CANCELLED') {
       return res.status(400).json({ error: 'Document annulé' });
     }
-    
+
     if (document.destinataireId !== parseInt(toDepotId)) {
-      return res.status(400).json({ 
-        error: `Document destiné à ${document.destinataire.name}, pas à ce dépôt` 
+      return res.status(400).json({
+        error: `Document destiné à ${document.destinataire.name}, pas à ce dépôt`
       });
     }
-    
+
     if (document.status !== 'SENT') {
       return res.status(400).json({ error: 'Document non encore envoyé' });
     }
-    
+
     if (document.status === 'RECEIVED') {
       return res.status(400).json({ error: 'Document déjà reçu' });
     }
-    
+
     const fromInventory = await prisma.inventory.findUnique({
       where: {
         depotId_productId: {
@@ -1351,9 +1419,9 @@ router.post('/scan-transfer', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     // Stock validation removed - frontend handles warnings, backend allows all operations
-    
+
     res.json({
       document,
       item,
@@ -1370,17 +1438,17 @@ router.post('/scan-transfer', authenticateToken, async (req, res) => {
 router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
   try {
     const depotId = parseInt(req.params.depotId);
-    
+
     // Get depot info to determine product source
     const depot = await prisma.depot.findUnique({
       where: { id: depotId },
       select: { type: true }
     });
-    
+
     if (!depot) {
       return res.status(404).json({ error: 'Depot not found' });
     }
-    
+
     // Get the last POSTED inventory session for this depot
     // Order by postedAt desc to get the most recent posted inventory
     const lastPostedSession = await prisma.inventorySession.findFirst({
@@ -1396,9 +1464,9 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
         postedAt: 'desc'
       }
     });
-    
+
     const inventoryPostedAt = lastPostedSession?.postedAt || new Date(0);
-    
+
     // If we have a POSTED inventory session, calculate current stock from it
     if (lastPostedSession && lastPostedSession.items && lastPostedSession.items.length > 0) {
       // Get all unique product IDs from inventory session (deduplicate in case of any duplicates)
@@ -1407,7 +1475,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           .filter(item => item.productId != null)
           .map(item => item.productId)
       );
-      
+
       // Find all products with entries (entry documents) since last inventory
       // Include all RECEIVED documents destined to this depot that represent incoming stock
       // This includes BON_ENTREE_DEPOT, BON_ENTREE_MAGASIN, and any other documents
@@ -1424,7 +1492,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           items: true
         }
       });
-      
+
       // Also include any other RECEIVED documents that have stock movements of type 'IN'
       // This ensures we catch any documents that might have been approved but not yet converted
       // First, get all IN movements for this depot since the inventory date
@@ -1439,10 +1507,10 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           reference: true
         }
       });
-      
+
       // Get unique document numbers from movements
       const entryDocumentNumbers = new Set(inMovements.map(m => m.reference).filter(ref => ref != null));
-      
+
       // Find documents that have IN movements but aren't already in entryDocuments
       // Only query if there are document numbers to search for
       let additionalEntryDocs = [];
@@ -1450,7 +1518,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
         // Get document numbers that are already in entryDocuments to avoid duplicates
         const existingDocumentNumbers = new Set(entryDocuments.map(doc => doc.numero));
         const numbersToSearch = Array.from(entryDocumentNumbers).filter(num => !existingDocumentNumbers.has(num));
-        
+
         if (numbersToSearch.length > 0) {
           additionalEntryDocs = await prisma.stockDocument.findMany({
             where: {
@@ -1466,10 +1534,10 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           });
         }
       }
-      
+
       // Combine both sets of entry documents
       const allEntryDocuments = [...entryDocuments, ...additionalEntryDocs];
-      
+
       // Find all products with exits (sales) since last inventory
       const sales = await prisma.sale.findMany({
         where: {
@@ -1482,7 +1550,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           items: true
         }
       });
-      
+
       // Find return documents (bon de retour) since last inventory
       const returnDocuments = await prisma.stockDocument.findMany({
         where: {
@@ -1496,7 +1564,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           items: true
         }
       });
-      
+
       // Collect all product IDs from entries, exits, and returns (only valid product IDs)
       allEntryDocuments.forEach(doc => {
         if (doc.items) {
@@ -1507,7 +1575,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           });
         }
       });
-      
+
       sales.forEach(sale => {
         if (sale.items) {
           sale.items.forEach(item => {
@@ -1517,7 +1585,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           });
         }
       });
-      
+
       returnDocuments.forEach(doc => {
         if (doc.items) {
           doc.items.forEach(item => {
@@ -1527,20 +1595,20 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           });
         }
       });
-      
+
       // Also include all products that have current inventory (even if not in POSTED session)
       // This ensures products added via PRODUCT_CONVERSION are included
       const currentInventoryProducts = await prisma.inventory.findMany({
         where: { depotId },
         select: { productId: true }
       });
-      
+
       currentInventoryProducts.forEach(inv => {
         if (inv.productId != null) {
           inventoryProductIds.add(inv.productId);
         }
       });
-      
+
       // Also include products from PRODUCT_CONVERSION movements
       const conversionMovements = await prisma.stockMovement.findMany({
         where: {
@@ -1550,18 +1618,18 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
         },
         select: { productId: true }
       });
-      
+
       conversionMovements.forEach(movement => {
         if (movement.productId != null) {
           inventoryProductIds.add(movement.productId);
         }
       });
-      
+
       // Load products and calculate current stock for each product
       const inventoryWithCurrentStock = await Promise.all(
         Array.from(inventoryProductIds).map(async (productId) => {
           let product = null;
-          
+
           if (depot.type === 'SHOP') {
             product = await prisma.product.findUnique({
               where: { id: productId }
@@ -1571,16 +1639,16 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
               where: { id: productId }
             });
           }
-          
+
           // Skip if product doesn't exist
           if (!product) {
             return null;
           }
-          
+
           // Find base quantity from last POSTED inventory (0 if not in inventory session)
           const inventoryItem = lastPostedSession.items.find(item => item.productId === productId);
           let baseQuantity = 0;
-          
+
           if (inventoryItem) {
             baseQuantity = parseFloat(inventoryItem.countedQuantity ?? inventoryItem.theoreticalQuantity ?? 0);
           } else {
@@ -1594,7 +1662,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
                 }
               }
             });
-            
+
             if (currentInventory) {
               let qtyValue = currentInventory.quantity;
               if (qtyValue === null || qtyValue === undefined) {
@@ -1608,7 +1676,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
               } else {
                 baseQuantity = parseFloat(qtyValue) || 0;
               }
-              
+
               // Subtract movements since inventoryPostedAt to get base quantity at POSTED time
               const movementsSincePosted = await prisma.stockMovement.findMany({
                 where: {
@@ -1617,7 +1685,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
                   date: { gte: inventoryPostedAt }
                 }
               });
-              
+
               movementsSincePosted.forEach(movement => {
                 const qty = parseFloat(movement.quantity || 0);
                 if (movement.type === 'IN') {
@@ -1628,7 +1696,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
               });
             }
           }
-          
+
           // Calculate entries (entry documents) since last inventory POST
           let totalEntries = 0;
           allEntryDocuments.forEach(doc => {
@@ -1638,7 +1706,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
               }
             });
           });
-          
+
           // Also include stock movements of type 'IN' that are not from entry documents
           // This includes stock restorations from refunds, cancellations, etc.
           const additionalInMovements = await prisma.stockMovement.findMany({
@@ -1654,11 +1722,11 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
               ]
             }
           });
-          
+
           additionalInMovements.forEach(movement => {
             totalEntries += parseFloat(movement.quantity || 0);
           });
-          
+
           // Calculate exits (sales) since last inventory POST
           let totalExits = 0;
           sales.forEach(sale => {
@@ -1672,7 +1740,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
               }
             });
           });
-          
+
           // Include OUT movements for PRODUCT_CONVERSION (transfer to vrac)
           const outConversionMovements = await prisma.stockMovement.findMany({
             where: {
@@ -1683,11 +1751,11 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
               date: { gte: inventoryPostedAt }
             }
           });
-          
+
           outConversionMovements.forEach(movement => {
             totalExits += Math.abs(parseFloat(movement.quantity || 0));
           });
-          
+
           // Include IN movements for PRODUCT_CONVERSION (transfer to vrac - target products)
           const inConversionMovements = await prisma.stockMovement.findMany({
             where: {
@@ -1698,11 +1766,11 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
               date: { gte: inventoryPostedAt }
             }
           });
-          
+
           inConversionMovements.forEach(movement => {
             totalEntries += parseFloat(movement.quantity || 0);
           });
-          
+
           // Calculate returns (return documents) since last inventory POST
           // Use returnDocuments already fetched above
           let totalReturns = 0;
@@ -1716,10 +1784,10 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
               });
             }
           });
-          
+
           // Current stock = base quantity + entries - exits - returns
           const currentStock = baseQuantity + totalEntries - totalExits - totalReturns;
-          
+
           return {
             id: inventoryItem?.id || null,
             depotId: depotId,
@@ -1730,13 +1798,13 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           };
         })
       );
-      
+
       // Filter out null entries and ensure uniqueness by productId
       const inventoryMap = new Map();
-      
+
       inventoryWithCurrentStock.forEach(item => {
         if (item === null) return;
-        
+
         const existing = inventoryMap.get(item.productId);
         if (!existing) {
           // First occurrence of this product
@@ -1749,14 +1817,14 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           // Otherwise keep existing (prefer items from inventory session)
         }
       });
-      
+
       // Convert map to array and sort by productId for consistent ordering
       const uniqueInventory = Array.from(inventoryMap.values())
         .sort((a, b) => a.productId - b.productId);
-      
+
       return res.json(uniqueInventory);
     }
-    
+
     // Otherwise, fall back to current inventory
     const inventory = await prisma.inventory.findMany({
       where: { depotId },
@@ -1764,7 +1832,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
         product: true
       }
     });
-    
+
     // Ensure uniqueness by productId (in case of any duplicates)
     const inventoryMap = new Map();
     inventory.forEach(item => {
@@ -1782,7 +1850,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
         } else {
           quantityValue = parseFloat(qtyValue) || 0;
         }
-        
+
         inventoryMap.set(item.productId, {
           id: item.id,
           depotId: item.depotId,
@@ -1793,15 +1861,15 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
         });
       }
     });
-    
+
     const uniqueInventoryFallback = Array.from(inventoryMap.values())
       .sort((a, b) => a.productId - b.productId);
-    
+
     res.json(uniqueInventoryFallback);
   } catch (error) {
     console.error('Error fetching inventory:', error);
     console.error('Error stack:', error.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Erreur lors de la récupération de l\'inventaire',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -1812,16 +1880,16 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
 router.post('/transfer', authenticateToken, async (req, res) => {
   try {
     const { emetteurId, destinataireId, items, notes } = req.body;
-    
 
-    
+
+
     if (!emetteurId || !destinataireId || !items || items.length === 0) {
 
       return res.status(400).json({ error: 'Données manquantes' });
     }
-    
+
     const numero = await generateDocumentNumber('BON_TRANSFERT');
-    
+
     const document = await prisma.$transaction(async (tx) => {
       // Create the document
       const doc = await tx.stockDocument.create({
@@ -1885,7 +1953,7 @@ router.post('/transfer', authenticateToken, async (req, res) => {
           const currentQuantity = parseFloat(inventory.quantity) || 0;
           const reduceQuantity = parseFloat(quantity) || 0;
           const newQuantity = currentQuantity - reduceQuantity;
-          
+
           await tx.inventory.update({
             where: { id: inventory.id },
             data: {
@@ -1922,9 +1990,9 @@ router.post('/transfer', authenticateToken, async (req, res) => {
 
       return doc;
     });
-    
+
     await logAudit(1, 'stock_documents', document.id, 'CREATE', null, document);
-    
+
     res.status(201).json(document);
   } catch (error) {
     console.error('Error creating transfer document:', error);
@@ -1936,9 +2004,9 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
   try {
     const documentId = parseInt(req.params.id);
     const { depotId } = req.body;
-    
 
-    
+
+
     const document = await prisma.stockDocument.findUnique({
       where: { id: documentId },
       include: {
@@ -1951,48 +2019,48 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
         destinataire: true
       }
     });
-    
+
     if (!document) {
 
       return res.status(404).json({ error: 'Document non trouvé' });
     }
-    
-    console.log('Document found:', { 
-      id: document.id, 
-      status: document.status, 
-      destinataireId: document.destinataireId, 
+
+    console.log('Document found:', {
+      id: document.id,
+      status: document.status,
+      destinataireId: document.destinataireId,
       requestedDepotId: parseInt(depotId),
       emetteurType: document.emetteur?.type,
-      itemsCount: document.items?.length 
+      itemsCount: document.items?.length
     });
-    
+
     if (document.destinataireId !== parseInt(depotId)) {
 
       return res.status(400).json({ error: 'Mauvais dépôt de destination' });
     }
-    
+
     if (document.status !== 'PREPARED' && document.status !== 'SENT') {
 
       return res.status(400).json({ error: 'Document non prêt pour réception' });
     }
-    
+
     await prisma.$transaction(async (tx) => {
 
-      
+
       for (const item of document.items) {
 
-        
+
         // Check if the product exists with this ID
         let product = await tx.product.findUnique({
           where: { id: item.productId }
         });
 
-        
+
         // If product not found by ID, try to find by name (famille or notes)
         if (!product && (item.famille || item.notes)) {
           const searchTerm = item.famille || item.notes;
 
-          
+
           // Try exact match first
           product = await tx.product.findFirst({
             where: {
@@ -2002,7 +2070,7 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
               }
             }
           });
-          
+
           // If no exact match, try contains
           if (!product) {
             product = await tx.product.findFirst({
@@ -2014,9 +2082,9 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
               }
             });
           }
-          
 
-          
+
+
           // If we found the correct product, update the item's productId
           if (product) {
             await tx.stockDocumentItem.update({
@@ -2027,7 +2095,7 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
             item.productId = product.id; // Update for inventory operations
           }
         }
-        
+
         const inventory = await tx.inventory.findUnique({
           where: {
             depotId_productId: {
@@ -2036,16 +2104,16 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
             }
           }
         });
-        
+
         if (inventory) {
           const currentQuantity = parseFloat(inventory.quantity) || 0;
           const addingQuantity = parseFloat(item.quantity) || 0;
           const newQuantity = currentQuantity + addingQuantity;
-          
-          console.log('Updating existing inventory:', { 
-            currentQuantity: currentQuantity, 
-            adding: addingQuantity, 
-            newQuantity: newQuantity 
+
+          console.log('Updating existing inventory:', {
+            currentQuantity: currentQuantity,
+            adding: addingQuantity,
+            newQuantity: newQuantity
           });
           await tx.inventory.update({
             where: { id: inventory.id },
@@ -2055,10 +2123,10 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
           });
         } else {
           const newQuantity = parseFloat(item.quantity) || 0;
-          console.log('Creating new inventory entry:', { 
-            depotId: parseInt(depotId), 
-            productId: item.productId, 
-            quantity: newQuantity 
+          console.log('Creating new inventory entry:', {
+            depotId: parseInt(depotId),
+            productId: item.productId,
+            quantity: newQuantity
           });
           await tx.inventory.create({
             data: {
@@ -2084,7 +2152,7 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
           }
         });
       }
-      
+
       await tx.stockDocument.update({
         where: { id: documentId },
         data: {
@@ -2099,7 +2167,7 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
         }
       });
     });
-    
+
     const updatedDocument = await prisma.stockDocument.findUnique({
       where: { id: documentId },
       include: {
@@ -2112,9 +2180,9 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     await logAudit(req.user.id, 'stock_documents', documentId, 'UPDATE', { status: document.status }, { status: 'RECEIVED' });
-    
+
     res.json(updatedDocument);
   } catch (error) {
     console.error('Error receiving document:', error);
@@ -2128,9 +2196,9 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
 
     const documentId = parseInt(req.params.id);
     const { depotId, validatedItemIds } = req.body;
-    
 
-    
+
+
     const document = await prisma.stockDocument.findUnique({
       where: { id: documentId },
       include: {
@@ -2143,44 +2211,44 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
         destinataire: true
       }
     });
-    
+
     if (!document) {
 
       return res.status(404).json({ error: 'Document non trouvé' });
     }
-    
-    console.log('Document found:', { 
-      id: document.id, 
-      status: document.status, 
+
+    console.log('Document found:', {
+      id: document.id,
+      status: document.status,
       type: document.type,
       destinataireId: document.destinataireId,
-      itemsCount: document.items?.length 
+      itemsCount: document.items?.length
     });
-    
+
     if (document.status !== 'SENT') {
 
       return res.status(400).json({ error: 'Document non prêt pour approbation' });
     }
-    
+
     // Allow all document types to be approved for receipt
     // Previously only BON_ENTREE_MAGASIN and FACTURE were allowed
 
-    
+
     // Get depot info to determine the correct entry document type
     const targetDepot = await prisma.depot.findUnique({
       where: { id: parseInt(depotId) },
       select: { type: true }
     });
-    
+
     if (!targetDepot) {
       return res.status(404).json({ error: 'Dépôt cible non trouvé' });
     }
-    
+
     // Determine the correct entry document type based on depot type
     // SHOP depots use BON_ENTREE_MAGASIN, others use BON_ENTREE_DEPOT
     const entryDocumentType = targetDepot.type === 'SHOP' ? 'BON_ENTREE_MAGASIN' : 'BON_ENTREE_DEPOT';
 
-    
+
     // Filter items to only include validated ones if validatedItemIds is provided
     let itemsToProcess = document.items;
     if (validatedItemIds && Array.isArray(validatedItemIds) && validatedItemIds.length > 0) {
@@ -2189,33 +2257,33 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
     } else {
 
     }
-    
+
     if (itemsToProcess.length === 0) {
       return res.status(400).json({ error: 'Aucun produit validé à approuver' });
     }
-    
-    await prisma.$transaction(async (tx) => {
-      
 
-      
+    await prisma.$transaction(async (tx) => {
+
+
+
       // Group items by parent product to consolidate quantities
       const groupedItems = new Map();
-      
+
       for (const item of itemsToProcess) {
 
-        console.log('Processing item:', { 
-          productId: item.productId, 
+        console.log('Processing item:', {
+          productId: item.productId,
           parentProductId: item.parentProductId,
           famille: item.famille,
-          quantity: item.quantity 
+          quantity: item.quantity
         });
-        
+
         // Check for product depot link first
         let targetProductId = item.productId;
         let sourceProductId = item.productId;
         let sourceDepotId = document.emetteurId;
         let destinationDepotId = parseInt(depotId);
-        
+
         // Check if there's a link from source product to destination product
         if (sourceDepotId && destinationDepotId) {
           const productLink = await tx.productDepotLink.findFirst({
@@ -2228,7 +2296,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
               destinationProduct: true
             }
           });
-          
+
           if (productLink) {
             console.log('🔗 Found product depot link:', {
               sourceProductId: sourceProductId,
@@ -2244,7 +2312,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
               where: { id: sourceProductId },
               select: { familleId: true }
             });
-            
+
             if (sourceProduct) {
               const familleConsolidation = await tx.productFamilleConsolidation.findUnique({
                 where: {
@@ -2258,7 +2326,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
                   destinationProduct: true
                 }
               });
-              
+
               if (familleConsolidation) {
                 console.log('🔗 Found famille consolidation:', {
                   sourceFamilleId: sourceProduct.familleId,
@@ -2272,10 +2340,10 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
             }
           }
         }
-        
+
         // Use parentProductId if available, otherwise try to find parent by famille
         let parentProduct = null;
-        
+
         if (item.parentProductId) {
 
           // If we have a link, check if parentProductId should also be linked
@@ -2308,7 +2376,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
                 name: item.famille
               }
             });
-            
+
             if (famille) {
               const familleConsolidation = await tx.productFamilleConsolidation.findUnique({
                 where: {
@@ -2322,7 +2390,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
                   destinationProduct: true
                 }
               });
-              
+
               if (familleConsolidation) {
                 console.log('🔗 Found famille consolidation by name:', {
                   familleName: item.famille,
@@ -2335,7 +2403,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
               }
             }
           }
-          
+
           // If no consolidation found, try exact match by product name
           if (!parentProduct) {
             parentProduct = await tx.product.findFirst({
@@ -2344,7 +2412,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
               }
             });
           }
-          
+
           // If no exact match, try contains
           if (!parentProduct) {
             parentProduct = await tx.product.findFirst({
@@ -2355,12 +2423,12 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
               }
             });
           }
-          
+
           if (parentProduct && !targetProductId) {
             targetProductId = parentProduct.id;
           }
         }
-        
+
         // If no parent found, use the original product
         if (!parentProduct) {
           parentProduct = await tx.product.findUnique({
@@ -2368,7 +2436,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
           });
 
         }
-        
+
         // Group by target product ID and sum quantities
         const quantity = parseFloat(item.quantity) || 0;
 
@@ -2384,11 +2452,11 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
 
         }
       }
-      
+
       // Process grouped items
       for (const [productId, groupedItem] of groupedItems) {
 
-        
+
         const inventory = await tx.inventory.findUnique({
           where: {
             depotId_productId: {
@@ -2397,16 +2465,16 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
             }
           }
         });
-        
+
         if (inventory) {
           const currentQuantity = parseFloat(inventory.quantity) || 0;
           const addingQuantity = groupedItem.quantity;
           const newQuantity = currentQuantity + addingQuantity;
-          
-          console.log('Updating existing inventory:', { 
-            currentQuantity: currentQuantity, 
-            adding: addingQuantity, 
-            newQuantity: newQuantity 
+
+          console.log('Updating existing inventory:', {
+            currentQuantity: currentQuantity,
+            adding: addingQuantity,
+            newQuantity: newQuantity
           });
           await tx.inventory.update({
             where: { id: inventory.id },
@@ -2415,10 +2483,10 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
             }
           });
         } else {
-          console.log('Creating new inventory entry:', { 
-            depotId: parseInt(depotId), 
-            productId: productId, 
-            quantity: groupedItem.quantity 
+          console.log('Creating new inventory entry:', {
+            depotId: parseInt(depotId),
+            productId: productId,
+            quantity: groupedItem.quantity
           });
           await tx.inventory.create({
             data: {
@@ -2444,7 +2512,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
           }
         });
       }
-      
+
       // Update document status and type to ensure it's counted as an entry document
       await tx.stockDocument.update({
         where: { id: documentId },
@@ -2461,7 +2529,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
         }
       });
     });
-    
+
     const updatedDocument = await prisma.stockDocument.findUnique({
       where: { id: documentId },
       include: {
@@ -2474,9 +2542,9 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     await logAudit(req.user.id, 'stock_documents', documentId, 'UPDATE', { status: document.status }, { status: 'RECEIVED' });
-    
+
     res.json(updatedDocument);
   } catch (error) {
     console.error('Error approving receipt:', error);
@@ -2488,7 +2556,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
 router.get('/:id/print-labels', authenticateToken, async (req, res) => {
   try {
     const documentId = parseInt(req.params.id);
-    
+
     const document = await prisma.stockDocument.findUnique({
       where: { id: documentId },
       include: {
@@ -2502,11 +2570,11 @@ router.get('/:id/print-labels', authenticateToken, async (req, res) => {
         client: true
       }
     });
-    
+
     if (!document) {
       return res.status(404).json({ error: 'Document non trouvé' });
     }
-    
+
     const labels = document.items.map(item => ({
       barcode: item.barcode,
       productName: item.product.name,
@@ -2517,7 +2585,7 @@ router.get('/:id/print-labels', authenticateToken, async (req, res) => {
       emetteur: document.emetteur.name,
       destinataire: document.destinataire.name
     }));
-    
+
     res.json({ labels, document });
   } catch (error) {
     console.error('Error generating labels:', error);
@@ -2528,7 +2596,7 @@ router.get('/:id/print-labels', authenticateToken, async (req, res) => {
 router.get('/:id/export-pdf', authenticateToken, async (req, res) => {
   try {
     const documentId = parseInt(req.params.id);
-    
+
     const document = await prisma.stockDocument.findUnique({
       where: { id: documentId },
       include: {
@@ -2548,17 +2616,17 @@ router.get('/:id/export-pdf', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     if (!document) {
       return res.status(404).json({ error: 'Document non trouvé' });
     }
-    
+
     const pdfData = {
       document,
       qrCode: document.numero,
       signatureZone: 'Signature du responsable'
     };
-    
+
     res.json(pdfData);
   } catch (error) {
     console.error('Error exporting PDF:', error);
@@ -2581,11 +2649,11 @@ router.get('/next-number/:type', authenticateToken, async (req, res) => {
 // General document creation endpoint
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { 
-      type, 
-      numero, 
-      depotId, 
-      fromDepotId, 
+    const {
+      type,
+      numero,
+      depotId,
+      fromDepotId,
       destinationDepotId,
       clientId,
       vehicleId,
@@ -2598,7 +2666,7 @@ router.post('/', authenticateToken, async (req, res) => {
       totalTTC,
       status,
       items,
-      notes 
+      notes
     } = req.body;
 
     if (!type || !items || items.length === 0) {
@@ -2606,38 +2674,38 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     const documentNumber = numero || await generateDocumentNumber(type);
-    
+
     // Validate and convert status to valid DocumentStatus enum value
     const validStatuses = ['PREPARED', 'SENT', 'RECEIVED', 'CANCELLED', 'COMPLETED'];
     const validatedStatus = validStatuses.includes(status) ? status : 'PREPARED';
-    
+
     if (status && !validStatuses.includes(status)) {
 
     }
-    
 
 
-    
+
+
     // Check if document number already exists
     const existingDocument = await prisma.stockDocument.findUnique({
       where: { numero: documentNumber }
     });
-    
+
     if (existingDocument) {
-      return res.status(400).json({ 
-        error: `Le numéro de document '${documentNumber}' existe déjà. Veuillez utiliser un autre numéro.` 
+      return res.status(400).json({
+        error: `Le numéro de document '${documentNumber}' existe déjà. Veuillez utiliser un autre numéro.`
       });
     }
-    
+
     // Enforce depot isolation - use user's depotId if not specified
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    
+
     // Determine target depot: fromDepotId > depotId > visitingDepotId > userDepotId
     let targetEmetteurId = fromDepotId || depotId || visitingDepotId || userDepotId;
     let targetDestinataireId = destinationDepotId || depotId || visitingDepotId || userDepotId;
-    
+
     // For non-admin users, validate depot access
     if (req.user?.role !== 'ADMIN') {
       if (!userDepotId) {
@@ -2651,48 +2719,48 @@ router.post('/', authenticateToken, async (req, res) => {
         return res.status(403).json({ error: 'Access denied: Cannot create documents for other depots' });
       }
     }
-    
+
     // Validate that all products exist in either Product or ProduitDeCaisse tables
     for (const item of items) {
       const productId = item.produitId || item.productId;
-      
+
       if (!productId) {
-        return res.status(400).json({ 
-          error: 'Un ou plusieurs produits n\'ont pas d\'ID valide.' 
+        return res.status(400).json({
+          error: 'Un ou plusieurs produits n\'ont pas d\'ID valide.'
         });
       }
-      
+
       const parsedProductId = parseInt(productId);
       if (isNaN(parsedProductId)) {
-        return res.status(400).json({ 
-          error: `ID de produit invalide: ${productId}` 
+        return res.status(400).json({
+          error: `ID de produit invalide: ${productId}`
         });
       }
-      
+
       try {
         const productExists = await prisma.product.findUnique({
           where: { id: parsedProductId },
           select: { id: true }
         });
-        
+
         const produitDeCaisseExists = await prisma.produitDeCaisse.findUnique({
           where: { id: parsedProductId },
           select: { id: true }
         });
-        
+
         if (!productExists && !produitDeCaisseExists) {
-          return res.status(400).json({ 
-            error: `Le produit (ID: ${parsedProductId}) n'existe pas dans Product ni ProduitDeCaisse.` 
+          return res.status(400).json({
+            error: `Le produit (ID: ${parsedProductId}) n'existe pas dans Product ni ProduitDeCaisse.`
           });
         }
       } catch (validationError) {
         console.error('Error validating product:', validationError);
-        return res.status(400).json({ 
-          error: `Erreur lors de la validation du produit (ID: ${parsedProductId}): ${validationError.message}` 
+        return res.status(400).json({
+          error: `Erreur lors de la validation du produit (ID: ${parsedProductId}): ${validationError.message}`
         });
       }
     }
-    
+
     const document = await prisma.$transaction(async (tx) => {
       // Create the document
       const doc = await tx.stockDocument.create({
@@ -2752,38 +2820,38 @@ router.post('/', authenticateToken, async (req, res) => {
       for (const item of items) {
         const productId = item.produitId || item.productId;
         const quantity = parseFloat(item.quantity);
-        
+
         // Check if product exists in Product table (required for inventory operations)
         const productExists = await tx.product.findUnique({
           where: { id: productId },
           select: { id: true }
         });
-        
+
         // Skip inventory operations if product is in ProduitDeCaisse (not supported yet)
         if (!productExists) {
           console.log(`Skipping inventory operations for product ${productId} (ProduitDeCaisse)`);
           continue;
         }
-        
+
         // Use fromDepotId as fallback if depotId is not provided
         const effectiveDepotId = depotId || fromDepotId;
         if (!effectiveDepotId) {
           throw new Error('Depot ID is required for inventory operations');
         }
         const depotIdInt = parseInt(effectiveDepotId);
-        
+
         if (isNaN(depotIdInt)) {
           throw new Error(`Invalid depot ID: ${effectiveDepotId}`);
         }
-        
-        console.log('Processing inventory update:', { 
-          productId, 
-          quantity, 
-          depotIdInt, 
-          type, 
+
+        console.log('Processing inventory update:', {
+          productId,
+          quantity,
+          depotIdInt,
+          type,
           effectiveDepotId,
           originalDepotId: depotId,
-          fromDepotId 
+          fromDepotId
         });
 
         if (type === 'BON_ENTREE_DEPOT') {
@@ -2875,20 +2943,20 @@ router.post('/', authenticateToken, async (req, res) => {
       code: error.code,
       meta: error.meta
     });
-    
+
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Un document avec ce numéro existe déjà' });
     }
-    
+
     if (error.code === 'P2003') {
-      return res.status(400).json({ 
-        error: 'Erreur de contrainte de clé étrangère. Vérifiez que tous les produits et dépôts existent.' 
+      return res.status(400).json({
+        error: 'Erreur de contrainte de clé étrangère. Vérifiez que tous les produits et dépôts existent.'
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       error: 'Erreur lors de la création du document',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -2897,7 +2965,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.post('/:id/convert-to-delivery', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Get the existing document
     const existingDocument = await prisma.stockDocument.findUnique({
       where: { id: parseInt(id) },
@@ -2920,7 +2988,7 @@ router.post('/:id/convert-to-delivery', authenticateToken, async (req, res) => {
 
     // Generate new document number for delivery note
     const newNumber = await generateDocumentNumber('BON_ENTREE_MAGASIN');
-    
+
     // Update the document type and number
     const updatedDocument = await prisma.stockDocument.update({
       where: { id: parseInt(id) },
@@ -2961,11 +3029,11 @@ router.post('/:id/convert-to-delivery', authenticateToken, async (req, res) => {
 async function synchronizeStockForDocumentUpdate(document, originalItems, newItems, userId) {
   try {
 
-    
+
     // Create maps for easier comparison
     const originalItemsMap = new Map();
     const newItemsMap = new Map();
-    
+
     // Map original items by productId
     originalItems.forEach(item => {
       const key = `${item.productId}_${item.parentProductId || 'null'}`;
@@ -2980,7 +3048,7 @@ async function synchronizeStockForDocumentUpdate(document, originalItems, newIte
         });
       }
     });
-    
+
     // Map new items by productId
     newItems.forEach(item => {
       const key = `${item.productId}_${item.parentProductId || 'null'}`;
@@ -2995,43 +3063,43 @@ async function synchronizeStockForDocumentUpdate(document, originalItems, newIte
         });
       }
     });
-    
+
     // Determine stock changes based on document type
     const isOutgoing = ['BON_EXPEDITION', 'BON_SORTIE'].includes(document.type);
     const isIncoming = ['BON_ENTREE', 'BON_ENTREE_DEPOT', 'BON_ENTREE_MAGASIN'].includes(document.type);
     const isTransfer = document.type === 'BON_TRANSFERT';
-    
+
     if (!isOutgoing && !isIncoming && !isTransfer) {
 
       return;
     }
-    
+
     // Process stock changes
     const allProductIds = new Set([...originalItemsMap.keys(), ...newItemsMap.keys()]);
-    
+
     for (const key of allProductIds) {
       const originalItem = originalItemsMap.get(key);
       const newItem = newItemsMap.get(key);
-      
+
       const originalQuantity = originalItem ? originalItem.quantity : 0;
       const newQuantity = newItem ? newItem.quantity : 0;
       const quantityChange = newQuantity - originalQuantity;
-      
+
       if (Math.abs(quantityChange) < 0.001) {
         continue; // No significant change
       }
-      
+
       const productId = (originalItem || newItem).productId;
       const parentProductId = (originalItem || newItem).parentProductId || productId;
-      
 
-      
+
+
       // Determine which depot to update based on document type
       let depotId = null;
       let movementType = null;
       let fromDepotId = null;
       let toDepotId = null;
-      
+
       if (isOutgoing) {
         depotId = document.emetteurId;
         movementType = 'OUT';
@@ -3049,20 +3117,20 @@ async function synchronizeStockForDocumentUpdate(document, originalItems, newIte
         fromDepotId = document.emetteurId;
         toDepotId = document.destinataireId;
       }
-      
+
       if (!depotId) {
 
         continue;
       }
-      
+
       // Update inventory for the main depot
       await updateInventoryForProduct(depotId, parentProductId, quantityChange, isOutgoing);
-      
+
       // For transfers, also update the destination depot
       if (isTransfer && toDepotId) {
         await updateInventoryForProduct(toDepotId, parentProductId, -quantityChange, false);
       }
-      
+
       // Create stock movement record
       await prisma.stockMovement.create({
         data: {
@@ -3077,10 +3145,10 @@ async function synchronizeStockForDocumentUpdate(document, originalItems, newIte
           userId: userId
         }
       });
-      
+
 
     }
-    
+
 
   } catch (error) {
     console.error('Error during stock synchronization for document update:', error);
@@ -3100,17 +3168,17 @@ async function updateInventoryForProduct(depotId, productId, quantityChange, isO
         }
       }
     });
-    
+
     if (inventory) {
       // Update existing inventory
       const currentQuantity = parseFloat(inventory.quantity) || 0;
       const newQuantity = currentQuantity + quantityChange;
-      
+
       await prisma.inventory.update({
         where: { id: inventory.id },
         data: { quantity: newQuantity }
       });
-      
+
 
     } else {
       // Create new inventory record
@@ -3121,7 +3189,7 @@ async function updateInventoryForProduct(depotId, productId, quantityChange, isO
           quantity: quantityChange
         }
       });
-      
+
 
     }
   } catch (error) {
@@ -3146,7 +3214,7 @@ router.post('/return', authenticateToken, async (req, res) => {
 
     // Get depotId from active session or use provided depotId
     let targetDepotId = depotId ? parseInt(depotId) : null;
-    
+
     if (!targetDepotId) {
       // Try to get depotId from active session
       const activeSession = await prisma.sessionCaisse.findFirst({
@@ -3156,7 +3224,7 @@ router.post('/return', authenticateToken, async (req, res) => {
         },
         orderBy: { openedAt: 'desc' }
       });
-      
+
       if (activeSession && activeSession.depotId) {
         targetDepotId = parseInt(activeSession.depotId);
       } else if (req.user?.depotId) {
@@ -3184,7 +3252,7 @@ router.post('/return', authenticateToken, async (req, res) => {
 
     const currentYear = new Date().getFullYear();
     const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
-    
+
     const lastDoc = await prisma.stockDocument.findFirst({
       where: {
         type: 'BON_EXPEDITION',
@@ -3253,7 +3321,7 @@ router.post('/return', authenticateToken, async (req, res) => {
         const quantity = Math.abs(item.quantity);
         const productId = parseInt(item.productId);
         const sessionDepotId = targetDepotId;
-        
+
         // Check current stock before reducing
         const inventory = await tx.inventory.findUnique({
           where: {
@@ -3296,56 +3364,16 @@ router.post('/return', authenticateToken, async (req, res) => {
         });
       }
 
-      // Create expense entry for supplier debit (if total amount > 0)
+      // Expense creation removed as per requirement: "dont make it saved comme charge"
+      // const totalAmount = ... (already calculated above but not used for expense now)
+
       let expenseRecord = null;
+      /* 
+      // Expense creation logic removed
       if (totalAmount > 0) {
-        // Find or get default expense category (use first available or create one)
-        // Get all categories and filter in JavaScript for case-insensitive search
-        const allCategories = await tx.expenseCategory.findMany({
-          where: { isActive: true }
-        });
-        
-        let expenseCategory = allCategories.find(cat => 
-          cat.name && cat.name.toLowerCase().includes('retour')
-        );
-
-        if (!expenseCategory) {
-          // Try to find any category
-          expenseCategory = allCategories.length > 0 ? allCategories[0] : null;
-          
-          if (!expenseCategory) {
-            // Create a default category for returns
-            expenseCategory = await tx.expenseCategory.create({
-              data: {
-                name: 'Bon de Retour',
-                description: 'Retours de produits aux fournisseurs',
-                isActive: true
-              }
-            });
-          }
-        }
-
-        // Create expense entry (debit for supplier)
-        expenseRecord = await tx.expense.create({
-          data: {
-            amount: totalAmount,
-            categoryId: expenseCategory.id,
-            depotId: targetDepotId,
-            userId: userId,
-            date: new Date(),
-            paymentType: 'CASH', // Default payment type for expense
-            collectionDate: new Date(),
-            notes: `Bon de retour ${numero} - Retour de produits vers ${supplier.name}`,
-            isApproved: true,
-            approvedBy: userId,
-            approvedAt: new Date(),
-            description: `Bon de retour ${numero}`,
-            supplierId: parseInt(supplierId),
-            isPaid: false,
-            isAdvance: false
-          }
-        });
+        ...
       }
+      */
 
       return { document, expenseRecord };
     });
@@ -3400,7 +3428,7 @@ router.post('/return', authenticateToken, async (req, res) => {
     console.error('Error creating bon de retour:', error);
     console.error('Error stack:', error.stack);
     console.error('Request body:', req.body);
-    res.status(500).json({ 
+    res.status(500).json({
       error: error.message || 'Erreur lors de la création du bon de retour',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -3470,7 +3498,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
             if (depotInventory) {
               const currentQuantity = parseFloat(depotInventory.quantity) || 0;
               const newQuantity = currentQuantity + quantity;
-              
+
               await tx.inventory.update({
                 where: { id: depotInventory.id },
                 data: { quantity: newQuantity }
@@ -3503,7 +3531,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
           }
           // For transfers: remove from destination, add back to source
           // For entries: remove from destination only
-          
+
           // Step 1: Remove stock from destination depot (where it was received)
           const destinataireInventory = await tx.inventory.findUnique({
             where: {
@@ -3564,7 +3592,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
             if (emetteurInventory) {
               const currentEmetteurQuantity = parseFloat(emetteurInventory.quantity) || 0;
               const newEmetteurQuantity = currentEmetteurQuantity + quantity;
-              
+
               await tx.inventory.update({
                 where: { id: emetteurInventory.id },
                 data: { quantity: newEmetteurQuantity }
@@ -3614,7 +3642,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       }
 
       // Delete related records first (due to foreign key constraints)
-      
+
       // For bon de retour: delete associated expense
       if (document.type === 'BON_EXPEDITION' && document.notes && document.notes.includes('Supplier:')) {
         const associatedExpenses = await tx.expense.findMany({
@@ -3630,7 +3658,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
           });
         }
       }
-      
+
       // Delete supplier payments linked to this bon d'entrée
       // Look for payments with notes containing various formats:
       // - "Bon d'entrée #<id>"
@@ -3681,7 +3709,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
           // Mark cash movements as invalid by updating the reason and setting amount to 0
           for (const movement of relatedMovements) {
             const movementAmount = parseFloat(movement.amount || 0);
-            
+
             await tx.cashMovement.update({
               where: { id: movement.id },
               data: {
@@ -3751,7 +3779,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     // Recalculate session summaries for all affected sessions
     if (affectedSessionIdsForRecalc && affectedSessionIdsForRecalc.size > 0) {
       const { calculateSessionSummary } = require('./sessions');
-      
+
       for (const sessionId of affectedSessionIdsForRecalc) {
         try {
           const summary = await calculateSessionSummary(sessionId);
@@ -3771,8 +3799,8 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.json({ message: 'Document deleted successfully', documentId });
   } catch (error) {
     console.error('Error deleting document:', error);
-    res.status(500).json({ 
-      error: error.message || 'Erreur lors de la suppression du document' 
+    res.status(500).json({
+      error: error.message || 'Erreur lors de la suppression du document'
     });
   }
 });
