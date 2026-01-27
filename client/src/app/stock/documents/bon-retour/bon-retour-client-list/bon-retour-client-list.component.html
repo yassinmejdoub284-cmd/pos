@@ -1,0 +1,121 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-red-50 to-rose-50 p-6">
+
+    <!-- Header -->
+    <div class="bg-white/80 rounded-2xl p-6 mb-6 shadow-lg border border-slate-200/50">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <div
+                    class="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m5 14v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2h8a2 2 0 002-2z">
+                        </path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Retours Clients</h1>
+                    <p class="text-slate-600 font-medium">Historique des retours et avoirs clients</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button (click)="goBack()"
+                    class="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                            clip-rule="evenodd"></path>
+                    </svg>
+                    Retour
+                </button>
+                <button (click)="createNew()"
+                    class="bg-gradient-to-r from-rose-500 to-pink-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Nouveau Retour
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="flex justify-center items-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded shadow-sm">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-red-700">{{ error }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- List View -->
+    <div *ngIf="!loading && !error">
+        <div *ngIf="documents.length === 0"
+            class="text-center py-16 bg-white/50 rounded-2xl border border-slate-200/50">
+            <div class="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+            </div>
+            <span class="text-xl font-bold text-slate-800 block mb-2">Aucun retour client</span>
+            <span class="text-slate-500 block mb-6">Commencez par créer un nouveau bon de retour</span>
+            <button (click)="createNew()"
+                class="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200">
+                Créer un retour
+            </button>
+        </div>
+
+        <div *ngIf="documents.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div *ngFor="let doc of documents"
+                class="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer group"
+                (click)="viewDocument(doc)">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="bg-rose-100 text-rose-800 px-3 py-1 rounded-full text-xs font-bold font-mono">
+                        {{ doc.numero }}
+                    </div>
+                    <span
+                        [class]="doc.status === 'PREPARED' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
+                        class="px-2 py-1 rounded-lg text-xs font-semibold">
+                        {{ getStatusLabel(doc.status) }}
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <div class="text-sm text-gray-500 mb-1">Client</div>
+                    <div class="font-bold text-gray-900 text-lg truncate">
+                        {{ doc.client ? doc.client.firstName + ' ' + doc.client.lastName : (doc.notes || 'Client
+                        Inconnu') }}
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-end border-t border-gray-100 pt-4">
+                    <div class="text-sm text-gray-500">
+                        <div>{{ formatDate(doc.createdAt) }}</div>
+                        <div class="text-xs mt-1" *ngIf="doc.emetteur">{{ doc.emetteur.name }}</div>
+                    </div>
+                    <button (click)="$event.stopPropagation(); editDocument(doc)"
+                        class="text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 p-2 rounded-lg transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

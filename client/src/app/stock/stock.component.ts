@@ -37,7 +37,7 @@ export class StockComponent implements OnInit {
   filteredProducts: any[] = [];
   searchProductTerm = '';
   loadingProducts = false;
-  
+
   sourceDepotId: number | null = null;
   destinationDepotId: number | null = null;
   sourceDepotProducts: any[] = [];
@@ -73,7 +73,7 @@ export class StockComponent implements OnInit {
     private productsService: ProductsService,
     private inventoryService: InventoryService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.loadDepots();
@@ -83,7 +83,7 @@ export class StockComponent implements OnInit {
         this.appSettings = s;
         this.filterActionCardsByAccess();
       },
-      error: () => {}
+      error: () => { }
     });
     this.sessionsService.currentSession$?.subscribe({
       next: (sess: any) => {
@@ -128,7 +128,8 @@ export class StockComponent implements OnInit {
       { id: 'stock', title: 'Gestion de Stock', description: 'Gérer les produits et inventaires', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', color: 'from-blue-500 to-indigo-600' },
       { id: 'inventory', title: 'Inventaire', description: 'Faire l\'inventaire du dépôt', icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', color: 'from-purple-500 to-violet-600' },
       { id: 'stock-history', title: 'Historique du stock', description: 'Archives et analyses des transactions de stock', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', color: 'from-cyan-500 to-blue-600' },
-      { id: 'client-gros', title: 'Configuration Gros', description: 'Configurer les règles et tarifs en gros', icon: 'M3 7h18M3 12h18M3 17h18', color: 'from-amber-500 to-orange-600' }
+      { id: 'client-gros', title: 'Configuration Gros', description: 'Configurer les règles et tarifs en gros', icon: 'M3 7h18M3 12h18M3 17h18', color: 'from-amber-500 to-orange-600' },
+      { id: 'client-return', title: 'Retour Client', description: 'Gérer les retours clients et avoirs', icon: 'M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m5 14v-5a2 2 0 00-2-2H6a2 2 0 00-2 2v5a2 2 0 002 2h8a2 2 0 002-2z', color: 'from-rose-500 to-pink-600' }
     ];
 
     const map: Record<string, string> = {
@@ -139,7 +140,8 @@ export class StockComponent implements OnInit {
       'stock': 'stock-gestion',
       'inventory': 'stock-inventaire',
       'stock-history': 'stock-historique',
-      'client-gros': 'stock-gros-config'
+      'client-gros': 'stock-gros-config',
+      'client-return': 'stock-achat'
     };
 
     this.actionCards = allCards.filter(card => {
@@ -174,7 +176,7 @@ export class StockComponent implements OnInit {
     this.stockDocs.getDocuments(1, 50, 'BON_ENTREE_MAGASIN', undefined, depotId).subscribe({
       next: (response) => {
         const documents = Array.isArray(response) ? response : (response?.data ?? []);
-        this.pendingDocumentsCount = documents.filter((d: any) => 
+        this.pendingDocumentsCount = documents.filter((d: any) =>
           d.type === 'BON_ENTREE_MAGASIN' &&
           (d.status === 'SENT' || d.status === 'PREPARED') &&
           d.destinataireId === depotId
@@ -196,13 +198,13 @@ export class StockComponent implements OnInit {
     this.cdr.detectChanges();
 
     requestAnimationFrame(() => {
-    this.selectedDepot = depot;
-    this.showDepotProductsModal = true;
-    this.searchProductTerm = '';
+      this.selectedDepot = depot;
+      this.showDepotProductsModal = true;
+      this.searchProductTerm = '';
       this.depotProducts = [];
       this.filteredProducts = [];
       this.loadingProducts = false;
-      
+
       this.destinationDepotId = null;
       this.sourceDepotProducts = [];
       this.destinationDepotProducts = [];
@@ -212,12 +214,12 @@ export class StockComponent implements OnInit {
       this.destinationSearchTerm = '';
       this.sourceProductsError = null;
       this.destinationProductsError = null;
-      
+
       this.cdr.detectChanges();
-      
+
       if (depot.type !== 'SHOP') {
         requestAnimationFrame(() => {
-    this.loadDepotProducts(depot);
+          this.loadDepotProducts(depot);
         });
       }
     });
@@ -227,7 +229,7 @@ export class StockComponent implements OnInit {
     if (this.isLoadingProducts) {
       return;
     }
-    
+
     this.isLoadingProducts = true;
     this.loadingProducts = true;
     this.depotProducts = [];
@@ -251,7 +253,7 @@ export class StockComponent implements OnInit {
       }, 100);
     } else {
       this.sourceDepotId = null;
-          this.loadingProducts = false;
+      this.loadingProducts = false;
       this.isLoadingProducts = false;
     }
   }
@@ -260,13 +262,13 @@ export class StockComponent implements OnInit {
     if (this.loadingSourceProducts) {
       return;
     }
-    
+
     this.loadingSourceProducts = true;
     this.sourceDepotProducts = [];
     this.sourceProductsError = null;
-    
+
     let sourceDepot = this.depots.find(d => d.id === depotId);
-    
+
     if (!sourceDepot) {
       this.depotsService.get(depotId).subscribe({
         next: (depot) => {
@@ -319,9 +321,9 @@ export class StockComponent implements OnInit {
     this.loadingDestinationProducts = true;
     this.destinationDepotProducts = [];
     this.destinationProductsError = null;
-    
+
     let destinationDepot = this.depots.find(d => d.id === depotId);
-    
+
     if (!destinationDepot) {
       this.depotsService.get(depotId).subscribe({
         next: (depot) => {
@@ -354,7 +356,7 @@ export class StockComponent implements OnInit {
       },
       error: (error) => {
         this.destinationDepotProducts = [];
-        
+
         if (error.status === 403) {
           this.destinationProductsError = 'Accès refusé : Vous n\'avez pas les permissions pour accéder à ce dépôt';
         } else if (error.status === 400) {
@@ -459,7 +461,7 @@ export class StockComponent implements OnInit {
   onSourceDropZoneDrop(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    
+
     try {
       const data = event.dataTransfer?.getData('application/json');
       if (data) {
@@ -482,7 +484,7 @@ export class StockComponent implements OnInit {
   onDestinationDropZoneDrop(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    
+
     try {
       const data = event.dataTransfer?.getData('application/json');
       if (data) {
@@ -507,11 +509,11 @@ export class StockComponent implements OnInit {
     if (this.isSettingSourceDepotProgrammatically) {
       return;
     }
-    
+
     if (this.isLoadingProducts || this.loadingSourceProducts) {
       return;
     }
-    
+
     if (this.sourceDepotId) {
       this.loadSourceDepotProducts(this.sourceDepotId);
       this.droppedSourceProducts = [];
@@ -544,11 +546,11 @@ export class StockComponent implements OnInit {
       return;
     }
 
-    this.sourceDepotProducts = this.sourceDepotProducts.filter(p => 
+    this.sourceDepotProducts = this.sourceDepotProducts.filter(p =>
       this.canProductBeLinked(p, this.sourceDepotId!, sourceDepot.type)
     );
 
-    this.droppedSourceProducts = this.droppedSourceProducts.filter(p => 
+    this.droppedSourceProducts = this.droppedSourceProducts.filter(p =>
       this.canProductBeLinked(p, this.sourceDepotId!, sourceDepot.type)
     );
   }
@@ -583,14 +585,14 @@ export class StockComponent implements OnInit {
     if (!this.sourceDepotId || !this.destinationDepotId) {
       return false;
     }
-    
+
     const sourceDepot = this.depots.find(d => d.id === this.sourceDepotId);
     const destinationDepot = this.depots.find(d => d.id === this.destinationDepotId);
-    
-    return sourceDepot !== undefined && 
-           destinationDepot !== undefined && 
-           sourceDepot.type !== 'SHOP' && 
-           destinationDepot.type !== 'SHOP';
+
+    return sourceDepot !== undefined &&
+      destinationDepot !== undefined &&
+      sourceDepot.type !== 'SHOP' &&
+      destinationDepot.type !== 'SHOP';
   }
 
   filterProducts(): void {
@@ -638,7 +640,7 @@ export class StockComponent implements OnInit {
   openActionDepotSelection(action: string): void {
     this.selectedAction = action;
     this.error = '';
-    
+
     const currentUser = this.authService.currentUser();
 
     if (action === 'stock') {
@@ -646,11 +648,11 @@ export class StockComponent implements OnInit {
         this.showActionDepotModal = true;
         return;
       }
-      
+
       const visitingDepotIdStr = sessionStorage.getItem('visitingDepotId');
       const userDepotId = currentUser?.depotId;
       const depotId = visitingDepotIdStr ? parseInt(visitingDepotIdStr) : userDepotId;
-      
+
       if (depotId) {
         this.router.navigate(['/stock/shop-transfer', depotId]);
       } else {
@@ -659,7 +661,7 @@ export class StockComponent implements OnInit {
       return;
     }
 
-    if (action === 'fleet-management' || action === 'documents' || action === 'achat' || action === 'client-gros') {
+    if (action === 'fleet-management' || action === 'documents' || action === 'achat' || action === 'client-gros' || action === 'client-return') {
       if (action === 'achat') {
         this.showAchatDialog = true;
         return;
@@ -676,10 +678,14 @@ export class StockComponent implements OnInit {
         this.router.navigate(['/client-gros']);
         return;
       }
+      if (action === 'client-return') {
+        this.router.navigate(['/stock/documents/bon-retour/client-return']);
+        return;
+      }
       this.router.navigate(['/stock/transport']);
       return;
     }
-    
+
     if (!this.isAdmin()) {
       this.routeToAssignedDepot(action);
       return;
@@ -693,12 +699,12 @@ export class StockComponent implements OnInit {
     const type = actionId === 'factures'
       ? 'FACTURE'
       : actionId === 'bon-livraison'
-      ? 'BON_ENTREE_MAGASIN'
-      : actionId === 'bon-expedition'
-      ? 'BON_EXPEDITION'
-      : actionId === 'bon-transfert'
-      ? 'BON_TRANSFERT'
-      : '';
+        ? 'BON_ENTREE_MAGASIN'
+        : actionId === 'bon-expedition'
+          ? 'BON_EXPEDITION'
+          : actionId === 'bon-transfert'
+            ? 'BON_TRANSFERT'
+            : '';
     const currentUser = this.authService.currentUser();
     if (this.isAdmin()) {
       this.documentsSelectedType = type;
@@ -728,7 +734,7 @@ export class StockComponent implements OnInit {
 
   onAchatActionSelected(actionId: 'entry' | 'bon-retour'): void {
     this.showAchatDialog = false;
-    
+
     if (this.isAdmin()) {
       this.selectedAction = actionId === 'entry' ? 'consult-entry' : 'consult-bon-retour';
       this.showActionDepotModal = true;
@@ -1007,27 +1013,27 @@ export class StockComponent implements OnInit {
       this.router.navigate(['/documents-reception', assignedDepot.id]);
       return;
     }
-    
+
     if (action === 'entry') {
       this.router.navigate(['/stock/documents/bon-entree', assignedDepot.id]);
       return;
     }
-    
+
     if (action === 'bon-retour') {
       this.router.navigate(['/stock/documents/bon-retour', assignedDepot.id]);
       return;
     }
-    
+
     if (action === 'inventory') {
       this.router.navigate(['/inventory', assignedDepot.id]);
       return;
     }
-    
+
     if (action === 'stock-history') {
       this.router.navigate(['/stock/stock-history', assignedDepot.id]);
       return;
     }
-    
+
     this.selectDepotForAction(assignedDepot);
   }
 
@@ -1189,18 +1195,18 @@ export class StockComponent implements OnInit {
     }
 
     this.savingLinks = true;
-    
+
     const linkPromises = this.droppedSourceProducts.map((sourceProduct) => {
       const sourceProductId = parseInt(String(sourceProduct.id));
       const destinationProductId = parseInt(String(this.droppedDestinationProduct.id));
-      
+
       const linkData = {
         sourceProductId: sourceProductId,
         sourceDepotId: parseInt(String(this.sourceDepotId!)),
         destinationProductId: destinationProductId,
         destinationDepotId: parseInt(String(this.destinationDepotId!))
       };
-      
+
       return this.productsService.createProductDepotLink(linkData).toPromise();
     });
 
@@ -1208,7 +1214,7 @@ export class StockComponent implements OnInit {
       .then((results) => {
         const successful = results.filter(r => r.status === 'fulfilled').length;
         const failed = results.filter(r => r.status === 'rejected').length;
-        
+
         const errors: string[] = [];
         results.forEach((result, index) => {
           if (result.status === 'rejected') {
@@ -1218,18 +1224,18 @@ export class StockComponent implements OnInit {
             errors.push(`${productName}: ${errorMsg}`);
           }
         });
-        
+
         this.savingLinks = false;
-        
+
         if (failed > 0) {
-          const errorMessage = errors.length > 0 
+          const errorMessage = errors.length > 0
             ? `Erreurs lors de l'enregistrement:\n${errors.join('\n')}`
             : `${failed} lien(s) n'ont pas pu être créés`;
-          
+
           if (successful > 0) {
             this.showMessage(
-              'Enregistrement partiel', 
-              `${successful} lien(s) créé(s) avec succès.\n\n${errorMessage}`, 
+              'Enregistrement partiel',
+              `${successful} lien(s) créé(s) avec succès.\n\n${errorMessage}`,
               'warning'
             );
           } else {
@@ -1239,7 +1245,7 @@ export class StockComponent implements OnInit {
         } else if (successful > 0) {
           this.showMessage('Succès', `${successful} lien(s) créé(s) avec succès`, 'success');
         }
-        
+
         if (failed === 0) {
           this.closeDepotProductsModal();
           setTimeout(() => {

@@ -13,9 +13,9 @@ export class StockDocumentsService {
 
   constructor(
     private http: HttpClient
-  ) {}
+  ) { }
 
-  getDocuments(page: number = 1, limit: number = 20, type?: string, status?: string, depotId?: number, dateFrom?: string, dateTo?: string, fromDepotOnly: boolean = false, toDepotOnly: boolean = false): Observable<any> {
+  getDocuments(page: number = 1, limit: number = 20, type?: string, status?: string, depotId?: number, dateFrom?: string, dateTo?: string, fromDepotOnly: boolean = false, toDepotOnly: boolean = false, hasClient: boolean = false): Observable<any> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('limit', limit.toString());
@@ -27,6 +27,7 @@ export class StockDocumentsService {
     if (dateTo) params = params.set('dateTo', dateTo);
     if (fromDepotOnly) params = params.set('fromDepotOnly', 'true');
     if (toDepotOnly) params = params.set('toDepotOnly', 'true');
+    if (hasClient) params = params.set('hasClient', 'true');
 
     return this.http.get<any>(this.apiUrl, { params }).pipe(
       catchError((error) => throwError(() => error))
@@ -144,7 +145,7 @@ export class StockDocumentsService {
   }
 
   approveReceipt(documentId: number, depotId: number, validatedItemIds?: number[]): Observable<StockDocument> {
-    return this.http.post<StockDocument>(`${this.apiUrl}/${documentId}/approve-receipt`, { 
+    return this.http.post<StockDocument>(`${this.apiUrl}/${documentId}/approve-receipt`, {
       depotId,
       validatedItemIds: validatedItemIds || []
     }).pipe(

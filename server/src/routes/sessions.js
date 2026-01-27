@@ -14,7 +14,7 @@ function readUserRoles() {
     if (fs.existsSync(rolesPath)) {
       return JSON.parse(fs.readFileSync(rolesPath, 'utf8'));
     }
-  } catch {}
+  } catch { }
   return {};
 }
 
@@ -29,7 +29,7 @@ router.get('/:id/check', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const sessionId = parseInt(id);
-    
+
     const session = await prisma.sessionCaisse.findUnique({
       where: { id: sessionId },
       select: {
@@ -54,14 +54,14 @@ router.get('/:id/check', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     if (!session) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         exists: false,
         message: `Session ${sessionId} n'existe pas dans la base de données`
       });
     }
-    
+
     res.json({
       exists: true,
       session: {
@@ -84,16 +84,16 @@ router.get('/:id/check', authenticateToken, async (req, res) => {
 router.get('/active', authenticateToken, async (req, res) => {
   try {
     const { posId, depotId } = req.query;
-    
+
     // Always enforce depot isolation - use user's depot or provided depot
     const userDepotId = req.user.depotId;
     const requestedDepotId = depotId ? parseInt(depotId) : userDepotId;
-    
+
     // For non-admin users, only allow access to their own depot
     if (req.user?.role !== 'ADMIN' && requestedDepotId !== userDepotId) {
       return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
     }
-    
+
     const where = {
       userId: req.user.id,
       posId: posId ? parseInt(posId) : 1,
@@ -125,7 +125,7 @@ router.get('/active', authenticateToken, async (req, res) => {
       where: { id: activeSession.id },
       data: { expectedCash: sessionSummary.expectedCash }
     });
-    
+
     // Update the response object as well
     activeSession.expectedCash = sessionSummary.expectedCash;
 
@@ -140,16 +140,16 @@ router.get('/active', authenticateToken, async (req, res) => {
 router.get('/active-by-depot', authenticateToken, async (req, res) => {
   try {
     const { posId, depotId } = req.query;
-    
+
     // Always enforce depot isolation - use user's depot or provided depot
     const userDepotId = req.user.depotId;
     // Check visiting depot from header (set by admin or for cross-depot access)
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    
+
     // Determine which depot to use: requested > visiting > user's depot
     let requestedDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-    
+
     // For non-admin users, check depot access
     if (req.user?.role !== 'ADMIN') {
       // Allow if accessing own depot
@@ -173,14 +173,14 @@ router.get('/active-by-depot', authenticateToken, async (req, res) => {
       }
       // Deny if trying to access different depot
       else if (requestedDepotId && userDepotId && requestedDepotId !== userDepotId) {
-      return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
+        return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
       }
       // If no depot specified and user has no depot, return error
       else if (!requestedDepotId && !userDepotId) {
         return res.status(400).json({ error: 'No depot specified and user has no assigned depot' });
       }
     }
-    
+
     const where = {
       posId: posId ? parseInt(posId) : 1,
       status: 'OPEN',
@@ -216,7 +216,7 @@ router.get('/active-by-depot', authenticateToken, async (req, res) => {
       where: { id: activeSession.id },
       data: { expectedCash: sessionSummary.expectedCash }
     });
-    
+
     // Update the response object as well
     activeSession.expectedCash = sessionSummary.expectedCash;
 
@@ -239,12 +239,12 @@ router.post('/open', authenticateToken, async (req, res) => {
     // Enforce depot isolation first
     const userDepotId = req.user.depotId;
     let targetDepotId = userDepotId;
-    
+
     if (req.user?.role === 'ADMIN') {
       // Admin can specify depot, but must be valid
       if (depotId) {
-        const requestedDepot = await prisma.depot.findFirst({ 
-          where: { id: parseInt(depotId), isActive: true, type: 'SHOP' } 
+        const requestedDepot = await prisma.depot.findFirst({
+          where: { id: parseInt(depotId), isActive: true, type: 'SHOP' }
         });
         if (requestedDepot) {
           targetDepotId = requestedDepot.id;
@@ -253,7 +253,7 @@ router.post('/open', authenticateToken, async (req, res) => {
         }
       } else if (!userDepotId) {
         // Admin without depot assignment - find first active SHOP depot
-        const defaultDepot = await prisma.depot.findFirst({ 
+        const defaultDepot = await prisma.depot.findFirst({
           where: { isActive: true, type: 'SHOP' }, orderBy: { id: 'asc' }
         });
         if (defaultDepot) {
@@ -299,7 +299,7 @@ router.post('/open', authenticateToken, async (req, res) => {
         },
         orderBy: { closedAt: 'desc' }
       });
-      
+
       if (lastSession) {
         // Try to extract fonds from the last session's note
         let fondsFromNote = 0;
@@ -372,14 +372,14 @@ router.post('/open-by-depot', authenticateToken, async (req, res) => {
     // Check visiting depot from header
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    
+
     let targetDepotId = userDepotId || visitingDepotId;
-    
+
     if (req.user?.role === 'ADMIN') {
       // Admin can specify depot, but must be valid
       if (depotId) {
-        const requestedDepot = await prisma.depot.findFirst({ 
-          where: { id: parseInt(depotId), isActive: true, type: 'SHOP' } 
+        const requestedDepot = await prisma.depot.findFirst({
+          where: { id: parseInt(depotId), isActive: true, type: 'SHOP' }
         });
         if (requestedDepot) {
           targetDepotId = requestedDepot.id;
@@ -388,7 +388,7 @@ router.post('/open-by-depot', authenticateToken, async (req, res) => {
         }
       } else if (!targetDepotId) {
         // Admin without depot assignment - find first active SHOP depot
-        const defaultDepot = await prisma.depot.findFirst({ 
+        const defaultDepot = await prisma.depot.findFirst({
           where: { isActive: true, type: 'SHOP' }, orderBy: { id: 'asc' }
         });
         if (defaultDepot) {
@@ -408,7 +408,7 @@ router.post('/open-by-depot', authenticateToken, async (req, res) => {
         // Allow if accessing visiting depot
         else if (visitingDepotId && requestedDepotId === visitingDepotId) {
           targetDepotId = requestedDepotId;
-      }
+        }
         // Allow if user has no depot assigned but valid depot is requested
         else if (!userDepotId) {
           const requestedDepot = await prisma.depot.findFirst({
@@ -422,11 +422,11 @@ router.post('/open-by-depot', authenticateToken, async (req, res) => {
         }
         // Deny if trying to access different depot
         else {
-        return res.status(403).json({ error: 'Access denied: Cannot create session for different depot' });
+          return res.status(403).json({ error: 'Access denied: Cannot create session for different depot' });
         }
       } else if (!targetDepotId) {
         // User without depot assignment - find first active SHOP depot
-        const defaultDepot = await prisma.depot.findFirst({ 
+        const defaultDepot = await prisma.depot.findFirst({
           where: { isActive: true, type: 'SHOP' }, orderBy: { id: 'asc' }
         });
         if (defaultDepot) {
@@ -461,7 +461,7 @@ router.post('/open-by-depot', authenticateToken, async (req, res) => {
         },
         orderBy: { closedAt: 'desc' }
       });
-      
+
       if (lastSession) {
         // Try to extract fonds from the last session's note
         let fondsFromNote = 0;
@@ -532,7 +532,7 @@ router.post('/:id/movements', authenticateToken, async (req, res) => {
     if (!userDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot to add session movements' });
     }
-    
+
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
@@ -589,19 +589,19 @@ router.post('/:id/movements', authenticateToken, async (req, res) => {
 router.get('/:id/summary', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Enforce depot isolation - use visiting depot or user's depot
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    
+
     // Determine which depot to use: visiting > user's depot
     let targetDepotId = visitingDepotId || userDepotId;
-    
+
     if (!targetDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view session summaries' });
     }
-    
+
     // For non-admin users, check depot access
     if (req.user?.role !== 'ADMIN') {
       // Allow if accessing own depot
@@ -627,7 +627,7 @@ router.get('/:id/summary', authenticateToken, async (req, res) => {
         return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
       }
     }
-    
+
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
@@ -661,14 +661,14 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    
+
     // Determine which depot to use: visiting > user's depot
     let targetDepotId = visitingDepotId || userDepotId;
-    
+
     if (!targetDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to close sessions' });
     }
-    
+
     // For non-admin users, check depot access
     if (req.user?.role !== 'ADMIN') {
       // Allow if accessing own depot
@@ -694,7 +694,7 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
         return res.status(403).json({ error: 'Access denied: Cannot close sessions from other depot' });
       }
     }
-    
+
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
@@ -709,11 +709,11 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
 
     const summary = await calculateSessionSummary(parseInt(id));
     const originalVariance = parseFloat(countedCash) - parseFloat(summary.expectedCash);
-    
+
     // For admin corrections, we want to show the actual variance from the original expected amount
     // For regular closures, we use the calculated variance
     const finalVariance = isAdminCorrection ? originalVariance : originalVariance;
-    
+
     // Debug logging
     console.log('Session Close Debug:', {
       sessionId: parseInt(id),
@@ -737,7 +737,7 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
         totalSales: summary.totalSales
       }
     });
-    
+
     // Check variance threshold (but we will still require approval for all closures)
     const settings = await getClotureSettings();
     const varianceExceedsThreshold = Math.abs(finalVariance) > settings.varianceThreshold;
@@ -767,11 +767,11 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
       let expectedToRemain = 0;
       let shouldActuallyRemain = 0;
       let withdrawalAttempt = 0;
-      
+
       if (isAdminCorrection) {
         // The correctedAmount represents what the cash register should contain after correction
         // So we use it directly as the final counted cash
-        
+
         // Calculate the missing amount that should stay in cash
         // Rule: missing amount = attempted withdrawal - actually received
         // Source of truth: latest reopen snapshot values
@@ -787,14 +787,14 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
             },
             orderBy: { approvedAt: 'desc' }
           });
-          
+
           if (latestReopen && latestReopen.rejectionNotes) {
             reopenSnapshot = JSON.parse(latestReopen.rejectionNotes);
           }
         } catch (e) {
           console.error('Error parsing reopen snapshot:', e);
         }
-        
+
         if (reopenSnapshot) {
           // Use reopen snapshot values
           withdrawalAttempt = parseFloat(reopenSnapshot.attemptedWithdrawal);
@@ -811,7 +811,7 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
           // Single formula: New solde = solde (after cloture) + (cloture - correction)
           missingAmount = withdrawalAttempt - actuallyReceived; // Can be positive or negative
         }
-        
+
         // Debug logging
         const soldeAfterCloture = reopenSnapshot ? parseFloat(reopenSnapshot.newExpectedCash) : parseFloat(summary.expectedCash);
         console.log('Admin Correction Debug:', {
@@ -822,7 +822,7 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
           soldeAfterCloture,
           expectedNewBalance: soldeAfterCloture + missingAmount
         });
-        
+
         // The missing amount will be added to the current open session below
       }
 
@@ -907,7 +907,7 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
               createdById: req.user.id
             }
           });
-          
+
           // Also add to the closed session for print report (same amount, same reason)
           await tx.cashMovement.create({
             data: {
@@ -920,7 +920,7 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
             }
           });
         }
-        
+
         if (existingOpenSession) {
           // Update the existing open session with corrected balance
           updatedOpenSession = await tx.sessionCaisse.update({
@@ -1023,15 +1023,15 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
 // Get sessions history
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { 
-      startDate, 
-      endDate, 
-      userId, 
-      posId, 
-      status, 
+    const {
+      startDate,
+      endDate,
+      userId,
+      posId,
+      status,
       hasVariance,
-      page = 1, 
-      limit = 50 
+      page = 1,
+      limit = 50
     } = req.query;
 
 
@@ -1040,28 +1040,28 @@ router.get('/', authenticateToken, async (req, res) => {
     // Check if user is super admin
     const isUserSuperAdmin = isSuperAdmin(req.user.id);
 
-    
+
     // Check for visiting depot from header (set when super admin selects a depot)
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
 
-    
+
     // Determine which depot to use: visiting > user's depot
     let targetDepotId = visitingDepotId || req.user.depotId;
-    
+
     // For super admin, allow access even without depot if visiting depot is specified
     if (isUserSuperAdmin && visitingDepotId) {
       targetDepotId = visitingDepotId;
     } else if (!targetDepotId && !isUserSuperAdmin) {
       return res.status(400).json({ error: 'User must be assigned to a depot to view session history' });
     }
-    
 
-    
+
+
     const whereClause = {
       depotId: targetDepotId // Filter by selected depot (visiting depot for super admin, or user's depot)
     };
-    
+
     // Super admin can see all sessions from the selected depot without userId filter
     // Admin can see all sessions from their depot, others only their own
     if (isUserSuperAdmin) {
@@ -1086,16 +1086,16 @@ router.get('/', authenticateToken, async (req, res) => {
       // If date is in format YYYY-MM-DD, append time to avoid timezone issues
       const startDateStr = startDate.includes('T') ? startDate : `${startDate}T00:00:00.000`;
       const endDateStr = endDate.includes('T') ? endDate : `${endDate}T23:59:59.999`;
-      
+
       const start = new Date(startDateStr);
       const end = new Date(endDateStr);
-      
 
 
-      
-      whereClause.openedAt = { 
-        gte: start, 
-        lte: end 
+
+
+      whereClause.openedAt = {
+        gte: start,
+        lte: end
       };
     }
 
@@ -1133,11 +1133,11 @@ router.get('/', authenticateToken, async (req, res) => {
 // Get sessions with aggregated sales data for cash statements
 router.get('/summaries', authenticateToken, async (req, res) => {
   try {
-    const { 
-      startDate, 
-      endDate, 
-      userId, 
-      posId, 
+    const {
+      startDate,
+      endDate,
+      userId,
+      posId,
       status,
       depotId
     } = req.query;
@@ -1146,10 +1146,10 @@ router.get('/summaries', authenticateToken, async (req, res) => {
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    
+
     // Determine which depot to use: requested > visiting > user's depot
     let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-    
+
     if (!targetDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view session summaries' });
     }
@@ -1179,11 +1179,11 @@ router.get('/summaries', authenticateToken, async (req, res) => {
         return res.status(403).json({ error: 'Access denied: Cannot access other depot sessions' });
       }
     }
-    
+
     const whereClause = {
       depotId: targetDepotId
     };
-    
+
     // Admin can see all sessions from their depot, others only their own
     if (req.user?.role !== 'ADMIN') {
       whereClause.userId = req.user?.id;
@@ -1196,16 +1196,16 @@ router.get('/summaries', authenticateToken, async (req, res) => {
       // If date is in format YYYY-MM-DD, append time to avoid timezone issues
       const startDateStr = startDate.includes('T') ? startDate : `${startDate}T00:00:00.000`;
       const endDateStr = endDate.includes('T') ? endDate : `${endDate}T23:59:59.999`;
-      
+
       const start = new Date(startDateStr);
       const end = new Date(endDateStr);
-      
 
 
-      
-      whereClause.openedAt = { 
-        gte: start, 
-        lte: end 
+
+
+      whereClause.openedAt = {
+        gte: start,
+        lte: end
       };
     }
 
@@ -1226,7 +1226,7 @@ router.get('/summaries', authenticateToken, async (req, res) => {
 
     // Get aggregated sales data for each session
     const sessionIds = sessions.map(s => s.id);
-    
+
     if (sessionIds.length === 0) {
       return res.json([]);
     }
@@ -1268,13 +1268,13 @@ router.get('/summaries', authenticateToken, async (req, res) => {
           salesByPaymentMethod: {}
         };
       }
-      
+
       const paymentMethod = paymentMethodMap[sale.paymentMethodId];
       const amount = sale._sum.finalTotal || 0;
-      
+
       acc[sale.sessionId].totalSales += amount;
       acc[sale.sessionId].salesCount += sale._count.id;
-      
+
       if (paymentMethod) {
         acc[sale.sessionId].salesByPaymentMethod[paymentMethod.id] = {
           name: paymentMethod.name,
@@ -1282,28 +1282,28 @@ router.get('/summaries', authenticateToken, async (req, res) => {
           amount: amount,
           count: sale._count.id
         };
-        
+
         // Categorize by payment type
-        if (paymentMethod.type === 'CASH' || 
-            paymentMethod.name.toLowerCase().includes('cash') ||
-            paymentMethod.name.toLowerCase().includes('espèces') ||
-            paymentMethod.name.toLowerCase().includes('comptant')) {
+        if (paymentMethod.type === 'CASH' ||
+          paymentMethod.name.toLowerCase().includes('cash') ||
+          paymentMethod.name.toLowerCase().includes('espèces') ||
+          paymentMethod.name.toLowerCase().includes('comptant')) {
           acc[sale.sessionId].cashSales += amount;
-        } else if (paymentMethod.type === 'CARD' || 
-                   paymentMethod.name.toLowerCase().includes('card') ||
-                   paymentMethod.name.toLowerCase().includes('carte')) {
+        } else if (paymentMethod.type === 'CARD' ||
+          paymentMethod.name.toLowerCase().includes('card') ||
+          paymentMethod.name.toLowerCase().includes('carte')) {
           acc[sale.sessionId].cardSales += amount;
         } else {
           acc[sale.sessionId].otherSales += amount;
         }
       }
-      
+
       return acc;
     }, {});
 
     // Get expenses for the date range and group by session based on date overlap
     const expensesBySession = {};
-    
+
     // Initialize expenses for each session
     sessionIds.forEach(sessionId => {
       expensesBySession[sessionId] = {
@@ -1335,17 +1335,17 @@ router.get('/summaries', authenticateToken, async (req, res) => {
     // Group expenses by session based on date overlap
     expenses.forEach(expense => {
       const expenseDate = new Date(expense.date);
-      
+
       // Find which session this expense belongs to based on date overlap
       sessions.forEach(session => {
         const sessionStart = new Date(session.openedAt);
         const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
-        
+
         if (expenseDate >= sessionStart && expenseDate <= sessionEnd) {
           const amount = parseFloat(expense.amount) || 0;
           expensesBySession[session.id].totalExpenses += amount;
           expensesBySession[session.id].expensesCount += 1;
-          
+
           if (expense.paymentType === 'CASH') {
             expensesBySession[session.id].cashExpenses += amount;
           } else {
@@ -1365,7 +1365,7 @@ router.get('/summaries', authenticateToken, async (req, res) => {
         salesCount: 0,
         salesByPaymentMethod: {}
       };
-      
+
       const expensesData = expensesBySession[session.id] || {
         totalExpenses: 0,
         cashExpenses: 0,
@@ -1398,14 +1398,14 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
 
     // Check if user is super admin
     const isUserSuperAdmin = isSuperAdmin(req.user.id);
-    
+
     // Enforce depot isolation - use visiting depot or user's depot
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    
 
-    
+
+
     // Determine which depot to use: visiting > user's depot
     // For admins and super admins: only use depotId if explicitly provided via header (allows access to all depots if not specified)
     // For non-admins: use visiting depot or fallback to user's depot
@@ -1418,14 +1418,14 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
       // Non-admins: use visiting depot or fallback to user's depot
       targetDepotId = visitingDepotId || userDepotId;
     }
-    
 
-    
+
+
     // For non-admin users, depot is required
     if (!targetDepotId && !isAdmin) {
       return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to view session reports' });
     }
-    
+
     // For non-admin users, check depot access
     if (!isAdmin) {
       // Allow if accessing own depot
@@ -1451,7 +1451,7 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
         return res.status(403).json({ error: 'Access denied: Cannot access other depot session reports' });
       }
     }
-    
+
     // First check if session exists at all (without depot filter)
     const sessionExists = await prisma.sessionCaisse.findUnique({
       where: { id: sessionId },
@@ -1469,7 +1469,7 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     const whereClause = {
       id: sessionId
     };
-    
+
     // For admins and super admins without specified depotId, use the session's actual depotId (or null) for the query
     if (!targetDepotId && isAdmin) {
       // If session has a depotId, use it; if NULL, don't filter by depotId
@@ -1502,7 +1502,7 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     if (!session) {
 
 
-      
+
       // For super admin with visiting depot, verify the session belongs to that depot
       if (isUserSuperAdmin && visitingDepotId) {
         if (sessionExists.depotId === visitingDepotId) {
@@ -1527,29 +1527,29 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: `Session ${sessionId} non trouvée pour le dépôt ${visitingDepotId}` });
           }
         } else {
-          return res.status(404).json({ 
-            error: `Session ${sessionId} appartient au dépôt ${sessionExists.depotId}, pas au dépôt sélectionné ${visitingDepotId}` 
+          return res.status(404).json({
+            error: `Session ${sessionId} appartient au dépôt ${sessionExists.depotId}, pas au dépôt sélectionné ${visitingDepotId}`
           });
         }
       }
-      
+
       // Check if session exists but belongs to different depot
-      if (targetDepotId !== null && targetDepotId !== undefined && 
-          sessionExists.depotId !== null && sessionExists.depotId !== undefined &&
-          sessionExists.depotId !== targetDepotId) {
-        return res.status(404).json({ 
-          error: `Session ${sessionId} appartient au dépôt ${sessionExists.depotId}, pas au dépôt ${targetDepotId}` 
+      if (targetDepotId !== null && targetDepotId !== undefined &&
+        sessionExists.depotId !== null && sessionExists.depotId !== undefined &&
+        sessionExists.depotId !== targetDepotId) {
+        return res.status(404).json({
+          error: `Session ${sessionId} appartient au dépôt ${sessionExists.depotId}, pas au dépôt ${targetDepotId}`
         });
       }
-      
+
       // If session has NULL depotId and we're filtering by a specific depot
-      if (targetDepotId !== null && targetDepotId !== undefined && 
-          (sessionExists.depotId === null || sessionExists.depotId === undefined)) {
-        return res.status(404).json({ 
-          error: `Session ${sessionId} n'a pas de dépôt assigné, mais un filtre de dépôt ${targetDepotId} a été appliqué` 
+      if (targetDepotId !== null && targetDepotId !== undefined &&
+        (sessionExists.depotId === null || sessionExists.depotId === undefined)) {
+        return res.status(404).json({
+          error: `Session ${sessionId} n'a pas de dépôt assigné, mais un filtre de dépôt ${targetDepotId} a été appliqué`
         });
       }
-      
+
       if (!session) {
         return res.status(404).json({ error: `Session ${sessionId} non trouvée avec les filtres spécifiés` });
       }
@@ -1557,8 +1557,8 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
 
 
 
-    const reportData = type === 'Z' ? 
-      await generateZReport(parseInt(id)) : 
+    const reportData = type === 'Z' ?
+      await generateZReport(parseInt(id)) :
       await generateXReport(parseInt(id));
 
     if (format === 'escpos') {
@@ -1591,14 +1591,14 @@ router.post('/:id/reopen', authenticateToken, async (req, res) => {
     const userDepotId = req.user?.depotId;
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    
+
     // Determine which depot to use: visiting > user's depot
     let targetDepotId = visitingDepotId || userDepotId;
-    
+
     if (!targetDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot or specify depotId to reopen sessions' });
     }
-    
+
     // For non-admin users, check depot access (only admins can reopen)
     if (req.user?.role !== 'ADMIN') {
       // Allow if accessing own depot
@@ -1624,7 +1624,7 @@ router.post('/:id/reopen', authenticateToken, async (req, res) => {
         return res.status(403).json({ error: 'Access denied: Cannot reopen sessions from other depot' });
       }
     }
-    
+
     const session = await prisma.sessionCaisse.findFirst({
       where: {
         id: parseInt(id),
@@ -1640,7 +1640,7 @@ router.post('/:id/reopen', authenticateToken, async (req, res) => {
     const result = await prisma.$transaction(async (tx) => {
       // Recalculate expected cash before reopening
       const summary = await calculateSessionSummary(parseInt(id));
-      
+
       // Create change request with reopen snapshot values
       const changeRequest = await tx.changeRequest.create({
         data: {
@@ -1660,7 +1660,7 @@ router.post('/:id/reopen', authenticateToken, async (req, res) => {
           })
         }
       });
-      
+
       console.log('Session Reopen Debug:', {
         sessionId: parseInt(id),
         oldExpectedCash: session.expectedCash,
@@ -1674,7 +1674,7 @@ router.post('/:id/reopen', authenticateToken, async (req, res) => {
           totalSales: summary.totalSales
         }
       });
-      
+
       // Reopen session
       const reopenedSession = await tx.sessionCaisse.update({
         where: { id: parseInt(id) },
@@ -1726,7 +1726,7 @@ async function calculateSessionSummary(sessionId) {
   if (!sessionInfo) return null;
 
   const sessionDepotId = sessionInfo.depotId;
-  
+
   // Load session with sales filtered by depotId
   const session = await prisma.sessionCaisse.findUnique({
     where: { id: sessionId },
@@ -1758,7 +1758,7 @@ async function calculateSessionSummary(sessionId) {
   });
 
   if (!session) return null;
-  
+
   // Additional safety: Filter sales by session's depotId after loading (double check)
   if (sessionDepotId && session.sales) {
     const originalCount = session.sales.length;
@@ -1795,15 +1795,15 @@ async function calculateSessionSummary(sessionId) {
       const paymentMethodType = (sale.paymentMethod?.type || '').toUpperCase();
       const paymentType = (sale.paymentType || '').toUpperCase();
       const status = (sale.status || '').toUpperCase();
-      
+
       // Exclude if:
       // 1. Status is REFUNDED or CANCELLED
       // 2. paymentType is CREDIT (explicit credit sale)
       // 3. paymentMethod is not CASH
-      if (['REFUNDED','CANCELLED'].includes(status)) return false;
+      if (['REFUNDED', 'CANCELLED'].includes(status)) return false;
       if (paymentType === 'CREDIT') return false; // Explicit credit sale
       if (paymentMethodType !== 'CASH') return false;
-      
+
       return true;
     })
     .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0);
@@ -1835,17 +1835,17 @@ async function calculateSessionSummary(sessionId) {
     const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
     const isCanceledTicketRefund = reasonLower.includes('ticket annulé') || reasonLower.includes('ticket annule');
     const isReturnRefund = reason.includes('Remboursement retour') || reason.includes('retour');
-    const isBonRetour = reasonLower.includes('bon de retour') || 
-                       reasonLower.includes('bon retour') ||
-                       reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
-    const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') || 
-                                   reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
-                                   reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
+    const isBonRetour = reasonLower.includes('bon de retour') ||
+      reasonLower.includes('bon retour') ||
+      reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
+    const isClientCreditPayment = reasonLower.includes('crédit client') || reasonLower.includes('credit client') ||
+      reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
+      reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
     const shouldExclude = (isFromCancelledTicket && !isReturnRefund) || isCanceledTicketRefund || isClientCreditPayment || isBonRetour;
     const isValid = ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !shouldExclude && amount > 0;
     return isValid;
   });
-  
+
   const sortie = sortieMovements.reduce((sum, m) => {
     const amount = parseFloat(m.amount || 0);
     if (m.sessionId !== sessionId) {
@@ -1864,7 +1864,7 @@ async function calculateSessionSummary(sessionId) {
     if (!salesByPayment[method]) {
       salesByPayment[method] = { amount: 0, count: 0 };
     }
-    if (!['REFUNDED','CANCELLED'].includes((sale.status || '').toUpperCase())) {
+    if (!['REFUNDED', 'CANCELLED', 'TEMPORARY', 'CMD_TERMINEE'].includes((sale.status || '').toUpperCase())) {
       salesByPayment[method].amount += parseFloat(sale.finalTotal);
       salesByPayment[method].count += 1;
     }
@@ -1888,8 +1888,8 @@ async function calculateSessionSummary(sessionId) {
           status: { notIn: ['CANCELLED', 'REFUNDED'] } // Exclude cancelled/refunded sales
         }
       },
-      select: { 
-        amount: true, 
+      select: {
+        amount: true,
         saleId: true
       }
     });
@@ -1904,8 +1904,8 @@ async function calculateSessionSummary(sessionId) {
           status: { notIn: ['CANCELLED', 'REFUNDED'] } // Exclude cancelled/refunded sales
         }
       },
-      select: { 
-        amount: true, 
+      select: {
+        amount: true,
         saleId: true
       }
     });
@@ -2007,19 +2007,19 @@ async function calculateSessionSummary(sessionId) {
         { isAdvance: true } // Partial payments (advance)
       ]
     };
-    
+
     // For closed sessions, only include approved expenses
     // For open sessions, include all expenses (approved or not) to show complete details
     if (session.status !== 'OPEN') {
       whereClause.isApproved = true;
     }
-    
+
     approvedCashExpenses = await prisma.expense.findMany({
       where: whereClause,
       select: { id: true, amount: true, approvedAt: true, createdAt: true, date: true, notes: true, isApproved: true, isPaid: true, isAdvance: true, category: { select: { name: true } }, supplier: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' }
     });
-    
+
     // Debug logging removed to reduce console spam
 
     // Build a set of expense IDs that already created a cash movement in this session
@@ -2032,7 +2032,7 @@ async function calculateSessionSummary(sessionId) {
       const amount = parseFloat(m.amount || 0);
       // Skip rejected movements (marked with [REJETÉ] or amount = 0)
       if (reason.includes('[REJETÉ]') || amount === 0) return;
-      
+
       // Try to extract expense ID from reason
       const match = reason.match(expenseRegex);
       if (match && match[1]) {
@@ -2045,7 +2045,7 @@ async function calculateSessionSummary(sessionId) {
         // Debug logging removed to reduce console spam
       }
     });
-    
+
     // Debug logging removed to reduce console spam
 
     // CRITICAL: Only count expenses that DON'T have a cash movement to avoid double counting
@@ -2054,7 +2054,7 @@ async function calculateSessionSummary(sessionId) {
     const expensesWithoutMovement = approvedCashExpenses.filter(e => !expenseIdsWithMovement.has(e.id));
     cashExpenseTotal = expensesWithoutMovement.reduce((sum, e) => {
       const totalAmount = parseFloat(e.amount || 0);
-      
+
       // For partial payments (advance), extract paid amount from notes
       if (e.isAdvance && e.notes && e.notes.includes('Paiement partiel:')) {
         const match = e.notes.match(/Paiement partiel:\s*(\d+(?:\.\d+)?)dt payé/);
@@ -2063,7 +2063,7 @@ async function calculateSessionSummary(sessionId) {
           return sum + paidAmount; // Only count the paid portion
         }
       }
-      
+
       // For fully paid expenses, count the full amount
       return sum + totalAmount;
     }, 0);
@@ -2091,16 +2091,16 @@ async function calculateSessionSummary(sessionId) {
 
     // Provide details for UI - show ALL expenses for display
     expensesDetails = allExpenseDetails;
-    
+
     // Debug logging removed to reduce console spam
 
     // CRITICAL FIX: Only subtract expenses that DON'T have a cash movement
     // Expenses with cash movements are already counted in sortie (cashMovements)
     // This prevents double subtraction
     expectedCash = expectedCash - cashExpenseTotal;
-    
+
     // Debug logging removed to reduce console spam
-  } catch (e) {}
+  } catch (e) { }
 
   // Supplier payments details (for UI display with supplier name)
   // Exclude CREDIT payments as they don't represent actual cash outflows
@@ -2127,7 +2127,7 @@ async function calculateSessionSummary(sessionId) {
       amount: parseFloat(p.amount || 0),
       createdAt: p.paymentDate || p.createdAt
     }));
-  } catch (e) {}
+  } catch (e) { }
 
   // Compute client payments (standalone PAYMENT debt transactions + PAYMENT transactions linked to credit sales)
   // IMPORTANT: Only include payments that are actually related to this session
@@ -2136,7 +2136,7 @@ async function calculateSessionSummary(sessionId) {
   try {
     const sessionStart = new Date(session.openedAt);
     const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
-    
+
     // Get standalone payments (no saleId) - only those made during this session
     // These are payments made directly to clients' accounts during the session
     const standalonePayments = await prisma.clientDebtTransaction.findMany({
@@ -2147,21 +2147,24 @@ async function calculateSessionSummary(sessionId) {
         createdAt: {
           gte: sessionStart,
           lte: sessionEnd
-        }
+        },
+        // Exclude client returns (Bon de retour) from cash encaissements
+        // Returns reduce debt (PAYMENT type) but do not bring in cash
+        notes: { not: { contains: 'Bon de retour' } }
       },
       include: {
         client: { select: { id: true, firstName: true, lastName: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
-    
+
     // NOTE: Credit sale advance payments are NOT included in clientPaymentsTotal
     // They are counted as cash from sales (espèces en caisse) instead
     // Only standalone payments (without saleId) are counted as client payments
-    
+
     // Only include standalone payments in clientPaymentsTotal
     clientPaymentsTotal = standalonePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-    
+
     clientPaymentsDetails = standalonePayments.map(p => ({
       id: p.id,
       amount: parseFloat(p.amount || 0),
@@ -2207,7 +2210,7 @@ async function calculateSessionSummary(sessionId) {
       // If we can't query debt transactions, rely on paymentType check only
       console.warn('[calculateSessionSummary] Could not query debt transactions for credit sale detection:', debtErr);
     }
-    
+
     // Include ALL sales (both CASH and CREDIT) - use paidAmount for each
     // For CASH sales: paidAmount = finalTotal (fully paid)
     // For CREDIT sales: paidAmount = advance payment only (NOT the full sale amount)
@@ -2215,16 +2218,17 @@ async function calculateSessionSummary(sessionId) {
     // CRITICAL: Exclude CADEAU sales - they have amount = 0 and should not be in encaissement
     const allSales = session.sales.filter(s => {
       const status = (s.status || '').toUpperCase();
-      // Exclude cancelled/refunded sales and cadeau sales
-      if (['REFUNDED','CANCELLED','CADEAU','PENDING_ADMIN'].includes(status)) return false;
+      // Exclude cancelled/refunded sales, cadeau sales, and temporary/completed orders
+      // TEMPORARY and CMD_TERMINEE sales create CashMovements for their payments, so we shouldn't count the sale record itself
+      if (['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN', 'TEMPORARY', 'CMD_TERMINEE'].includes(status)) return false;
       return true;
     });
-    
+
     // Sum up paidAmount from all sales (includes advance payments from credit sales)
     cashFromSalesNetCredit = allSales.reduce((sum, sale) => {
       const paymentType = (sale.paymentType || '').toUpperCase();
       const isCreditSale = paymentType === 'CREDIT' || saleIdsWithDebt.has(sale.id);
-      
+
       if (isCreditSale) {
         // For credit sales: only add the advance payment (paidAmount), NOT the full sale amount
         // Calculate paidAmount as: finalTotal - outstanding credit
@@ -2232,7 +2236,7 @@ async function calculateSessionSummary(sessionId) {
         const finalTotal = parseFloat(sale.finalTotal || 0) || 0;
         const advancePayment = parseFloat(sale.advancePayment || 0) || 0;
         const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
-        
+
         // Use paidAmount if explicitly set, otherwise use advancePayment
         // This ensures we only count the cash received, not the credit amount
         const cashReceived = paidAmount > 0 ? paidAmount : advancePayment;
@@ -2247,11 +2251,11 @@ async function calculateSessionSummary(sessionId) {
     // Fallback: calculate from all sales
     console.error('[calculateSessionSummary] Error computing cash from sales:', e);
     cashFromSalesNetCredit = session.sales
-      .filter(s => !['REFUNDED','CANCELLED','CADEAU','PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
+      .filter(s => !['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN', 'TEMPORARY', 'CMD_TERMINEE'].includes((s.status || '').toUpperCase()))
       .reduce((sum, sale) => {
         const paymentType = (sale.paymentType || '').toUpperCase();
         const isCreditSale = paymentType === 'CREDIT';
-        
+
         if (isCreditSale) {
           // For credit sales: only add advance payment, NOT full amount
           const advancePayment = parseFloat(sale.advancePayment || 0) || 0;
@@ -2265,7 +2269,7 @@ async function calculateSessionSummary(sessionId) {
         }
       }, 0);
   }
-  
+
   expectedCash = expectedCash + cashFromSalesNetCredit + entree - sortie;
 
   // Calculate total of ALL expenses for display (not just those without movement)
@@ -2279,9 +2283,9 @@ async function calculateSessionSummary(sessionId) {
     sortie,
     salesByPayment,
     totalSales: session.sales
-      .filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase()))
+      .filter(s => !['REFUNDED', 'CANCELLED'].includes((s.status || '').toUpperCase()))
       .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0),
-    totalTickets: session.sales.filter(s => !['REFUNDED','CANCELLED'].includes((s.status || '').toUpperCase())).length,
+    totalTickets: session.sales.filter(s => !['REFUNDED', 'CANCELLED'].includes((s.status || '').toUpperCase())).length,
     creditOutstanding,
     creditSalesTotal, // Total credit sales amount (sum of all DEBT transactions)
     creditAdvancePaid,
@@ -2332,7 +2336,7 @@ async function generateZReport(sessionId, closureData = {}) {
       cashMovements: true
     }
   });
-  
+
   // CRITICAL: Filter sales by session's depotId to ensure depot isolation
   if (session && session.depotId && session.sales) {
     session.sales = session.sales.filter(sale => sale.depotId === session.depotId);
@@ -2345,7 +2349,7 @@ async function generateZReport(sessionId, closureData = {}) {
     .reduce((sum, m) => sum + parseFloat(m.amount), 0);
   const finalCounted = session.countedCash != null ? parseFloat(session.countedCash) : undefined;
   const finalRemaining = finalCounted != null ? (finalCounted - computedWithdrawal) : undefined;
-  
+
   // Group sales by families (like daily extract)
   const familyMap = new Map();
   // Exclude cancelled/refunded sales from family breakdown
@@ -2429,13 +2433,13 @@ async function generateXReport(sessionId) {
 
 function generateESCReport(reportData, type) {
   const { session, summary } = reportData;
-  
+
   let escpos = '';
   escpos += '\x1B\x40'; // Initialize printer
   escpos += '\x1B\x61\x01'; // Center align
   escpos += 'RAPPORT ' + type + '\n';
   escpos += '==================\n\n';
-  
+
   escpos += '\x1B\x61\x00'; // Left align
   escpos += `Session: ${session.id}\n`;
   escpos += `Caissier: ${session.user.firstName} ${session.user.lastName}\n`;
@@ -2445,7 +2449,7 @@ function generateESCReport(reportData, type) {
     escpos += `Fermé: ${new Date(session.closedAt).toLocaleString('fr-FR')}\n`;
   }
   escpos += '\n';
-  
+
   escpos += 'RÉCAPITULATIF VENTES\n';
   escpos += '===================\n';
   Object.entries(summary.salesByPayment).forEach(([method, data]) => {
@@ -2453,7 +2457,7 @@ function generateESCReport(reportData, type) {
   });
   escpos += `\nTotal: ${summary.totalSales.toFixed(3)} DT\n`;
   escpos += `Tickets: ${summary.totalTickets}\n\n`;
-  
+
   escpos += 'MOUVEMENTS CAISSE\n';
   escpos += '=================\n';
   session.cashMovements
@@ -2463,7 +2467,7 @@ function generateESCReport(reportData, type) {
       escpos += `  ${movement.reason}\n`;
     });
   escpos += '\n';
-  
+
   escpos += 'COMPTAGE ESPÈCES\n';
   escpos += '================\n';
   escpos += `Fonds de caisse: ${session.openingFund.toFixed(3)} DT\n`;
@@ -2473,12 +2477,12 @@ function generateESCReport(reportData, type) {
     escpos += `Écart: ${session.variance.toFixed(3)} DT\n`;
   }
   escpos += '\n';
-  
+
   escpos += '\x1B\x61\x01'; // Center align
   escpos += 'Merci de votre visite!\n';
   escpos += '\n\n\n';
   escpos += '\x1D\x56\x00'; // Cut paper
-  
+
   return escpos;
 }
 

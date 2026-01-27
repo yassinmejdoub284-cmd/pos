@@ -13,7 +13,7 @@ export class ClientsService {
 
   constructor(
     private http: HttpClient
-  ) {}
+  ) { }
 
   getClients(page: number = 1, limit: number = 20, search?: string, type?: string, active?: boolean, sortBy?: string, sortOrder?: 'asc' | 'desc'): Observable<ClientsResponse> {
     let params = new HttpParams()
@@ -83,4 +83,10 @@ export class ClientsService {
   initializeSolde(id: number, amount: number, notes?: string): Observable<Client> {
     return this.http.post<Client>(`${this.apiUrl}/${id}/solde/init`, { amount, notes });
   }
-} 
+
+  getClientProductPrices(id: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/${id}/product-prices`).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
+}

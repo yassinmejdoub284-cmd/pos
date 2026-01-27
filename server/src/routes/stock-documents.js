@@ -288,7 +288,7 @@ function parseQuantity(q) {
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 20, type, status, depotId, clientId, dateFrom, dateTo, fromDepotOnly, toDepotOnly } = req.query;
+    const { page = 1, limit = 20, type, status, depotId, clientId, dateFrom, dateTo, fromDepotOnly, toDepotOnly, hasClient } = req.query;
     const skip = (page - 1) * limit;
 
     const where = {};
@@ -326,7 +326,13 @@ router.get('/', authenticateToken, async (req, res) => {
       }
     }
     if (clientId) {
-      where.notes = { contains: `Client:${parseInt(clientId)}` };
+      where.OR = [
+        { clientId: parseInt(clientId) },
+        { notes: { contains: `Client:${parseInt(clientId)}` } }
+      ];
+    }
+    if (String(hasClient).toLowerCase() === 'true') {
+      where.clientId = { not: null };
     }
 
     if (dateFrom || dateTo) {
@@ -3198,18 +3204,18 @@ async function updateInventoryForProduct(depotId, productId, quantityChange, isO
   }
 }
 
-// Create Bon de Retour (Return Document)
-router.post('/return', authenticateToken, async (req, res) => {
+// Create Bon de Retour (Return Document) - DEPRECATED (Replaced by implementation at bottom of file)
+router.post('/return-deprecated', authenticateToken, async (req, res) => {
   try {
-    const { depotId, supplierId, items, notes } = req.body;
+    const { depotId, supplierId, clientId, items, notes } = req.body;
     const userId = req.user.id;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Articles requis' });
     }
 
-    if (!supplierId) {
-      return res.status(400).json({ error: 'Fournisseur requis pour le bon de retour' });
+    if (!supplierId && !clientId) {
+      return res.status(400).json({ error: 'Fournisseur ou Client requis pour le bon de retour' });
     }
 
     // Get depotId from active session or use provided depotId
@@ -3239,15 +3245,25 @@ router.post('/return', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Dépôt invalide' });
     }
 
-    // Generate document reference
+    // Validate Depot, Supplier or Client
     const depot = await prisma.depot.findUnique({ where: { id: targetDepotId } });
     if (!depot) {
       return res.status(404).json({ error: 'Dépôt non trouvé' });
     }
 
-    const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
-    if (!supplier) {
-      return res.status(404).json({ error: 'Fournisseur non trouvé' });
+    let partyName = '';
+    if (supplierId) {
+      const supplier = await prisma.supplier.findUnique({ where: { id: parseInt(supplierId) } });
+      if (!supplier) {
+        return res.status(404).json({ error: 'Fournisseur non trouvé' });
+      }
+      partyName = supplier.name;
+    } else if (clientId) {
+      const client = await prisma.client.findUnique({ where: { id: parseInt(clientId) } });
+      if (!client) {
+        return res.status(404).json({ error: 'Client non trouvé' });
+      }
+      partyName = `${client.firstName} ${client.lastName}`;
     }
 
     const currentYear = new Date().getFullYear();
@@ -3263,8 +3279,11 @@ router.post('/return', authenticateToken, async (req, res) => {
 
     let nextNumber = 1;
     if (lastDoc) {
-      const lastNumber = parseInt(lastDoc.numero.split('-').pop());
-      nextNumber = lastNumber + 1;
+      const parts = lastDoc.numero.split('-');
+      const lastNumber = parseInt(parts[parts.length - 1]);
+      if (!isNaN(lastNumber)) {
+        nextNumber = lastNumber + 1;
+      }
     }
 
     const numero = `BR-${currentYear}${currentMonth}-${String(nextNumber).padStart(4, '0')}`;
@@ -3276,7 +3295,7 @@ router.post('/return', authenticateToken, async (req, res) => {
       return sum + (quantity * price);
     }, 0);
 
-    // Create the return document and expense in a transaction
+    // Create the return document and update financial records in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create the return document
       const document = await tx.stockDocument.create({
@@ -3286,7 +3305,8 @@ router.post('/return', authenticateToken, async (req, res) => {
           status: 'RECEIVED', // Auto-validate returns
           emetteurId: targetDepotId, // Depot is the sender
           destinataireId: targetDepotId,
-          notes: `Supplier:${supplierId}${notes ? ' | ' + notes : ''}`,
+          clientId: clientId ? parseInt(clientId) : null,
+          notes: clientId ? `Client:${clientId}${notes ? ' | ' + notes : ''}` : `Supplier:${supplierId}${notes ? ' | ' + notes : ''}`,
           items: {
             create: items.map(item => ({
               productId: parseInt(item.productId),
@@ -3357,25 +3377,32 @@ router.post('/return', authenticateToken, async (req, res) => {
             type: 'OUT',
             fromDepotId: sessionDepotId,
             toDepotId: null,
-            reason: 'RETURN_SUPPLIER',
+            reason: clientId ? 'RETURN_CLIENT' : 'RETURN_SUPPLIER',
             reference: numero,
             userId: userId
           }
         });
       }
 
-      // Expense creation removed as per requirement: "dont make it saved comme charge"
-      // const totalAmount = ... (already calculated above but not used for expense now)
+      // If it's a client return, record it in their statement
+      if (clientId) {
+        await tx.client.update({
+          where: { id: parseInt(clientId) },
+          data: { currentDebt: { decrement: totalAmount } }
+        });
 
-      let expenseRecord = null;
-      /* 
-      // Expense creation logic removed
-      if (totalAmount > 0) {
-        ...
+        await tx.clientDebtTransaction.create({
+          data: {
+            clientId: parseInt(clientId),
+            amount: totalAmount,
+            type: 'PAYMENT', // Représente un crédit / réduction de dette
+            notes: `Bon de retour #${numero}${notes ? ' | ' + notes : ''}`,
+            userId: userId
+          }
+        });
       }
-      */
 
-      return { document, expenseRecord };
+      return { document, expenseRecord: null };
     });
 
     // Log comprehensive audit trail for StockDocument
@@ -3384,8 +3411,9 @@ router.post('/return', authenticateToken, async (req, res) => {
         type: 'BON_EXPEDITION',
         numero: result.document.numero,
         depotId: targetDepotId,
-        supplierId: parseInt(supplierId),
-        supplierName: supplier.name,
+        supplierId: supplierId ? parseInt(supplierId) : null,
+        clientId: clientId ? parseInt(clientId) : null,
+        partyName: partyName,
         itemsCount: items.length,
         totalValue: totalAmount,
         items: items.map(item => ({
@@ -3801,6 +3829,189 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     console.error('Error deleting document:', error);
     res.status(500).json({
       error: error.message || 'Erreur lors de la suppression du document'
+    });
+  }
+});
+
+// Create client return document (Bon de Retour Client)
+router.post('/return', authenticateToken, async (req, res) => {
+  try {
+    const { depotId, clientId, items, notes } = req.body;
+
+    console.log('[stock-documents/return] Client return request:', {
+      depotId,
+      clientId,
+      itemsCount: items?.length,
+      userId: req.user?.id
+    });
+
+    // Validate required fields
+    if (!depotId) {
+      return res.status(400).json({ error: 'Dépôt requis' });
+    }
+
+    if (!clientId) {
+      return res.status(400).json({ error: 'Client requis' });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Au moins un article est requis' });
+    }
+
+    const depotIdInt = parseInt(depotId);
+    const clientIdInt = parseInt(clientId);
+
+    if (isNaN(depotIdInt) || depotIdInt <= 0) {
+      return res.status(400).json({ error: 'ID de dépôt invalide' });
+    }
+
+    if (isNaN(clientIdInt) || clientIdInt <= 0) {
+      return res.status(400).json({ error: 'ID de client invalide' });
+    }
+
+    // Validate client exists
+    const client = await prisma.client.findUnique({
+      where: { id: clientIdInt }
+    });
+
+    if (!client) {
+      return res.status(400).json({ error: 'Client introuvable' });
+    }
+
+    // Validate depot exists
+    const depot = await prisma.depot.findUnique({
+      where: { id: depotIdInt }
+    });
+
+    if (!depot) {
+      return res.status(400).json({ error: 'Dépôt introuvable' });
+    }
+
+    // Generate document number
+    const numero = await generateDocumentNumber('BON_EXPEDITION');
+
+    // Calculate total return value
+    const totalReturnValue = items.reduce((sum, item) => {
+      const qty = Math.abs(parseFloat(item.quantity) || 0);
+      const price = parseFloat(item.purchasePrice) || 0;
+      return sum + (qty * price);
+    }, 0);
+
+    const document = await prisma.$transaction(async (tx) => {
+      // Create the return document (BON_EXPEDITION type - products going FROM client TO depot)
+      const doc = await tx.stockDocument.create({
+        data: {
+          numero,
+          type: 'BON_EXPEDITION',
+          status: 'RECEIVED', // Auto-validated since it's a client return
+          emetteurId: depotIdInt, // Emetteur is the depot (receiving back)
+          destinataireId: depotIdInt, // Destinataire is also the depot
+          clientId: clientIdInt, // Link to client
+          notes: `Client:${clientIdInt}${notes ? ' | ' + notes : ''}`,
+          items: {
+            create: items.map((item) => ({
+              productId: parseInt(item.productId),
+              famille: typeof item.famille === 'object' ? item.famille.name : (item.famille || 'Divers'),
+              quantity: Math.abs(parseQuantity(item.quantity)), // Always positive for returns
+              purchasePrice: item.purchasePrice ? parseFloat(item.purchasePrice) : null,
+              batch: item.batch || null,
+              notes: item.notes || null,
+              barcode: null
+            }))
+          },
+          statusHistory: {
+            create: {
+              status: 'RECEIVED',
+              userId: req.user.id,
+              notes: 'Bon de retour client reçu'
+            }
+          }
+        },
+        include: {
+          emetteur: true,
+          destinataire: true,
+          client: true,
+          items: { include: { product: true } }
+        }
+      });
+
+      // Update inventory - ADD returned products back to stock
+      for (const item of items) {
+        const productId = parseInt(item.productId);
+        const quantity = Math.abs(parseQuantity(item.quantity));
+
+        const inventory = await tx.inventory.findUnique({
+          where: { depotId_productId: { depotId: depotIdInt, productId } }
+        });
+
+        if (inventory) {
+          const currentQuantity = parseFloat(inventory.quantity);
+          const newQuantity = currentQuantity + quantity; // ADD to stock
+
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: { quantity: newQuantity }
+          });
+        } else {
+          // Create new inventory record
+          await tx.inventory.create({
+            data: { depotId: depotIdInt, productId, quantity }
+          });
+        }
+
+        // Create stock movement - IN movement for client return
+        await tx.stockMovement.create({
+          data: {
+            productId,
+            depotId: depotIdInt,
+            quantity: quantity, // Positive for IN movement
+            type: 'IN',
+            toDepotId: depotIdInt,
+            reason: 'CLIENT_RETURN',
+            reference: numero,
+            userId: req.user.id
+          }
+        });
+      }
+
+      // Update client current debt (reduce debt)
+      await tx.client.update({
+        where: { id: clientIdInt },
+        data: { currentDebt: { decrement: totalReturnValue } }
+      });
+
+      // Credit client account - reduce their debt (or give them positive credit)
+      // IMPORTANT: DO NOT create cash movement - this is a credit transaction only
+      await tx.clientDebtTransaction.create({
+        data: {
+          clientId: clientIdInt,
+          type: 'PAYMENT', // Treated as payment/debit to reduce debt
+          amount: totalReturnValue,
+          notes: `Bon de retour #${numero}`,
+          // NO saleId - this is not linked to a sale
+          // NO sessionId - this is not a cash transaction
+          userId: req.user.id
+        }
+      });
+
+      console.log('[stock-documents/return] Client return created:', {
+        documentId: doc.id,
+        numero: doc.numero,
+        clientId: clientIdInt,
+        totalValue: totalReturnValue,
+        itemCount: items.length
+      });
+
+      return doc;
+    });
+
+    await logAudit(req.user.id, 'stock_documents', document.id, 'CREATE', null, document);
+
+    res.status(201).json(document);
+  } catch (error) {
+    console.error('Error creating client return:', error);
+    res.status(500).json({
+      error: error.message || 'Erreur lors de la création du bon de retour client'
     });
   }
 });
