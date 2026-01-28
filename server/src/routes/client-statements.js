@@ -136,6 +136,12 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
         }
       } else {
         // Standalone transactions remain separate
+        // Transform description: replace old "Encaissement automatique depuis la caisse" with "Encaissement caisse"
+        let description = t.notes || '';
+        if (description.includes('Encaissement automatique depuis la caisse')) {
+          description = description.replace('Encaissement automatique depuis la caisse', 'Encaissement caisse');
+        }
+        
         standaloneRows.push({
           type: t.type.toLowerCase(),
           date: t.createdAt,
@@ -146,7 +152,7 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
           transactionId: t.id, // Include transaction ID for deletion
           clickable: t.type === 'PAYMENT',
           saleId: null,
-          description: t.notes || ''
+          description: description
         });
       }
     }

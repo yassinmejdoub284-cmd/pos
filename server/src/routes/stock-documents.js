@@ -1714,7 +1714,7 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
           });
 
           // Also include stock movements of type 'IN' that are not from entry documents
-          // This includes stock restorations from refunds, cancellations, etc.
+          // This includes stock restorations from refunds, cancellations, client returns, etc.
           const additionalInMovements = await prisma.stockMovement.findMany({
             where: {
               toDepotId: depotId,
@@ -1724,7 +1724,9 @@ router.get('/inventory/:depotId', authenticateToken, async (req, res) => {
               OR: [
                 { reference: null }, // Movements without reference (like restorations)
                 { reference: { not: { in: Array.from(entryDocumentNumbers) } } }, // Exclude movements already counted in entry documents
-                { reason: { contains: 'Remboursement' } } // Include all restoration movements
+                { reason: { contains: 'Remboursement' } }, // Include all restoration movements
+                { reason: 'CLIENT_RETURN' }, // Include client returns (they add stock back)
+                { reason: 'RETOUR_ARTICLE' } // Include passenger returns (they add stock back)
               ]
             }
           });
@@ -3833,14 +3835,15 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Create client return document (Bon de Retour Client)
+// Create return document (Bon de Retour) - handles both client and supplier returns
 router.post('/return', authenticateToken, async (req, res) => {
   try {
-    const { depotId, clientId, items, notes } = req.body;
+    const { depotId, clientId, supplierId, items, notes } = req.body;
 
-    console.log('[stock-documents/return] Client return request:', {
+    console.log('[stock-documents/return] Return request:', {
       depotId,
       clientId,
+      supplierId,
       itemsCount: items?.length,
       userId: req.user?.id
     });
@@ -3850,8 +3853,12 @@ router.post('/return', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Dépôt requis' });
     }
 
-    if (!clientId) {
-      return res.status(400).json({ error: 'Client requis' });
+    if (!clientId && !supplierId) {
+      return res.status(400).json({ error: 'Client ou Fournisseur requis' });
+    }
+
+    if (clientId && supplierId) {
+      return res.status(400).json({ error: 'Spécifiez soit un client, soit un fournisseur, pas les deux' });
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -3859,23 +3866,11 @@ router.post('/return', authenticateToken, async (req, res) => {
     }
 
     const depotIdInt = parseInt(depotId);
-    const clientIdInt = parseInt(clientId);
+    const clientIdInt = clientId ? parseInt(clientId) : null;
+    const supplierIdInt = supplierId ? parseInt(supplierId) : null;
 
     if (isNaN(depotIdInt) || depotIdInt <= 0) {
       return res.status(400).json({ error: 'ID de dépôt invalide' });
-    }
-
-    if (isNaN(clientIdInt) || clientIdInt <= 0) {
-      return res.status(400).json({ error: 'ID de client invalide' });
-    }
-
-    // Validate client exists
-    const client = await prisma.client.findUnique({
-      where: { id: clientIdInt }
-    });
-
-    if (!client) {
-      return res.status(400).json({ error: 'Client introuvable' });
     }
 
     // Validate depot exists
@@ -3885,6 +3880,31 @@ router.post('/return', authenticateToken, async (req, res) => {
 
     if (!depot) {
       return res.status(400).json({ error: 'Dépôt introuvable' });
+    }
+
+    // Validate client or supplier exists
+    if (clientIdInt) {
+      if (isNaN(clientIdInt) || clientIdInt <= 0) {
+        return res.status(400).json({ error: 'ID de client invalide' });
+      }
+      const client = await prisma.client.findUnique({
+        where: { id: clientIdInt }
+      });
+      if (!client) {
+        return res.status(400).json({ error: 'Client introuvable' });
+      }
+    }
+
+    if (supplierIdInt) {
+      if (isNaN(supplierIdInt) || supplierIdInt <= 0) {
+        return res.status(400).json({ error: 'ID de fournisseur invalide' });
+      }
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: supplierIdInt }
+      });
+      if (!supplier) {
+        return res.status(400).json({ error: 'Fournisseur introuvable' });
+      }
     }
 
     // Generate document number
@@ -3897,22 +3917,29 @@ router.post('/return', authenticateToken, async (req, res) => {
       return sum + (qty * price);
     }, 0);
 
+    const isClientReturn = !!clientIdInt;
+    const isSupplierReturn = !!supplierIdInt;
+
     const document = await prisma.$transaction(async (tx) => {
-      // Create the return document (BON_EXPEDITION type - products going FROM client TO depot)
+      // Create the return document
       const doc = await tx.stockDocument.create({
         data: {
           numero,
           type: 'BON_EXPEDITION',
-          status: 'RECEIVED', // Auto-validated since it's a client return
-          emetteurId: depotIdInt, // Emetteur is the depot (receiving back)
-          destinataireId: depotIdInt, // Destinataire is also the depot
-          clientId: clientIdInt, // Link to client
-          notes: `Client:${clientIdInt}${notes ? ' | ' + notes : ''}`,
+          status: 'RECEIVED', // Auto-validated
+          emetteurId: depotIdInt,
+          destinataireId: depotIdInt,
+          clientId: clientIdInt,
+          notes: isClientReturn 
+            ? `Client:${clientIdInt}${notes ? ' | ' + notes : ''}`
+            : `Supplier:${supplierIdInt}${notes ? ' | ' + notes : ''}`,
           items: {
             create: items.map((item) => ({
               productId: parseInt(item.productId),
               famille: typeof item.famille === 'object' ? item.famille.name : (item.famille || 'Divers'),
-              quantity: Math.abs(parseQuantity(item.quantity)), // Always positive for returns
+              quantity: isSupplierReturn 
+                ? -Math.abs(parseQuantity(item.quantity)) // Negative for supplier returns (products leaving)
+                : Math.abs(parseQuantity(item.quantity)), // Positive for client returns (products coming back)
               purchasePrice: item.purchasePrice ? parseFloat(item.purchasePrice) : null,
               batch: item.batch || null,
               notes: item.notes || null,
@@ -3923,7 +3950,7 @@ router.post('/return', authenticateToken, async (req, res) => {
             create: {
               status: 'RECEIVED',
               userId: req.user.id,
-              notes: 'Bon de retour client reçu'
+              notes: isClientReturn ? 'Bon de retour client reçu' : 'Bon de retour fournisseur créé'
             }
           }
         },
@@ -3935,69 +3962,122 @@ router.post('/return', authenticateToken, async (req, res) => {
         }
       });
 
-      // Update inventory - ADD returned products back to stock
+      // Handle inventory and stock movements
       for (const item of items) {
         const productId = parseInt(item.productId);
         const quantity = Math.abs(parseQuantity(item.quantity));
 
-        const inventory = await tx.inventory.findUnique({
-          where: { depotId_productId: { depotId: depotIdInt, productId } }
-        });
+        if (isSupplierReturn) {
+          // SUPPLIER RETURN: Products going FROM depot TO supplier (REDUCE stock)
+          const inventory = await tx.inventory.findUnique({
+            where: { depotId_productId: { depotId: depotIdInt, productId } }
+          });
 
-        if (inventory) {
-          const currentQuantity = parseFloat(inventory.quantity);
-          const newQuantity = currentQuantity + quantity; // ADD to stock
+          if (!inventory || parseFloat(inventory.quantity) < quantity) {
+            throw new Error(`Stock insuffisant pour le produit ${productId}. Stock disponible: ${inventory?.quantity || 0}, Quantité demandée: ${quantity}`);
+          }
 
           await tx.inventory.update({
             where: { id: inventory.id },
-            data: { quantity: newQuantity }
+            data: { quantity: { decrement: quantity } }
+          });
+
+          // Create stock movement - OUT movement for supplier return
+          await tx.stockMovement.create({
+            data: {
+              productId,
+              depotId: depotIdInt,
+              quantity: -quantity, // Negative for OUT movement
+              type: 'OUT',
+              fromDepotId: depotIdInt,
+              toDepotId: null,
+              reason: 'RETURN_SUPPLIER',
+              reference: numero,
+              userId: req.user.id
+            }
           });
         } else {
-          // Create new inventory record
-          await tx.inventory.create({
-            data: { depotId: depotIdInt, productId, quantity }
+          // CLIENT RETURN: Products coming FROM client TO depot (ADD to stock)
+          const inventory = await tx.inventory.findUnique({
+            where: { depotId_productId: { depotId: depotIdInt, productId } }
+          });
+
+          if (inventory) {
+            const currentQuantity = parseFloat(inventory.quantity);
+            const newQuantity = currentQuantity + quantity; // ADD to stock
+
+            await tx.inventory.update({
+              where: { id: inventory.id },
+              data: { quantity: newQuantity }
+            });
+          } else {
+            // Create new inventory record
+            await tx.inventory.create({
+              data: { depotId: depotIdInt, productId, quantity }
+            });
+          }
+
+          // Create stock movement - IN movement for client return
+          await tx.stockMovement.create({
+            data: {
+              productId,
+              depotId: depotIdInt,
+              quantity: quantity, // Positive for IN movement
+              type: 'IN',
+              toDepotId: depotIdInt,
+              reason: 'CLIENT_RETURN',
+              reference: numero,
+              userId: req.user.id
+            }
           });
         }
+      }
 
-        // Create stock movement - IN movement for client return
-        await tx.stockMovement.create({
+      // Update client debt if it's a client return
+      if (isClientReturn) {
+        // Update client current debt (reduce debt)
+        await tx.client.update({
+          where: { id: clientIdInt },
+          data: { currentDebt: { decrement: totalReturnValue } }
+        });
+
+        // Credit client account - reduce their debt
+        await tx.clientDebtTransaction.create({
           data: {
-            productId,
-            depotId: depotIdInt,
-            quantity: quantity, // Positive for IN movement
-            type: 'IN',
-            toDepotId: depotIdInt,
-            reason: 'CLIENT_RETURN',
-            reference: numero,
+            clientId: clientIdInt,
+            type: 'PAYMENT', // Treated as payment/debit to reduce debt
+            amount: totalReturnValue,
+            notes: `Bon de retour #${numero}`,
             userId: req.user.id
           }
         });
       }
 
-      // Update client current debt (reduce debt)
-      await tx.client.update({
-        where: { id: clientIdInt },
-        data: { currentDebt: { decrement: totalReturnValue } }
-      });
+      // Update supplier debt if it's a supplier return
+      if (isSupplierReturn) {
+        // Update supplier current debt (reduce debt)
+        await tx.supplier.update({
+          where: { id: supplierIdInt },
+          data: { currentDebt: { decrement: totalReturnValue } }
+        });
 
-      // Credit client account - reduce their debt (or give them positive credit)
-      // IMPORTANT: DO NOT create cash movement - this is a credit transaction only
-      await tx.clientDebtTransaction.create({
-        data: {
-          clientId: clientIdInt,
-          type: 'PAYMENT', // Treated as payment/debit to reduce debt
-          amount: totalReturnValue,
-          notes: `Bon de retour #${numero}`,
-          // NO saleId - this is not linked to a sale
-          // NO sessionId - this is not a cash transaction
-          userId: req.user.id
-        }
-      });
+        // Create supplier debt transaction - PAYMENT type reduces debt (debit in statement)
+        await tx.supplierDebtTransaction.create({
+          data: {
+            supplierId: supplierIdInt,
+            type: 'PAYMENT', // PAYMENT type = debit in statement (reduces debt)
+            amount: totalReturnValue,
+            notes: `Bon de retour #${numero}`,
+            userId: req.user.id
+          }
+        });
+      }
 
-      console.log('[stock-documents/return] Client return created:', {
+      console.log(`[stock-documents/return] ${isClientReturn ? 'Client' : 'Supplier'} return created:`, {
         documentId: doc.id,
         numero: doc.numero,
         clientId: clientIdInt,
+        supplierId: supplierIdInt,
         totalValue: totalReturnValue,
         itemCount: items.length
       });
@@ -4009,9 +4089,9 @@ router.post('/return', authenticateToken, async (req, res) => {
 
     res.status(201).json(document);
   } catch (error) {
-    console.error('Error creating client return:', error);
+    console.error('Error creating return document:', error);
     res.status(500).json({
-      error: error.message || 'Erreur lors de la création du bon de retour client'
+      error: error.message || 'Erreur lors de la création du bon de retour'
     });
   }
 });

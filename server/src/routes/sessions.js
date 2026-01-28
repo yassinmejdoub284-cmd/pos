@@ -2370,8 +2370,37 @@ async function generateZReport(sessionId, closureData = {}) {
   const families = Array.from(familyMap.values());
 
   // Compute per-sale paidAmount by subtracting outstanding DEBT for that sale from finalTotal
+  // For CMD_TERMINEE sales (completed temporary sales), use cash movement amount instead
   try {
     const saleIds = session.sales.map(s => s.id);
+    
+    // Get cash movements for CMD_TERMINEE sales (completion payments)
+    const cmdTermineeSales = session.sales.filter(s => (s.status || '').toUpperCase() === 'CMD_TERMINEE');
+    const cashMovementsBySaleId = {};
+    if (cmdTermineeSales.length > 0) {
+      const cmdTermineeSaleIds = cmdTermineeSales.map(s => s.id);
+      const cashMovements = await prisma.cashMovement.findMany({
+        where: {
+          sessionId: sessionId,
+          type: 'ENTREE',
+          reason: {
+            contains: 'Règlement commande #'
+          }
+        }
+      });
+      
+      // Extract sale ID from reason and map to amount
+      cashMovements.forEach(m => {
+        const match = m.reason?.match(/Règlement commande #(\d+)/);
+        if (match) {
+          const saleId = parseInt(match[1]);
+          if (cmdTermineeSaleIds.includes(saleId)) {
+            cashMovementsBySaleId[saleId] = (cashMovementsBySaleId[saleId] || 0) + parseFloat(m.amount || 0);
+          }
+        }
+      });
+    }
+    
     if (saleIds.length > 0) {
       const debts = await prisma.clientDebtTransaction.findMany({
         where: { type: 'DEBT', saleId: { in: saleIds } },
@@ -2385,13 +2414,27 @@ async function generateZReport(sessionId, closureData = {}) {
       }, {});
 
       session.sales = session.sales.map(s => {
+        const status = (s.status || '').toUpperCase();
+        // For CMD_TERMINEE sales, use cash movement amount (completion payment only)
+        if (status === 'CMD_TERMINEE' && cashMovementsBySaleId[s.id] !== undefined) {
+          return { ...s, paidAmount: cashMovementsBySaleId[s.id] };
+        }
+        
+        // For other sales, compute as before
         const total = parseFloat(s.finalTotal || 0) || 0;
         const debtForSale = debtBySaleId[s.id] || 0;
         const paidAmount = Math.max(0, total - debtForSale);
         return { ...s, paidAmount };
       });
     } else {
-      session.sales = session.sales.map(s => ({ ...s, paidAmount: parseFloat(s.finalTotal || 0) || 0 }));
+      session.sales = session.sales.map(s => {
+        const status = (s.status || '').toUpperCase();
+        // For CMD_TERMINEE sales, use cash movement amount
+        if (status === 'CMD_TERMINEE' && cashMovementsBySaleId[s.id] !== undefined) {
+          return { ...s, paidAmount: cashMovementsBySaleId[s.id] };
+        }
+        return { ...s, paidAmount: parseFloat(s.finalTotal || 0) || 0 };
+      });
     }
   } catch (e) {
     // Fallback: mark cash sales as fully paid; others as zero paid

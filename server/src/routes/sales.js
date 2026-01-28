@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const { prisma } = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
 const { sendPushToAll } = require('../lib/push');
@@ -491,18 +492,25 @@ router.put('/temporary/:id/complete', async (req, res) => {
         sessionTicketNumber = (maxNum || 0) + 1;
       }
 
+      // Build update data - only include paymentMethodId if we have a valid payment method
+      const updateData = {
+        status: 'CMD_TERMINEE',
+        expectedDate: null,
+        notes: null,
+        sessionId: activeSession ? activeSession.id : null,
+        dailyTicketNumber: sessionTicketNumber ? String(sessionTicketNumber).padStart(4, '0') : null,
+        updatedAt: new Date()
+      };
+      
+      // Only set paymentMethodId if paymentType is valid and mapped
+      const mappedPaymentMethodId = paymentMethodMap[paymentType];
+      if (mappedPaymentMethodId) {
+        updateData.paymentMethodId = mappedPaymentMethodId;
+      }
+      
       const updatedSale = await tx.sale.update({
         where: { id: parseInt(id) },
-        data: {
-          status: 'CMD_TERMINEE',
-          paymentMethodId: paymentMethodMap[paymentType] || null,
-          expectedDate: null,
-          notes: null,
-          sessionId: activeSession ? activeSession.id : null,
-          dailyTicketNumber: sessionTicketNumber ? String(sessionTicketNumber).padStart(4, '0') : null,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
+        data: updateData
       });
 
       for (const item of temporarySale.items) {
@@ -2410,6 +2418,32 @@ router.post('/return', authenticateToken, async (req, res) => {
 
         console.log(`[return-sale] Processing return for product ${productId}, quantity: ${quantity}, depot: ${targetDepotId}`);
 
+        // Update inventory directly - ADD to stock for returns
+        const inventory = await tx.inventory.findUnique({
+          where: { depotId_productId: { depotId: targetDepotId, productId } }
+        });
+
+        if (inventory) {
+          const currentQuantity = parseFloat(inventory.quantity) || 0;
+          const newQuantity = currentQuantity + quantity; // ADD to stock
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: { quantity: newQuantity }
+          });
+          console.log(`[return-sale] Updated inventory for product ${productId}: ${currentQuantity} -> ${newQuantity}`);
+        } else {
+          // Create new inventory record if it doesn't exist
+          await tx.inventory.create({
+            data: {
+              depotId: targetDepotId,
+              productId: productId,
+              quantity: quantity
+            }
+          });
+          console.log(`[return-sale] Created new inventory for product ${productId}: ${quantity}`);
+        }
+
+        // Create stock movement
         await tx.stockMovement.create({
           data: {
             productId: productId,
@@ -2423,7 +2457,7 @@ router.post('/return', authenticateToken, async (req, res) => {
           }
         });
         
-        console.log(`[return-sale] Stock movement created for product ${productId} - inventory will be recalculated from movements`);
+        console.log(`[return-sale] Stock movement created for product ${productId}`);
       }
 
       const refundAmount = parseFloat(finalTotal) || 0;

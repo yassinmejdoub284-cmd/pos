@@ -350,6 +350,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Return mode confirmation dialog
   showReturnConfirmationDialog = false;
 
+  // Return type selection
+  showReturnTypeDialog = false;
+  returnType: 'client' | 'passenger' | null = null;
+  returnClient: Client | null = null;
+  isClientReturnMode: boolean = false;
+  showReturnClientSelectionDialog = false;
+
   // Barcode scanner
   barcodeBuffer: string = '';
   barcodeTimeout: any = null;
@@ -1602,7 +1609,15 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
 
-    const effectiveUnitPrice = this.getEffectiveUnitPrice(product);
+    // For client returns, use client-specific price if available
+    let effectiveUnitPrice = this.getEffectiveUnitPrice(product);
+    if (this.isClientReturnMode && this.returnClient) {
+      // Check if client has a specific price for this product
+      const clientPrice = this.clientPrices.get(product.id);
+      if (clientPrice && clientPrice > 0) {
+        effectiveUnitPrice = clientPrice;
+      }
+    }
 
     const existingItem = activeCart.items.find(item => item.product.id === product.id && !item.isWholesale);
 
@@ -1638,6 +1653,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   toggleWholesaleMode(): void {
     if (this.isReturnMode) {
       this.isReturnMode = false;
+      this.isClientReturnMode = false;
+      this.returnType = null;
+      this.returnClient = null;
     }
 
     // If trying to enable wholesale mode, check if client is selected
@@ -2018,6 +2036,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   selectClient(client: any): void {
+    // Don't interfere with return client selection - it has its own dialog
+
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
 
@@ -2067,7 +2087,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
         });
 
         // Reload products to get all products (including variants) with fixed prices when in wholesale mode
-        if (this.isWholesaleMode && this.selectedClient) {
+        if (this.isWholesaleMode && (this.selectedClient || this.returnClient)) {
           this.loadProducts();
         } else {
           // Refresh product list according to mode
@@ -2099,6 +2119,82 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   closeClientSelectionDialog(): void {
     this.showClientSelectionDialog = false;
+  }
+
+  // Return type selection methods
+  selectReturnType(type: 'client' | 'passenger'): void {
+    this.returnType = type;
+    this.showReturnTypeDialog = false;
+
+    if (type === 'passenger') {
+      // Passenger return: toggle return mode
+      this.isReturnMode = !this.isReturnMode;
+      if (this.isReturnMode) {
+        this.isClientReturnMode = false;
+        this.returnClient = null;
+        this.isWholesaleMode = false;
+        this.showAlertMessage('Mode retour article (Passager) activé', 'info');
+        this.filterProducts();
+      } else {
+        this.showAlertMessage('Mode retour article désactivé', 'info');
+        this.filterProducts();
+      }
+    } else {
+      // Client return: show dedicated client selection dialog for returns
+      this.showReturnClientSelectionDialog = true;
+      // Fetch clients if not already loaded
+      if (this.allClientsCache.length === 0) {
+        this.fetchAllClients();
+      }
+    }
+  }
+
+  closeReturnTypeDialog(): void {
+    this.showReturnTypeDialog = false;
+  }
+
+  openReturnClientSelection(): void {
+    this.showReturnClientSelectionDialog = true;
+    // Fetch clients if not already loaded
+    if (this.allClientsCache.length === 0) {
+      this.fetchAllClients();
+    }
+  }
+
+  closeReturnClientSelection(): void {
+    this.showReturnClientSelectionDialog = false;
+  }
+
+  selectClientForReturn(client: Client): void {
+    this.returnClient = client;
+    this.isReturnMode = true;
+    this.isClientReturnMode = true;
+    this.showReturnClientSelectionDialog = false;
+    
+    // Toggle wholesale mode if client is wholesale
+    const isWholesaleClient = client.clientType === 'WHOLESALE';
+    this.isWholesaleMode = isWholesaleClient;
+    
+    // Load client prices for return
+    this.loadClientPrices(client.id);
+    
+    // Reload products to show wholesale products if needed
+    if (isWholesaleClient) {
+      this.loadProducts();
+    } else {
+      this.filterProducts();
+    }
+    
+    this.showAlertMessage(`Mode retour article (Client: ${client.firstName} ${client.lastName})${isWholesaleClient ? ' - Mode Gros activé' : ''} activé`, 'info');
+  }
+
+  // Helper method for return client selection
+  filteredClients(): any[] {
+    return this.searchResults || [];
+  }
+
+  trackByClientId(index: number, client: any): number {
+    return client.id;
   }
 
   selectCustomerOption(): void {
@@ -2603,15 +2699,17 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
 
     if (!this.isReturnMode) {
-      this.isReturnMode = true;
-      this.isWholesaleMode = false;
-      this.showAlertMessage('Mode retour article activé', 'info');
-      this.filterProducts();
+      // Show return type selection dialog
+      this.showReturnTypeDialog = true;
     } else {
       if (activeCart && activeCart.items.length > 0) {
         this.validateSale();
       } else {
+        // Reset return mode
         this.isReturnMode = false;
+        this.isClientReturnMode = false;
+        this.returnType = null;
+        this.returnClient = null;
         this.showAlertMessage('Mode retour article désactivé', 'info');
         this.filterProducts();
       }
@@ -2803,36 +2901,82 @@ export class CaisseComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const items = activeCart.items.map(item => ({
-      productId: item.product.id,
-      productName: item.product.name,
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unitPrice),
-      total: Number(item.total)
-    }));
-
-    const totalAmount = activeCart.netTotal;
-
-    this.salesService.createReturnSale({
-      depotId: this.currentShopDepotId,
-      items: items,
-      total: activeCart.subtotal,
-      discount: activeCart.discount,
-      finalTotal: totalAmount
-    }).subscribe({
-      next: () => {
-        this.showAlertMessage(`Retour effectué: ${totalAmount.toFixed(3)} dt remboursé`, 'success');
-        this.showReturnConfirmationDialog = false;
-        this.isReturnMode = false;
-        this.clearReceipt();
-        this.loadShopInventory();
-        this.sessionsService.getActiveSessionByDepot().subscribe();
-      },
-      error: (error: any) => {
-        console.error('Error processing return sale:', error);
-        this.showAlertMessage(error?.error?.error || 'Erreur lors du retour des articles', 'error');
+    // Check if this is a client return or passenger return
+    if (this.isClientReturnMode && this.returnClient) {
+      // Client return: use stock-documents return endpoint
+      if (!this.returnClient.id) {
+        this.showAlertMessage('Client non sélectionné', 'error');
+        return;
       }
-    });
+
+      const items = activeCart.items.map(item => ({
+        productId: item.product.id,
+        famille: item.product.famille?.name || 'Divers',
+        quantity: Math.abs(Number(item.quantity)),
+        purchasePrice: Number(item.unitPrice), // Return value
+        batch: null,
+        notes: null
+      }));
+
+      const data = {
+        depotId: this.currentShopDepotId,
+        clientId: this.returnClient.id,
+        items: items,
+        notes: ''
+      };
+
+      this.stockDocumentsService.createReturnDocument(data).subscribe({
+        next: (doc: any) => {
+          this.showAlertMessage(`Retour client effectué: ${activeCart.netTotal.toFixed(3)} dt crédité au client`, 'success');
+          this.showReturnConfirmationDialog = false;
+          this.isReturnMode = false;
+          this.isClientReturnMode = false;
+          this.returnType = null;
+          this.returnClient = null;
+          this.clearReceipt();
+          this.loadShopInventory();
+        },
+        error: (error: any) => {
+          console.error('Error processing client return:', error);
+          this.showAlertMessage(error?.error?.error || 'Erreur lors du retour client', 'error');
+        }
+      });
+    } else {
+      // Passenger return: use sales return endpoint (existing flow)
+      const items = activeCart.items.map(item => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        total: Number(item.total)
+      }));
+
+      const totalAmount = activeCart.netTotal;
+
+      this.salesService.createReturnSale({
+        depotId: this.currentShopDepotId,
+        items: items,
+        total: activeCart.subtotal,
+        discount: activeCart.discount,
+        finalTotal: totalAmount
+      }).subscribe({
+        next: () => {
+          this.showAlertMessage(`Retour effectué: ${totalAmount.toFixed(3)} dt remboursé`, 'success');
+          this.showReturnConfirmationDialog = false;
+          this.isReturnMode = false;
+          this.isClientReturnMode = false;
+          this.returnType = null;
+          this.returnClient = null;
+          this.clearReceipt();
+          this.loadShopInventory();
+          this.sessionsService.getActiveSessionByDepot().subscribe();
+        },
+        error: (error: any) => {
+          console.error('Error processing return sale:', error);
+          this.showAlertMessage(error?.error?.error || 'Erreur lors du retour des articles', 'error');
+        }
+      });
+    }
   }
 
   cancelReturnConfirmation(): void {
@@ -4317,7 +4461,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Set up the payment confirmation dialog
     this.pendingPaymentClient = this.selectedClient;
     this.pendingPaymentAmount = amount;
-    this.pendingPaymentNotes = `Encaissement automatique depuis la caisse - ${new Date().toLocaleString('fr-FR')}`;
+    this.pendingPaymentNotes = `Encaissement caisse - ${new Date().toLocaleString('fr-FR')}`;
     this.showPaymentConfirmationDialog = true;
   }
 
@@ -4333,7 +4477,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const paymentData = {
       clientId: client.id,
       amount: amount,
-      notes: notes || `Encaissement automatique depuis la caisse - ${new Date().toLocaleString('fr-FR')}`
+      notes: notes || `Encaissement caisse - ${new Date().toLocaleString('fr-FR')}`
     };
 
     this.http.post(`${environment.apiUrl}/client-payments`, paymentData).subscribe({

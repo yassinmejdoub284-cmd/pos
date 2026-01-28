@@ -85,6 +85,8 @@ export interface SupplierSummary {
   totalDebits: number;
   totalCredits: number;
   closingBalance: number;
+  totalDebit?: number; // Total debit from all transactions
+  totalCredit?: number; // Total credit from all transactions
   periodExpenses: number;
   periodPayments: number;
   periodDebts: number;

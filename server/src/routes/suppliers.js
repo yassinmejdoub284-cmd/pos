@@ -569,12 +569,11 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         orderBy: { createdAt: 'asc' }
       });
 
-      // Get bon d'entrée documents for this supplier in period
-      const bonEntreeDocuments = await prisma.stockDocument.findMany({
+      // Get ALL bon d'entrée documents for this supplier (for totalDebit/totalCredit calculation)
+      const allBonEntreeDocuments = await prisma.stockDocument.findMany({
         where: {
           type: 'BON_ENTREE_DEPOT',
-          notes: { contains: `Supplier:${supplier.id}` },
-          createdAt: { gte: start, lte: end }
+          notes: { contains: `Supplier:${supplier.id}` }
         },
         include: {
           items: true
@@ -582,13 +581,12 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         orderBy: { createdAt: 'asc' }
       });
 
-      // Get bon de retour documents for this supplier in period
-      const bonRetourDocuments = await prisma.stockDocument.findMany({
+      // Get ALL bon de retour documents for this supplier (for totalDebit/totalCredit calculation)
+      const allBonRetourDocuments = await prisma.stockDocument.findMany({
         where: {
           type: 'BON_EXPEDITION',
           notes: { contains: `Supplier:${supplier.id}` },
-          status: 'RECEIVED',
-          createdAt: { gte: start, lte: end }
+          status: 'RECEIVED'
         },
         include: {
           items: true
@@ -596,19 +594,71 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         orderBy: { createdAt: 'asc' }
       });
 
-      // Get debt transactions for this supplier
-      // Include ALL DEBT type transactions (initial balances) regardless of date
-      // Only filter PAYMENT type transactions by date range (same logic as statement endpoint)
-      const debtTransactions = await prisma.supplierDebtTransaction.findMany({
-        where: {
-          supplierId: supplier.id,
-          OR: [
-            { type: 'DEBT' },
-            {
-              type: 'PAYMENT',
-              createdAt: { gte: start, lte: end }
+      // Get bon d'entrée documents for this supplier in period (for period calculations)
+      const bonEntreeDocuments = allBonEntreeDocuments.filter(doc => {
+        const docDate = new Date(doc.createdAt);
+        return docDate >= start && docDate <= end;
+      });
+
+      // Get bon de retour documents for this supplier in period (for period calculations)
+      const bonRetourDocuments = allBonRetourDocuments.filter(doc => {
+        const docDate = new Date(doc.createdAt);
+        return docDate >= start && docDate <= end;
+      });
+
+      // Get ALL expenses for this supplier (for totalDebit/totalCredit calculation)
+      const allExpenseWhere = { supplierId: supplier.id };
+      if (targetDepotId) {
+        allExpenseWhere.depotId = targetDepotId;
+      } else if (req.user?.role !== 'ADMIN') {
+        allExpenseWhere.depotId = userDepotId;
+      }
+
+      const allExpenses = await prisma.expense.findMany({
+        where: allExpenseWhere,
+        include: {
+          category: {
+            select: {
+              name: true
             }
-          ]
+          }
+        },
+        orderBy: { date: 'asc' }
+      });
+
+      // Get ALL payments for this supplier (for totalDebit/totalCredit calculation)
+      const allPayments = await prisma.supplierPayment.findMany({
+        where: { supplierId: supplier.id },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      // Get bon d'entrée IDs from payments (to include bon d'entrée referenced in payments)
+      const bonEntreeIdsFromPayments = allPayments
+        .map(p => {
+          const bonMatch = p.notes?.match(/Bon d'entrée #(\d+)/);
+          return bonMatch ? parseInt(bonMatch[1]) : null;
+        })
+        .filter(id => id !== null);
+
+      // Update allBonEntreeDocuments to include bon d'entrée referenced in payments
+      if (bonEntreeIdsFromPayments.length > 0) {
+        const additionalBonEntree = await prisma.stockDocument.findMany({
+          where: {
+            type: 'BON_ENTREE_DEPOT',
+            id: { in: bonEntreeIdsFromPayments },
+            NOT: { notes: { contains: `Supplier:${supplier.id}` } }
+          },
+          include: {
+            items: true
+          }
+        });
+        allBonEntreeDocuments.push(...additionalBonEntree);
+      }
+
+      // Get ALL debt transactions for this supplier (for totalDebit/totalCredit calculation)
+      const allDebtTransactions = await prisma.supplierDebtTransaction.findMany({
+        where: {
+          supplierId: supplier.id
         },
         select: {
           id: true,
@@ -621,10 +671,19 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         orderBy: { createdAt: 'asc' }
       });
 
-      // Build transactions array using the same logic as statement route
+      // Filter debt transactions for period calculations (same logic as statement endpoint)
+      // Include ALL DEBT type transactions (initial balances) regardless of date
+      // Only filter PAYMENT type transactions by date range
+      const debtTransactions = allDebtTransactions.filter(t => 
+        t.type === 'DEBT' || (t.type === 'PAYMENT' && new Date(t.createdAt) >= start && new Date(t.createdAt) <= end)
+      );
+
+      // Build transactions array using ALL documents (for totalDebit/totalCredit)
+      // NOTE: Bon d'entrée documents are included here. If there are DEBT transactions representing them,
+      // we exclude payments that reference bon d'entrée to avoid double-counting.
       const allTransactions = [
         // 1. Bon d'entrée documents: calculate total from items (what we owe - increases debt)
-        ...bonEntreeDocuments.map(doc => {
+        ...allBonEntreeDocuments.map(doc => {
           const totalAmount = doc.items.reduce((sum, item) => {
             const qty = Math.abs(parseFloat(item.quantity || 0));
             const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
@@ -636,8 +695,8 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
             credit: totalAmount  // Credit = what we owe the supplier
           };
         }),
-        // 2. Bon de retour documents: calculate total from items (crédit fournisseur - réduit la dette)
-        ...bonRetourDocuments.map(doc => {
+        // 2. Bon de retour documents: calculate total from items (débit fournisseur - réduit la dette)
+        ...allBonRetourDocuments.map(doc => {
           const totalAmount = doc.items.reduce((sum, item) => {
             const qty = Math.abs(parseFloat(item.quantity || 0));
             const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
@@ -645,12 +704,12 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           }, 0);
           return {
             date: doc.createdAt,
-            debit: 0,
-            credit: totalAmount
+            debit: totalAmount, // Débit réduit la dette (retour de produits)
+            credit: 0
           };
         }),
-        // 3. Debt transactions: standalone debt/payment adjustments (includes initial balances)
-        ...debtTransactions.map(transaction => {
+        // 3. Debt transactions: standalone debt/payment adjustments (includes ALL transactions)
+        ...allDebtTransactions.map(transaction => {
           const amount = parseFloat(transaction.amount);
           return {
             date: transaction.createdAt,
@@ -659,15 +718,16 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           };
         }),
         // 4. Expenses: what we owe the supplier (increases debt)
+        // Use ALL expenses (not just period) for totalDebit/totalCredit calculation
         // Filter out expenses that are linked to bon de retour or bon d'entrée documents (already handled above)
-        ...periodExpenses
+        ...allExpenses
           .filter(expense => {
             // Skip expenses that are linked to bon de retour documents
             if (expense.notes && expense.notes.includes('Bon de retour')) {
               const bonRetourMatch = expense.notes.match(/Bon de retour (BR-[-\d]+)/);
               if (bonRetourMatch) {
                 const bonRetourNumero = bonRetourMatch[1];
-                const isDuplicate = bonRetourDocuments.some(doc => doc.numero === bonRetourNumero);
+                const isDuplicate = allBonRetourDocuments.some(doc => doc.numero === bonRetourNumero);
                 if (isDuplicate) {
                   return false;
                 }
@@ -681,7 +741,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
                 const bonEntreeId = bonEntreeMatch[1];
                 const bonEntreeNumero = bonEntreeMatch[2];
                 // Check if this bon d'entrée is already in our documents list
-                const isDuplicate = bonEntreeDocuments.some(doc =>
+                const isDuplicate = allBonEntreeDocuments.some(doc =>
                   (bonEntreeId && doc.id.toString() === bonEntreeId) ||
                   (bonEntreeNumero && doc.numero === bonEntreeNumero)
                 );
@@ -726,16 +786,39 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
             }
           }),
         // 5. Supplier payments: positifs = débit (règlements), négatifs = crédit (avoirs)
-        ...periodPayments.map(payment => {
-          const amount = parseFloat(payment.amount);
-          const normalized = Math.abs(amount);
-          const isCreditEntry = amount < 0 || payment.paymentMethod === 'CREDIT';
-          return {
-            date: payment.createdAt,
-            debit: isCreditEntry ? 0 : normalized,
-            credit: isCreditEntry ? normalized : 0
-          };
-        })
+        // Filter out payments that reference bon d'entrée documents (to avoid double-counting with bon d'entrée)
+        ...allPayments
+          .filter(payment => {
+            const notes = payment.notes || '';
+            // Check if this payment references a bon d'entrée
+            const bonMatchNumeric = notes.match(/Bon d'entrée #(\d+)/);
+            const bonMatchNumero = notes.match(/Bon d'entrée #(BE-[-\d]+)/i);
+            
+            if (bonMatchNumeric) {
+              const bonEntreeId = parseInt(bonMatchNumeric[1]);
+              // Exclude if this bon d'entrée is already in our documents list
+              return !allBonEntreeDocuments.some(doc => doc.id === bonEntreeId);
+            }
+            
+            if (bonMatchNumero) {
+              const bonNumero = bonMatchNumero[1];
+              // Exclude if this bon d'entrée is already in our documents list
+              return !allBonEntreeDocuments.some(doc => doc.numero === bonNumero);
+            }
+            
+            // Keep all payments that don't reference bon d'entrée
+            return true;
+          })
+          .map(payment => {
+            const amount = parseFloat(payment.amount);
+            const normalized = Math.abs(amount);
+            const isCreditEntry = amount < 0 || payment.paymentMethod === 'CREDIT';
+            return {
+              date: payment.createdAt,
+              debit: isCreditEntry ? 0 : normalized,
+              credit: isCreditEntry ? normalized : 0
+            };
+          })
       ];
 
       // Sort transactions by date (same as statement route)
@@ -770,7 +853,16 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
       const periodDebit = periodTransactions.reduce((sum, item) => sum + (item.debit || 0), 0);
       const periodCredit = periodTransactions.reduce((sum, item) => sum + (item.credit || 0), 0);
 
-      // Calculate period expenses: credit from expenses in period (excluding initial debt and bon de retour)
+      // Calculate period credit: bon d'entrée documents + expenses (excluding duplicates)
+      const periodBonEntreeCredit = bonEntreeDocuments.reduce((sum, doc) => {
+        const totalAmount = doc.items.reduce((sum, item) => {
+          const qty = Math.abs(parseFloat(item.quantity || 0));
+          const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
+          return sum + (qty * price);
+        }, 0);
+        return sum + totalAmount;
+      }, 0);
+
       const periodExpensesCredit = periodExpenses
         .filter(expense => {
           if (expense.notes && expense.notes.includes('Bon de retour')) {
@@ -806,6 +898,18 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           }
         }, 0);
 
+      const totalPeriodCredit = periodBonEntreeCredit + periodExpensesCredit;
+
+      // Calculate period debit: bon de retour documents + payments
+      const periodBonRetourDebit = bonRetourDocuments.reduce((sum, doc) => {
+        const totalAmount = doc.items.reduce((sum, item) => {
+          const qty = Math.abs(parseFloat(item.quantity || 0));
+          const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
+          return sum + (qty * price);
+        }, 0);
+        return sum + totalAmount;
+      }, 0);
+
       // Calculate period payments: sum of supplier payments in period (debit from payments)
       const periodPaymentsDebit = periodPayments
         .filter(payment => {
@@ -819,48 +923,19 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           return sum + (isCreditEntry ? 0 : normalized);
         }, 0);
 
+      // Also include PAYMENT type debt transactions in period
+      const periodDebtTransactionsDebit = debtTransactions
+        .filter(t => t.type === 'PAYMENT' && new Date(t.createdAt) >= start && new Date(t.createdAt) <= end)
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+      const totalPeriodDebit = periodBonRetourDebit + periodPaymentsDebit + periodDebtTransactionsDebit;
+
       // Calculate current debt from ALL transactions (not just period)
-      const allExpenseWhere = { supplierId: supplier.id };
-      if (targetDepotId) {
-        allExpenseWhere.depotId = targetDepotId;
-      } else if (req.user?.role !== 'ADMIN') {
-        allExpenseWhere.depotId = userDepotId;
-      }
+      // Use the same documents that were used for totals (includes bon d'entrée referenced in payments)
+      const allBonEntreeDocs = allBonEntreeDocuments;
+      const allBonRetourDocs = allBonRetourDocuments;
 
-      const allExpenses = await prisma.expense.findMany({
-        where: allExpenseWhere,
-        select: { amount: true, isPaid: true, isAdvance: true, notes: true }
-      });
-
-      const allPayments = await prisma.supplierPayment.findMany({
-        where: { supplierId: supplier.id },
-        select: { amount: true, notes: true }
-      });
-
-      const allBonEntreeDocs = await prisma.stockDocument.findMany({
-        where: {
-          type: 'BON_ENTREE_DEPOT',
-          notes: { contains: `Supplier:${supplier.id}` }
-        },
-        include: { items: true }
-      });
-
-      const allBonRetourDocs = await prisma.stockDocument.findMany({
-        where: {
-          type: 'BON_EXPEDITION',
-          notes: { contains: `Supplier:${supplier.id}` },
-          status: 'RECEIVED'
-        },
-        include: { items: true }
-      });
-
-      const allDebtTransactions = await prisma.supplierDebtTransaction.findMany({
-        where: { supplierId: supplier.id },
-        select: {
-          amount: true,
-          type: true
-        }
-      });
+      // allDebtTransactions is already declared above (line 636)
 
       // Normalise toutes les opérations pour recalculer la dette courante
       const normalizedBonRetour = allBonRetourDocs.map(doc => {
@@ -869,16 +944,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
           return sum + (qty * price);
         }, 0);
-        return { debit: 0, credit: totalAmount };
-      });
-
-      const normalizedBonEntree = allBonEntreeDocs.map(doc => {
-        const totalAmount = doc.items.reduce((sum, item) => {
-          const qty = parseFloat(item.quantity || 0);
-          const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
-          return sum + (qty * price);
-        }, 0);
-        return { debit: 0, credit: totalAmount };
+        return { debit: totalAmount, credit: 0 }; // Débit réduit la dette
       });
 
       const normalizedExpenses = allExpenses
@@ -926,15 +992,38 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           return { debit: 0, credit: totalAmount };
         });
 
-      const normalizedPayments = allPayments.map(payment => {
-        const amount = parseFloat(payment.amount);
-        const normalized = Math.abs(amount);
-        const isCreditEntry = amount < 0 || payment.paymentMethod === 'CREDIT';
-        return {
-          debit: isCreditEntry ? 0 : normalized,
-          credit: isCreditEntry ? normalized : 0
-        };
-      });
+      // Filter out payments that reference bon d'entrée documents (to avoid double-counting with bon d'entrée)
+      const normalizedPayments = allPayments
+        .filter(payment => {
+          const notes = payment.notes || '';
+          // Check if this payment references a bon d'entrée
+          const bonMatchNumeric = notes.match(/Bon d'entrée #(\d+)/);
+          const bonMatchNumero = notes.match(/Bon d'entrée #(BE-[-\d]+)/i);
+          
+          if (bonMatchNumeric) {
+            const bonEntreeId = parseInt(bonMatchNumeric[1]);
+            // Exclude if this bon d'entrée is already in our documents list
+            return !allBonEntreeDocs.some(doc => doc.id === bonEntreeId);
+          }
+          
+          if (bonMatchNumero) {
+            const bonNumero = bonMatchNumero[1];
+            // Exclude if this bon d'entrée is already in our documents list
+            return !allBonEntreeDocs.some(doc => doc.numero === bonNumero);
+          }
+          
+          // Keep all payments that don't reference bon d'entrée
+          return true;
+        })
+        .map(payment => {
+          const amount = parseFloat(payment.amount);
+          const normalized = Math.abs(amount);
+          const isCreditEntry = amount < 0 || payment.paymentMethod === 'CREDIT';
+          return {
+            debit: isCreditEntry ? 0 : normalized,
+            credit: isCreditEntry ? normalized : 0
+          };
+        });
 
       const normalizedDebtTransactions = allDebtTransactions.map(transaction => {
         const amount = parseFloat(transaction.amount);
@@ -944,10 +1033,21 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         };
       });
 
-      // Note: normalizedBonEntree is excluded because bon d'entrée debt is already
-      // represented in normalizedDebtTransactions (type='DEBT')
+      // Include bon d'entrée in ledger entries to match totals calculation
+      // If there are DEBT transactions representing them, they would be excluded, but we include
+      // bon d'entrée directly to match the allTransactions for totals
+      const normalizedBonEntree = allBonEntreeDocs.map(doc => {
+        const totalAmount = doc.items.reduce((sum, item) => {
+          const qty = Math.abs(parseFloat(item.quantity || 0));
+          const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
+          return sum + (qty * price);
+        }, 0);
+        return { debit: 0, credit: totalAmount };
+      });
+
       const ledgerEntries = [
         ...normalizedBonRetour,
+        ...normalizedBonEntree,
         ...normalizedExpenses,
         ...normalizedPayments,
         ...normalizedDebtTransactions
@@ -960,10 +1060,12 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         name: supplier.name,
         currentDebt: currentDebt,
         totalExpenses: allExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0),
-        periodExpenses: periodExpensesCredit,
-        periodPayments: periodPaymentsDebit,
-        periodDebts: initialDebt + periodDebtTransactions + periodExpensesCredit - periodPaymentsDebit,
-        periodBalance: initialDebt + periodDebtTransactions + periodExpensesCredit - periodPaymentsDebit,
+        totalDebit: totalDebit, // Total debit from all transactions
+        totalCredit: totalCredit, // Total credit from all transactions
+        periodExpenses: totalPeriodCredit, // Total credit in period (bon d'entrée + expenses)
+        periodPayments: totalPeriodDebit, // Total debit in period (bon de retour + payments + debt transactions)
+        periodDebts: initialDebt + periodDebtTransactions + totalPeriodCredit - totalPeriodDebit,
+        periodBalance: initialDebt + periodDebtTransactions + totalPeriodCredit - totalPeriodDebit,
         _count: supplier._count
       };
     }));
@@ -1008,7 +1110,29 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       end.setHours(23, 59, 59, 999);
     }
 
-    // Get expenses - filter by depotId
+    // Get ALL expenses for totalDebit/totalCredit calculation (filter by depotId only)
+    const allExpensesWhere = {
+      supplierId: parseInt(supplierId)
+    };
+    if (targetDepotId) {
+      allExpensesWhere.depotId = targetDepotId;
+    } else if (req.user?.role !== 'ADMIN') {
+      allExpensesWhere.depotId = userDepotId;
+    }
+
+    const allExpenses = await prisma.expense.findMany({
+      where: allExpensesWhere,
+      include: {
+        category: {
+          select: {
+            name: true
+          }
+        }
+      },
+      orderBy: { date: 'asc' }
+    });
+
+    // Get period-filtered expenses for statement display
     const expensesWhere = {
       supplierId: parseInt(supplierId)
     };
@@ -1027,7 +1151,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       expensesWhere.depotId = userDepotId;
     }
 
-    const expenses = await prisma.expense.findMany({
+    const expenses = hasDateFilter ? await prisma.expense.findMany({
       where: expensesWhere,
       include: {
         category: {
@@ -1037,9 +1161,24 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         }
       },
       orderBy: { date: 'asc' }
+    }) : allExpenses;
+
+    // Get ALL payments for totalDebit/totalCredit calculation
+    const allPayments = await prisma.supplierPayment.findMany({
+      where: {
+        supplierId: parseInt(supplierId)
+      },
+      select: {
+        id: true,
+        amount: true,
+        paymentMethod: true,
+        notes: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'asc' }
     });
 
-    // Get payments (include paymentMethod to check if cash payment)
+    // Get period-filtered payments for statement display
     const paymentsWhere = {
       supplierId: parseInt(supplierId)
     };
@@ -1052,7 +1191,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         paymentsWhere.createdAt = { lte: end };
       }
     }
-    const payments = await prisma.supplierPayment.findMany({
+    const payments = hasDateFilter ? await prisma.supplierPayment.findMany({
       where: paymentsWhere,
       select: {
         id: true,
@@ -1062,9 +1201,25 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         createdAt: true
       },
       orderBy: { createdAt: 'asc' }
+    }) : allPayments;
+
+    // Get ALL debt transactions for totalDebit/totalCredit calculation
+    const allDebtTransactions = await prisma.supplierDebtTransaction.findMany({
+      where: {
+        supplierId: parseInt(supplierId)
+      },
+      select: {
+        id: true,
+        amount: true,
+        type: true,
+        notes: true,
+        expenseId: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'asc' }
     });
 
-    // Get debt transactions
+    // Get period-filtered debt transactions for statement display
     // Include all DEBT type transactions (initial balances) regardless of date
     // Only filter PAYMENT type transactions by date range if dates are provided
     const debtTransactionsWhere = {
@@ -1079,7 +1234,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         }
       ];
     }
-    const debtTransactions = await prisma.supplierDebtTransaction.findMany({
+    const debtTransactions = hasDateFilter ? await prisma.supplierDebtTransaction.findMany({
       where: debtTransactionsWhere,
       select: {
         id: true,
@@ -1090,20 +1245,38 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         createdAt: true
       },
       orderBy: { createdAt: 'asc' }
-    });
+    }) : allDebtTransactions;
 
     // Get bon d'entrée documents for this supplier
     // Include documents created/updated in the date range OR documents that have payments in the date range
     // OR if there are any payments for this supplier, include all bon d'entrée documents (to show the debt)
     // This ensures bon d'entrée appears even if created before the date range but paid during it
-    const bonEntreeIdsFromPayments = payments
+    // Use allPayments to find all referenced bon d'entrée documents
+    const bonEntreeIdsFromPayments = allPayments
       .map(p => {
         const bonMatch = p.notes?.match(/Bon d'entrée #(\d+)/);
         return bonMatch ? parseInt(bonMatch[1]) : null;
       })
       .filter(id => id !== null);
 
-    // Get bon d'entrée documents for this supplier
+    // Get ALL bon d'entrée documents for this supplier (for totalDebit/totalCredit calculation)
+    // Include bon d'entrée referenced in payments (same logic as bonEntreeDocuments for display)
+    const allBonEntreeDocuments = await prisma.stockDocument.findMany({
+      where: {
+        type: 'BON_ENTREE_DEPOT',
+        OR: [
+          { notes: { contains: `Supplier:${supplierId}` } },
+          // Also include bon d'entrée referenced in payments (in case notes format is different)
+          ...(bonEntreeIdsFromPayments.length > 0 ? [{ id: { in: bonEntreeIdsFromPayments } }] : [])
+        ]
+      },
+      include: {
+        items: true
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    // Get period-filtered bon d'entrée documents for statement display
     // Always include ALL bon d'entrée for this supplier to show complete debt picture
     // The date filter is applied at the transaction level, not at document level
     // This ensures we see the debt (DEBIT) even if bon d'entrée was created before the date range
@@ -1125,7 +1298,20 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'asc' }
     });
 
-    // Get bon de retour documents for this supplier
+    // Get ALL bon de retour documents for this supplier (for totalDebit/totalCredit calculation)
+    const allBonRetourDocuments = await prisma.stockDocument.findMany({
+      where: {
+        type: 'BON_EXPEDITION',
+        notes: { contains: `Supplier:${supplierId}` },
+        status: 'RECEIVED'
+      },
+      include: {
+        items: true
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    // Get period-filtered bon de retour documents for statement display
     // Include documents created in the date range OR updated in the date range (only if dates are provided)
     const bonRetourWhere = {
       type: 'BON_EXPEDITION',
@@ -1154,13 +1340,13 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         bonRetourWhere.OR = dateConditions;
       }
     }
-    const bonRetourDocuments = await prisma.stockDocument.findMany({
+    const bonRetourDocuments = hasDateFilter ? await prisma.stockDocument.findMany({
       where: bonRetourWhere,
       include: {
         items: true
       },
       orderBy: { createdAt: 'asc' }
-    });
+    }) : allBonRetourDocuments;
 
     const bonEntreeMap = new Map();
     bonEntreeDocuments.forEach(doc => {
@@ -1174,7 +1360,7 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
 
     // Combine and sort all transactions (opposite of client statement)
     const allTransactions = [
-      // Bon de retour documents: calculate total from items (crédit fournisseur - réduit la dette)
+      // Bon de retour documents: calculate total from items (débit fournisseur - réduit la dette)
       ...bonRetourDocuments.map(doc => {
         // Calculate total amount from items
         const totalAmount = doc.items.reduce((sum, item) => {
@@ -1189,8 +1375,8 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
           type: 'bon_retour',
           date: doc.createdAt,
           reference: reference,
-          debit: 0,
-          credit: totalAmount, // Le retour crédite notre compte fournisseur
+          debit: totalAmount, // Le retour débite notre compte fournisseur (réduit la dette)
+          credit: 0,
           id: doc.id,
           clickable: true,
           bonId: doc.id.toString(),
@@ -1418,9 +1604,142 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       });
     });
 
-    const totalDebit = statement.reduce((sum, item) => sum + item.debit, 0);
-    const totalCredit = statement.reduce((sum, item) => sum + item.credit, 0);
-    const currentBalance = balance;
+    // Build ALL transactions array for totalDebit/totalCredit calculation (same as summary endpoint)
+    // NOTE: Bon d'entrée documents are included here. If there are DEBT transactions representing them,
+    // we exclude payments that reference bon d'entrée to avoid double-counting.
+    const allTransactionsForTotals = [
+      // Bon d'entrée documents: calculate total from items (what we owe - increases debt)
+      ...allBonEntreeDocuments.map(doc => {
+        const totalAmount = doc.items.reduce((sum, item) => {
+          const qty = Math.abs(parseFloat(item.quantity || 0));
+          const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
+          return sum + (qty * price);
+        }, 0);
+        return {
+          debit: 0,
+          credit: totalAmount  // Credit = what we owe the supplier
+        };
+      }),
+      // Bon de retour documents: calculate total from items (débit fournisseur - réduit la dette)
+      ...allBonRetourDocuments.map(doc => {
+        const totalAmount = doc.items.reduce((sum, item) => {
+          const qty = Math.abs(parseFloat(item.quantity || 0));
+          const price = item.purchasePrice ? parseFloat(item.purchasePrice) : 0;
+          return sum + (qty * price);
+        }, 0);
+        return {
+          debit: totalAmount, // Débit réduit la dette (retour de produits)
+          credit: 0
+        };
+      }),
+      // Debt transactions: standalone debt/payment adjustments (includes ALL transactions)
+      ...allDebtTransactions.map(transaction => {
+        const amount = parseFloat(transaction.amount);
+        return {
+          debit: transaction.type === 'PAYMENT' ? amount : 0,
+          credit: transaction.type === 'DEBT' ? amount : 0
+        };
+      }),
+      // Expenses: what we owe the supplier (increases debt)
+      // Filter out expenses that are linked to bon de retour or bon d'entrée documents
+      ...allExpenses
+        .filter(expense => {
+          // Skip expenses that are linked to bon de retour documents
+          if (expense.notes && expense.notes.includes('Bon de retour')) {
+            const bonRetourMatch = expense.notes.match(/Bon de retour (BR-[-\d]+)/);
+            if (bonRetourMatch) {
+              const bonRetourNumero = bonRetourMatch[1];
+              const isDuplicate = allBonRetourDocuments.some(doc => doc.numero === bonRetourNumero);
+              if (isDuplicate) {
+                return false;
+              }
+            }
+          }
+          // Skip expenses that are linked to bon d'entrée documents
+          if (expense.notes) {
+            const bonEntreeMatch = expense.notes.match(/Bon d'entrée #(\d+)|(BE-[-\d]+)/i);
+            if (bonEntreeMatch) {
+              const bonEntreeId = bonEntreeMatch[1];
+              const bonEntreeNumero = bonEntreeMatch[2];
+              const isDuplicate = allBonEntreeDocuments.some(doc =>
+                (bonEntreeId && doc.id.toString() === bonEntreeId) ||
+                (bonEntreeNumero && doc.numero === bonEntreeNumero)
+              );
+              if (isDuplicate) {
+                return false;
+              }
+            }
+          }
+          return true;
+        })
+        .map(expense => {
+          const totalAmount = parseFloat(expense.amount);
+          if (expense.isAdvance) {
+            let paidAmount = 0;
+            if (expense.notes && expense.notes.includes('Paiement partiel:')) {
+              const match = expense.notes.match(/Paiement partiel:\s*(\d+(?:\.\d+)?)dt payé/);
+              if (match) {
+                paidAmount = parseFloat(match[1]);
+              }
+            }
+            return {
+              debit: paidAmount,
+              credit: totalAmount
+            };
+          } else if (expense.isPaid) {
+            return {
+              debit: totalAmount,
+              credit: totalAmount
+            };
+          } else {
+            return {
+              debit: 0,
+              credit: totalAmount
+            };
+          }
+        }),
+      // Supplier payments: positifs = débit (règlements), négatifs = crédit (avoirs)
+      // Filter out payments that reference bon d'entrée documents (to avoid double-counting with bon d'entrée)
+      ...allPayments
+        .filter(payment => {
+          const notes = payment.notes || '';
+          // Check if this payment references a bon d'entrée
+          const bonMatchNumeric = notes.match(/Bon d'entrée #(\d+)/);
+          const bonMatchNumero = notes.match(/Bon d'entrée #(BE-[-\d]+)/i);
+          
+          if (bonMatchNumeric) {
+            const bonEntreeId = parseInt(bonMatchNumeric[1]);
+            // Exclude if this bon d'entrée is already in our documents list
+            return !allBonEntreeDocuments.some(doc => doc.id === bonEntreeId);
+          }
+          
+          if (bonMatchNumero) {
+            const bonNumero = bonMatchNumero[1];
+            // Exclude if this bon d'entrée is already in our documents list
+            return !allBonEntreeDocuments.some(doc => doc.numero === bonNumero);
+          }
+          
+          // Keep all payments that don't reference bon d'entrée
+          return true;
+        })
+        .map(payment => {
+          const amount = parseFloat(payment.amount);
+          const normalized = Math.abs(amount);
+          const isCreditEntry = amount < 0 || payment.paymentMethod === 'CREDIT';
+          return {
+            debit: isCreditEntry ? 0 : normalized,
+            credit: isCreditEntry ? normalized : 0
+          };
+        })
+    ];
+
+    // Calculate totals from ALL transactions (same as summary endpoint)
+    const totalDebit = allTransactionsForTotals.reduce((sum, item) => sum + (item.debit || 0), 0);
+    const totalCredit = allTransactionsForTotals.reduce((sum, item) => sum + (item.credit || 0), 0);
+    
+    // Calculate currentBalance the same way as summary endpoint's currentDebt
+    // Use the same ledger entries logic
+    const currentBalance = allTransactionsForTotals.reduce((sum, entry) => sum + (entry.credit - entry.debit), 0);
 
     res.json({
       supplier,
