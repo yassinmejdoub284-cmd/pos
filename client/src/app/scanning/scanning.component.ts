@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { ProductsService } from '../core/services/products.service';
 import { ProduitsDeCaisseService } from '../core/services/produits-de-caisse.service';
 import { ClientsService } from '../core/services/clients.service';
@@ -13,6 +14,7 @@ import { AuthService } from '../core/services/auth.service';
 import { WholesaleRulesService, WholesaleRule } from '../core/services/wholesale-rules.service';
 import { Product } from '../core/models/product.model';
 import { ProduitDeCaisse } from '../core/models/produit-de-caisse.model';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-scanning',
@@ -115,6 +117,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
   // Products cache for fast lookup
   private productsCache = new Map<number, Product>();
   private produitsDeCaisseCache = new Map<number, ProduitDeCaisse>();
+  // Track failed parent product loads to avoid repeated API calls
+  private failedParentProductIds = new Set<number>();
   
   // Wholesale rules for pricing
   private wholesaleRules: WholesaleRule[] = [];
@@ -126,6 +130,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   constructor(
     private router: Router,
+    private http: HttpClient,
     private productsService: ProductsService,
     private produitsDeCaisseService: ProduitsDeCaisseService,
     private clientsService: ClientsService,
@@ -143,7 +148,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.initializeSounds();
     this.focusInput();
     this.loadProducts();
-    this.loadProduitsDeCaisse();
+    // Don't load produits de caisse here - wait for depot to be determined
+    // It will be loaded in loadCurrentDepot() or tryAlternativeDepotLoading()
     this.loadClients();
     this.loadCurrentDepot();
     this.loadDepots();
@@ -155,11 +161,6 @@ export class ScanningComponent implements OnInit, OnDestroy {
     // Also try to get the active session directly
     this.sessionsService.getActiveSessionByDepot().subscribe({
       next: (session) => {
-
-
-
-
-        
         if (session && session.depotId) {
           this.currentDepotId = session.depotId;
           if (session.depot) {
@@ -167,8 +168,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
           } else {
             this.loadDepotById(session.depotId);
           }
+          // Reload produits de caisse with the correct depot ID
+          this.loadProduitsDeCaisse();
         } else {
-
           // Try to get depot from user or other sources
           this.tryAlternativeDepotLoading();
         }
@@ -231,7 +233,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   private loadProducts(): void {
-    this.productsService.getProducts().subscribe({
+    // Load all products without depot filter to ensure all parent products are available
+    // This is necessary because produits de caisse may reference parent products from any depot
+    // We use a direct HTTP call to bypass the service's depot filtering logic
+    const apiUrl = `${environment.apiUrl}/products`;
+    this.http.get<Product[]>(apiUrl).subscribe({
       next: (products: Product[]) => {
         // Cache products by ID for fast lookup
         this.productsCache.clear();
@@ -240,20 +246,99 @@ export class ScanningComponent implements OnInit, OnDestroy {
         });
       },
       error: (error: any) => {
-        console.error('Error loading products:', error);
+        // Silently fallback to service method if direct call fails
+        this.productsService.getProducts().subscribe({
+          next: (products: Product[]) => {
+            this.productsCache.clear();
+            products.forEach((product: Product) => {
+              this.productsCache.set(product.id, product);
+            });
+          },
+          error: (fallbackError: any) => {
+            // Only log if it's not a 404 (expected for missing products)
+            if (fallbackError?.status !== 404) {
+              console.warn('Error loading products (fallback):', fallbackError);
+            }
+          }
+        });
+      }
+    });
+  }
+
+  private loadMissingParentProducts(parentProductIds: number[]): void {
+    // Load multiple parent products in parallel
+    parentProductIds.forEach(parentProductId => {
+      this.loadMissingParentProduct(parentProductId);
+    });
+  }
+
+  private loadMissingParentProduct(parentProductId: number): void {
+    // Only load if not already in cache, not already loading, and not previously failed
+    if (this.productsCache.has(parentProductId)) {
+      return;
+    }
+
+    // Don't retry if we've already failed to load this product
+    if (this.failedParentProductIds.has(parentProductId)) {
+      return;
+    }
+
+    // Check if we're already loading this product
+    const loadingKey = `loading_${parentProductId}`;
+    if ((this as any)[loadingKey]) {
+      return;
+    }
+    (this as any)[loadingKey] = true;
+
+    this.productsService.getProduct(parentProductId).subscribe({
+      next: (product: Product) => {
+        this.productsCache.set(product.id, product);
+        // Remove from failed list if it was there
+        this.failedParentProductIds.delete(parentProductId);
+        delete (this as any)[loadingKey];
+      },
+      error: (error: any) => {
+        // Silently skip products that aren't found or not assigned to this depot
+        // Mark as failed so we don't keep trying
+        this.failedParentProductIds.add(parentProductId);
+        if (error?.status !== 404) {
+          // Only log non-404 errors (actual problems)
+          console.warn(`Error loading parent product ${parentProductId}:`, error);
+        }
+        delete (this as any)[loadingKey];
       }
     });
   }
 
   private async loadProduitsDeCaisse(): Promise<void> {
     try {
-      const produits = await this.produitsDeCaisseService.getActiveProduitsDeCaisse().toPromise();
+      // Only load produits de caisse assigned to the current depot
+      const depotId = this.currentDepotId;
+      if (!depotId) {
+        console.warn('No depot ID available, skipping produits de caisse load');
+        return;
+      }
+      
+      const produits = await this.produitsDeCaisseService.getActiveProduitsDeCaisse(depotId).toPromise();
       if (produits) {
         produits.forEach(produit => {
           this.produitsDeCaisseCache.set(produit.id, produit);
         });
         // Initialize filtered list for manual add
         this.filteredProduitsDeCaisse = produits;
+        
+        // Load any missing parent products (silently skip those not found/assigned)
+        const missingParentIds = new Set<number>();
+        produits.forEach(produit => {
+          if (produit.parentProductId && !this.productsCache.has(produit.parentProductId)) {
+            missingParentIds.add(produit.parentProductId);
+          }
+        });
+        
+        // Load missing parent products (will silently skip those not assigned to depot)
+        if (missingParentIds.size > 0) {
+          this.loadMissingParentProducts(Array.from(missingParentIds));
+        }
     // this.searchProductByBarcode("1234001891011")
     // this.searchProductByBarcode("1234002891011")
     // this.searchProductByBarcode("1234003891011")
@@ -1506,14 +1591,13 @@ export class ScanningComponent implements OnInit, OnDestroy {
   private loadCurrentDepot(): void {
     // First try to get the current session directly
     const currentSession = this.sessionsService.currentSession();
-
     
     if (currentSession && currentSession.depotId) {
       this.currentDepotId = currentSession.depotId;
-
       if (currentSession.depot) {
         this.currentDepot = currentSession.depot;
-
+        // Reload produits de caisse with the correct depot ID
+        this.loadProduitsDeCaisse();
       } else {
         this.loadDepotById(currentSession.depotId);
       }
@@ -1522,21 +1606,21 @@ export class ScanningComponent implements OnInit, OnDestroy {
     // Also subscribe to changes
     this.sessionsService.currentSession$.subscribe({
       next: (session) => {
-
         if (session && session.depotId) {
+          const previousDepotId = this.currentDepotId;
           this.currentDepotId = session.depotId;
 
           // Store the depot information from the session if available
           if (session.depot) {
             this.currentDepot = session.depot;
-
+            // Reload produits de caisse if depot changed
+            if (previousDepotId !== session.depotId) {
+              this.loadProduitsDeCaisse();
+            }
           } else {
             // If depot info is not in session, load it separately
-
             this.loadDepotById(session.depotId);
           }
-        } else {
-
         }
       },
       error: (error) => {
@@ -1548,12 +1632,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
   private loadDepotById(depotId: number): void {
     this.depotsService.list().subscribe({
       next: (depots) => {
-
         const depot = depots.find((d: any) => d.id === depotId);
-
         if (depot) {
           this.currentDepot = depot;
-
+          // Reload produits de caisse with the correct depot ID
+          this.loadProduitsDeCaisse();
         }
       },
       error: (error) => {
@@ -1563,25 +1646,22 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   private tryAlternativeDepotLoading(): void {
-
-    
     // Try to get depot from user profile
     const currentUser = this.authService.currentUser();
-
     
     if (currentUser && currentUser.depotId) {
-
       this.currentDepotId = currentUser.depotId;
       this.loadDepotById(this.currentDepotId);
+      this.loadProduitsDeCaisse();
       return;
     }
     
     // Try to get depot from localStorage
     const storedDepotId = localStorage.getItem('currentDepotId');
     if (storedDepotId) {
-
       this.currentDepotId = parseInt(storedDepotId);
       this.loadDepotById(this.currentDepotId);
+      this.loadProduitsDeCaisse();
       return;
     }
     
@@ -1589,22 +1669,20 @@ export class ScanningComponent implements OnInit, OnDestroy {
     const ticketStateKeys = Object.keys(localStorage).filter(key => key.startsWith('pos_ticket_state_depot_'));
     if (ticketStateKeys.length > 0) {
       const depotIdFromTicket = ticketStateKeys[0].replace('pos_ticket_state_depot_', '');
-
       this.currentDepotId = parseInt(depotIdFromTicket);
       this.loadDepotById(this.currentDepotId);
+      this.loadProduitsDeCaisse();
       return;
     }
-    
-
     
     // If no depot found, try to get the first available depot as fallback
     this.depotsService.list().subscribe({
       next: (depots) => {
         const activeDepots = depots.filter((d: any) => d.isActive);
         if (activeDepots.length > 0) {
-
           this.currentDepotId = activeDepots[0].id;
           this.currentDepot = activeDepots[0];
+          this.loadProduitsDeCaisse();
         }
       },
       error: (error) => {
@@ -2230,7 +2308,25 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
     // Group produits by parent product
     this.filteredProduitsDeCaisse.forEach(produit => {
-      const parentId = produit.parentProductId || -produit.id; // Use negative ID for standalone products
+      // If produit has a parentProductId, check if parent exists or failed to load
+      let parentId: number;
+      if (produit.parentProductId) {
+        // Check if parent is in cache (exists) or if it failed to load
+        if (this.productsCache.has(produit.parentProductId)) {
+          // Parent exists, use it
+          parentId = produit.parentProductId;
+        } else if (this.failedParentProductIds.has(produit.parentProductId)) {
+          // Parent failed to load (not assigned to depot), treat as standalone
+          parentId = -produit.id;
+        } else {
+          // Parent might still be loading, use it for now (will be handled below)
+          parentId = produit.parentProductId;
+        }
+      } else {
+        // No parent, treat as standalone
+        parentId = -produit.id;
+      }
+      
       if (!groups.has(parentId)) {
         groups.set(parentId, []);
       }
@@ -2245,8 +2341,18 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
       if (parentId > 0) {
         parentProduct = this.productsCache.get(parentId) || null;
-        parentProductName = parentProduct?.name || 'Produit Parent Inconnu';
-        parentProductImage = parentProduct?.photo || null;
+        if (!parentProduct) {
+          // Parent not found - if it failed to load, these should have been treated as standalone above
+          // But if we're here, treat as standalone - use first produit's name
+          if (produits.length > 0) {
+            parentProductName = produits[0].name;
+          } else {
+            parentProductName = 'Produits Indépendants';
+          }
+        } else {
+          parentProductName = parentProduct.name || 'Produits Indépendants';
+          parentProductImage = parentProduct.photo || null;
+        }
       } else {
         // For standalone products, use the first product's info
         if (produits.length > 0) {
@@ -2277,7 +2383,13 @@ export class ScanningComponent implements OnInit, OnDestroy {
     
     if (produit.parentProductId) {
       const parentProduct = this.productsCache.get(produit.parentProductId) || null;
-      return parentProduct?.name || 'Produit Parent Inconnu';
+      if (!parentProduct) {
+        // Don't try to load here - this method might be called frequently
+        // Missing parents are loaded when produits are first loaded
+        // If parent not found, just use the produit's own name (treat as standalone)
+        return produit.name || '';
+      }
+      return parentProduct.name || produit.name || '';
     }
     
     return produit.name || '';

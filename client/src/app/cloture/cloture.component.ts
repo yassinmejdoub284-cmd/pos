@@ -990,11 +990,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   // Get the actual expected cash from the session (not calculated)
-  // Subtract cancelled tickets amount from the balance
+  // The server's expectedCash already accounts for all transactions correctly,
+  // including excluding cancelled tickets, so we use it directly
   getSessionExpectedCash(): number {
     const baseExpectedCash = parseFloat((this.currentSession()?.expectedCash as any) || 0) || 0;
-    const cancelledTicketsTotal = this.getCancelledTicketsTotal();
-    return baseExpectedCash - cancelledTicketsTotal;
+    // Don't subtract cancelled tickets - the server already handles this correctly
+    return baseExpectedCash;
   }
 
   // Opening fund as computed signal for auto-updates
