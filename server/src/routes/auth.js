@@ -21,87 +21,13 @@ function writeUserRoles(obj) {
   fs.writeFileSync(USER_ROLES_FILE, JSON.stringify(obj || {}, null, 2), 'utf-8');
 }
 
-// Enterprise login handler
-async function handleEnterpriseLogin(req, res, username, password) {
-  try {
-    // Find enterprise user
-    const enterpriseUser = await prisma.userEnterprise.findFirst({
-      where: {
-        name: username
-      },
-      include: {
-        company: true
-      }
-    });
-
-    if (!enterpriseUser) {
-      return res.status(401).json({ error: 'Nom d\'utilisateur ou mot de passe invalide' });
-    }
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, enterpriseUser.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Nom d\'utilisateur ou mot de passe invalide' });
-    }
-
-    // Generate JWT token
-    const jwtToken = jwt.sign(
-      { 
-        userId: enterpriseUser.id, 
-        role: 'ENTERPRISE_USER',
-        companyId: enterpriseUser.companyId,
-        userType: 'enterprise'
-      },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
-
-    // Enterprise user permissions (full access for billing software)
-    const permissions = {
-      canManageUsers: true,
-      canManageProducts: true,
-      canManageStock: true,
-      canApproveTransfers: true,
-      canViewReports: true,
-      canManageSettings: true,
-      canProcessSales: true,
-      canViewHistory: true
-    };
-
-    res.json({
-      user: {
-        id: enterpriseUser.id,
-        username: enterpriseUser.name,
-        email: null,
-        firstName: enterpriseUser.name,
-        lastName: '',
-        role: 'ENTERPRISE_USER',
-        depotId: null,
-        roleKey: null,
-        companyId: enterpriseUser.companyId,
-        companyName: enterpriseUser.company?.raisonSociale || 'Entreprise',
-        userType: 'enterprise'
-      },
-      token: jwtToken,
-      permissions
-    });
-
-  } catch (error) {
-    console.error('Enterprise login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
-
 const router = express.Router();
 
 router.post('/login', async (req, res) => {
   try {
     const { pin, token, username, password, depotId } = req.body;
 
-    // Check if this is enterprise login (username/password)
-    if (username && password) {
-      return handleEnterpriseLogin(req, res, username, password);
-    }
+    // PIN or token-based authentication
 
     if (!pin && !token) {
       return res.status(400).json({ error: 'PIN or token is required' });

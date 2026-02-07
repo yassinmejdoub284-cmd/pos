@@ -66,36 +66,13 @@ router.get('/', authenticateToken, async (req, res) => {
 
     console.log(`[produits-de-caisse] Fetching products for depot: ${depot.name} (ID: ${targetDepotId}, Type: ${depot.type})`);
 
-    // First, check how many depot assignments exist for this depot
-    const depotAssignmentsCount = await prisma.produitDeCaisseDepot.count({
-      where: { depotId: targetDepotId }
-    });
-
-    console.log(`[produits-de-caisse] Found ${depotAssignmentsCount} depot assignments for depot ${targetDepotId}`);
 
     // Filter produits by depot - ALWAYS filter for isolation
     const produits = await prisma.produitDeCaisse.findMany({
       where: {
-        isActive: true,
-        depotAssignments: {
-          some: {
-            depotId: targetDepotId
-          }
-        }
+        isActive: true
       },
       include: {
-        depotAssignments: {
-          include: {
-            depot: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-                type: true
-              }
-            }
-          }
-        },
         famille: {
           select: {
             id: true,
@@ -154,26 +131,9 @@ router.get('/active', authenticateToken, async (req, res) => {
     // Filter produits by depot - ALWAYS filter for isolation
     const produits = await prisma.produitDeCaisse.findMany({
       where: { 
-        isActive: true,
-        depotAssignments: {
-          some: {
-            depotId: targetDepotId
-          }
-        }
+        isActive: true
       },
       include: {
-        depotAssignments: {
-          include: {
-            depot: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-                type: true
-              }
-            }
-          }
-        },
         famille: true,
         parentProduct: {
           select: {
@@ -223,29 +183,9 @@ router.get('/:id', authenticateToken, async (req, res) => {
     
     const produit = await prisma.produitDeCaisse.findFirst({
       where: {
-        id: parseInt(id),
-        ...(targetDepotId ? {
-          depotAssignments: {
-            some: {
-              depotId: targetDepotId
-            }
-          }
-        } : {})
+        id: parseInt(id)
       },
       include: {
-        depotAssignments: {
-          where: targetDepotId ? { depotId: targetDepotId } : {},
-          include: {
-            depot: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-                type: true
-              }
-            }
-          }
-        },
         famille: true
       }
     });
@@ -282,7 +222,6 @@ router.post('/', authenticateToken, async (req, res) => {
       prix_achat,
       tva = 19,
       photo,
-      duree_conservation,
       isVrac = false,
       originalProductId,
       parentProductId,
@@ -405,7 +344,6 @@ router.post('/', authenticateToken, async (req, res) => {
         prix_achat,
         tva,
         photo,
-        duree_conservation,
         isVrac,
         originalProductId: originalProductId ? parseInt(originalProductId) : null,
         parentProductId: parentProductId ? parseInt(parentProductId) : null,
@@ -420,25 +358,8 @@ router.post('/', authenticateToken, async (req, res) => {
         bundlePrice,
         productIds: JSON.stringify(productIdsArray || []),
         isActive,
-        depotAssignments: {
-          create: depotIdsInt.map(depotId => ({
-            depotId: depotId
-          }))
-        }
       },
       include: {
-        depotAssignments: {
-          include: {
-            depot: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-                type: true
-              }
-            }
-          }
-        },
         famille: true,
         parentProduct: {
           select: {
@@ -479,7 +400,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
       prix_achat,
       tva,
       photo,
-      duree_conservation,
       isVrac,
       originalProductId,
       isStockable,
@@ -500,11 +420,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const existingProduit = await prisma.produitDeCaisse.findUnique({
       where: { id: parseInt(id) },
       include: {
-        depotAssignments: {
-          select: {
-            depotId: true
-          }
-        }
       }
     });
 
@@ -581,11 +496,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
           where: { 
             name,
             id: { not: parseInt(id) },
-            depotAssignments: {
-              some: {
-                depotId: { in: depotIdsToCheck }
-              }
-            }
           }
         });
 
@@ -608,7 +518,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (prix_achat !== undefined) updateData.prix_achat = prix_achat;
     if (tva !== undefined) updateData.tva = tva;
     if (photo !== undefined) updateData.photo = photo;
-    if (duree_conservation !== undefined) updateData.duree_conservation = duree_conservation;
     if (isVrac !== undefined) updateData.isVrac = isVrac;
     if (originalProductId !== undefined) updateData.originalProductId = originalProductId ? parseInt(originalProductId) : null;
     if (isStockable !== undefined) updateData.isStockable = isStockable;
@@ -629,23 +538,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
       data: updateData
     });
 
-    // Handle depot assignments separately if provided
-    if (depotIds !== undefined) {
-      const depotIdsInt = depotIds.map(id => parseInt(id)).filter(id => !isNaN(id));
-      
-      // Delete existing depot assignments
-      await prisma.produitDeCaisseDepot.deleteMany({
-        where: { produitDeCaisseId: parseInt(id) }
-      });
-
-      // Create new depot assignments
-      await prisma.produitDeCaisseDepot.createMany({
-        data: depotIdsInt.map(depotId => ({
-          produitDeCaisseId: parseInt(id),
-          depotId: depotId
-        }))
-      });
-    }
 
     // Note: produits-de-caisse don't use the inventory table directly
     // They manage stock through their own initialStock, minStock, maxStock fields
@@ -654,18 +546,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const produit = await prisma.produitDeCaisse.findUnique({
       where: { id: parseInt(id) },
       include: {
-        depotAssignments: {
-          include: {
-            depot: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-                type: true
-              }
-            }
-          }
-        },
         famille: true
       }
     });

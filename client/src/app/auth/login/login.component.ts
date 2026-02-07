@@ -1,15 +1,12 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { RemindersService } from '../../core/services/reminders.service';
-import { Reminder } from '../../core/models/reminder.model';
 import { VoicePlayerComponent } from '../../shared/components/voice-player/voice-player.component';
 import { UsersService } from '../../core/services/users.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { LoginThemeService } from '../../core/services/login-theme.service';
 import { DepotsService } from '../../core/services/depots.service';
-import { NotificationsService } from '../../core/services/notifications.service';
 
 @Component({
   selector: 'app-login',
@@ -67,9 +64,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private http: HttpClient,
     private usersService: UsersService,
-    private depotsService: DepotsService,
-    private remindersService: RemindersService,
-    private notificationsService: NotificationsService
+    private depotsService: DepotsService
   ) {}
 
   ngOnInit(): void {
@@ -300,203 +295,14 @@ export class LoginComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ===================== Rappels (Surface post-login) =====================
-  showReminderSurface = false;
-  currentReminder: Reminder | null = null;
-  reminderQueue: Reminder[] = [];
-  showSnoozeMenu = false;
-  snoozedUntilText = '';
-  showNotificationSurface = false;
-  notifications: any[] = [];
+  // ===================== Post-login redirect =====================
   private postLoginRole: string | null = null;
 
   private async tryShowRemindersThenRedirect(source: 'LOGIN' | 'SESSION'): Promise<void> {
-
-    
-    // Only fetch if user is authenticated (avoid 401 errors after logout)
-    if (!this.authService.isAuthenticated()) {
-
-      const role = this.authService.getCurrentUserRole();
-      if (role) {
-        await this.redirectBasedOnRole(role);
-      } else {
-        // No role, just stay on login page
-      }
-      return;
-    }
-    
-    // Fetch both reminders and notifications
-    this.remindersService.fetchDue().subscribe({
-      next: async (list) => {
-        // Check again if still authenticated
-        if (!this.authService.isAuthenticated()) {
-
-          return;
-        }
-        
-
-        const due = (list || []).slice(0, 3);
-        if (due.length === 0) {
-          // No reminders: fetch notifications and redirect
-
-          await this.fetchNotificationsAndRedirect();
-          return;
-        }
-
-        this.reminderQueue = [...due];
-        this.currentReminder = this.reminderQueue.shift() || null;
-        this.showReminderSurface = !!this.currentReminder;
-      },
-      error: async (error) => {
-        // If 401, user is logged out, just redirect
-        if (error.status === 401) {
-
-          return;
-        }
-        console.error('Error fetching reminders:', error);
-        // On error, fetch notifications and proceed only if still authenticated
-        if (this.authService.isAuthenticated()) {
-          await this.fetchNotificationsAndRedirect();
-        }
-      }
-    });
-  }
-
-  private async fetchNotificationsAndRedirect(): Promise<void> {
-
-    
-    // Check if user is still authenticated before making API calls
-    if (!this.authService.isAuthenticated()) {
-
-      const role = this.postLoginRole || this.authService.getCurrentUserRole();
-      if (role) {
-        await this.redirectBasedOnRole(role);
-      }
-      return;
-    }
-    
-    // Fetch notifications after login
-    this.notificationsService.updateUnreadCount();
-    
-    // Log notifications for debugging and show them if they exist
-    this.notificationsService.fetchUnread().subscribe({
-      next: async (notifications) => {
-        // Check again if still authenticated
-        if (!this.authService.isAuthenticated()) {
-
-          return;
-        }
-        
-
-        if (notifications.length > 0) {
-
-          this.notifications = notifications;
-          this.showNotificationSurface = true;
-          // Don't redirect immediately if there are notifications to show
-          return;
-        }
-
-        // No notifications, proceed with redirect
-        await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
-      },
-      error: async (error) => {
-        // If 401, user is logged out, don't redirect
-        if (error.status === 401) {
-
-          return;
-        }
-        console.error('Error fetching notifications on login:', error);
-        // On error, proceed with redirect only if still authenticated
-        if (this.authService.isAuthenticated()) {
-          await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
-        }
-      }
-    });
-  }
-
-  onMarkRead(): void {
-    if (!this.currentReminder) return;
-    const id = this.currentReminder.id;
-    this.remindersService.markRead(id).subscribe({
-      next: () => {
-        // Toast could be global; keep minimal UX
-        // Advance to next or redirect
-        this.advanceReminderQueue();
-      },
-      error: () => {
-        this.advanceReminderQueue();
-      }
-    });
-  }
-
-  toggleSnoozeMenu(): void { this.showSnoozeMenu = !this.showSnoozeMenu; }
-
-  onSnooze(minutes: number): void {
-    if (!this.currentReminder) return;
-    this.showSnoozeMenu = false;
-    this.snoozedUntilText = '';
-    this.remindersService.snooze(this.currentReminder.id, minutes, false).subscribe({
-      next: () => {
-        // Feedback text not strictly needed on surface after snooze; continue
-        this.advanceReminderQueue();
-      },
-      error: () => this.advanceReminderQueue()
-    });
-  }
-
-  onSnoozeDemain(): void {
-    if (!this.currentReminder) return;
-    this.showSnoozeMenu = false;
-    this.snoozedUntilText = '08:30';
-    this.remindersService.snooze(this.currentReminder.id, undefined, true).subscribe({
-      next: () => this.advanceReminderQueue(),
-      error: () => this.advanceReminderQueue()
-    });
-  }
-
-  onVoicePlaybackComplete(): void {
-    // Optional: Auto-mark as read after voice playback
-    // this.onMarkRead();
-  }
-
-  private advanceReminderQueue(): void {
-    if (this.reminderQueue.length > 0) {
-      this.currentReminder = this.reminderQueue.shift() || null;
-      this.snoozedUntilText = '';
-      this.showReminderSurface = !!this.currentReminder;
-      return;
-    }
-    this.currentReminder = null;
-    this.showReminderSurface = false;
-    
-    // For admin users, don't automatically redirect - let them handle notifications first
-    // The depot selection will happen when they try to access the main app
-    if (this.postLoginRole === 'ADMIN') {
-
-    }
-    
-    this.fetchNotificationsAndRedirect();
-  }
-
-  formatDue(dueAt?: string): string {
-    if (!dueAt) return '';
-    const d = new Date(dueAt);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return isToday ? `aujourd’hui à ${hh}:${mm}` : `${d.toLocaleDateString()} ${hh}:${mm}`;
-    }
-
-  isOverdue(dueAt?: string): boolean {
-    return !!dueAt && new Date(dueAt).getTime() < Date.now();
-  }
-
-  formatPriority(p?: string): string {
-    switch (p) {
-      case 'ELEVEE': return 'Élevée';
-      case 'FAIBLE': return 'Faible';
-      default: return 'Normal';
+    // Simplified: just redirect based on role
+    const role = this.postLoginRole || this.authService.getCurrentUserRole();
+    if (role) {
+      await this.redirectBasedOnRole(role);
     }
   }
 
@@ -787,62 +593,4 @@ export class LoginComponent implements OnInit, OnDestroy {
     return this.isScannerMode ? 'Scanner détecté...' : 'Prêt pour scanner';
   }
 
-  // Notification methods
-  formatNotificationDate(createdAt: string): string {
-    const date = new Date(createdAt);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.round(diffMs / (1000 * 60));
-    
-    if (diffMins < 1) return 'À l\'instant';
-    if (diffMins < 60) return `Il y a ${diffMins} min`;
-    const diffHours = Math.round(diffMins / 60);
-    if (diffHours < 24) return `Il y a ${diffHours}h`;
-    const diffDays = Math.round(diffHours / 24);
-    if (diffDays < 7) return `Il y a ${diffDays}j`;
-    
-    return date.toLocaleDateString('fr-FR', { 
-      day: 'numeric', 
-      month: 'short', 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  }
-
-  markNotificationAsRead(notificationId: number): void {
-    this.notificationsService.markAsRead(notificationId).subscribe({
-      next: () => {
-        // Remove from local list
-        this.notifications = this.notifications.filter(n => n.id !== notificationId);
-        if (this.notifications.length === 0) {
-          this.dismissNotifications();
-        }
-      },
-      error: (error) => {
-        console.error('Error marking notification as read:', error);
-      }
-    });
-  }
-
-  markAllNotificationsAsRead(): void {
-
-    this.notificationsService.markAllAsRead().subscribe({
-      next: () => {
-
-        this.notifications = [];
-        this.dismissNotifications();
-      },
-      error: (error) => {
-        console.error('Error marking all notifications as read:', error);
-      }
-    });
-  }
-
-  async dismissNotifications(): Promise<void> {
-
-
-    this.showNotificationSurface = false;
-    this.notifications = [];
-    await this.redirectBasedOnRole(this.postLoginRole || this.authService.getCurrentUserRole() || 'HOME');
-  }
 }

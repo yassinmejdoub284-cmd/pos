@@ -34,70 +34,11 @@ export interface SettingsAction {
 
         <!-- Actions -->
         <div class="p-6">
-          <div class="grid grid-cols-3 gap-4 justify-items-center" style="grid-template-rows: auto auto;">
-            <!-- First row: Paramètres Généraux spans 2 columns, then Utilisateurs -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <button 
-              (click)="selectAction(actions[0].id)"
-              class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden w-full max-w-[300px] col-span-2">
-              
-              <div class="flex items-center space-x-4">
-                <!-- Icon Container -->
-                <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center transition-transform duration-300 shadow-lg ring-2 ring-white/50 flex-shrink-0" 
-                     [ngClass]="actions[0].color">
-                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="actions[0].icon"></path>
-                  </svg>
-                </div>
-                
-                <!-- Content -->
-                <div class="text-left">
-                  <h3 class="font-bold text-amber-800 text-base group-hover:text-amber-900 transition-colors duration-300 leading-tight">
-                    {{ actions[0].title }}
-                  </h3>
-                  <p class="text-sm text-amber-600/70 group-hover:text-amber-700 transition-colors duration-300 mt-1 leading-tight">
-                    {{ actions[0].description }}
-                  </p>
-                </div>
-              </div>
-              
-              <!-- Hover Effect -->
-              <div class="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-yellow-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
-            </button>
-
-            <button 
-              (click)="selectAction(actions[1].id)"
-              class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden w-full">
-              
-              <div class="flex flex-col items-center space-y-3">
-                <!-- Icon Container -->
-                <div class="w-12 h-12 bg-gradient-to-br rounded-xl flex items-center justify-center transition-transform duration-300 shadow-lg ring-2 ring-white/50" 
-                     [ngClass]="actions[1].color">
-                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="actions[1].icon"></path>
-                  </svg>
-                </div>
-                
-                <!-- Content -->
-                <div class="text-center">
-                  <h3 class="font-bold text-amber-800 text-sm group-hover:text-amber-900 transition-colors duration-300 leading-tight">
-                    {{ actions[1].title }}
-                  </h3>
-                  <p class="text-xs text-amber-600/70 group-hover:text-amber-700 transition-colors duration-300 mt-1 leading-tight">
-                    {{ actions[1].description }}
-                  </p>
-                </div>
-              </div>
-              
-              <!-- Hover Effect -->
-              <div class="absolute inset-0 bg-gradient-to-br from-amber-50/50 to-yellow-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
-            </button>
-
-            <!-- Second row: 3 items centered -->
-            <button 
-              *ngFor="let action of actions.slice(2, 5); let i = index" 
+              *ngFor="let action of actions" 
               (click)="selectAction(action.id)"
-              class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden w-full"
-              [style.grid-column]="i === 0 ? '1' : i === 1 ? '2' : '3'">
+              class="group cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-amber-100/50 transition-all duration-300 ring-1 ring-amber-50 relative overflow-hidden w-full">
               
               <div class="flex flex-col items-center space-y-3">
                 <!-- Icon Container -->
@@ -168,30 +109,6 @@ export class SettingsActionDialogComponent {
       icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
       color: 'from-emerald-500 to-green-600',
       gradient: 'from-emerald-50 to-green-100'
-    },
-    {
-      id: 'tables-salon',
-      title: 'Gestion des Tables de Salon',
-      description: 'Gérer les tables et l\'espace salon',
-      icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
-      color: 'from-emerald-500 to-teal-600',
-      gradient: 'from-emerald-50 to-teal-100'
-    },
-    {
-      id: 'enterprise',
-      title: 'Gestion d\'Entreprise',
-      description: 'Gérer les entreprises et leurs entrepôts',
-      icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
-      color: 'from-indigo-500 to-purple-600',
-      gradient: 'from-indigo-50 to-purple-100'
-    },
-    {
-      id: 'reminders',
-      title: 'Rappels',
-      description: 'Créer et gérer les rappels',
-      icon: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-      color: 'from-emerald-500 to-cyan-600',
-      gradient: 'from-emerald-50 to-cyan-100'
     }
   ];
 

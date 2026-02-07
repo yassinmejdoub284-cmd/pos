@@ -23,11 +23,9 @@ export interface Product {
   prix_vente_TTC: number;
   tva: number;
   photo?: string;
-  duree_conservation?: number;
   createdAt: Date;
   updatedAt: Date;
   inventory?: Inventory[];
-  conservation?: ProductConservation[];
 }
 
 export interface Inventory {
@@ -41,21 +39,6 @@ export interface Inventory {
   product?: Product;
 }
 
-export interface ProductConservation {
-  id: number;
-  productId: number;
-  depotId: number;
-  batchQuantity: number;
-  remainingQuantity: number;
-  productionDate: Date;
-  expirationDate: Date;
-  isExpired: boolean;
-  isWarningShown: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  product?: Product;
-  depot?: Depot;
-}
 
 export interface Depot {
   id: number;

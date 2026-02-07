@@ -107,17 +107,7 @@ export class SocketService {
     return this.on('ticket_created');
   }
 
-  onTransferRequest(): Observable<any> {
-    return this.on('transfer_request');
-  }
 
-  onTransferApproved(): Observable<any> {
-    return this.on('transfer_approved');
-  }
-
-  onTransferCompleted(): Observable<any> {
-    return this.on('transfer_completed');
-  }
 
   onNotification(): Observable<any> {
     return this.on('notification');
@@ -131,11 +121,5 @@ export class SocketService {
     this.emit('leave_depot', { depotId });
   }
 
-  requestStockTransfer(transferData: any): void {
-    this.emit('request_transfer', transferData);
-  }
 
-  approveTransfer(transferId: number, approved: boolean): void {
-    this.emit('approve_transfer', { transferId, approved });
-  }
 } 

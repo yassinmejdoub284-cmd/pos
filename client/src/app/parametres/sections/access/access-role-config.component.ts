@@ -41,7 +41,6 @@ export class AccessRoleConfigComponent implements OnInit, OnDestroy {
   blocks: HomeBlockDef[] = [
     { id: 'caisse', title: 'Caisse', colorClass: 'from-emerald-200 to-green-200' },
     { id: 'historique-ventes', title: 'Historique des Ventes', colorClass: 'from-slate-200 to-gray-200' },
-    { id: 'historique-pointage', title: 'Historique Pointage', colorClass: 'from-slate-300 to-gray-300' },
     { id: 'cloture', title: 'Clôture', colorClass: 'from-rose-200 to-pink-200' },
     { id: 'stock', title: 'Stock', colorClass: 'from-orange-200 to-amber-200', submodules: [
       { id: 'stock-achat', label: 'Achat', description: "Créer un bon d'entrée ou un bon de retour", icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
@@ -61,7 +60,6 @@ export class AccessRoleConfigComponent implements OnInit, OnDestroy {
       { id: 'general', label: 'Paramètres Généraux', description: 'Configuration système et préférences' },
       { id: 'users', label: 'Gestion des Utilisateurs', description: 'Créer et gérer les comptes utilisateurs' },
       { id: 'access', label: 'Gestion des Accès', description: "Afficher/masquer les blocs d'accueil par rôle" },
-      { id: 'enterprise', label: "Gestion d'Entreprise", description: 'Gérer les entreprises et leurs entrepôts' }
     ] },
     { id: 'rapports', title: 'Rapports', colorClass: 'from-blue-200 to-indigo-200', submodules: [
       { id: 'rapport-extrait-journalier', label: 'Extrait Journalière', description: 'Extraits 10 derniers jours détaillés', icon: 'M9 19v-6a2 2 0 00-2-2H5m0 0l7-7 7 7H17a2 2 0 00-2 2v6' },
@@ -71,7 +69,6 @@ export class AccessRoleConfigComponent implements OnInit, OnDestroy {
       { id: 'rapport-finance', label: 'Finance', description: 'Relevés clients et fournisseurs', icon: 'M3 10h18M7 15h10' },
       { id: 'rapport-depense', label: 'État Dépense', description: 'Suivi dépenses et statuts', icon: 'M12 6v12M6 12h12' },
       { id: 'rapport-dashboard', label: 'Dashboard', description: 'Indicateurs clés', icon: 'M5 13l4 4L19 7' },
-      { id: 'rapport-reconciliation', label: 'Réconciliation Inventaire & Ventes', description: 'Récap achats/ventes valorisés', icon: 'M12 8v4l3 3' },
       { id: 'rapport-mvt-stock', label: 'État MVT STOCK', description: 'Mouvements stock CUMP/détail', icon: 'M6 6h12v12H6z' }
     ]},
     { id: 'approvals', title: 'Centre d\'approbation', colorClass: 'from-purple-200 to-violet-200' },
@@ -93,7 +90,6 @@ export class AccessRoleConfigComponent implements OnInit, OnDestroy {
       { id: 'fournisseurs-releve', label: 'Relevé Fournisseur', description: 'Consulter relevés fournisseurs', icon: 'M7 7h10M7 11h10' },
       { id: 'fournisseurs-reglement', label: 'Règlement Fournisseur', description: 'Gérer règlements fournisseurs', icon: 'M3 10h18M7 15h1' }
     ]},
-    { id: 'vente-tables', title: 'Vente Tables', colorClass: 'from-purple-200 to-pink-200' },
     { id: 'extrait-par-article', title: 'Extrait par Article', colorClass: 'from-teal-200 to-cyan-200' },
   ];
 
@@ -110,14 +106,10 @@ export class AccessRoleConfigComponent implements OnInit, OnDestroy {
     charges: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
     clients: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
     suppliers: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
-    'vente-tables': 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
-    'tables-salon': 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
     'extrait-par-article': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
     scanning: 'M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z',
     'documents-reception': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-    inventory: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
-    'reminders-admin': 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-    enterprise: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'
+    inventory: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'
   };
 
   getBlockIcon(id: string): string {

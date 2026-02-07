@@ -478,26 +478,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
             user: true
           },
           orderBy: { createdAt: 'desc' }
-        },
-        sourceLinks: {
-          include: {
-            targetDocument: {
-              include: {
-                emetteur: true,
-                destinataire: true
-              }
-            }
-          }
-        },
-        targetLinks: {
-          include: {
-            sourceDocument: {
-              include: {
-                emetteur: true,
-                destinataire: true
-              }
-            }
-          }
         }
       }
     });
@@ -2288,129 +2268,19 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
 
         // Check for product depot link first
         let targetProductId = item.productId;
-        let sourceProductId = item.productId;
-        let sourceDepotId = document.emetteurId;
-        let destinationDepotId = parseInt(depotId);
 
-        // Check if there's a link from source product to destination product
-        if (sourceDepotId && destinationDepotId) {
-          const productLink = await tx.productDepotLink.findFirst({
-            where: {
-              sourceProductId: sourceProductId,
-              sourceDepotId: sourceDepotId,
-              destinationDepotId: destinationDepotId
-            },
-            include: {
-              destinationProduct: true
-            }
-          });
-
-          if (productLink) {
-            console.log('🔗 Found product depot link:', {
-              sourceProductId: sourceProductId,
-              sourceDepotId: sourceDepotId,
-              destinationProductId: productLink.destinationProductId,
-              destinationDepotId: destinationDepotId
-            });
-            targetProductId = productLink.destinationProductId;
-            sourceProductId = productLink.destinationProductId;
-          } else {
-            // Check for famille consolidation if no direct product link
-            const sourceProduct = await tx.product.findUnique({
-              where: { id: sourceProductId },
-              select: { familleId: true }
-            });
-
-            if (sourceProduct) {
-              const familleConsolidation = await tx.productFamilleConsolidation.findUnique({
-                where: {
-                  unique_famille_consolidation: {
-                    sourceFamilleId: sourceProduct.familleId,
-                    sourceDepotId: sourceDepotId,
-                    destinationDepotId: destinationDepotId
-                  }
-                },
-                include: {
-                  destinationProduct: true
-                }
-              });
-
-              if (familleConsolidation) {
-                console.log('🔗 Found famille consolidation:', {
-                  sourceFamilleId: sourceProduct.familleId,
-                  sourceDepotId: sourceDepotId,
-                  destinationProductId: familleConsolidation.destinationProductId,
-                  destinationDepotId: destinationDepotId
-                });
-                targetProductId = familleConsolidation.destinationProductId;
-                sourceProductId = familleConsolidation.destinationProductId;
-              }
-            }
-          }
-        }
 
         // Use parentProductId if available, otherwise try to find parent by famille
         let parentProduct = null;
 
         if (item.parentProductId) {
 
-          // If we have a link, check if parentProductId should also be linked
-          if (sourceDepotId && destinationDepotId) {
-            const parentLink = await tx.productDepotLink.findFirst({
-              where: {
-                sourceProductId: item.parentProductId,
-                sourceDepotId: sourceDepotId,
-                destinationDepotId: destinationDepotId
-              }
-            });
-            if (parentLink) {
-              targetProductId = parentLink.destinationProductId;
-
-            } else {
-              targetProductId = item.parentProductId;
-            }
-          } else {
             targetProductId = item.parentProductId;
-          }
           parentProduct = await tx.product.findUnique({
             where: { id: targetProductId }
           });
 
         } else if (item.famille) {
-          // First check for famille consolidation
-          if (sourceDepotId && destinationDepotId) {
-            const famille = await tx.productFamily.findFirst({
-              where: {
-                name: item.famille
-              }
-            });
-
-            if (famille) {
-              const familleConsolidation = await tx.productFamilleConsolidation.findUnique({
-                where: {
-                  unique_famille_consolidation: {
-                    sourceFamilleId: famille.id,
-                    sourceDepotId: sourceDepotId,
-                    destinationDepotId: destinationDepotId
-                  }
-                },
-                include: {
-                  destinationProduct: true
-                }
-              });
-
-              if (familleConsolidation) {
-                console.log('🔗 Found famille consolidation by name:', {
-                  familleName: item.famille,
-                  sourceDepotId: sourceDepotId,
-                  destinationProductId: familleConsolidation.destinationProductId,
-                  destinationDepotId: destinationDepotId
-                });
-                targetProductId = familleConsolidation.destinationProductId;
-                parentProduct = familleConsolidation.destinationProduct;
-              }
-            }
-          }
 
           // If no consolidation found, try exact match by product name
           if (!parentProduct) {
@@ -3778,15 +3648,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
         });
       }
 
-      // Delete document links (both source and target)
-      await tx.stockDocumentLink.deleteMany({
-        where: {
-          OR: [
-            { sourceDocumentId: documentId },
-            { targetDocumentId: documentId }
-          ]
-        }
-      });
 
       // Delete status history
       await tx.documentStatusHistory.deleteMany({

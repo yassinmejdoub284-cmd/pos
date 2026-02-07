@@ -2,7 +2,7 @@ import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface StockDocumentAction {
-  id: 'all' | 'factures' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert';
+  id: 'all' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert';
   title: string;
   description: string;
   icon: string;
@@ -65,17 +65,10 @@ export interface StockDocumentAction {
   `
 })
 export class StockDocumentActionDialogComponent {
-  @Output() actionSelected = new EventEmitter<'all' | 'factures' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert'>();
+  @Output() actionSelected = new EventEmitter<'all' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert'>();
   @Output() dialogClosed = new EventEmitter<void>();
 
   actions: StockDocumentAction[] = [
-    {
-      id: 'factures',
-      title: 'Factures',
-      description: 'Consulter les factures',
-      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-      color: 'from-emerald-500 to-green-600'
-    },
     {
       id: 'bon-livraison',
       title: 'Bons de livraisons',
@@ -106,7 +99,7 @@ export class StockDocumentActionDialogComponent {
     }
   ];
 
-  selectAction(actionId: 'all' | 'factures' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert'): void {
+  selectAction(actionId: 'all' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert'): void {
     this.actionSelected.emit(actionId);
   }
 

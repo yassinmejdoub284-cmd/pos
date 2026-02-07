@@ -12,11 +12,9 @@ export interface User {
   updatedAt: Date;
   companyId?: number;
   companyName?: string;
-  userType?: 'patisserie' | 'enterprise';
-  roleKey?: string;
 }
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER' | 'ENTERPRISE_USER';
+export type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'STOCK_MANAGER';
 
 export interface UserPermissions {
   canManageUsers: boolean;

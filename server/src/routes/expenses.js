@@ -5,6 +5,7 @@ const path = require('path');
 const { authenticateToken } = require('../middleware/auth');
 const { AuditLogger } = require('../lib/audit');
 const { sendPushToAll } = require('../lib/push');
+const { getDepotSettings } = require('../lib/settings');
 
 const router = express.Router();
 
@@ -26,22 +27,9 @@ function readFileSettings() {
   return {};
 }
 
-async function getAutoApproveThreshold() {
-  // Try DB first
-  try {
-    if (prisma.appSettings && typeof prisma.appSettings.findFirst === 'function') {
-      const settings = await prisma.appSettings.findFirst();
-      if (settings && typeof settings.autoApproveExpenseBelow !== 'undefined') {
-        const n = Number(settings.autoApproveExpenseBelow);
-
-        return isNaN(n) ? 0 : n;
-      }
-    }
-  } catch {}
-  // Fallback to file settings
-  const fileSettings = readFileSettings();
-  const n = Number(fileSettings.autoApproveExpenseBelow);
-
+async function getAutoApproveThreshold(depotId = 'default') {
+  const settings = getDepotSettings(depotId);
+  const n = Number(settings.autoApproveExpenseBelow);
   return isNaN(n) ? 0 : n;
 }
 
@@ -427,8 +415,8 @@ router.post('/', authenticateToken, async (req, res) => {
       finalDepotId = userDepotId;
     }
 
-    // Fetch approval threshold from settings (DB then file fallback)
-    const autoApproveThreshold = await getAutoApproveThreshold();
+    // Fetch approval threshold from settings (file)
+    const autoApproveThreshold = await getAutoApproveThreshold(finalDepotId);
 
     const numericAmount = Number(amount);
     const isAutoApproved = !isNaN(numericAmount) && numericAmount <= autoApproveThreshold;

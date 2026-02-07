@@ -26,8 +26,6 @@ export interface StockDocument {
   driver?: Driver;
   items?: StockDocumentItem[];
   statusHistory?: DocumentStatusHistory[];
-  sourceLinks?: StockDocumentLink[];
-  targetLinks?: StockDocumentLink[];
 }
 
 export interface StockDocumentItem {
@@ -61,16 +59,6 @@ export interface DocumentStatusHistory {
   user?: User;
 }
 
-export interface StockDocumentLink {
-  id: number;
-  sourceDocumentId: number;
-  targetDocumentId: number;
-  linkType: string;
-  createdAt: Date;
-  
-  sourceDocument?: StockDocument;
-  targetDocument?: StockDocument;
-}
 
 export interface Depot {
   id: number;

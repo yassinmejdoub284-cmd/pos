@@ -29,10 +29,6 @@ const routes: Routes = [
     loadChildren: () => import('./dashboard/dashboard.module').then(m => m.DashboardModule)
   },
   { 
-    path: 'inventory-sales-reconciliation', 
-    loadChildren: () => import('./inventory-sales-reconciliation/inventory-sales-reconciliation.module').then(m => m.InventorySalesReconciliationModule)
-  },
-  { 
     path: 'etat-mvt-stock', 
     loadChildren: () => import('./etat-mvt-stock/etat-mvt-stock.module').then(m => m.EtatMvtStockModule)
   },

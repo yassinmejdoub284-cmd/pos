@@ -8,11 +8,9 @@ import { ProductsComponent } from './products.component';
 import { ProductFormComponent } from './product-form/product-form.component';
 import { BulkImportComponent } from './bulk-import/bulk-import.component';
 import { VracConversionFormComponent } from './vrac-conversion-form/vrac-conversion-form.component';
-import { VracStatisticsComponent } from './vrac-statistics/vrac-statistics.component';
 import { ProductTransferFormComponent } from './product-transfer-form/product-transfer-form.component';
 import { MultiTransferFormComponent } from './multi-transfer-form/multi-transfer-form.component';
 import { ImageUploadModalComponent } from '../../shared/components/image-upload-modal/image-upload-modal.component';
-import { ConservationWarningsComponent } from '../../shared/components/conservation-warnings/conservation-warnings.component';
 import { MultiDepotSelectorComponent } from '../../shared/multi-depot-selector/multi-depot-selector.component';
 
 @NgModule({
@@ -21,7 +19,6 @@ import { MultiDepotSelectorComponent } from '../../shared/multi-depot-selector/m
     ProductFormComponent,
     BulkImportComponent,
     VracConversionFormComponent,
-    VracStatisticsComponent,
     ProductTransferFormComponent,
     MultiTransferFormComponent
   ],
@@ -31,7 +28,6 @@ import { MultiDepotSelectorComponent } from '../../shared/multi-depot-selector/m
     ReactiveFormsModule,
     ProductsRoutingModule,
     ImageUploadModalComponent,
-    ConservationWarningsComponent,
     MultiDepotSelectorComponent
   ],
   exports: [

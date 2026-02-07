@@ -1,6 +1,5 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { AttendanceService } from './attendance.service';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { User, AuthResponse, LoginRequest, UserPermissions } from '../models/user.model';
 import { environment } from '../../../environments/environment';
@@ -14,7 +13,6 @@ export class AuthService {
   private readonly API_URL = `${environment.apiUrl}`;
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   private permissionsSubject = new BehaviorSubject<UserPermissions | null>(null);
-  private punchInProgress = false;
   
   public currentUser$ = this.currentUserSubject.asObservable();
   public permissions$ = this.permissionsSubject.asObservable();
@@ -22,7 +20,7 @@ export class AuthService {
   public isAuthenticated = signal(false);
   public currentUser = signal<User | null>(null);
 
-  constructor(private http: HttpClient, private attendanceService: AttendanceService, private depotsService: DepotsService, private loginThemeService: LoginThemeService) {
+  constructor(private http: HttpClient, private depotsService: DepotsService, private loginThemeService: LoginThemeService) {
     // Load auth state immediately on service initialization
     this.loadStoredAuth();
     
@@ -46,98 +44,19 @@ export class AuthService {
     return this.http.post<AuthResponse>(`${this.API_URL}/auth/login`, credentials).pipe(
       tap({
         next: (response) => {
-
           this.setAuthData(response);
           
-          // Only handle attendance and company theme for patisserie users
-          if (response.user.userType !== 'enterprise') {
-            // After setting auth, resolve and store last company for login theme
-            this.resolveAndStoreCompanyForTheme(response.user);
-            // Fire check-in punch after successful login (non-blocking) with a small delay
-            setTimeout(() => {
-              if (!this.punchInProgress) {
-                this.punchInProgress = true;
-
-                this.attendanceService.punch('CHECK_IN', response.user.id).subscribe({ 
-                  next: () => {
-
-                    this.punchInProgress = false;
-                  }, 
-                  error: (err) => {
-
-                    this.punchInProgress = false;
-                    // Don't retry on 401 - likely auth issue
-                    if (err.status !== 401) {
-
-                      setTimeout(() => {
-                        if (!this.punchInProgress) {
-                          this.punchInProgress = true;
-                          this.attendanceService.punch('CHECK_IN', response.user.id).subscribe({
-                            next: () => {
-
-                              this.punchInProgress = false;
-                            },
-                            error: (retryErr) => {
-
-                              this.punchInProgress = false;
-                            }
-                          });
-                        }
-                      }, 2000);
-                    }
-                  }
-                });
-              }
-            }, 100);
-          } else {
-
-          }
+          // After setting auth, resolve and store last company for login theme
+          this.resolveAndStoreCompanyForTheme(response.user);
         },
         error: (error) => {
-          // Don't call punch on login failure
-
         }
       })
     );
   }
 
   logout(): void {
-    // Fire check-out punch before clearing session (best effort) - only for patisserie users
-    const currentUser = this.currentUser();
-    const token = this.getToken();
-    
-    if (!this.punchInProgress && currentUser?.userType !== 'enterprise' && token) {
-      this.punchInProgress = true;
-      try {
-        // Make punch request and clear session immediately after request is initiated
-        this.attendanceService.punch('CHECK_OUT', currentUser?.id).subscribe({ 
-          next: () => {
-
-            this.punchInProgress = false;
-          }, 
-          error: (err) => {
-            // Only log if it's not a 401 (token might already be invalid)
-            if (err.status !== 401) {
-
-            }
-            this.punchInProgress = false;
-          }
-        });
-        
-        // Clear session immediately to prevent API calls with invalid token
-        // The punch request is already in flight, so it will use the token from the request
-        this.clearSession();
-      } catch (error) {
-
-        this.punchInProgress = false;
-        this.clearSession();
-      }
-    } else {
-      if (currentUser?.userType === 'enterprise') {
-
-      }
-      this.clearSession();
-    }
+    this.clearSession();
   }
 
   private clearSession(): void {

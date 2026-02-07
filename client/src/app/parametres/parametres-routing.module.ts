@@ -13,7 +13,6 @@ const routes: Routes = [
   { path: 'fidelite', component: ParametresComponent },
   { path: 'remises-dettes', component: ParametresComponent },
   { path: 'raccourcis', component: ParametresComponent },
-  { path: 'caisse', component: ParametresComponent },
   { path: 'impression', component: ParametresComponent },
   { path: 'depenses', component: ParametresComponent },
   { path: 'cloture', component: ParametresComponent },

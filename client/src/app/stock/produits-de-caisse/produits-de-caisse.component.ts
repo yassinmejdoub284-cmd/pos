@@ -42,10 +42,11 @@ export class ProduitsDeStockComponent implements OnInit {
     const groups = this.groupedProducts();
     const search = this.searchQuery().toLowerCase().trim();
     const category = this.selectedCategory();
-    
     return groups.filter(group => {
-      // Category filter
-      const categoryMatch = category === 'Tous' || group.product.famille?.name === category;
+      // Category filter - check parent and sub-products
+      const categoryMatch = category === 'Tous' || 
+        group.product.famille?.name === category ||
+        group.subProducts.some(sub => sub.famille?.name === category);
       
       // Search filter - search in product name and subproduct names
       const searchMatch = !search || 
@@ -94,48 +95,78 @@ export class ProduitsDeStockComponent implements OnInit {
     try {
       const depotId = this.sessionsService.getActiveDepotId();
       
+      // Fetch both scannable articles and master products
       const [produits, products] = await Promise.all([
         firstValueFrom(this.produitsDeStockService.getProduitsDeStock(depotId)),
-        firstValueFrom(this.productsService.getProducts())
+        firstValueFrom(this.productsService.getProducts(depotId))
       ]) as [ProduitDeStock[], Product[]];
+
+      this.produitsDeStock.set(produits || []);
+      this.allProducts.set(products || []);
       
-      this.produitsDeStock.set(produits as ProduitDeStock[] || []);
-      this.allProducts.set(products as Product[] || []);
+      // Group scannable articles by their parent product NAME + FAMILLE
+      // This merges conceptual duplicates (like the two HLOU ARBI products) into one UI group
+      const groupsMap = new Map<string, {product: Product, subProducts: ProduitDeStock[]}>();
+      const orphans: ProduitDeStock[] = [];
+
+      produits.forEach(sub => {
+        if (sub.parentProduct) {
+          const groupKey = `${sub.parentProduct.name.toLowerCase()}|${sub.familleId}`;
+          if (!groupsMap.has(groupKey)) {
+            // Find if there's a "proper" master product for this name assigned to this depot
+            const assignedParent = products.find(p => 
+              p.name.toLowerCase() === sub.parentProduct!.name.toLowerCase() && 
+              p.familleId === sub.familleId
+            );
+
+            groupsMap.set(groupKey, {
+              product: {
+                ...(assignedParent || sub.parentProduct),
+                famille: sub.famille,
+                unite: sub.unite,
+                // These header fields are just for the group display
+                prix_vente_TTC: assignedParent?.prix_vente_TTC || sub.prix_vente_TTC
+              } as any,
+              subProducts: []
+            });
+          }
+          groupsMap.get(groupKey)!.subProducts.push(sub);
+        } else {
+          orphans.push(sub);
+        }
+      });
+
+      const grouped = Array.from(groupsMap.values())
+        .sort((a, b) => b.subProducts.length - a.subProducts.length || a.product.name.localeCompare(b.product.name));
+
+      if (orphans.length > 0) {
+        grouped.push({
+          product: {
+            id: -1,
+            name: 'Articles Sans Parent / Divers',
+            famille: { id: -1, name: 'Divers' } as any,
+            prix_vente_TTC: 0 as any,
+            unite: '-',
+            isStockable: false
+          } as any,
+          subProducts: orphans.sort((a, b) => a.name.localeCompare(b.name))
+        });
+      }
+
+      this.groupedProducts.set(grouped);
       
-      // Group sub-products under their parent products
-      this.groupProductsWithSubProducts(products, produits);
+      // Extract unique categories purely from scannable articles
+      const uniqueFamilies = Array.from(new Set(
+        produits.map(p => p.famille?.name).filter((name): name is string => !!name)
+      )).sort();
       
-      // Extract unique categories from all products
-      const categories = ['Tous', ...new Set(
-        products
-          .map(product => product.famille?.name)
-          .filter(Boolean) as string[]
-      )];
-      this.productCategories.set(categories);
+      this.productCategories.set(['Tous', ...uniqueFamilies]);
     } catch (err) {
       this.error.set('Erreur lors du chargement des données');
       console.error('Error loading data:', err);
     } finally {
       this.loading.set(false);
     }
-  }
-
-  private groupProductsWithSubProducts(products: Product[], subProducts: ProduitDeStock[]): void {
-    const grouped = products
-      .map(product => ({
-        product,
-        subProducts: subProducts.filter(sub => sub.parentProductId === product.id)
-      }))
-      .sort((a, b) => {
-        // First sort by number of subproducts (most to least)
-        if (b.subProducts.length !== a.subProducts.length) {
-          return b.subProducts.length - a.subProducts.length;
-        }
-        // Then sort alphabetically by product name
-        return a.product.name.localeCompare(b.product.name);
-      });
-    
-    this.groupedProducts.set(grouped);
   }
 
   onProduitAdded(): void {

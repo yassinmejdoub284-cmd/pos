@@ -37,21 +37,13 @@ const clientStatementsRoutes = require('./routes/client-statements');
 const clientPaymentsRoutes = require('./routes/client-payments');
 const cashStatementsRoutes = require('./routes/cash-statements');
 const inventoryRoutes = require('./routes/inventory');
-const invoicesRoutes = require('./routes/invoices');
+
 const returnsRoutes = require('./routes/returns');
 const companiesRoutes = require('./routes/companies');
 const pdfRoutes = require('./routes/pdf');
-const attendanceRoutes = require('./routes/attendance');
 const produitsDeCaisseRoutes = require('./routes/produits-de-caisse');
 const driversRoutes = require('./routes/drivers');
 const vehiclesRoutes = require('./routes/vehicles');
-const remindersRoutes = require('./routes/reminders');
-const notificationsRoutes = require('./routes/notifications');
-const salonsRoutes = require('./routes/salons');
-const tablesRoutes = require('./routes/tables');
-const creditEntriesRoutes = require('./routes/credit-entries');
-const releveInventaireRoutes = require('./routes/releve-inventaire');
-const manualEntriesRoutes = require('./routes/manual-entries');
 const adminDashboardRoutes = require('./routes/admin-dashboard');
 
 const { authenticateToken } = require('./middleware/auth');
@@ -103,21 +95,13 @@ app.use('/api/client-statements', authenticateToken, clientStatementsRoutes);
 app.use('/api/client-payments', authenticateToken, clientPaymentsRoutes);
 app.use('/api/cash-statements', authenticateToken, cashStatementsRoutes);
 app.use('/api/inventory', authenticateToken, inventoryRoutes);
-app.use('/api/invoices', authenticateToken, invoicesRoutes);
+
 app.use('/api/returns', authenticateToken, returnsRoutes);
 app.use('/api/pdf', authenticateToken, pdfRoutes);
 app.use('/api/companies', authenticateToken, companiesRoutes);
-app.use('/api/attendance', authenticateToken, attendanceRoutes);
 app.use('/api/produits-de-caisse', authenticateToken, produitsDeCaisseRoutes);
 app.use('/api/drivers', authenticateToken, driversRoutes);
 app.use('/api/vehicles', authenticateToken, vehiclesRoutes);
-app.use('/api/reminders', remindersRoutes);
-app.use('/api/notifications', notificationsRoutes);
-app.use('/api/salons', authenticateToken, salonsRoutes);
-app.use('/api/tables', authenticateToken, tablesRoutes);
-app.use('/api/credit-entries', authenticateToken, creditEntriesRoutes);
-app.use('/api/releve-inventaire', authenticateToken, releveInventaireRoutes);
-app.use('/api/manual-entries', authenticateToken, manualEntriesRoutes);
 app.use('/api/admin-dashboard', authenticateToken, adminDashboardRoutes);
 
 // Create HTTP or HTTPS server based on env

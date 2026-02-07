@@ -11,7 +11,6 @@ export interface Product {
   prix_achat?: number;
   tva: number;
   photo?: string;
-  duree_conservation?: number;
   // Vrac fields
   isVrac?: boolean;
   isStockable?: boolean;
@@ -32,9 +31,7 @@ export interface Product {
   createdAt: Date;
   updatedAt: Date;
   inventory?: Inventory[];
-  conservation?: ProductConservation[];
   vracProducts?: Product[];
-  vracPrices?: VracPrice[];
 }
 
 export interface ProductFamily {
@@ -50,21 +47,6 @@ export interface ProductFamily {
   };
 }
 
-export interface ProductConservation {
-  id: number;
-  productId: number;
-  depotId: number;
-  batchQuantity: number;
-  remainingQuantity: number;
-  productionDate: Date;
-  expirationDate: Date;
-  isExpired: boolean;
-  isWarningShown: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  product?: Product;
-  depot?: Depot;
-}
 
 export interface Inventory {
   id: number;
@@ -127,16 +109,6 @@ export interface StockMovement {
   userId: number;
 }
 
-export interface VracPrice {
-  id: number;
-  productId: number;
-  price: number;
-  startDate: Date;
-  endDate?: Date;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 export interface SaleItem {
   id: number;

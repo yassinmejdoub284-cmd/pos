@@ -59,16 +59,12 @@ export class ApprovalsComponent implements OnInit {
   correctionRetrait?: number;
   correctionNote: string = '';
 
-  // Invoice request properties
-  pendingInvoiceRequests: any[] = [];
+  // Invoice requests
+  invoiceRequests: any[] = [];
   showInvoiceApprovalModal = false;
   selectedInvoiceRequest: any = null;
+  invoiceApprovalData = { invoiceNumber: '' };
   submittingInvoiceApproval = false;
-  invoiceApprovalData = {
-    invoiceNumber: ''
-  };
-  // UI state: expanded invoice details per request id
-  invoiceDetailsExpanded: { [id: number]: boolean } = {};
 
   // Returns
   pendingReturns: ReturnRequest[] = [];
@@ -111,16 +107,17 @@ export class ApprovalsComponent implements OnInit {
     } catch {}
     this.route.queryParamMap.subscribe(params => {
       const tab = params.get('tab') as any;
-      if (tab === 'PENDING_ADMIN' || tab === 'CADEAU' || tab === 'CADEAU_REJETES' || tab === 'EXPENSES' || tab === 'CLOTURE' || tab === 'INVOICES' || tab === 'ALL' || tab === 'HISTORY' || tab === 'RETURNS') {
+      if (tab === 'PENDING_ADMIN' || tab === 'CADEAU' || tab === 'CADEAU_REJETES' || tab === 'EXPENSES' || tab === 'CLOTURE' || tab === 'ALL' || tab === 'HISTORY' || tab === 'RETURNS' || tab === 'INVOICES') {
         this.selectedTab = tab;
       }
     });
+
+    this.loadInvoiceRequests();
 
     this.loadGifts();
     this.loadExpenses();
     this.loadVarianceRequests();
     this.loadHistoryRequests();
-    this.loadInvoiceRequests();
     this.loadPendingReturns();
     this.loadPendingRebuts();
     this.loadReturnHistory();
@@ -643,102 +640,6 @@ export class ApprovalsComponent implements OnInit {
            req.rejectionNotes.includes('Correction effectuée par administrateur');
   }
 
-  // Invoice request methods
-  loadInvoiceRequests(): void {
-    this.http.get(`${environment.apiUrl}/invoices/requests/pending`).subscribe({
-      next: (requests: any) => {
-        this.pendingInvoiceRequests = requests;
-      },
-      error: (error) => {
-        console.error('Error loading invoice requests:', error);
-        if (error.status === 403) {
-          this.showAlertMessage('Accès refusé - Seuls les administrateurs et managers peuvent voir les demandes de factures', 'error');
-        } else {
-          this.showAlertMessage('Erreur lors du chargement des demandes de factures', 'error');
-        }
-      }
-    });
-  }
-
-  approveInvoiceRequest(request: any): void {
-    this.selectedInvoiceRequest = request;
-    this.invoiceApprovalData = {
-      invoiceNumber: ''
-    };
-    this.getNextInvoiceNumber();
-    this.showInvoiceApprovalModal = true;
-  }
-
-  rejectInvoiceRequest(request: any): void {
-    if (confirm('Êtes-vous sûr de vouloir rejeter cette demande de facture ?')) {
-      const rejectionReason = prompt('Raison du rejet (optionnel):') || '';
-      
-      this.http.post(`${environment.apiUrl}/invoices/requests/${request.id}/reject`, {
-        rejectionReason
-      }).subscribe({
-        next: (response: any) => {
-          this.showAlertMessage('Demande de facture rejetée', 'success');
-          this.loadInvoiceRequests();
-        },
-        error: (error) => {
-          console.error('Error rejecting invoice request:', error);
-          this.showAlertMessage('Erreur lors du rejet de la demande', 'error');
-        }
-      });
-    }
-  }
-
-  closeInvoiceApprovalModal(): void {
-    this.showInvoiceApprovalModal = false;
-    this.selectedInvoiceRequest = null;
-    this.invoiceApprovalData = {
-      invoiceNumber: ''
-    };
-  }
-
-  getNextInvoiceNumber(): void {
-    this.http.get(`${environment.apiUrl}/invoices/next-number`).subscribe({
-      next: (response: any) => {
-        this.invoiceApprovalData.invoiceNumber = response.nextInvoiceNumber;
-      },
-      error: (error) => {
-        console.error('Error getting next invoice number:', error);
-        this.invoiceApprovalData.invoiceNumber = 'FAC-001';
-      }
-    });
-  }
-
-  toggleInvoiceDetails(request: any): void {
-    const id = request?.id;
-    if (!id) { return; }
-    this.invoiceDetailsExpanded[id] = !this.invoiceDetailsExpanded[id];
-  }
-
-  submitInvoiceApproval(): void {
-    if (!this.selectedInvoiceRequest) return;
-
-    this.submittingInvoiceApproval = true;
-
-    this.http.post(`${environment.apiUrl}/invoices/requests/${this.selectedInvoiceRequest.id}/approve`, {
-      invoiceNumber: this.invoiceApprovalData.invoiceNumber
-    }).subscribe({
-      next: (response: any) => {
-        this.submittingInvoiceApproval = false;
-        this.closeInvoiceApprovalModal();
-        this.showAlertMessage('Facture créée avec succès!', 'success');
-        this.loadInvoiceRequests();
-      },
-      error: (error) => {
-        this.submittingInvoiceApproval = false;
-        console.error('Error approving invoice request:', error);
-        if (error.error?.error) {
-          this.showAlertMessage(`Erreur: ${error.error.error}`, 'error');
-        } else {
-          this.showAlertMessage('Erreur lors de la création de la facture', 'error');
-        }
-      }
-    });
-  }
 
   // Returns
   loadPendingReturns(): void {
@@ -842,6 +743,79 @@ export class ApprovalsComponent implements OnInit {
         this.loadPendingRebuts();
       },
       error: () => this.showAlertMessage("Erreur lors de l'archivage", 'error')
+    });
+  }
+
+  // Invoice requests methods
+  loadInvoiceRequests(): void {
+    this.http.get(`${environment.apiUrl}/invoices/requests`).subscribe({
+      next: (response: any) => {
+        this.invoiceRequests = response.requests || [];
+      },
+      error: (error) => {
+        console.error('Error loading invoice requests:', error);
+      }
+    });
+  }
+
+  openInvoiceApprovalModal(request: any): void {
+    this.selectedInvoiceRequest = request;
+    this.invoiceApprovalData.invoiceNumber = '';
+    this.showInvoiceApprovalModal = true;
+  }
+
+  closeInvoiceApprovalModal(): void {
+    this.showInvoiceApprovalModal = false;
+    this.selectedInvoiceRequest = null;
+    this.invoiceApprovalData.invoiceNumber = '';
+  }
+
+  getNextInvoiceNumber(): void {
+    this.http.get(`${environment.apiUrl}/invoices/next-number`).subscribe({
+      next: (response: any) => {
+        this.invoiceApprovalData.invoiceNumber = response.nextNumber;
+      },
+      error: (error) => {
+        console.error('Error getting next invoice number:', error);
+        this.showAlertMessage('Erreur lors de la récupération du numéro de facture', 'error');
+      }
+    });
+  }
+
+  submitInvoiceApproval(): void {
+    if (!this.selectedInvoiceRequest || !this.invoiceApprovalData.invoiceNumber) return;
+
+    this.submittingInvoiceApproval = true;
+    this.http.put(`${environment.apiUrl}/invoices/requests/${this.selectedInvoiceRequest.id}/approve`, {
+      invoiceNumber: this.invoiceApprovalData.invoiceNumber
+    }).subscribe({
+      next: () => {
+        this.showAlertMessage('Demande de facture approuvée avec succès', 'success');
+        this.closeInvoiceApprovalModal();
+        this.loadInvoiceRequests();
+      },
+      error: (error) => {
+        console.error('Error approving invoice request:', error);
+        this.showAlertMessage('Erreur lors de l\'approbation de la demande', 'error');
+      },
+      complete: () => {
+        this.submittingInvoiceApproval = false;
+      }
+    });
+  }
+
+  rejectInvoiceRequest(request: any): void {
+    if (!confirm('Voulez-vous vraiment rejeter cette demande de facture ?')) return;
+
+    this.http.put(`${environment.apiUrl}/invoices/requests/${request.id}/reject`, {}).subscribe({
+      next: () => {
+        this.showAlertMessage('Demande de facture rejetée', 'success');
+        this.loadInvoiceRequests();
+      },
+      error: (error) => {
+        console.error('Error rejecting invoice request:', error);
+        this.showAlertMessage('Erreur lors du rejet de la demande', 'error');
+      }
     });
   }
 } 

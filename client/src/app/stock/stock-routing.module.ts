@@ -47,10 +47,6 @@ const routes: Routes = [
   { path: 'vehicles', loadChildren: () => import('./vehicles/vehicles.module').then(m => m.VehiclesModule) },
   { path: 'drivers', loadChildren: () => import('./drivers/drivers.module').then(m => m.DriversModule) },
   {
-    path: 'product-links',
-    loadComponent: () => import('./product-links/product-links.component').then(m => m.ProductLinksComponent)
-  },
-  {
     path: 'achat-consultation/:actionType/:depotId',
     loadComponent: () => import('./achat-consultation/achat-consultation.component').then(m => m.AchatConsultationComponent)
   }

@@ -10,7 +10,6 @@ import { FinanciereComponent } from './financiere/financiere.component';
 import { ExpenseActionDialogComponent } from '../shared/expense-action-dialog/expense-action-dialog.component';
 import { ApprovalsActionDialogComponent } from '../shared/approvals-action-dialog/approvals-action-dialog.component';
 import { SettingsActionDialogComponent } from '../shared/settings-action-dialog/settings-action-dialog.component';
-import { EnterpriseActionDialogComponent } from '../shared/enterprise-action-dialog/enterprise-action-dialog.component';
 
 @NgModule({
   declarations: [
@@ -25,8 +24,7 @@ import { EnterpriseActionDialogComponent } from '../shared/enterprise-action-dia
     HomeRoutingModule,
     SharedModule,
     ApprovalsActionDialogComponent,
-    SettingsActionDialogComponent,
-    EnterpriseActionDialogComponent,
+    SettingsActionDialogComponent
   ]
 })
 export class HomeModule { } 

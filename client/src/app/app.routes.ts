@@ -24,11 +24,6 @@ export const routes: Routes = [
     loadChildren: () => import('./historique/historique.module').then(m => m.HistoriqueModule) 
   },
   { 
-    path: 'pointage', 
-    canActivate: [authGuard],
-    loadChildren: () => import('./pointage/pointage.module').then(m => m.PointageModule) 
-  },
-  { 
     path: 'cloture', 
     canActivate: [authGuard],
     loadChildren: () => import('./cloture/cloture.module').then(m => m.ClotureModule) 
@@ -52,16 +47,6 @@ export const routes: Routes = [
     path: 'rapports', 
     canActivate: [authGuard],
     loadChildren: () => import('./rapports/rapports.module').then(m => m.RapportsModule) 
-  },
-  {
-    path: 'rappels',
-    canActivate: [authGuard],
-    loadChildren: () => import('./reminders/reminders.module').then(m => m.RemindersModule)
-  },
-  {
-    path: 'reminders',
-    canActivate: [authGuard],
-    loadChildren: () => import('./reminders/reminders.module').then(m => m.RemindersModule)
   },
   { 
     path: 'approvals', 
@@ -114,11 +99,6 @@ export const routes: Routes = [
     loadChildren: () => import('./stock-management/stock-management.module').then(m => m.StockManagementModule) 
   },
   { 
-    path: 'enterprise', 
-    canActivate: [authGuard],
-    loadChildren: () => import('./enterprise/enterprise.module').then(m => m.EnterpriseModule) 
-  },
-  { 
     path: 'scanning', 
     canActivate: [authGuard],
     loadChildren: () => import('./scanning/scanning.module').then(m => m.ScanningModule) 
@@ -127,21 +107,6 @@ export const routes: Routes = [
     path: 'documents-reception', 
     canActivate: [authGuard],
     loadChildren: () => import('./documents-reception/documents-reception.module').then(m => m.DocumentsReceptionModule) 
-  },
-  { 
-    path: 'tables-salon', 
-    canActivate: [authGuard],
-    loadChildren: () => import('./tables-salon/tables-salon.module').then(m => m.TablesSalonModule) 
-  },
-  { 
-    path: 'vente-tables', 
-    canActivate: [authGuard],
-    loadChildren: () => import('./vente-tables/vente-tables.module').then(m => m.VenteTablesModule) 
-  },
-  { 
-    path: 'factures', 
-    canActivate: [authGuard],
-    loadChildren: () => import('./factures/factures.module').then(m => m.FacturesModule) 
   },
   { 
     path: 'extrait-par-article', 

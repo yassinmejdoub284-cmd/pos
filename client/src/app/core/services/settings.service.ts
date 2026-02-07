@@ -23,13 +23,10 @@ export interface AppSettings {
   auditRetentionDays: number;
   // Clôture settings
   varianceThreshold: number;
-  defaultFonds: number;
   denominations: number[];
   requireApprovalForVariance: boolean;
-  ticketWidth: number;
-  droitDeTimbre: boolean;
-  // Expenses
   autoApproveExpenseBelow: number;
+  allowNegativeStock?: boolean;
   // Historique
   historyRetentionDays?: number;
   // Role-based history limits
@@ -39,8 +36,6 @@ export interface AppSettings {
     CASHIER?: number;
     STOCK_MANAGER?: number;
   };
-  // Stock
-  allowNegativeStock?: boolean;
   // Print settings
   printSettings: {
     showLogo: boolean;

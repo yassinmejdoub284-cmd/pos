@@ -3,6 +3,7 @@ const { prisma } = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
+const { getDepotSettings } = require('../lib/settings');
 
 const router = express.Router();
 
@@ -332,10 +333,8 @@ router.post('/', authenticateToken, async (req, res) => {
 
     let defaultMax = null;
     try {
-      if (prisma.appSettings && typeof prisma.appSettings.findFirst === 'function') {
-        const settings = await prisma.appSettings.findFirst();
-        defaultMax = settings?.defaultClientMaxDebt ?? null;
-      }
+      const settings = getDepotSettings(targetDepotId);
+      defaultMax = settings?.defaultClientMaxDebt ?? null;
     } catch {}
 
     // Use transaction to ensure atomicity
@@ -455,21 +454,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if client has any invoices
-    const clientInvoices = await prisma.invoice.count({
-      where: { clientId: parseInt(id) }
-    });
-
-    if (clientInvoices > 0) {
-      return res.status(400).json({ 
-        error: 'Impossible de supprimer : ce client a des factures associées',
-        constraint: 'invoices_client_fkey',
-        dependents: [{
-          table: 'invoices',
-          count: clientInvoices
-        }]
-      });
-    }
 
     // Check if client has any debt transactions
     const clientDebtTransactions = await prisma.clientDebtTransaction.count({
@@ -516,8 +500,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       
       if (constraintName.includes('sales')) {
         errorMessage = 'Impossible de supprimer : ce client a des ventes associées';
-      } else if (constraintName.includes('invoice')) {
-        errorMessage = 'Impossible de supprimer : ce client a des factures associées';
       } else if (constraintName.includes('debt')) {
         errorMessage = 'Impossible de supprimer : ce client a des transactions de dette associées';
       } else if (constraintName.includes('stock')) {
@@ -644,10 +626,12 @@ async function generateClientCode(prismaClient = prisma) {
 router.put('/:id/max-debt/init', async (req, res) => {
   try {
     const { id } = req.params;
-    const settings = await prisma.appSettings.findFirst();
+    const client = await prisma.client.findUnique({ where: { id: parseInt(id) } });
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    const settings = getDepotSettings(client.depotId);
     const defaultMax = settings?.defaultClientMaxDebt || 0;
-    const client = await prisma.client.update({ where: { id: parseInt(id) }, data: { maxDebt: defaultMax } });
-    res.json(client);
+    const updatedClient = await prisma.client.update({ where: { id: parseInt(id) }, data: { maxDebt: defaultMax } });
+    res.json(updatedClient);
   } catch (error) {
     console.error('Error initializing client max debt:', error);
     res.status(500).json({ error: 'Internal server error' });

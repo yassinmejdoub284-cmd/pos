@@ -3,6 +3,7 @@ const fs = require('fs');
 const { prisma } = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
 const { sendPushToAll } = require('../lib/push');
+const { getDepotSettings } = require('../lib/settings');
 // Role checks removed - frontend handles access control
 
 const router = express.Router();
@@ -207,10 +208,7 @@ router.post('/', async (req, res) => {
       let loyaltyPointsEarned = 0;
 
       if (clientId) {
-        let settings = null;
-        if (tx.appSettings && typeof tx.appSettings.findFirst === 'function') {
-          settings = await tx.appSettings.findFirst();
-        }
+        const settings = getDepotSettings(targetDepotId);
         const client = await tx.client.findUnique({ where: { id: parseInt(clientId) } });
 
         // Handle different payment types
@@ -571,10 +569,7 @@ router.put('/temporary/:id/complete', async (req, res) => {
       let loyaltyPointsEarned = 0;
 
       if (temporarySale.clientId) {
-        let settings = null;
-        if (tx.appSettings && typeof tx.appSettings.findFirst === 'function') {
-          settings = await tx.appSettings.findFirst();
-        }
+        const settings = getDepotSettings(userDepotId);
         const client = await tx.client.findUnique({ where: { id: temporarySale.clientId } });
         
         // Calculate total paid amount (advance payment + completion payment)
@@ -1477,107 +1472,8 @@ router.get('/', authenticateToken, async (req, res) => {
       }))
     }));
 
-    // Get table sales and convert them to sale format for historique
-    // Note: TableSale doesn't have depotId field, so we'll fetch all table sales
-    // and filter them manually if needed, or skip if depot isolation is critical
-    // For now, we'll fetch all table sales (they may not have depot isolation)
-    const tableSalesWhereClause = {};
-    
-    // Apply same date filtering to table sales
-    if (startDate && endDate) {
-      tableSalesWhereClause.createdAt = { gte: new Date(startDate), lte: new Date(endDate) };
 
-    } else {
-
-    }
-
-    if (status) {
-      // Map sale status to table sale status
-      if (status === 'COMPLETED') {
-        tableSalesWhereClause.status = 'COMPLETED';
-      } else if (status === 'CANCELLED') {
-        tableSalesWhereClause.status = 'CANCELLED';
-      } else if (status === 'PENDING' || status === 'TEMPORARY') {
-        tableSalesWhereClause.status = 'ACTIVE';
-      }
-    } else {
-      // If no status filter, include all table sales (ACTIVE, COMPLETED, CANCELLED)
-      // Temporarily remove status filter to see all table sales
-      // tableSalesWhereClause.status = { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] };
-    }
-
-
-    const tableSales = await prisma.tableSale.findMany({
-      where: tableSalesWhereClause,
-      include: {
-        items: {
-          include: {
-            product: true
-          }
-        },
-        table: true,
-        salon: true
-      },
-      orderBy: { createdAt: 'desc' },
-      skip: (parseInt(page) - 1) * parseInt(limit),
-      take: parseInt(limit)
-    });
-
-
-    // Convert table sales to sale format for historique compatibility
-    const convertedTableSales = tableSales.map(tableSale => ({
-      id: 9000000 + tableSale.id, // Use high number range to avoid conflicts with regular sales
-      total: parseFloat(tableSale.totalAmount),
-      discount: 0,
-      finalTotal: parseFloat(tableSale.totalAmount),
-      paymentMethodId: null,
-      paymentMethod: { name: 'Table Service' },
-      clientId: null,
-      client: null,
-      userId: null,
-      user: { firstName: 'Table', lastName: 'Service' },
-      depotId: targetDepotId,
-      sessionId: null,
-      session: null,
-      status: tableSale.status === 'ACTIVE' ? 'PENDING' : tableSale.status,
-      paymentType: 'COMPTANT',
-      isWholesale: false,
-      advancePayment: 0,
-      advancePaymentMethodId: null,
-      advancePaymentDate: null,
-      advancePaymentNotes: null,
-      dailyTicketNumber: `T${tableSale.table.number}`,
-      createdAt: tableSale.createdAt,
-      updatedAt: tableSale.updatedAt,
-      items: tableSale.items.map(item => ({
-        id: `table_item_${item.id}`,
-        productId: item.productId,
-        productName: item.productName,
-        quantity: parseFloat(item.quantity),
-        unitPrice: parseFloat(item.unitPrice),
-        total: parseFloat(item.total),
-        discount: 0,
-        isWholesale: false,
-        product: item.product,
-        isPaid: item.isPaid
-      })),
-      // Add table-specific info
-      tableInfo: {
-        tableId: tableSale.table.id,
-        tableNumber: tableSale.table.number,
-        salonId: tableSale.salon.id,
-        salonName: tableSale.salon.name,
-        paidAmount: parseFloat(tableSale.paidAmount),
-        remainingAmount: parseFloat(tableSale.remainingAmount)
-      }
-    }));
-
-    // Combine and sort all sales by creation date
-    const allSales = [...salesWithNumbers, ...convertedTableSales].sort((a, b) => 
-      new Date(b.createdAt) - new Date(a.createdAt)
-    );
-
-    res.json(allSales);
+    res.json(salesWithNumbers);
   } catch (error) {
     console.error('Error fetching sales:', error);
     console.error('Error stack:', error.stack);

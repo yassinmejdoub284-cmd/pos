@@ -16,7 +16,6 @@ async function main() {
       'user_depots',
       'companies',
       'users_enterprise',
-      'app_settings',
       'payment_methods',      // Configuration
       'expense_categories',    // Configuration
       '_prisma_migrations'     // Système Prisma

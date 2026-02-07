@@ -92,7 +92,6 @@ export class ProduitsDeStockFormComponent implements OnInit {
         prix_achat: formData.prix_achat,
         tva: formData.tva,
         photo: this.produit?.photo || undefined,
-        duree_conservation: null,
         isVrac: false,
         originalProductId: null,
         parentProductId: formData.parentProductId ? parseInt(formData.parentProductId) : null,

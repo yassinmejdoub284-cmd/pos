@@ -54,7 +54,6 @@ export class ProductFormComponent implements OnInit, OnChanges {
       prix_vente_TTC: [0, [Validators.required, Validators.min(0)]],
       prix_achat: [null, [Validators.min(0)]],
       tva: [19, [Validators.required, Validators.min(0), Validators.max(100)]],
-      duree_conservation: [null],
       isVraguable: [false],
       isStockable: [false],
       // Wholesale fields
@@ -509,7 +508,6 @@ export class ProductFormComponent implements OnInit, OnChanges {
               prix_achat: formData.prix_achat || null,
               tva: formData.tva || 19,
               photo: formData.photo || null,
-              duree_conservation: formData.duree_conservation || null,
               isVrac: formData.isVrac || false,
               isVraguable: formData.isVraguable || false,
               isStockable: formData.isStockable !== undefined ? formData.isStockable : true,
@@ -557,7 +555,6 @@ export class ProductFormComponent implements OnInit, OnChanges {
                   photo: produit.photo || undefined,
                   description: produit.description || undefined,
                   designation_legale: produit.designation_legale || undefined,
-                  duree_conservation: produit.duree_conservation || undefined,
                   minStock: produit.minStock || undefined,
                   maxStock: produit.maxStock || undefined,
                   initialStock: produit.initialStock || undefined,

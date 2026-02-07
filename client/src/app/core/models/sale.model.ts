@@ -33,17 +33,10 @@ export interface Sale {
   session?: { id: number };
   // Printed flag
   isPrinted?: boolean;
-  // Table sale information (optional)
-  tableInfo?: {
-    tableId: number;
-    tableNumber: number;
-    salonId: number;
-    salonName: string;
-    paidAmount: number;
-    remainingAmount: number;
-  };
   // Paid amount (cash amount paid for this sale)
   paidAmount?: number;
+  // Table information for restaurant mode
+  tableInfo?: { tableNumber: number };
 }
 
 export interface SaleItem {

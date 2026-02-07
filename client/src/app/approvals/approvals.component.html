@@ -2,68 +2,124 @@
   <!-- Mobile App Header -->
   <div class="sticky top-0 z-50 bg-white/90 border-b border-slate-200/60">
     <div class="px-4 pt-4 pb-2 flex items-center justify-between">
-      <a routerLink="/home" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center border border-slate-200/70" title="Accueil" aria-label="Accueil">
+      <a routerLink="/home"
+        class="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center border border-slate-200/70"
+        title="Accueil" aria-label="Accueil">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2 7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 12l2-2 7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6" />
         </svg>
       </a>
       <div class="flex flex-col items-center">
         <span class="text-base font-semibold text-slate-900">Centre d'approbation</span>
       </div>
-      <button (click)="subscribeToNotifications()" [class]="'w-9 h-9 rounded-xl flex items-center justify-center border ' + (isNotificationsSubscribed ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200/70')" title="Notifications" aria-label="Notifications">
+      <button (click)="subscribeToNotifications()"
+        [class]="'w-9 h-9 rounded-xl flex items-center justify-center border ' + (isNotificationsSubscribed ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200/70')"
+        title="Notifications" aria-label="Notifications">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path *ngIf="!isNotificationsSubscribed" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-          <path *ngIf="isNotificationsSubscribed" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5m-2.5-2.5l2.5 2.5-2.5 2.5M9 18a3 3 0 106 0M5 11a7 7 0 0114 0v3l2 2H3l2-2v-3"/>
+          <path *ngIf="!isNotificationsSubscribed" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          <path *ngIf="isNotificationsSubscribed" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15 17h5m-2.5-2.5l2.5 2.5-2.5 2.5M9 18a3 3 0 106 0M5 11a7 7 0 0114 0v3l2 2H3l2-2v-3" />
         </svg>
       </button>
     </div>
     <!-- Quick stats pills -->
     <div class="px-4 pb-3 overflow-x-auto">
       <div class="flex gap-2 min-w-max">
-        <div class="px-3 py-1.5 rounded-full text-[7px] bg-orange-50 text-orange-700 border border-orange-200">Cadeaux <span class="ml-1 font-semibold">{{ pendingGifts.length }}</span></div>
-        <div class="px-3 py-1.5 rounded-full text-[7px] bg-red-50 text-red-700 border border-red-200">Dépenses <span class="ml-1 font-semibold">{{ pendingExpenses.length }}</span></div>
-        <div class="px-3 py-1.5 rounded-full text-[7px] bg-emerald-50 text-emerald-700 border border-emerald-200">Clôtures <span class="ml-1 font-semibold">{{ varianceRequests.length }}</span></div>
-        <div class="px-3 py-1.5 rounded-full text-[7px] bg-blue-50 text-blue-700 border border-blue-200">Factures <span class="ml-1 font-semibold">{{ pendingInvoiceRequests.length }}</span></div>
-        <div class="px-3 py-1.5 rounded-full text-[7px] bg-amber-50 text-amber-700 border border-amber-200">Retours <span class="ml-1 font-semibold">{{ pendingReturns.length }}</span></div>
+        <div class="px-3 py-1.5 rounded-full text-[7px] bg-orange-50 text-orange-700 border border-orange-200">Cadeaux
+          <span class="ml-1 font-semibold">{{ pendingGifts.length }}</span>
+        </div>
+        <div class="px-3 py-1.5 rounded-full text-[7px] bg-red-50 text-red-700 border border-red-200">Dépenses <span
+            class="ml-1 font-semibold">{{ pendingExpenses.length }}</span></div>
+        <div class="px-3 py-1.5 rounded-full text-[7px] bg-emerald-50 text-emerald-700 border border-emerald-200">
+          Clôtures <span class="ml-1 font-semibold">{{ varianceRequests.length }}</span></div>
+        <div class="px-3 py-1.5 rounded-full text-[7px] bg-amber-50 text-amber-700 border border-amber-200">Retours
+          <span class="ml-1 font-semibold">{{ pendingReturns.length }}</span>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="max-w-4xl mx-auto px-4 pb-6 pt-2">
 
-    
+
 
     <!-- Tabs: condensed (Tous / Historique) with expander -->
     <div class="flex flex-wrap gap-2 mb-8 items-center">
-      <button (click)="selectedTab='ALL'; mainContext='ALL'" [class]="'px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 ' + (mainContext==='ALL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25' : 'bg-white/80 text-slate-600 border border-slate-200/50')">
+      <button (click)="selectedTab='ALL'; mainContext='ALL'"
+        [class]="'px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 ' + (mainContext==='ALL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25' : 'bg-white/80 text-slate-600 border border-slate-200/50')">
         <span>Tous</span>
-        <span class="px-2 py-0.5 rounded-full text-xs font-semibold" [class]="mainContext==='ALL' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'">{{ pendingGifts.length + pendingExpenses.length + varianceRequests.length + pendingInvoiceRequests.length + pendingReturns.length }}</span>
+        <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+          [class]="mainContext==='ALL' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'">{{
+          pendingGifts.length + pendingExpenses.length + varianceRequests.length + pendingReturns.length +
+          invoiceRequests.length }}</span>
       </button>
       <ng-container *ngIf="mainContext==='ALL'">
-        <button (click)="showMoreFilters = !showMoreFilters" [class]="'px-3 py-3 rounded-xl border flex items-center justify-center ' + (showMoreFilters ? 'bg-slate-800 text-white border-slate-800' : 'bg-white/80 text-slate-600 border-slate-200/50')" title="Plus de filtres">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="showMoreFilters ? 'M20 12H4' : 'M12 4v16m8-8H4'"/></svg>
+        <button (click)="showMoreFilters = !showMoreFilters"
+          [class]="'px-3 py-3 rounded-xl border flex items-center justify-center ' + (showMoreFilters ? 'bg-slate-800 text-white border-slate-800' : 'bg-white/80 text-slate-600 border-slate-200/50')"
+          title="Plus de filtres">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              [attr.d]="showMoreFilters ? 'M20 12H4' : 'M12 4v16m8-8H4'" />
+          </svg>
         </button>
         <div *ngIf="showMoreFilters" class="flex flex-wrap gap-2">
-          <button (click)="selectedTab='PENDING_ADMIN'" [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='PENDING_ADMIN' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Cadeaux <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ pendingGifts.length }}</span></button>
-          <button (click)="selectedTab='EXPENSES'" [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='EXPENSES' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Dépenses <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ pendingExpenses.length }}</span></button>
-          <button (click)="selectedTab='CLOTURE'" [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='CLOTURE' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Clôtures <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ varianceRequests.length }}</span></button>
-          <button (click)="selectedTab='INVOICES'" [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='INVOICES' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Factures <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ pendingInvoiceRequests.length }}</span></button>
-          <button (click)="selectedTab='RETURNS'" [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='RETURNS' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Bons de retour <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ pendingReturns.length }}</span></button>
+          <button (click)="selectedTab='PENDING_ADMIN'"
+            [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='PENDING_ADMIN' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Cadeaux
+            <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ pendingGifts.length
+              }}</span></button>
+          <button (click)="selectedTab='EXPENSES'"
+            [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='EXPENSES' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Dépenses
+            <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ pendingExpenses.length
+              }}</span></button>
+          <button (click)="selectedTab='CLOTURE'"
+            [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='CLOTURE' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Clôtures
+            <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ varianceRequests.length
+              }}</span></button>
+          <button (click)="selectedTab='RETURNS'"
+            [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='RETURNS' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Bons
+            de retour <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{
+              pendingReturns.length }}</span></button>
+          <button (click)="selectedTab='INVOICES'"
+            [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='INVOICES' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Factures
+            <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ invoiceRequests.length
+              }}</span></button>
         </div>
       </ng-container>
-      <button (click)="selectedTab='HISTORY'; mainContext='HISTORY'" [class]="'px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 ' + (mainContext==='HISTORY' ? 'bg-slate-500 text-white shadow-lg shadow-slate-500/25' : 'bg-white/80 text-slate-600 border border-slate-200/50')">
+      <button (click)="selectedTab='HISTORY'; mainContext='HISTORY'"
+        [class]="'px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 ' + (mainContext==='HISTORY' ? 'bg-slate-500 text-white shadow-lg shadow-slate-500/25' : 'bg-white/80 text-slate-600 border border-slate-200/50')">
         <span>Historique</span>
-        <span class="px-2 py-0.5 rounded-full text-xs font-semibold" [class]="mainContext==='HISTORY' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'">{{ historyRequests.length + returnHistory.length + approvedGifts.length + rejectedGifts.length }}</span>
+        <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+          [class]="mainContext==='HISTORY' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'">{{
+          historyRequests.length + returnHistory.length + approvedGifts.length + rejectedGifts.length }}</span>
       </button>
       <ng-container *ngIf="mainContext==='HISTORY'">
-        <button (click)="showMoreFilters = !showMoreFilters" [class]="'px-3 py-3 rounded-xl border flex items-center justify-center ' + (showMoreFilters ? 'bg-slate-800 text-white border-slate-800' : 'bg-white/80 text-slate-600 border-slate-200/50')" title="Plus de filtres">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="showMoreFilters ? 'M20 12H4' : 'M12 4v16m8-8H4'"/></svg>
+        <button (click)="showMoreFilters = !showMoreFilters"
+          [class]="'px-3 py-3 rounded-xl border flex items-center justify-center ' + (showMoreFilters ? 'bg-slate-800 text-white border-slate-800' : 'bg-white/80 text-slate-600 border-slate-200/50')"
+          title="Plus de filtres">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              [attr.d]="showMoreFilters ? 'M20 12H4' : 'M12 4v16m8-8H4'" />
+          </svg>
         </button>
         <div *ngIf="showMoreFilters" class="flex flex-wrap gap-2">
-          <button (click)="selectedTab='RETURN_HISTORY'" [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='RETURN_HISTORY' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Historique retours <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ returnHistory.length }}</span></button>
-          <button (click)="selectedTab='HISTORY_CLOTURE'" [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='HISTORY_CLOTURE' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Historique de Clôture <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ historyRequests.length }}</span></button>
-          <button (click)="selectedTab='CADEAU'" [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='CADEAU' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Cadeaux approuvés <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ approvedGifts.length }}</span></button>
-          <button (click)="selectedTab='CADEAU_REJETES'" [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='CADEAU_REJETES' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Cadeaux rejetés <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{ rejectedGifts.length }}</span></button>
+          <button (click)="selectedTab='RETURN_HISTORY'"
+            [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='RETURN_HISTORY' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Historique
+            retours <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{
+              returnHistory.length }}</span></button>
+          <button (click)="selectedTab='HISTORY_CLOTURE'"
+            [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='HISTORY_CLOTURE' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Historique
+            de Clôture <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{
+              historyRequests.length }}</span></button>
+          <button (click)="selectedTab='CADEAU'"
+            [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='CADEAU' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Cadeaux
+            approuvés <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{
+              approvedGifts.length }}</span></button>
+          <button (click)="selectedTab='CADEAU_REJETES'"
+            [class]="'px-4 py-3 rounded-xl text-sm font-medium border ' + (selectedTab==='CADEAU_REJETES' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white/80 text-slate-600 border-slate-200/50')">Cadeaux
+            rejetés <span class="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">{{
+              rejectedGifts.length }}</span></button>
         </div>
       </ng-container>
     </div>
@@ -75,12 +131,13 @@
         <span class="text-slate-600 font-medium">Chargement des demandes...</span>
       </div>
     </div>
-    
+
     <div *ngIf="!loading && error" class="bg-red-50 border border-red-200 rounded-2xl p-6 mb-6">
       <div class="flex items-center gap-3">
         <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
           <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
         </div>
         <div>
@@ -90,452 +147,451 @@
       </div>
     </div>
 
-      <!-- All items list -->
-      <div *ngIf="!loading && !error && selectedTab==='ALL'">
-        <div *ngIf="pendingGifts.length === 0 && pendingExpenses.length === 0 && varianceRequests.length === 0 && pendingInvoiceRequests.length === 0 && pendingReturns.length === 0 && pendingRebuts.length === 0" class="text-slate-500 text-sm">Aucun élément à afficher</div>
-        
-        <!-- Pending Gifts -->
-        <div *ngIf="pendingGifts.length > 0" class="mb-6">
-          <h3 class="text-lg font-semibold text-orange-600 mb-3 flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            Cadeaux ({{ pendingGifts.length }})
-          </h3>
-          <div *ngFor="let sale of pendingGifts" class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2">
-            <!-- Notification Header -->
-            <div class="px-6 py-4 border-b border-slate-100/50">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                    <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 class="font-semibold text-slate-900">Cadeau #{{ sale.id }}</h3>
-                    <p class="text-sm text-slate-500">{{ sale.createdAt | date:'short' }}</p>
-                  </div>
+    <!-- All items list -->
+    <div *ngIf="!loading && !error && selectedTab==='ALL'">
+      <div
+        *ngIf="pendingGifts.length === 0 && pendingExpenses.length === 0 && varianceRequests.length === 0 && pendingReturns.length === 0 && pendingRebuts.length === 0"
+        class="text-slate-500 text-sm">Aucun élément à afficher</div>
+
+      <!-- Pending Gifts -->
+      <div *ngIf="pendingGifts.length > 0" class="mb-6">
+        <h3 class="text-lg font-semibold text-orange-600 mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          Cadeaux ({{ pendingGifts.length }})
+        </h3>
+        <div *ngFor="let sale of pendingGifts"
+          class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2">
+          <!-- Notification Header -->
+          <div class="px-6 py-4 border-b border-slate-100/50">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
                 </div>
-                <div class="text-right">
-                  <div class="text-green-500 font-bold">0.000 dt</div>
-                  <div class="text-xs text-slate-500">Cadeau</div>
-                </div>
-              </div>
-            </div>
-            <!-- Notification Content -->
-            <div class="px-6 py-4">
-              <div class="text-sm text-slate-500">Articles: {{ sale.items.length || 0 }}</div>
-              <div class="mt-3 space-y-2" *ngIf="sale.items?.length">
-                <div *ngFor="let it of sale.items" class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm">
-                  <div class="text-slate-700">{{ it.productName }}</div>
-                  <div class="text-slate-500">Qté: {{ it.quantity }} • PU: {{ it.unitPrice | number:'1.3-3' }} DT</div>
+                <div>
+                  <h3 class="font-semibold text-slate-900">Cadeau #{{ sale.id }}</h3>
+                  <p class="text-sm text-slate-500">{{ sale.createdAt | date:'short' }}</p>
                 </div>
               </div>
-              <p *ngIf="sale.notes" class="text-sm text-slate-600 mt-3 bg-slate-50 rounded-lg p-3">{{ sale.notes }}</p>
+              <div class="text-right">
+                <div class="text-green-500 font-bold">0.000 dt</div>
+                <div class="text-xs text-slate-500">Cadeau</div>
+              </div>
             </div>
-            <!-- Action Buttons -->
-            <div class="flex gap-3 px-6 pb-4">
-              <button (click)="reject(sale)" class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">Rejeter</button>
-              <button (click)="approve(sale)" class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">Approuver</button>
+          </div>
+          <!-- Notification Content -->
+          <div class="px-6 py-4">
+            <div class="text-sm text-slate-500">Articles: {{ sale.items.length || 0 }}</div>
+            <div class="mt-3 space-y-2" *ngIf="sale.items?.length">
+              <div *ngFor="let it of sale.items"
+                class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                <div class="text-slate-700">{{ it.productName }}</div>
+                <div class="text-slate-500">Qté: {{ it.quantity }} • PU: {{ it.unitPrice | number:'1.3-3' }} DT</div>
+              </div>
+            </div>
+            <p *ngIf="sale.notes" class="text-sm text-slate-600 mt-3 bg-slate-50 rounded-lg p-3">{{ sale.notes }}</p>
+          </div>
+          <!-- Action Buttons -->
+          <div class="flex gap-3 px-6 pb-4">
+            <button (click)="reject(sale)"
+              class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">Rejeter</button>
+            <button (click)="approve(sale)"
+              class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">Approuver</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Approved Gifts (hidden from Tous to focus on éléments en attente) -->
+
+      <!-- Pending Expenses -->
+      <div *ngIf="pendingExpenses.length > 0" class="mb-6">
+        <h3 class="text-lg font-semibold text-red-600 mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+            </path>
+          </svg>
+          Dépenses en attente ({{ pendingExpenses.length }})
+        </h3>
+        <div *ngFor="let expense of pendingExpenses; let i = index"
+          class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2"
+          [style.animation-delay]="(i * 100) + 'ms'">
+          <!-- Notification Header (exactly like Dépenses) -->
+          <div class="px-6 py-4 border-b border-slate-100/50">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                    </path>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-slate-900">Dépense #{{ expense.id }}</h3>
+                  <p class="text-sm text-slate-500">{{ formatDate(expense.date) }}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-xl font-bold text-red-500">{{ formatCurrency(expense.amount) }}</div>
+                <div class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">{{ expense.paymentType }}</div>
+              </div>
+            </div>
+          </div>
+          <!-- Notification Content (exactly like Dépenses) -->
+          <div class="px-6 py-4">
+            <div class="mb-4">
+              <h4 class="font-medium text-slate-900 mb-2">{{ expense.description }}</h4>
+              <div class="flex items-center gap-4 text-sm text-slate-600">
+                <span *ngIf="expense.category" class="flex items-center gap-1">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z">
+                    </path>
+                  </svg>
+                  {{ expense.category.name }}
+                </span>
+                <span *ngIf="expense.user" class="flex items-center gap-1">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                  </svg>
+                  {{ expense.user.firstName }} {{ expense.user.lastName }}
+                </span>
+              </div>
+              <p *ngIf="expense.notes" class="text-sm text-slate-600 mt-2 bg-slate-50 rounded-lg p-3">{{ expense.notes
+                }}</p>
+            </div>
+            <!-- Action Buttons (exactly like Dépenses) -->
+            <div class="flex gap-3">
+              <button (click)="rejectExpense(expense)"
+                class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Rejeter
+              </button>
+              <button (click)="approveExpense(expense)"
+                class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Approuver
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Approved Gifts (hidden from Tous to focus on éléments en attente) -->
-
-        <!-- Pending Expenses -->
-        <div *ngIf="pendingExpenses.length > 0" class="mb-6">
-          <h3 class="text-lg font-semibold text-red-600 mb-3 flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-            </svg>
-            Dépenses en attente ({{ pendingExpenses.length }})
-          </h3>
-          <div *ngFor="let expense of pendingExpenses; let i = index" 
-               class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2"
-               [style.animation-delay]="(i * 100) + 'ms'">
-            <!-- Notification Header (exactly like Dépenses) -->
-            <div class="px-6 py-4 border-b border-slate-100/50">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 class="font-semibold text-slate-900">Dépense #{{ expense.id }}</h3>
-                    <p class="text-sm text-slate-500">{{ formatDate(expense.date) }}</p>
-                  </div>
-                </div>
-                <div class="text-right">
-                  <div class="text-xl font-bold text-red-500">{{ formatCurrency(expense.amount) }}</div>
-                  <div class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">{{ expense.paymentType }}</div>
-                </div>
-              </div>
-            </div>
-            <!-- Notification Content (exactly like Dépenses) -->
-            <div class="px-6 py-4">
-              <div class="mb-4">
-                <h4 class="font-medium text-slate-900 mb-2">{{ expense.description }}</h4>
-                <div class="flex items-center gap-4 text-sm text-slate-600">
-                  <span *ngIf="expense.category" class="flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                    </svg>
-                    {{ expense.category.name }}
-                  </span>
-                  <span *ngIf="expense.user" class="flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                    </svg>
-                    {{ expense.user.firstName }} {{ expense.user.lastName }}
-                  </span>
-                </div>
-                <p *ngIf="expense.notes" class="text-sm text-slate-600 mt-2 bg-slate-50 rounded-lg p-3">{{ expense.notes }}</p>
-              </div>
-              <!-- Action Buttons (exactly like Dépenses) -->
-              <div class="flex gap-3">
-                <button (click)="rejectExpense(expense)" class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
-                  Rejeter
-                </button>
-                <button (click)="approveExpense(expense)" class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <!-- Clôtures en attente -->
+      <div *ngIf="varianceRequests.length > 0" class="mb-6">
+        <h3 class="text-lg font-semibold text-emerald-600 mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          Clôtures en attente ({{ varianceRequests.length }})
+        </h3>
+        <div *ngFor="let req of varianceRequests"
+          class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2">
+          <!-- Notification Header -->
+          <div class="px-6 py-4 border-b border-slate-100/50">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                  <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                   </svg>
-                  Approuver
-                </button>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-semibold text-slate-900">Clôture • Session #{{ req.session?.id || req.entityId }}
+                    </h3>
+                    <ng-container *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
+                      <span
+                        class="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700 border border-slate-200">{{
+                        z.summary?.totalTickets }} tickets</span>
+                    </ng-container>
+                  </div>
+                  <p class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</p>
+                  <div class="text-sm text-slate-500 mt-1" *ngIf="req.session">{{ req.session.user?.firstName }} {{
+                    req.session.user?.lastName }} • {{ req.session.depot?.name || '—' }}</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <!-- Notification Content -->
+          <div class="px-6 py-4" *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-slate-50 rounded-xl p-3">
+                <div class="text-xs text-slate-500">Reçu ESPÈCES</div>
+                <div class="text-slate-900 font-semibold">{{ getTotalEncaissements(z).toFixed(3) }} DT</div>
+              </div>
+              <div class="bg-slate-50 rounded-xl p-3">
+                <div class="text-xs text-slate-500">Reste en Caisse</div>
+                <div class="text-slate-900 font-semibold">{{ z.summary?.expectedCash?.toFixed(3) }} DT</div>
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- Clôtures en attente -->
-        <div *ngIf="varianceRequests.length > 0" class="mb-6">
-          <h3 class="text-lg font-semibold text-emerald-600 mb-3 flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-            Clôtures en attente ({{ varianceRequests.length }})
-          </h3>
-          <div *ngFor="let req of varianceRequests" class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2">
-            <!-- Notification Header -->
-            <div class="px-6 py-4 border-b border-slate-100/50">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <div class="flex items-center gap-2">
-                      <h3 class="font-semibold text-slate-900">Clôture • Session #{{ req.session?.id || req.entityId }}</h3>
-                      <ng-container *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
-                        <span class="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700 border border-slate-200">{{ z.summary?.totalTickets }} tickets</span>
-                      </ng-container>
-                    </div>
-                    <p class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</p>
-                    <div class="text-sm text-slate-500 mt-1" *ngIf="req.session">{{ req.session.user?.firstName }} {{ req.session.user?.lastName }} • {{ req.session.depot?.name || '—' }}</div>
-                  </div>
-                </div>
-                
-              </div>
-            </div>
-            <!-- Notification Content -->
-            <div class="px-6 py-4" *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
-              <div class="grid grid-cols-2 gap-3">
-                <div class="bg-slate-50 rounded-xl p-3">
-                  <div class="text-xs text-slate-500">Reçu ESPÈCES</div>
-                  <div class="text-slate-900 font-semibold">{{ getTotalEncaissements(z).toFixed(3) }} DT</div>
-                </div>
-                <div class="bg-slate-50 rounded-xl p-3">
-                  <div class="text-xs text-slate-500">Reste en Caisse</div>
-                  <div class="text-slate-900 font-semibold">{{ z.summary?.expectedCash?.toFixed(3) }} DT</div>
-                </div>
-              </div>
-            </div>
-            <!-- Action Buttons -->
-            <div class="flex gap-3 px-6 pb-4">
-              <button (click)="rejectCloture(req)" class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">Rejeter</button>
-              <button (click)="approveCloture(req)" class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">Approuver</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Demandes de factures en attente -->
-        <div *ngIf="pendingInvoiceRequests.length > 0" class="mb-6">
-          <h3 class="text-lg font-semibold text-blue-600 mb-3 flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-            </svg>
-            Demandes de factures ({{ pendingInvoiceRequests.length }})
-          </h3>
-          <div *ngFor="let request of pendingInvoiceRequests" class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2">
-            <!-- Notification Header -->
-            <div class="px-6 py-4 border-b border-slate-100/50">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 class="font-semibold text-slate-900">Demande #{{ request.id }}</h3>
-                    <p class="text-sm text-slate-500">{{ formatDate(request.createdAt) }}</p>
-                  </div>
-                </div>
-                <div class="text-right">
-                  <div class="text-blue-600 font-bold text-lg">{{ formatCurrency(request.sale.finalTotal) }}</div>
-                  <div class="text-xs text-slate-500">{{ request.sale.items.length }} article(s)</div>
-                </div>
-              </div>
-            </div>
-            <!-- Notification Content -->
-            <div class="px-6 py-4">
-              <div class="text-sm text-slate-600"><span class="font-semibold">Vente:</span> #{{ request.sale.id }} - {{ formatCurrency(request.sale.finalTotal) }}</div>
-              <div class="text-sm text-slate-600 mt-1"><span class="font-semibold">Client:</span> {{ request.sale.client ? request.sale.client.firstName + ' ' + request.sale.client.lastName : 'PASSAGER' }}</div>
-              <div class="text-sm text-slate-600 mt-1"><span class="font-semibold">Demandé par:</span> {{ request.requestedBy.firstName }} {{ request.requestedBy.lastName }}</div>
-              <p *ngIf="request.requestNotes" class="text-sm text-slate-600 mt-3 bg-slate-50 rounded-lg p-3">{{ request.requestNotes }}</p>
-              <div class="mt-3">
-                <button (click)="toggleInvoiceDetails(request)" class="px-3 py-1 bg-slate-50 text-slate-700 rounded-lg text-sm border border-slate-200/50">{{ invoiceDetailsExpanded[request.id] ? 'Masquer les détails' : 'Détails' }}</button>
-              </div>
-              <div *ngIf="invoiceDetailsExpanded[request.id]" class="mt-3 bg-white rounded-xl border border-blue-200/60 p-3">
-                <div class="text-sm font-medium text-slate-700 mb-2">Articles de la vente</div>
-                <div class="space-y-2">
-                  <div *ngFor="let it of request.sale.items" class="flex items-center justify-between text-sm">
-                    <div class="text-slate-700">{{ it.productName || it.product?.name }}</div>
-                    <div class="text-slate-500">Qté: {{ it.quantity }} • PU: {{ (it.unitPrice ?? it.product?.prix_vente_TTC) | number:'1.3-3' }} DT</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- Action Buttons -->
-            <div class="flex gap-3 px-6 pb-4">
-              <button (click)="rejectInvoiceRequest(request)" class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">Rejeter</button>
-              <button (click)="approveInvoiceRequest(request)" class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">Approuver</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bons de retour en attente -->
-        <div *ngIf="pendingReturns.length > 0" class="mb-6">
-          <h3 class="text-lg font-semibold text-amber-600 mb-3 flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"></path>
-            </svg>
-            Bons de retour ({{ pendingReturns.length }})
-          </h3>
-          <div *ngFor="let req of pendingReturns" class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2">
-            <!-- Notification Header -->
-            <div class="px-6 py-4 border-b border-slate-100/50">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 class="font-semibold text-slate-900">Bon de retour • {{ req.numero }}</h3>
-                    <p class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</p>
-                  </div>
-                </div>
-                
-              </div>
-            </div>
-            <!-- Notification Content -->
-            <div class="px-6 py-4">
-              <div class="text-sm font-medium text-slate-700 mb-2">Articles à retourner</div>
-              <div class="space-y-2">
-                <div *ngFor="let item of req.items" class="flex items-center justify-between bg-slate-50 rounded-lg p-3 border border-slate-200">
-                  <div class="flex-1">
-                    <div class="font-medium text-slate-800">{{ item.product?.name || 'Produit #' + item.productId }}</div>
-                    <div class="text-sm text-slate-600">Vendu: {{ item.requestedQty }} • PU: {{ item.product?.prix_vente_TTC || 'N/A' }} DT</div>
-                  </div>
-                  <div class="text-right text-slate-800 font-semibold">{{ (item.requestedQty * (item.product?.prix_vente_TTC || 0)) | number:'1.2-2' }} DT</div>
-                </div>
-              </div>
-              <div *ngIf="req.notes" class="mt-3">
-                <div class="text-sm text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-200">{{ req.notes }}</div>
-              </div>
-            </div>
-            <!-- Action Buttons -->
-            <div class="flex gap-3 px-6 pb-4">
-              <button (click)="rejectReturnRequest(req)" class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">Rejeter</button>
-              <button (click)="approveReturnRequest(req)" class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">Approuver</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Rebuts en attente d'autorité -->
-        <div *ngIf="pendingRebuts.length > 0" class="mb-2">
-          <h3 class="text-lg font-semibold text-rose-600 mb-3 flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            Rebuts en attente ({{ pendingRebuts.length }})
-          </h3>
-          <div *ngFor="let r of pendingRebuts" class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2">
-            <!-- Notification Header -->
-            <div class="px-6 py-4 border-b border-slate-100/50">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center">
-                    <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 class="font-semibold text-slate-900">Rebut • {{ r.product?.name || r.productId }}</h3>
-                    <p class="text-xs text-slate-500">Qté: {{ r.quantity }} • Dépôt: {{ r.depot?.name || r.depotId }}</p>
-                  </div>
-                </div>
-                <button (click)="archiveRebut(r.id)" class="px-3 py-1 bg-rose-50 text-rose-700 rounded-lg text-sm border border-rose-200/50" title="Archiver après validation d'autorité" aria-label="Archiver le rebut">Archiver</button>
-              </div>
-            </div>
+          <!-- Action Buttons -->
+          <div class="flex gap-3 px-6 pb-4">
+            <button (click)="rejectCloture(req)"
+              class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">Rejeter</button>
+            <button (click)="approveCloture(req)"
+              class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">Approuver</button>
           </div>
         </div>
       </div>
 
-      <!-- Cloture variance approvals -->
-      <div *ngIf="!loading && !error && selectedTab==='CLOTURE'">
-        <div *ngIf="varianceRequests.length===0" class="text-slate-500 text-sm">Aucune clôture en attente</div>
-        <div *ngFor="let req of varianceRequests" class="bg-white rounded-2xl p-4 border border-slate-200 mb-2">
-          <div class="flex justify-between items-start">
-            <div>
-              <div class="flex items-center gap-2">
-                <div class="text-slate-800 font-bold">Clôture • Session #{{ req.session?.id || req.entityId }}</div>
-                <ng-container *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
-                  <span class="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700 border border-slate-200">{{ z.summary?.totalTickets }} tickets</span>
-                </ng-container>
-              </div>
-              <div class="text-xs text-slate-500">{{ req.createdAt | date:'short' }}</div>
-              <div class="text-sm text-slate-500 mt-1" *ngIf="req.session">
-                {{ req.session.user?.firstName }} {{ req.session.user?.lastName }} • {{ req.session.depot?.name || '—' }}
-              </div>
-            </div>
-            <div class="text-right">
-              <div class="text-slate-500 text-xs">{{ req.status }}</div>
-            </div>
-          </div>
 
-          <!-- concise extract -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3" *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
-            <div class="bg-slate-50 rounded-xl p-3">
-              <div class="text-xs text-slate-500">Reçu ESPÈCES</div>
-              <div class="text-slate-900 font-semibold">{{ getTotalEncaissements(z).toFixed(3) }} DT</div>
-            </div>
-            <div class="bg-slate-50 rounded-xl p-3">
-              <div class="text-xs text-slate-500">Reste en Caisse</div>
-              <div class="text-slate-900 font-semibold">{{ z.summary?.expectedCash?.toFixed(3) }} DT</div>
-            </div>
-            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData">
-              <div class="text-xs text-slate-500">Compté</div>
-              <div class="text-slate-900 font-semibold">{{ (z.closureData.countedCash || 0) | number:'1.3-3' }} DT</div>
-            </div>
-            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) === 0">
-              <div class="text-xs text-slate-500">Écart</div>
-              <div class="text-slate-900 font-semibold">{{ ((z.closureData.countedCash || 0) - (z.summary?.expectedCash || 0)) | number:'1.3-3' }} DT</div>
-            </div>
-            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) !== 0">
-              <div class="text-xs text-slate-500">Retrait</div>
-              <div class="text-slate-900 font-semibold">{{ (z.closureData.withdrawalAmount || 0) | number:'1.3-3' }} DT</div>
-            </div>
-            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && ((z.closureData.remainingBalance || 0) !== (z.summary?.expectedCash || 0))">
-              <div class="text-xs text-slate-500">Reste</div>
-              <div class="text-slate-900 font-semibold">{{ (z.closureData.remainingBalance || 0) | number:'1.3-3' }} DT</div>
-            </div>
-          </div>
-
-          <div class="flex gap-2 mt-3">
-            <button (click)="rejectCloture(req)" class="px-3 py-1 bg-red-600/80 text-white rounded-lg text-sm">Rejeter</button>
-            <button (click)="approveCloture(req)" class="px-3 py-1 bg-emerald-600/90 text-white rounded-lg text-sm">Approuver</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pending list -->
-      <div *ngIf="!loading && !error && selectedTab==='PENDING_ADMIN'">
-        <div *ngIf="pendingGifts.length===0" class="text-slate-500 text-sm">Aucune demande en attente</div>
-        <div *ngFor="let sale of pendingGifts" class="bg-slate-100/40 rounded-2xl p-4 border border-slate-200/30 mb-2">
-          <div class="flex justify-between items-start">
-            <div>
-              <div class="text-slate-800 font-bold">#{{ sale.id }}</div>
-              <div class="text-xs text-slate-500">{{ sale.createdAt | date:'short' }}</div>
-              <div class="text-sm text-slate-600 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
-              <div class="text-sm text-slate-500 mt-1">Articles: {{ sale.items.length || 0 }}</div>
-              <div class="mt-2 space-y-1" *ngIf="sale.items?.length">
-                <div *ngFor="let it of sale.items" class="text-xs text-slate-700 bg-white/80 border border-slate-200 rounded-lg px-2 py-1">
-                  <span class="font-medium">{{ it.productName }}</span>
-                  <span>• Qté: {{ it.quantity }}</span>
-                  <span>• PU: {{ it.unitPrice | number:'1.3-3' }} DT</span>
+      <!-- Bons de retour en attente -->
+      <div *ngIf="pendingReturns.length > 0" class="mb-6">
+        <h3 class="text-lg font-semibold text-amber-600 mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"></path>
+          </svg>
+          Bons de retour ({{ pendingReturns.length }})
+        </h3>
+        <div *ngFor="let req of pendingReturns"
+          class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2">
+          <!-- Notification Header -->
+          <div class="px-6 py-4 border-b border-slate-100/50">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                  <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18">
+                    </path>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-slate-900">Bon de retour • {{ req.numero }}</h3>
+                  <p class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</p>
                 </div>
               </div>
+
             </div>
-            <div class="flex gap-2">
-              <button (click)="reject(sale)" class="px-3 py-1 bg-red-600/70 text-slate-800 rounded-lg text-sm">Rejeter</button>
-              <button (click)="approve(sale)" class="px-3 py-1 bg-emerald-600/70 text-slate-800 rounded-lg text-sm">Approuver</button>
+          </div>
+          <!-- Notification Content -->
+          <div class="px-6 py-4">
+            <div class="text-sm font-medium text-slate-700 mb-2">Articles à retourner</div>
+            <div class="space-y-2">
+              <div *ngFor="let item of req.items"
+                class="flex items-center justify-between bg-slate-50 rounded-lg p-3 border border-slate-200">
+                <div class="flex-1">
+                  <div class="font-medium text-slate-800">{{ item.product?.name || 'Produit #' + item.productId }}</div>
+                  <div class="text-sm text-slate-600">Vendu: {{ item.requestedQty }} • PU: {{
+                    item.product?.prix_vente_TTC || 'N/A' }} DT</div>
+                </div>
+                <div class="text-right text-slate-800 font-semibold">{{ (item.requestedQty *
+                  (item.product?.prix_vente_TTC || 0)) | number:'1.2-2' }} DT</div>
+              </div>
             </div>
+            <div *ngIf="req.notes" class="mt-3">
+              <div class="text-sm text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-200">{{ req.notes }}
+              </div>
+            </div>
+          </div>
+          <!-- Action Buttons -->
+          <div class="flex gap-3 px-6 pb-4">
+            <button (click)="rejectReturnRequest(req)"
+              class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">Rejeter</button>
+            <button (click)="approveReturnRequest(req)"
+              class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">Approuver</button>
           </div>
         </div>
       </div>
 
-      <!-- Approved list -->
-      <div *ngIf="!loading && !error && selectedTab==='CADEAU'">
-        <div *ngIf="approvedGifts.length===0" class="text-slate-500 text-sm">Aucun cadeau approuvé</div>
-        <div *ngFor="let sale of approvedGifts" class="bg-slate-100/40 rounded-2xl p-4 border border-slate-200/30 mb-2">
-          <div class="flex justify-between items-start">
-            <div>
-              <div class="text-slate-800 font-bold">#{{ sale.id }}</div>
-              <div class="text-xs text-slate-500">{{ sale.createdAt | date:'short' }}</div>
-              <div class="text-sm text-slate-600 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
-              <div class="text-sm text-slate-500 mt-1">Articles: {{ sale.items.length || 0 }}</div>
-              <div class="mt-2 space-y-1" *ngIf="sale.items?.length">
-                <div *ngFor="let it of sale.items" class="text-xs text-slate-700 bg-white/80 border border-slate-200 rounded-lg px-2 py-1">
-                  <span class="font-medium">{{ it.productName }}</span>
-                  <span>• Qté: {{ it.quantity }}</span>
-                  <span>• PU: {{ it.unitPrice | number:'1.3-3' }} DT</span>
+      <!-- Rebuts en attente d'autorité -->
+      <div *ngIf="pendingRebuts.length > 0" class="mb-2">
+        <h3 class="text-lg font-semibold text-rose-600 mb-3 flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          Rebuts en attente ({{ pendingRebuts.length }})
+        </h3>
+        <div *ngFor="let r of pendingRebuts"
+          class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden mb-2">
+          <!-- Notification Header -->
+          <div class="px-6 py-4 border-b border-slate-100/50">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center">
+                  <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-slate-900">Rebut • {{ r.product?.name || r.productId }}</h3>
+                  <p class="text-xs text-slate-500">Qté: {{ r.quantity }} • Dépôt: {{ r.depot?.name || r.depotId }}</p>
                 </div>
               </div>
-            </div>
-            <div class="text-right">
-              <div class="text-green-400 font-bold">0.000 dt</div>
-              <div class="text-xs text-slate-500">Cadeau</div>
+              <button (click)="archiveRebut(r.id)"
+                class="px-3 py-1 bg-rose-50 text-rose-700 rounded-lg text-sm border border-rose-200/50"
+                title="Archiver après validation d'autorité" aria-label="Archiver le rebut">Archiver</button>
             </div>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Cloture variance approvals -->
+    <div *ngIf="!loading && !error && selectedTab==='CLOTURE'">
+      <div *ngIf="varianceRequests.length===0" class="text-slate-500 text-sm">Aucune clôture en attente</div>
+      <div *ngFor="let req of varianceRequests" class="bg-white rounded-2xl p-4 border border-slate-200 mb-2">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="flex items-center gap-2">
+              <div class="text-slate-800 font-bold">Clôture • Session #{{ req.session?.id || req.entityId }}</div>
+              <ng-container *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
+                <span class="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700 border border-slate-200">{{
+                  z.summary?.totalTickets }} tickets</span>
+              </ng-container>
+            </div>
+            <div class="text-xs text-slate-500">{{ req.createdAt | date:'short' }}</div>
+            <div class="text-sm text-slate-500 mt-1" *ngIf="req.session">
+              {{ req.session.user?.firstName }} {{ req.session.user?.lastName }} • {{ req.session.depot?.name || '—' }}
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-slate-500 text-xs">{{ req.status }}</div>
+          </div>
+        </div>
+
+        <!-- concise extract -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3"
+          *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
+          <div class="bg-slate-50 rounded-xl p-3">
+            <div class="text-xs text-slate-500">Reçu ESPÈCES</div>
+            <div class="text-slate-900 font-semibold">{{ getTotalEncaissements(z).toFixed(3) }} DT</div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3">
+            <div class="text-xs text-slate-500">Reste en Caisse</div>
+            <div class="text-slate-900 font-semibold">{{ z.summary?.expectedCash?.toFixed(3) }} DT</div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData">
+            <div class="text-xs text-slate-500">Compté</div>
+            <div class="text-slate-900 font-semibold">{{ (z.closureData.countedCash || 0) | number:'1.3-3' }} DT</div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) === 0">
+            <div class="text-xs text-slate-500">Écart</div>
+            <div class="text-slate-900 font-semibold">{{ ((z.closureData.countedCash || 0) - (z.summary?.expectedCash ||
+              0)) | number:'1.3-3' }} DT</div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) !== 0">
+            <div class="text-xs text-slate-500">Retrait</div>
+            <div class="text-slate-900 font-semibold">{{ (z.closureData.withdrawalAmount || 0) | number:'1.3-3' }} DT
+            </div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3"
+            *ngIf="z.closureData && ((z.closureData.remainingBalance || 0) !== (z.summary?.expectedCash || 0))">
+            <div class="text-xs text-slate-500">Reste</div>
+            <div class="text-slate-900 font-semibold">{{ (z.closureData.remainingBalance || 0) | number:'1.3-3' }} DT
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mt-3">
+          <button (click)="rejectCloture(req)"
+            class="px-3 py-1 bg-red-600/80 text-white rounded-lg text-sm">Rejeter</button>
+          <button (click)="approveCloture(req)"
+            class="px-3 py-1 bg-emerald-600/90 text-white rounded-lg text-sm">Approuver</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending list -->
+    <div *ngIf="!loading && !error && selectedTab==='PENDING_ADMIN'">
+      <div *ngIf="pendingGifts.length===0" class="text-slate-500 text-sm">Aucune demande en attente</div>
+      <div *ngFor="let sale of pendingGifts" class="bg-slate-100/40 rounded-2xl p-4 border border-slate-200/30 mb-2">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="text-slate-800 font-bold">#{{ sale.id }}</div>
+            <div class="text-xs text-slate-500">{{ sale.createdAt | date:'short' }}</div>
+            <div class="text-sm text-slate-600 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
+            <div class="text-sm text-slate-500 mt-1">Articles: {{ sale.items.length || 0 }}</div>
+            <div class="mt-2 space-y-1" *ngIf="sale.items?.length">
+              <div *ngFor="let it of sale.items"
+                class="text-xs text-slate-700 bg-white/80 border border-slate-200 rounded-lg px-2 py-1">
+                <span class="font-medium">{{ it.productName }}</span>
+                <span>• Qté: {{ it.quantity }}</span>
+                <span>• PU: {{ it.unitPrice | number:'1.3-3' }} DT</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button (click)="reject(sale)"
+              class="px-3 py-1 bg-red-600/70 text-slate-800 rounded-lg text-sm">Rejeter</button>
+            <button (click)="approve(sale)"
+              class="px-3 py-1 bg-emerald-600/70 text-slate-800 rounded-lg text-sm">Approuver</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Approved list -->
+    <div *ngIf="!loading && !error && selectedTab==='CADEAU'">
+      <div *ngIf="approvedGifts.length===0" class="text-slate-500 text-sm">Aucun cadeau approuvé</div>
+      <div *ngFor="let sale of approvedGifts" class="bg-slate-100/40 rounded-2xl p-4 border border-slate-200/30 mb-2">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="text-slate-800 font-bold">#{{ sale.id }}</div>
+            <div class="text-xs text-slate-500">{{ sale.createdAt | date:'short' }}</div>
+            <div class="text-sm text-slate-600 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
+            <div class="text-sm text-slate-500 mt-1">Articles: {{ sale.items.length || 0 }}</div>
+            <div class="mt-2 space-y-1" *ngIf="sale.items?.length">
+              <div *ngFor="let it of sale.items"
+                class="text-xs text-slate-700 bg-white/80 border border-slate-200 rounded-lg px-2 py-1">
+                <span class="font-medium">{{ it.productName }}</span>
+                <span>• Qté: {{ it.quantity }}</span>
+                <span>• PU: {{ it.unitPrice | number:'1.3-3' }} DT</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-green-400 font-bold">0.000 dt</div>
+            <div class="text-xs text-slate-500">Cadeau</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Expenses list - iPhone Notification Center Style -->
     <div *ngIf="!loading && !error && selectedTab==='EXPENSES'">
       <div *ngIf="pendingExpenses.length===0" class="text-center py-12">
         <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+            </path>
           </svg>
         </div>
         <h3 class="text-lg font-semibold text-slate-900 mb-2">Aucune dépense en attente</h3>
         <p class="text-slate-500">Toutes les dépenses ont été traitées</p>
       </div>
-      
+
       <div class="space-y-3" *ngIf="pendingExpenses.length > 0">
-        <div *ngFor="let expense of pendingExpenses; let i = index" 
-             class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden"
-             [style.animation-delay]="(i * 100) + 'ms'">
-          
+        <div *ngFor="let expense of pendingExpenses; let i = index"
+          class="notification-card bg-white/90 rounded-2xl border border-slate-200/50 shadow-sm transition-all duration-300 overflow-hidden"
+          [style.animation-delay]="(i * 100) + 'ms'">
+
           <!-- Notification Header -->
           <div class="px-6 py-4 border-b border-slate-100/50">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
                   <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                    </path>
                   </svg>
                 </div>
                 <div>
@@ -557,31 +613,35 @@
               <div class="flex items-center gap-4 text-sm text-slate-600">
                 <span *ngIf="expense.category" class="flex items-center gap-1">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z">
+                    </path>
                   </svg>
                   {{ expense.category.name }}
                 </span>
                 <span *ngIf="expense.user" class="flex items-center gap-1">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                   </svg>
                   {{ expense.user.firstName }} {{ expense.user.lastName }}
                 </span>
               </div>
-              <p *ngIf="expense.notes" class="text-sm text-slate-600 mt-2 bg-slate-50 rounded-lg p-3">{{ expense.notes }}</p>
+              <p *ngIf="expense.notes" class="text-sm text-slate-600 mt-2 bg-slate-50 rounded-lg p-3">{{ expense.notes
+                }}</p>
             </div>
 
             <!-- Action Buttons -->
             <div class="flex gap-3">
-              <button (click)="rejectExpense(expense)" 
-                      class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">
+              <button (click)="rejectExpense(expense)"
+                class="action-button flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-red-200/50">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
                 Rejeter
               </button>
-              <button (click)="approveExpense(expense)" 
-                      class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">
+              <button (click)="approveExpense(expense)"
+                class="action-button flex-1 px-4 py-3 bg-emerald-50 text-emerald-600 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 border border-emerald-200/50">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
@@ -593,260 +653,31 @@
       </div>
     </div>
 
-      <!-- Invoice Requests -->
-      <div *ngIf="!loading && !error && selectedTab==='INVOICES'">
-        <!-- Debug info -->
-        <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <h4 class="font-semibold text-yellow-800">Debug Info:</h4>
-          <p class="text-sm text-yellow-700">Requests loaded: {{ pendingInvoiceRequests.length }}</p>
-          <button (click)="loadInvoiceRequests()" class="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm">
-            Reload Requests
-          </button>
-        </div>
-        
-        <div *ngIf="pendingInvoiceRequests.length === 0" class="text-slate-500 text-sm">
-          Aucune demande de facture en attente
-          <br><br>
-          <strong>Pour tester:</strong> Allez dans la caisse et créez une vente complétée, puis cliquez sur "Demander facture"
-        </div>
-        <div *ngFor="let request of pendingInvoiceRequests" class="bg-blue-50 rounded-2xl p-4 border border-blue-200 mb-2">
-          <div class="flex justify-between items-start">
-            <div class="flex-1">
-              <div class="text-slate-800 font-bold">Demande #{{ request.id }}</div>
-              <div class="text-xs text-slate-500">{{ formatDate(request.createdAt) }}</div>
-              <div class="text-sm text-slate-600 mt-1">
-                <strong>Vente:</strong> #{{ request.sale.id }} - {{ formatCurrency(request.sale.finalTotal) }}
-              </div>
-              <div class="text-sm text-slate-600 mt-1">
-                <strong>Client:</strong> {{ request.sale.client ? request.sale.client.firstName + ' ' + request.sale.client.lastName : 'PASSAGER' }}
-              </div>
-              <div class="text-sm text-slate-600 mt-1">
-                <strong>Demandé par:</strong> {{ request.requestedBy.firstName }} {{ request.requestedBy.lastName }}
-              </div>
-              <div class="text-sm text-slate-500 mt-1" *ngIf="request.requestNotes">{{ request.requestNotes }}</div>
-            </div>
-            <div class="text-right ml-4">
-              <div class="text-blue-600 font-bold text-lg">{{ formatCurrency(request.sale.finalTotal) }}</div>
-              <div class="text-xs text-slate-500">{{ request.sale.items.length }} article(s)</div>
-            </div>
-          </div>
-          <div class="flex gap-2 mt-3">
-            <button (click)="toggleInvoiceDetails(request)" class="px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-sm">{{ invoiceDetailsExpanded[request.id] ? 'Masquer les détails' : 'Détails' }}</button>
-            <button (click)="rejectInvoiceRequest(request)" class="px-3 py-1 bg-red-600/70 text-white rounded-lg text-sm">Rejeter</button>
-            <button (click)="approveInvoiceRequest(request)" class="px-3 py-1 bg-emerald-600/70 text-white rounded-lg text-sm">Approuver</button>
-          </div>
-          <div *ngIf="invoiceDetailsExpanded[request.id]" class="mt-3 bg-white rounded-xl border border-blue-200/60 p-3">
-            <div class="text-sm font-medium text-slate-700 mb-2">Articles de la vente</div>
-            <div class="space-y-2">
-              <div *ngFor="let it of request.sale.items" class="flex items-center justify-between text-sm">
-                <div class="text-slate-700">{{ it.productName || it.product?.name }}</div>
-                <div class="text-slate-500">Qté: {{ it.quantity }} • PU: {{ (it.unitPrice ?? it.product?.prix_vente_TTC) | number:'1.3-3' }} DT</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Main History (union of all) -->
-      <div *ngIf="!loading && !error && selectedTab==='HISTORY'">
-        <!-- Clôture history subset -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold text-slate-700 mb-3">Historique de clôture ({{ historyRequests.length }})</h3>
-          <div *ngIf="historyRequests.length===0" class="text-slate-500 text-sm">Aucun historique de clôture</div>
-          <div *ngFor="let req of historyRequests" class="bg-white rounded-2xl p-4 border border-slate-200 mb-2">
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="flex items-center gap-2">
-                  <div class="text-slate-800 font-bold">Clôture • Session #{{ req.session?.id || req.entityId }}</div>
-                  <span [class]="'px-2 py-0.5 rounded-full text-xs ' + (req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
-                    {{ getStatusLabel(req.status) }}
-                  </span>
-                  <ng-container *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
-                    <span class="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700 border border-slate-200">{{ z.summary?.totalTickets }} tickets</span>
-                  </ng-container>
-                </div>
-                <div class="text-xs text-slate-500">{{ req.createdAt | date:'short' }}</div>
-                <div class="text-sm text-slate-500 mt-1" *ngIf="req.session">
-                  {{ req.session.user?.firstName }} {{ req.session.user?.lastName }} • {{ req.session.depot?.name || '—' }}
-                </div>
-                <div class="text-sm text-slate-600 mt-1" *ngIf="req.reason">{{ req.reason }}</div>
-                <div class="text-sm text-red-600 mt-1" *ngIf="req.status === 'REJECTED' && req.rejectionReasonCode">
-                  <span class="font-medium">Motif du rejet:</span> {{ getRejectionReasonLabel(req.rejectionReasonCode) }}
-                </div>
-                <div class="text-sm text-red-600 mt-1" *ngIf="req.status === 'REJECTED' && req.rejectionNotes">
-                  <span class="font-medium">Note:</span> {{ req.rejectionNotes }}
-                </div>
-                <div class="text-xs text-slate-500 mt-1" *ngIf="req.approvedAt">
-                  Traité le {{ req.approvedAt | date:'short' }}
-                </div>
-                <div class="text-xs text-blue-600 mt-1" *ngIf="req.session && req.session.status === 'ADMIN_CORRECTED'">
-                  <span class="font-medium">{{ getSessionStatusLabel(req.session.status) }}</span>
-                </div>
-              </div>
-              <div class="text-right">
-                <div class="text-slate-500 text-xs">{{ getStatusLabel(req.status) }}</div>
-              </div>
-            </div>
-
-            <!-- concise extract -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3" *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
-              <div class="bg-slate-50 rounded-xl p-3">
-                <div class="text-xs text-slate-500">Ventes TTC</div>
-                <div class="text-slate-900 font-semibold">{{ getTotalEncaissements(z).toFixed(3) }} DT</div>
-              </div>
-              <div class="bg-slate-50 rounded-xl p-3">
-                <div class="text-xs text-slate-500">Attendu</div>
-                <div class="text-slate-900 font-semibold">{{ z.summary?.expectedCash?.toFixed(3) }} DT</div>
-              </div>
-              <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData">
-                <div class="text-xs text-slate-500">Compté</div>
-                <div class="text-slate-900 font-semibold">{{ (z.closureData.countedCash || 0) | number:'1.3-3' }} DT</div>
-              </div>
-              <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) === 0">
-                <div class="text-xs text-slate-500">Écart</div>
-                <div class="text-slate-900 font-semibold">{{ ((z.closureData.countedCash || 0) - (z.summary?.expectedCash || 0)) | number:'1.3-3' }} DT</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Expenses history subset (local session) -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold text-slate-700 mb-3">Historique des dépenses</h3>
-          <div *ngIf="approvedExpensesHistory.length===0 && rejectedExpensesHistory.length===0" class="text-slate-500 text-sm">Aucune dépense traitée récemment</div>
-
-          <!-- Recently rejected expenses -->
-          <div *ngIf="rejectedExpensesHistory.length>0" class="mb-4">
-            <h4 class="text-sm font-semibold text-red-700 mb-2">Rejetées</h4>
-            <div *ngFor="let expense of rejectedExpensesHistory" class="bg-red-50 border border-red-200 rounded-xl p-4 mb-2">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="font-semibold text-slate-900">Dépense #{{ expense.id }}</div>
-                  <div class="text-xs text-slate-500">{{ expense.date | date:'short' }}</div>
-                </div>
-                <div class="text-right">
-                  <div class="text-red-600 font-bold">{{ formatCurrency(expense.amount) }}</div>
-                  <div class="text-xs text-slate-500">{{ expense.paymentType }}</div>
-                </div>
-              </div>
-              <div class="text-sm text-slate-700 mt-2">{{ expense.description }}</div>
-              <div class="text-xs text-slate-500 mt-1" *ngIf="expense.rejectedAt">Rejeté le {{ expense.rejectedAt | date:'short' }}</div>
-              <div class="text-xs text-slate-500 mt-1" *ngIf="expense.rejectionNotes">Motif: {{ expense.rejectionNotes }}</div>
-            </div>
-          </div>
-
-          <!-- Recently approved expenses -->
-          <div *ngIf="approvedExpensesHistory.length>0">
-            <h4 class="text-sm font-semibold text-emerald-700 mb-2">Approuvées</h4>
-            <div *ngFor="let expense of approvedExpensesHistory" class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-2">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="font-semibold text-slate-900">Dépense #{{ expense.id }}</div>
-                  <div class="text-xs text-slate-500">{{ expense.date | date:'short' }}</div>
-                </div>
-                <div class="text-right">
-                  <div class="text-emerald-700 font-bold">{{ formatCurrency(expense.amount) }}</div>
-                  <div class="text-xs text-slate-500">{{ expense.paymentType }}</div>
-                </div>
-              </div>
-              <div class="text-sm text-slate-700 mt-2">{{ expense.description }}</div>
-              <div class="text-xs text-slate-500 mt-1" *ngIf="expense.approvedAt">Approuvée le {{ expense.approvedAt | date:'short' }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Rejected Gifts history subset -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold text-slate-700 mb-3">Cadeaux rejetés ({{ rejectedGifts.length }})</h3>
-          <div *ngIf="rejectedGifts.length===0" class="text-slate-500 text-sm">Aucun cadeau rejeté</div>
-          <div *ngFor="let sale of rejectedGifts" class="bg-red-50 rounded-2xl p-4 border border-red-200 mb-2">
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="text-slate-800 font-bold">#{{ sale.id }}</div>
-                <div class="text-xs text-slate-500">{{ sale.createdAt | date:'short' }}</div>
-                <div class="text-sm text-slate-600 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
-                <div class="text-sm text-slate-500 mt-1">Articles: {{ sale.items.length || 0 }}</div>
-              </div>
-              <div class="text-right">
-                <div class="text-red-600 font-bold">Rejeté</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Retours history subset -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold text-slate-700 mb-3">Historique retours ({{ returnHistory.length }})</h3>
-          <div *ngIf="returnHistory.length===0" class="text-slate-500 text-sm">Aucun historique de retour</div>
-          <div *ngFor="let req of returnHistory" class="bg-white rounded-2xl p-6 border border-slate-200 mb-4">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <h3 class="text-lg font-semibold text-slate-800">Bon de retour • {{ req.numero }}</h3>
-                <div class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</div>
-              </div>
-              <div class="flex items-center gap-2">
-                <span [class]="'px-3 py-1 rounded-full text-sm ' + (req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
-                  {{ req.status === 'APPROVED' ? 'Approuvé' : 'Rejeté' }}
-                </span>
-                <div class="text-xs text-slate-500" *ngIf="req.approvedAt">{{ req.approvedAt | date:'short' }}</div>
-              </div>
-            </div>
-            <div class="space-y-3">
-              <div *ngFor="let item of req.items" class="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <div class="flex items-center justify-between">
-                  <div class="flex-1">
-                    <div class="font-medium text-slate-800">{{ item.product?.name || 'Produit #' + item.productId }}</div>
-                    <div class="text-sm text-slate-600">Quantité: {{ item.requestedQty }} • PU: {{ item.product?.prix_vente_TTC || 'N/A' }} DT</div>
-                  </div>
-                  <div class="text-right text-slate-800 font-semibold">{{ (item.requestedQty * (item.product?.prix_vente_TTC || 0)) | number:'1.2-2' }} DT</div>
-                </div>
-              </div>
-            </div>
-            <div *ngIf="req.notes" class="mt-3">
-              <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-sm text-slate-700 whitespace-pre-line">{{ req.notes }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Cadeaux approuvés history subset -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold text-slate-700 mb-3">Cadeaux approuvés ({{ approvedGifts.length }})</h3>
-          <div *ngIf="approvedGifts.length===0" class="text-slate-500 text-sm">Aucun cadeau approuvé</div>
-          <div *ngFor="let sale of approvedGifts" class="bg-white rounded-2xl p-4 border border-slate-200 mb-2">
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="text-slate-800 font-bold">#{{ sale.id }}</div>
-                <div class="text-xs text-slate-500">{{ sale.createdAt | date:'short' }}</div>
-                <div class="text-sm text-slate-600 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
-                <div class="text-sm text-slate-500 mt-1">Articles: {{ sale.items.length || 0 }}</div>
-              </div>
-              <div class="text-right">
-                <div class="text-green-400 font-bold">0.000 dt</div>
-                <div class="text-xs text-slate-500">Cadeau</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- History list: Clôture only -->
-      <div *ngIf="!loading && !error && selectedTab==='HISTORY_CLOTURE'">
-        <div *ngIf="historyRequests.length===0" class="text-slate-500 text-sm">Aucun historique disponible</div>
+    <!-- Main History (union of all) -->
+    <div *ngIf="!loading && !error && selectedTab==='HISTORY'">
+      <!-- Clôture history subset -->
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold text-slate-700 mb-3">Historique de clôture ({{ historyRequests.length }})</h3>
+        <div *ngIf="historyRequests.length===0" class="text-slate-500 text-sm">Aucun historique de clôture</div>
         <div *ngFor="let req of historyRequests" class="bg-white rounded-2xl p-4 border border-slate-200 mb-2">
           <div class="flex justify-between items-start">
             <div>
               <div class="flex items-center gap-2">
                 <div class="text-slate-800 font-bold">Clôture • Session #{{ req.session?.id || req.entityId }}</div>
-                <span [class]="'px-2 py-0.5 rounded-full text-xs ' + (req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
+                <span
+                  [class]="'px-2 py-0.5 rounded-full text-xs ' + (req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
                   {{ getStatusLabel(req.status) }}
                 </span>
                 <ng-container *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
-                  <span class="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700 border border-slate-200">{{ z.summary?.totalTickets }} tickets</span>
+                  <span class="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700 border border-slate-200">{{
+                    z.summary?.totalTickets }} tickets</span>
                 </ng-container>
               </div>
               <div class="text-xs text-slate-500">{{ req.createdAt | date:'short' }}</div>
               <div class="text-sm text-slate-500 mt-1" *ngIf="req.session">
-                {{ req.session.user?.firstName }} {{ req.session.user?.lastName }} • {{ req.session.depot?.name || '—' }}
+                {{ req.session.user?.firstName }} {{ req.session.user?.lastName }} • {{ req.session.depot?.name || '—'
+                }}
               </div>
               <div class="text-sm text-slate-600 mt-1" *ngIf="req.reason">{{ req.reason }}</div>
               <div class="text-sm text-red-600 mt-1" *ngIf="req.status === 'REJECTED' && req.rejectionReasonCode">
@@ -868,7 +699,8 @@
           </div>
 
           <!-- concise extract -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3" *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3"
+            *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
             <div class="bg-slate-50 rounded-xl p-3">
               <div class="text-xs text-slate-500">Ventes TTC</div>
               <div class="text-slate-900 font-semibold">{{ getTotalEncaissements(z).toFixed(3) }} DT</div>
@@ -881,194 +713,70 @@
               <div class="text-xs text-slate-500">Compté</div>
               <div class="text-slate-900 font-semibold">{{ (z.closureData.countedCash || 0) | number:'1.3-3' }} DT</div>
             </div>
-            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) === 0">
+            <div class="bg-slate-50 rounded-xl p-3"
+              *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) === 0">
               <div class="text-xs text-slate-500">Écart</div>
-              <div class="text-slate-900 font-semibold">{{ ((z.closureData.countedCash || 0) - (z.summary?.expectedCash || 0)) | number:'1.3-3' }} DT</div>
-            </div>
-            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) !== 0">
-              <div class="text-xs text-slate-500">Retrait</div>
-              <div class="text-slate-900 font-semibold">{{ (z.closureData.withdrawalAmount || 0) | number:'1.3-3' }} DT</div>
-            </div>
-            <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && ((z.closureData.remainingBalance || 0) !== (z.summary?.expectedCash || 0))">
-              <div class="text-xs text-slate-500">Reste</div>
-              <div class="text-slate-900 font-semibold">{{ (z.closureData.remainingBalance || 0) | number:'1.3-3' }} DT</div>
+              <div class="text-slate-900 font-semibold">{{ ((z.closureData.countedCash || 0) - (z.summary?.expectedCash
+                || 0)) | number:'1.3-3' }} DT</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Returns approvals -->
-      <div *ngIf="!loading && !error && selectedTab==='RETURNS'">
-        <div *ngIf="loadingReturns" class="text-slate-500">Chargement...</div>
-        <div *ngIf="!loadingReturns && pendingReturns.length===0" class="text-slate-500 text-sm">Aucun bon de retour en attente</div>
-        
-        <div *ngFor="let req of pendingReturns" class="bg-white rounded-2xl p-6 border border-slate-200 mb-4">
-          <!-- Header -->
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <h3 class="text-lg font-semibold text-slate-800">Bon de retour • {{ req.numero }}</h3>
-              <div class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</div>
-            </div>
-            <span class="px-3 py-1 rounded-full text-sm bg-amber-100 text-amber-700 border border-amber-200">{{ req.status }}</span>
-          </div>
+      <!-- Expenses history subset (local session) -->
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold text-slate-700 mb-3">Historique des dépenses</h3>
+        <div *ngIf="approvedExpensesHistory.length===0 && rejectedExpensesHistory.length===0"
+          class="text-slate-500 text-sm">Aucune dépense traitée récemment</div>
 
-          <!-- Articles à retourner -->
-          <div class="mb-6">
-            <h4 class="text-md font-medium text-slate-700 mb-3">Articles à retourner</h4>
-            <div class="space-y-3">
-              <div *ngFor="let item of req.items" class="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <div class="flex items-center justify-between">
-                  <div class="flex-1">
-                    <div class="font-medium text-slate-800">{{ item.product?.name || 'Produit #' + item.productId }}</div>
-                    <div class="text-sm text-slate-600">
-                      Vendu: {{ item.requestedQty }} • PU: {{ item.product?.prix_vente_TTC || 'N/A' }} DT
-                    </div>
-                  </div>
-                  <div class="text-right">
-                    <div class="text-lg font-semibold text-slate-800">
-                      Retour: {{ (item.requestedQty * (item.product?.prix_vente_TTC || 0)) | number:'1.2-2' }} DT
-                    </div>
-                  </div>
-                </div>
+        <!-- Recently rejected expenses -->
+        <div *ngIf="rejectedExpensesHistory.length>0" class="mb-4">
+          <h4 class="text-sm font-semibold text-red-700 mb-2">Rejetées</h4>
+          <div *ngFor="let expense of rejectedExpensesHistory"
+            class="bg-red-50 border border-red-200 rounded-xl p-4 mb-2">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-semibold text-slate-900">Dépense #{{ expense.id }}</div>
+                <div class="text-xs text-slate-500">{{ expense.date | date:'short' }}</div>
               </div>
+              <div class="text-right">
+                <div class="text-red-600 font-bold">{{ formatCurrency(expense.amount) }}</div>
+                <div class="text-xs text-slate-500">{{ expense.paymentType }}</div>
+              </div>
+            </div>
+            <div class="text-sm text-slate-700 mt-2">{{ expense.description }}</div>
+            <div class="text-xs text-slate-500 mt-1" *ngIf="expense.rejectedAt">Rejeté le {{ expense.rejectedAt |
+              date:'short' }}</div>
+            <div class="text-xs text-slate-500 mt-1" *ngIf="expense.rejectionNotes">Motif: {{ expense.rejectionNotes }}
             </div>
           </div>
+        </div>
 
-          <!-- Remboursement details -->
-          <div class="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-4">
-            <h4 class="text-md font-medium text-slate-700 mb-3">Détails du remboursement</h4>
-            <div class="grid grid-cols-2 gap-4 text-sm">
+        <!-- Recently approved expenses -->
+        <div *ngIf="approvedExpensesHistory.length>0">
+          <h4 class="text-sm font-semibold text-emerald-700 mb-2">Approuvées</h4>
+          <div *ngFor="let expense of approvedExpensesHistory"
+            class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-2">
+            <div class="flex items-center justify-between">
               <div>
-                <span class="text-slate-600">Montant original de la vente:</span>
-                <span class="font-semibold text-slate-800 ml-2">
-                  {{ req.originalSaleTotal ? (req.originalSaleTotal | number:'1.2-2') + ' DT' : 'Non disponible' }}
-                </span>
+                <div class="font-semibold text-slate-900">Dépense #{{ expense.id }}</div>
+                <div class="text-xs text-slate-500">{{ expense.date | date:'short' }}</div>
               </div>
-              <div>
-                <span class="text-slate-600">Méthode de paiement:</span>
-                <span class="font-semibold text-slate-800 ml-2">Espèces</span>
-              </div>
-              <div>
-                <span class="text-slate-600">Valeur des articles retournés:</span>
-                <span class="font-semibold text-slate-800 ml-2">{{ getTotalReturnAmount(req) | number:'1.2-2' }} DT</span>
-              </div>
-              <div>
-                <span class="text-slate-600">Remboursement en espèces:</span>
-                <span class="font-semibold text-slate-800 ml-2">{{ getTotalReturnAmount(req) | number:'1.2-2' }} DT</span>
+              <div class="text-right">
+                <div class="text-emerald-700 font-bold">{{ formatCurrency(expense.amount) }}</div>
+                <div class="text-xs text-slate-500">{{ expense.paymentType }}</div>
               </div>
             </div>
-            <div class="mt-3 pt-3 border-t border-blue-200">
-              <div class="text-sm text-slate-600">
-                • Le montant à rembourser au client est <span class="font-semibold">{{ getTotalReturnAmount(req) | number:'1.2-2' }} DT</span> et sera automatiquement soustrait de la caisse.
-              </div>
-            </div>
-          </div>
-
-          <!-- Notes -->
-          <div *ngIf="req.notes" class="mb-4">
-            <h4 class="text-md font-medium text-slate-700 mb-2">Notes</h4>
-            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
-              <p class="text-sm text-slate-700">{{ req.notes }}</p>
-            </div>
-          </div>
-
-          <!-- Action buttons -->
-          <div class="flex justify-end gap-3">
-            <button (click)="rejectReturnRequest(req)" class="px-4 py-2 bg-red-600 text-white rounded-lg transition-colors">
-              Rejeter
-            </button>
-            <button (click)="approveReturnRequest(req)" class="px-4 py-2 bg-emerald-600 text-white rounded-lg transition-colors">
-              Approuver
-            </button>
+            <div class="text-sm text-slate-700 mt-2">{{ expense.description }}</div>
+            <div class="text-xs text-slate-500 mt-1" *ngIf="expense.approvedAt">Approuvée le {{ expense.approvedAt |
+              date:'short' }}</div>
           </div>
         </div>
       </div>
 
-      <!-- Rebut list -->
-      <div *ngIf="!loading && !error && selectedTab==='REButs'">
-        <div *ngIf="pendingRebuts.length===0" class="text-slate-500 text-sm">Aucun rebut en attente d'autorité</div>
-        <div *ngFor="let r of pendingRebuts" class="bg-rose-50 rounded-2xl p-4 border border-rose-200 mb-3">
-          <div class="flex justify-between items-start">
-            <div>
-              <div class="text-slate-800 font-semibold">{{ r.product?.name || r.productId }}</div>
-              <div class="text-xs text-slate-500">Qté: {{ r.quantity }} • Dépôt: {{ r.depot?.name || r.depotId }}</div>
-            </div>
-            <button (click)="archiveRebut(r.id)" class="px-3 py-1 bg-rose-600 text-white rounded-lg text-sm" title="Archiver après validation d'autorité" aria-label="Archiver le rebut">Archiver</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Return History -->
-      <div *ngIf="!loading && !error && selectedTab==='RETURN_HISTORY'">
-        <div *ngIf="loadingReturnHistory" class="text-slate-500">Chargement...</div>
-        <div *ngIf="!loadingReturnHistory && returnHistory.length===0" class="text-slate-500 text-sm">Aucun historique de retour disponible</div>
-        
-        <div *ngFor="let req of returnHistory" class="bg-white rounded-2xl p-6 border border-slate-200 mb-4">
-          <!-- Header -->
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <h3 class="text-lg font-semibold text-slate-800">Bon de retour • {{ req.numero }}</h3>
-              <div class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</div>
-            </div>
-            <div class="flex items-center gap-2">
-              <span [class]="'px-3 py-1 rounded-full text-sm ' + (req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
-                {{ req.status === 'APPROVED' ? 'Approuvé' : 'Rejeté' }}
-              </span>
-              <div class="text-xs text-slate-500" *ngIf="req.approvedAt">{{ req.approvedAt | date:'short' }}</div>
-            </div>
-          </div>
-
-          <!-- Articles retournés -->
-          <div class="mb-6">
-            <h4 class="text-md font-medium text-slate-700 mb-3">Articles retournés</h4>
-            <div class="space-y-3">
-              <div *ngFor="let item of req.items" class="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <div class="flex items-center justify-between">
-                  <div class="flex-1">
-                    <div class="font-medium text-slate-800">{{ item.product?.name || 'Produit #' + item.productId }}</div>
-                    <div class="text-sm text-slate-600">
-                      Quantité: {{ item.requestedQty }} • PU: {{ item.product?.prix_vente_TTC || 'N/A' }} DT
-                    </div>
-                  </div>
-                  <div class="text-right">
-                    <div class="text-lg font-semibold text-slate-800">
-                      {{ (item.requestedQty * (item.product?.prix_vente_TTC || 0)) | number:'1.2-2' }} DT
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Remboursement details -->
-          <div class="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-4">
-            <h4 class="text-md font-medium text-slate-700 mb-3">Détails du remboursement</h4>
-            <div class="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span class="text-slate-600">Montant original de la vente:</span>
-                <span class="font-semibold text-slate-800 ml-2">
-                  {{ req.originalSaleTotal ? (req.originalSaleTotal | number:'1.2-2') + ' DT' : 'Non disponible' }}
-                </span>
-              </div>
-              <div>
-                <span class="text-slate-600">Valeur des articles retournés:</span>
-                <span class="font-semibold text-slate-800 ml-2">{{ getTotalReturnAmount(req) | number:'1.2-2' }} DT</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Notes -->
-          <div *ngIf="req.notes" class="mb-4">
-            <h4 class="text-md font-medium text-slate-700 mb-2">Notes</h4>
-            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
-              <p class="text-sm text-slate-700 whitespace-pre-line">{{ req.notes }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Rejected gifts list -->
-      <div *ngIf="!loading && !error && selectedTab==='CADEAU_REJETES'">
+      <!-- Rejected Gifts history subset -->
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold text-slate-700 mb-3">Cadeaux rejetés ({{ rejectedGifts.length }})</h3>
         <div *ngIf="rejectedGifts.length===0" class="text-slate-500 text-sm">Aucun cadeau rejeté</div>
         <div *ngFor="let sale of rejectedGifts" class="bg-red-50 rounded-2xl p-4 border border-red-200 mb-2">
           <div class="flex justify-between items-start">
@@ -1077,13 +785,6 @@
               <div class="text-xs text-slate-500">{{ sale.createdAt | date:'short' }}</div>
               <div class="text-sm text-slate-600 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
               <div class="text-sm text-slate-500 mt-1">Articles: {{ sale.items.length || 0 }}</div>
-              <div class="mt-2 space-y-1" *ngIf="sale.items?.length">
-                <div *ngFor="let it of sale.items" class="text-xs text-slate-700 bg-white/80 border border-slate-200 rounded-lg px-2 py-1">
-                  <span class="font-medium">{{ it.productName }}</span>
-                  <span>• Qté: {{ it.quantity }}</span>
-                  <span>• PU: {{ it.unitPrice | number:'1.3-3' }} DT</span>
-                </div>
-              </div>
             </div>
             <div class="text-right">
               <div class="text-red-600 font-bold">Rejeté</div>
@@ -1092,38 +793,437 @@
         </div>
       </div>
 
-    </div>
-  </div>
-
-  <!-- Modern Alert System -->
-  <div *ngIf="showAlert" class="alert-slide-in fixed top-6 right-6 z-50 max-w-sm w-full transform transition-all duration-500 ease-out">
-    <div class="bg-white/95 border border-slate-200/50 rounded-2xl shadow-xl overflow-hidden">
-      <div class="flex items-center justify-between p-4">
-        <div class="flex items-center gap-3">
-          <div [class]="'w-8 h-8 rounded-full flex items-center justify-center ' + (alertType === 'success' ? 'bg-emerald-100' : alertType === 'error' ? 'bg-red-100' : 'bg-blue-100')">
-            <svg *ngIf="alertType === 'success'" class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-            <svg *ngIf="alertType === 'error'" class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-            <svg *ngIf="alertType === 'info'" class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
+      <!-- Retours history subset -->
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold text-slate-700 mb-3">Historique retours ({{ returnHistory.length }})</h3>
+        <div *ngIf="returnHistory.length===0" class="text-slate-500 text-sm">Aucun historique de retour</div>
+        <div *ngFor="let req of returnHistory" class="bg-white rounded-2xl p-6 border border-slate-200 mb-4">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-lg font-semibold text-slate-800">Bon de retour • {{ req.numero }}</h3>
+              <div class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span
+                [class]="'px-3 py-1 rounded-full text-sm ' + (req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
+                {{ req.status === 'APPROVED' ? 'Approuvé' : 'Rejeté' }}
+              </span>
+              <div class="text-xs text-slate-500" *ngIf="req.approvedAt">{{ req.approvedAt | date:'short' }}</div>
+            </div>
           </div>
-          <div>
-            <h3 class="font-semibold text-slate-900">{{ alertType === 'success' ? 'Succès' : alertType === 'error' ? 'Erreur' : 'Information' }}</h3>
-            <p class="text-slate-600 text-sm whitespace-pre-line">{{ alertMessage }}</p>
+          <div class="space-y-3">
+            <div *ngFor="let item of req.items" class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="font-medium text-slate-800">{{ item.product?.name || 'Produit #' + item.productId }}</div>
+                  <div class="text-sm text-slate-600">Quantité: {{ item.requestedQty }} • PU: {{
+                    item.product?.prix_vente_TTC || 'N/A' }} DT</div>
+                </div>
+                <div class="text-right text-slate-800 font-semibold">{{ (item.requestedQty *
+                  (item.product?.prix_vente_TTC || 0)) | number:'1.2-2' }} DT</div>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="req.notes" class="mt-3">
+            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-sm text-slate-700 whitespace-pre-line">
+              {{ req.notes }}</div>
           </div>
         </div>
-        <button (click)="showAlert=false" class="text-slate-400 transition-colors p-1" title="Fermer l'alerte" aria-label="Fermer l'alerte">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
+      </div>
+
+      <!-- Cadeaux approuvés history subset -->
+      <div class="mb-6">
+        <h3 class="text-lg font-semibold text-slate-700 mb-3">Cadeaux approuvés ({{ approvedGifts.length }})</h3>
+        <div *ngIf="approvedGifts.length===0" class="text-slate-500 text-sm">Aucun cadeau approuvé</div>
+        <div *ngFor="let sale of approvedGifts" class="bg-white rounded-2xl p-4 border border-slate-200 mb-2">
+          <div class="flex justify-between items-start">
+            <div>
+              <div class="text-slate-800 font-bold">#{{ sale.id }}</div>
+              <div class="text-xs text-slate-500">{{ sale.createdAt | date:'short' }}</div>
+              <div class="text-sm text-slate-600 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
+              <div class="text-sm text-slate-500 mt-1">Articles: {{ sale.items.length || 0 }}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-green-400 font-bold">0.000 dt</div>
+              <div class="text-xs text-slate-500">Cadeau</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- History list: Clôture only -->
+    <div *ngIf="!loading && !error && selectedTab==='HISTORY_CLOTURE'">
+      <div *ngIf="historyRequests.length===0" class="text-slate-500 text-sm">Aucun historique disponible</div>
+      <div *ngFor="let req of historyRequests" class="bg-white rounded-2xl p-4 border border-slate-200 mb-2">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="flex items-center gap-2">
+              <div class="text-slate-800 font-bold">Clôture • Session #{{ req.session?.id || req.entityId }}</div>
+              <span
+                [class]="'px-2 py-0.5 rounded-full text-xs ' + (req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
+                {{ getStatusLabel(req.status) }}
+              </span>
+              <ng-container *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
+                <span class="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700 border border-slate-200">{{
+                  z.summary?.totalTickets }} tickets</span>
+              </ng-container>
+            </div>
+            <div class="text-xs text-slate-500">{{ req.createdAt | date:'short' }}</div>
+            <div class="text-sm text-slate-500 mt-1" *ngIf="req.session">
+              {{ req.session.user?.firstName }} {{ req.session.user?.lastName }} • {{ req.session.depot?.name || '—' }}
+            </div>
+            <div class="text-sm text-slate-600 mt-1" *ngIf="req.reason">{{ req.reason }}</div>
+            <div class="text-sm text-red-600 mt-1" *ngIf="req.status === 'REJECTED' && req.rejectionReasonCode">
+              <span class="font-medium">Motif du rejet:</span> {{ getRejectionReasonLabel(req.rejectionReasonCode) }}
+            </div>
+            <div class="text-sm text-red-600 mt-1" *ngIf="req.status === 'REJECTED' && req.rejectionNotes">
+              <span class="font-medium">Note:</span> {{ req.rejectionNotes }}
+            </div>
+            <div class="text-xs text-slate-500 mt-1" *ngIf="req.approvedAt">
+              Traité le {{ req.approvedAt | date:'short' }}
+            </div>
+            <div class="text-xs text-blue-600 mt-1" *ngIf="req.session && req.session.status === 'ADMIN_CORRECTED'">
+              <span class="font-medium">{{ getSessionStatusLabel(req.session.status) }}</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-slate-500 text-xs">{{ getStatusLabel(req.status) }}</div>
+          </div>
+        </div>
+
+        <!-- concise extract -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3"
+          *ngIf="clotureSummaries[req.session?.id || req.entityId] as z">
+          <div class="bg-slate-50 rounded-xl p-3">
+            <div class="text-xs text-slate-500">Ventes TTC</div>
+            <div class="text-slate-900 font-semibold">{{ getTotalEncaissements(z).toFixed(3) }} DT</div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3">
+            <div class="text-xs text-slate-500">Attendu</div>
+            <div class="text-slate-900 font-semibold">{{ z.summary?.expectedCash?.toFixed(3) }} DT</div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData">
+            <div class="text-xs text-slate-500">Compté</div>
+            <div class="text-slate-900 font-semibold">{{ (z.closureData.countedCash || 0) | number:'1.3-3' }} DT</div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) === 0">
+            <div class="text-xs text-slate-500">Écart</div>
+            <div class="text-slate-900 font-semibold">{{ ((z.closureData.countedCash || 0) - (z.summary?.expectedCash ||
+              0)) | number:'1.3-3' }} DT</div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3" *ngIf="z.closureData && (z.closureData.withdrawalAmount || 0) !== 0">
+            <div class="text-xs text-slate-500">Retrait</div>
+            <div class="text-slate-900 font-semibold">{{ (z.closureData.withdrawalAmount || 0) | number:'1.3-3' }} DT
+            </div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-3"
+            *ngIf="z.closureData && ((z.closureData.remainingBalance || 0) !== (z.summary?.expectedCash || 0))">
+            <div class="text-xs text-slate-500">Reste</div>
+            <div class="text-slate-900 font-semibold">{{ (z.closureData.remainingBalance || 0) | number:'1.3-3' }} DT
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Returns approvals -->
+    <div *ngIf="!loading && !error && selectedTab==='RETURNS'">
+      <div *ngIf="loadingReturns" class="text-slate-500">Chargement...</div>
+      <div *ngIf="!loadingReturns && pendingReturns.length===0" class="text-slate-500 text-sm">Aucun bon de retour en
+        attente</div>
+
+      <div *ngFor="let req of pendingReturns" class="bg-white rounded-2xl p-6 border border-slate-200 mb-4">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-800">Bon de retour • {{ req.numero }}</h3>
+            <div class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</div>
+          </div>
+          <span class="px-3 py-1 rounded-full text-sm bg-amber-100 text-amber-700 border border-amber-200">{{ req.status
+            }}</span>
+        </div>
+
+        <!-- Articles à retourner -->
+        <div class="mb-6">
+          <h4 class="text-md font-medium text-slate-700 mb-3">Articles à retourner</h4>
+          <div class="space-y-3">
+            <div *ngFor="let item of req.items" class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="font-medium text-slate-800">{{ item.product?.name || 'Produit #' + item.productId }}</div>
+                  <div class="text-sm text-slate-600">
+                    Vendu: {{ item.requestedQty }} • PU: {{ item.product?.prix_vente_TTC || 'N/A' }} DT
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-lg font-semibold text-slate-800">
+                    Retour: {{ (item.requestedQty * (item.product?.prix_vente_TTC || 0)) | number:'1.2-2' }} DT
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Remboursement details -->
+        <div class="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-4">
+          <h4 class="text-md font-medium text-slate-700 mb-3">Détails du remboursement</h4>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span class="text-slate-600">Montant original de la vente:</span>
+              <span class="font-semibold text-slate-800 ml-2">
+                {{ req.originalSaleTotal ? (req.originalSaleTotal | number:'1.2-2') + ' DT' : 'Non disponible' }}
+              </span>
+            </div>
+            <div>
+              <span class="text-slate-600">Méthode de paiement:</span>
+              <span class="font-semibold text-slate-800 ml-2">Espèces</span>
+            </div>
+            <div>
+              <span class="text-slate-600">Valeur des articles retournés:</span>
+              <span class="font-semibold text-slate-800 ml-2">{{ getTotalReturnAmount(req) | number:'1.2-2' }} DT</span>
+            </div>
+            <div>
+              <span class="text-slate-600">Remboursement en espèces:</span>
+              <span class="font-semibold text-slate-800 ml-2">{{ getTotalReturnAmount(req) | number:'1.2-2' }} DT</span>
+            </div>
+          </div>
+          <div class="mt-3 pt-3 border-t border-blue-200">
+            <div class="text-sm text-slate-600">
+              • Le montant à rembourser au client est <span class="font-semibold">{{ getTotalReturnAmount(req) |
+                number:'1.2-2' }} DT</span> et sera automatiquement soustrait de la caisse.
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div *ngIf="req.notes" class="mb-4">
+          <h4 class="text-md font-medium text-slate-700 mb-2">Notes</h4>
+          <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+            <p class="text-sm text-slate-700">{{ req.notes }}</p>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex justify-end gap-3">
+          <button (click)="rejectReturnRequest(req)"
+            class="px-4 py-2 bg-red-600 text-white rounded-lg transition-colors">
+            Rejeter
+          </button>
+          <button (click)="approveReturnRequest(req)"
+            class="px-4 py-2 bg-emerald-600 text-white rounded-lg transition-colors">
+            Approuver
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rebut list -->
+    <div *ngIf="!loading && !error && selectedTab==='REButs'">
+      <div *ngIf="pendingRebuts.length===0" class="text-slate-500 text-sm">Aucun rebut en attente d'autorité</div>
+      <div *ngFor="let r of pendingRebuts" class="bg-rose-50 rounded-2xl p-4 border border-rose-200 mb-3">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="text-slate-800 font-semibold">{{ r.product?.name || r.productId }}</div>
+            <div class="text-xs text-slate-500">Qté: {{ r.quantity }} • Dépôt: {{ r.depot?.name || r.depotId }}</div>
+          </div>
+          <button (click)="archiveRebut(r.id)" class="px-3 py-1 bg-rose-600 text-white rounded-lg text-sm"
+            title="Archiver après validation d'autorité" aria-label="Archiver le rebut">Archiver</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Return History -->
+    <div *ngIf="!loading && !error && selectedTab==='RETURN_HISTORY'">
+      <div *ngIf="loadingReturnHistory" class="text-slate-500">Chargement...</div>
+      <div *ngIf="!loadingReturnHistory && returnHistory.length===0" class="text-slate-500 text-sm">Aucun historique de
+        retour disponible</div>
+
+      <div *ngFor="let req of returnHistory" class="bg-white rounded-2xl p-6 border border-slate-200 mb-4">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-800">Bon de retour • {{ req.numero }}</h3>
+            <div class="text-sm text-slate-500">{{ req.createdAt | date:'short' }}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span
+              [class]="'px-3 py-1 rounded-full text-sm ' + (req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200')">
+              {{ req.status === 'APPROVED' ? 'Approuvé' : 'Rejeté' }}
+            </span>
+            <div class="text-xs text-slate-500" *ngIf="req.approvedAt">{{ req.approvedAt | date:'short' }}</div>
+          </div>
+        </div>
+
+        <!-- Articles retournés -->
+        <div class="mb-6">
+          <h4 class="text-md font-medium text-slate-700 mb-3">Articles retournés</h4>
+          <div class="space-y-3">
+            <div *ngFor="let item of req.items" class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="font-medium text-slate-800">{{ item.product?.name || 'Produit #' + item.productId }}</div>
+                  <div class="text-sm text-slate-600">
+                    Quantité: {{ item.requestedQty }} • PU: {{ item.product?.prix_vente_TTC || 'N/A' }} DT
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-lg font-semibold text-slate-800">
+                    {{ (item.requestedQty * (item.product?.prix_vente_TTC || 0)) | number:'1.2-2' }} DT
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Remboursement details -->
+        <div class="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-4">
+          <h4 class="text-md font-medium text-slate-700 mb-3">Détails du remboursement</h4>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span class="text-slate-600">Montant original de la vente:</span>
+              <span class="font-semibold text-slate-800 ml-2">
+                {{ req.originalSaleTotal ? (req.originalSaleTotal | number:'1.2-2') + ' DT' : 'Non disponible' }}
+              </span>
+            </div>
+            <div>
+              <span class="text-slate-600">Valeur des articles retournés:</span>
+              <span class="font-semibold text-slate-800 ml-2">{{ getTotalReturnAmount(req) | number:'1.2-2' }} DT</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div *ngIf="req.notes" class="mb-4">
+          <h4 class="text-md font-medium text-slate-700 mb-2">Notes</h4>
+          <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+            <p class="text-sm text-slate-700 whitespace-pre-line">{{ req.notes }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invoices list -->
+    <div *ngIf="!loading && !error && selectedTab==='INVOICES'">
+      <div *ngIf="invoiceRequests.length===0"
+        class="text-slate-500 text-sm py-8 text-center bg-white rounded-2xl border border-dashed border-slate-300">
+        Aucune demande de facture en attente
+      </div>
+      <div *ngFor="let req of invoiceRequests"
+        class="bg-white rounded-2xl p-6 border border-slate-200 mb-4 shadow-sm hover:shadow-md transition-shadow duration-300">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span
+                class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold ring-1 ring-indigo-100 uppercase tracking-wider">Demande
+                de facture</span>
+              <span class="text-slate-400 text-xs">•</span>
+              <span class="text-xs text-slate-500">{{ formatDate(req.createdAt) }}</span>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1">Vente #{{ req.sale?.id || req.saleId }}</h3>
+            <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
+              <div class="flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>{{ req.requestedBy?.firstName }} {{ req.requestedBy?.lastName }}</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span class="font-semibold text-slate-900">{{ formatCurrency(req.sale?.finalTotal || 0) }}</span>
+              </div>
+            </div>
+            <div *ngIf="req.requestNotes"
+              class="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-600 italic">
+              "{{ req.requestNotes }}"
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button (click)="rejectInvoiceRequest(req)"
+              class="flex-1 md:flex-none px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors duration-200">
+              Rejeter
+            </button>
+            <button (click)="openInvoiceApprovalModal(req)"
+              class="flex-1 md:flex-none px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-600/20 transition-all duration-200 hover:-translate-y-0.5">
+              Approuver
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rejected gifts list -->
+    <div *ngIf="!loading && !error && selectedTab==='CADEAU_REJETES'">
+      <div *ngIf="rejectedGifts.length===0" class="text-slate-500 text-sm">Aucun cadeau rejeté</div>
+      <div *ngFor="let sale of rejectedGifts" class="bg-red-50 rounded-2xl p-4 border border-red-200 mb-2">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="text-slate-800 font-bold">#{{ sale.id }}</div>
+            <div class="text-xs text-slate-500">{{ sale.createdAt | date:'short' }}</div>
+            <div class="text-sm text-slate-600 mt-1" *ngIf="sale.notes">{{ sale.notes }}</div>
+            <div class="text-sm text-slate-500 mt-1">Articles: {{ sale.items.length || 0 }}</div>
+            <div class="mt-2 space-y-1" *ngIf="sale.items?.length">
+              <div *ngFor="let it of sale.items"
+                class="text-xs text-slate-700 bg-white/80 border border-slate-200 rounded-lg px-2 py-1">
+                <span class="font-medium">{{ it.productName }}</span>
+                <span>• Qté: {{ it.quantity }}</span>
+                <span>• PU: {{ it.unitPrice | number:'1.3-3' }} DT</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-red-600 font-bold">Rejeté</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
+</div>
+
+<!-- Modern Alert System -->
+<div *ngIf="showAlert"
+  class="alert-slide-in fixed top-6 right-6 z-50 max-w-sm w-full transform transition-all duration-500 ease-out">
+  <div class="bg-white/95 border border-slate-200/50 rounded-2xl shadow-xl overflow-hidden">
+    <div class="flex items-center justify-between p-4">
+      <div class="flex items-center gap-3">
+        <div
+          [class]="'w-8 h-8 rounded-full flex items-center justify-center ' + (alertType === 'success' ? 'bg-emerald-100' : alertType === 'error' ? 'bg-red-100' : 'bg-blue-100')">
+          <svg *ngIf="alertType === 'success'" class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          <svg *ngIf="alertType === 'error'" class="w-5 h-5 text-red-500" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+          <svg *ngIf="alertType === 'info'" class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <div>
+          <h3 class="font-semibold text-slate-900">{{ alertType === 'success' ? 'Succès' : alertType === 'error' ?
+            'Erreur' : 'Information' }}</h3>
+          <p class="text-slate-600 text-sm whitespace-pre-line">{{ alertMessage }}</p>
+        </div>
+      </div>
+      <button (click)="showAlert=false" class="text-slate-400 transition-colors p-1" title="Fermer l'alerte"
+        aria-label="Fermer l'alerte">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- Reject Modal -->
 <div *ngIf="showRejectModal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
@@ -1133,36 +1233,45 @@
       <div class="text-xs text-slate-500">Sélectionnez une raison</div>
     </div>
     <div class="p-5 space-y-2">
-      <button (click)="rejectReason='ECART_COMPTAGE'" [class]="'w-full text-left px-4 py-3 rounded-xl border ' + (rejectReason==='ECART_COMPTAGE' ? 'border-red-300 bg-red-50' : 'border-slate-200')">Écart au comptage physique</button>
-      <button (click)="rejectReason='SUSPICION_ANOMALIE'" [class]="'w-full text-left px-4 py-3 rounded-xl border ' + (rejectReason==='SUSPICION_ANOMALIE' ? 'border-red-300 bg-red-50' : 'border-slate-200')">Suspicion d'anomalie</button>
-      
+      <button (click)="rejectReason='ECART_COMPTAGE'"
+        [class]="'w-full text-left px-4 py-3 rounded-xl border ' + (rejectReason==='ECART_COMPTAGE' ? 'border-red-300 bg-red-50' : 'border-slate-200')">Écart
+        au comptage physique</button>
+      <button (click)="rejectReason='SUSPICION_ANOMALIE'"
+        [class]="'w-full text-left px-4 py-3 rounded-xl border ' + (rejectReason==='SUSPICION_ANOMALIE' ? 'border-red-300 bg-red-50' : 'border-slate-200')">Suspicion
+        d'anomalie</button>
+
       <div *ngIf="rejectReason && rejectReason !== 'AUTRE'" class="pt-2">
         <div class="flex justify-end gap-2">
           <button (click)="showRejectModal=false" class="px-3 py-2 text-xs bg-slate-100 rounded-lg">Annuler</button>
-          <button (click)="confirmRejectWithSelectedReason()" class="px-3 py-2 text-xs bg-red-600 text-white rounded-lg">Rejeter</button>
+          <button (click)="confirmRejectWithSelectedReason()"
+            class="px-3 py-2 text-xs bg-red-600 text-white rounded-lg">Rejeter</button>
         </div>
       </div>
-      
+
       <div class="pt-2">
         <div class="text-xs text-slate-500 mb-1">Autre (obligatoire)</div>
-        <textarea [(ngModel)]="rejectNotes" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" placeholder="Saisir le motif..."></textarea>
+        <textarea [(ngModel)]="rejectNotes" rows="3"
+          class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600"
+          placeholder="Saisir le motif..."></textarea>
         <div class="mt-2 flex justify-end gap-2">
           <button (click)="showRejectModal=false" class="px-3 py-2 text-xs bg-slate-100 rounded-lg">Annuler</button>
-          <button (click)="confirmRejectWithNotes()" class="px-3 py-2 text-xs bg-red-600 text-white rounded-lg">Rejeter</button>
+          <button (click)="confirmRejectWithNotes()"
+            class="px-3 py-2 text-xs bg-red-600 text-white rounded-lg">Rejeter</button>
         </div>
       </div>
-      
+
       <div class="pt-4 border-t border-slate-200">
         <div class="text-xs text-slate-500 mb-2">Correction avec montant</div>
         <div class="mb-3">
           <label class="block text-xs text-slate-600 mb-1" for="corrected-amount">Montant corrigé (TND)</label>
-          <input id="corrected-amount" type="number" step="0.001" [(ngModel)]="correctedAmount" 
-                 class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" 
-                 placeholder="Ex: 85.000" />
+          <input id="corrected-amount" type="number" step="0.001" [(ngModel)]="correctedAmount"
+            class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600"
+            placeholder="Ex: 85.000" />
         </div>
         <div class="mt-2 flex justify-end gap-2">
           <button (click)="showRejectModal=false" class="px-3 py-2 text-xs bg-slate-100 rounded-lg">Annuler</button>
-          <button (click)="confirmRejectAndCorrect()" class="px-3 py-2 text-xs bg-orange-600 text-white rounded-lg">Rejeter et Corriger</button>
+          <button (click)="confirmRejectAndCorrect()"
+            class="px-3 py-2 text-xs bg-orange-600 text-white rounded-lg">Rejeter et Corriger</button>
         </div>
       </div>
     </div>
@@ -1170,37 +1279,49 @@
 </div>
 
 <!-- Correction Drawer -->
-<div *ngIf="showCorrection" class="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col">
+<div *ngIf="showCorrection"
+  class="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col">
   <div class="p-4 border-b border-slate-200 flex items-center justify-between">
     <div>
       <div class="text-lg font-semibold text-slate-800">Correction de clôture</div>
       <div class="text-xs text-slate-500">Session #{{ correctionSessionId }}</div>
     </div>
-    <button (click)="showCorrection=false" class="px-3 py-1.5 bg-slate-100 rounded-lg text-slate-700 text-xs">Fermer</button>
+    <button (click)="showCorrection=false"
+      class="px-3 py-1.5 bg-slate-100 rounded-lg text-slate-700 text-xs">Fermer</button>
   </div>
   <div class="p-4 space-y-3 overflow-auto">
     <div class="text-xs text-slate-500" *ngIf="correctionSummary">
-      Attendu: <span class="font-semibold text-slate-700">{{ correctionSummary.expectedCash | number:'1.3-3' }} DT</span>
+      Attendu: <span class="font-semibold text-slate-700">{{ correctionSummary.expectedCash | number:'1.3-3'
+        }} DT</span>
     </div>
     <div>
       <label class="block text-xs text-slate-600 mb-1" for="corr-counted">Compté</label>
-      <input id="corr-counted" type="number" [(ngModel)]="correctionCountedCash" class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" title="Montant compté" placeholder="Montant compté" />
+      <input id="corr-counted" type="number" [(ngModel)]="correctionCountedCash"
+        class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600"
+        title="Montant compté" placeholder="Montant compté" />
     </div>
     <div>
       <label class="block text-xs text-slate-600 mb-1" for="corr-fonds">Fonds</label>
-      <input id="corr-fonds" type="number" [(ngModel)]="correctionFonds" class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" title="Fonds" placeholder="Fonds" />
+      <input id="corr-fonds" type="number" [(ngModel)]="correctionFonds"
+        class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600"
+        title="Fonds" placeholder="Fonds" />
     </div>
     <div>
       <label class="block text-xs text-slate-600 mb-1" for="corr-retrait">Retrait centrale (facultatif)</label>
-      <input id="corr-retrait" type="number" [(ngModel)]="correctionRetrait" class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" title="Retrait centrale" placeholder="Retrait centrale" />
+      <input id="corr-retrait" type="number" [(ngModel)]="correctionRetrait"
+        class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600"
+        title="Retrait centrale" placeholder="Retrait centrale" />
     </div>
     <div>
       <label class="block text-xs text-slate-600 mb-1">Note</label>
-      <textarea [(ngModel)]="correctionNote" rows="3" class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600" placeholder="Résumé des corrections effectuées..."></textarea>
+      <textarea [(ngModel)]="correctionNote" rows="3"
+        class="w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:border-indigo-600"
+        placeholder="Résumé des corrections effectuées..."></textarea>
     </div>
   </div>
   <div class="p-4 border-t border-slate-200">
-    <button (click)="finalizeCorrection()" class="w-full px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm">Valider la clôture</button>
+    <button (click)="finalizeCorrection()" class="w-full px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm">Valider
+      la clôture</button>
   </div>
 </div>
 
@@ -1210,11 +1331,8 @@
     <div class="p-6">
       <div class="flex items-center justify-between mb-6">
         <h3 class="text-2xl font-bold text-slate-800">Approuver la demande de facture</h3>
-        <button 
-          (click)="closeInvoiceApprovalModal()"
-          class="p-2 rounded-2xl bg-slate-100 transition-colors duration-300"
-          title="Fermer"
-        >
+        <button (click)="closeInvoiceApprovalModal()"
+          class="p-2 rounded-2xl bg-slate-100 transition-colors duration-300" title="Fermer">
           <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -1239,11 +1357,13 @@
           </div>
           <div>
             <span class="text-slate-600">Total:</span>
-            <span class="font-semibold text-slate-800 ml-2">{{ formatCurrency(selectedInvoiceRequest.sale.finalTotal) }}</span>
+            <span class="font-semibold text-slate-800 ml-2">{{ formatCurrency(selectedInvoiceRequest.sale.finalTotal)
+              }}</span>
           </div>
           <div class="col-span-2">
             <span class="text-slate-600">Demandé par:</span>
-            <span class="font-semibold text-slate-800 ml-2">{{ selectedInvoiceRequest.requestedBy.firstName }} {{ selectedInvoiceRequest.requestedBy.lastName }}</span>
+            <span class="font-semibold text-slate-800 ml-2">{{ selectedInvoiceRequest.requestedBy.firstName }} {{
+              selectedInvoiceRequest.requestedBy.lastName }}</span>
           </div>
         </div>
         <div *ngIf="selectedInvoiceRequest.requestNotes" class="mt-3">
@@ -1257,19 +1377,11 @@
         <div class="mb-6">
           <label class="block text-sm font-medium text-slate-700 mb-2">Numéro de facture</label>
           <div class="flex space-x-2">
-            <input 
-              type="text" 
-              [(ngModel)]="invoiceApprovalData.invoiceNumber" 
-              name="invoiceNumber"
-              required
+            <input type="text" [(ngModel)]="invoiceApprovalData.invoiceNumber" name="invoiceNumber" required
               class="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="FAC-001"
-            >
-            <button 
-              type="button"
-              (click)="getNextInvoiceNumber()"
-              class="px-3 py-2 bg-indigo-600 text-white rounded-lg transition-colors duration-300"
-            >
+              placeholder="FAC-001">
+            <button type="button" (click)="getNextInvoiceNumber()"
+              class="px-3 py-2 bg-indigo-600 text-white rounded-lg transition-colors duration-300">
               Utiliser le dernier
             </button>
           </div>
@@ -1277,18 +1389,12 @@
 
         <!-- Action Buttons -->
         <div class="flex justify-end space-x-3">
-          <button 
-            type="button"
-            (click)="closeInvoiceApprovalModal()"
-            class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg transition-colors duration-300"
-          >
+          <button type="button" (click)="closeInvoiceApprovalModal()"
+            class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg transition-colors duration-300">
             Annuler
           </button>
-          <button 
-            type="submit"
-            [disabled]="!invoiceApprovalForm.valid || submittingInvoiceApproval"
-            class="px-6 py-2 bg-emerald-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300"
-          >
+          <button type="submit" [disabled]="!invoiceApprovalForm.valid || submittingInvoiceApproval"
+            class="px-6 py-2 bg-emerald-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-300">
             <span *ngIf="!submittingInvoiceApproval">Approuver et créer la facture</span>
             <span *ngIf="submittingInvoiceApproval">Création...</span>
           </button>

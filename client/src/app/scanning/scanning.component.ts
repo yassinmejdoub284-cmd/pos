@@ -115,8 +115,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
   currentSettings: any = null;
 
   // Products cache for fast lookup
-  private productsCache = new Map<number, Product>();
-  private produitsDeCaisseCache = new Map<number, ProduitDeCaisse>();
+  public productsCache = new Map<number, Product>();
+  public produitsDeCaisseCache = new Map<number, ProduitDeCaisse>();
   // Track failed parent product loads to avoid repeated API calls
   private failedParentProductIds = new Set<number>();
   
@@ -233,10 +233,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   private loadProducts(): void {
-    // Load all products without depot filter to ensure all parent products are available
-    // This is necessary because produits de caisse may reference parent products from any depot
-    // We use a direct HTTP call to bypass the service's depot filtering logic
-    const apiUrl = `${environment.apiUrl}/products`;
+    const depotId = this.currentDepotId || this.sessionsService.currentSession()?.depotId;
+    const apiUrl = `${environment.apiUrl}/products${depotId ? '?depotId=' + depotId : ''}`;
     this.http.get<Product[]>(apiUrl).subscribe({
       next: (products: Product[]) => {
         // Cache products by ID for fast lookup
@@ -323,6 +321,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
       if (produits) {
         produits.forEach(produit => {
           this.produitsDeCaisseCache.set(produit.id, produit);
+          
+          // Auto-populate parent products from POS item data
+          if (produit.parentProduct) {
+            this.productsCache.set(produit.parentProduct.id, produit.parentProduct);
+          }
         });
         // Initialize filtered list for manual add
         this.filteredProduitsDeCaisse = produits;
@@ -582,21 +585,77 @@ export class ScanningComponent implements OnInit, OnDestroy {
         return;
       }
 
-      // Check if product exists in sous-produits first
-      const productName = this.getProductName(articleId);
-      if (!productName) {
-        this.showError(`Produit ${articleId} non trouvé dans les sous-produits`);
+      // EXCLUSIVE RESOLUTION LOGIC: 
+      // Barcodes (2321...) ALWAYS refer to ProduitDeCaisse (SELECT * FROM produits_de_caisse)
+      
+      let productId: number | null = null;
+      let productName: string | null = null;
+      let isMapped = false;
+      let childProductId: number | null = null;
+      let childProductName: string | null = null;
+
+      // Lookup ONLY in POS Item Cache
+      const posItem = this.produitsDeCaisseCache.get(articleId);
+      
+      if (posItem) {
+        childProductId = posItem.id;
+        childProductName = posItem.name;
+
+        if (posItem.parentProductId) {
+          // Found POS item with parent -> Resolve to parent for STOCK tracking
+          const parentProduct = this.productsCache.get(posItem.parentProductId);
+          if (parentProduct) {
+            productId = parentProduct.id;
+            productName = parentProduct.name;
+            isMapped = true;
+          } else {
+            // Lazy load the missing parent product if not in cache
+            if (!this.failedParentProductIds.has(posItem.parentProductId)) {
+              this.loading = true;
+              this.productsService.getProduct(posItem.parentProductId).subscribe({
+                next: (fetchedProduct: Product) => {
+                  this.productsCache.set(fetchedProduct.id, fetchedProduct);
+                  // Retry the barcode parsing now that parent is cached
+                  this.parseAndAddBarcode(barcode);
+                },
+                error: (err: any) => {
+                  console.error('Lazy load failed for parent product:', err);
+                  this.failedParentProductIds.add(posItem.parentProductId!);
+                  this.showError(`Parent Stock #${posItem.parentProductId} introuvable (Echec chargement direct)`);
+                  this.playErrorSound();
+                  this.resetScanningState();
+                }
+              });
+              return; // parsing will resume in the callback
+            }
+
+            const cacheSize = this.productsCache.size;
+            this.showError(`Parent Stock #${posItem.parentProductId} non trouvé pour "${posItem.name}" (Cache: ${cacheSize} produits)`);
+            this.playErrorSound();
+            this.resetScanningState();
+            return;
+          }
+        } else {
+          // Block if not linked to stock (Stock Documents require a master product)
+          this.showError(`L'article #${articleId} (${posItem.name}) n'est pas lié à un produit de stock (parent_product_id null)`);
+          this.playErrorSound();
+          this.resetScanningState();
+          return;
+        }
+      } else {
+        const cacheSize = this.produitsDeCaisseCache.size;
+        this.showError(`ID #${articleId} introuvable dans produits_de_caisse (Cache: ${cacheSize} articles)`);
         this.playErrorSound();
-        this.isScanning = false;
-        this.loading = false;
-        this.currentInput = '';
-        this.focusInput();
+        this.resetScanningState();
         return;
       }
-      
-      // Use parent product ID if available, otherwise use the produit de caisse ID
-      const produitDeCaisse = this.produitsDeCaisseCache.get(articleId);
-      const productId = produitDeCaisse?.parentProductId || articleId;
+
+      if (!productId || !productName) {
+        this.showError(`Résolution impossible pour article #${articleId} (ID Stock introuvable)`);
+        this.playErrorSound();
+        this.resetScanningState();
+        return;
+      }
       
       // Create individual scan entry
       const individualScan = {
@@ -607,28 +666,31 @@ export class ScanningComponent implements OnInit, OnDestroy {
       };
       
       // Find existing item or create new one
+      // MATCH BY ARTICLE ID (Sub-article ID), not Parent ID
+      // This allows grouping by parent in the UI while keeping sub-article identity
       const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
       
       if (existingItemIndex >= 0) {
         // Update existing item - add quantity and increment count
         this.scannedItems[existingItemIndex].quantity += quantity;
         this.scannedItems[existingItemIndex].count += 1;
-        this.scannedItems[existingItemIndex].colisCount += 1; // Increment colis count
+        this.scannedItems[existingItemIndex].colisCount += 1;
         this.scannedItems[existingItemIndex].lastScanned = new Date();
         this.scannedItems[existingItemIndex].individualScans.push(individualScan);
-        this.success = `${productName} scanné (${this.scannedItems[existingItemIndex].count}x, Qty: ${this.scannedItems[existingItemIndex].quantity}g)`;
+        this.success = `${childProductName} scanné (${this.scannedItems[existingItemIndex].count}x, Qty: ${this.scannedItems[existingItemIndex].quantity}g)`;
       } else {
         // Add new item
         this.scannedItems.push({
-          articleId: articleId, // Keep original articleId, not parent
-          productName: productName,
+          articleId: articleId, // Original scanned ID (sub-article)
+          productId: productId as any, // Resolved Stock ID (parent)
+          productName: childProductName + (isMapped ? ' [L]' : ''), // Use sub-article name for display
           quantity,
           count: 1,
-          colisCount: 1, // Initialize colis count to 1
+          colisCount: 1,
           lastScanned: new Date(),
           individualScans: [individualScan]
-        });
-        this.success = `Nouveau ${productName} ajouté (Qty: ${quantity}g)`;
+        } as any);
+        this.success = `Nouveau ${childProductName} ajouté (Qty: ${quantity}g)`;
       }
 
       // Find the parent product for display
@@ -657,11 +719,15 @@ export class ScanningComponent implements OnInit, OnDestroy {
     } catch (err) {
       this.showError('Erreur lors du parsing du code-barres');
       this.playErrorSound();
-      this.isScanning = false;
-      this.loading = false;
-      this.currentInput = '';
-      this.focusInput();
+      this.resetScanningState();
     }
+  }
+
+  private resetScanningState(): void {
+    this.isScanning = false;
+    this.loading = false;
+    this.currentInput = '';
+    this.focusInput();
   }
 
   private sanitizeTo13(input: string): string | null {
@@ -2007,6 +2073,14 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
         
         const documentData = this.prepareDocumentData();
+        
+        // Final sanity check: ensuring all items have a productId
+        const invalidItems = documentData.items.filter((item: any) => !item.productId);
+        if (invalidItems.length > 0) {
+            this.error = 'Erreur: Certains articles n\'ont pas d\'ID de produit valide';
+            this.loading = false;
+            return;
+        }
         // Set the generated number if not already set (for non-facture documents)
         if (!documentData.numero) {
           documentData.numero = nextNumber;
@@ -2465,7 +2539,45 @@ export class ScanningComponent implements OnInit, OnDestroy {
     const quantity = parseFloat(this.manualQuantity);
     const colisCount = parseInt(this.manualColisCount, 10);
     const articleId = this.selectedProductForManualAdd.id;
-    const productName = this.selectedProductForManualAdd.name;
+    // const productName = this.selectedProductForManualAdd.name; // Logic moved below
+
+    // UNIFIED RESOLUTION LOGIC FOR MANUAL ADD:
+    // Resolve productId from the selected item (which comes from ProduitsDeCaisseCache)
+    // Note: Manual add usually selects from ProduitsDeCaisseCache (since that's what filteredProduitsDeCaisse uses)
+    
+    // EXCLUSIVE RESOLUTION LOGIC FOR MANUAL ADD:
+    // Manual add MUST resolve from ProduitDeCaisse (SELECT * FROM produits_de_caisse)
+    
+    let productId: number | null = null;
+    let productName: string | null = null;
+    let isMapped = false;
+    
+    const posItem = this.produitsDeCaisseCache.get(articleId);
+    
+    if (posItem) {
+        if (posItem.parentProductId) {
+           const parentProduct = this.productsCache.get(posItem.parentProductId);
+           if (parentProduct) {
+             productId = parentProduct.id;
+             productName = parentProduct.name;
+             isMapped = true;
+           } else {
+             this.showError(`Produit de stock parent #${posItem.parentProductId} introuvable pour l'article ${articleId}`);
+             return;
+           }
+        } else {
+             this.showError(`Article ${articleId} (${posItem.name}) n'est pas lié à un produit de stock`);
+             return;
+        }
+    } else {
+        this.showError(`Article ${articleId} introuvable dans la table produits_de_caisse`);
+        return;
+    }
+
+    if (!productId || !productName) {
+        this.showError(`Résolution du produit de stock impossible pour l'article ${articleId}`);
+        return;
+    }
 
     // Create individual scan entry for manual add
     const individualScan = {
@@ -2476,6 +2588,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
     };
 
     // Find existing item or create new one
+    // MATCH BY ARTICLE ID (Sub-article ID), not Parent ID
+    // This allows grouping by parent in the UI while keeping sub-article identity
     const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
 
     if (existingItemIndex >= 0) {
@@ -2485,19 +2599,20 @@ export class ScanningComponent implements OnInit, OnDestroy {
       this.scannedItems[existingItemIndex].colisCount += colisCount;
       this.scannedItems[existingItemIndex].lastScanned = new Date();
       this.scannedItems[existingItemIndex].individualScans.push(individualScan);
-      this.success = `${productName} ajouté manuellement (${this.scannedItems[existingItemIndex].count}x, Qty: ${(this.scannedItems[existingItemIndex].quantity/1000).toFixed(3)}kg)`;
+      this.success = `${posItem.name} ajouté manuellement (${this.scannedItems[existingItemIndex].count}x, Qty: ${(this.scannedItems[existingItemIndex].quantity/1000).toFixed(3)}kg)`;
     } else {
       // Add new item
       this.scannedItems.push({
-        articleId: articleId,
-        productName: productName,
+        articleId: articleId, // Original scanned ID (sub-article)
+        productId: productId as any, // Resolved Stock ID (parent)
+        productName: posItem.name + (isMapped ? ' [L]' : ''), // Use sub-article name for display
         quantity: Math.round(quantity * 1000), // Convert to grams
         count: 1,
         colisCount: colisCount,
         lastScanned: new Date(),
         individualScans: [individualScan]
-      });
-      this.success = `Nouveau ${productName} ajouté manuellement (Qty: ${quantity.toFixed(3)}kg, ${colisCount} colis)`;
+      } as any);
+      this.success = `Nouveau ${posItem.name} ajouté manuellement (Qty: ${quantity.toFixed(3)}kg, ${colisCount} colis)`;
     }
 
     // Play success sound

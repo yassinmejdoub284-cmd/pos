@@ -1,10 +1,11 @@
 <div class="min-h-screen bg-gradient-to-br from-amber-50 via-blue-50 to-purple-50 p-4 md:p-6">
   <div class="max-w-7xl mx-auto">
-    <div class="sticky top-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 supports-[backdrop-filter]:bg-white/70 bg-white/95 border-b border-gray-200 mb-4 md:mb-6">
+    <div
+      class="sticky top-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 supports-[backdrop-filter]:bg-white/70 bg-white/95 border-b border-gray-200 mb-4 md:mb-6">
       <div class="max-w-7xl mx-auto flex items-center justify-between">
         <div class="flex items-center gap-3">
           <a routerLink="/parametres" title="Retour paramètres"
-             class="w-9 h-9 md:w-10 md:h-10 bg-gray-100 text-gray-800 rounded-lg border border-gray-200 transition-all flex items-center justify-center">
+            class="w-9 h-9 md:w-10 md:h-10 bg-gray-100 text-gray-800 rounded-lg border border-gray-200 transition-all flex items-center justify-center">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
@@ -15,12 +16,16 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button (click)="save()" [disabled]="saving" class="px-4 py-2 bg-pink-600 text-white rounded-lg disabled:opacity-50">
+          <button (click)="save()" [disabled]="saving"
+            class="px-4 py-2 bg-pink-600 text-white rounded-lg disabled:opacity-50">
             <span *ngIf="!saving">Enregistrer</span>
             <span *ngIf="saving" class="flex items-center">
-              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
               </svg>
               Sauvegarde...
             </span>
@@ -39,66 +44,88 @@
     <div class="bg-white rounded-2xl border border-gray-200 p-4 md:p-6 overflow-hidden shadow-xl">
       <!-- Tabs / Sections -->
       <div class="flex flex-wrap gap-2 mb-4">
-        <a routerLink="/parametres" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">Retour</a>
+        <a routerLink="/parametres"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">Retour</a>
       </div>
 
       <div class="flex flex-col gap-4">
         <!-- Société & Logo -->
-        <div *ngIf="showSection('general')" class="bg-gradient-to-br from-white to-blue-50 rounded-xl border border-blue-200 p-4 flex flex-col shadow-sm">
+        <div *ngIf="showSection('general')"
+          class="bg-gradient-to-br from-white to-blue-50 rounded-xl border border-blue-200 p-4 flex flex-col shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Informations de l'Entreprise</h3>
-          
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label class="block text-sm text-gray-600 mb-1">Nom de la société</label>
-              <input title="Nom de la société" type="text" [(ngModel)]="settings.companyName" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="PATISSERIE TUNISIENNE"/>
+              <input title="Nom de la société" type="text" [(ngModel)]="settings.companyName"
+                class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="PATISSERIE TUNISIENNE" />
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">Adresse</label>
-              <input title="Adresse" type="text" [(ngModel)]="settings.companyAddress" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="123 Avenue Habib Bourguiba, Tunis 1000"/>
+              <input title="Adresse" type="text" [(ngModel)]="settings.companyAddress"
+                class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="123 Avenue Habib Bourguiba, Tunis 1000" />
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">Téléphone</label>
-              <input title="Téléphone" type="text" [(ngModel)]="settings.companyPhone" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="+216 71 123 456"/>
+              <input title="Téléphone" type="text" [(ngModel)]="settings.companyPhone"
+                class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="+216 71 123 456" />
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">Email</label>
-              <input title="Email" type="email" [(ngModel)]="settings.companyEmail" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="contact@patisserie-tunisienne.tn"/>
+              <input title="Email" type="email" [(ngModel)]="settings.companyEmail"
+                class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="contact@patisserie-tunisienne.tn" />
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">R.C (Registre de Commerce)</label>
-              <input title="R.C" type="text" [(ngModel)]="settings.companyRC" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="RC123456"/>
+              <input title="R.C" type="text" [(ngModel)]="settings.companyRC"
+                class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="RC123456" />
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">M.F (Matricule Fiscal)</label>
-              <input title="M.F" type="text" [(ngModel)]="settings.companyMF" class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="MF789012"/>
+              <input title="M.F" type="text" [(ngModel)]="settings.companyMF"
+                class="w-full bg-white border-2 border-blue-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="MF789012" />
             </div>
           </div>
-          
+
           <div class="border-t border-blue-200 pt-4">
             <label class="block text-sm text-gray-600 mb-1">Logo</label>
             <div class="flex items-center gap-3 mb-3">
-              <label class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-xl border border-blue-200 cursor-pointer transition-colors">
+              <label
+                class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-xl border border-blue-200 cursor-pointer transition-colors">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                 </svg>
-                <input type="file" accept="image/*" class="hidden" (change)="onLogoSelected($event)"/>
+                <input type="file" accept="image/*" class="hidden" (change)="onLogoSelected($event)" />
                 <span *ngIf="!saving">Choisir un fichier</span>
                 <span *ngIf="saving" class="flex items-center">
-                  <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg"
+                    fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
                   </svg>
                   Upload...
                 </span>
               </label>
-              <button *ngIf="settings.logoUrl" (click)="settings.logoUrl = ''" title="Supprimer le logo" class="px-3 py-2 bg-red-100 text-red-700 rounded-xl border border-red-200 transition-colors">
+              <button *ngIf="settings.logoUrl" (click)="settings.logoUrl = ''" title="Supprimer le logo"
+                class="px-3 py-2 bg-red-100 text-red-700 rounded-xl border border-red-200 transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
               </button>
             </div>
-            <div class="mt-3 h-16 flex items-center justify-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-              <img *ngIf="settings.logoUrl" [src]="settingsService.getAbsoluteLogoUrl(settings.logoUrl)" alt="Logo" class="max-h-12 max-w-full object-contain"/>
+            <div
+              class="mt-3 h-16 flex items-center justify-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+              <img *ngIf="settings.logoUrl" [src]="settingsService.getAbsoluteLogoUrl(settings.logoUrl)" alt="Logo"
+                class="max-h-12 max-w-full object-contain" />
               <span *ngIf="!settings.logoUrl" class="text-gray-400 text-sm">Aucun logo sélectionné</span>
             </div>
             <p class="text-xs text-gray-500 mt-2">Formats acceptés: JPG, PNG, GIF, WebP (max 5MB)</p>
@@ -106,44 +133,57 @@
         </div>
 
         <!-- Fidélité -->
-        <div *ngIf="showSection('fidelite')" class="bg-gradient-to-br from-white to-emerald-50 rounded-xl border border-emerald-200 p-4 shadow-sm">
+        <div *ngIf="showSection('fidelite')"
+          class="bg-gradient-to-br from-white to-emerald-50 rounded-xl border border-emerald-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Fidélité</h3>
           <div class="flex items-center gap-3 mb-3">
-            <input id="loy" type="checkbox" [(ngModel)]="settings.loyaltyEnabled" class="h-4 w-4"/>
+            <input id="loy" type="checkbox" [(ngModel)]="settings.loyaltyEnabled" class="h-4 w-4" />
             <label for="loy" class="text-gray-600">Activer points fidélité</label>
           </div>
           <label class="block text-sm text-gray-600 mb-1">Taux (points / 1 dt)</label>
-          <input title="Taux de fidélité" type="number" min="0" step="0.1" [(ngModel)]="settings.loyaltyRate" class="w-full bg-white border-2 border-emerald-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="ex: 1"/>
+          <input title="Taux de fidélité" type="number" min="0" step="0.1" [(ngModel)]="settings.loyaltyRate"
+            class="w-full bg-white border-2 border-emerald-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            placeholder="ex: 1" />
         </div>
 
         <!-- Remises & Dettes -->
-        <div *ngIf="showSection('remises-dettes')" class="bg-gradient-to-br from-white to-purple-50 rounded-xl border border-purple-200 p-4 shadow-sm">
+        <div *ngIf="showSection('remises-dettes')"
+          class="bg-gradient-to-br from-white to-purple-50 rounded-xl border border-purple-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Remises & Dettes</h3>
           <label class="block text-sm text-gray-600 mb-1">Remise max (%)</label>
-          <input title="Remise maximale" type="number" min="0" max="100" step="0.5" [(ngModel)]="settings.maxDiscountPercent" class="w-full bg-white border-2 border-purple-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="ex: 50"/>
+          <input title="Remise maximale" type="number" min="0" max="100" step="0.5"
+            [(ngModel)]="settings.maxDiscountPercent"
+            class="w-full bg-white border-2 border-purple-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            placeholder="ex: 50" />
           <label class="block text-sm text-gray-600 mb-1">Dette max par client (dt)</label>
-          <input title="Dette max par client" type="number" min="0" step="0.001" [(ngModel)]="settings.defaultClientMaxDebt" class="w-full bg-white border-2 border-purple-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="ex: 100"/>
+          <input title="Dette max par client" type="number" min="0" step="0.001"
+            [(ngModel)]="settings.defaultClientMaxDebt"
+            class="w-full bg-white border-2 border-purple-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            placeholder="ex: 100" />
         </div>
 
         <!-- Raccourcis -->
-        <div *ngIf="showSection('raccourcis')" class="bg-gradient-to-br from-white to-indigo-50 rounded-xl border border-indigo-200 p-4 shadow-sm">
+        <div *ngIf="showSection('raccourcis')"
+          class="bg-gradient-to-br from-white to-indigo-50 rounded-xl border border-indigo-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Raccourcis clavier</h3>
-          <textarea title="Raccourcis clavier" [(ngModel)]="keyboardShortcutsInput" rows="4" class="font-mono text-sm w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder='{"validate":"Enter","discount":"D"}'></textarea>
+          <textarea title="Raccourcis clavier" [(ngModel)]="keyboardShortcutsInput" rows="4"
+            class="font-mono text-sm w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder='{"validate":"Enter","discount":"D"}'></textarea>
         </div>
 
         <!-- Périphériques -->
-        <div *ngIf="showSection('peripheriques')" class="bg-gradient-to-br from-white to-indigo-50 rounded-xl border border-indigo-200 p-4 shadow-sm">
+        <div *ngIf="showSection('peripheriques')"
+          class="bg-gradient-to-br from-white to-indigo-50 rounded-xl border border-indigo-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Périphériques</h3>
-          
+
           <!-- Configuration d'imprimante -->
           <div class="mb-4">
             <div class="flex items-center justify-between mb-2">
               <label class="block text-sm text-gray-600">Imprimante par défaut</label>
             </div>
             <div class="relative">
-              <select title="Sélectionner l'imprimante" 
-                      [(ngModel)]="settings.devicesConfig.printer" 
-                      class="w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <select title="Sélectionner l'imprimante" [(ngModel)]="settings.devicesConfig.printer"
+                class="w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                 <option *ngFor="let printer of availablePrinters" [value]="printer.name">
                   {{ printer.name }}{{ printer.isDefault ? ' (Par défaut)' : '' }}
                 </option>
@@ -155,13 +195,15 @@
           <!-- Nom d'imprimante personnalisée -->
           <div *ngIf="settings.devicesConfig.printer === 'CUSTOM'" class="mb-4">
             <label class="block text-sm text-gray-600 mb-1">Nom de l'imprimante</label>
-            <input title="Nom de l'imprimante" type="text" [(ngModel)]="settings.devicesConfig.customPrinterName" class="w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: HP LaserJet Pro"/>
+            <input title="Nom de l'imprimante" type="text" [(ngModel)]="settings.devicesConfig.customPrinterName"
+              class="w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="Ex: HP LaserJet Pro" />
           </div>
 
           <!-- Version de l'application -->
           <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <div class="flex items-center gap-3">
-              <input id="isDesktopVersion" type="checkbox" [(ngModel)]="settings.isDesktopVersion" class="h-4 w-4"/>
+              <input id="isDesktopVersion" type="checkbox" [(ngModel)]="settings.isDesktopVersion" class="h-4 w-4" />
               <label for="isDesktopVersion" class="text-gray-700 font-medium">Version Desktop (Tauri)</label>
             </div>
             <p class="text-xs text-gray-600 mt-1 ml-7">
@@ -173,15 +215,16 @@
           <!-- Options d'imprimante -->
           <div class="space-y-3 mb-4">
             <div class="flex items-center gap-3">
-              <input id="enableDrawer" type="checkbox" [(ngModel)]="settings.devicesConfig.enableDrawer" class="h-4 w-4"/>
+              <input id="enableDrawer" type="checkbox" [(ngModel)]="settings.devicesConfig.enableDrawer"
+                class="h-4 w-4" />
               <label for="enableDrawer" class="text-gray-600">Activer tiroir-caisse</label>
             </div>
             <div class="flex items-center gap-3">
-              <input id="autoCut" type="checkbox" [(ngModel)]="settings.devicesConfig.autoCut" class="h-4 w-4"/>
+              <input id="autoCut" type="checkbox" [(ngModel)]="settings.devicesConfig.autoCut" class="h-4 w-4" />
               <label for="autoCut" class="text-gray-600">Coupe automatique</label>
             </div>
             <div class="flex items-center gap-3">
-              <input id="printLogo" type="checkbox" [(ngModel)]="settings.devicesConfig.printLogo" class="h-4 w-4"/>
+              <input id="printLogo" type="checkbox" [(ngModel)]="settings.devicesConfig.printLogo" class="h-4 w-4" />
               <label for="printLogo" class="text-gray-600">Imprimer le logo</label>
             </div>
           </div>
@@ -189,114 +232,132 @@
           <!-- Configuration avancée -->
           <details class="mb-3">
             <summary class="text-sm text-gray-600 cursor-pointer">Configuration avancée (JSON)</summary>
-            <textarea title="Configuration périphériques avancée" [(ngModel)]="devicesConfigInput" rows="3" class="font-mono text-xs w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 mt-2" placeholder='{"printer":"POS-80C","drawer":true,"autoCut":true}'></textarea>
+            <textarea title="Configuration périphériques avancée" [(ngModel)]="devicesConfigInput" rows="3"
+              class="font-mono text-xs w-full bg-white border-2 border-indigo-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 mt-2"
+              placeholder='{"printer":"POS-80C","drawer":true,"autoCut":true}'></textarea>
           </details>
 
           <!-- Test d'imprimante -->
-          <button (click)="testPrinter()" [disabled]="saving" class="w-full px-3 py-2 bg-indigo-600 text-white rounded-xl disabled:opacity-50 transition-colors">
+          <button (click)="testPrinter()" [disabled]="saving"
+            class="w-full px-3 py-2 bg-indigo-600 text-white rounded-xl disabled:opacity-50 transition-colors">
             <span *ngIf="!saving">Tester l'imprimante</span>
             <span *ngIf="saving" class="flex items-center justify-center">
-              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
               </svg>
               Test...
             </span>
           </button>
         </div>
 
-        
+
 
         <!-- Logs & Audit -->
-        <div *ngIf="showSection('logs')" class="bg-gradient-to-br from-white to-amber-50 rounded-xl border border-amber-200 p-4 shadow-sm">
+        <div *ngIf="showSection('logs')"
+          class="bg-gradient-to-br from-white to-amber-50 rounded-xl border border-amber-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Logs & Audit</h3>
           <label class="block text-sm text-gray-600 mb-1">Rétention (jours)</label>
-          <input title="Rétention (jours)" type="number" min="7" step="1" [(ngModel)]="settings.auditRetentionDays" class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="ex: 90"/>
-          
+          <input title="Rétention (jours)" type="number" min="7" step="1" [(ngModel)]="settings.auditRetentionDays"
+            class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            placeholder="ex: 90" />
+
           <!-- Role-based History Limits -->
           <div class="mt-6">
             <h4 class="text-md font-semibold text-gray-700 mb-3">Limites d'historique par rôle</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm text-gray-600 mb-1">Administrateur (jours)</label>
-                <input title="Historique Admin" type="number" min="1" step="1" [(ngModel)]="adminHistoryLimit" class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="ex: 9999"/>
+                <input title="Historique Admin" type="number" min="1" step="1" [(ngModel)]="adminHistoryLimit"
+                  class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="ex: 9999" />
               </div>
               <div>
                 <label class="block text-sm text-gray-600 mb-1">Manager (jours)</label>
-                <input title="Historique Manager" type="number" min="1" step="1" [(ngModel)]="managerHistoryLimit" class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="ex: 30"/>
+                <input title="Historique Manager" type="number" min="1" step="1" [(ngModel)]="managerHistoryLimit"
+                  class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="ex: 30" />
               </div>
               <div>
                 <label class="block text-sm text-gray-600 mb-1">Caissier (jours)</label>
-                <input title="Historique Caissier" type="number" min="1" step="1" [(ngModel)]="cashierHistoryLimit" class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="ex: 5"/>
+                <input title="Historique Caissier" type="number" min="1" step="1" [(ngModel)]="cashierHistoryLimit"
+                  class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="ex: 5" />
               </div>
               <div>
                 <label class="block text-sm text-gray-600 mb-1">Gestionnaire Stock (jours)</label>
-                <input title="Historique Stock Manager" type="number" min="1" step="1" [(ngModel)]="stockManagerHistoryLimit" class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="ex: 15"/>
+                <input title="Historique Stock Manager" type="number" min="1" step="1"
+                  [(ngModel)]="stockManagerHistoryLimit"
+                  class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="ex: 15" />
               </div>
             </div>
-            <p class="text-xs text-amber-700 mt-2">Définit le nombre maximum de jours d'historique visible pour chaque rôle.</p>
+            <p class="text-xs text-amber-700 mt-2">Définit le nombre maximum de jours d'historique visible pour chaque
+              rôle.</p>
           </div>
-          
+
           <!-- Legacy setting (kept for backward compatibility) -->
           <div class="mt-4 pt-4 border-t border-amber-200">
             <label class="block text-sm text-gray-600 mb-1">Historique global (jours) - Déprécié</label>
-            <input title="Historique global" type="number" min="1" step="1" [(ngModel)]="settings.historyRetentionDays" class="w-full bg-gray-100 border-2 border-gray-300 rounded-xl px-3 py-2 text-gray-600 focus:ring-2 focus:ring-gray-400 focus:border-gray-400" placeholder="ex: 30" readonly/>
-            <p class="text-xs text-gray-500 mt-1">Utilisez les limites par rôle ci-dessus. Ce paramètre est conservé pour la compatibilité.</p>
+            <input title="Historique global" type="number" min="1" step="1" [(ngModel)]="settings.historyRetentionDays"
+              class="w-full bg-gray-100 border-2 border-gray-300 rounded-xl px-3 py-2 text-gray-600 focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
+              placeholder="ex: 30" readonly />
+            <p class="text-xs text-gray-500 mt-1">Utilisez les limites par rôle ci-dessus. Ce paramètre est conservé
+              pour la compatibilité.</p>
           </div>
         </div>
 
-        <!-- Caisse -->
-        <div *ngIf="showSection('caisse')" class="bg-gradient-to-br from-white to-purple-50 rounded-xl border border-purple-200 p-4 shadow-sm">
-          <h3 class="text-lg font-semibold text-gray-800 mb-3">Caisse</h3>
-          <label class="block text-sm text-gray-600 mb-1">Fonds initial (dt)</label>
-          <input title="Fonds initial" type="number" min="0" step="0.01" [(ngModel)]="settings.defaultFonds" class="w-full bg-white border-2 border-purple-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="ex: 50"/>
-          <label class="block text-sm text-gray-600 mb-1">Largeur Ticket (mm)</label>
-          <input title="Largeur ticket" type="number" min="58" step="1" [(ngModel)]="settings.ticketWidth" class="w-full bg-white border-2 border-purple-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500" placeholder="ex: 58"/>
-          <div class="flex items-center gap-3 mb-1">
-            <input id="timbre" type="checkbox" [(ngModel)]="settings.droitDeTimbre" class="h-4 w-4"/>
-            <label for="timbre" class="text-gray-600">Droit de timbre</label>
-          </div>
-          <div class="flex items-center gap-3 mt-3">
-            <input id="allowNegativeStock" type="checkbox" [(ngModel)]="settings.allowNegativeStock" class="h-4 w-4"/>
-            <label for="allowNegativeStock" class="text-gray-600">Autoriser stock négatif</label>
-          </div>
-        </div>
 
         <!-- Clôture -->
-        <div *ngIf="showSection('cloture')" class="bg-gradient-to-br from-white to-rose-50 rounded-xl border border-rose-200 p-4 shadow-sm">
+        <div *ngIf="showSection('cloture')"
+          class="bg-gradient-to-br from-white to-rose-50 rounded-xl border border-rose-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Clôture</h3>
           <label class="block text-sm text-gray-600 mb-1">Seuil écart (%)</label>
-          <input title="Seuil écart (%)" type="number" min="0" step="0.1" [(ngModel)]="settings.varianceThreshold" class="w-full bg-white border-2 border-rose-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-rose-500 focus:border-rose-500" placeholder="ex: 5"/>
+          <input title="Seuil écart (%)" type="number" min="0" step="0.1" [(ngModel)]="settings.varianceThreshold"
+            class="w-full bg-white border-2 border-rose-200 rounded-xl px-3 py-2 text-gray-800 mb-3 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+            placeholder="ex: 5" />
           <div class="flex items-center gap-3 mb-3">
-            <input id="requireVar" type="checkbox" [(ngModel)]="settings.requireApprovalForVariance" class="h-4 w-4"/>
+            <input id="requireVar" type="checkbox" [(ngModel)]="settings.requireApprovalForVariance" class="h-4 w-4" />
             <label for="requireVar" class="text-gray-600">Approbation requise si écart</label>
           </div>
           <label class="block text-sm text-gray-600 mb-1">Dénominations (séparées par virgule)</label>
-          <input title="Dénominations" type="text" [ngModel]="denominationsInput" (ngModelChange)="onDenominationsInput($event)" class="w-full bg-white border-2 border-rose-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-rose-500 focus:border-rose-500" placeholder="50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05"/>
+          <input title="Dénominations" type="text" [ngModel]="denominationsInput"
+            (ngModelChange)="onDenominationsInput($event)"
+            class="w-full bg-white border-2 border-rose-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+            placeholder="50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05" />
         </div>
 
         <!-- Dépenses -->
-        <div *ngIf="showSection('depenses')" class="bg-gradient-to-br from-white to-amber-50 rounded-xl border border-amber-200 p-4 shadow-sm">
+        <div *ngIf="showSection('depenses')"
+          class="bg-gradient-to-br from-white to-amber-50 rounded-xl border border-amber-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Dépenses</h3>
           <label class="block text-sm text-gray-600 mb-1">Auto-approbation en dessous de (dt)</label>
-          <input title="Seuil auto-approbation" type="number" min="0" step="0.01" [(ngModel)]="settings.autoApproveExpenseBelow" class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="ex: 50"/>
+          <input title="Seuil auto-approbation" type="number" min="0" step="0.01"
+            [(ngModel)]="settings.autoApproveExpenseBelow"
+            class="w-full bg-white border-2 border-amber-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            placeholder="ex: 50" />
           <p class="text-xs text-amber-700 mt-2">Toute dépense ≤ ce montant est automatiquement approuvée.</p>
         </div>
 
         <!-- Paramètres d'impression -->
-        <div *ngIf="showSection('impression')" class="bg-gradient-to-br from-white to-cyan-50 rounded-xl border border-cyan-200 p-4 shadow-sm">
+        <div *ngIf="showSection('impression')"
+          class="bg-gradient-to-br from-white to-cyan-50 rounded-xl border border-cyan-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Paramètres d'impression</h3>
-          
+
           <!-- Logo et affichage -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <div class="flex items-center gap-3 mb-2">
-                <input id="showLogo" type="checkbox" [(ngModel)]="settings.printSettings.showLogo" class="h-4 w-4"/>
+                <input id="showLogo" type="checkbox" [(ngModel)]="settings.printSettings.showLogo" class="h-4 w-4" />
                 <label for="showLogo" class="text-gray-600">Afficher le logo</label>
               </div>
               <div *ngIf="settings.printSettings.showLogo" class="ml-7">
                 <label class="block text-sm text-gray-600 mb-1">Taille du logo</label>
-                <select title="Taille du logo" [(ngModel)]="settings.printSettings.logoSize" class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
+                <select title="Taille du logo" [(ngModel)]="settings.printSettings.logoSize"
+                  class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
                   <option value="small">Petit</option>
                   <option value="medium">Moyen</option>
                   <option value="large">Grand</option>
@@ -305,11 +366,13 @@
             </div>
             <div>
               <div class="flex items-center gap-3 mb-2">
-                <input id="showCompanyDetails" type="checkbox" [(ngModel)]="settings.printSettings.showCompanyDetails" class="h-4 w-4"/>
+                <input id="showCompanyDetails" type="checkbox" [(ngModel)]="settings.printSettings.showCompanyDetails"
+                  class="h-4 w-4" />
                 <label for="showCompanyDetails" class="text-gray-600">Détails entreprise</label>
               </div>
               <div class="flex items-center gap-3 mb-2">
-                <input id="showClientInfo" type="checkbox" [(ngModel)]="settings.printSettings.showClientInfo" class="h-4 w-4"/>
+                <input id="showClientInfo" type="checkbox" [(ngModel)]="settings.printSettings.showClientInfo"
+                  class="h-4 w-4" />
                 <label for="showClientInfo" class="text-gray-600">Info client</label>
               </div>
             </div>
@@ -319,7 +382,8 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label class="block text-sm text-gray-600 mb-1">Format de date</label>
-              <select title="Format de date" [(ngModel)]="settings.printSettings.dateFormat" class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
+              <select title="Format de date" [(ngModel)]="settings.printSettings.dateFormat"
+                class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
                 <option value="dd/mm/yyyy">DD/MM/YYYY</option>
                 <option value="mm/dd/yyyy">MM/DD/YYYY</option>
                 <option value="yyyy-mm-dd">YYYY-MM-DD</option>
@@ -327,7 +391,8 @@
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">Format d'heure</label>
-              <select title="Format d'heure" [(ngModel)]="settings.printSettings.timeFormat" class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
+              <select title="Format d'heure" [(ngModel)]="settings.printSettings.timeFormat"
+                class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
                 <option value="24h">24 heures</option>
                 <option value="12h">12 heures (AM/PM)</option>
               </select>
@@ -338,11 +403,14 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label class="block text-sm text-gray-600 mb-1">Symbole de devise</label>
-              <input title="Symbole de devise" type="text" [(ngModel)]="settings.printSettings.currencySymbol" class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="dt"/>
+              <input title="Symbole de devise" type="text" [(ngModel)]="settings.printSettings.currencySymbol"
+                class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                placeholder="dt" />
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">Position de la devise</label>
-              <select title="Position de la devise" [(ngModel)]="settings.printSettings.currencyPosition" class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
+              <select title="Position de la devise" [(ngModel)]="settings.printSettings.currencyPosition"
+                class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
                 <option value="after">Après le montant</option>
                 <option value="before">Avant le montant</option>
               </select>
@@ -354,247 +422,295 @@
             <h4 class="text-md font-semibold text-gray-700">Textes personnalisés</h4>
             <div>
               <label class="block text-sm text-gray-600 mb-1">Titre du reçu</label>
-              <input title="Titre du reçu" type="text" [(ngModel)]="settings.printSettings.customTexts.receiptTitle" class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="REÇU DE VENTE"/>
+              <input title="Titre du reçu" type="text" [(ngModel)]="settings.printSettings.customTexts.receiptTitle"
+                class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                placeholder="REÇU DE VENTE" />
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">Message de remerciement</label>
-              <input title="Message de remerciement" type="text" [(ngModel)]="settings.printSettings.customTexts.thankYouMessage" class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Merci de votre visite!"/>
+              <input title="Message de remerciement" type="text"
+                [(ngModel)]="settings.printSettings.customTexts.thankYouMessage"
+                class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                placeholder="Merci de votre visite!" />
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">Slogan entreprise</label>
-              <input title="Slogan entreprise" type="text" [(ngModel)]="settings.printSettings.customTexts.companySlogan" class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Votre pâtisserie de confiance"/>
+              <input title="Slogan entreprise" type="text"
+                [(ngModel)]="settings.printSettings.customTexts.companySlogan"
+                class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                placeholder="Votre pâtisserie de confiance" />
             </div>
             <div>
               <label class="block text-sm text-gray-600 mb-1">Message de pied de page</label>
-              <input title="Message de pied de page" type="text" [(ngModel)]="settings.printSettings.customTexts.footerMessage" class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="Merci pour votre fidélité"/>
+              <input title="Message de pied de page" type="text"
+                [(ngModel)]="settings.printSettings.customTexts.footerMessage"
+                class="w-full bg-white border-2 border-cyan-200 rounded-xl px-3 py-2 text-gray-800 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                placeholder="Merci pour votre fidélité" />
             </div>
           </div>
         </div>
 
         <!-- Options d'affichage supplémentaires -->
-        <div *ngIf="showSection('impression')" class="bg-gradient-to-br from-white to-cyan-50 rounded-xl border border-cyan-200 p-4 shadow-sm">
+        <div *ngIf="showSection('impression')"
+          class="bg-gradient-to-br from-white to-cyan-50 rounded-xl border border-cyan-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Options d'affichage</h3>
           <div class="space-y-3">
             <div class="flex items-center gap-3">
-              <input id="showPaymentMethod" type="checkbox" [(ngModel)]="settings.printSettings.showPaymentMethod" class="h-4 w-4"/>
+              <input id="showPaymentMethod" type="checkbox" [(ngModel)]="settings.printSettings.showPaymentMethod"
+                class="h-4 w-4" />
               <label for="showPaymentMethod" class="text-gray-600">Méthode de paiement</label>
             </div>
             <div class="flex items-center gap-3">
-              <input id="showDiscountDetails" type="checkbox" [(ngModel)]="settings.printSettings.showDiscountDetails" class="h-4 w-4"/>
+              <input id="showDiscountDetails" type="checkbox" [(ngModel)]="settings.printSettings.showDiscountDetails"
+                class="h-4 w-4" />
               <label for="showDiscountDetails" class="text-gray-600">Détails des remises</label>
             </div>
             <div class="flex items-center gap-3">
-              <input id="doubleImpression" type="checkbox" [(ngModel)]="settings.printSettings.doubleImpression" class="h-4 w-4"/>
+              <input id="doubleImpression" type="checkbox" [(ngModel)]="settings.printSettings.doubleImpression"
+                class="h-4 w-4" />
               <label for="doubleImpression" class="text-gray-600">Double impression</label>
             </div>
-            <p class="text-xs text-gray-500 mt-1 ml-7">Chaque ticket sera imprimé deux fois lorsque cette option est activée</p>
+            <p class="text-xs text-gray-500 mt-1 ml-7">Chaque ticket sera imprimé deux fois lorsque cette option est
+              activée</p>
           </div>
         </div>
 
         <!-- Document Type Defaults -->
-        <div *ngIf="showSection('documents')" class="bg-gradient-to-br from-white to-violet-50 rounded-xl border border-violet-200 p-4 shadow-sm">
+        <div *ngIf="showSection('documents')"
+          class="bg-gradient-to-br from-white to-violet-50 rounded-xl border border-violet-200 p-4 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-800 mb-4">Configuration par défaut des documents</h3>
-          
+
           <!-- Show loading state if documentTypeDefaults is not initialized -->
-          <div *ngIf="!settings.documentTypeDefaults || Object.keys(settings.documentTypeDefaults).length === 0" class="text-center py-8">
+          <div *ngIf="!settings.documentTypeDefaults || Object.keys(settings.documentTypeDefaults).length === 0"
+            class="text-center py-8">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto mb-4"></div>
             <p class="text-gray-600">Chargement de la configuration...</p>
           </div>
-          
+
           <!-- Document Type Configurations (only show when documentTypeDefaults is available) -->
           <div *ngIf="settings.documentTypeDefaults && Object.keys(settings.documentTypeDefaults).length > 0">
             <!-- Bon de Livraison -->
             <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
-            <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Livraison</h4>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.client" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Client</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.depot" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Dépôt</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.vehicle" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Véhicule</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.driver" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Chauffeur</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.manualDestination" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Destination</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.autoInvoice" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Auto Facture</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.tvaAndPrix" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">TVA & Prix</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.validity" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Validité</span>
-              </label>
-            </div>
-            
-            <!-- Bon de Livraison Display Setting -->
-            <div class="mt-2 flex justify-end" *ngIf="settings.documentDisplaySettings?.livraison">
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" [(ngModel)]="settings.documentDisplaySettings.livraison.showPackageCount" class="sr-only peer" title="Afficher le nombre de colis">
-                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Bon de Sortie -->
-          <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
-            <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Sortie</h4>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.client" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Client</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.depot" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Dépôt</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.vehicle" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Véhicule</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.driver" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Chauffeur</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.manualDestination" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Destination</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.autoInvoice" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Auto Facture</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.tvaAndPrix" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">TVA & Prix</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.validity" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Validité</span>
-              </label>
-            </div>
-            
-            <!-- Bon de Sortie Display Setting -->
-            <div class="mt-2 flex justify-end" *ngIf="settings.documentDisplaySettings?.sortie">
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" [(ngModel)]="settings.documentDisplaySettings.sortie.showPackageCount" class="sr-only peer" title="Afficher le nombre de colis">
-                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Bon de Transfert -->
-          <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
-            <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Transfert</h4>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.client" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Client</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.depot" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Dépôt</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.vehicle" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Véhicule</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.driver" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Chauffeur</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.manualDestination" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Destination</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.autoInvoice" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Auto Facture</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.tvaAndPrix" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">TVA & Prix</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.validity" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Validité</span>
-              </label>
-            </div>
-            
-            <!-- Bon de Transfert Display Setting -->
-            <div class="mt-2 flex justify-end" *ngIf="settings.documentDisplaySettings?.transfert">
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" [(ngModel)]="settings.documentDisplaySettings.transfert.showPackageCount" class="sr-only peer" title="Afficher le nombre de colis">
-                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Facture -->
-          <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
-            <h4 class="text-md font-semibold text-violet-800 mb-3">Facture</h4>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.client" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Client</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.depot" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Dépôt</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.vehicle" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Véhicule</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.driver" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Chauffeur</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.manualDestination" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Destination</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.autoInvoice" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Auto Facture</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.tvaAndPrix" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">TVA & Prix</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.validity" class="h-4 w-4"/>
-                <span class="text-sm text-gray-700">Validité</span>
-              </label>
-            </div>
-            
-            <!-- Facture Display Setting -->
-            <div class="mt-2 flex items-center justify-between" *ngIf="settings.documentDisplaySettings?.facture">
-              <div class="flex items-center gap-2">
-                <label class="text-xs text-gray-600">Timbre fiscal:</label>
-                <input type="number" min="0" step="0.01" [(ngModel)]="settings.documentDisplaySettings.facture.timbrePrice" class="w-16 h-6 text-xs border border-gray-300 rounded px-2" placeholder="1"/>
-                <span class="text-xs text-gray-500">DT</span>
+              <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Livraison</h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.client" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Client</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.depot" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Dépôt</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.vehicle"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Véhicule</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.driver" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Chauffeur</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.manualDestination"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Destination</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.autoInvoice"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Auto Facture</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.tvaAndPrix"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">TVA & Prix</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.livraison.validity"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Validité</span>
+                </label>
               </div>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" [(ngModel)]="settings.documentDisplaySettings.facture.showPackageCount" class="sr-only peer" title="Afficher le nombre de colis">
-                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
-              </label>
+
+              <!-- Bon de Livraison Display Setting -->
+              <div class="mt-2 flex justify-end" *ngIf="settings.documentDisplaySettings?.livraison">
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" [(ngModel)]="settings.documentDisplaySettings.livraison.showPackageCount"
+                    class="sr-only peer" title="Afficher le nombre de colis">
+                  <div
+                    class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600">
+                  </div>
+                </label>
+              </div>
             </div>
-          </div>
+
+            <!-- Bon de Sortie -->
+            <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
+              <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Sortie</h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.client" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Client</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.depot" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Dépôt</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.vehicle" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Véhicule</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.driver" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Chauffeur</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.manualDestination"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Destination</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.autoInvoice"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Auto Facture</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.tvaAndPrix"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">TVA & Prix</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.sortie.validity" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Validité</span>
+                </label>
+              </div>
+
+              <!-- Bon de Sortie Display Setting -->
+              <div class="mt-2 flex justify-end" *ngIf="settings.documentDisplaySettings?.sortie">
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" [(ngModel)]="settings.documentDisplaySettings.sortie.showPackageCount"
+                    class="sr-only peer" title="Afficher le nombre de colis">
+                  <div
+                    class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600">
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Bon de Transfert -->
+            <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
+              <h4 class="text-md font-semibold text-violet-800 mb-3">Bon de Transfert</h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.client" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Client</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.depot" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Dépôt</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.vehicle"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Véhicule</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.driver" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Chauffeur</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.manualDestination"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Destination</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.autoInvoice"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Auto Facture</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.tvaAndPrix"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">TVA & Prix</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.transfert.validity"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Validité</span>
+                </label>
+              </div>
+
+              <!-- Bon de Transfert Display Setting -->
+              <div class="mt-2 flex justify-end" *ngIf="settings.documentDisplaySettings?.transfert">
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" [(ngModel)]="settings.documentDisplaySettings.transfert.showPackageCount"
+                    class="sr-only peer" title="Afficher le nombre de colis">
+                  <div
+                    class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600">
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Facture -->
+            <div class="mb-6 p-4 bg-white rounded-lg border border-violet-200">
+              <h4 class="text-md font-semibold text-violet-800 mb-3">Facture</h4>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.client" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Client</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.depot" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Dépôt</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.vehicle" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Véhicule</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.driver" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Chauffeur</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.manualDestination"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Destination</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.autoInvoice"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Auto Facture</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.tvaAndPrix"
+                    class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">TVA & Prix</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" [(ngModel)]="settings.documentTypeDefaults.facture.validity" class="h-4 w-4" />
+                  <span class="text-sm text-gray-700">Validité</span>
+                </label>
+              </div>
+
+              <!-- Facture Display Setting -->
+              <div class="mt-2 flex items-center justify-between" *ngIf="settings.documentDisplaySettings?.facture">
+                <div class="flex items-center gap-2">
+                  <label class="text-xs text-gray-600">Timbre fiscal:</label>
+                  <input type="number" min="0" step="0.01"
+                    [(ngModel)]="settings.documentDisplaySettings.facture.timbrePrice"
+                    class="w-16 h-6 text-xs border border-gray-300 rounded px-2" placeholder="1" />
+                  <span class="text-xs text-gray-500">DT</span>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" [(ngModel)]="settings.documentDisplaySettings.facture.showPackageCount"
+                    class="sr-only peer" title="Afficher le nombre de colis">
+                  <div
+                    class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600">
+                  </div>
+                </label>
+              </div>
+            </div>
           </div> <!-- End of documentTypeDefaults conditional -->
         </div>
       </div>
@@ -630,8 +746,7 @@
             <div class="text-gray-600 text-sm whitespace-pre-line">{{ alertMessage }}</div>
           </div>
         </div>
-        <button (click)="hideAlert()" title="Fermer l'alerte"
-          class="text-gray-500  transition-colors">
+        <button (click)="hideAlert()" title="Fermer l'alerte" class="text-gray-500  transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -639,4 +754,4 @@
       </div>
     </div>
   </div>
-</div> 
+</div>

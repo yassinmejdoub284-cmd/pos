@@ -7,7 +7,6 @@ import { ExpenseService } from '../core/services/expense.service';
 import { ApprovalsService } from '../core/services/approvals.service';
 import { SessionsService } from '../core/services/sessions.service';
 import { DepotsService } from '../core/services/depots.service';
-import { EnterpriseService } from '../core/services/enterprise.service';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
 import { FullscreenService } from '../core/services/fullscreen.service';
 import { Subject, forkJoin, timer, of } from 'rxjs';
@@ -59,12 +58,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   showApprovalsActionDialog = signal(false);
   showSupplierActionDialog = signal(false);
   showSettingsActionDialog = signal(false);
-  showEnterpriseActionDialog = signal(false);
   showHistoriqueChoiceDialog = signal(false);
-  showCompanySwitchDialog = signal(false);
-  companySwitchData = signal<{ companyName: string; logoUrl?: string | null } | null>(null);
   showExtraitDepotDialog = signal(false);
-  
+  showCompanySwitchDialog = signal(false);
+  companySwitchData = signal<{companyName: string; logoUrl: string} | null>(null);
+
   // Settings
   appSettings = signal<AppSettings | null>(null);
   companyName = signal('PoS Pâtisserie');
@@ -80,9 +78,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   salesVsYesterdayPct: number = 0;
   transactionsVsYesterdayPct: number = 0;
 
-  // Invoiced sales
-  invoicedSales = signal<any[]>([]);
-  loadingInvoices = signal(false);
   
   // Performance optimization
   private destroy$ = new Subject<void>();
@@ -193,32 +188,12 @@ export class HomeComponent implements OnInit, OnDestroy {
       roles: ['ADMIN', 'MANAGER']
     },
     {
-      id: 'vente-tables',
-      title: 'Vente Tables',
-      description: 'Ventes par table',
-      route: '/vente-tables',
-      icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
-      color: 'from-purple-500 to-pink-600',
-      gradient: 'from-purple-50 to-pink-100',
-      roles: ['ADMIN', 'MANAGER', 'CASHIER']
-    },
-    {
       id: 'approvals',
       title: 'Centre d\'approbation',
       route: '/approvals',
       icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
       color: 'from-purple-500 to-violet-600',
       gradient: 'from-purple-50 to-violet-100',
-      roles: ['ADMIN', 'MANAGER']
-    },
-    {
-      id: 'reminders-admin',
-      title: 'Rappels (Administration)',
-      description: 'Créer et gérer les rappels',
-      route: '/reminders',
-      icon: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-      color: 'from-emerald-500 to-cyan-600',
-      gradient: 'from-emerald-50 to-cyan-100',
       roles: ['ADMIN', 'MANAGER']
     },
     {
@@ -246,26 +221,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
       color: 'from-indigo-500 to-purple-600',
       gradient: 'from-indigo-50 to-purple-100',
-      roles: ['ADMIN', 'MANAGER', 'CASHIER']
-    },
-    {
-      id: 'historique-pointage',
-      title: 'Historique Pointage',
-      description: 'Entrée/Sortie',
-      route: '/pointage',
-      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-      color: 'from-slate-500 to-gray-600',
-      gradient: 'from-slate-50 to-gray-100',
-      roles: ['ADMIN', 'MANAGER', 'CASHIER']
-    },
-    {
-      id: 'factures',
-      title: 'Factures',
-      description: 'Ventes facturées',
-      route: '/factures',
-      icon: 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z',
-      color: 'from-indigo-500 to-blue-600',
-      gradient: 'from-indigo-50 to-blue-100',
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
     },
     {
@@ -298,7 +253,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     private approvalsService: ApprovalsService,
     private settingsService: SettingsService,
     private depotsService: DepotsService,
-    private enterpriseService: EnterpriseService,
     private fullscreenService: FullscreenService,
     private router: Router,
     private cdr: ChangeDetectorRef,
@@ -317,7 +271,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.updateGreeting();
     this.loadDashboardStats();
     this.loadSettings();
-    this.checkCompanySwitchInfo();
     
     // Update time every minute - optimized with proper cleanup
     this.timeInterval = setInterval(() => {
@@ -457,44 +410,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.updatePendingApprovals();
   }
 
-  loadInvoicedSales(): void {
-    this.loadingInvoices.set(true);
-    const userDepotId = this.currentUser()?.depotId;
-    const url = `${environment.apiUrl}/invoices?status=ISSUED&limit=10${userDepotId ? '&depotId=' + userDepotId : ''}`;
-    
-    this.http.get(url, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    }).pipe(
-      takeUntil(this.destroy$),
-      catchError(error => {
-        console.error('Error loading invoiced sales:', error);
-        return of({ invoices: [] });
-      })
-    ).subscribe({
-      next: (response: any) => {
-        this.invoicedSales.set(response.invoices || []);
-        this.loadingInvoices.set(false);
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.invoicedSales.set([]);
-        this.loadingInvoices.set(false);
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  formatInvoiceDate(date: string | Date): string {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return dateObj.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  }
-
   private processNonCriticalData(data: any): void {
     const { expenses, varianceRequests } = data;
     
@@ -628,9 +543,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     } else if (route === '/historique') {
       // Direct navigation to historique ventes (no dialog)
       this.router.navigate(['/historique']);
-    } else if (route === '/pointage') {
-      // Direct navigation to historique pointage (no dialog)
-      this.router.navigate(['/pointage']);
     } else if (route === '/extrait-par-article') {
       // Show depot selection dialog for extrait par article
       this.showExtraitDepotDialog.set(true);
@@ -640,12 +552,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  onHistoriqueChoiceSelected(choice: 'VENTES' | 'POINTAGE'): void {
-    this.showHistoriqueChoiceDialog.set(false);
+  onHistoriqueChoiceSelected(choice: 'VENTES'): void {
     if (choice === 'VENTES') {
       this.router.navigate(['/historique']);
-    } else if (choice === 'POINTAGE') {
-      this.router.navigate(['/pointage']);
     }
   }
 
@@ -768,15 +677,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       case 'access':
         this.router.navigate(['/parametres/access']);
         break;
-      case 'tables-salon':
-        this.router.navigate(['/tables-salon']);
-        break;
-      case 'enterprise':
-        this.showEnterpriseActionDialog.set(true);
-        break;
-      case 'reminders':
-        this.router.navigate(['/reminders']);
-        break;
     }
   }
 
@@ -784,30 +684,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.showSettingsActionDialog.set(false);
   }
 
-  onEnterpriseActionSelected(actionId: string): void {
-    this.showEnterpriseActionDialog.set(false);
-    if (actionId === 'enterprises') {
-      this.router.navigate(['/enterprise/companies']);
-    } else if (actionId === 'depots-shops') {
-      this.router.navigate(['/enterprise/depots-shops']);
-    }
-  }
 
-  onEnterpriseDialogClosed(): void {
-    this.showEnterpriseActionDialog.set(false);
-  }
-
-  private checkCompanySwitchInfo(): void {
-    try {
-      const infoRaw = sessionStorage.getItem('companySwitchInfo');
-      if (!infoRaw) return;
-      sessionStorage.removeItem('companySwitchInfo');
-      const info = JSON.parse(infoRaw);
-      this.companySwitchData.set({ companyName: info.companyName || 'Entreprise', logoUrl: info.logoUrl || null });
-      this.showCompanySwitchDialog.set(true);
-      this.cdr.markForCheck();
-    } catch {}
-  }
 
 
 
@@ -889,60 +766,10 @@ export class HomeComponent implements OnInit, OnDestroy {
         this._cachedFilteredActions = [];
         this._lastUserRole = null; // Also reset role to force re-evaluation
         this.cdr.markForCheck();
-
-        // Attempt to enrich with enterprise (company) data of the user's depot
-        this.loadEnterpriseFromUserDepot(settings);
       }
     });
   }
 
-  private loadEnterpriseFromUserDepot(baseSettings: AppSettings): void {
-    // If admin, prefer depot chosen at login (visitingDepotId); otherwise use user's depotId
-    const isAdmin = this.authService.isAdmin();
-    const visitingDepotIdStr = isAdmin ? sessionStorage.getItem('visitingDepotId') : null;
-    const visitingDepotId = visitingDepotIdStr ? Number(visitingDepotIdStr) : undefined;
-    const depotId = (isAdmin ? (visitingDepotId || this.currentUser()?.depotId) : this.currentUser()?.depotId) as number | undefined;
-    if (!depotId) return;
-
-    this.depotsService.get(depotId).pipe(
-      takeUntil(this.destroy$),
-      catchError(err => {
-        console.error('Error fetching depot for enterprise settings:', err);
-        return of(null);
-      })
-    ).subscribe(depot => {
-      if (!depot) return;
-      const companyId = (depot as any).companyId ?? (depot as any).company?.id;
-      if (!companyId) return;
-
-      this.enterpriseService.getCompany(Number(companyId)).pipe(
-        takeUntil(this.destroy$),
-        catchError(err => {
-          console.error('Error fetching enterprise company:', err);
-          return of(null);
-        })
-      ).subscribe(company => {
-        if (!company) return;
-
-        // Merge company info into settings display
-        const merged: AppSettings = {
-          ...baseSettings,
-          companyName: company.raisonSociale || baseSettings.companyName,
-          logoUrl: company.logoUrl || baseSettings.logoUrl,
-          companyAddress: company.adresse || baseSettings.companyAddress,
-          companyPhone: company.telephone || baseSettings.companyPhone,
-          companyEmail: company.email || baseSettings.companyEmail,
-        };
-
-        this.appSettings.set(merged);
-        this.companyName.set(merged.companyName || 'PoS Pâtisserie');
-        this.companyLogo.set(merged.logoUrl ? this.settingsService.getAbsoluteLogoUrl(merged.logoUrl) : '');
-        this.logoLoadError.set(false);
-        this._cachedFilteredActions = [];
-        this.cdr.markForCheck();
-      });
-    });
-  }
 
   onLogoError(): void {
     this.logoLoadError.set(true);

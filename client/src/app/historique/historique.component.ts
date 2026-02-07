@@ -63,15 +63,6 @@ export class HistoriqueComponent implements OnInit {
   sessionIds: number[] = [];
   allSessions: any[] = []; // Store all sessions for pagination
 
-  // Invoice request modal
-  showInvoiceRequestModal = false;
-  selectedSaleForInvoice: Sale | null = null;
-  submittingInvoiceRequest = false;
-  invoiceRequestData = {
-    notes: ''
-  };
-  invoiceRequests: any[] = [];
-
   // Return/Exchange request modal state
   showReturnRequestModal = false;
   returnItems: { productId: number; productName: string; quantity: number; unitPrice: number }[] = [];
@@ -118,7 +109,6 @@ export class HistoriqueComponent implements OnInit {
       this.loadSales();
     });
     this.loadPaymentMethods();
-    this.loadInvoiceRequests();
     this.loadProducts();
     
     // Check for query parameters to open return dialog
@@ -939,17 +929,6 @@ export class HistoriqueComponent implements OnInit {
     }
   }
 
-  // Invoice request methods
-  loadInvoiceRequests(): void {
-    // This would load existing invoice requests to check which sales already have requests
-    // For now, we'll implement a simple check
-  }
-
-  hasInvoiceRequest(saleId: number): boolean {
-    // Check if this sale already has an invoice request
-    return this.invoiceRequests.some(request => request.saleId === saleId);
-  }
-
   loadProducts(): void {
     this.http.get(`${environment.apiUrl}/products`)
       .pipe(takeUntil(this.destroy$))
@@ -961,52 +940,6 @@ export class HistoriqueComponent implements OnInit {
           console.error('Error loading products:', error);
         }
       });
-  }
-
-  requestInvoice(sale: Sale): void {
-    this.selectedSaleForInvoice = sale;
-    this.invoiceRequestData = {
-      notes: ''
-    };
-    this.showInvoiceRequestModal = true;
-  }
-
-  closeInvoiceRequestModal(): void {
-    this.showInvoiceRequestModal = false;
-    this.selectedSaleForInvoice = null;
-    this.invoiceRequestData = {
-      notes: ''
-    };
-  }
-
-  submitInvoiceRequest(): void {
-    if (!this.selectedSaleForInvoice) return;
-
-    this.submittingInvoiceRequest = true;
-
-    const requestPayload = {
-      saleId: this.selectedSaleForInvoice.id,
-      requestNotes: this.invoiceRequestData.notes
-    };
-
-    this.http.post(`${environment.apiUrl}/invoices/request-from-ticket`, requestPayload).subscribe({
-      next: (response: any) => {
-        this.submittingInvoiceRequest = false;
-        this.closeInvoiceRequestModal();
-        this.showAlertMessage('Demande de facture envoyée avec succès!', 'success');
-        // Reload sales to update the UI
-        this.loadSales();
-      },
-      error: (error) => {
-        this.submittingInvoiceRequest = false;
-        console.error('Error submitting invoice request:', error);
-        if ((error as any).error?.error) {
-          this.showAlertMessage(`Erreur: ${(error as any).error.error}`, 'error');
-        } else {
-          this.showAlertMessage('Erreur lors de l\'envoi de la demande', 'error');
-        }
-      }
-    });
   }
 
   // Return/Exchange action menu

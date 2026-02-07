@@ -1,4 +1,4 @@
-import { Product, ProductFamily, ProductConservation, Inventory, Depot, VracPrice } from './product.model';
+import { Product, ProductFamily, Inventory, Depot } from './product.model';
 
 export interface ProduitDeCaisseDepot {
   id: number;
@@ -23,7 +23,6 @@ export interface ProduitDeStock {
   prix_achat?: number;
   tva: number;
   photo?: string;
-  duree_conservation?: number;
   // Vrac fields
   isVrac?: boolean;
   originalProductId?: number;
@@ -48,9 +47,7 @@ export interface ProduitDeStock {
   depotAssignments?: ProduitDeCaisseDepot[];
   assignedDepots?: Depot[]; // Computed field for easier access
   inventory?: Inventory[];
-  conservation?: ProductConservation[];
   vracProducts?: Product[];
-  vracPrices?: VracPrice[];
 }
 
 // Keep alias for backward compatibility
@@ -67,7 +64,6 @@ export interface CreateProduitDeStockRequest {
   prix_achat?: number;
   tva: number;
   photo?: string;
-  duree_conservation?: number;
   // Vrac fields
   isVrac?: boolean;
   originalProductId?: number;
@@ -102,7 +98,6 @@ export interface UpdateProduitDeStockRequest {
   prix_achat?: number;
   tva?: number;
   photo?: string;
-  duree_conservation?: number;
   // Vrac fields
   isVrac?: boolean;
   originalProductId?: number;

@@ -4,6 +4,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { logAudit } = require('../lib/audit');
 const fs = require('fs');
 const path = require('path');
+const { getDepotSettings } = require('../lib/settings');
 
 const router = express.Router();
 
@@ -2529,16 +2530,16 @@ function generateESCReport(reportData, type) {
   return escpos;
 }
 
-async function getClotureSettings() {
+async function getClotureSettings(depotId = 'default') {
   try {
-    const settings = await prisma.appSettings.findFirst();
+    const settings = getDepotSettings(depotId);
     return {
-      varianceThreshold: settings?.varianceThreshold || 5.0,
-      defaultFonds: settings?.defaultFonds || 0.0,
-      denominations: settings?.denominations || [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05],
-      requireApprovalForVariance: settings?.requireApprovalForVariance !== false,
-      ticketWidth: settings?.ticketWidth || 58,
-      droitDeTimbre: settings?.droitDeTimbre || false
+      varianceThreshold: settings.varianceThreshold,
+      defaultFonds: settings.defaultFonds,
+      denominations: settings.denominations,
+      requireApprovalForVariance: settings.requireApprovalForVariance,
+      ticketWidth: settings.ticketWidth,
+      droitDeTimbre: settings.droitDeTimbre
     };
   } catch (error) {
     return {

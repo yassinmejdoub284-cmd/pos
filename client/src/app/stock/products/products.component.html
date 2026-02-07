@@ -21,16 +21,17 @@
   </div>
 
   <!-- Error Message -->
-  <div *ngIf="error" class="mb-6 p-5 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-700 rounded-xl shadow-sm">
+  <div *ngIf="error"
+    class="mb-6 p-5 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-700 rounded-xl shadow-sm">
     <div class="flex items-center">
       <svg class="w-6 h-6 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
       </svg>
       <span class="font-medium block">{{ error }}</span>
     </div>
   </div>
 
-  <app-conservation-warnings (warningsUpdated)="onWarningsUpdated()"></app-conservation-warnings>
 
   <div *ngIf="!loading" class="space-y-6 max-w-[1600px] mx-auto">
     <!-- Header Section -->
@@ -40,12 +41,13 @@
           <span class="text-3xl font-bold text-white mb-1 block">Gestion des Produits</span>
           <span class="text-indigo-100 block">Gérez votre catalogue de produits et leurs propriétés</span>
         </div>
-        
+
         <div class="flex flex-wrap gap-3">
           <button (click)="openAddModal()"
             class="bg-white text-indigo-700 px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center space-x-2 font-medium">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+              </path>
             </svg>
             <span>Nouveau Produit</span>
           </button>
@@ -60,19 +62,22 @@
 
           <!-- View Toggle -->
           <div class="bg-white rounded-xl shadow-md flex">
-            <button (click)="viewMode = 'table'" 
+            <button (click)="viewMode = 'table'"
               [class]="viewMode === 'table' ? 'bg-indigo-600 text-white' : 'text-indigo-700'"
               class="px-4 py-2.5 rounded-l-xl transition-all flex items-center space-x-2 font-medium">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0V6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 10h18M3 14h18m-9-4v8m-7 0V6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
               </svg>
               <span>Tableau</span>
             </button>
-            <button (click)="viewMode = 'grid'" 
+            <button (click)="viewMode = 'grid'"
               [class]="viewMode === 'grid' ? 'bg-indigo-600 text-white' : 'text-indigo-700'"
               class="px-4 py-2.5 rounded-r-xl transition-all flex items-center space-x-2 font-medium">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                </path>
               </svg>
               <span>Grille</span>
             </button>
@@ -97,7 +102,8 @@
           <div class="relative">
             <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
               <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
               </svg>
             </div>
             <input type="text" [(ngModel)]="searchQuery" (keyup.enter)="onSearch()"
@@ -141,15 +147,16 @@
             </button>
           </div>
         </div>
-        
-        
-        
+
+
+
         <div class="flex items-end">
           <button (click)="onSearch()"
             class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-3 rounded-xl transition-all font-medium">
             <span class="flex items-center justify-center">
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
               </svg>
               Rechercher
             </span>
@@ -162,57 +169,68 @@
 
     <!-- Products List -->
     <div class="bg-white rounded-3xl border border-indigo-100 shadow-md overflow-hidden">
-      
+
       <!-- Table View -->
       <div *ngIf="viewMode === 'table'" class="overflow-x-auto">
         <table class="w-full">
           <thead>
             <tr class="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-indigo-100">
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Photo</th>
-              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Code-barres</th>
+              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Code-barres
+              </th>
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Nom</th>
-              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Désignation</th>
+              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Désignation
+              </th>
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Famille</th>
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Prix Achat</th>
-              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Prix Vente TTC</th>
-              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Magasins Assignés</th>
+              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Prix Vente TTC
+              </th>
+              <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Magasins
+                Assignés</th>
               <th class="px-5 py-4 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-indigo-50">
-            <tr *ngFor="let product of displayedProducts; let i = index" 
-                class="transition-colors">
+            <tr *ngFor="let product of displayedProducts; let i = index" class="transition-colors">
               <td class="px-5 py-4">
                 <div class="cursor-pointer" (click)="openImageUploadModal(product)">
                   <img *ngIf="product.photo" [src]="product.photo" [alt]="product.name" title="Photo"
                     class="w-14 h-14 object-cover rounded-xl shadow-sm transition-all">
-                  <div *ngIf="!product.photo" class="w-14 h-14 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center transition-all shadow-sm">
+                  <div *ngIf="!product.photo"
+                    class="w-14 h-14 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center transition-all shadow-sm">
                     <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                      </path>
                     </svg>
                   </div>
                 </div>
               </td>
               <td class="px-5 py-4">
-                <div class="text-sm text-slate-800 font-mono bg-slate-100 py-1 px-2 rounded-lg inline-block">{{ product.barcode || '-' }}</div>
+                <div class="text-sm text-slate-800 font-mono bg-slate-100 py-1 px-2 rounded-lg inline-block">{{
+                  product.barcode || '-' }}</div>
               </td>
               <td class="px-5 py-4">
                 <div class="text-base font-medium text-indigo-800">{{ product.name }}</div>
                 <div class="flex flex-wrap gap-1 mt-1">
                   <span *ngIf="product.name && product.name.toLowerCase().includes('import')"
-                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sky-100 text-sky-800">
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sky-100 text-sky-800">
                     Importé
                   </span>
-                  <span *ngIf="product.isVraguable || hasVracConversions(product.id)" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                  <span *ngIf="product.isVraguable || hasVracConversions(product.id)"
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
                     Vrac
-                    <span *ngIf="hasVracConversions(product.id)" class="ml-1 px-1.5 py-0.5 bg-orange-200 rounded-full text-[10px] font-bold">
+                    <span *ngIf="hasVracConversions(product.id)"
+                      class="ml-1 px-1.5 py-0.5 bg-orange-200 rounded-full text-[10px] font-bold">
                       {{ getVracConversionsCount(product.id) }}
                     </span>
                   </span>
-                  <span *ngIf="product.isStockable" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                  <span *ngIf="product.isStockable"
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                     Stock
                   </span>
-                  <span *ngIf="product.isWholesale" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-800">
+                  <span *ngIf="product.isWholesale"
+                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-800">
                     Gros
                   </span>
                 </div>
@@ -228,68 +246,80 @@
                 <div *ngIf="!product.famille" class="text-slate-500 text-sm">Non classé</div>
               </td>
               <td class="px-5 py-4">
-                <div class="font-medium text-slate-700">{{ (product.prix_achat | currency:'TND':'symbol':'1.3-3') || '-' }}</div>
+                <div class="font-medium text-slate-700">{{ (product.prix_achat | currency:'TND':'symbol':'1.3-3') || '-'
+                  }}</div>
               </td>
               <td class="px-5 py-4">
                 <div class="text-lg font-bold text-purple-700">{{ product.prix_vente_TTC | currency:'TND' }}</div>
               </td>
               <td class="px-5 py-4">
                 <div class="flex flex-wrap gap-1 max-w-xs">
-                  <span *ngFor="let depot of product.assignedDepots || []; let last = last" 
-                        class="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                  <span *ngFor="let depot of product.assignedDepots || []; let last = last"
+                    class="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
                     {{ depot.name }}<span *ngIf="!last">, </span>
                   </span>
-                  <span *ngIf="!product.assignedDepots || product.assignedDepots.length === 0" 
-                        class="inline-flex items-center px-2 py-1 rounded text-xs bg-slate-100 text-slate-600">
+                  <span *ngIf="!product.assignedDepots || product.assignedDepots.length === 0"
+                    class="inline-flex items-center px-2 py-1 rounded text-xs bg-slate-100 text-slate-600">
                     Aucun magasin assigné
                   </span>
                 </div>
               </td>
               <td class="px-5 py-4">
                 <div class="flex space-x-3">
-                  <button (click)="openEditModal(product)" 
+                  <button (click)="openEditModal(product)"
                     class="p-2 bg-blue-50 text-blue-700 rounded-lg transition-colors" title="Modifier">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                      </path>
                     </svg>
                   </button>
-                  
-                  <button (click)="duplicateProduct(product)" 
+
+                  <button (click)="duplicateProduct(product)"
                     class="p-2 bg-purple-50 text-purple-700 rounded-lg transition-colors" title="Dupliquer">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                      </path>
                     </svg>
                   </button>
-                  
-                  <button (click)="openVracModal(product)" 
-                    class="p-2 bg-amber-50 text-amber-700 rounded-lg transition-colors relative" 
+
+                  <button (click)="openVracModal(product)"
+                    class="p-2 bg-amber-50 text-amber-700 rounded-lg transition-colors relative"
                     [title]="hasVracConversions(product.id) ? 'Modifier les conversions VRAC (' + getVracConversionsCount(product.id) + ')' : 'Convertir en Vrac'">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
                     </svg>
-                    <span *ngIf="hasVracConversions(product.id)" class="absolute -top-1 -right-1 w-4 h-4 bg-orange-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
+                    <span *ngIf="hasVracConversions(product.id)"
+                      class="absolute -top-1 -right-1 w-4 h-4 bg-orange-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
                       {{ getVracConversionsCount(product.id) }}
                     </span>
                   </button>
-                  
-                  <button *ngIf="product.isVraguable || hasVracConversions(product.id)" (click)="openTransferModal(product)" 
+
+                  <button *ngIf="product.isVraguable || hasVracConversions(product.id)"
+                    (click)="openTransferModal(product)"
                     class="p-2 bg-indigo-50 text-indigo-700 rounded-lg transition-colors" title="Transférer vers VRAC">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                     </svg>
                   </button>
-                  
-                  <button (click)="openAddToDepotModal(product)" 
+
+                  <button (click)="openAddToDepotModal(product)"
                     class="p-2 bg-green-50 text-green-700 rounded-lg transition-colors" title="Ajouter au dépôt">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                     </svg>
                   </button>
-                  
-                  <button (click)="deleteProduct(product)" 
+
+                  <button (click)="deleteProduct(product)"
                     class="p-2 bg-red-50 text-red-700 rounded-lg transition-colors" title="Supprimer">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                      </path>
                     </svg>
                   </button>
                 </div>
@@ -302,41 +332,42 @@
       <!-- Grid View -->
       <div *ngIf="viewMode === 'grid'" class="p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <div *ngFor="let product of displayedProducts" 
-               class="bg-white border border-indigo-100 rounded-2xl shadow-sm transition-all duration-200 overflow-hidden">
-            
+          <div *ngFor="let product of displayedProducts"
+            class="bg-white border border-indigo-100 rounded-2xl shadow-sm transition-all duration-200 overflow-hidden">
+
             <!-- Product Image -->
             <div class="relative h-48 bg-gradient-to-br from-indigo-50 to-purple-50">
-              <img *ngIf="product.photo" 
-                   [src]="product.photo" 
-                   [alt]="product.name"
-                   title="Modifier l'image du produit"
-                   class="w-full h-full object-cover cursor-pointer"
-                   (click)="openImageUploadModal(product)">
-              <div *ngIf="!product.photo" 
-                   class="w-full h-full flex items-center justify-center cursor-pointer"
-                   title="Ajouter une image au produit"
-                   (click)="openImageUploadModal(product)">
+              <img *ngIf="product.photo" [src]="product.photo" [alt]="product.name" title="Modifier l'image du produit"
+                class="w-full h-full object-cover cursor-pointer" (click)="openImageUploadModal(product)">
+              <div *ngIf="!product.photo" class="w-full h-full flex items-center justify-center cursor-pointer"
+                title="Ajouter une image au produit" (click)="openImageUploadModal(product)">
                 <svg class="w-16 h-16 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                  </path>
                 </svg>
               </div>
-              
+
               <!-- Product Type Badges -->
               <div class="absolute top-3 left-3 flex flex-col gap-1">
-                <span *ngIf="product.name && product.name.toLowerCase().includes('import')" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-sky-100 text-sky-800">
+                <span *ngIf="product.name && product.name.toLowerCase().includes('import')"
+                  class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-sky-100 text-sky-800">
                   Importé
                 </span>
-                <span *ngIf="product.isVraguable || hasVracConversions(product.id)" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                <span *ngIf="product.isVraguable || hasVracConversions(product.id)"
+                  class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800">
                   Vrac
-                  <span *ngIf="hasVracConversions(product.id)" class="ml-1 px-1.5 py-0.5 bg-orange-200 rounded-full text-[10px] font-bold">
+                  <span *ngIf="hasVracConversions(product.id)"
+                    class="ml-1 px-1.5 py-0.5 bg-orange-200 rounded-full text-[10px] font-bold">
                     {{ getVracConversionsCount(product.id) }}
                   </span>
                 </span>
-                <span *ngIf="product.isStockable" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                <span *ngIf="product.isStockable"
+                  class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
                   Stock
                 </span>
-                <span *ngIf="product.isWholesale" class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-violet-100 text-violet-800">
+                <span *ngIf="product.isWholesale"
+                  class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-violet-100 text-violet-800">
                   Gros
                 </span>
               </div>
@@ -345,7 +376,7 @@
             <!-- Product Info -->
             <div class="p-4">
               <span class="text-lg font-semibold text-indigo-800 mb-2 line-clamp-2 block">{{ product.name }}</span>
-              
+
               <!-- Barcode -->
               <div class="text-sm text-slate-600 mb-2 font-mono bg-slate-100 py-1 px-2 rounded">
                 {{ product.barcode || 'Pas de code-barres' }}
@@ -369,12 +400,12 @@
               <div class="mb-4">
                 <div class="text-xs font-medium text-slate-600 mb-2">Magasins assignés:</div>
                 <div class="flex flex-wrap gap-1">
-                  <span *ngFor="let depot of product.assignedDepots || []; let last = last" 
-                        class="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                  <span *ngFor="let depot of product.assignedDepots || []; let last = last"
+                    class="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
                     {{ depot.name }}<span *ngIf="!last">, </span>
                   </span>
-                  <span *ngIf="!product.assignedDepots || product.assignedDepots.length === 0" 
-                        class="inline-flex items-center px-2 py-1 rounded text-xs bg-slate-100 text-slate-600">
+                  <span *ngIf="!product.assignedDepots || product.assignedDepots.length === 0"
+                    class="inline-flex items-center px-2 py-1 rounded text-xs bg-slate-100 text-slate-600">
                     Aucun magasin
                   </span>
                 </div>
@@ -382,35 +413,38 @@
 
               <!-- Actions -->
               <div class="flex space-x-2">
-                <button (click)="openEditModal(product)" 
+                <button (click)="openEditModal(product)"
                   class="flex-1 bg-blue-50 text-blue-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium">
                   Modifier
                 </button>
-                <button (click)="duplicateProduct(product)" 
+                <button (click)="duplicateProduct(product)"
                   class="flex-1 bg-purple-50 text-purple-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium">
                   Dupliquer
                 </button>
-                <button (click)="openVracModal(product)" 
+                <button (click)="openVracModal(product)"
                   class="flex-1 bg-amber-50 text-amber-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium relative">
                   <span *ngIf="hasVracConversions(product.id)">Modifier VRAC</span>
                   <span *ngIf="!hasVracConversions(product.id)">Convertir VRAC</span>
-                  <span *ngIf="hasVracConversions(product.id)" class="absolute -top-1 -right-1 w-4 h-4 bg-amber-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
+                  <span *ngIf="hasVracConversions(product.id)"
+                    class="absolute -top-1 -right-1 w-4 h-4 bg-amber-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
                     {{ getVracConversionsCount(product.id) }}
                   </span>
                 </button>
-                <button *ngIf="product.isVraguable || hasVracConversions(product.id)" (click)="openTransferModal(product)" 
+                <button *ngIf="product.isVraguable || hasVracConversions(product.id)"
+                  (click)="openTransferModal(product)"
                   class="flex-1 bg-indigo-50 text-indigo-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium">
                   Transférer
                 </button>
-                <button (click)="openAddToDepotModal(product)" 
+                <button (click)="openAddToDepotModal(product)"
                   class="flex-1 bg-green-50 text-green-700 py-2 px-3 rounded-lg transition-colors text-sm font-medium">
                   Ajouter au dépôt
                 </button>
-                <button (click)="deleteProduct(product)" 
-                  class="bg-red-50 text-red-700 py-2 px-3 rounded-lg transition-colors"
-                  title="Supprimer">
+                <button (click)="deleteProduct(product)"
+                  class="bg-red-50 text-red-700 py-2 px-3 rounded-lg transition-colors" title="Supprimer">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
                   </svg>
                 </button>
               </div>
@@ -418,20 +452,25 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Empty State -->
       <div *ngIf="displayedProducts.length === 0" class="text-center py-16">
         <div class="w-20 h-20 bg-indigo-100 rounded-full mx-auto mb-4 flex items-center justify-center">
           <svg class="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4">
+            </path>
           </svg>
         </div>
         <span class="text-xl font-bold text-indigo-800 mb-2 block">Aucun produit trouvé</span>
-        <span class="text-indigo-600 mb-6 block">Essayez de modifier vos critères de recherche ou ajoutez un nouveau produit</span>
-        <button (click)="openAddModal()" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-2.5 rounded-xl shadow-md transition-all">
+        <span class="text-indigo-600 mb-6 block">Essayez de modifier vos critères de recherche ou ajoutez un nouveau
+          produit</span>
+        <button (click)="openAddModal()"
+          class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-2.5 rounded-xl shadow-md transition-all">
           <span class="flex items-center">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+              </path>
             </svg>
             Ajouter un produit
           </span>
@@ -442,9 +481,7 @@
     <!-- Pagination -->
     <div *ngIf="totalPages > 1" class="flex justify-center">
       <div class="bg-white rounded-2xl p-4 border border-indigo-100 shadow-md inline-flex space-x-2">
-        <button *ngFor="let page of [].constructor(totalPages); let i = index" 
-          (click)="onPageChange(i + 1)"
-          [class]="'w-10 h-10 flex items-center justify-center rounded-xl transition-all ' + 
+        <button *ngFor="let page of [].constructor(totalPages); let i = index" (click)="onPageChange(i + 1)" [class]="'w-10 h-10 flex items-center justify-center rounded-xl transition-all ' + 
             (currentPage === i + 1 ? 
             'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md' : 
             'bg-white text-indigo-700 border border-indigo-200')">
@@ -456,34 +493,28 @@
 </div>
 
 <!-- Product Form Modal -->
-<app-product-form *ngIf="showAddModal" 
-  [product]="editingProduct"
-  (saved)="onProductSaved()"
-  (cancelled)="closeModal()">
+<app-product-form *ngIf="showAddModal" [product]="editingProduct" (saved)="onProductSaved()" (cancelled)="closeModal()">
 </app-product-form>
 
 <!-- Bulk Import Modal -->
-<app-bulk-import *ngIf="showImportModal"
-  (completed)="onImportCompleted()"
-  (cancelled)="closeModal()">
+<app-bulk-import *ngIf="showImportModal" (completed)="onImportCompleted()" (cancelled)="closeModal()">
 </app-bulk-import>
 
 <!-- Image Upload Modal -->
-<app-image-upload-modal 
-  *ngIf="showImageUploadModal"
-  [show]="showImageUploadModal"
-  [currentImageUrl]="selectedProductForImage?.photo || null"
-  (uploadConfirmed)="onImageUploadConfirmed($event)"
+<app-image-upload-modal *ngIf="showImageUploadModal" [show]="showImageUploadModal"
+  [currentImageUrl]="selectedProductForImage?.photo || null" (uploadConfirmed)="onImageUploadConfirmed($event)"
   (closed)="closeImageUploadModal()">
 </app-image-upload-modal>
 
 <!-- Vrac Conversion Modal -->
 <div *ngIf="showVracModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-3xl p-6 w-full max-w-4xl shadow-2xl border border-indigo-200 max-h-[90vh] overflow-y-auto">
+  <div
+    class="bg-white rounded-3xl p-6 w-full max-w-4xl shadow-2xl border border-indigo-200 max-h-[90vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-5">
       <span class="text-2xl font-bold text-indigo-800 flex items-center block">
         <svg class="w-7 h-7 mr-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
         </svg>
         Convertir en Vrac
       </span>
@@ -493,28 +524,27 @@
         </svg>
       </button>
     </div>
-    
+
     <div class="mb-6 bg-amber-50 p-4 rounded-2xl border border-amber-200">
       <span class="text-amber-800 font-medium mb-2 block">Produit à convertir :</span>
       <span class="text-indigo-800 text-lg font-bold block">{{ selectedProductForVrac?.name }}</span>
     </div>
-    
-    <app-vrac-conversion-form
-      [product]="selectedProductForVrac"
-      [allProducts]="allProducts"
-      (converted)="convertToVrac($event)"
-      (cancelled)="closeVracModal()">
+
+    <app-vrac-conversion-form [product]="selectedProductForVrac" [allProducts]="allProducts"
+      (converted)="convertToVrac($event)" (cancelled)="closeVracModal()">
     </app-vrac-conversion-form>
   </div>
 </div>
 
 <!-- Transfer Modal -->
 <div *ngIf="showTransferModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-indigo-200 max-h-[90vh] overflow-y-auto">
+  <div
+    class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-indigo-200 max-h-[90vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-5">
       <span class="text-2xl font-bold text-indigo-800 flex items-center block">
         <svg class="w-7 h-7 mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
         </svg>
         Transférer Produit
       </span>
@@ -524,29 +554,27 @@
         </svg>
       </button>
     </div>
-    
+
     <div class="mb-6 bg-blue-50 p-4 rounded-2xl border border-blue-200">
       <span class="text-blue-800 font-medium mb-2 block">Produit Source :</span>
       <span class="text-indigo-800 text-lg font-bold block">{{ selectedProductForTransfer?.name }}</span>
     </div>
-    
-    <app-product-transfer-form
-      [sourceProduct]="selectedProductForTransfer"
-      (transferred)="onProductTransferred($event)"
+
+    <app-product-transfer-form [sourceProduct]="selectedProductForTransfer" (transferred)="onProductTransferred($event)"
       (cancelled)="closeTransferModal()">
     </app-product-transfer-form>
   </div>
 </div>
 
 <!-- Add to Depot Modal -->
-<div *ngIf="showAddToDepotModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
-  <div class="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl border border-indigo-200 my-8">
+<div *ngIf="showAddToDepotModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-indigo-200">
     <div class="flex items-center justify-between mb-5">
-      <span class="text-2xl font-bold text-indigo-800 flex items-center block">
+      <span class="text-2xl font-bold text-indigo-800 flex items-center">
         <svg class="w-7 h-7 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
         </svg>
-        Lier au Dépôt
+        Assigner au Dépôt
       </span>
       <button title="Fermer" (click)="closeAddToDepotModal()" class="text-gray-400 transition-colors">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -554,11 +582,11 @@
         </svg>
       </button>
     </div>
-    
+
     <div class="mb-6 bg-green-50 p-4 rounded-2xl border border-green-200">
-      <span class="text-green-800 font-medium mb-2 block">Produit Destination :</span>
-      <span class="text-indigo-800 text-lg font-bold block">{{ selectedProductForDepot?.name }}</span>
-      <div class="mt-2 text-sm text-green-700">
+      <span class="text-green-800 font-medium mb-1 block text-sm">Produit :</span>
+      <span class="text-indigo-800 font-bold block">{{ selectedProductForDepot?.name }}</span>
+      <div class="mt-2 text-xs text-green-700">
         <span class="font-medium">Dépôts actuels :</span>
         <ng-container *ngIf="getSelectedProductAssignedDepots().length > 0">
           <span *ngFor="let depot of getSelectedProductAssignedDepots(); let last = last">
@@ -566,146 +594,33 @@
           </span>
         </ng-container>
         <span *ngIf="getSelectedProductAssignedDepots().length === 0" class="text-slate-600">
-          Aucun dépôt assigné
+          Aucun magasin assigné
         </span>
       </div>
     </div>
 
-    <!-- Source Depot Selection -->
     <div class="mb-6">
-      <label class="block text-sm font-bold text-indigo-700 mb-2">Dépôt(s) Source (optionnel)</label>
-      <p class="text-xs text-gray-600 mb-2">Sélectionnez les dépôts sources pour lier un produit similaire</p>
-      <div class="space-y-2 max-h-40 overflow-y-auto border border-indigo-200 rounded-xl p-3">
-        <label *ngFor="let depot of depots" class="flex items-center space-x-2 cursor-pointer hover:bg-indigo-50 p-2 rounded">
-          <input type="checkbox" 
-            [checked]="selectedSourceDepots.includes(depot.id)"
-            (change)="toggleSourceDepot(depot.id)"
-            class="w-4 h-4 text-green-600 border-indigo-300 rounded focus:ring-green-500">
-          <span class="text-sm text-indigo-800">{{ depot.name }}</span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Source Product Selection -->
-    <div *ngIf="selectedSourceDepots.length > 0" class="mb-6">
-      <div class="flex items-center justify-between mb-3">
-        <label class="block text-sm font-bold text-indigo-700">Sélectionner un produit source</label>
-        <div class="flex-1 max-w-xs ml-4">
-          <input type="text" 
-            [(ngModel)]="searchProductName"
-            (keyup)="onSearchProductNameChange()"
-            placeholder="Rechercher par nom..."
-            class="w-full px-4 py-2 bg-white border-2 border-indigo-200 rounded-xl text-indigo-800 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm text-sm">
-        </div>
-      </div>
-      
-      <div *ngIf="loadingSimilarProducts" class="text-center py-8">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-t-4 border-indigo-600 mx-auto"></div>
-        <span class="text-sm text-indigo-600 mt-3 block">Chargement des produits...</span>
-      </div>
-      
-      <!-- Products Grid -->
-      <div *ngIf="!loadingSimilarProducts && similarProducts.length > 0" class="max-h-96 overflow-y-auto border border-indigo-200 rounded-xl p-4">
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          <div *ngFor="let product of similarProducts" 
-            (click)="selectedSourceProduct = product"
-            [class]="'relative p-3 rounded-xl cursor-pointer transition-all border-2 ' + 
-              (selectedSourceProduct?.id === product.id 
-                ? 'bg-green-100 border-green-500 shadow-md' 
-                : 'bg-white border-indigo-200 hover:border-indigo-400 hover:shadow-sm')">
-            
-            <!-- Selected Checkmark -->
-            <div *ngIf="selectedSourceProduct?.id === product.id" class="absolute top-2 right-2">
-              <div class="bg-green-500 rounded-full p-1">
-                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-            </div>
-            
-            <!-- Product Image or Placeholder -->
-            <div class="w-full h-24 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
-              <img *ngIf="product.photo" 
-                [src]="product.photo" 
-                [alt]="product.name"
-                class="w-full h-full object-cover">
-              <svg *ngIf="!product.photo" class="w-10 h-10 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-              </svg>
-            </div>
-            
-            <!-- Product Info -->
-            <div>
-              <span class="font-medium text-indigo-800 text-sm block line-clamp-2 mb-1">{{ product.name }}</span>
-              <div class="text-xs text-gray-600 space-y-0.5">
-                <div>ID: <span class="font-mono">{{ product.id }}</span></div>
-                <div *ngIf="product.barcode">Code: <span class="font-mono">{{ product.barcode }}</span></div>
-                <div class="text-purple-700 font-semibold">{{ product.prix_vente_TTC | currency:'TND' }}</div>
-              </div>
-              
-              <!-- Assigned Depots -->
-              <div class="mt-2 flex flex-wrap gap-1">
-                <span *ngFor="let depot of product.assignedDepots || []; let last = last" 
-                  class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
-                  {{ depot.name }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div *ngIf="!loadingSimilarProducts && similarProducts.length === 0" class="text-center py-8 border border-indigo-200 rounded-xl">
-        <svg class="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
-        </svg>
-        <span class="text-gray-500 text-sm block">
-          {{ searchProductName ? 'Aucun produit trouvé' : 'Aucun produit disponible dans les dépôts sélectionnés' }}
-        </span>
-      </div>
-    </div>
-
-    <!-- Destination Depot Selection -->
-    <div class="mb-6">
-      <label class="block text-sm font-bold text-indigo-700 mb-2">Sélectionner un dépôt destination</label>
+      <label class="block text-sm font-bold text-indigo-700 mb-2">Sélectionner un dépôt</label>
       <select [(ngModel)]="selectedDepotForAssignment"
         class="w-full px-4 py-3 bg-white border-2 border-indigo-200 rounded-xl text-indigo-800 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm">
         <option [ngValue]="null">Choisir un dépôt...</option>
         <option *ngFor="let depot of getAllDepotsForDestination()" [ngValue]="depot.id">
-          {{ depot.name }}
+          {{ depot.name }} ({{ depot.city }})
         </option>
       </select>
-      <div *ngIf="getAllDepotsForDestination().length === 0" class="mt-2 text-sm text-amber-600">
-        Aucun dépôt disponible.
-      </div>
     </div>
 
-    <!-- Option: Link by Famille -->
-    <div *ngIf="selectedSourceDepots.length > 0 && selectedDepotForAssignment" class="mb-6">
-      <label class="flex items-center space-x-2 cursor-pointer">
-        <input type="checkbox" 
-          [(ngModel)]="linkByFamille"
-          class="w-4 h-4 text-green-600 border-indigo-300 rounded focus:ring-green-500">
-        <span class="text-sm font-medium text-indigo-700">Lier tous les produits de la même famille</span>
-      </label>
-      <p class="text-xs text-gray-600 mt-1 ml-6">
-        Si activé, tous les produits de la même famille que le produit source seront liés au produit destination
-      </p>
-    </div>
-    
     <div class="flex space-x-3">
-      <button (click)="selectedSourceProduct || linkByFamille ? createProductDepotLink() : addProductToDepot()"
-        [disabled]="(!selectedDepotForAssignment || ((!selectedSourceProduct || selectedSourceDepots.length === 0) && !linkByFamille)) || loading"
+      <button (click)="addProductToDepot()" [disabled]="!selectedDepotForAssignment || loading"
         class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-5 py-3 rounded-xl transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed">
         <span class="flex items-center justify-center">
           <svg *ngIf="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
           </svg>
-          <svg *ngIf="!loading" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-          </svg>
-          {{ loading ? 'Traitement en cours...' : (linkByFamille ? 'Créer consolidation par famille' : (selectedSourceProduct ? 'Créer le lien' : 'Ajouter au dépôt')) }}
+          {{ loading ? 'Assignation...' : 'Confirmer l\'assignation' }}
         </span>
       </button>
       <button (click)="closeAddToDepotModal()"

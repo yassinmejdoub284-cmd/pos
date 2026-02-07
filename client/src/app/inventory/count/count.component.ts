@@ -864,25 +864,6 @@ export class CountComponent implements OnInit, OnDestroy {
                   // Update session status
                   this.session!.status = 'POSTED';
 
-                  // Save an inventory line into tableau de relevé inventaire
-                  try {
-                    const token = this.authService.getToken();
-                    const headers = new HttpHeaders({
-                      'Content-Type': 'application/json',
-                      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                    });
-                    this.http.post(`${environment.apiUrl}/releve-inventaire/from-session/${this.session!.id}`, {
-                      depotId: this.depotId
-                    }, { 
-                      headers,
-                      withCredentials: true 
-                    }).subscribe({
-                      next: () => {},
-                      error: (e) => console.error('Error saving inventory to releve:', e)
-                    });
-                  } catch (e) {
-                    console.error('Error triggering releve save:', e);
-                  }
                 
                   // Show smart success notification
                   this.successNotificationProduct = `Session #${this.session!.numero}`;

@@ -4133,36 +4133,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
 
 
-  computeConservationSummary(product: Product): { status: 'Normal' | 'Proche de péremption' | 'Périmé' | 'Valide'; minDaysUntilExpiry: number; batches: Array<{ productionDate: Date | null; expirationDate: Date | null; remainingQuantity: number; daysUntilExpiry: number; isExpired: boolean; }>; } {
-    const batches = (product.conservation || []).map(c => {
-      const today = new Date();
-      const expiration = c.expirationDate ? new Date(c.expirationDate) : null;
-      const daysUntil = expiration ? Math.ceil((expiration.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-      const expired = expiration ? daysUntil < 0 : false;
-      return {
-        productionDate: c.productionDate ? new Date(c.productionDate) : null,
-        expirationDate: expiration,
-        remainingQuantity: Number(c.remainingQuantity || 0),
-        daysUntilExpiry: expiration ? daysUntil : 0,
-        isExpired: expired
-      };
-    });
-
-    if (batches.length === 0) {
-      return { status: 'Valide', minDaysUntilExpiry: 0, batches: [] };
-    }
-
-    const minDays = batches.reduce((min, b) => Math.min(min, b.daysUntilExpiry), Infinity);
-    const anyExpired = batches.some(b => b.isExpired);
-    const closeThreshold = 2;
-
-    let status: 'Normal' | 'Proche de péremption' | 'Périmé' | 'Valide' = 'Normal';
-    if (anyExpired) status = 'Périmé';
-    else if (minDays <= closeThreshold) status = 'Proche de péremption';
-    else status = 'Normal';
-
-    return { status, minDaysUntilExpiry: minDays === Infinity ? 0 : minDays, batches };
-  }
 
 
   openDiscountPopup(): void {

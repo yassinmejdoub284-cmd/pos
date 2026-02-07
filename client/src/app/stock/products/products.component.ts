@@ -37,17 +37,12 @@ export class ProductsComponent implements OnInit {
   selectedProductForTransfer: Product | null = null;
   selectedProductForDepot: Product | null = null;
   selectedDepotForAssignment: number | null = null;
-  selectedSourceDepots: number[] = [];
-  similarProducts: Product[] = [];
-  selectedSourceProduct: Product | null = null;
-  loadingSimilarProducts = false;
   searchProductName = '';
   families: ProductFamily[] = [];
   viewMode: 'table' | 'grid' = 'table';
   depots: Depot[] = [];
   selectedDepotId: number | null = null;
   productVracConversionsCount: Map<number, number> = new Map();
-  linkByFamille = false;
 
   // Palette classes for family badges (light vibrant colors)
   private familyColorClasses: string[] = [
@@ -260,7 +255,6 @@ export class ProductsComponent implements OnInit {
               photo: produit.photo,
               description: produit.description,
               designation_legale: produit.designation_legale,
-              duree_conservation: produit.duree_conservation,
               minStock: produit.minStock,
               maxStock: produit.maxStock,
               initialStock: produit.initialStock,
@@ -509,7 +503,6 @@ export class ProductsComponent implements OnInit {
       prix_vente_TTC: product.prix_vente_TTC,
       tva: product.tva,
       photo: product.photo,
-      duree_conservation: product.duree_conservation
     };
 
     this.editingProduct = duplicatedProduct as any;
@@ -583,9 +576,6 @@ export class ProductsComponent implements OnInit {
     }
   }
 
-  onWarningsUpdated(): void {
-    // Refresh warnings if needed
-  }
 
   openVracModal(product: Product): void {
     this.selectedProductForVrac = product;
@@ -655,11 +645,6 @@ export class ProductsComponent implements OnInit {
   openAddToDepotModal(product: Product): void {
     this.selectedProductForDepot = product;
     this.selectedDepotForAssignment = null;
-    this.selectedSourceDepots = [];
-    this.similarProducts = [];
-    this.selectedSourceProduct = null;
-    this.searchProductName = '';
-    this.linkByFamille = false;
     this.showAddToDepotModal = true;
   }
 
@@ -683,62 +668,6 @@ export class ProductsComponent implements OnInit {
     this.showAddToDepotModal = false;
     this.selectedProductForDepot = null;
     this.selectedDepotForAssignment = null;
-    this.selectedSourceDepots = [];
-    this.similarProducts = [];
-    this.selectedSourceProduct = null;
-    this.searchProductName = '';
-    this.linkByFamille = false;
-  }
-
-  toggleSourceDepot(depotId: number): void {
-    if (this.selectedSourceDepots.includes(depotId)) {
-      this.selectedSourceDepots = this.selectedSourceDepots.filter(id => id !== depotId);
-    } else {
-      this.selectedSourceDepots.push(depotId);
-    }
-    this.selectedSourceProduct = null;
-    this.loadSimilarProducts();
-  }
-
-  onSourceDepotsChange(): void {
-    this.selectedSourceProduct = null;
-    this.loadSimilarProducts();
-  }
-
-  loadSimilarProducts(): void {
-    if (this.selectedSourceDepots.length === 0) {
-      this.similarProducts = [];
-      return;
-    }
-
-    this.loadingSimilarProducts = true;
-    
-    // If search term is provided, use it, otherwise get all products
-    const searchParams: any = {
-      sourceDepotIds: this.selectedSourceDepots,
-      destinationProductId: this.selectedProductForDepot?.id
-    };
-    
-    if (this.searchProductName && this.searchProductName.trim()) {
-      searchParams.productName = this.searchProductName.trim();
-    }
-    
-    this.productsService.getSimilarProducts(searchParams).subscribe({
-      next: (products) => {
-        this.similarProducts = products;
-        this.loadingSimilarProducts = false;
-      },
-      error: (error) => {
-        console.error('Error loading similar products:', error);
-        this.error = 'Erreur lors du chargement des produits similaires';
-        this.loadingSimilarProducts = false;
-      }
-    });
-  }
-
-  onSearchProductNameChange(): void {
-    // Load products when search changes
-    this.loadSimilarProducts();
   }
 
   addProductToDepot(): void {
@@ -768,7 +697,6 @@ export class ProductsComponent implements OnInit {
     const updatedDepotIds = [...currentDepotIds, this.selectedDepotForAssignment];
 
     // Update the product with new depot assignments
-    // Only send depotIds to update depot assignments
     const updateData: any = {
       depotIds: updatedDepotIds
     };
@@ -785,91 +713,5 @@ export class ProductsComponent implements OnInit {
       }
     });
   }
-
-  createProductDepotLink(): void {
-    if (!this.selectedProductForDepot) {
-      this.error = 'Aucun produit destination sélectionné';
-      return;
-    }
-
-    if (!this.selectedDepotForAssignment) {
-      this.error = 'Veuillez sélectionner un dépôt destination';
-      return;
-    }
-
-    if (this.linkByFamille) {
-      this.createFamilleConsolidation();
-      return;
-    }
-
-    if (!this.selectedSourceProduct || this.selectedSourceDepots.length === 0) {
-      this.error = 'Veuillez sélectionner un produit source et un dépôt source';
-      return;
-    }
-
-    const destinationDepotId = this.selectedDepotForAssignment;
-
-    this.loading = true;
-    this.error = '';
-
-    const linkPromises = this.selectedSourceDepots.map(async (sourceDepotId) => {
-      const sourceProductDepots = this.selectedSourceProduct!.assignedDepots?.map(d => d.id) || [];
-      if (!sourceProductDepots.includes(sourceDepotId)) {
-        return null;
-      }
-
-      try {
-        return await firstValueFrom(this.productsService.createProductDepotLink({
-          sourceProductId: this.selectedSourceProduct!.id,
-          sourceDepotId: sourceDepotId,
-          destinationProductId: this.selectedProductForDepot!.id,
-          destinationDepotId: destinationDepotId
-        }));
-      } catch (error: any) {
-        console.error(`Error creating link for depot ${sourceDepotId}:`, error);
-        throw error;
-      }
-    });
-
-    Promise.all(linkPromises).then(() => {
-      this.closeAddToDepotModal();
-      this.loadProducts();
-      this.loading = false;
-    }).catch((error) => {
-      this.error = error.error?.error || 'Erreur lors de la création du lien';
-      this.loading = false;
-    });
-  }
-
-  createFamilleConsolidation(): void {
-    if (!this.selectedProductForDepot || !this.selectedDepotForAssignment || this.selectedSourceDepots.length === 0) {
-      this.error = 'Veuillez sélectionner un produit destination, un dépôt destination et au moins un dépôt source';
-      return;
-    }
-
-    if (!this.selectedSourceProduct) {
-      this.error = 'Veuillez sélectionner un produit source pour déterminer la famille';
-      return;
-    }
-
-    this.loading = true;
-    this.error = '';
-
-    this.productsService.createFamilleConsolidation({
-      sourceFamilleId: this.selectedSourceProduct.familleId,
-      sourceDepotIds: this.selectedSourceDepots,
-      destinationProductId: this.selectedProductForDepot.id,
-      destinationDepotId: this.selectedDepotForAssignment
-    }).subscribe({
-      next: () => {
-        this.closeAddToDepotModal();
-        this.loadProducts();
-        this.loading = false;
-      },
-      error: (error) => {
-        this.error = error.error?.error || 'Erreur lors de la création de la consolidation par famille';
-        this.loading = false;
-      }
-    });
-  }
-} 
+}
+ 

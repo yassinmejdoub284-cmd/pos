@@ -1,0 +1,44 @@
+Detailed Audit: Your Database "Patisserie" Plan 🍰📊
+
+Here is your map to navigating those 70 tables. I’ve categorized them based on your actual data usage so you can see where the "fat" is.
+
+🟢 1. The "Heart" of the Shop (ESSENTIAL)
+These tables hold 99% of your real value. If these disappear, the business stops.
+
+🛒 sales & sale_items: (36,000+ rows) Every cent you've earned is here.
+🥐 products: Your main catalog (102 items).
+🔘 produits_de_caisse: The actual buttons the cashier clicks.
+📦 inventory & stock_movements: Tracking the flour, sugar, and cakes.
+👥 users & clients: Your staff (9) and your loyal customers (25).
+💵 session_caisse: Tracking when the register opens and closes.
+
+
+👻 2. The "Ghost Town" (USELESS / 0 ROWS)
+These tables are currently empty. They belong to features your shop doesn't use. You can mentally ignore these entirely.
+
+🍽️ The Restaurant Module: salons, tables, table_sales, table_sale_items. (You sell over the counter, not at tables).
+🔔 The Reminder Module: reminders, notifications, reminder_assignments, reminder_voice_responses.
+🚚 The Logistics Module: stock_transfers, stock_transfer_items. (You likely move stock manually via stock_movements instead).
+🧪 The "Lab" Experiments: vrac_prices, manual_entries.
+
+🌪️ 3. The "Product Bloat" (REDUNDANT)
+Your system has a "Link Table" obsession. It creates 5 tables for things that should be in 1.
+
+🔗 product_depots: Just a list saying "Product A is in Shop B".
+🔗 product_depot_prices: Just a list saying "Product A costs X in Shop B".
+🔗 produit_de_caisse_depot: Same as above, but for the buttons.
+🚩 Why it’s annoying: Every time you create ONE product, the system has to insert data into 4 or 5 different tables. It’s "legal" in database terms, but feels like a lot of work for a small shop.
+
+📜 4. The "Background Noise" (SYSTEM LOGS)
+These tables grow automatically and can become massive, but you rarely "read" them.
+
+🕵️ audit_logs: (Nearly 5,000 rows). Records every tiny edit. Great for security, but usually just sits there eating space.
+✅ change_requests: (200 rows). A history of "Approval" steps. If you trust your staff, this is just extra paperwork.
+🕒 attendance_punches: (3,000+ rows). Every time someone clocks in/out.
+🛠️ Action Plan for You:
+Ignore the "Restaurateur" logic: When you see any table starting with table_ or salon_, skip it. It's for a cafe, not your bakery.
+Focus on products vs produits_de_caisse:
+If you want to edit a name/barcode: Go to products.
+If you want to edit the POS button: Go to produits_de_caisse.
+Check your stock_movements: This is your most "active" table. If the database feels slow, it’s usually because this table is too big.
+The Verdict: Your system is roughly 30% useful data and 70% empty "just in case" features. 🧹✨

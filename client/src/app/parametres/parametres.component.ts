@@ -39,11 +39,8 @@ export class ParametresComponent implements OnInit {
     defaultClientMaxDebt: 0,
     auditRetentionDays: 90,
     varianceThreshold: 5.0,
-    defaultFonds: 0.0,
     denominations: [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05],
     requireApprovalForVariance: true,
-    ticketWidth: 58,
-    droitDeTimbre: false,
     autoApproveExpenseBelow: 0,
     historyRetentionDays: 30,
     // Role-based history limits
@@ -54,7 +51,6 @@ export class ParametresComponent implements OnInit {
       STOCK_MANAGER: 15
     },
     // Stock
-    allowNegativeStock: false,
     printSettings: {
       showLogo: true,
       logoSize: 'medium',
@@ -417,7 +413,6 @@ export class ParametresComponent implements OnInit {
       fidelite: "Fidélité",
       'remises-dettes': "Remises & Dettes",
       raccourcis: "Raccourcis",
-      caisse: "Caisse",
       impression: "Impression",
       depenses: "Dépenses",
       cloture: "Clôture",
@@ -521,8 +516,6 @@ export class ParametresComponent implements OnInit {
     this.settings.defaultClientMaxDebt = Number(this.settings.defaultClientMaxDebt) || 0;
     this.settings.auditRetentionDays = Number(this.settings.auditRetentionDays) || 0;
     this.settings.varianceThreshold = Number(this.settings.varianceThreshold) || 0;
-    this.settings.defaultFonds = Number(this.settings.defaultFonds) || 0;
-    this.settings.ticketWidth = Number(this.settings.ticketWidth) || 58;
     this.settings.autoApproveExpenseBelow = Number(this.settings.autoApproveExpenseBelow) || 0;
     this.settings.historyRetentionDays = Number((this.settings as any).historyRetentionDays) || 30;
     
