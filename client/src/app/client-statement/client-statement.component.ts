@@ -436,7 +436,7 @@ export class ClientStatementComponent implements OnInit {
   <div class="sheet">
     <div class="header">
       <div>
-        <div class="company">POS Pâtisserie</div>
+        <div class="company">SoluMove PoS</div>
         <h1>Relevé Client</h1>
         <div class="muted">${this.escapeHtml(client.firstName + ' ' + client.lastName)} (${this.escapeHtml(client.code)})</div>
       </div>
@@ -468,7 +468,7 @@ export class ClientStatementComponent implements OnInit {
 
   <div class="footer">
     <div>Généré le ${this.escapeHtml(new Date().toLocaleString('fr-FR'))}</div>
-    <div class="muted">Relevé client • POS Pâtisserie</div>
+    <div class="muted">Relevé client • SoluMove PoS</div>
   </div>
 </body>
 </html>`;

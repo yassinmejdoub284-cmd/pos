@@ -8,6 +8,7 @@ import { ApprovalsService } from '../core/services/approvals.service';
 import { SessionsService } from '../core/services/sessions.service';
 import { DepotsService } from '../core/services/depots.service';
 import { SettingsService, AppSettings } from '../core/services/settings.service';
+import { CompaniesService } from '../core/services/companies.service';
 import { FullscreenService } from '../core/services/fullscreen.service';
 import { Subject, forkJoin, timer, of } from 'rxjs';
 import { takeUntil, catchError, shareReplay, debounceTime } from 'rxjs/operators';
@@ -65,7 +66,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   // Settings
   appSettings = signal<AppSettings | null>(null);
-  companyName = signal('PoS Pâtisserie');
+  companyName = signal('SoluMove PoS');
   companyLogo = signal('');
   logoLoadError = signal(false);
   
@@ -252,6 +253,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     private expenseService: ExpenseService,
     private approvalsService: ApprovalsService,
     private settingsService: SettingsService,
+    private companiesService: CompaniesService,
     private depotsService: DepotsService,
     private fullscreenService: FullscreenService,
     private router: Router,
@@ -270,7 +272,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     this._lastUserRole = null;
     this.updateGreeting();
     this.loadDashboardStats();
-    this.loadSettings();
+    this.loadSettings(); // Loads default settings first
+    this.loadCompanyDetails(); // Overrides with company specific details if available
     
     // Update time every minute - optimized with proper cleanup
     this.timeInterval = setInterval(() => {
@@ -759,7 +762,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       if (settings) {
         this.appSettings.set(settings);
 
-        this.companyName.set(settings.companyName || 'PoS Pâtisserie');
+        this.companyName.set(settings.companyName || 'SoluMove PoS');
         this.companyLogo.set(settings.logoUrl ? this.settingsService.getAbsoluteLogoUrl(settings.logoUrl) : '');
         this.logoLoadError.set(false); // Reset error state when loading new settings
         // Invalidate cached actions so filtering re-evaluates with fresh settings
@@ -768,6 +771,67 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  loadCompanyDetails(): void {
+    const user = this.currentUser();
+    console.log('HomeComponent: Current User:', user);
+    
+    // Strategy 0: Check for admin visiting depot ID in session storage
+    const visitingDepotId = sessionStorage.getItem('visitingDepotId') || localStorage.getItem('visitingDepotId');
+    const effectiveDepotId = visitingDepotId ? Number(visitingDepotId) : (user?.depotId);
+
+    // Strategy 1: User has direct company assignment AND no visiting depot override
+    if (user && user.companyId && !visitingDepotId) {
+      console.log('HomeComponent: User has direct company ID:', user.companyId);
+      this.fetchAndSetCompany(user.companyId);
+    } 
+    // Strategy 2: User has depot assignment (or visiting depot), resolve company from depot
+    else if (effectiveDepotId) {
+      console.log('HomeComponent: Resolving company from Effective Depot ID:', effectiveDepotId);
+      this.depotsService.get(effectiveDepotId).subscribe({
+        next: (depot: any) => {
+          console.log('HomeComponent: Loaded Depot:', depot);
+          if (depot && depot.companyId) {
+            console.log('HomeComponent: Found Company ID from Depot:', depot.companyId);
+            this.fetchAndSetCompany(depot.companyId);
+          } else if (depot && depot.company) {
+            // In case the backend returns the full company object nested
+             console.log('HomeComponent: Found Company object in Depot:', depot.company);
+             this.setCompanyData(depot.company);
+          } else {
+             console.log('HomeComponent: Depot exists but has no company assigned.');
+          }
+        },
+        error: (err) => {
+          console.error('HomeComponent: Error loading users depot:', err);
+        }
+      });
+    } else {
+      console.log('HomeComponent: No company ID or Depot ID found for user.');
+    }
+  }
+
+  private fetchAndSetCompany(companyId: number): void {
+      this.companiesService.getById(companyId).subscribe({
+        next: (company) => {
+          this.setCompanyData(company);
+        },
+        error: (err) => {
+          console.error('HomeComponent: Error loading company details:', err);
+        }
+      });
+  }
+
+  private setCompanyData(company: any): void {
+      if (company) {
+        console.log('HomeComponent: Setting Company Data:', company);
+        this.companyName.set(company.raisonSociale);
+        if (company.logoUrl) {
+          this.companyLogo.set(company.logoUrl);
+          this.logoLoadError.set(false);
+        }
+      }
   }
 
 

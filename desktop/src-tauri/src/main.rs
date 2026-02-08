@@ -257,7 +257,7 @@ fn main() {
       let cfg = read_app_config(&app.app_handle());
       let external = tauri::Url::parse(&cfg.target_url).unwrap_or_else(|_| tauri::Url::parse("about:blank").unwrap());
       let _ = tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(external))
-        .title("PoS Patisserie")
+        .title("SoluMove PoS")
         .inner_size(1366.0, 768.0)
         .resizable(true)
         .visible(true)

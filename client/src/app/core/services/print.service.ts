@@ -670,13 +670,17 @@ export class PrintService {
     escpos += 'RAPPORT ' + type + '\n';
     escpos += '==================\n\n';
 
+    // Use companyData if available (passed from method args if any, but generateESCReport sig uses settings)
+    // Actually generateESCReport only takes settings. Let's rely on settings first.
+    // However, the caller usually passes settings. If settings has companyName, use it.
     const companyName = settings?.companyName || 'PATISSERIE MODERNE';
-    const companyAddress = settings?.companyAddress || '123 Rue de la Paix, Tunis, Tunisie';
-    const companyPhone = settings?.companyPhone || 'Tel: +216 71 123 456';
+    const companyAddress = settings?.companyAddress || '';
+    const companyPhone = settings?.companyPhone || '';
     
     escpos += this.sanitizeForThermalPrinter(companyName) + '\n';
-    escpos += this.sanitizeForThermalPrinter(companyAddress) + '\n';
-    escpos += this.sanitizeForThermalPrinter(companyPhone) + '\n\n';
+    if (companyAddress) escpos += this.sanitizeForThermalPrinter(companyAddress) + '\n';
+    if (companyPhone) escpos += this.sanitizeForThermalPrinter(companyPhone) + '\n';
+    escpos += '\n';
 
     // Session info
     escpos += '\x1B\x61\x00'; // Left align
@@ -1387,8 +1391,8 @@ export class PrintService {
     }
 
     const companyName = settings?.companyName || 'PATISSERIE MODERNE';
-    const companyAddress = settings?.companyAddress || '123 Rue de la Paix, Tunis, Tunisie';
-    const companyPhone = settings?.companyPhone || 'Tel: +216 71 123 456';
+    const companyAddress = settings?.companyAddress || '';
+    const companyPhone = settings?.companyPhone || '';
 
     return `
       <!DOCTYPE html>
@@ -1428,8 +1432,8 @@ export class PrintService {
           <div class="ticket">
             ${logoHtml}
             <div class="center bold">${this.escapeHtml(companyName)}</div>
-            <div class="center muted">${this.escapeHtml(companyAddress)}</div>
-            <div class="center muted">${this.escapeHtml(companyPhone)}</div>
+            ${companyAddress ? `<div class="center muted">${this.escapeHtml(companyAddress)}</div>` : ''}
+            ${companyPhone ? `<div class="center muted">${this.escapeHtml(companyPhone)}</div>` : ''}
             <div class="double-line"></div>
             <div>Date: ${date} &nbsp;&nbsp; Heure: ${time}</div>
             ${clientName ? `<div>Client: ${this.escapeHtml(clientName)}</div>` : ''}
@@ -1527,11 +1531,12 @@ export class PrintService {
     text += centerAlign + ' |_| |_|_____/ \n\n';
     
     // Company name (double bold and centered) - sanitized for thermal printer
-    const companyName = this.sanitizeForThermalPrinter(settings?.companyName || 'PATISSERIE MODERNE');
-    text += centerAlign + boldOn + boldOn + companyName + boldOff + boldOff + normalSize + '\n';
+    // Company name (double bold and centered) - sanitized for thermal printer
+    const resolvedCompanyName = settings?.companyName || 'PATISSERIE MODERNE';
+    text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
     
     // Company details (centered) - sanitized for thermal printer
-    if (settings?.printSettings?.showCompanyDetails) {
+    if (settings?.printSettings?.showCompanyDetails !== false) {
       if (settings?.companyAddress) {
         text += centerAlign + this.sanitizeForThermalPrinter(settings.companyAddress) + '\n';
       }
@@ -1709,11 +1714,12 @@ export class PrintService {
     text += centerAlign + ' |_| |_|_____/ \n\n';
     
     // Company name (double bold and centered) - sanitized for thermal printer
-    const companyName = this.sanitizeForThermalPrinter(settings?.companyName || 'PATISSERIE MODERNE');
-    text += centerAlign + boldOn + boldOn + companyName + boldOff + boldOff + normalSize + '\n';
+    // Company name (double bold and centered) - sanitized for thermal printer
+    const resolvedCompanyName = settings?.companyName || 'PATISSERIE MODERNE';
+    text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
     
     // Company details (centered) - sanitized for thermal printer
-    if (settings?.printSettings?.showCompanyDetails) {
+    if (settings?.printSettings?.showCompanyDetails !== false) {
       if (settings?.companyAddress) {
         text += centerAlign + this.sanitizeForThermalPrinter(settings.companyAddress) + '\n';
       }
@@ -2234,8 +2240,8 @@ export class PrintService {
     }
 
     const companyName = settings?.companyName || 'PATISSERIE MODERNE';
-    const companyAddress = settings?.companyAddress || '123 Rue de la Paix, Tunis, Tunisie';
-    const companyPhone = settings?.companyPhone || 'Tel: +216 71 123 456';
+    const companyAddress = settings?.companyAddress || '';
+    const companyPhone = settings?.companyPhone || '';
 
     return `
       <!DOCTYPE html>
@@ -2348,8 +2354,9 @@ export class PrintService {
     text += '==================\n';
     
     // Company name (double bold and centered)
-    const companyName = this.sanitizeForThermalPrinter(settings?.companyName || 'PATISSERIE MODERNE');
-    text += centerAlign + boldOn + boldOn + companyName + boldOff + boldOff + normalSize + '\n';
+    // Company name (double bold and centered)
+    const resolvedCompanyName = settings?.companyName || 'PATISSERIE MODERNE';
+    text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
     text += '\n'; // Add spacing after company name
     
     // Company details (centered) - always show on invoices

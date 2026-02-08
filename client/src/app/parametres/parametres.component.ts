@@ -408,7 +408,7 @@ export class ParametresComponent implements OnInit {
 
   get currentSectionLabel(): string {
     const map: Record<string, string> = {
-      general: "Général",
+
       peripheriques: "Périphériques",
       fidelite: "Fidélité",
       'remises-dettes': "Remises & Dettes",
@@ -552,60 +552,6 @@ export class ParametresComponent implements OnInit {
 
   onDenominationsInput(value: string): void {
     this.denominationsInput = value;
-  }
-
-  onLogoSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files && input.files[0];
-    if (!file) { return; }
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      this.error = 'Veuillez sélectionner un fichier image valide';
-      this.showAlertMessage('Veuillez sélectionner un fichier image valide', 'error');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      this.error = 'Le fichier est trop volumineux (max 5MB)';
-      this.showAlertMessage('Le fichier est trop volumineux (max 5MB)', 'error');
-      return;
-    }
-
-    this.saving = true;
-    this.error = '';
-    this.hideAlert();
-
-    this.settingsService.uploadLogo(file).subscribe({
-      next: (response) => {
-        // Update the settings with the new logo URL
-        this.settings.logoUrl = response.logoUrl;
-        
-        // Immediately update the settings record to persist the logo
-        this.settingsService.updateSettings(this.settings).subscribe({
-          next: (updatedSettings) => {
-            this.settings = updatedSettings;
-            this.saving = false;
-            this.showAlertMessage('Logo mis à jour avec succès', 'success');
-            // Clear the input
-            if (input) input.value = '';
-          },
-          error: (updateError) => {
-            this.saving = false;
-            this.error = 'Erreur lors de la mise à jour des paramètres';
-            this.showAlertMessage('Erreur lors de la mise à jour des paramètres', 'error');
-            console.error('Settings update error:', updateError);
-          }
-        });
-      },
-      error: (error) => {
-        this.saving = false;
-        this.error = 'Erreur lors de l\'upload du logo';
-        this.showAlertMessage('Erreur lors de l\'upload du logo', 'error');
-        console.error('Logo upload error:', error);
-      }
-    });
   }
 
   testPrinter(): void {

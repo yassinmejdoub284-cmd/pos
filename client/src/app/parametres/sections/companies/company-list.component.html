@@ -1,0 +1,98 @@
+<div class="min-h-screen bg-slate-50 p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+                <a routerLink="/parametres"
+                    class="w-10 h-10 bg-white text-gray-600 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </a>
+                <h1 class="text-2xl font-bold text-gray-800">Gestion Entreprise</h1>
+            </div>
+            <button (click)="navigateToAdd()"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m-8-8h16" />
+                </svg>
+                <span>Ajouter une entreprise</span>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div *ngIf="loading" class="flex justify-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+
+        <div *ngIf="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {{ error }}
+        </div>
+
+        <div *ngIf="!loading && companies.length === 0"
+            class="text-center py-12 bg-white rounded-xl border border-gray-200 shadow-sm">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-1">Aucune entreprise trouvée</h3>
+            <p class="text-gray-500 mb-4">Commencez par ajouter votre première entreprise.</p>
+            <button (click)="navigateToAdd()" class="text-blue-600 font-medium hover:text-blue-800">Ajouter maintenant
+                →</button>
+        </div>
+
+        <div *ngIf="!loading && companies.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div *ngFor="let company of companies"
+                class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                <div class="p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
+                                <img *ngIf="company.logoUrl" [src]="company.logoUrl" alt="Logo"
+                                    class="w-full h-full object-contain">
+                                <span *ngIf="!company.logoUrl" class="text-xl font-bold text-gray-400">{{
+                                    company.raisonSociale.charAt(0) }}</span>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900 line-clamp-1">{{ company.raisonSociale }}
+                                </h3>
+                                <span class="text-sm text-gray-500">{{ company.formeJuridique || 'Non spécifiée'
+                                    }}</span>
+                            </div>
+                        </div>
+                        <span
+                            [class]="'px-2 py-1 rounded-full text-xs font-semibold ' + (company.statut === 'ACTIF' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700')">
+                            {{ company.statut || 'INCONNU' }}
+                        </span>
+                    </div>
+
+                    <div class="space-y-2 mb-6">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-500">Matricule Fiscal</span>
+                            <span class="font-medium text-gray-900">{{ company.matriculeFiscal }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-500">Ville</span>
+                            <span class="font-medium text-gray-900">{{ company.ville || '-' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-500">Dépôts associés</span>
+                            <span class="font-medium bg-blue-50 text-blue-700 px-2 rounded-full">{{ company.depotCount
+                                || 0 }}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 pt-4 border-t border-gray-100">
+                        <button (click)="navigateToEdit(company.id)"
+                            class="flex-1 px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 font-medium transition-colors text-sm">
+                            Gérer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

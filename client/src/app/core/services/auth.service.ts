@@ -63,7 +63,18 @@ export class AuthService {
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('permissions');
+    
+    // Clear session-level depot selections to ensure admins are prompted for depot choice on next login
     sessionStorage.removeItem('visitingDepotId');
+    sessionStorage.removeItem('depotId');
+    localStorage.removeItem('visitingDepotId');
+    localStorage.removeItem('depotId');
+
+    // CRITICAL: We DO NOT remove 'lastCompanyId' from localStorage here.
+    // This allows the LoginThemeService to keep the logo and brand colors on the login page.
+
+
+
     this.currentUserSubject.next(null);
     this.permissionsSubject.next(null);
     this.isAuthenticated.set(false);

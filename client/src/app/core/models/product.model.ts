@@ -32,6 +32,7 @@ export interface Product {
   updatedAt: Date;
   inventory?: Inventory[];
   vracProducts?: Product[];
+  vracConversionsAsSource?: Array<{ id: number, targetProductId: number }>;
 }
 
 export interface ProductFamily {

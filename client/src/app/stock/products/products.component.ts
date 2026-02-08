@@ -42,8 +42,6 @@ export class ProductsComponent implements OnInit {
   viewMode: 'table' | 'grid' = 'table';
   depots: Depot[] = [];
   selectedDepotId: number | null = null;
-  productVracConversionsCount: Map<number, number> = new Map();
-
   // Palette classes for family badges (light vibrant colors)
   private familyColorClasses: string[] = [
     'bg-gradient-to-r from-pink-100 to-rose-200 text-rose-800 border border-rose-200',
@@ -52,6 +50,15 @@ export class ProductsComponent implements OnInit {
     'bg-gradient-to-r from-emerald-100 to-green-200 text-emerald-800 border border-emerald-200',
     'bg-gradient-to-r from-amber-100 to-orange-200 text-amber-800 border border-amber-200',
     'bg-gradient-to-r from-cyan-100 to-sky-200 text-cyan-800 border border-cyan-200'
+  ];
+
+  // Palette classes for depot badges (distinct from families)
+  private depotColorClasses: string[] = [
+    'bg-blue-100 text-blue-800 border-blue-200',
+    'bg-teal-100 text-teal-800 border-teal-200',
+    'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200',
+    'bg-lime-100 text-lime-800 border-lime-200',
+    'bg-orange-100 text-orange-800 border-orange-200'
   ];
 
   constructor(
@@ -176,7 +183,6 @@ export class ProductsComponent implements OnInit {
           });
 
           this.allProducts = Array.from(productMap.values());
-          this.loadVracConversionsCount();
           this.applyFilters();
           this.loading = false;
         },
@@ -218,7 +224,6 @@ export class ProductsComponent implements OnInit {
               }
               return product;
             });
-            this.loadVracConversionsCount();
             this.applyFilters();
             this.loading = false;
           },
@@ -260,7 +265,6 @@ export class ProductsComponent implements OnInit {
               initialStock: produit.initialStock,
               displayIndex: produit.displayIndex
             } as Product));
-            this.loadVracConversionsCount();
             this.applyFilters();
             this.loading = false;
           },
@@ -295,6 +299,34 @@ export class ProductsComponent implements OnInit {
     }
     const paletteIndex = index % this.familyColorClasses.length;
     return this.familyColorClasses[paletteIndex];
+  }
+
+  getDepotColor(depotId: number): string {
+    const index = depotId % this.depotColorClasses.length;
+    return this.depotColorClasses[index];
+  }
+
+  getDepotName(depotId: number): string {
+    const depot = this.depots.find(d => d.id === depotId);
+    return depot ? depot.name : `Dépôt ${depotId}`;
+  }
+
+  getDepotShortName(depotId: number): string {
+    const depot = this.depots.find(d => d.id === depotId);
+    if (!depot) return `D${depotId}`;
+    
+    // Create a short code from the name (e.g. "Boutique Centre Ville" -> "BCV")
+    return depot.name
+      .split(' ')
+      .map(word => word[0].toUpperCase())
+      .join('')
+      .substring(0, 3);
+  }
+
+  getDepotPrice(product: Product, depotId: number): number | undefined {
+    if (!product.depotPrices || product.depotPrices.length === 0) return undefined;
+    const depotPrice = product.depotPrices.find(dp => dp.depotId === depotId);
+    return depotPrice ? Number(depotPrice.prix_vente_TTC) : undefined;
   }
 
   applyFilters(): void {
@@ -434,43 +466,12 @@ export class ProductsComponent implements OnInit {
     this.loadProducts();
   }
 
-  loadVracConversionsCount(): void {
-    this.productVracConversionsCount.clear();
-    const productIds = this.allProducts.map(p => p.id);
-    
-    if (productIds.length === 0) return;
-    
-    const conversionRequests = productIds.map(productId => 
-      this.productsService.getVracConversions(productId).pipe(
-        catchError(() => {
-          return of({ sourceProductId: productId, conversions: [] });
-        })
-      )
-    );
-    
-    forkJoin(conversionRequests).subscribe({
-      next: (responses) => {
-        responses.forEach(response => {
-          if (response && response.conversions) {
-            this.productVracConversionsCount.set(response.sourceProductId, response.conversions.length);
-            if (response.conversions.length > 0 && !this.allProducts.find(p => p.id === response.sourceProductId)?.isVraguable) {
-              const product = this.allProducts.find(p => p.id === response.sourceProductId);
-              if (product) {
-                product.isVraguable = true;
-              }
-            }
-          }
-        });
-      }
-    });
+  getVracConversionsCount(product: Product): number {
+    return product.vracConversionsAsSource?.length || 0;
   }
 
-  getVracConversionsCount(productId: number): number {
-    return this.productVracConversionsCount.get(productId) || 0;
-  }
-
-  hasVracConversions(productId: number): boolean {
-    return this.getVracConversionsCount(productId) > 0;
+  hasVracConversions(product: Product): boolean {
+    return this.getVracConversionsCount(product) > 0;
   }
 
   onImportCompleted(): void {
@@ -626,7 +627,7 @@ export class ProductsComponent implements OnInit {
 
   getVracConvertibleCount(): number {
     return this.displayedProducts.filter(product => 
-      product.isVraguable === true || this.hasVracConversions(product.id)
+      product.isVraguable === true || this.hasVracConversions(product)
     ).length;
   }
 

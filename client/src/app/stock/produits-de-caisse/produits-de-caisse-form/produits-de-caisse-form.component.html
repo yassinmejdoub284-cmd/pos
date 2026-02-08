@@ -1,7 +1,8 @@
 <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
   <div class="bg-white rounded-3xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
     <!-- Header -->
-    <div class="flex items-center justify-between p-6 border-b border-indigo-100/50 bg-gradient-to-r from-indigo-50 to-purple-50">
+    <div
+      class="flex items-center justify-between p-6 border-b border-indigo-100/50 bg-gradient-to-r from-indigo-50 to-purple-50">
       <h3 class="text-lg font-semibold text-slate-800">
         {{ produit ? 'Modifier le Sous-Produit' : 'Nouveau Sous-Produit' }}
       </h3>
@@ -63,21 +64,18 @@
 
         <!-- Depot Selection -->
         <div class="lg:col-span-2">
-          <app-multi-depot-selector 
-            [selectedDepotIds]="selectedDepotIds()"
-            [allowedDepotTypes]="['MAIN', 'BRANCH']"
-            [required]="true"
-            (depotsSelected)="onDepotsSelected($event)">
+          <app-multi-depot-selector [selectedDepotIds]="selectedDepotIds()" [allowedDepotTypes]="['MAIN', 'BRANCH']"
+            [required]="true" (depotsSelected)="onDepotsSelected($event)">
           </app-multi-depot-selector>
         </div>
 
         <!-- Image Upload Section -->
         <div class="lg:col-span-2">
           <label class="block text-sm font-medium text-slate-600 mb-2">Photo du produit</label>
-          
+
           <!-- Image Input Type Toggle -->
           <div class="flex space-x-2 mb-3">
-            <button type="button" (click)="imageInputType = 'file'" 
+            <button type="button" (click)="imageInputType = 'file'"
               [class]="imageInputType === 'file' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'"
               class="px-3 py-1 rounded-lg text-sm transition-all">
               Fichier
@@ -97,21 +95,21 @@
 
           <!-- URL Input -->
           <div *ngIf="imageInputType === 'url'" class="space-y-2">
-            <input type="url" formControlName="photoUrl" 
+            <input type="url" formControlName="photoUrl"
               class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
               placeholder="https://example.com/image.jpg">
-            <button type="button" (click)="loadImageFromUrl()" 
+            <button type="button" (click)="loadImageFromUrl()"
               class="px-4 py-2 bg-indigo-600 text-white rounded-2xl transition-all text-sm">
               Charger l'image
             </button>
           </div>
-          
+
           <!-- Image Preview -->
           <div *ngIf="imagePreview" class="mt-4 flex items-center space-x-4">
             <div class="w-20 h-20">
               <img [src]="imagePreview" alt="Aperçu" class="w-full h-full object-cover rounded-2xl">
             </div>
-            <button type="button" (click)="clearImage()" 
+            <button type="button" (click)="clearImage()"
               class="px-3 py-1 bg-red-100 text-red-700 rounded-lg transition-all text-sm">
               Supprimer
             </button>
@@ -120,10 +118,7 @@
 
         <!-- Active Status -->
         <div class="lg:col-span-2 flex items-center">
-          <input 
-            formControlName="isActive"
-            type="checkbox"
-            id="isActive"
+          <input formControlName="isActive" type="checkbox" id="isActive"
             class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
           <label for="isActive" class="ml-2 text-sm text-slate-700">Actif</label>
         </div>
@@ -139,9 +134,12 @@
       <button (click)="onSubmit()" type="submit" [disabled]="!form.valid || loading()"
         class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-slate-800 font-semibold py-3 px-4 rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
         <span *ngIf="loading()" class="flex items-center justify-center">
-          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-slate-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-slate-800" xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
           </svg>
           Enregistrement...
         </span>

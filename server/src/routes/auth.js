@@ -59,29 +59,43 @@ router.post('/login', async (req, res) => {
       
 
       
-      if (depotId) {
+      if (depotId && !isNaN(parseInt(depotId))) {
         // If depotId is provided, filter by it for isolation
         const targetDepotId = parseInt(depotId);
         
+        // Find user by PIN and either primary depotId or via userDepots relation
         user = await prisma.user.findFirst({
           where: {
             pin: pinStr,
-            depotId: targetDepotId,
-            isActive: true
+            isActive: true,
+            OR: [
+              { depotId: targetDepotId },
+              { userDepots: { some: { depotId: targetDepotId } } }
+            ]
           }
         });
         
         if (!user) {
-
-          // Check if user exists but is inactive or in different depot
+          // Check if user exists but is inactive
           const inactiveUser = await prisma.user.findFirst({
-            where: { pin: pinStr, depotId: targetDepotId }
+            where: { 
+              pin: pinStr,
+              OR: [
+                { depotId: targetDepotId },
+                { userDepots: { some: { depotId: targetDepotId } } }
+              ]
+            }
           });
+          
           if (inactiveUser && !inactiveUser.isActive) {
             return res.status(401).json({ error: 'Compte utilisateur désactivé' });
           }
+          
+          // PIN might be valid but for a different depot - that's handled by the retry logic in client
+          // but let's be descriptive
           return res.status(401).json({ error: 'PIN invalide pour ce dépôt' });
         }
+
       } else {
         // If no depotId provided, try to find user by PIN
         // If multiple users exist with same PIN in different depots, return error requiring depotId

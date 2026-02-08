@@ -106,7 +106,46 @@ router.get('/', async (req, res) => {
       fileSettings.roleAccessConfig = deepMerged;
     }
 
-    return res.json(fileSettings);
+    // Inject Company Details if available
+    let companyId = req.user?.companyId;
+    
+    // If no direct company, try to resolve from depot
+    // Check for X-Depot-Id header first (admin visiting context)
+    const headerDepotIdStr = req.headers['x-depot-id'];
+    const currentUserDepotId = req.user?.depotId;
+    const effectiveDepotIdForCompany = headerDepotIdStr ? parseInt(headerDepotIdStr) : currentUserDepotId;
+
+    if (!companyId && effectiveDepotIdForCompany) {
+      const depot = await prisma.depot.findUnique({
+        where: { id: parseInt(effectiveDepotIdForCompany) },
+        select: { companyId: true }
+      });
+      if (depot && depot.companyId) companyId = depot.companyId;
+    }
+
+    if (companyId) {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId }
+      });
+      
+      if (company) {
+        // Overlay company details onto settings
+        fileSettings.companyName = company.raisonSociale;
+        if (company.logoUrl) fileSettings.logoUrl = company.logoUrl;
+        
+        // Map other company fields to settings expected format
+        fileSettings.companyAddress = [
+          company.adresse, 
+          company.codePostal, 
+          company.ville
+        ].filter(Boolean).join(', ');
+        
+        fileSettings.companyPhone = company.telephone;
+        fileSettings.companyEmail = company.email;
+        fileSettings.companyRC = company.registreCommerce;
+        fileSettings.companyMF = company.matriculeFiscal;
+      }
+    }
 
     return res.json(fileSettings);
   } catch (error) {
@@ -141,7 +180,7 @@ router.put('/', async (req, res) => {
 
     // If updating roleAccessConfig, persist it globally under 'default' so roles are not depot-scoped
     if (data.roleAccessConfig && typeof data.roleAccessConfig === 'object') {
-      const currentGlobal = readDepotSettings('default');
+      const currentGlobal = getDepotSettings('default');
       const mergedGlobal = ensureDefaults({ ...currentGlobal });
       mergedGlobal.roleAccessConfig = data.roleAccessConfig; // replace with requested config
       writeDepotSettings('default', mergedGlobal);
@@ -169,8 +208,8 @@ router.post('/logo', upload.single('logo'), async (req, res) => {
     const logoUrl = `/uploads/logos/${req.file.filename}`;
     
     // Update depot settings with new logo URL
-    const userDepotId = req.user?.depotId;
-    const currentSettings = readDepotSettings(userDepotId);
+    const userDepotId = req.user?.depotId || 'default';
+    const currentSettings = getDepotSettings(userDepotId);
     const updatedSettings = { ...currentSettings, logoUrl };
     
     // Skip DB writes to avoid schema mismatches; persist via file only

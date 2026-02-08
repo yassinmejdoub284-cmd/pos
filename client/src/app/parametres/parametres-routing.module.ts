@@ -5,10 +5,12 @@ import { ParametresComponent } from './parametres.component';
 import { AccessRoleSelectionComponent } from './sections/access/access-role-selection.component';
 import { AccessRoleConfigComponent } from './sections/access/access-role-config.component';
 import { RoleCreateComponent } from './sections/access/role-create.component';
+import { CompanyListComponent } from './sections/companies/company-list.component';
+import { CompanyDetailComponent } from './sections/companies/company-detail.component';
 
 const routes: Routes = [
   { path: '', component: ParametresOverviewComponent },
-  { path: 'general', component: ParametresComponent },
+
   { path: 'peripheriques', component: ParametresComponent },
   { path: 'fidelite', component: ParametresComponent },
   { path: 'remises-dettes', component: ParametresComponent },
@@ -21,7 +23,10 @@ const routes: Routes = [
   { path: 'access', component: AccessRoleSelectionComponent },
   { path: 'access/new', component: RoleCreateComponent },
   { path: 'access/new/:id', component: RoleCreateComponent },
-  { path: 'access/:role', component: AccessRoleConfigComponent }
+  { path: 'access/:role', component: AccessRoleConfigComponent },
+  { path: 'entreprises', component: CompanyListComponent },
+  { path: 'entreprises/new', component: CompanyDetailComponent },
+  { path: 'entreprises/:id', component: CompanyDetailComponent }
 ];
 
 @NgModule({

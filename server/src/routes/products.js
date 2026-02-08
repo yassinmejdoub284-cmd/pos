@@ -148,6 +148,13 @@ router.get('/', authenticateToken, async (req, res) => {
             depot: true
           }
         },
+        depotPrices: true,
+        vracConversionsAsSource: {
+          select: {
+            id: true,
+            targetProductId: true
+          }
+        }
       }
     });
     
@@ -598,6 +605,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
             depot: true
           }
         },
+        depotPrices: true
       }
     });
     
@@ -962,7 +970,55 @@ router.put('/:id', authenticateToken, async (req, res) => {
       }
     }
     
+    
     // Handle depot prices if provided
+    const { depotPrices } = req.body;
+    if (depotPrices && Array.isArray(depotPrices) && depotPrices.length > 0) {
+      // For RESPONSABLE_MAGASIN, only allow updating their own depot's price
+      if (isResponsableMagasin && !isAdmin) {
+        // Filter to only their depot
+        const allowedDepotPrices = depotPrices.filter(dp => dp.depotId === sessionDepotId);
+        
+        for (const depotPrice of allowedDepotPrices) {
+          await prisma.productDepotPrice.upsert({
+            where: {
+              productId_depotId: {
+                productId: productId,
+                depotId: depotPrice.depotId
+              }
+            },
+            create: {
+              productId: productId,
+              depotId: depotPrice.depotId,
+              prix_vente_TTC: parseFloat(depotPrice.prix_vente_TTC)
+            },
+            update: {
+              prix_vente_TTC: parseFloat(depotPrice.prix_vente_TTC)
+            }
+          });
+        }
+      } else if (isAdmin) {
+        // Admin can update all depot prices
+        for (const depotPrice of depotPrices) {
+          await prisma.productDepotPrice.upsert({
+            where: {
+              productId_depotId: {
+                productId: productId,
+                depotId: depotPrice.depotId
+              }
+            },
+            create: {
+              productId: productId,
+              depotId: depotPrice.depotId,
+              prix_vente_TTC: parseFloat(depotPrice.prix_vente_TTC)
+            },
+            update: {
+              prix_vente_TTC: parseFloat(depotPrice.prix_vente_TTC)
+            }
+          });
+        }
+      }
+    }
     
     // Handle stock synchronization when product is modified
     // If isStockable changes, update inventory records accordingly
@@ -1018,7 +1074,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     
     await logAudit(req.user.id, 'products', productId, 'UPDATE', oldProduct, updateData);
     
-    // Fetch the product with all relations including updated depot prices
+    // Fetch the product with all relations including depot prices
     const productWithRelations = await prisma.product.findUnique({
       where: { id: productId },
       include: {
@@ -1028,6 +1084,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
             depot: true
           }
         },
+        depotPrices: true
       }
     });
     

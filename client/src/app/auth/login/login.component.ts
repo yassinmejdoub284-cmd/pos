@@ -155,22 +155,16 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.error = '';
 
     // Prepare login data - use token field for scanner input, pin for manual input
-    const loginData: any = isToken ? { token: this.credentials.pin } : this.credentials;
+    const loginData: any = isToken ? { token: this.credentials.pin } : { pin: this.credentials.pin };
     
-    // Add depotId if available (from selection or sessionStorage)
+    // Add depotId ONLY if it was explicitly selected by the user in the UI
+    // We avoid "guessing" from sessionStorage/localStorage here to prevent 401 errors
+    // when a different user tries to log in. The theme still uses the stored values.
     if (this.selectedDepotId) {
-      loginData.depotId = this.selectedDepotId;
-
-    } else {
-      // Try to get depotId from sessionStorage (from previous session or depot selection)
-      const storedDepotId = sessionStorage.getItem('depotId') || sessionStorage.getItem('visitingDepotId');
-      if (storedDepotId) {
-        loginData.depotId = parseInt(storedDepotId);
-
-      } else {
-
-      }
+      loginData.depotId = Number(this.selectedDepotId);
     }
+
+
     
     console.log('Login attempt:', { 
       hasPin: !!loginData.pin, 

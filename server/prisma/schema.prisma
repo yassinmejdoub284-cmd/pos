@@ -86,6 +86,7 @@ model Depot {
   userDepots          UserDepot[]
   users               User[]                @relation("DepotUsers")
   productAssignments  ProductDepot[]
+  productDepotPrices  ProductDepotPrice[]
 
   @@index([companyId], map: "depots_company_id_fkey")
   @@map("depots")
@@ -187,6 +188,7 @@ model Product {
   inventory                Inventory[]
   inventoryItems           InventoryItem[]
   depotAssignments         ProductDepot[]
+  depotPrices              ProductDepotPrice[]
   vracConversionsAsSource  ProductVracConversion[] @relation("SourceProductVrac")
   vracConversionsAsTarget  ProductVracConversion[] @relation("TargetProductVrac")
   famille                  ProductFamily           @relation(fields: [familleId], references: [id])
@@ -238,6 +240,23 @@ model ProductDepot {
   @@index([depotId], map: "product_depots_depot_id_fkey")
   @@map("product_depots")
 }
+
+model ProductDepotPrice {
+  id             Int      @id @default(autoincrement())
+  productId      Int      @map("product_id")
+  depotId        Int      @map("depot_id")
+  prix_vente_TTC Decimal  @map("prix_vente_ttc") @db.Decimal(10, 3)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  depot          Depot    @relation(fields: [depotId], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, depotId], name: "productId_depotId")
+  @@index([productId], map: "product_depot_prices_product_id_fkey")
+  @@index([depotId], map: "product_depot_prices_depot_id_fkey")
+  @@map("product_depot_prices")
+}
+
 
 
 model ProduitDeCaisse {

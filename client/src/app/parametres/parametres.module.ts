@@ -9,6 +9,8 @@ import { ParametresOverviewComponent } from './sections/overview/parametres-over
 import { AccessRoleSelectionComponent } from './sections/access/access-role-selection.component';
 import { AccessRoleConfigComponent } from './sections/access/access-role-config.component';
 import { RoleCreateComponent } from './sections/access/role-create.component';
+import { CompanyListComponent } from './sections/companies/company-list.component';
+import { CompanyDetailComponent } from './sections/companies/company-detail.component';
 
 @NgModule({
   declarations: [ParametresComponent, ParametresOverviewComponent, AccessRoleSelectionComponent, AccessRoleConfigComponent, RoleCreateComponent],
@@ -16,7 +18,9 @@ import { RoleCreateComponent } from './sections/access/role-create.component';
     CommonModule,
     FormsModule,
     RouterModule,
-    ParametresRoutingModule
+    ParametresRoutingModule,
+    CompanyListComponent,
+    CompanyDetailComponent
   ]
 })
 export class ParametresModule { }
