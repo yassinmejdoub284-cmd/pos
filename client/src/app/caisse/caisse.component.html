@@ -1241,8 +1241,8 @@
   </div>
 
   <!-- Return Client Selection Dialog -->
-  <div *ngIf="showReturnClientSelectionDialog" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-    (click)="closeReturnClientSelection()">
+  <div *ngIf="showReturnClientSelectionDialog"
+    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="closeReturnClientSelection()">
     <div
       class="bg-gradient-to-br from-blue-50 via-white to-blue-50 rounded-2xl border-2 border-blue-200/50 max-w-4xl w-full max-h-[90vh] shadow-2xl transform transition-all duration-300 flex flex-col"
       (click)="$event.stopPropagation()">

@@ -29,6 +29,13 @@ export class ProduitsDeStockComponent implements OnInit {
   parentProductForm!: FormGroup;
   creatingParentProduct = signal(false);
   
+  // Multi-parent assignment
+  showProductSelectionModal = signal(false);
+  productSearchQuery = signal<string>('');
+  selectedGroupForParent = signal<any>(null);
+  assignmentConfirmationConfig = signal<any>(null);
+  selectedProductToAssign = signal<Product | null>(null);
+  
   // Filtering
   searchQuery = signal('');
   selectedCategory = signal('Tous');
@@ -55,6 +62,18 @@ export class ProduitsDeStockComponent implements OnInit {
       
       return categoryMatch && searchMatch;
     });
+  });
+
+  // Filtered all products for the selection modal
+  filteredAllProducts = computed(() => {
+    const products = this.allProducts();
+    const search = this.productSearchQuery().toLowerCase().trim();
+    if (!search) return products.slice(0, 100); // Increased initial display
+    return products.filter(p => 
+      p.name.toLowerCase().includes(search) || 
+      p.barcode?.toLowerCase().includes(search) ||
+      p.id.toString().includes(search)
+    ).slice(0, 200); // Increased search limit
   });
   
   // View mode toggle
@@ -96,66 +115,67 @@ export class ProduitsDeStockComponent implements OnInit {
       const depotId = this.sessionsService.getActiveDepotId();
       
       // Fetch both scannable articles and master products
-      const [produits, products] = await Promise.all([
+      const [produits, products, allMasterProducts] = await Promise.all([
         firstValueFrom(this.produitsDeStockService.getProduitsDeStock(depotId)),
-        firstValueFrom(this.productsService.getProducts(depotId))
-      ]) as [ProduitDeStock[], Product[]];
+        firstValueFrom(this.productsService.getProducts(depotId)),
+        firstValueFrom(this.productsService.getProducts(undefined, undefined, true))
+      ]) as [ProduitDeStock[], Product[], Product[]];
 
       this.produitsDeStock.set(produits || []);
-      this.allProducts.set(products || []);
+      this.allProducts.set(allMasterProducts || []);
       
-      // Group scannable articles by their parent product NAME + FAMILLE
-      // This merges conceptual duplicates (like the two HLOU ARBI products) into one UI group
       const groupsMap = new Map<string, {product: Product, subProducts: ProduitDeStock[]}>();
       const orphans: ProduitDeStock[] = [];
 
+      // Pass 1: Initial grouping
       produits.forEach(sub => {
-        if (sub.parentProduct) {
-          const groupKey = `${sub.parentProduct.name.toLowerCase()}|${sub.familleId}`;
-          if (!groupsMap.has(groupKey)) {
-            // Find if there's a "proper" master product for this name assigned to this depot
-            const assignedParent = products.find(p => 
-              p.name.toLowerCase() === sub.parentProduct!.name.toLowerCase() && 
-              p.familleId === sub.familleId
-            );
+        const groupParentName = sub.parentProduct?.name || 'Divers';
+        const groupFamilleId = sub.familleId || -1;
+        const groupKey = `${groupParentName.toLowerCase()}|${groupFamilleId}`;
 
-            groupsMap.set(groupKey, {
-              product: {
-                ...(assignedParent || sub.parentProduct),
-                famille: sub.famille,
-                unite: sub.unite,
-                // These header fields are just for the group display
-                prix_vente_TTC: assignedParent?.prix_vente_TTC || sub.prix_vente_TTC
-              } as any,
-              subProducts: []
-            });
-          }
-          groupsMap.get(groupKey)!.subProducts.push(sub);
-        } else {
-          orphans.push(sub);
+        if (!groupsMap.has(groupKey)) {
+          groupsMap.set(groupKey, {
+          product: {
+            ...(sub.parentProduct || { id: -1, name: 'Articles Sans Parent' }),
+            famille: sub.parentProduct?.famille || sub.famille
+          } as any,
+            subProducts: []
+          });
         }
+        groupsMap.get(groupKey)!.subProducts.push(sub);
+      });
+
+      // Pass 2: Finalize group metadata (deduplicated parents across ALL sub-products in the block)
+      groupsMap.forEach(group => {
+        const parentIds = new Set<string>();
+        group.subProducts.forEach(sub => {
+          const ids = this.parseProductIds(sub);
+          ids.forEach(id => parentIds.add(id));
+        });
+
+        // Resolve parent objects uniquely by ID
+        const settledParents = Array.from(parentIds).map(id => {
+          let parent: Product | undefined;
+          for (const sub of group.subProducts) {
+            if (sub.parentProductId?.toString() === id && sub.parentProduct) {
+              parent = sub.parentProduct;
+              break;
+            }
+          }
+          if (!parent) {
+            parent = allMasterProducts.find(p => p.id.toString() === id);
+          }
+          return parent;
+        }).filter(p => !!p) as Product[];
+
+        group.product.displayParents = settledParents;
       });
 
       const grouped = Array.from(groupsMap.values())
         .sort((a, b) => b.subProducts.length - a.subProducts.length || a.product.name.localeCompare(b.product.name));
 
-      if (orphans.length > 0) {
-        grouped.push({
-          product: {
-            id: -1,
-            name: 'Articles Sans Parent / Divers',
-            famille: { id: -1, name: 'Divers' } as any,
-            prix_vente_TTC: 0 as any,
-            unite: '-',
-            isStockable: false
-          } as any,
-          subProducts: orphans.sort((a, b) => a.name.localeCompare(b.name))
-        });
-      }
-
       this.groupedProducts.set(grouped);
       
-      // Extract unique categories purely from scannable articles
       const uniqueFamilies = Array.from(new Set(
         produits.map(p => p.famille?.name).filter((name): name is string => !!name)
       )).sort();
@@ -227,6 +247,105 @@ export class ProduitsDeStockComponent implements OnInit {
 
   toggleViewMode(): void {
     this.viewMode.set(this.viewMode() === 'table' ? 'grid' : 'table');
+  }
+
+  // Multi-parent assignment methods
+  onAddParentClick(group: any): void {
+    this.selectedGroupForParent.set(group);
+    this.productSearchQuery.set('');
+    this.showProductSelectionModal.set(true);
+  }
+
+  onProductSelected(product: Product): void {
+    const group = this.selectedGroupForParent();
+    if (!group || !product) return;
+
+    // Check if any sub-product in the block is already associated with this parent
+    const isAlreadyLinked = group.subProducts.some((sub: ProduitDeStock) => {
+      const parentIds = this.parseProductIds(sub);
+      return parentIds.includes(product.id.toString());
+    });
+
+    if (isAlreadyLinked) {
+      // Could show a toast or message, but the button should be disabled in the UI anyway
+      return;
+    }
+
+    this.selectedProductToAssign.set(product);
+    this.assignmentConfirmationConfig.set({
+      title: 'Confirmer l\'ajout du parent',
+      subtitle: `Voulez-vous vraiment ajouter "${product.name}" comme parent pour tous les articles de ce bloc ?`,
+      confirmText: 'Ajouter',
+      confirmColor: 'success',
+      showCancelButton: true,
+      size: 'md'
+    });
+  }
+
+  confirmAssignment(): void {
+    const product = this.selectedProductToAssign();
+    const group = this.selectedGroupForParent();
+    
+    if (product && group) {
+      this.assignParentToBlock(product.id, group.subProducts);
+    }
+    this.assignmentConfirmationConfig.set(null);
+  }
+
+  async assignParentToBlock(productId: number, subProducts: ProduitDeStock[]): Promise<void> {
+    this.loading.set(true);
+    const productIdStr = productId.toString();
+    
+    try {
+      const updatePromises = subProducts.map(sub => {
+        const parentIds = this.parseProductIds(sub);
+        if (!parentIds.includes(productIdStr)) {
+          const newParentIds = [...parentIds, productIdStr];
+          return firstValueFrom(this.produitsDeStockService.updateProduitDeStock(sub.id, {
+            productIds: newParentIds
+          }));
+        }
+        return Promise.resolve();
+      });
+
+      await Promise.all(updatePromises);
+      this.showProductSelectionModal.set(false);
+      this.selectedGroupForParent.set(null);
+      await this.loadData();
+    } catch (err) {
+      console.error('Error assigning parent:', err);
+      this.error.set('Certains articles n\'ont pas pu être mis à jour.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  isProductAlreadyLinked(product: Product): boolean {
+    const group = this.selectedGroupForParent();
+    if (!group || !product) return false;
+    return group.subProducts.some((sub: ProduitDeStock) => {
+      const parentIds = this.parseProductIds(sub);
+      return parentIds.includes(product.id.toString());
+    });
+  }
+
+  private parseProductIds(sub: ProduitDeStock): string[] {
+    const ids = new Set<string>();
+    if (sub.parentProductId) ids.add(sub.parentProductId.toString());
+    if (sub.productIds) {
+      const idsArray = typeof sub.productIds === 'string' 
+        ? (sub.productIds as string).split(',').filter(id => !!id)
+        : sub.productIds as any[];
+      idsArray.forEach(id => {
+        if (id) ids.add(id.toString());
+      });
+    }
+    return Array.from(ids);
+  }
+
+  onProductSearchChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.productSearchQuery.set(target.value);
   }
 
   onParentProductAdded(): void {

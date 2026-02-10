@@ -15,12 +15,15 @@ export class ProductsService {
     private http: HttpClient
   ) {}
 
-  getProducts(depotId?: number): Observable<Product[]> {
+  getProducts(depotId?: number, search?: string, all?: boolean): Observable<Product[]> {
     let params = new HttpParams();
     
+    if (search) params = params.set('search', search);
+    if (all) params = params.set('all', 'true');
+
     // Always include depotId if provided, or try to get from sessionStorage
     let targetDepotId = depotId;
-    if (!targetDepotId) {
+    if (!targetDepotId && !all) {
       const storedDepotId = sessionStorage.getItem('depotId') || sessionStorage.getItem('visitingDepotId');
       if (storedDepotId) {
         targetDepotId = parseInt(storedDepotId);

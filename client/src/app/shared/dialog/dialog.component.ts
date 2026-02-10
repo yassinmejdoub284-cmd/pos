@@ -20,21 +20,21 @@ export interface DialogConfig {
   imports: [CommonModule],
   template: `
     <div class="dialog-overlay" 
-         [class]="config().preventBodyScroll ? 'prevent-scroll' : ''"
+         [class]="config.preventBodyScroll ? 'prevent-scroll' : ''"
          (click)="onOverlayClick($event)">
       <div class="dialog-content" 
-           [class]="'dialog-' + (config().size || 'md')"
+           [class]="'dialog-' + (config.size || 'md')"
            (click)="$event.stopPropagation()">
         
         <!-- Header -->
         <div class="dialog-header">
           <div class="dialog-title-section">
-            <h2 class="dialog-title">{{ config().title }}</h2>
-            @if (config().subtitle) {
-              <p class="dialog-subtitle">{{ config().subtitle }}</p>
+            <h2 class="dialog-title">{{ config.title }}</h2>
+            @if (config.subtitle) {
+              <p class="dialog-subtitle">{{ config.subtitle }}</p>
             }
           </div>
-          @if (config().showCloseButton !== false) {
+          @if (config.showCloseButton !== false) {
             <button class="dialog-close-btn" (click)="onClose()">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -49,18 +49,18 @@ export interface DialogConfig {
         </div>
 
         <!-- Footer -->
-        @if (config().showCancelButton || config().showConfirmButton) {
+        @if (config.showCancelButton || config.showConfirmButton) {
           <div class="dialog-footer">
-            @if (config().showCancelButton !== false) {
+            @if (config.showCancelButton !== false) {
               <button class="dialog-btn dialog-btn-cancel" (click)="onCancel()">
-                {{ config().cancelText || 'Annuler' }}
+                {{ config.cancelText || 'Annuler' }}
               </button>
             }
-            @if (config().showConfirmButton !== false) {
+            @if (config.showConfirmButton !== false) {
               <button class="dialog-btn dialog-btn-confirm" 
-                      [class]="'dialog-btn-' + (config().confirmColor || 'primary')"
+                      [class]="'dialog-btn-' + (config.confirmColor || 'primary')"
                       (click)="onConfirm()">
-                {{ config().confirmText || 'Confirmer' }}
+                {{ config.confirmText || 'Confirmer' }}
               </button>
             }
           </div>
@@ -214,27 +214,27 @@ export interface DialogConfig {
   `]
 })
 export class DialogComponent {
-  @Input() config = signal<DialogConfig>({
+  @Input() config: DialogConfig = {
     title: 'Dialog',
     showCloseButton: true,
     showCancelButton: true,
     showConfirmButton: true,
     size: 'md',
     preventBodyScroll: true
-  });
+  };
 
   @Output() close = new EventEmitter<void>();
   @Output() cancel = new EventEmitter<void>();
   @Output() confirm = new EventEmitter<void>();
 
   ngOnInit() {
-    if (this.config().preventBodyScroll) {
+    if (this.config.preventBodyScroll) {
       document.body.classList.add('dialog-open');
     }
   }
 
   ngOnDestroy() {
-    if (this.config().preventBodyScroll) {
+    if (this.config.preventBodyScroll) {
       document.body.classList.remove('dialog-open');
     }
   }

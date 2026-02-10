@@ -33,6 +33,7 @@ export interface Product {
   inventory?: Inventory[];
   vracProducts?: Product[];
   vracConversionsAsSource?: Array<{ id: number, targetProductId: number }>;
+  displayParents?: Product[];
 }
 
 export interface ProductFamily {

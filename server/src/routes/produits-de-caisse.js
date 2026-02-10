@@ -83,7 +83,16 @@ router.get('/', authenticateToken, async (req, res) => {
           select: {
             id: true,
             name: true,
-            barcode: true
+            barcode: true,
+            photo: true,
+            prix_vente_TTC: true,
+            unite: true,
+            famille: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         }
       },
@@ -139,7 +148,16 @@ router.get('/active', authenticateToken, async (req, res) => {
           select: {
             id: true,
             name: true,
-            barcode: true
+            barcode: true,
+            photo: true,
+            prix_vente_TTC: true,
+            unite: true,
+            famille: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         }
       },
@@ -365,7 +383,16 @@ router.post('/', authenticateToken, async (req, res) => {
           select: {
             id: true,
             name: true,
-            barcode: true
+            barcode: true,
+            photo: true,
+            prix_vente_TTC: true,
+            unite: true,
+            famille: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         }
       }

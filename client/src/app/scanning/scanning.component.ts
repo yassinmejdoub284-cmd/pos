@@ -117,8 +117,6 @@ export class ScanningComponent implements OnInit, OnDestroy {
   // Products cache for fast lookup
   public productsCache = new Map<number, Product>();
   public produitsDeCaisseCache = new Map<number, ProduitDeCaisse>();
-  // Track failed parent product loads to avoid repeated API calls
-  private failedParentProductIds = new Set<number>();
   
   // Wholesale rules for pricing
   private wholesaleRules: WholesaleRule[] = [];
@@ -263,110 +261,71 @@ export class ScanningComponent implements OnInit, OnDestroy {
     });
   }
 
-  private loadMissingParentProducts(parentProductIds: number[]): void {
-    // Load multiple parent products in parallel
-    parentProductIds.forEach(parentProductId => {
-      this.loadMissingParentProduct(parentProductId);
-    });
+  private loadMissingParentProducts(parentIds: number[]): void {
+    // This method is now primarily for telemetry or future bulk hooks
+    // Most data is now pre-loaded or aggregated from sub-product metadata
   }
 
-  private loadMissingParentProduct(parentProductId: number): void {
-    // Only load if not already in cache, not already loading, and not previously failed
-    if (this.productsCache.has(parentProductId)) {
-      return;
-    }
-
-    // Don't retry if we've already failed to load this product
-    if (this.failedParentProductIds.has(parentProductId)) {
-      return;
-    }
-
-    // Check if we're already loading this product
-    const loadingKey = `loading_${parentProductId}`;
-    if ((this as any)[loadingKey]) {
-      return;
-    }
-    (this as any)[loadingKey] = true;
-
-    this.productsService.getProduct(parentProductId).subscribe({
-      next: (product: Product) => {
-        this.productsCache.set(product.id, product);
-        // Remove from failed list if it was there
-        this.failedParentProductIds.delete(parentProductId);
-        delete (this as any)[loadingKey];
-      },
-      error: (error: any) => {
-        // Silently skip products that aren't found or not assigned to this depot
-        // Mark as failed so we don't keep trying
-        this.failedParentProductIds.add(parentProductId);
-        if (error?.status !== 404) {
-          // Only log non-404 errors (actual problems)
-          console.warn(`Error loading parent product ${parentProductId}:`, error);
-        }
-        delete (this as any)[loadingKey];
+  private parseProductIds(sub: ProduitDeCaisse): number[] {
+    const ids = new Set<number>();
+    if (sub.parentProductId) ids.add(sub.parentProductId);
+    if (sub.productIds) {
+      if (typeof sub.productIds === 'string') {
+        const idsArray = (sub.productIds as string).split(',').filter(id => !!id);
+        idsArray.forEach(id => {
+          const numId = parseInt(id.trim(), 10);
+          if (!isNaN(numId)) ids.add(numId);
+        });
+      } else if (Array.isArray(sub.productIds)) {
+        sub.productIds.forEach((id: any) => {
+          const numId = typeof id === 'number' ? id : parseInt(id, 10);
+          if (!isNaN(numId)) ids.add(numId);
+        });
       }
-    });
+    }
+    return Array.from(ids);
   }
 
   private async loadProduitsDeCaisse(): Promise<void> {
     try {
-      // Only load produits de caisse assigned to the current depot
       const depotId = this.currentDepotId;
       if (!depotId) {
         console.warn('No depot ID available, skipping produits de caisse load');
         return;
       }
       
-      const produits = await this.produitsDeCaisseService.getActiveProduitsDeCaisse(depotId).toPromise();
-      if (produits) {
-        produits.forEach(produit => {
+      // Fetch scannable articles, active depot products, and ALL master products for metadata
+      const [produitsDeCaisse, depotProducts, allMasterProducts] = await Promise.all([
+        this.produitsDeCaisseService.getActiveProduitsDeCaisse(depotId).toPromise(),
+        this.productsService.getProducts(depotId).toPromise(),
+        this.productsService.getProducts(undefined, undefined, true).toPromise()
+      ]);
+
+      // Populate products cache from all master products first (metadata foundation)
+      if (allMasterProducts) {
+        allMasterProducts.forEach(p => this.productsCache.set(p.id, p));
+      }
+
+      // Populate/Override products cache from depot products
+      if (depotProducts) {
+        depotProducts.forEach(p => this.productsCache.set(p.id, p));
+      }
+
+      if (produitsDeCaisse) {
+        produitsDeCaisse.forEach(produit => {
           this.produitsDeCaisseCache.set(produit.id, produit);
           
-          // Auto-populate parent products from POS item data
+          // Aggressively populate parent product metadata from sub-product data
+          // This ensures we have basic info for parents even if not assigned to this depot
           if (produit.parentProduct) {
-            this.productsCache.set(produit.parentProduct.id, produit.parentProduct);
+            if (!this.productsCache.has(produit.parentProduct.id)) {
+              this.productsCache.set(produit.parentProduct.id, produit.parentProduct);
+            }
           }
         });
+
         // Initialize filtered list for manual add
-        this.filteredProduitsDeCaisse = produits;
-        
-        // Load any missing parent products (silently skip those not found/assigned)
-        const missingParentIds = new Set<number>();
-        produits.forEach(produit => {
-          if (produit.parentProductId && !this.productsCache.has(produit.parentProductId)) {
-            missingParentIds.add(produit.parentProductId);
-          }
-        });
-        
-        // Load missing parent products (will silently skip those not assigned to depot)
-        if (missingParentIds.size > 0) {
-          this.loadMissingParentProducts(Array.from(missingParentIds));
-        }
-    // this.searchProductByBarcode("1234001891011")
-    // this.searchProductByBarcode("1234002891011")
-    // this.searchProductByBarcode("1234003891011")
-    // this.searchProductByBarcode("1234004891011")
-    // this.searchProductByBarcode("1234005891011")
-    // this.searchProductByBarcode("1234006891011")
-    // this.searchProductByBarcode("1234007891011")
-    // this.searchProductByBarcode("1234008891011")
-    // this.searchProductByBarcode("1234009891011")
-    // this.searchProductByBarcode("1234010891011")
-    // this.searchProductByBarcode("1234011891011")
-    // this.searchProductByBarcode("1234012891011")
-    // this.searchProductByBarcode("1234013891011")
-    // this.searchProductByBarcode("1234014891011")
-    // this.searchProductByBarcode("1234015891011")
-    // this.searchProductByBarcode("1234016891011")
-    // this.searchProductByBarcode("1234017891011")
-    // this.searchProductByBarcode("1234018891011")
-    // this.searchProductByBarcode("1234019891011")
-    // this.searchProductByBarcode("1234020891011")
-    // this.searchProductByBarcode("1234021891011")
-    // this.searchProductByBarcode("1234022891011")
-    // this.searchProductByBarcode("1234023891011")
-    // this.searchProductByBarcode("1234024891011")
-    // this.searchProductByBarcode("1234025891011")
+        this.filteredProduitsDeCaisse = produitsDeCaisse;
       }
     } catch (error) {
       console.error('Error loading produits de caisse:', error);
@@ -601,43 +560,32 @@ export class ScanningComponent implements OnInit, OnDestroy {
         childProductId = posItem.id;
         childProductName = posItem.name;
 
-        if (posItem.parentProductId) {
-          // Found POS item with parent -> Resolve to parent for STOCK tracking
-          const parentProduct = this.productsCache.get(posItem.parentProductId);
-          if (parentProduct) {
-            productId = parentProduct.id;
-            productName = parentProduct.name;
-            isMapped = true;
-          } else {
-            // Lazy load the missing parent product if not in cache
-            if (!this.failedParentProductIds.has(posItem.parentProductId)) {
-              this.loading = true;
-              this.productsService.getProduct(posItem.parentProductId).subscribe({
-                next: (fetchedProduct: Product) => {
-                  this.productsCache.set(fetchedProduct.id, fetchedProduct);
-                  // Retry the barcode parsing now that parent is cached
-                  this.parseAndAddBarcode(barcode);
-                },
-                error: (err: any) => {
-                  console.error('Lazy load failed for parent product:', err);
-                  this.failedParentProductIds.add(posItem.parentProductId!);
-                  this.showError(`Parent Stock #${posItem.parentProductId} introuvable (Echec chargement direct)`);
-                  this.playErrorSound();
-                  this.resetScanningState();
-                }
-              });
-              return; // parsing will resume in the callback
+        // Use parseProductIds to get all parent IDs associated with this sub-product
+        const parentIds = this.parseProductIds(posItem);
+        
+        if (parentIds.length > 0) {
+          // Find the first parent that is present in the cache
+          // Metadata was ghosted into productsCache during loadProduitsDeCaisse
+          for (const parentId of parentIds) {
+            const parentProduct = this.productsCache.get(parentId);
+            if (parentProduct) {
+              productId = parentProduct.id;
+              productName = parentProduct.name;
+              isMapped = true;
+              break;
             }
+          }
 
+          if (!isMapped) {
             const cacheSize = this.productsCache.size;
-            this.showError(`Parent Stock #${posItem.parentProductId} non trouvé pour "${posItem.name}" (Cache: ${cacheSize} produits)`);
+            this.showError(`Produit de stock introuvable pour "${posItem.name}" (ID Parents: ${parentIds.join(', ')} - Cache: ${cacheSize} produits)`);
             this.playErrorSound();
             this.resetScanningState();
             return;
           }
         } else {
           // Block if not linked to stock (Stock Documents require a master product)
-          this.showError(`L'article #${articleId} (${posItem.name}) n'est pas lié à un produit de stock (parent_product_id null)`);
+          this.showError(`L'article #${articleId} (${posItem.name}) n'est pas lié à un produit de stock`);
           this.playErrorSound();
           this.resetScanningState();
           return;
@@ -1109,6 +1057,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     }>;
     totalQuantity: number;
     totalPrice: number;
+    displayParents?: Array<{ id: number, name: string }>;
   }> {
     return this.groupScannedItemsByParentProduct();
   }
@@ -1132,6 +1081,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     }>;
     totalQuantity: number;
     totalPrice: number;
+    displayParents?: Array<{ id: number, name: string }>;
   }> {
     const groups = new Map<number, Array<{
       articleId: number;
@@ -1202,9 +1152,32 @@ export class ScanningComponent implements OnInit, OnDestroy {
       }>;
       totalQuantity: number;
       totalPrice: number;
+      displayParents?: Array<{ id: number, name: string }>;
     }> = [];
 
     for (const [key, items] of groups) {
+      const displayParents: Array<{ id: number, name: string }> = [];
+      const parentIds = new Set<number>();
+      
+      // Aggregate all parents from all items in this group
+      items.forEach(item => {
+        const posItem = this.produitsDeCaisseCache.get(item.articleId);
+        if (posItem) {
+          const itemParentIds = this.parseProductIds(posItem);
+          itemParentIds.forEach(id => parentIds.add(id));
+        }
+      });
+
+      // Ensure the group key (canonical parent) is included if it's a valid ID
+      if (key > 0) parentIds.add(key);
+
+      parentIds.forEach(id => {
+        const p = this.productsCache.get(id);
+        if (p) {
+          displayParents.push({ id: p.id, name: p.name });
+        }
+      });
+
       if (key > 0) {
         // This is a parent product group
         const parentProduct = this.productsCache.get(key);
@@ -1229,7 +1202,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
           mainProduct: parentProduct || null,
           subProducts: items,
           totalQuantity,
-          totalPrice
+          totalPrice,
+          displayParents
         });
       } else {
         // This is a standalone sous-produit group
@@ -1254,7 +1228,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
           mainProduct: null,
           subProducts: items,
           totalQuantity,
-          totalPrice
+          totalPrice,
+          displayParents
         });
       }
     }
@@ -1361,9 +1336,10 @@ export class ScanningComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    // Bundle-level price on parent product
-    if (produit.parentProductId) {
-      const parentProduct = this.productsCache.get(produit.parentProductId);
+    // Bundle-level price on any associated parent product
+    const parentIds = this.parseProductIds(produit);
+    for (const parentId of parentIds) {
+      const parentProduct = this.productsCache.get(parentId);
       if (parentProduct && (parentProduct as any).bundlePrice && (parentProduct as any).bundleSize) {
         return true;
       }
@@ -2376,35 +2352,33 @@ export class ScanningComponent implements OnInit, OnDestroy {
     parentProductId: number;
     parentProductName: string;
     parentProductImage: string | null;
+    displayParents?: Array<{ id: number, name: string }>;
     produits: any[];
   }> {
     const groups = new Map<number, any[]>();
 
     // Group produits by parent product
     this.filteredProduitsDeCaisse.forEach(produit => {
-      // If produit has a parentProductId, check if parent exists or failed to load
-      let parentId: number;
-      if (produit.parentProductId) {
-        // Check if parent is in cache (exists) or if it failed to load
-        if (this.productsCache.has(produit.parentProductId)) {
-          // Parent exists, use it
-          parentId = produit.parentProductId;
-        } else if (this.failedParentProductIds.has(produit.parentProductId)) {
-          // Parent failed to load (not assigned to depot), treat as standalone
-          parentId = -produit.id;
-        } else {
-          // Parent might still be loading, use it for now (will be handled below)
-          parentId = produit.parentProductId;
-        }
-      } else {
-        // No parent, treat as standalone
-        parentId = -produit.id;
-      }
+      const allParentIds = this.parseProductIds(produit);
       
-      if (!groups.has(parentId)) {
-        groups.set(parentId, []);
+      if (allParentIds.length > 0) {
+        allParentIds.forEach(parentId => {
+          if (!groups.has(parentId)) {
+            groups.set(parentId, []);
+          }
+          const currentGroup = groups.get(parentId)!;
+          if (!currentGroup.find(p => p.id === produit.id)) {
+            currentGroup.push(produit);
+          }
+        });
+      } else {
+        // No parent, group under a single "Standalone" key
+        const standaloneId = -1;
+        if (!groups.has(standaloneId)) {
+          groups.set(standaloneId, []);
+        }
+        groups.get(standaloneId)!.push(produit);
       }
-      groups.get(parentId)!.push(produit);
     });
 
     // Convert to array and sort
@@ -2412,12 +2386,12 @@ export class ScanningComponent implements OnInit, OnDestroy {
       let parentProduct: Product | null = null;
       let parentProductName = 'Produits Indépendants';
       let parentProductImage: string | null = null;
+      let displayParents: Array<{ id: number, name: string }> = [];
 
       if (parentId > 0) {
         parentProduct = this.productsCache.get(parentId) || null;
         if (!parentProduct) {
-          // Parent not found - if it failed to load, these should have been treated as standalone above
-          // But if we're here, treat as standalone - use first produit's name
+          // Parent not found in cache - fallback to first produit's info or generic
           if (produits.length > 0) {
             parentProductName = produits[0].name;
           } else {
@@ -2428,17 +2402,32 @@ export class ScanningComponent implements OnInit, OnDestroy {
           parentProductImage = parentProduct.photo || null;
         }
       } else {
-        // For standalone products, use the first product's info
-        if (produits.length > 0) {
-          parentProductName = produits[0].name;
-        }
+        // For standalone products group
+        parentProductName = 'Articles Indépendants';
       }
+
+      // Aggregate all parents from all items in this group
+      const allParentIdsInGroup = new Set<number>();
+      if (parentId > 0) allParentIdsInGroup.add(parentId);
+      
+      produits.forEach(p => {
+        const itemParentIds = this.parseProductIds(p);
+        itemParentIds.forEach(id => allParentIdsInGroup.add(id));
+      });
+   
+      allParentIdsInGroup.forEach(id => {
+        const p = this.productsCache.get(id);
+        if (p) {
+          displayParents.push({ id: p.id, name: p.name });
+        }
+      });
 
       return {
         parentProduct,
         parentProductId: parentId,
         parentProductName,
         parentProductImage,
+        displayParents,
         produits: produits.sort((a, b) => a.name.localeCompare(b.name))
       };
     });
@@ -2455,18 +2444,18 @@ export class ScanningComponent implements OnInit, OnDestroy {
   getParentProductName(produit: any): string {
     if (!produit) return '';
     
-    if (produit.parentProductId) {
-      const parentProduct = this.productsCache.get(produit.parentProductId) || null;
-      if (!parentProduct) {
-        // Don't try to load here - this method might be called frequently
-        // Missing parents are loaded when produits are first loaded
-        // If parent not found, just use the produit's own name (treat as standalone)
-        return produit.name || '';
+    const parentIds = this.parseProductIds(produit);
+    if (parentIds.length === 0) return '';
+
+    const names: string[] = [];
+    parentIds.forEach(id => {
+      const p = this.productsCache.get(id);
+      if (p && p.name) {
+        names.push(p.name);
       }
-      return parentProduct.name || produit.name || '';
-    }
-    
-    return produit.name || '';
+    });
+
+    return names.join(', ');
   }
 
   selectProductForManualAdd(produit: any): void {
@@ -2555,19 +2544,28 @@ export class ScanningComponent implements OnInit, OnDestroy {
     const posItem = this.produitsDeCaisseCache.get(articleId);
     
     if (posItem) {
-        if (posItem.parentProductId) {
-           const parentProduct = this.productsCache.get(posItem.parentProductId);
-           if (parentProduct) {
-             productId = parentProduct.id;
-             productName = parentProduct.name;
-             isMapped = true;
-           } else {
-             this.showError(`Produit de stock parent #${posItem.parentProductId} introuvable pour l'article ${articleId}`);
-             return;
-           }
+        // Use parseProductIds to get all parent IDs associated with this sub-product
+        const parentIds = this.parseProductIds(posItem);
+        
+        if (parentIds.length > 0) {
+          // Find the first parent that is present in the cache
+          for (const parentId of parentIds) {
+            const parentProduct = this.productsCache.get(parentId);
+            if (parentProduct) {
+              productId = parentProduct.id;
+              productName = parentProduct.name;
+              isMapped = true;
+              break;
+            }
+          }
+
+          if (!isMapped) {
+            this.showError(`Produit de stock introuvable pour "${posItem.name}" (ID Parents: ${parentIds.join(', ')})`);
+            return;
+          }
         } else {
-             this.showError(`Article ${articleId} (${posItem.name}) n'est pas lié à un produit de stock`);
-             return;
+          this.showError(`Article ${articleId} (${posItem.name}) n'est pas lié à un produit de stock`);
+          return;
         }
     } else {
         this.showError(`Article ${articleId} introuvable dans la table produits_de_caisse`);

@@ -7,6 +7,7 @@ import { ProduitsDeStockComponent } from './produits-de-caisse.component';
 import { ProduitsDeCaisseListComponent } from './produits-de-caisse-list/produits-de-caisse-list.component';
 import { ProduitsDeStockFormComponent } from './produits-de-caisse-form/produits-de-caisse-form.component';
 import { MultiDepotSelectorComponent } from '../../shared/multi-depot-selector/multi-depot-selector.component';
+import { DialogComponent } from '../../shared/dialog/dialog.component';
 
 @NgModule({
   declarations: [
@@ -19,7 +20,8 @@ import { MultiDepotSelectorComponent } from '../../shared/multi-depot-selector/m
     FormsModule,
     ReactiveFormsModule,
     ProduitsDeCaisseRoutingModule,
-    MultiDepotSelectorComponent
+    MultiDepotSelectorComponent,
+    DialogComponent
   ]
 })
 export class ProduitsDeCaisseModule { }

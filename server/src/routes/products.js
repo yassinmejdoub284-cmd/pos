@@ -105,30 +105,44 @@ function isValidImageUrl(url) {
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { depotId } = req.query;
+    const { depotId, search, all } = req.query;
     
     // Enforce depot isolation - use user's depotId or provided depotId
     const userDepotId = req.user?.depotId;
+    const isAdmin = req.user?.role === 'ADMIN';
     const targetDepotId = depotId ? parseInt(depotId) : userDepotId;
     
     // For non-admin users, only allow access to their own depot
-    if (req.user?.role !== 'ADMIN' && targetDepotId !== userDepotId) {
+    if (!isAdmin && targetDepotId !== userDepotId) {
       return res.status(403).json({ error: 'Access denied: Cannot access other depot products' });
     }
     
-    // If no depotId available, return error
-    if (!targetDepotId) {
+    // If no depotId available and not searching "all", return error
+    if (!targetDepotId && !isAdmin) {
       return res.status(400).json({ error: 'depotId is required to fetch products' });
     }
     
-    // Build where clause for depot filtering - ALWAYS filter by depot for isolation
-    const whereClause = {
-        depotAssignments: {
+    // Build where clause
+    const whereClause = {};
+    
+    // Only apply depot filter if not explicitly requesting "all" as admin
+    if (!(isAdmin && all === 'true')) {
+      if (targetDepotId) {
+        whereClause.depotAssignments = {
           some: {
-          depotId: targetDepotId
+            depotId: targetDepotId
           }
-        }
-      };
+        };
+      }
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search } },
+        { barcode: { contains: search } },
+        { id: isNaN(parseInt(search)) ? undefined : parseInt(search) }
+      ].filter(condition => condition.id !== undefined || condition.name || condition.barcode);
+    }
     
     const products = await prisma.product.findMany({
       where: whereClause,

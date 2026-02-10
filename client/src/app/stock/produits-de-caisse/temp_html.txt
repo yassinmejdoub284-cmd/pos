@@ -1,0 +1,171 @@
+<div class="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-6">
+  <!-- Home Button -->
+  <div class="fixed top-6 right-6 z-40">
+    <a routerLink="/home"
+      class="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-full shadow-lg transition-all duration-300 transform flex items-center justify-center"
+      title="Accueil">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+        </path>
+      </svg>
+    </a>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading()" class="flex items-center justify-center h-64">
+    <div class="text-center">
+      <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-t-4 border-emerald-600 mx-auto mb-6"></div>
+      <p class="text-emerald-700 font-medium">Chargement des produits de stock...</p>
+    </div>
+  </div>
+
+  <div *ngIf="!loading()" class="space-y-6 mx-auto">
+    <!-- Header Section -->
+    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl p-6 shadow-lg">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+        <div>
+          <h1 class="text-3xl font-bold text-white mb-1">Produits de Stock</h1>
+          <p class="text-emerald-100">Gérez les sous-produits de stock</p>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          <!-- View Mode Toggle -->
+          <div class="flex bg-white rounded-xl shadow-md overflow-hidden">
+            <button (click)="viewMode.set('table')"
+              [class]="'px-4 py-2.5 flex items-center space-x-2 font-medium transition-all ' + (viewMode() === 'table' ? 'bg-emerald-500 text-white' : 'text-emerald-700')"
+              title="Vue tableau">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 10h18M3 14h18m-9-4v8m-7 0V4a1 1 0 011-1h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1z"></path>
+              </svg>
+              <span>Tableau</span>
+            </button>
+            <button (click)="viewMode.set('grid')"
+              [class]="'px-4 py-2.5 flex items-center space-x-2 font-medium transition-all ' + (viewMode() === 'grid' ? 'bg-emerald-500 text-white' : 'text-emerald-700')"
+              title="Vue grille">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                </path>
+              </svg>
+              <span>Grille</span>
+            </button>
+          </div>
+
+          <button (click)="onParentProductAdded()"
+            class="bg-white text-emerald-700 px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center space-x-2 font-medium">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+              </path>
+            </svg>
+            <span>Nouveau Produit Parent</span>
+          </button>
+
+          <button (click)="onProduitAdded()"
+            class="bg-white text-emerald-700 px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center space-x-2 font-medium">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+              </path>
+            </svg>
+            <span>Nouveau Sous-Produit</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search & Filter Section -->
+    <div class="bg-white rounded-3xl p-6 border border-emerald-100 shadow-md">
+      <div class="grid grid-cols-1 lg:grid-cols-3 items-center gap-5">
+        <div class="lg:col-span-2">
+          <label class="block text-sm font-bold text-emerald-700 mb-2">Recherche</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+              <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </div>
+            <input type="text" [value]="searchQuery()" (input)="onSearchChange($event)"
+              placeholder="Rechercher par nom..."
+              class="w-full pl-12 pr-4 py-3 bg-white border-2 border-emerald-200 rounded-xl text-emerald-800 placeholder-emerald-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm">
+          </div>
+          <!-- Category chips under search -->
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button (click)="setCategoryFilter('Tous')"
+              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedCategory() === 'Tous' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-transparent shadow-sm' : 'bg-white text-emerald-700 border-emerald-200')">
+              Toutes
+            </button>
+            <button *ngFor="let category of productCategories().slice(1)" (click)="setCategoryFilter(category)"
+              [class]="'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ' + (selectedCategory() === category ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-transparent shadow-sm' : 'bg-white text-emerald-700 border-emerald-200')">
+              {{ category }}
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-end">
+          <button (click)="onSearch()"
+            class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-5 py-3 rounded-xl transition-all font-medium">
+            <span class="flex items-center justify-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+              Rechercher
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    <div *ngIf="error()"
+      class="mb-6 p-5 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-700 rounded-xl shadow-sm">
+      <div class="flex items-center">
+        <svg class="w-6 h-6 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <p class="font-medium">{{ error() }}</p>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="space-y-6">
+      <!-- No Results Message -->
+      <div *ngIf="filteredProducts().length === 0 && !loading()"
+        class="bg-white rounded-3xl p-12 text-center border border-emerald-100 shadow-md">
+        <div
+          class="w-24 h-24 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full mx-auto mb-6 flex items-center justify-center">
+          <svg class="w-12 h-12 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-emerald-800 mb-2">Aucun résultat trouvé</h3>
+        <p class="text-emerald-600 mb-4">Aucun produit ne correspond à vos critères de recherche</p>
+        <button (click)="searchQuery.set(''); selectedCategory.set('Tous')"
+          class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl transition-all">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+            </path>
+          </svg>
+          Réinitialiser les filtres
+        </button>
+      </div>
+
+      <!-- Table View -->
+      <div *ngIf="viewMode() === 'table' && filteredProducts().length > 0">
+        <div *ngFor="let group of filteredProducts()"
+          class="bg-white rounded-3xl border border-emerald-100 shadow-md overflow-hidden mb-6">
+          <!-- Main Product Header -->
+          <div class="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 border-b border-emerald-100">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <!-- Product Image -->
+                <div class="relative">
+                  <div *ngIf="group.product.photo && group.product.photo !== '/images/placeholder-product.svg'"
+                    class="w-16 h-16 rounded-xl overflow-hidden shadow-md">
+                    <img [src]="group.product.photo" [alt]="group.product.name" [title]="group.product.name"
+            

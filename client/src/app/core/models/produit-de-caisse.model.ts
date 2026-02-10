@@ -41,6 +41,7 @@ export interface ProduitDeStock {
   // Stock-specific fields - now as sub-products
   parentProductId?: number;
   parentProduct?: Product;
+  productIds?: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -80,6 +81,7 @@ export interface CreateProduitDeStockRequest {
   bundlePrice?: number;
   // Stock-specific fields - now as sub-products
   parentProductId?: number;
+  productIds?: string[];
   depotIds: number[]; // Array of depot IDs to assign to
   isActive?: boolean;
 }
@@ -114,6 +116,7 @@ export interface UpdateProduitDeStockRequest {
   bundlePrice?: number;
   // Stock-specific fields - now as sub-products
   parentProductId?: number;
+  productIds?: string[];
   depotIds?: number[]; // Array of depot IDs to assign to
   isActive?: boolean;
 }
