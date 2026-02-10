@@ -1,0 +1,12 @@
+header {
+  transition: all 0.3s ease;
+}
+
+button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shadow-violet-200 {
+  --tw-shadow-color: rgba(139, 92, 246, 0.2);
+  --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);
+}

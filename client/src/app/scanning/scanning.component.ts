@@ -178,6 +178,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
         this.tryAlternativeDepotLoading();
       }
     });
+
+    // START FLOW: Always show document type selection on enter
+    setTimeout(() => {
+      this.showDocumentTypeSelection();
+    }, 500);
   }
 
   ngOnDestroy(): void {
@@ -186,8 +191,12 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   handleKeyDown(event: KeyboardEvent): void {
-    // Don't process scanning input if any modal is open
-    if (this.isAnyModalOpen()) {
+    // Don't process scanning input if any modal is open or no document type selected
+    if (this.isAnyModalOpen() || !this.selectedDocumentType) {
+      if (!this.selectedDocumentType && /^\d$/.test(event.key)) {
+        this.showError('Veuillez configurer le document avant de scanner');
+        this.playErrorSound();
+      }
       return;
     }
 
@@ -566,7 +575,22 @@ export class ScanningComponent implements OnInit, OnDestroy {
         if (parentIds.length > 0) {
           // Find the first parent that is present in the cache
           // Metadata was ghosted into productsCache during loadProduitsDeCaisse
-          for (const parentId of parentIds) {
+          
+          let filteredParentIds = parentIds;
+          // DEPOT FILTERING RULE: Only filter parents when a destination depot exists (Transfert)
+          if (this.selectedDocumentType === 'transfert' && this.selectedDepot) {
+            const destinationDepotId = this.selectedDepot.id;
+            const depotMatchedIds = parentIds.filter(parentId => {
+              const p = this.productsCache.get(parentId);
+              return p?.depotAssignments?.some(da => da.depotId === destinationDepotId);
+            });
+            
+            if (depotMatchedIds.length > 0) {
+              filteredParentIds = depotMatchedIds;
+            }
+          }
+
+          for (const parentId of filteredParentIds) {
             const parentProduct = this.productsCache.get(parentId);
             if (parentProduct) {
               productId = parentProduct.id;
@@ -631,7 +655,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         this.scannedItems.push({
           articleId: articleId, // Original scanned ID (sub-article)
           productId: productId as any, // Resolved Stock ID (parent)
-          productName: childProductName + (isMapped ? ' [L]' : ''), // Use sub-article name for display
+          productName: childProductName as string, // Use sub-article name for display
           quantity,
           count: 1,
           colisCount: 1,
@@ -750,10 +774,26 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   clearScannedItems(): void {
+    if (confirm('Êtes-vous sûr de vouloir effacer toute la liste ?')) {
+      this.scannedItems = [];
+      this.lastScannedProduct = null;
+      this.success = 'Liste des articles effacée';
+      setTimeout(() => { this.success = ''; }, 3000);
+    }
+  }
+
+  startNewScan(): void {
+    if (this.scannedItems.length > 0) {
+      if (!confirm('Démarrer un nouveau scan effacera la liste actuelle. Continuer ?')) {
+        return;
+      }
+    }
+    
     this.scannedItems = [];
-    this.lastScannedProduct = null;
-    this.success = 'Liste des articles effacée';
-    setTimeout(() => { this.success = ''; }, 3000);
+    this.resetDocumentConfig();
+    this.selectedDocumentType = null;
+    this.invoiceNumber = '';
+    this.showDocumentTypeSelection();
   }
 
   removeScannedItem(articleId: number): void {
@@ -1057,7 +1097,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     }>;
     totalQuantity: number;
     totalPrice: number;
-    displayParents?: Array<{ id: number, name: string }>;
+    displayParents?: Array<{ id: number, name: string, depotId?: number, depotName?: string }>;
   }> {
     return this.groupScannedItemsByParentProduct();
   }
@@ -1081,9 +1121,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
     }>;
     totalQuantity: number;
     totalPrice: number;
-    displayParents?: Array<{ id: number, name: string }>;
+    displayParents?: Array<{ id: number, name: string, depotId?: number, depotName?: string }>;
   }> {
-    const groups = new Map<number, Array<{
+    const groups = new Map<string, Array<{
       articleId: number;
       productName: string;
       quantity: number;
@@ -1099,37 +1139,33 @@ export class ScanningComponent implements OnInit, OnDestroy {
       }>;
     }>>();
 
-    // Group scanned items by their parent product
+    // Group scanned items by their parent product set
     this.scannedItems.forEach(item => {
       const scannedProduit = this.produitsDeCaisseCache.get(item.articleId);
-      if (scannedProduit && scannedProduit.parentProductId) {
-        // This is a sous-produit, group it under its parent product
-        const parentProductId = scannedProduit.parentProductId;
-        if (!groups.has(parentProductId)) {
-          groups.set(parentProductId, []);
+      let groupKey = "-1";
+
+      if (scannedProduit) {
+        const allParentIds = this.parseProductIds(scannedProduit);
+        if (allParentIds.length > 0) {
+          groupKey = allParentIds.sort((a, b) => a - b).join(',');
+        } else {
+          groupKey = `-standalone_${item.articleId}`;
         }
-        
-        // Add color information if available (placeholder for now)
-        const itemWithColor = {
-          ...item,
-          color: 'Sans couleur' // TODO: Add color property to ProduitDeCaisse model
-        };
-        
-        groups.get(parentProductId)!.push(itemWithColor);
       } else {
-        // If it's a standalone sous-produit (no parent), create a standalone group
-        const standaloneKey = -item.articleId; // Use negative ID to avoid conflicts
-        if (!groups.has(standaloneKey)) {
-          groups.set(standaloneKey, []);
-        }
-        
-        const itemWithColor = {
-          ...item,
-          color: 'Sans couleur' // TODO: Add color property to ProduitDeCaisse model
-        };
-        
-        groups.get(standaloneKey)!.push(itemWithColor);
+        groupKey = `-orphan_${item.articleId}`;
       }
+
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, []);
+      }
+      
+      // Add color information if available (placeholder for now)
+      const itemWithColor = {
+        ...item,
+        color: 'Sans couleur' // TODO: Add color property to ProduitDeCaisse model
+      };
+      
+      groups.get(groupKey)!.push(itemWithColor);
     });
 
     // Convert to the required format
@@ -1152,86 +1188,81 @@ export class ScanningComponent implements OnInit, OnDestroy {
       }>;
       totalQuantity: number;
       totalPrice: number;
-      displayParents?: Array<{ id: number, name: string }>;
+      displayParents?: Array<{ id: number, name: string, depotId?: number, depotName?: string }>;
     }> = [];
 
-    for (const [key, items] of groups) {
-      const displayParents: Array<{ id: number, name: string }> = [];
+    for (const [groupKey, items] of groups) {
+      const displayParents: Array<{ id: number, name: string, depotId?: number, depotName?: string }> = [];
       const parentIds = new Set<number>();
       
-      // Aggregate all parents from all items in this group
-      items.forEach(item => {
-        const posItem = this.produitsDeCaisseCache.get(item.articleId);
-        if (posItem) {
-          const itemParentIds = this.parseProductIds(posItem);
-          itemParentIds.forEach(id => parentIds.add(id));
-        }
-      });
-
-      // Ensure the group key (canonical parent) is included if it's a valid ID
-      if (key > 0) parentIds.add(key);
+      if (!groupKey.startsWith('-')) {
+        groupKey.split(',').forEach(id => parentIds.add(parseInt(id, 10)));
+      }
 
       parentIds.forEach(id => {
-        const p = this.productsCache.get(id);
-        if (p) {
-          displayParents.push({ id: p.id, name: p.name });
-        }
-      });
-
-      if (key > 0) {
-        // This is a parent product group
-        const parentProduct = this.productsCache.get(key);
-        const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-        const totalPrice = items.reduce((sum, item) => {
-          const produit = this.produitsDeCaisseCache.get(item.articleId);
-          if (produit) {
-            let prixUnitaire = produit.prix_vente_TTC || 0;
-
-            // Apply custom/bundle pricing when available (for any client)
-            if (this.hasCustomPrice(produit)) {
-              prixUnitaire = this.getWholesalePrice(produit);
-            }
-            
-            const quantite = item.quantity / 1000; // Convert to kg
-            return sum + (prixUnitaire * quantite);
-          }
-          return sum;
-        }, 0);
-        
-        result.push({
-          mainProduct: parentProduct || null,
-          subProducts: items,
-          totalQuantity,
-          totalPrice,
-          displayParents
-        });
-      } else {
-        // This is a standalone sous-produit group
-        const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-        const totalPrice = items.reduce((sum, item) => {
-          const produit = this.produitsDeCaisseCache.get(item.articleId);
-          if (produit) {
-            let prixUnitaire = produit.prix_vente_TTC || 0;
-
-            // Apply custom/bundle pricing when available (for any client)
-            if (this.hasCustomPrice(produit)) {
-              prixUnitaire = this.getWholesalePrice(produit);
-            }
-            
-            const quantite = item.quantity / 1000; // Convert to kg
-            return sum + (prixUnitaire * quantite);
-          }
-          return sum;
-        }, 0);
-        
-        result.push({
-          mainProduct: null,
-          subProducts: items,
-          totalQuantity,
-          totalPrice,
-          displayParents
+      const p = this.productsCache.get(id);
+      if (p) {
+        const mainDepot = p.depotAssignments && p.depotAssignments.length > 0 ? p.depotAssignments[0].depot : null;
+        displayParents.push({ 
+          id: p.id, 
+          name: p.name,
+          depotId: mainDepot?.id,
+          depotName: mainDepot?.name
         });
       }
+    });
+
+    // Filter parents based on the current context (flux)
+    if (displayParents.length > 1) {
+      if (this.selectedDepot) {
+        const destMatch = displayParents.filter(p => p.depotId === this.selectedDepot.id);
+        if (destMatch.length > 0) {
+          displayParents.splice(0, displayParents.length, ...destMatch);
+        }
+      }
+      
+      if (displayParents.length > 1 && this.currentDepotId) {
+        const sourceMatch = displayParents.filter(p => p.depotId === this.currentDepotId);
+        if (sourceMatch.length > 0) {
+          displayParents.splice(0, displayParents.length, ...sourceMatch);
+        }
+      }
+
+      // If still multiple, just take the first one to avoid redundancy
+      if (displayParents.length > 1) {
+        displayParents.splice(1);
+      }
+    }
+
+      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+      const totalPrice = items.reduce((sum, item) => {
+        const produit = this.produitsDeCaisseCache.get(item.articleId);
+        if (produit) {
+          let prixUnitaire = produit.prix_vente_TTC || 0;
+
+          // Apply custom/bundle pricing when available (for any client)
+          if (this.hasCustomPrice(produit)) {
+            prixUnitaire = this.getWholesalePrice(produit);
+          }
+          
+          const quantite = item.quantity / 1000; // Convert to kg
+          return sum + (prixUnitaire * quantite);
+        }
+        return sum;
+      }, 0);
+
+      let mainProduct: Product | null = null;
+      if (displayParents.length > 0) {
+        mainProduct = this.productsCache.get(displayParents[0].id) || null;
+      }
+
+      result.push({
+        mainProduct,
+        subProducts: items,
+        totalQuantity,
+        totalPrice,
+        displayParents
+      });
     }
 
     return result;
@@ -1422,11 +1453,22 @@ export class ScanningComponent implements OnInit, OnDestroy {
     return luminance > 0.5 ? '#000000' : '#ffffff';
   }
 
-  showDocumentTypeSelection(): void {
+  onGenerateDocument(): void {
     if (this.scannedItems.length === 0) {
-      this.showError('Veuillez scanner au moins un produit avant de continuer');
+      this.showError('La liste des articles est vide');
+      this.playErrorSound();
       return;
     }
+    
+    if (!this.selectedDocumentType) {
+      this.showDocumentTypeSelection();
+      return;
+    }
+    
+    this.proceedToNextSelection();
+  }
+
+  showDocumentTypeSelection(): void {
     this.showDocumentTypeModal = true;
   }
 
@@ -1894,7 +1936,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.proceedToNextSelection();
   }
 
-  private proceedToNextSelection(): void {
+  public proceedToNextSelection(): void {
 
 
 
@@ -1930,9 +1972,19 @@ export class ScanningComponent implements OnInit, OnDestroy {
       this.setDefaultValidityDates(); // Automatically set default dates
       this.showValidityModal = true;
     } else {
-
-      // All selections completed, generate document
-      this.generateDocument();
+      // Configuration completed
+      // Only generate document if items actually exist to be processed
+      if (this.scannedItems.length > 0) {
+        this.generateDocument();
+      } else {
+        // Just configuration complete, stop here and let user scan
+        this.success = 'Configuration terminée. Vous pouvez commencer à scanner.';
+        setTimeout(() => { 
+          if (this.success === 'Configuration terminée. Vous pouvez commencer à scanner.') {
+            this.success = ''; 
+          }
+        }, 3000);
+      }
     }
   }
 
@@ -2050,23 +2102,35 @@ export class ScanningComponent implements OnInit, OnDestroy {
         
         const documentData = this.prepareDocumentData();
         
+        // Detailed logging for debugging
+        console.log('Generating document with data:', {
+          type: documentData.type,
+          itemCount: documentData.items?.length,
+          items: documentData.items
+        });
+
         // Final sanity check: ensuring all items have a productId
         const invalidItems = documentData.items.filter((item: any) => !item.productId);
         if (invalidItems.length > 0) {
-            this.error = 'Erreur: Certains articles n\'ont pas d\'ID de produit valide';
+            this.error = 'Erreur: Certains articles n\'on pas d\'ID de produit valide';
             this.loading = false;
             return;
         }
+
+        // Final sanity check for items array
+        if (!documentData.items || documentData.items.length === 0) {
+          this.error = 'Erreur: La liste des articles est vide';
+          this.loading = false;
+          return;
+        }
+
         // Set the generated number if not already set (for non-facture documents)
         if (!documentData.numero) {
           documentData.numero = nextNumber;
         }
-        
-
 
         this.stockDocumentsService.createDocument(documentData).subscribe({
           next: (savedDocument) => {
-
             this.loading = false;
             this.success = `Document ${savedDocument.numero} créé avec succès!`;
             
@@ -2074,7 +2138,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
             this.openDocumentForPrint(savedDocument);
             
             // Clear scanned items and reset
-            this.clearScannedItems();
+            this.scannedItems = []; // Explicitly clear local array
             this.resetDocumentConfig();
             this.selectedDocumentType = null;
             
@@ -2172,6 +2236,19 @@ export class ScanningComponent implements OnInit, OnDestroy {
         return baseItem;
       })
     };
+
+    // Calculate document-level totals
+    documentData.totalHT = documentData.items.reduce((sum: number, item: any) => sum + (item.montantHT || 0), 0);
+    documentData.totalTVA = documentData.items.reduce((sum: number, item: any) => sum + (item.montantTVA || 0), 0);
+    documentData.totalTTC = documentData.items.reduce((sum: number, item: any) => sum + (item.montantTTC || 0), 0);
+
+    // Add extra required IDs
+    if (this.selectedClient) documentData.clientId = this.selectedClient.id;
+    if (this.selectedVehicle) documentData.vehicleId = this.selectedVehicle.id;
+    if (this.selectedDriver) documentData.driverId = this.selectedDriver.id;
+    if (this.manualDestination) documentData.destination = this.manualDestination;
+    if (this.validityFromDate) documentData.validationFromDate = this.validityFromDate;
+    if (this.validityToDate) documentData.validationToDate = this.validityToDate;
 
     // Add enterprise information from current depot/settings
     if (this.currentSettings) {
@@ -2308,9 +2385,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   // Manual Add Methods
-  showManualAdd(): void {
-    this.openProductSelection();
-  }
+
 
   private resetManualAddState(): void {
     this.selectedProductForManualAdd = null;
@@ -2347,33 +2422,44 @@ export class ScanningComponent implements OnInit, OnDestroy {
     }
   }
 
+  showManualAdd(): void {
+    if (!this.selectedDocumentType) {
+      this.showError('Veuillez configurer le document avant d\'ajouter des produits');
+      this.playErrorSound();
+      this.showDocumentTypeSelection();
+      return;
+    }
+    this.openProductSelection();
+  }
+
   getGroupedProduitsDeCaisse(): Array<{
     parentProduct: Product | null;
     parentProductId: number;
     parentProductName: string;
     parentProductImage: string | null;
-    displayParents?: Array<{ id: number, name: string }>;
+    displayParents?: Array<{ id: number, name: string, depotId?: number, depotName?: string }>;
     produits: any[];
   }> {
-    const groups = new Map<number, any[]>();
+    const groups = new Map<string, any[]>();
 
-    // Group produits by parent product
+    // Group produits by parent product set
     this.filteredProduitsDeCaisse.forEach(produit => {
       const allParentIds = this.parseProductIds(produit);
       
       if (allParentIds.length > 0) {
-        allParentIds.forEach(parentId => {
-          if (!groups.has(parentId)) {
-            groups.set(parentId, []);
-          }
-          const currentGroup = groups.get(parentId)!;
-          if (!currentGroup.find(p => p.id === produit.id)) {
-            currentGroup.push(produit);
-          }
-        });
+        // Create a canonical key: sorted parent IDs as string
+        const groupKey = allParentIds.sort((a, b) => a - b).join(',');
+        
+        if (!groups.has(groupKey)) {
+          groups.set(groupKey, []);
+        }
+        const currentGroup = groups.get(groupKey)!;
+        if (!currentGroup.find(p => p.id === produit.id)) {
+          currentGroup.push(produit);
+        }
       } else {
         // No parent, group under a single "Standalone" key
-        const standaloneId = -1;
+        const standaloneId = "-1";
         if (!groups.has(standaloneId)) {
           groups.set(standaloneId, []);
         }
@@ -2382,45 +2468,53 @@ export class ScanningComponent implements OnInit, OnDestroy {
     });
 
     // Convert to array and sort
-    const result = Array.from(groups.entries()).map(([parentId, produits]) => {
+    const result = Array.from(groups.entries()).map(([groupKey, produits]) => {
       let parentProduct: Product | null = null;
       let parentProductName = 'Produits Indépendants';
       let parentProductImage: string | null = null;
-      let displayParents: Array<{ id: number, name: string }> = [];
+      let displayParents: Array<{ id: number, name: string, depotId?: number, depotName?: string }> = [];
+      let parentId = -1;
 
-      if (parentId > 0) {
-        parentProduct = this.productsCache.get(parentId) || null;
-        if (!parentProduct) {
-          // Parent not found in cache - fallback to first produit's info or generic
-          if (produits.length > 0) {
-            parentProductName = produits[0].name;
-          } else {
-            parentProductName = 'Produits Indépendants';
+      if (groupKey !== "-1") {
+        const parentIds = groupKey.split(',').map(id => parseInt(id, 10));
+        parentId = parentIds[0]; // First parent as "id" for internal logic
+        
+        // Resolve all parents for display
+        parentIds.forEach(id => {
+          const p = this.productsCache.get(id);
+          if (p) {
+            // DEPOT FILTERING RULE: Only filter parents when a destination depot exists (Transfert)
+            if (this.selectedDocumentType === 'transfert' && this.selectedDepot) {
+              const destinationDepotId = this.selectedDepot.id;
+              const isAssignedToDestination = p.depotAssignments?.some(da => da.depotId === destinationDepotId);
+              if (!isAssignedToDestination) {
+                return; // Skip this parent for display if not in destination depot
+              }
+            }
+
+            const mainDepot = p.depotAssignments && p.depotAssignments.length > 0 ? p.depotAssignments[0].depot : null;
+            displayParents.push({ 
+              id: p.id, 
+              name: p.name,
+              depotId: mainDepot?.id,
+              depotName: mainDepot?.name
+            });
+            // Use the first resolved parent for the group's main identity/image
+            if (!parentProduct) {
+              parentProduct = p;
+              parentProductName = p.name || 'Produits Indépendants';
+              parentProductImage = p.photo || null;
+              parentId = p.id;
+            }
           }
-        } else {
-          parentProductName = parentProduct.name || 'Produits Indépendants';
-          parentProductImage = parentProduct.photo || null;
+        });
+
+        if (!parentProduct && produits.length > 0) {
+          parentProductName = produits[0].name;
         }
       } else {
-        // For standalone products group
         parentProductName = 'Articles Indépendants';
       }
-
-      // Aggregate all parents from all items in this group
-      const allParentIdsInGroup = new Set<number>();
-      if (parentId > 0) allParentIdsInGroup.add(parentId);
-      
-      produits.forEach(p => {
-        const itemParentIds = this.parseProductIds(p);
-        itemParentIds.forEach(id => allParentIdsInGroup.add(id));
-      });
-   
-      allParentIdsInGroup.forEach(id => {
-        const p = this.productsCache.get(id);
-        if (p) {
-          displayParents.push({ id: p.id, name: p.name });
-        }
-      });
 
       return {
         parentProduct,
@@ -2603,7 +2697,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       this.scannedItems.push({
         articleId: articleId, // Original scanned ID (sub-article)
         productId: productId as any, // Resolved Stock ID (parent)
-        productName: posItem.name + (isMapped ? ' [L]' : ''), // Use sub-article name for display
+        productName: posItem.name, // Use sub-article name for display
         quantity: Math.round(quantity * 1000), // Convert to grams
         count: 1,
         colisCount: colisCount,

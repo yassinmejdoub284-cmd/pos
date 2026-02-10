@@ -15,11 +15,15 @@ export class AdminHomeComponent implements OnInit {
   loading = signal(true);
   error = signal<string | null>(null);
 
+  currentUser = signal<any>(null);
+
   constructor(
     private adminDashboardService: AdminDashboardService,
     private authService: AuthService,
     private router: Router
-  ) {}
+  ) {
+    this.currentUser = this.authService.currentUser;
+  }
 
   ngOnInit(): void {
     if (!this.authService.isAdmin() && !this.authService.isSuperAdmin()) {
