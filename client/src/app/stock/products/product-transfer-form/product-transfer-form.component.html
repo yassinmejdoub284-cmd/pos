@@ -13,9 +13,7 @@
     <!-- Target Type Selection -->
     <div>
       <label class="block text-sm font-medium text-slate-600 mb-2">Type de Produit Cible *</label>
-      <select formControlName="targetType" 
-        [disabled]="fixedVracMode"
-        [class.bg-slate-200]="fixedVracMode"
+      <select formControlName="targetType" [disabled]="fixedVracMode" [class.bg-slate-200]="fixedVracMode"
         [class.cursor-not-allowed]="fixedVracMode"
         class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all disabled:opacity-70">
         <option value="vrac">Vrac</option>
@@ -24,15 +22,14 @@
         <option value="imported">Importés</option>
         <option value="family">Par Famille</option>
       </select>
-      <span *ngIf="fixedVracMode" class="text-xs text-slate-500 mt-1 block">Ces valeurs sont fixes et ne peuvent pas être modifiées</span>
+      <span *ngIf="fixedVracMode" class="text-xs text-slate-500 mt-1 block">Ces valeurs sont fixes et ne peuvent pas
+        être modifiées</span>
     </div>
 
     <!-- Family Selection (when family type is selected) -->
     <div *ngIf="transferForm.get('targetType')?.value === 'family'">
       <label class="block text-sm font-medium text-slate-600 mb-2">Famille de Produit *</label>
-      <select formControlName="targetFamilyId" 
-        [disabled]="fixedVracMode"
-        [class.bg-slate-200]="fixedVracMode"
+      <select formControlName="targetFamilyId" [disabled]="fixedVracMode" [class.bg-slate-200]="fixedVracMode"
         [class.cursor-not-allowed]="fixedVracMode"
         class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all disabled:opacity-70">
         <option value="">Sélectionner une famille</option>
@@ -50,18 +47,21 @@
       <label class="block text-sm font-medium text-slate-600 mb-2" *ngIf="!fixedVracMode">
         Produit Cible *
       </label>
-      <select formControlName="targetProductId" 
+      <select formControlName="targetProductId"
         class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-xl text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-600 transition-all">
         <option value="">Sélectionner un produit</option>
         <option *ngFor="let product of targetProducts" [value]="product.id">
-          {{ product.name }}{{ product.famille ? ' - ' + product.famille.name : '' }}{{ product.prix_vente_TTC ? ' - ' + (product.prix_vente_TTC | currency:'TND':'symbol':'1.2-2') : '' }}{{ product.unite ? ' - Unité: ' + product.unite : '' }}
+          {{ product.name }}{{ product.famille ? ' - ' + product.famille.name : '' }}{{ product.prix_vente_TTC ? ' - ' +
+          (product.prix_vente_TTC | currency:'DT':'symbol':'1.2-2') : '' }}{{ product.unite ? ' - Unité: ' +
+          product.unite : '' }}
         </option>
       </select>
       <span *ngIf="targetProducts.length === 0" class="text-xs text-slate-500 mt-1 block">
         <span *ngIf="targetType === 'family'">Aucun produit de cette famille trouvé</span>
         <span *ngIf="targetType !== 'family'">Aucun produit de type {{ targetType }} trouvé</span>
       </span>
-      <span *ngIf="fixedVracMode && !transferForm.get('targetProductId')?.value && targetProducts.length > 0" class="text-xs text-amber-600 mt-1 block">
+      <span *ngIf="fixedVracMode && !transferForm.get('targetProductId')?.value && targetProducts.length > 0"
+        class="text-xs text-amber-600 mt-1 block">
         Veuillez sélectionner un produit cible de la famille JUS VRAC
       </span>
     </div>
@@ -92,7 +92,7 @@
     </div>
 
     <!-- Calculated Target Quantity -->
-    <div *ngIf="transferForm.get('quantity')?.value && transferForm.get('conversionRatio')?.value" 
+    <div *ngIf="transferForm.get('quantity')?.value && transferForm.get('conversionRatio')?.value"
       class="bg-green-50 border border-green-200 rounded-xl p-3">
       <span class="text-sm font-semibold text-green-800 block mb-1">Quantité Cible Calculée</span>
       <span class="text-lg font-bold text-green-900">
@@ -114,4 +114,3 @@
     </div>
   </form>
 </div>
-

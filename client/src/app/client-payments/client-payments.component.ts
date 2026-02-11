@@ -36,7 +36,7 @@ interface ClientPayment {
 @Component({
   selector: 'app-client-payments',
   templateUrl: './client-payments.component.html',
-  standalone: true, 
+  standalone: true,
   imports: [CommonModule, FormsModule, RouterModule]
 })
 export class ClientPaymentsComponent implements OnInit {
@@ -45,7 +45,7 @@ export class ClientPaymentsComponent implements OnInit {
   selectedClient: Client | null = null;
   showPaymentForm = false;
   loading = false;
-  
+
   // Form data
   paymentForm = {
     clientId: null as number | null,
@@ -60,7 +60,7 @@ export class ClientPaymentsComponent implements OnInit {
     endDate: ''
   };
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   ngOnInit(): void {
     this.loadClients();
@@ -68,7 +68,7 @@ export class ClientPaymentsComponent implements OnInit {
   }
 
   loadClients(): void {
-    this.http.get<{clients: Client[]}>(`${environment.apiUrl}/clients`).subscribe({
+    this.http.get<{ clients: Client[] }>(`${environment.apiUrl}/clients`).subscribe({
       next: (response) => {
         this.clients = response.clients;
       },
@@ -82,7 +82,7 @@ export class ClientPaymentsComponent implements OnInit {
     this.loading = true;
     let url = `${environment.apiUrl}/client-payments?`;
     const params = new URLSearchParams();
-    
+
     if (this.filters.clientId) {
       params.append('clientId', this.filters.clientId.toString());
     }
@@ -92,7 +92,7 @@ export class ClientPaymentsComponent implements OnInit {
     if (this.filters.endDate) {
       params.append('endDate', this.filters.endDate);
     }
-    
+
     url += params.toString();
 
     this.http.get<ClientPayment[]>(url).subscribe({

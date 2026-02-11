@@ -22,7 +22,7 @@ export class ReviewComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private inventoryService: InventoryService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.loadSessionData();
@@ -101,7 +101,7 @@ export class ReviewComponent implements OnInit {
     if (!session.items || session.items.length === 0) {
       return [];
     }
-    
+
     return session.items.map((item: any) => ({
       id: item.id,
       sessionId: item.sessionId,
@@ -130,7 +130,7 @@ export class ReviewComponent implements OnInit {
     if (!summary.ecarts || summary.ecarts.length === 0) {
       return [];
     }
-    
+
     return summary.ecarts.map(ecart => ({
       id: ecart.productId, // Use productId as temporary id
       sessionId: summary.session.id,

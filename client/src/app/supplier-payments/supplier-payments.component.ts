@@ -13,7 +13,7 @@ import { ErrorDialogData } from '../core/services/error-handling.service';
 @Component({
   selector: 'app-supplier-payments',
   templateUrl: './supplier-payments.component.html',
-  standalone: true, 
+  standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, ErrorDialogComponent]
 })
 export class SupplierPaymentsComponent implements OnInit {
@@ -28,7 +28,7 @@ export class SupplierPaymentsComponent implements OnInit {
   errorDialogData: ErrorDialogData | null = null;
   // Keep a local, always-fresh map of supplier debts sourced from summaries
   private supplierDebtMap: Record<number, number> = {};
-  
+
   // Form data
   paymentForm = {
     supplierId: null as number | null,
@@ -49,7 +49,7 @@ export class SupplierPaymentsComponent implements OnInit {
     private http: HttpClient,
     private supplierService: SupplierService,
     private sessionsService: SessionsService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.loadSuppliers();

@@ -16,6 +16,12 @@ export interface SupplierCredit {
     totalCredit: number;
 }
 
+export interface ClientCredit {
+    depotId: number | 'unassigned';
+    depotName: string;
+    totalCredit: number;
+}
+
 export interface BoutiqueExpense {
     depotId: number;
     depotName: string;
@@ -27,9 +33,11 @@ export interface DashboardStats {
     totalExpenses: number;
     totalNet: number;
     totalSupplierCredit: number;
+    totalClientCredit: number;
 
     revenueByBoutique: BoutiqueRevenue[];
     revenueByDepot: DepotRevenue[];
     supplierCreditByDepot: SupplierCredit[];
+    clientCreditByDepot: ClientCredit[];
     expensesByBoutique: BoutiqueExpense[];
 }

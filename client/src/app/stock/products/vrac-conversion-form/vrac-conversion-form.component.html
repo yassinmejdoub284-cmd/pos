@@ -3,28 +3,26 @@
     <div class="inline-block w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
     <span class="text-slate-500 text-sm ml-2">Chargement des conversions existantes...</span>
   </div>
-  
+
   <div>
     <label class="block text-sm font-medium text-slate-600 mb-2">Sélectionner les produits</label>
     <div class="mb-3">
-      <input type="text" [(ngModel)]="searchVracQuery" 
-             class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
-             placeholder="Rechercher un produit...">
+      <input type="text" [(ngModel)]="searchVracQuery"
+        class="w-full px-4 py-2 bg-slate-100/50 border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+        placeholder="Rechercher un produit...">
     </div>
-    
+
     <div class="max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-2">
-      <div *ngFor="let vracProduct of getFilteredVracProducts()" 
-           class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-           [class.bg-indigo-50]="isVracProductSelected(vracProduct.id)"
-           (click)="toggleVracProduct(vracProduct)">
+      <div *ngFor="let vracProduct of getFilteredVracProducts()"
+        class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+        [class.bg-indigo-50]="isVracProductSelected(vracProduct.id)" (click)="toggleVracProduct(vracProduct)">
         <div class="flex items-center gap-3">
-          <input type="checkbox" 
-                 [checked]="isVracProductSelected(vracProduct.id)"
-                 (click)="$event.stopPropagation(); toggleVracProduct(vracProduct)"
-                 class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+          <input type="checkbox" [checked]="isVracProductSelected(vracProduct.id)"
+            (click)="$event.stopPropagation(); toggleVracProduct(vracProduct)"
+            class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
           <span class="text-slate-800 font-medium">{{ vracProduct.name }}</span>
         </div>
-        <span class="text-sm text-slate-500">{{ vracProduct.prix_vente_TTC | number:'1.2-2' }} TND</span>
+        <span class="text-sm text-slate-500">{{ vracProduct.prix_vente_TTC | number:'1.2-2' }} DT</span>
       </div>
       <div *ngIf="getFilteredVracProducts().length === 0" class="text-center py-4 text-slate-500">
         <span>Aucun produit disponible</span>
@@ -34,13 +32,12 @@
 
   <div *ngIf="selectedConversions.length > 0" class="space-y-4 pt-4 border-t border-slate-200">
     <span class="text-sm font-semibold text-slate-700 block mb-3">Configuration des conversions</span>
-    
-    <div *ngFor="let conversion of selectedConversions; let i = index" 
-         class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+
+    <div *ngFor="let conversion of selectedConversions; let i = index"
+      class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
       <div class="flex items-center justify-between mb-2">
         <span class="text-sm font-semibold text-indigo-800">{{ conversion.vracProductName }}</span>
-        <button (click)="removeConversion(i)" 
-                class="text-red-500 hover:text-red-700 transition-colors">
+        <button (click)="removeConversion(i)" class="text-red-500 hover:text-red-700 transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -51,15 +48,13 @@
         <label class="block text-sm font-medium text-slate-600 mb-2">Type de gestion</label>
         <div class="space-y-2">
           <label class="flex items-center">
-            <input type="radio" [checked]="conversion.isStockable" 
-                   (change)="updateConversion(i, 'isStockable', true)"
-                   class="mr-2 text-primary-500 focus:ring-pink-500">
+            <input type="radio" [checked]="conversion.isStockable" (change)="updateConversion(i, 'isStockable', true)"
+              class="mr-2 text-primary-500 focus:ring-pink-500">
             <span class="text-slate-800">Gérable (quantité & prix)</span>
           </label>
           <label class="flex items-center">
-            <input type="radio" [checked]="!conversion.isStockable" 
-                   (change)="updateConversion(i, 'isStockable', false)"
-                   class="mr-2 text-primary-500 focus:ring-pink-500">
+            <input type="radio" [checked]="!conversion.isStockable" (change)="updateConversion(i, 'isStockable', false)"
+              class="mr-2 text-primary-500 focus:ring-pink-500">
             <span class="text-slate-800">Non Gérable (prix seulement)</span>
           </label>
         </div>
@@ -69,12 +64,10 @@
         <label class="block text-sm font-medium text-slate-600 mb-2">Ratio de Conversion *</label>
         <div class="flex items-center gap-2">
           <span class="text-sm text-slate-600">1 article =</span>
-          <input type="number" 
-                 [value]="conversion.conversionRatio" 
-                 (input)="updateConversion(i, 'conversionRatio', +$any($event.target).value)"
-                 step="0.001" min="0.001"
-                 class="flex-1 px-4 py-2 bg-white border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
-                 placeholder="Ex: 13">
+          <input type="number" [value]="conversion.conversionRatio"
+            (input)="updateConversion(i, 'conversionRatio', +$any($event.target).value)" step="0.001" min="0.001"
+            class="flex-1 px-4 py-2 bg-white border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+            placeholder="Ex: 13">
           <span class="text-sm text-slate-600">articles cibles</span>
         </div>
         <span class="text-xs text-slate-500 mt-1 block">
@@ -85,23 +78,19 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2 border-t border-slate-200/50">
         <div>
           <label class="block text-sm font-medium text-slate-600 mb-2">Prix de Vente en Vrac</label>
-          <input type="number" 
-                 [value]="conversion.prix_vente_vrac" 
-                 (input)="updateConversion(i, 'prix_vente_vrac', +$any($event.target).value)"
-                 step="0.01" min="0"
-                 class="w-full px-4 py-2 bg-white border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
-                 placeholder="0">
+          <input type="number" [value]="conversion.prix_vente_vrac"
+            (input)="updateConversion(i, 'prix_vente_vrac', +$any($event.target).value)" step="0.01" min="0"
+            class="w-full px-4 py-2 bg-white border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+            placeholder="0">
           <span class="text-xs text-slate-500 mt-1 block">Prix de vente pour la version vrac</span>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-slate-600 mb-2">Prix d'Achat en Vrac</label>
-          <input type="number" 
-                 [value]="conversion.prix_achat_vrac" 
-                 (input)="updateConversion(i, 'prix_achat_vrac', +$any($event.target).value)"
-                 step="0.001" min="0"
-                 class="w-full px-4 py-2 bg-white border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
-                 placeholder="0">
+          <input type="number" [value]="conversion.prix_achat_vrac"
+            (input)="updateConversion(i, 'prix_achat_vrac', +$any($event.target).value)" step="0.001" min="0"
+            class="w-full px-4 py-2 bg-white border border-slate-200/50 rounded-2xl text-slate-800 placeholder-gray-400 focus:ring-2 focus:ring-pink-400 focus:border-indigo-600 transition-all"
+            placeholder="0">
           <span class="text-xs text-slate-500 mt-1 block">Prix d'achat pour la version vrac</span>
         </div>
       </div>
@@ -109,20 +98,19 @@
       <div *ngIf="conversion.conversionRatio > 0" class="bg-green-50 border border-green-200 rounded-xl p-3">
         <span class="text-sm font-semibold text-green-800 block mb-1">Quantité Vrac Calculée</span>
         <span class="text-lg font-bold text-green-900">
-          1 produit source = {{ getTargetQuantity(conversion.conversionRatio) | number:'1.0-3' }} {{ conversion.vracProductName }}
+          1 produit source = {{ getTargetQuantity(conversion.conversionRatio) | number:'1.0-3' }} {{
+          conversion.vracProductName }}
         </span>
       </div>
     </div>
   </div>
 
   <div class="flex space-x-3 pt-4">
-    <button (click)="onSubmit()" 
-            [disabled]="selectedConversions.length === 0"
-            class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-slate-800 px-4 py-2 rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+    <button (click)="onSubmit()" [disabled]="selectedConversions.length === 0"
+      class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-slate-800 px-4 py-2 rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
       Convertir
     </button>
-    <button (click)="onCancel()" 
-            class="flex-1 bg-slate-200 text-slate-800 px-4 py-2 rounded-2xl transition-all">
+    <button (click)="onCancel()" class="flex-1 bg-slate-200 text-slate-800 px-4 py-2 rounded-2xl transition-all">
       Annuler
     </button>
   </div>

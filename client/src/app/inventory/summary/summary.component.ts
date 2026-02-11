@@ -16,7 +16,7 @@ export class SummaryComponent implements OnInit {
   summary: InventorySummary | null = null;
   loading = false;
   error = '';
-  
+
   // Stock products filtering
   stockProducts: ProduitDeStock[] = [];
   hasStockProductsInDepot = false;
@@ -29,7 +29,7 @@ export class SummaryComponent implements OnInit {
     private inventoryService: InventoryService,
     private depotsService: DepotsService,
     private produitsDeStockService: ProduitsDeStockService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     const depotId = this.route.snapshot.paramMap.get('depotId');
@@ -44,7 +44,7 @@ export class SummaryComponent implements OnInit {
 
   loadDepot(): void {
     if (!this.depotId) return;
-    
+
     this.depotsService.get(this.depotId).subscribe({
       next: (depot) => {
         this.depotType = depot.type;
@@ -62,7 +62,7 @@ export class SummaryComponent implements OnInit {
         this.stockProducts = stockProducts;
 
         this.checkDepotHasStockProducts();
-        
+
         // Process data after stock products are loaded
         this.processDataAfterStockProductsLoaded();
       },
@@ -79,10 +79,10 @@ export class SummaryComponent implements OnInit {
     }
 
     // Check if any stock products are assigned to this depot
-    this.hasStockProductsInDepot = this.stockProducts.some(stockProduct => 
+    this.hasStockProductsInDepot = this.stockProducts.some(stockProduct =>
       stockProduct.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
     );
-    
+
 
 
   }
@@ -93,7 +93,7 @@ export class SummaryComponent implements OnInit {
 
 
 
-    
+
     // Process summary data to show stock products if needed
     if (this.summary && this.showStockProductsDirectly && this.hasStockProductsInDepot) {
 
@@ -101,7 +101,7 @@ export class SummaryComponent implements OnInit {
     } else {
 
     }
-    
+
     // Process session items to show stock products if needed
     if (this.session && this.showStockProductsDirectly && this.hasStockProductsInDepot) {
 
@@ -122,7 +122,7 @@ export class SummaryComponent implements OnInit {
     ]).then(([session, summary]) => {
       this.session = session || null;
       this.summary = summary || null;
-      
+
 
       this.loading = false;
     }).catch((err) => {
@@ -145,13 +145,13 @@ export class SummaryComponent implements OnInit {
     // We just need to update the product name to show the stock product name
     this.summary.ecarts = this.summary.ecarts.map(ecart => {
 
-      
+
       // Find the stock product by its ID (since productId is already the stock product ID)
-      const stockProduct = this.stockProducts.find(sp => 
+      const stockProduct = this.stockProducts.find(sp =>
         sp.id === ecart.productId &&
         sp.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
       );
-      
+
       if (stockProduct) {
 
         return {
@@ -162,7 +162,7 @@ export class SummaryComponent implements OnInit {
       } else {
 
       }
-      
+
       return ecart;
     });
   }
@@ -174,11 +174,11 @@ export class SummaryComponent implements OnInit {
     // We just need to update the product name to show the stock product name
     this.session.items = this.session.items.map(item => {
       // Find the stock product by its ID (since productId is already the stock product ID)
-      const stockProduct = this.stockProducts.find(sp => 
+      const stockProduct = this.stockProducts.find(sp =>
         sp.id === item.productId &&
         sp.depotAssignments?.some(assignment => assignment.depotId === this.depotId)
       );
-      
+
       if (stockProduct && item.product) {
         return {
           ...item,
@@ -190,7 +190,7 @@ export class SummaryComponent implements OnInit {
           }
         };
       }
-      
+
       return item;
     });
   }
@@ -336,7 +336,7 @@ export class SummaryComponent implements OnInit {
 
     const currentDate = new Date().toLocaleDateString('fr-FR');
     const sessionDate = this.formatDate(this.session.startedAt);
-    
+
     let content = `
       <!DOCTYPE html>
       <html>
@@ -411,7 +411,7 @@ export class SummaryComponent implements OnInit {
         const ecartClass = (ecart.ecartQuantity || 0) > 0 ? 'positive' : 'negative';
         const ecartSign = (ecart.ecartQuantity || 0) > 0 ? '+' : '';
         const valueSign = (ecart.ecartValue || 0) > 0 ? '+' : '';
-        
+
         content += `
           <tr>
             <td>${ecart.productName}</td>

@@ -52,22 +52,22 @@ export class ClientStatementDetailComponent implements OnInit {
   statement: ClientStatement | null = null;
   loading = false;
   isAdmin = false;
-  
+
   // Ticket Dialog
   showTicketDialog = false;
   selectedTicketId: number | null = null;
-  
+
   // Payment Dialog
   showPaymentDialog = false;
   selectedPaymentId: number | null = null;
-  
+
   // Notification
   showNotification = false;
   notificationType: 'success' | 'error' | 'info' = 'success';
   notificationTitle = '';
   notificationMessage = '';
   notificationDetails: string[] = [];
-  
+
   // Filters
   filters = {
     clientId: null as number | null,
@@ -81,11 +81,11 @@ export class ClientStatementDetailComponent implements OnInit {
     private http: HttpClient,
     private authService: AuthService,
     private printService: PrintService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
-    
+
     // Combine route params and query params
     combineLatest([this.route.params, this.route.queryParams]).subscribe(([routeParams, queryParams]) => {
       const clientId = routeParams['id'];
@@ -95,14 +95,14 @@ export class ClientStatementDetailComponent implements OnInit {
           this.filters.clientId = id;
         }
       }
-      
+
       if (queryParams['startDate']) {
         this.filters.startDate = queryParams['startDate'];
       }
       if (queryParams['endDate']) {
         this.filters.endDate = queryParams['endDate'];
       }
-      
+
       // Load statement and check for print parameter
       if (this.filters.clientId) {
         this.loadStatement(queryParams['print']);
@@ -118,14 +118,14 @@ export class ClientStatementDetailComponent implements OnInit {
     this.loading = true;
     let url = `${environment.apiUrl}/client-statements/${this.filters.clientId}/statement?`;
     const params = new URLSearchParams();
-    
+
     if (this.filters.startDate) {
       params.append('startDate', this.filters.startDate);
     }
     if (this.filters.endDate) {
       params.append('endDate', this.filters.endDate);
     }
-    
+
     url += params.toString();
 
     this.http.get<ClientStatement>(url).subscribe({
@@ -133,7 +133,7 @@ export class ClientStatementDetailComponent implements OnInit {
         this.statement = statement;
         this.selectedClient = statement.client;
         this.loading = false;
-        
+
         // Auto-print if requested
         if (printType) {
           setTimeout(() => {
@@ -180,7 +180,7 @@ export class ClientStatementDetailComponent implements OnInit {
   }
 
   getTransactionTypeColor(type: string): string {
-    const colors: { [key: string]: string} = {
+    const colors: { [key: string]: string } = {
       'credit': 'text-orange-600 bg-orange-50',
       'debt': 'text-orange-600 bg-orange-50',
       'payment': 'text-green-600 bg-green-50'
@@ -223,7 +223,7 @@ export class ClientStatementDetailComponent implements OnInit {
 
     // Create CSV content
     const csvContent = this.generateCSV();
-    
+
     // Create and download file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -460,7 +460,7 @@ export class ClientStatementDetailComponent implements OnInit {
       return;
     }
 
-    const confirmMessage = item.credit > 0 
+    const confirmMessage = item.credit > 0
       ? `Êtes-vous sûr de vouloir supprimer ce paiement de ${this.formatAmount(item.credit)} ?\n\nCette action va:\n- Restaurer le stock du ticket\n- Retirer le montant de la clôture de caisse\n- Mettre à jour la dette du client`
       : `Êtes-vous sûr de vouloir supprimer cette vente de ${this.formatAmount(item.debit)} ?\n\nCette action va:\n- Restaurer le stock du ticket\n- Mettre à jour la dette du client`;
 
@@ -470,7 +470,7 @@ export class ClientStatementDetailComponent implements OnInit {
 
     // Determine transaction IDs to delete
     const transactionIds = item.transactionIds || (item.transactionId ? [item.transactionId] : []);
-    
+
     if (transactionIds.length === 0) {
       alert('Impossible de supprimer: aucune transaction associée');
       return;
@@ -496,16 +496,16 @@ export class ClientStatementDetailComponent implements OnInit {
         const isCredit = item.credit > 0;
         const amount = isCredit ? item.credit : item.debit;
         const transactionType = isCredit ? 'Paiement' : 'Vente';
-        
+
         this.notificationType = 'success';
         this.notificationTitle = `${transactionType} supprimée avec succès`;
         this.notificationMessage = `${transactionType} de ${this.formatAmount(amount)} supprimée`;
         this.notificationDetails = [];
-        
+
         // Add details about what was deleted
         this.notificationDetails.push(`📋 ${item.reference}`);
         this.notificationDetails.push(`💰 Montant: ${this.formatAmount(amount)}`);
-        
+
         // Add details about actions performed
         if (isCredit && item.saleId) {
           this.notificationDetails.push('✅ Stock restauré pour ce ticket');
@@ -513,42 +513,42 @@ export class ClientStatementDetailComponent implements OnInit {
         } else if (!isCredit && item.saleId) {
           this.notificationDetails.push('✅ Stock restauré pour ce ticket');
         }
-        
+
         this.notificationDetails.push('✅ Dette du client mise à jour');
-        
+
         if (response.stockRestored) {
           this.notificationDetails.push('✅ Articles retournés au stock');
         }
-        
+
         if (response.transactionsDeleted > 1) {
           this.notificationDetails.push(`✅ ${response.transactionsDeleted} transactions supprimées`);
         }
-        
+
         this.showNotification = true;
-        
+
         // Auto-hide after 5 seconds
         setTimeout(() => {
           this.hideNotification();
         }, 5000);
-        
+
         // Reload the statement
         this.loadStatement();
       },
       error: (error) => {
         console.error('Error deleting transaction:', error);
-        
+
         // Show error notification
         this.notificationType = 'error';
         this.notificationTitle = 'Erreur lors de la suppression';
         this.notificationMessage = error.error?.error || 'Une erreur est survenue lors de la suppression de la transaction';
         this.notificationDetails = [];
         this.showNotification = true;
-        
+
         // Auto-hide after 5 seconds
         setTimeout(() => {
           this.hideNotification();
         }, 5000);
-        
+
         this.loading = false;
       }
     });

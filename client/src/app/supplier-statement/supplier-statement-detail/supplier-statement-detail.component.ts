@@ -6,10 +6,10 @@ import { combineLatest } from 'rxjs';
 import { SupplierService } from '../../core/services/supplier.service';
 import { PrintService } from '../../core/services/print.service';
 import { AuthService } from '../../core/services/auth.service';
-import { 
-  Supplier, 
-  SupplierStatement, 
-  SupplierStatementItem 
+import {
+  Supplier,
+  SupplierStatement,
+  SupplierStatementItem
 } from '../../core/models/supplier.model';
 
 @Component({
@@ -23,7 +23,7 @@ export class SupplierStatementDetailComponent implements OnInit {
   statement: SupplierStatement | null = null;
   loading = false;
   isAdmin = false;
-  
+
   // Filters
   filters = {
     supplierId: null as number | null,
@@ -37,11 +37,11 @@ export class SupplierStatementDetailComponent implements OnInit {
     private supplierService: SupplierService,
     private printService: PrintService,
     private authService: AuthService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
-    
+
     // Combine route params and query params
     combineLatest([this.route.params, this.route.queryParams]).subscribe(([routeParams, queryParams]) => {
       const supplierId = routeParams['id'];
@@ -51,14 +51,14 @@ export class SupplierStatementDetailComponent implements OnInit {
           this.filters.supplierId = id;
         }
       }
-      
+
       if (queryParams['startDate']) {
         this.filters.startDate = queryParams['startDate'];
       }
       if (queryParams['endDate']) {
         this.filters.endDate = queryParams['endDate'];
       }
-      
+
       // Load statement and check for print parameter
       if (this.filters.supplierId) {
         this.loadStatement(queryParams['print']);
@@ -73,15 +73,15 @@ export class SupplierStatementDetailComponent implements OnInit {
 
     this.loading = true;
     this.supplierService.getSupplierStatement(
-      this.filters.supplierId, 
-      this.filters.startDate, 
+      this.filters.supplierId,
+      this.filters.startDate,
       this.filters.endDate
     ).subscribe({
       next: (statement) => {
         this.statement = statement;
         this.selectedSupplier = statement.supplier;
         this.loading = false;
-        
+
         // Auto-print if requested
         if (printType) {
           setTimeout(() => {
@@ -145,17 +145,17 @@ export class SupplierStatementDetailComponent implements OnInit {
   onReferenceClick(item: SupplierStatementItem): void {
     if (item.clickable) {
       let bonId = item.bonId;
-      
+
       if (!bonId && item.reference && item.reference.startsWith('Bon d\'entrée #')) {
         const match = item.reference.match(/Bon d'entrée #(\d+)/);
         if (match) {
           bonId = parseInt(match[1], 10);
         }
       }
-      
+
       if (bonId) {
         const isBonRetour = item.type === 'bon_retour' || (item as any).documentType === 'BON_EXPEDITION';
-        
+
         if (isBonRetour) {
           this.router.navigate(['/stock/documents/bon-retour/edit', bonId]);
         } else {
@@ -292,13 +292,13 @@ export class SupplierStatementDetailComponent implements OnInit {
         </table>
         <div class="summary">
           <div class="summary-item">
-            <strong>Total Débit:</strong> ${this.formatNumber3(statement.totalDebit)} TND
+            <strong>Total Débit:</strong> ${this.formatNumber3(statement.totalDebit)} DT
           </div>
           <div class="summary-item">
-            <strong>Total Crédit:</strong> ${this.formatNumber3(statement.totalCredit)} TND
+            <strong>Total Crédit:</strong> ${this.formatNumber3(statement.totalCredit)} DT
           </div>
           <div class="summary-item">
-            <strong>Solde Actuel:</strong> ${this.formatNumber3(statement.currentBalance)} TND
+            <strong>Solde Actuel:</strong> ${this.formatNumber3(statement.currentBalance)} DT
           </div>
         </div>
       </body>
@@ -336,7 +336,7 @@ export class SupplierStatementDetailComponent implements OnInit {
 
     // Create CSV content
     const csvContent = this.generateCSV();
-    
+
     // Create and download file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');

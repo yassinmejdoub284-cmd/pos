@@ -29,7 +29,7 @@ export class ApprovalsHistoryComponent implements OnInit {
     private salesService: SalesService,
     private expenseService: ExpenseService,
     private approvalsService: ApprovalsService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.loadData();
@@ -72,11 +72,11 @@ export class ApprovalsHistoryComponent implements OnInit {
           }
         });
       },
-      error: () => {}
+      error: () => { }
     });
   }
 
-  applyFilters(): void {}
+  applyFilters(): void { }
 
   clearFilters(): void {
     this.searchQuery = '';

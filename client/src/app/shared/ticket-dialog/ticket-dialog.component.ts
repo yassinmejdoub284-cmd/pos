@@ -18,7 +18,7 @@ export class TicketDialogComponent implements OnInit, OnChanges {
   loading = false;
   error: string | null = null;
 
-  constructor(private salesService: SalesService) {}
+  constructor(private salesService: SalesService) { }
 
   onBackdropClick(event: Event): void {
     if (event.target === event.currentTarget) {

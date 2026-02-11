@@ -138,7 +138,7 @@ export class PrintService {
         </html>
       `);
       printWindow.document.close();
-      
+
       let hasPrinted = false;
 
       printWindow.onload = () => {
@@ -209,7 +209,7 @@ export class PrintService {
     if (printWindow) {
       printWindow.document.write(html);
       printWindow.document.close();
-      
+
       let hasPrinted = false;
 
       // Wait for content to load before printing
@@ -422,7 +422,7 @@ export class PrintService {
     this.settingsService.getSettings().subscribe({
       next: async (settings) => {
         const doublePrint = settings?.printSettings?.doubleImpression || false;
-        
+
         // Check if desktop version is enabled
         if (settings?.isDesktopVersion) {
           // Use Tauri direct printing with text format
@@ -430,7 +430,7 @@ export class PrintService {
           const text = this.buildSaleReceiptText(sale, settings);
           try {
             await this.printPlainTextDesktop(text);
-            
+
             // Double print if enabled
             if (doublePrint) {
               // Small delay between prints
@@ -545,7 +545,7 @@ export class PrintService {
     const printOnce = () => {
       // Create a new window for printing
       const printWindow = window.open('', '_blank', 'width=400,height=600');
-      
+
       if (!printWindow) {
         console.error('Could not open print window');
         return;
@@ -644,7 +644,7 @@ export class PrintService {
   // Helper method to get ticket number for printing
   private getTicketNumberForPrint(sale: any): string {
     let ticketNumber = sale.id.toString().padStart(4, '0'); // Default fallback
-    
+
     if (sale.dailyTicketNumber) {
       if (sale.dailyTicketNumber.includes('/')) {
         ticketNumber = sale.dailyTicketNumber.split('/')[1];
@@ -652,7 +652,7 @@ export class PrintService {
         ticketNumber = sale.dailyTicketNumber;
       }
     }
-    
+
     return ticketNumber;
   }
 
@@ -676,7 +676,7 @@ export class PrintService {
     const companyName = settings?.companyName || 'PATISSERIE MODERNE';
     const companyAddress = settings?.companyAddress || '';
     const companyPhone = settings?.companyPhone || '';
-    
+
     escpos += this.sanitizeForThermalPrinter(companyName) + '\n';
     if (companyAddress) escpos += this.sanitizeForThermalPrinter(companyAddress) + '\n';
     if (companyPhone) escpos += this.sanitizeForThermalPrinter(companyPhone) + '\n';
@@ -814,14 +814,14 @@ export class PrintService {
       return `${day}/${month} ${hours}:${minutes}`;
     };
     const closingTime = formatDateNoYearWithTime(closedDate);
-    
+
     // Add decorative top border
     escpos += '================================\n';
-    
+
     // Center both title and date on the same line
     escpos += '\x1B\x61\x01'; // Center align
     escpos += 'Extr. Journalière - ' + closingTime + '\n';
-    
+
     // Add decorative bottom border
     escpos += '================================\n\n';
 
@@ -831,12 +831,12 @@ export class PrintService {
     const summary = sessionReport.summary;
 
     // Opening fund - keep but do not print session/user lines above
-    const sessionOpeningFund = session.openingFund || 
-                              session.opening_fund || 
-                              session.fondsInitial || 
-                              sessionReport.openingFund ||
-                              sessionReport.fondsInitial ||
-                              0;
+    const sessionOpeningFund = session.openingFund ||
+      session.opening_fund ||
+      session.fondsInitial ||
+      sessionReport.openingFund ||
+      sessionReport.fondsInitial ||
+      0;
 
     // Sales by family with detailed products
 
@@ -851,7 +851,7 @@ export class PrintService {
     const normalizeFamily = (name: any): string => (name ?? '').toString().trim();
 
 
-    
+
     if (sales.length) {
       const tempMap: Record<string, Record<string, { name: string; quantity: number; revenue: number }>> = {};
       for (const sale of sales) {
@@ -914,56 +914,56 @@ export class PrintService {
     }
 
     // Add total for family products
-    const totalFamilySales = sessionReport.families && sessionReport.families.length > 0 
+    const totalFamilySales = sessionReport.families && sessionReport.families.length > 0
       ? sessionReport.families.reduce((sum: number, family: any) => {
-          const famName = normalizeFamily(family.name || 'AUTRES');
-          const familyTotal = Number(family.totalRevenue || family.total || family.amount || family.amountTTC || 0)
-            || (familyToProducts[famName]?.reduce((s, p) => s + p.revenue, 0) || 0);
-          return sum + familyTotal;
-        }, 0)
-      : Object.values(familyToProducts).reduce((sum, products) => 
-          sum + products.reduce((s, p) => s + p.revenue, 0), 0);
-    
+        const famName = normalizeFamily(family.name || 'AUTRES');
+        const familyTotal = Number(family.totalRevenue || family.total || family.amount || family.amountTTC || 0)
+          || (familyToProducts[famName]?.reduce((s, p) => s + p.revenue, 0) || 0);
+        return sum + familyTotal;
+      }, 0)
+      : Object.values(familyToProducts).reduce((sum, products) =>
+        sum + products.reduce((s, p) => s + p.revenue, 0), 0);
+
     escpos += '-------------------------------\n';
     const totalAmount = this.formatCurrency(totalFamilySales);
     const totalWidth = 30;
     const usedSpace = 'TOTAL:'.length + totalAmount.length;
     const dots = '.'.repeat(Math.max(1, totalWidth - usedSpace));
     escpos += 'TOTAL:' + dots + totalAmount + '\n';
-    
+
     // Calculate total discounts (remise) from all sales
     const totalDiscount = sales.reduce((sum: number, sale: any) => {
       const discount = parseFloat(sale.discount || 0) || 0;
       return sum + discount;
     }, 0);
-    
+
     if (totalDiscount > 0) {
       const discountAmount = this.formatCurrency(totalDiscount);
       const discountUsedSpace = 'Total remise:'.length + discountAmount.length;
       const discountDots = '.'.repeat(Math.max(1, totalWidth - discountUsedSpace));
       escpos += 'Total remise:' + discountDots + discountAmount + '\n';
     }
-    
+
     escpos += '\n';
-    
+
     // Show cancelled tickets section
     const allSales: any[] = sessionReport?.session?.sales || [];
     const cancelledTickets = allSales.filter((s: any) => {
       const status = String(s?.status || '').toUpperCase();
       return status === 'CANCELLED';
     });
-    
+
     if (cancelledTickets.length > 0) {
       escpos += '================================\n';
       escpos += '      TICKETS ANNULÉS\n';
       escpos += '================================\n';
-      
+
       let totalCancelledAmount = 0;
       cancelledTickets.forEach((ticket: any) => {
         const ticketNumber = ticket.dailyTicketNumber || ticket.sessionTicketNumber || ticket.ticketNumber || ticket.id;
         const ticketAmount = parseFloat(ticket.finalTotal || ticket.total || 0) || 0;
         totalCancelledAmount += ticketAmount;
-        
+
         const ticketLabel = `Ticket #${ticketNumber}:`;
         const amountStr = this.formatCurrency(ticketAmount);
         const labelWidth = ticketLabel.length;
@@ -971,7 +971,7 @@ export class PrintService {
         const spaces = ' '.repeat(spacesNeeded);
         escpos += ticketLabel + spaces + amountStr + '\n';
       });
-      
+
       escpos += '-------------------------------\n';
       const cancelledTotalStr = this.formatCurrency(totalCancelledAmount);
       const cancelledTotalUsedSpace = 'Total annulé:'.length + cancelledTotalStr.length;
@@ -988,14 +988,14 @@ export class PrintService {
     escpos += '################################\n';
     escpos += '        RÉSUMÉ FINANCIER\n';
     escpos += '################################\n';
-    
+
     const expectedCash = summary.expectedCash || 0;
     const totalSales = summary.totalSales || 0;
     const financialOpeningFund = session.openingFund || 0;
-    
+
     const financialTotalWidth = 32; // Increased width for better alignment
     const dtColumnPosition = 28; // Fixed position for DT column
-    
+
     const formatFinancialLine = (label: string, amount: number) => {
       const amountStr = this.formatCurrency(amount);
       // Calculate spaces needed to align DT at fixed column position
@@ -1004,24 +1004,24 @@ export class PrintService {
       const spaces = ' '.repeat(spacesNeeded);
       return label + spaces + amountStr;
     };
-    
+
     // Calculate encaissement using the same logic as cash closure component
     const getClientPaymentsTotal = () => parseFloat(summary.clientPaymentsTotal || 0) || 0;
-    
+
     const getTotalOrderAdvances = () => {
       const movements = session.cashMovements || [];
       return movements
         .filter((m: any) => {
           const reason = (m.reason || '').toLowerCase();
           return m.type === 'ENTREE' && (
-            reason.includes('acompte') || 
-            reason.includes('avance') || 
+            reason.includes('acompte') ||
+            reason.includes('avance') ||
             reason.includes('advance')
           );
         })
         .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
     };
-    
+
     const getCashFromSalesNetOfCredit = () => {
       // Calculate cash from sales using paidAmount from each sale (more accurate)
       // This matches the server calculation which uses paidAmount for each sale
@@ -1039,26 +1039,26 @@ export class PrintService {
         }, 0);
       return cashFromSales;
     };
-    
+
     const getFundingsTotal = () => {
       const movements = session.cashMovements || [];
       return movements
-        .filter((m: any) => (m?.type === 'ENTREE') && 
-          ((m?.reason || '').toLowerCase().includes('fonds de caisse') || 
-           (m?.reason || '').toLowerCase().includes('alimentation') || 
-           (m?.reason || '').toLowerCase().includes('alimenter')))
+        .filter((m: any) => (m?.type === 'ENTREE') &&
+          ((m?.reason || '').toLowerCase().includes('fonds de caisse') ||
+            (m?.reason || '').toLowerCase().includes('alimentation') ||
+            (m?.reason || '').toLowerCase().includes('alimenter')))
         .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
     };
-    
+
     // Add admin correction calculation
     const getAdminCorrections = () => {
       const movements = session.cashMovements || [];
       return movements
-        .filter((m: any) => m.type === 'ENTREE' && 
+        .filter((m: any) => m.type === 'ENTREE' &&
           (m.reason || '').toLowerCase().includes('correction admin'))
         .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
     };
-    
+
     // Add balance adjustment calculation
     const getBalanceAdjustments = () => {
       const movements = session.cashMovements || [];
@@ -1070,13 +1070,13 @@ export class PrintService {
           return sum + (m.type === 'ENTREE' ? amount : -amount);
         }, 0);
     };
-    
+
     const adminCorrections = getAdminCorrections();
     const balanceAdjustments = getBalanceAdjustments();
-    
+
     const actualEntries = getClientPaymentsTotal() + getTotalOrderAdvances() + getCashFromSalesNetOfCredit() + getFundingsTotal() + adminCorrections + (balanceAdjustments > 0 ? balanceAdjustments : 0);
     const actualExits = summary.sortie || 0 + (balanceAdjustments < 0 ? Math.abs(balanceAdjustments) : 0);
-    
+
     escpos += formatFinancialLine('Fonds initial:', financialOpeningFund) + '\n';
     if (adminCorrections > 0) {
       escpos += formatFinancialLine('Correction admin:', adminCorrections) + '\n';
@@ -1084,14 +1084,14 @@ export class PrintService {
     if (balanceAdjustments !== 0) {
       escpos += formatFinancialLine('Ajustement solde:', balanceAdjustments) + '\n';
     }
-    
+
     escpos += formatFinancialLine('Enc. client:', getClientPaymentsTotal()) + '\n';
     escpos += formatFinancialLine('Acomptes sur Cmd.:', getTotalOrderAdvances()) + '\n';
     escpos += formatFinancialLine('Alim. de caisse:', getFundingsTotal()) + '\n';
     // Espèces en caisse: total encaissement (sum of all encaissement items)
     const totalEncaissement = getClientPaymentsTotal() + getTotalOrderAdvances() + getFundingsTotal() + getCashFromSalesNetOfCredit();
     escpos += formatFinancialLine('Espèces en caisse:', totalEncaissement) + '\n';
-    
+
     // Calculate detailed décaissements
     const getExpensesTotal = () => {
       // First try to use server-provided expensesTotal from summary (most accurate)
@@ -1099,7 +1099,7 @@ export class PrintService {
       if (summaryExpensesTotal > 0) {
         return summaryExpensesTotal;
       }
-      
+
       // Fallback: calculate from expensesDetails if available
       const expensesDetails = (summary as any)?.expensesDetails || [];
       if (expensesDetails.length > 0) {
@@ -1108,18 +1108,18 @@ export class PrintService {
           return sum + amount;
         }, 0);
       }
-      
+
       // Final fallback: calculate from cash movements that are specifically expenses
       const movements = session.cashMovements || [];
       return movements
         .filter((m: any) => {
           const reasonLower = (m.reason || '').toLowerCase();
-          return m.type === 'SORTIE' && 
-                 (reasonLower.includes('dépense') || reasonLower.includes('depense')) &&
-                 !reasonLower.includes('fournisseur') &&
-                 !reasonLower.includes('supplier') &&
-                 !reasonLower.includes('remboursement') &&
-                 !reasonLower.includes('bon de retour');
+          return m.type === 'SORTIE' &&
+            (reasonLower.includes('dépense') || reasonLower.includes('depense')) &&
+            !reasonLower.includes('fournisseur') &&
+            !reasonLower.includes('supplier') &&
+            !reasonLower.includes('remboursement') &&
+            !reasonLower.includes('bon de retour');
         })
         .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
     };
@@ -1142,7 +1142,7 @@ export class PrintService {
     const getCanceledTicketRefunds = () => {
       const movements = session.cashMovements || [];
       const cancelledTicketIds = getCancelledTicketIds();
-      
+
       return movements
         .filter((m: any) => {
           const reason = String(m.reason || '').toLowerCase();
@@ -1150,12 +1150,12 @@ export class PrintService {
           const isDeleted = String(m.reason || '').includes('[SUPPRIMÉ]');
           const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
           const isCancellationRefund = reason.includes('ticket annulé') || reason.includes('ticket annule');
-          
-          return m.type === 'SORTIE' && 
-                 !isRejected && 
-                 !isDeleted &&
-                 (isFromCancelledTicket || isCancellationRefund) &&
-                 parseFloat(m.amount || 0) > 0;
+
+          return m.type === 'SORTIE' &&
+            !isRejected &&
+            !isDeleted &&
+            (isFromCancelledTicket || isCancellationRefund) &&
+            parseFloat(m.amount || 0) > 0;
         })
         .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
     };
@@ -1164,38 +1164,38 @@ export class PrintService {
     const getReturnRefunds = () => {
       const movements = session.cashMovements || [];
       const cancelledTicketIds = getCancelledTicketIds();
-      
+
       return movements
         .filter((m: any) => {
           const reason = String(m.reason || '').toLowerCase();
           const isRejected = String(m.reason || '').includes('[REJETÉ]');
           const isDeleted = String(m.reason || '').includes('[SUPPRIMÉ]');
           const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
-          const isReturnRefund = reason.includes('remboursement retour') || 
-                                  reason.includes('bon de retour') ||
-                                  reason.includes('retour');
+          const isReturnRefund = reason.includes('remboursement retour') ||
+            reason.includes('bon de retour') ||
+            reason.includes('retour');
           const isCancellationRefund = reason.includes('ticket annulé') || reason.includes('ticket annule');
-          
+
           // Return refunds are separate from ticket cancellation refunds
-          return m.type === 'SORTIE' && 
-                 !isRejected && 
-                 !isDeleted &&
-                 !isFromCancelledTicket &&
-                 !isCancellationRefund &&
-                 isReturnRefund &&
-                 parseFloat(m.amount || 0) > 0;
+          return m.type === 'SORTIE' &&
+            !isRejected &&
+            !isDeleted &&
+            !isFromCancelledTicket &&
+            !isCancellationRefund &&
+            isReturnRefund &&
+            parseFloat(m.amount || 0) > 0;
         })
         .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
     };
-    
+
     const getSupplierPayments = () => {
       const movements = session.cashMovements || [];
       return movements
-        .filter((m: any) => m.type === 'SORTIE' && 
+        .filter((m: any) => m.type === 'SORTIE' &&
           ((m.reason || '').toLowerCase().includes('fournisseur') ||
-           (m.reason || '').toLowerCase().includes('supplier')));
+            (m.reason || '').toLowerCase().includes('supplier')));
     };
-    
+
     // Show expenses with supplier name or notes (no category name)
     escpos += 'Dépense:\n';
     const expensesDetails = (summary as any)?.expensesDetails || [];
@@ -1204,7 +1204,7 @@ export class PrintService {
         const amount = parseFloat(expense.amount || 0) || 0;
         const notes = expense.notes || '';
         const supplierName = expense.supplierName || '';
-        
+
         // Format: SUPPLIERNAME (notes): amount aligned to DT column
         let expenseLabel = ' ';
         if (supplierName) {
@@ -1235,7 +1235,7 @@ export class PrintService {
         escpos += ' ' + spaces + amountStr + '\n';
       }
     }
-    
+
     // Show canceled ticket refunds and return refunds combined as "Annulation ticket"
     // Only count actual cash refund movements (real data from cash movements)
     const canceledTicketRefunds = getCanceledTicketRefunds();
@@ -1244,29 +1244,29 @@ export class PrintService {
     if (totalAnnulation > 0) {
       escpos += formatFinancialLine('Annulation ticket:', totalAnnulation) + '\n';
     }
-    
+
     // Show supplier payments section
     escpos += 'Règlement fournisseur:\n';
     const supplierPayments = getSupplierPayments();
     const supplierDetails = (summary as any)?.supplierPaymentsDetails || [];
-    
+
     if (supplierPayments.length > 0) {
       supplierPayments.forEach((payment: any) => {
         const amount = parseFloat(payment.amount || 0) || 0;
         const reason = payment.reason || '';
         let supplierName = 'Fournisseur';
-        
+
         // Try to extract supplierPayment id from reason: "Règlement fournisseur #<id> (FOURN:<supplierId>)"
         const idMatch = reason.match(/#(\d+)/);
         const paymentId = idMatch ? parseInt(idMatch[1], 10) : null;
-        
+
         if (supplierDetails && supplierDetails.length && paymentId) {
           const match = supplierDetails.find((d: any) => Number(d.id) === paymentId);
           if (match && match.supplierName) {
             supplierName = match.supplierName;
           }
         }
-        
+
         // Fallback: if reason contains a name in parentheses not just the FOURN code, try to extract
         if (supplierName === 'Fournisseur') {
           const paren = reason.match(/\(([^)]+)\)/);
@@ -1274,7 +1274,7 @@ export class PrintService {
             supplierName = paren[1].trim();
           }
         }
-        
+
         // Format: SUPPLIERNAME: amount aligned to DT column
         let supplierLabel = ' ';
         if (supplierName && supplierName !== 'Fournisseur') {
@@ -1294,7 +1294,7 @@ export class PrintService {
       const supplierPaymentsTotal = Array.isArray(supplierDetails) && supplierDetails.length > 0
         ? supplierDetails.reduce((sum: number, p: any) => sum + (parseFloat(p.amount || 0) || 0), 0)
         : 0;
-      
+
       if (supplierPaymentsTotal > 0) {
         const amountStr = this.formatCurrency(supplierPaymentsTotal);
         const labelWidth = 1; // Just the space
@@ -1305,12 +1305,12 @@ export class PrintService {
     }
     escpos += '-------------------------------\n';
     escpos += formatFinancialLine('Solde attendu:', expectedCash) + '\n';
-    
+
     if (withdrawalAmount > 0) {
       escpos += formatFinancialLine('Retrait central:', withdrawalAmount) + '\n';
       escpos += formatFinancialLine('Solde restant:', expectedCash - withdrawalAmount) + '\n';
     }
-    
+
     escpos += '================================\n\n';
     // Cut paper
     escpos += '\x1D\x56\x00';
@@ -1330,7 +1330,7 @@ export class PrintService {
         const qty = Number(item.quantity || 0).toString();
         const total = Number(item.total || 0).toFixed(3);
         const name = (item.productName || '').toString();
-        
+
         if (item.isWholesale && item.bundlePrice) {
           const bundleQty = Number(item.bundleQuantity || 0);
           const bundlePrice = Number(item.bundlePrice || 0);
@@ -1378,11 +1378,11 @@ export class PrintService {
     if (settings?.printSettings?.showLogo && settings?.logoUrl) {
       const logoSize = settings.printSettings.logoSize || 'medium';
       const logoUrl = this.settingsService.getAbsoluteLogoUrl(settings.logoUrl);
-      
+
       let logoWidth = '60px';
       if (logoSize === 'large') logoWidth = '80px';
       else if (logoSize === 'small') logoWidth = '40px';
-      
+
       logoHtml = `
         <div class="center" style="margin-bottom: 10px;">
           <img src="${logoUrl}" alt="Company Logo" style="max-width: ${logoWidth}; height: auto; max-height: 60px;" />
@@ -1474,20 +1474,20 @@ export class PrintService {
   buildSaleReceiptText(sale: Sale, settings: AppSettings | null): string {
     const createdAt = new Date(sale.createdAt);
     const isWholesale = this.isWholesaleSale(sale);
-    
+
     // For wholesale sales, use the detailed ticket format
     if (isWholesale) {
       return this.buildWholesaleReceiptText(sale, settings, createdAt);
     }
-    
+
     // For regular sales, use the standard format
     // Format date and time based on settings
     const dateFormat = settings?.printSettings?.dateFormat || 'dd/mm/yyyy';
     const timeFormat = settings?.printSettings?.timeFormat || '24h';
-    
+
     let date: string;
     let time: string;
-    
+
     if (dateFormat === 'dd/mm/yyyy') {
       date = createdAt.toLocaleDateString('fr-FR');
     } else if (dateFormat === 'mm/dd/yyyy') {
@@ -1495,7 +1495,7 @@ export class PrintService {
     } else {
       date = createdAt.toISOString().split('T')[0];
     }
-    
+
     if (timeFormat === '12h') {
       time = createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     } else {
@@ -1503,7 +1503,7 @@ export class PrintService {
     }
 
     let text = '';
-    
+
     // ESC/POS commands for formatting
     const ESC = '\x1B';
     const centerAlign = ESC + '\x61\x01'; // Center alignment
@@ -1515,13 +1515,13 @@ export class PrintService {
     const resetFont = ESC + '\x40';       // Initialize printer (resets font)
     const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
     const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
-    
+
     // Eliminate margins and set monospace font
     text += noTopMargin + noBottomMargin + monospaceFont;
-    
+
     // Header
     text += '================================\n';
-    
+
     // ASCII Art Logo "HD" - centered and smaller
     text += centerAlign + '  _   _ _____  \n';
     text += centerAlign + ' | | | |  __ \\ \n';
@@ -1529,12 +1529,12 @@ export class PrintService {
     text += centerAlign + ' |  _  | |  | |\n';
     text += centerAlign + ' | | | | |__| |\n';
     text += centerAlign + ' |_| |_|_____/ \n\n';
-    
+
     // Company name (double bold and centered) - sanitized for thermal printer
     // Company name (double bold and centered) - sanitized for thermal printer
     const resolvedCompanyName = settings?.companyName || 'PATISSERIE MODERNE';
     text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
-    
+
     // Company details (centered) - sanitized for thermal printer
     if (settings?.printSettings?.showCompanyDetails !== false) {
       if (settings?.companyAddress) {
@@ -1547,14 +1547,14 @@ export class PrintService {
         text += centerAlign + this.sanitizeForThermalPrinter(settings.companyEmail) + '\n';
       }
     }
-    
+
     text += centerAlign + '================================\n\n';
-    
+
     // Sale info
     text += `Date: ${date}     Heure: ${time}\n`;
     // Extract just the ticket number part (without session ID) for printing
     text += `Ticket: #${this.getTicketNumberForPrint(sale)}\n`;
-    
+
     // Client info (if enabled in settings) - sanitized for thermal printer
     if (settings?.printSettings?.showClientInfo) {
       const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : '';
@@ -1562,39 +1562,39 @@ export class PrintService {
         text += `Client: ${this.sanitizeForThermalPrinter(clientName)}\n`;
       }
     }
-    
+
     text += '------------------\n';
-    
+
     // Format currency based on settings
     const currencySymbol = settings?.printSettings?.currencySymbol || 'dt';
     const currencyPosition = settings?.printSettings?.currencyPosition || 'after';
-    
+
     const formatCurrency = (amount: number) => {
       // Round to 3 decimal places maximum and remove trailing zeros
       const rounded = Math.round(amount * 1000) / 1000;
       const formatted = rounded.toString();
       return currencyPosition === 'before' ? `${currencySymbol} ${formatted}` : `${formatted} ${currencySymbol}`;
     };
-    
+
     // Items header
     text += leftAlign + boldOn + 'Articles' + boldOff + '\n';
     text += '--------------------------------------------\n';
-    
+
     // Items - sanitized for thermal printer
     (sale.items || []).forEach(item => {
       const name = this.sanitizeForThermalPrinter((item.productName || '').toString());
       const qty = Number(item.quantity || 0);
       const unit = Number(item.unitPrice || 0);
       const total = Number(item.total || 0);
-      
+
       if (item.isWholesale) {
         const bundleQty = Number(item.bundleQuantity || 0);
         const bundleSize = Number(item.bundleSize || 1);
         const totalUnits = bundleQty * bundleSize;
-        
+
         // Format quantity: show as integer if whole number, otherwise 2 decimals
         const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
-        
+
         text += `${name} ${qtyFormatted}\n`;
         text += `${qtyFormatted} × ${unit.toFixed(2)} dt Gros\n`;
         if (bundleQty > 0 && bundleSize > 0) {
@@ -1605,28 +1605,28 @@ export class PrintService {
         // Regular item format
         // Format quantity: show as integer if whole number, otherwise 2 decimals
         const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
-        
+
         text += `${name}\n`;
         text += `${qtyFormatted} × ${unit.toFixed(2)} dt\n`;
         text += `${total.toFixed(2)} dt\n`;
       }
       text += '\n';
     });
-    
+
     text += '--------------------------------------------\n\n';
-    
+
     // Totals
     const discount = Number(sale.discount || 0);
     const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
     // Use finalTotal from database as TOTAL
     const total = Number(sale.finalTotal || subtotal - discount);
-    
+
     text += leftAlign + `Sous-total: ${subtotal.toFixed(2)} dt\n`;
     if (discount > 0) {
       text += leftAlign + `Remise: -${discount.toFixed(2)} dt\n`;
     }
     text += leftAlign + boldOn + `TOTAL A PAYER: ${total.toFixed(2)} dt` + boldOff + '\n';
-    
+
     // Advance payment (acompte) and remaining balance for temporary sales
     const advancePayment = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
     if (advancePayment > 0) {
@@ -1640,54 +1640,54 @@ export class PrintService {
         text += leftAlign + boldOn + `Reste à payer: ${remainingBalance.toFixed(2)} dt` + boldOff + '\n';
       }
     }
-    
+
     text += '--------------------------------------------\n';
-    
+
     // Payment section
     text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
-    
+
     // Payment type
     const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
     text += leftAlign + `Type de paiement: ${paymentTypeText}\n`;
-    
+
     // Payment method
     if (sale.paymentMethod) {
       text += leftAlign + `Méthode: ${this.sanitizeForThermalPrinter(sale.paymentMethod.name)}\n`;
     } else if (sale.status === 'TEMPORARY') {
       text += leftAlign + `Méthode: —\n`;
     }
-    
+
     text += '=========================================\n';
-    
+
     // Custom thank you message from settings - sanitized for thermal printer
     const thankYouMessage = this.sanitizeForThermalPrinter(settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!');
     text += centerAlign + thankYouMessage + '\n\n\n\n\n\n';
-    
+
     // Paper cut command
     text += ESC + '\x69'; // Full cut
     text += ESC + '\x64\x01'; // Feed 6 lines before cutting
-    
+
     // Open cash drawer for cash payments (espèces) - same logic for web and desktop
-    const isCashPayment = sale.paymentType === 'COMPTANT' || 
-                         (sale.paymentMethod && (
-                           sale.paymentMethod.id === 1 || 
-                           sale.paymentMethod.name?.toLowerCase().includes('espèces') ||
-                           sale.paymentMethod.name?.toLowerCase().includes('especes') ||
-                           sale.paymentMethod.name?.toLowerCase().includes('cash')
-                         ));
-    
+    const isCashPayment = sale.paymentType === 'COMPTANT' ||
+      (sale.paymentMethod && (
+        sale.paymentMethod.id === 1 ||
+        sale.paymentMethod.name?.toLowerCase().includes('espèces') ||
+        sale.paymentMethod.name?.toLowerCase().includes('especes') ||
+        sale.paymentMethod.name?.toLowerCase().includes('cash')
+      ));
+
     if (isCashPayment) {
       // ESC/POS command to open cash drawer: ESC p 0 25 250
       text += ESC + '\x70\x00\x19\xFA';
     }
-    
+
     return text;
   }
 
   // Build detailed receipt text for wholesale sales (matching ticket details modal format)
   private buildWholesaleReceiptText(sale: Sale, settings: AppSettings | null, createdAt: Date): string {
     let text = '';
-    
+
     // ESC/POS commands for formatting
     const ESC = '\x1B';
     const centerAlign = ESC + '\x61\x01'; // Center alignment
@@ -1698,13 +1698,13 @@ export class PrintService {
     const monospaceFont = ESC + '\x4D\x00'; // Select font A (monospace)
     const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
     const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
-    
+
     // Eliminate margins and set monospace font
     text += noTopMargin + noBottomMargin + monospaceFont;
-    
+
     // Header
     text += '================================\n';
-    
+
     // ASCII Art Logo "HD" - centered and smaller
     text += centerAlign + '  _   _ _____  \n';
     text += centerAlign + ' | | | |  __ \\ \n';
@@ -1712,12 +1712,12 @@ export class PrintService {
     text += centerAlign + ' |  _  | |  | |\n';
     text += centerAlign + ' | | | | |__| |\n';
     text += centerAlign + ' |_| |_|_____/ \n\n';
-    
+
     // Company name (double bold and centered) - sanitized for thermal printer
     // Company name (double bold and centered) - sanitized for thermal printer
     const resolvedCompanyName = settings?.companyName || 'PATISSERIE MODERNE';
     text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
-    
+
     // Company details (centered) - sanitized for thermal printer
     if (settings?.printSettings?.showCompanyDetails !== false) {
       if (settings?.companyAddress) {
@@ -1730,17 +1730,17 @@ export class PrintService {
         text += centerAlign + this.sanitizeForThermalPrinter(settings.companyEmail) + '\n';
       }
     }
-    
+
     text += centerAlign + '================================\n\n';
-    
+
     // Numéro de Ticket
     text += leftAlign + 'Numéro de Ticket\n';
     text += leftAlign + `#${this.getTicketNumberForPrint(sale)}\n`;
-    
+
     // Status
     const statusText = this.getStatusTextForPrint(sale.status || 'COMPLETED');
     text += leftAlign + `${statusText}\n\n`;
-    
+
     // Client info
     if (sale.client) {
       const clientName = `${sale.client.firstName} ${sale.client.lastName}`;
@@ -1754,40 +1754,40 @@ export class PrintService {
       text += leftAlign + 'Passager\n';
     }
     text += '\n';
-    
+
     // Caissier (Cashier)
     if (sale.user) {
       const cashierName = `${sale.user.firstName} ${sale.user.lastName}`;
       text += leftAlign + 'Caissier\n';
       text += leftAlign + `${this.sanitizeForThermalPrinter(cashierName)}\n`;
     }
-    
+
     // Date and time
     const shortDate = createdAt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
     const shortTime = createdAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     text += leftAlign + `${shortDate}, ${shortTime}\n\n`;
-    
+
     text += '------------------\n';
-    
+
     // Items header
     text += leftAlign + boldOn + 'Articles' + boldOff + '\n';
     text += '--------------------------------------------\n';
-    
+
     // Items - sanitized for thermal printer
     (sale.items || []).forEach(item => {
       const name = this.sanitizeForThermalPrinter((item.productName || '').toString());
       const qty = Number(item.quantity || 0);
       const unit = Number(item.unitPrice || 0);
       const total = Number(item.total || 0);
-      
+
       if (item.isWholesale) {
         const bundleQty = Number(item.bundleQuantity || 0);
         const bundleSize = Number(item.bundleSize || 1);
         const totalUnits = bundleQty * bundleSize;
-        
+
         // Format quantity: show as integer if whole number, otherwise 2 decimals
         const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
-        
+
         text += `${name} ${qtyFormatted}\n`;
         text += `${qtyFormatted} × ${unit.toFixed(2)} dt Gros\n`;
         if (bundleQty > 0 && bundleSize > 0) {
@@ -1803,21 +1803,21 @@ export class PrintService {
       }
       text += '\n';
     });
-    
+
     text += '--------------------------------------------\n\n';
-    
+
     // Payment section
     text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
-    
+
     // Payment type
     const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
     text += leftAlign + `Type de paiement: ${paymentTypeText}\n`;
-    
+
     // Payment method
     if (sale.paymentMethod) {
       text += leftAlign + `Méthode: ${this.sanitizeForThermalPrinter(sale.paymentMethod.name)}\n`;
     }
-    
+
     // Advance payment (acompte)
     const advancePayment = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
     if (advancePayment > 0) {
@@ -1826,45 +1826,45 @@ export class PrintService {
         text += leftAlign + `Méthode acompte: ${this.sanitizeForThermalPrinter(sale.advancePaymentMethod.name)}\n`;
       }
     }
-    
+
     text += '\n';
-    
+
     // Totals
     const discount = Number(sale.discount || 0);
     const subtotal = Number((sale.items || []).reduce((s, it) => s + (Number(it.total) || 0), 0));
     // Use finalTotal from database as TOTAL
     const total = Number(sale.finalTotal || subtotal - discount);
-    
+
     text += leftAlign + `Sous-total: ${subtotal.toFixed(2)} dt\n`;
     if (discount > 0) {
       text += leftAlign + `Remise: -${discount.toFixed(2)} dt\n`;
     }
     text += leftAlign + boldOn + `Total: ${total.toFixed(2)} dt` + boldOff + '\n';
-    
+
     text += '=========================================\n';
-    
+
     // Custom thank you message from settings - sanitized for thermal printer
     const thankYouMessage = this.sanitizeForThermalPrinter(settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!');
     text += centerAlign + thankYouMessage + '\n\n\n\n\n\n';
-    
+
     // Paper cut command
     text += ESC + '\x69'; // Full cut
     text += ESC + '\x64\x01'; // Feed 6 lines before cutting
-    
+
     // Open cash drawer for cash payments (espèces) - same logic for web and desktop
-    const isCashPayment = sale.paymentType === 'COMPTANT' || 
-                         (sale.paymentMethod && (
-                           sale.paymentMethod.id === 1 || 
-                           sale.paymentMethod.name?.toLowerCase().includes('espèces') ||
-                           sale.paymentMethod.name?.toLowerCase().includes('especes') ||
-                           sale.paymentMethod.name?.toLowerCase().includes('cash')
-                         ));
-    
+    const isCashPayment = sale.paymentType === 'COMPTANT' ||
+      (sale.paymentMethod && (
+        sale.paymentMethod.id === 1 ||
+        sale.paymentMethod.name?.toLowerCase().includes('espèces') ||
+        sale.paymentMethod.name?.toLowerCase().includes('especes') ||
+        sale.paymentMethod.name?.toLowerCase().includes('cash')
+      ));
+
     if (isCashPayment) {
       // ESC/POS command to open cash drawer: ESC p 0 25 250
       text += ESC + '\x70\x00\x19\xFA';
     }
-    
+
     return text;
   }
 
@@ -1948,7 +1948,7 @@ export class PrintService {
     if (s === 'CADEAU') {
       return 'CADEAU';
     }
-    
+
     switch (paymentType.toUpperCase()) {
       case 'COMPTANT':
         return 'Comptant';
@@ -2103,7 +2103,7 @@ export class PrintService {
   private printInvoiceInBrowser(invoice: any, settings?: AppSettings | null): void {
     // Create a new window for printing
     const printWindow = window.open('', '_blank', 'width=400,height=600');
-    
+
     if (!printWindow) {
       console.error('Could not open print window');
       return;
@@ -2151,13 +2151,13 @@ export class PrintService {
     let calculatedSubtotalHTVA = 0;
     let calculatedTotalTVA = 0;
     let calculatedTotalTTC = 0;
-    
+
     const itemsRows = lines.map((line: any) => {
       const name = line.productName || line.name || 'Produit';
       const qty = Number(line.quantity || 0);
       let unitPriceTTC = Number(line.prixVenteTTC || line.unitPrice || 0);
       let tvaPercent = Number(line.tvaPercent || 0);
-      
+
       // Get TVA from product if not in line
       if (tvaPercent === 0 || !tvaPercent) {
         if (line.product?.tva) {
@@ -2169,11 +2169,11 @@ export class PrintService {
           tvaPercent = 19;
         }
       }
-      
+
       // Calculate HTVA and TVA if not provided
       let prixVenteHTVA = Number(line.prixVenteHTVA || 0);
       let montantTVA = Number(line.montantTVA || 0);
-      
+
       // Always recalculate if we have TTC price and TVA percentage
       if (unitPriceTTC > 0 && tvaPercent > 0) {
         if (prixVenteHTVA === 0 || !prixVenteHTVA) {
@@ -2195,14 +2195,14 @@ export class PrintService {
         prixVenteHTVA = unitPriceTTC;
         montantTVA = 0;
       }
-      
+
       const sousTotalTTC = Number(line.sousTotalTTC || (qty * unitPriceTTC) || 0);
-      
+
       // Calculate totals from line
       calculatedSubtotalHTVA += qty * prixVenteHTVA;
       calculatedTotalTVA += qty * montantTVA;
       calculatedTotalTTC += sousTotalTTC;
-      
+
       return `
         <tr>
           <td class="name">${this.escapeHtml(name)}</td>
@@ -2217,7 +2217,7 @@ export class PrintService {
     const totalHT = Number(invoice.subtotalHTVA || calculatedSubtotalHTVA || 0).toFixed(3);
     const totalTVA = Number(invoice.totalTVA || calculatedTotalTVA || 0).toFixed(3);
     const totalTTC = Number(invoice.totalTTC || calculatedTotalTTC || 0).toFixed(3);
-    
+
     const clientName = invoice.client ? `${invoice.client.firstName || ''} ${invoice.client.lastName || ''}`.trim() : 'Client anonyme';
     const clientMatricule = invoice.client?.matriculeFiscal || '';
     const clientAddress = invoice.client?.address || '';
@@ -2227,11 +2227,11 @@ export class PrintService {
     if (settings?.printSettings?.showLogo && settings?.logoUrl) {
       const logoSize = settings.printSettings.logoSize || 'medium';
       const logoUrl = this.settingsService.getAbsoluteLogoUrl(settings.logoUrl);
-      
+
       let logoWidth = '60px';
       if (logoSize === 'large') logoWidth = '80px';
       else if (logoSize === 'small') logoWidth = '40px';
-      
+
       logoHtml = `
         <div class="center" style="margin-bottom: 10px;">
           <img src="${logoUrl}" alt="Company Logo" style="max-width: ${logoWidth}; height: auto; max-height: 60px;" />
@@ -2334,7 +2334,7 @@ export class PrintService {
     const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
     let text = '';
-    
+
     // ESC/POS commands for formatting
     const ESC = '\x1B';
     const centerAlign = ESC + '\x61\x01'; // Center alignment
@@ -2346,19 +2346,19 @@ export class PrintService {
     const resetFont = ESC + '\x40';       // Initialize printer (resets font)
     const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
     const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
-    
+
     // Eliminate margins and set monospace font
     text += noTopMargin + noBottomMargin + monospaceFont;
-    
+
     // Header
     text += '==================\n';
-    
+
     // Company name (double bold and centered)
     // Company name (double bold and centered)
     const resolvedCompanyName = settings?.companyName || 'PATISSERIE MODERNE';
     text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
     text += '\n'; // Add spacing after company name
-    
+
     // Company details (centered) - always show on invoices
     if (settings?.companyAddress) {
       text += centerAlign + this.sanitizeForThermalPrinter(settings.companyAddress) + '\n';
@@ -2375,21 +2375,21 @@ export class PrintService {
     if (settings?.companyEmail) {
       text += centerAlign + this.sanitizeForThermalPrinter(settings.companyEmail) + '\n';
     }
-    
+
     text += '\n'; // Add spacing before separator
     text += leftAlign + '==================\n\n';
-    
+
     // Invoice header
     text += centerAlign + boldOn + 'FACTURE' + boldOff + '\n';
     text += leftAlign + 'N° Facture: ' + (invoice.invoiceNumber || `FAC-${invoice.id}`) + '\n';
     text += 'Date: ' + date + '  Heure: ' + time + '\n';
     text += '-------------------------------\n\n';
-    
+
     // Client information
     const clientName = invoice.client ? `${invoice.client.firstName || ''} ${invoice.client.lastName || ''}`.trim() : 'Client anonyme';
     const clientMatricule = invoice.client?.matriculeFiscal || '';
     const clientAddress = invoice.client?.address || '';
-    
+
     text += boldOn + 'CLIENT:' + boldOff + '\n';
     text += this.sanitizeForThermalPrinter(clientName) + '\n';
     if (clientMatricule) {
@@ -2399,22 +2399,22 @@ export class PrintService {
       text += 'Adresse: ' + this.sanitizeForThermalPrinter(clientAddress) + '\n';
     }
     text += '-------------------------------\n\n';
-    
+
     // Items
     text += boldOn + 'ARTICLES:' + boldOff + '\n';
     text += '-------------------------------\n';
-    
+
     const lines = invoice.lines || [];
     let calculatedSubtotalHTVA = 0;
     let calculatedTotalTVA = 0;
     let calculatedTotalTTC = 0;
-    
+
     lines.forEach((line: any) => {
       const name = this.sanitizeForThermalPrinter(line.productName || line.name || 'Produit');
       const qty = Number(line.quantity || 0);
       let unitPriceTTC = Number(line.prixVenteTTC || line.unitPrice || 0);
       let tvaPercent = Number(line.tvaPercent || 0);
-      
+
       // Get TVA from product if not in line
       if (tvaPercent === 0 || !tvaPercent) {
         if (line.product?.tva) {
@@ -2426,11 +2426,11 @@ export class PrintService {
           tvaPercent = 19;
         }
       }
-      
+
       // Calculate HTVA and TVA if not provided
       let prixVenteHTVA = Number(line.prixVenteHTVA || 0);
       let montantTVA = Number(line.montantTVA || 0);
-      
+
       // Always recalculate if we have TTC price and TVA percentage
       if (unitPriceTTC > 0 && tvaPercent > 0) {
         if (prixVenteHTVA === 0 || !prixVenteHTVA) {
@@ -2452,37 +2452,37 @@ export class PrintService {
         prixVenteHTVA = unitPriceTTC;
         montantTVA = 0;
       }
-      
+
       const sousTotalTTC = Number(line.sousTotalTTC || (qty * unitPriceTTC) || 0);
-      
+
       // Calculate totals from line
       calculatedSubtotalHTVA += qty * prixVenteHTVA;
       calculatedTotalTVA += qty * montantTVA;
       calculatedTotalTTC += sousTotalTTC;
-      
+
       // Simple formatting for thermal printer
       const nameTruncated = name.length > 20 ? name.substring(0, 17) + '...' : name;
       text += nameTruncated.padEnd(20) + qty.toString().padStart(3) + unitPriceTTC.toFixed(3).padStart(8) + sousTotalTTC.toFixed(3).padStart(8) + '\n';
     });
-    
+
     text += '-------------------------------\n';
-    
+
     // Totals - use invoice totals if available, otherwise calculate from lines
     const totalHT = Number(invoice.subtotalHTVA || calculatedSubtotalHTVA || 0).toFixed(3);
     const totalTVA = Number(invoice.totalTVA || calculatedTotalTVA || 0).toFixed(3);
     const totalTTC = Number(invoice.totalTTC || calculatedTotalTTC || 0).toFixed(3);
-    
+
     text += 'Total HT'.padEnd(20) + totalHT.padStart(19) + ' dt\n';
     text += 'TVA'.padEnd(20) + totalTVA.padStart(19) + ' dt\n';
     text += boldOn + 'TOTAL TTC'.padEnd(20) + totalTTC.padStart(19) + ' dt' + boldOff + '\n';
-    
+
     text += '-------------------------------\n';
     text += centerAlign + 'Merci de votre confiance!' + '\n';
     text += '==================\n\n';
-    
+
     // Cut paper
     text += '\x1D\x56\x00';
-    
+
     return text;
   }
 
@@ -2504,14 +2504,14 @@ export class PrintService {
       return `${day}/${month} ${hours}:${minutes}`;
     };
     const closingTime = formatDateNoYearWithTime(closedDate);
-    
+
     // Add decorative top border
     escpos += '================================\n';
-    
+
     // Center both title and date on the same line
     escpos += '\x1B\x61\x01'; // Center align
     escpos += 'Extr. Journalière - ' + closingTime + '\n';
-    
+
     // Add decorative bottom border
     escpos += '================================\n\n';
 
@@ -2526,7 +2526,7 @@ export class PrintService {
     const normalizeFamily = (name: any): string => (name ?? '').toString().trim();
 
 
-    
+
     if (sales.length) {
       for (const sale of sales) {
         const items: any[] = (sale.items || []) as any[];
@@ -2535,7 +2535,7 @@ export class PrintService {
           const fam = normalizeFamily(famCandidate);
           const familyName = fam && fam.length ? fam : 'AUTRES';
           const lineTotal: number = Math.round((parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0) * 1000) / 1000;
-          
+
           if (!familyTotals[familyName]) {
             familyTotals[familyName] = 0;
           }
@@ -2547,7 +2547,7 @@ export class PrintService {
     // Print family totals
     escpos += 'VENTES PAR FAMILLE:\n';
     escpos += '-------------------------------\n';
-    
+
     const sortedFamilies = Object.entries(familyTotals)
       .filter(([_, total]) => total > 0)
       .sort(([, a], [, b]) => b - a);
@@ -2574,33 +2574,33 @@ export class PrintService {
     escpos += '################################\n';
     escpos += '    RÉSUMÉ FINANCIER\n';
     escpos += '################################\n';
-    
+
     const expectedCash = summary.expectedCash || 0;
     const totalSales = summary.totalSales || 0;
     const financialOpeningFund = session.openingFund || 0;
-    
+
     const financialTotalWidth = 30;
-    
+
     const formatFinancialLine = (label: string, amount: number) => {
       const amountStr = this.formatCurrency(amount);
       const usedSpace = label.length + amountStr.length;
       const spaces = ' '.repeat(Math.max(1, financialTotalWidth - usedSpace));
       return label + spaces + amountStr;
     };
-    
+
     escpos += formatFinancialLine('Fonds initial:', financialOpeningFund) + '\n';
     escpos += formatFinancialLine('Espèces attendues:', expectedCash) + '\n';
     escpos += formatFinancialLine('Total ventes:', totalSales) + '\n';
-    
+
     escpos += '\n';
     escpos += '================================\n';
     escpos += '\x1B\x61\x01'; // Center align
     escpos += 'Fin du rapport\n';
     escpos += '================================\n';
-    
+
     // Cut paper
     escpos += '\x1D\x56\x00'; // Full cut
-    
+
     return escpos;
   }
 
@@ -2621,14 +2621,14 @@ export class PrintService {
       return `${day}/${month} ${hours}:${minutes}`;
     };
     const closingTime = formatDateNoYearWithTime(closedDate);
-    
+
     // Add decorative top border
     escpos += '================================\n';
-    
+
     // Center both title and date on the same line
     escpos += '\x1B\x61\x01'; // Center align
     escpos += 'Extr. Journalière - ' + closingTime + '\n';
-    
+
     // Add decorative bottom border
     escpos += '================================\n\n';
 
@@ -2642,7 +2642,7 @@ export class PrintService {
     const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number }>> = {};
 
 
-    
+
     if (sales.length) {
       for (const sale of sales) {
         const items: any[] = (sale.items || []) as any[];
@@ -2651,17 +2651,17 @@ export class PrintService {
           const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
           const qty: number = Math.round(parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0);
           const lineTotal: number = Math.round((parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0) * 1000) / 1000;
-          
+
           // Initialize family if not exists
           if (!familyArticleTotals[familyName]) {
             familyArticleTotals[familyName] = {};
           }
-          
+
           // Initialize article if not exists
           if (!familyArticleTotals[familyName][productName]) {
             familyArticleTotals[familyName][productName] = { quantity: 0, total: 0 };
           }
-          
+
           familyArticleTotals[familyName][productName].quantity += qty;
           familyArticleTotals[familyName][productName].total += lineTotal;
         }
@@ -2671,22 +2671,22 @@ export class PrintService {
     // Print article totals grouped by family in table format
     escpos += 'VENTES PAR ARTICLE (PAR FAMILLE):\n';
     escpos += '================================\n';
-    
+
     // Sort families alphabetically
     const sortedFamilies = Object.keys(familyArticleTotals).sort();
     let totalArticleSales = 0;
 
     for (const familyName of sortedFamilies) {
       const articles = familyArticleTotals[familyName];
-      
+
       // Print family header
       escpos += `\n${familyName.toUpperCase()}:\n`;
       escpos += '-------------------------------\n';
-      
+
       // Print table header
       escpos += 'Article'.padEnd(25) + 'Qty'.padStart(8) + 'Unit Price'.padStart(12) + 'Total'.padStart(12) + '\n';
       escpos += '-------------------------------\n';
-      
+
       // Sort articles within family by total (descending)
       const sortedArticles = Object.entries(articles)
         .filter(([_, data]) => data.quantity > 0 && data.total > 0)
@@ -2697,15 +2697,15 @@ export class PrintService {
         const unitPrice = data.quantity > 0 ? data.total / data.quantity : 0;
         const unitPriceFormatted = this.formatCurrency(unitPrice);
         const totalFormatted = this.formatCurrency(data.total);
-        
-        const line = productName.padEnd(25) + 
-                    data.quantity.toString().padStart(8) + 
-                    unitPriceFormatted.padStart(12) + 
-                    totalFormatted.padStart(12);
+
+        const line = productName.padEnd(25) +
+          data.quantity.toString().padStart(8) +
+          unitPriceFormatted.padStart(12) +
+          totalFormatted.padStart(12);
         escpos += line + '\n';
         totalArticleSales += data.total;
       }
-      
+
       // Print family total
       const familyTotal = Object.values(articles).reduce((sum, data) => sum + data.total, 0);
       const familyTotalFormatted = this.formatCurrency(familyTotal);
@@ -2723,33 +2723,33 @@ export class PrintService {
     escpos += '################################\n';
     escpos += '    RÉSUMÉ FINANCIER\n';
     escpos += '################################\n';
-    
+
     const expectedCash = summary.expectedCash || 0;
     const totalSales = summary.totalSales || 0;
     const financialOpeningFund = session.openingFund || 0;
-    
+
     const financialTotalWidth = 30;
-    
+
     const formatFinancialLine = (label: string, amount: number) => {
       const amountStr = this.formatCurrency(amount);
       const usedSpace = label.length + amountStr.length;
       const spaces = ' '.repeat(Math.max(1, financialTotalWidth - usedSpace));
       return label + spaces + amountStr;
     };
-    
+
     escpos += formatFinancialLine('Fonds initial:', financialOpeningFund) + '\n';
     escpos += formatFinancialLine('Espèces attendues:', expectedCash) + '\n';
     escpos += formatFinancialLine('Total ventes:', totalSales) + '\n';
-    
+
     escpos += '\n';
     escpos += '================================\n';
     escpos += '\x1B\x61\x01'; // Center align
     escpos += 'Fin du rapport\n';
     escpos += '================================\n';
-    
+
     // Cut paper
     escpos += '\x1D\x56\x00'; // Full cut
-    
+
     return escpos;
   }
 
@@ -2778,17 +2778,17 @@ export class PrintService {
           const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
           const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
           const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
-          
+
           // Initialize family if not exists
           if (!familyArticleTotals[familyName]) {
             familyArticleTotals[familyName] = {};
           }
-          
+
           // Initialize article if not exists
           if (!familyArticleTotals[familyName][productName]) {
             familyArticleTotals[familyName][productName] = { quantity: 0, total: 0 };
           }
-          
+
           familyArticleTotals[familyName][productName].quantity += qty;
           familyArticleTotals[familyName][productName].total += lineTotal;
         }
@@ -2986,8 +2986,8 @@ export class PrintService {
                     <tr>
                         <td class="article-col">${articleName}</td>
                         <td class="qty-col">${articleData.quantity.toFixed(3)}</td>
-                        <td class="unit-price-col">${unitPrice.toFixed(3)} TND</td>
-                        <td class="total-col">${articleData.total.toFixed(3)} TND</td>
+                        <td class="unit-price-col">${unitPrice.toFixed(3)} DT</td>
+                        <td class="total-col">${articleData.total.toFixed(3)} DT</td>
                     </tr>`;
       }
 
@@ -2996,7 +2996,7 @@ export class PrintService {
                         <td class="article-col">Total ${familyName}</td>
                         <td class="qty-col"></td>
                         <td class="unit-price-col"></td>
-                        <td class="total-col">${familyTotal.toFixed(3)} TND</td>
+                        <td class="total-col">${familyTotal.toFixed(3)} DT</td>
                     </tr>
                 </tbody>
             </table>
@@ -3009,25 +3009,25 @@ export class PrintService {
       const status = String(s?.status || '').toUpperCase();
       return status === 'CANCELLED';
     });
-    
+
     if (cancelledTickets.length > 0) {
       let totalCancelledAmount = 0;
       let cancelledTicketsRows = '';
-      
+
       cancelledTickets.forEach((ticket: any) => {
         const ticketNumber = ticket.dailyTicketNumber || ticket.sessionTicketNumber || ticket.ticketNumber || ticket.id;
         const ticketAmount = parseFloat(ticket.finalTotal || ticket.total || 0) || 0;
         totalCancelledAmount += ticketAmount;
-        
+
         cancelledTicketsRows += `
                     <tr>
                         <td class="article-col">Ticket #${ticketNumber}</td>
                         <td class="qty-col"></td>
                         <td class="unit-price-col"></td>
-                        <td class="total-col">${ticketAmount.toFixed(3)} TND</td>
+                        <td class="total-col">${ticketAmount.toFixed(3)} DT</td>
                     </tr>`;
       });
-      
+
       html += `
         <div class="family-section">
             <div class="family-title">TICKETS ANNULÉS</div>
@@ -3046,7 +3046,7 @@ export class PrintService {
                         <td class="article-col">Total annulé</td>
                         <td class="qty-col"></td>
                         <td class="unit-price-col"></td>
-                        <td class="total-col">${totalCancelledAmount.toFixed(3)} TND</td>
+                        <td class="total-col">${totalCancelledAmount.toFixed(3)} DT</td>
                     </tr>
                 </tbody>
             </table>
@@ -3070,59 +3070,59 @@ export class PrintService {
             <table>
                 <tr>
                     <td class="label">Totale Remise</td>
-                    <td class="amount">${totalDiscount.toFixed(3)} TND</td>
+                    <td class="amount">${totalDiscount.toFixed(3)} DT</td>
                 </tr>
                 <tr>
                     <td class="label">Totale Recette</td>
-                    <td class="amount"><strong>${totalArticleSales.toFixed(3)} TND</strong></td>
+                    <td class="amount"><strong>${totalArticleSales.toFixed(3)} DT</strong></td>
                 </tr>
                 <tr>
                     <td class="label">Totale Caisse (Solde Débit)</td>
-                    <td class="amount"><strong>${totalCaisse.toFixed(3)} TND</strong></td>
+                    <td class="amount"><strong>${totalCaisse.toFixed(3)} DT</strong></td>
                 </tr>
                 <tr>
                     <td class="label">Dépense</td>
-                    <td class="amount">${totalExpenses.toFixed(3)} TND</td>
+                    <td class="amount">${totalExpenses.toFixed(3)} DT</td>
                 </tr>`;
-    
+
     // Calculate supplier payments total
-    const supplierPayments = (session.cashMovements || []).filter((m: any) => 
-      m.type === 'SORTIE' && 
+    const supplierPayments = (session.cashMovements || []).filter((m: any) =>
+      m.type === 'SORTIE' &&
       ((m.reason || '').toLowerCase().includes('fournisseur') ||
-       (m.reason || '').toLowerCase().includes('supplier'))
+        (m.reason || '').toLowerCase().includes('supplier'))
     );
     const supplierDetails = (summary as any)?.supplierPaymentsDetails || [];
     let supplierPaymentsTotal = 0;
     let supplierRows = '';
-    
+
     if (supplierPayments.length > 0) {
       supplierPayments.forEach((payment: any) => {
         const amount = parseFloat(payment.amount || 0) || 0;
         supplierPaymentsTotal += amount;
         const reason = payment.reason || '';
         let supplierName = 'Fournisseur';
-        
+
         const idMatch = reason.match(/#(\d+)/);
         const paymentId = idMatch ? parseInt(idMatch[1], 10) : null;
-        
+
         if (supplierDetails && supplierDetails.length && paymentId) {
           const match = supplierDetails.find((d: any) => Number(d.id) === paymentId);
           if (match && match.supplierName) {
             supplierName = match.supplierName;
           }
         }
-        
+
         if (supplierName === 'Fournisseur') {
           const paren = reason.match(/\(([^)]+)\)/);
           if (paren && paren[1] && !/^FOURN:/i.test(paren[1])) {
             supplierName = paren[1].trim();
           }
         }
-        
+
         supplierRows += `
                 <tr>
                     <td class="label">${supplierName}</td>
-                    <td class="amount">${amount.toFixed(3)} TND</td>
+                    <td class="amount">${amount.toFixed(3)} DT</td>
                 </tr>`;
       });
     } else if (supplierDetails.length > 0) {
@@ -3133,37 +3133,37 @@ export class PrintService {
         supplierRows += `
                 <tr>
                     <td class="label">${supplierName}</td>
-                    <td class="amount">${amount.toFixed(3)} TND</td>
+                    <td class="amount">${amount.toFixed(3)} DT</td>
                 </tr>`;
       });
     }
-    
+
     if (supplierPaymentsTotal > 0) {
       // Only show individual supplier rows, not a total row to avoid duplication
       html += supplierRows;
     }
-    
+
     html += `
                 <tr><td colspan="2" class="separator"></td></tr>
                 <tr>
                     <td class="label">Totale Caisse</td>
-                    <td class="amount"><strong>${totalCaisse.toFixed(3)} TND</strong></td>
+                    <td class="amount"><strong>${totalCaisse.toFixed(3)} DT</strong></td>
                 </tr>
                 <tr>
                     <td class="label">Retrait</td>
-                    <td class="amount">${withdrawalAmount.toFixed(3)} TND</td>
+                    <td class="amount">${withdrawalAmount.toFixed(3)} DT</td>
                 </tr>
                 <tr>
                     <td class="label">Montant Crédit Client</td>
-                    <td class="amount">${((summary as any)?.creditOutstanding || 0).toFixed(3)} TND</td>
+                    <td class="amount">${((summary as any)?.creditOutstanding || 0).toFixed(3)} DT</td>
                 </tr>
                 <tr>
                     <td class="label">Montant Règlement Client</td>
-                    <td class="amount">${((summary as any)?.clientPaymentsTotal || 0).toFixed(3)} TND</td>
+                    <td class="amount">${((summary as any)?.clientPaymentsTotal || 0).toFixed(3)} DT</td>
                 </tr>
                 <tr>
                     <td class="label">Totale Reste Caisse</td>
-                    <td class="amount"><strong>${remainingCash.toFixed(3)} TND</strong></td>
+                    <td class="amount"><strong>${remainingCash.toFixed(3)} DT</strong></td>
                 </tr>
             </table>
         </div>
@@ -3183,7 +3183,7 @@ export class PrintService {
       return `${day}/${month} ${hours}:${minutes}`;
     };
     const closingTime = formatDateNoYearWithTime(closedDate);
-    
+
     const session = sessionReport.session;
     const summary = sessionReport.summary;
 
@@ -3199,17 +3199,17 @@ export class PrintService {
           const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
           const qty: number = Math.round(parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0);
           const lineTotal: number = Math.round((parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0) * 1000) / 1000;
-          
+
           // Initialize family if not exists
           if (!familyArticleTotals[familyName]) {
             familyArticleTotals[familyName] = {};
           }
-          
+
           // Initialize article if not exists
           if (!familyArticleTotals[familyName][productName]) {
             familyArticleTotals[familyName][productName] = { quantity: 0, total: 0 };
           }
-          
+
           familyArticleTotals[familyName][productName].quantity += qty;
           familyArticleTotals[familyName][productName].total += lineTotal;
         }
@@ -3412,7 +3412,7 @@ export class PrintService {
 
     for (const familyName of sortedFamilies) {
       const articles = familyArticleTotals[familyName];
-      
+
       // Sort articles within family by total (descending)
       const sortedArticles = Object.entries(articles)
         .filter(([_, data]) => data.quantity > 0 && data.total > 0)
@@ -3423,7 +3423,7 @@ export class PrintService {
         const unitPrice = data.quantity > 0 ? data.total / data.quantity : 0;
         const unitPriceFormatted = this.formatCurrency(unitPrice);
         const totalFormatted = this.formatCurrency(data.total);
-        
+
         html += `
                 <tr>
                     <td class="category">${familyName.toUpperCase()}</td>
@@ -3434,11 +3434,11 @@ export class PrintService {
                 </tr>`;
         totalArticleSales += data.total;
       }
-      
+
       // Print family total
       const familyTotal = Object.values(articles).reduce((sum, data) => sum + data.total, 0);
       const familyTotalFormatted = this.formatCurrency(familyTotal);
-      
+
       html += `
                 <tr class="family-total">
                     <td class="category">Total ${familyName.toUpperCase()}</td>
@@ -3471,7 +3471,7 @@ export class PrintService {
     const expectedCash = summary.expectedCash || 0;
     const totalSales = summary.totalSales || 0;
     const financialOpeningFund = session.openingFund || 0;
-    
+
     html += `
         <div class="financial-summary">
             <h3>RÉSUMÉ FINANCIER</h3>
@@ -3506,7 +3506,7 @@ export class PrintService {
       return `${day}/${month} ${hours}:${minutes}`;
     };
     const closingTime = formatDateNoYearWithTime(closedDate);
-    
+
     const session = sessionReport.session;
     const summary = sessionReport.summary;
 
@@ -3522,17 +3522,17 @@ export class PrintService {
           const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
           const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
           const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
-          
+
           // Initialize family if not exists
           if (!familyArticleTotals[familyName]) {
             familyArticleTotals[familyName] = {};
           }
-          
+
           // Initialize article if not exists
           if (!familyArticleTotals[familyName][productName]) {
             familyArticleTotals[familyName][productName] = { quantity: 0, total: 0 };
           }
-          
+
           familyArticleTotals[familyName][productName].quantity += qty;
           familyArticleTotals[familyName][productName].total += lineTotal;
         }
@@ -3683,8 +3683,8 @@ export class PrintService {
                     <tr>
                         <td class="article-col">${articleName}</td>
                         <td class="qty-col">${articleData.quantity.toFixed(3)}</td>
-                        <td class="unit-price-col">${unitPrice.toFixed(3)} TND</td>
-                        <td class="total-col">${articleData.total.toFixed(3)} TND</td>
+                        <td class="unit-price-col">${unitPrice.toFixed(3)} DT</td>
+                        <td class="total-col">${articleData.total.toFixed(3)} DT</td>
                     </tr>`;
       }
 
@@ -3693,7 +3693,7 @@ export class PrintService {
                         <td class="article-col">Total ${familyName}</td>
                         <td class="qty-col"></td>
                         <td class="unit-price-col"></td>
-                        <td class="total-col">${familyTotal.toFixed(3)} TND</td>
+                        <td class="total-col">${familyTotal.toFixed(3)} DT</td>
                     </tr>
                 </tbody>
             </table>
@@ -3706,25 +3706,25 @@ export class PrintService {
       const status = String(s?.status || '').toUpperCase();
       return status === 'CANCELLED';
     });
-    
+
     if (cancelledTickets.length > 0) {
       let totalCancelledAmount = 0;
       let cancelledTicketsRows = '';
-      
+
       cancelledTickets.forEach((ticket: any) => {
         const ticketNumber = ticket.dailyTicketNumber || ticket.sessionTicketNumber || ticket.ticketNumber || ticket.id;
         const ticketAmount = parseFloat(ticket.finalTotal || ticket.total || 0) || 0;
         totalCancelledAmount += ticketAmount;
-        
+
         cancelledTicketsRows += `
                     <tr>
                         <td class="article-col">Ticket #${ticketNumber}</td>
                         <td class="qty-col"></td>
                         <td class="unit-price-col"></td>
-                        <td class="total-col">${ticketAmount.toFixed(3)} TND</td>
+                        <td class="total-col">${ticketAmount.toFixed(3)} DT</td>
                     </tr>`;
       });
-      
+
       html += `
         <div class="family-section">
             <div class="family-title">TICKETS ANNULÉS</div>
@@ -3743,7 +3743,7 @@ export class PrintService {
                         <td class="article-col">Total annulé</td>
                         <td class="qty-col"></td>
                         <td class="unit-price-col"></td>
-                        <td class="total-col">${totalCancelledAmount.toFixed(3)} TND</td>
+                        <td class="total-col">${totalCancelledAmount.toFixed(3)} DT</td>
                     </tr>
                 </tbody>
             </table>
@@ -3767,40 +3767,40 @@ export class PrintService {
             <table>
                 <tr>
                     <td class="label">Totale Remise</td>
-                    <td class="amount">${totalDiscount.toFixed(3)} TND</td>
+                    <td class="amount">${totalDiscount.toFixed(3)} DT</td>
                 </tr>
                 <tr>
                     <td class="label">Totale Recette</td>
-                    <td class="amount"><strong>${totalArticleSales.toFixed(3)} TND</strong></td>
+                    <td class="amount"><strong>${totalArticleSales.toFixed(3)} DT</strong></td>
                 </tr>
                 <tr>
                     <td class="label">Totale Caisse (Solde Débit)</td>
-                    <td class="amount"><strong>${totalCaisse.toFixed(3)} TND</strong></td>
+                    <td class="amount"><strong>${totalCaisse.toFixed(3)} DT</strong></td>
                 </tr>
                 <tr>
                     <td class="label">Dépense</td>
-                    <td class="amount">${totalExpenses.toFixed(3)} TND</td>
+                    <td class="amount">${totalExpenses.toFixed(3)} DT</td>
                 </tr>
                 <tr><td colspan="2" class="separator"></td></tr>
                 <tr>
                     <td class="label">Totale Caisse</td>
-                    <td class="amount"><strong>${totalCaisse.toFixed(3)} TND</strong></td>
+                    <td class="amount"><strong>${totalCaisse.toFixed(3)} DT</strong></td>
                 </tr>
                 <tr>
                     <td class="label">Retrait</td>
-                    <td class="amount">${withdrawalAmount.toFixed(3)} TND</td>
+                    <td class="amount">${withdrawalAmount.toFixed(3)} DT</td>
                 </tr>
                 <tr>
                     <td class="label">Montant Crédit Client</td>
-                    <td class="amount">${((summary as any)?.creditOutstanding || 0).toFixed(3)} TND</td>
+                    <td class="amount">${((summary as any)?.creditOutstanding || 0).toFixed(3)} DT</td>
                 </tr>
                 <tr>
                     <td class="label">Montant Règlement Client</td>
-                    <td class="amount">${((summary as any)?.clientPaymentsTotal || 0).toFixed(3)} TND</td>
+                    <td class="amount">${((summary as any)?.clientPaymentsTotal || 0).toFixed(3)} DT</td>
                 </tr>
                 <tr>
                     <td class="label">Totale Reste Caisse</td>
-                    <td class="amount"><strong>${remainingCash.toFixed(3)} TND</strong></td>
+                    <td class="amount"><strong>${remainingCash.toFixed(3)} DT</strong></td>
                 </tr>
             </table>
         </div>`;
@@ -3993,7 +3993,7 @@ export class PrintService {
   ): string {
     let text = '';
     const LINE_WIDTH = 48; // 80mm thermal printer width
-    
+
     // ESC/POS commands for formatting
     const ESC = '\x1B';
     const centerAlign = ESC + '\x61\x01'; // Center alignment
@@ -4003,15 +4003,15 @@ export class PrintService {
     const monospaceFont = ESC + '\x4D\x00'; // Select font A (monospace)
     const noTopMargin = ESC + '\x4C\x00\x00'; // Set top margin to 0
     const noBottomMargin = ESC + '\x4E\x00\x00'; // Set bottom margin to 0
-    
+
     // Eliminate margins and set monospace font
     text += noTopMargin + noBottomMargin + monospaceFont;
-    
+
     // Header
     text += '='.repeat(LINE_WIDTH) + '\n';
     text += leftAlign + 'FOURNISSEUR' + '\n';
     text += leftAlign + '\n';
-    
+
     // Supplier information
     const supplierName = this.sanitizeForThermalPrinter(supplier.name || 'N/A');
     text += supplierName.substring(0, LINE_WIDTH) + '\n';
@@ -4026,7 +4026,7 @@ export class PrintService {
       const email = 'Email: ' + this.sanitizeForThermalPrinter(supplier.email);
       text += email.substring(0, LINE_WIDTH) + '\n';
     }
-    
+
     // Period
     text += '-'.repeat(LINE_WIDTH) + '\n';
     const periodStart = startDate ? new Date(startDate).toLocaleDateString('fr-FR') : 'Début';
@@ -4036,18 +4036,18 @@ export class PrintService {
     text += 'Date: ' + new Date().toLocaleDateString('fr-FR') + '\n';
     text += '-'.repeat(LINE_WIDTH) + '\n';
     text += '\n';
-    
+
     // Transactions
     text += 'DETAIL DES OPERATIONS:' + '\n';
     text += '-'.repeat(LINE_WIDTH) + '\n';
-    
+
     if (!statement.statement || statement.statement.length === 0) {
       text += 'Aucune operation pour cette periode\n';
     } else {
       // Header row - Date(6) + Ref(12) + Debit(10) + Credit(10) + Solde(10) = 48 chars
       text += 'Date       Ref       Debit     Credit       Solde\n';
       text += '-'.repeat(LINE_WIDTH) + '\n';
-      
+
       statement.statement.forEach((item: any) => {
         const date = new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
         const ref = (item.reference || '').substring(0, 12).padEnd(12);
@@ -4056,23 +4056,23 @@ export class PrintService {
         const balanceValue = item.balance;
         // Negative balances show value with "-" at the end (e.g., "500.000-")
         // Positive balances show just the value
-        const balance = balanceValue < 0 
+        const balance = balanceValue < 0
           ? Math.abs(balanceValue).toFixed(3).padStart(9) + '-'
           : balanceValue.toFixed(3).padStart(10);
-        
+
         // Format: Date(6) + Ref(12) + Debit(10) + Credit(10) + Solde(10) = 48 chars
         const line = date.padEnd(6) + ref + debit + credit + balance;
         text += line.substring(0, LINE_WIDTH) + '\n';
       });
     }
-    
+
     text += '-'.repeat(LINE_WIDTH) + '\n';
     text += centerAlign + 'Merci!' + '\n';
     text += leftAlign + '='.repeat(LINE_WIDTH) + '\n\n\n\n';
-    
+
     // Cut paper
     text += '\x1D\x56\x00';
-    
+
     return text;
   }
 
@@ -4084,17 +4084,17 @@ export class PrintService {
   ): string {
     let text = '';
     const LINE_WIDTH = 48;
-    
+
     text += '='.repeat(LINE_WIDTH) + '\n';
     text += 'CLIENT\n';
     text += '\n';
-    
+
     const clientName = this.sanitizeForThermalPrinter((client.firstName || '') + ' ' + (client.lastName || '')).trim() || 'N/A';
     text += clientName.substring(0, LINE_WIDTH) + '\n';
     if (client.code) {
       text += 'Code: ' + this.sanitizeForThermalPrinter(client.code) + '\n';
     }
-    
+
     text += '-'.repeat(LINE_WIDTH) + '\n';
     const periodStart = startDate ? new Date(startDate).toLocaleDateString('fr-FR') : 'Début';
     const periodEnd = endDate ? new Date(endDate).toLocaleDateString('fr-FR') : 'Aujourd\'hui';
@@ -4103,37 +4103,37 @@ export class PrintService {
     text += 'Date: ' + new Date().toLocaleDateString('fr-FR') + '\n';
     text += '-'.repeat(LINE_WIDTH) + '\n';
     text += '\n';
-    
+
     text += 'DETAIL DES OPERATIONS:\n';
     text += '-'.repeat(LINE_WIDTH) + '\n';
-    
+
     if (!statement.statement || statement.statement.length === 0) {
       text += 'Aucune operation pour cette periode\n';
     } else {
       text += 'Date       Ref       Debit     Credit       Solde\n';
       text += '-'.repeat(LINE_WIDTH) + '\n';
-      
+
       statement.statement.forEach((item: any) => {
         const date = new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
         const ref = (item.reference || '').substring(0, 12).padEnd(12);
         const debit = item.debit > 0 ? item.debit.toFixed(3).padStart(10) : ''.padStart(10);
         const credit = item.credit > 0 ? item.credit.toFixed(3).padStart(10) : ''.padStart(10);
         const balanceValue = item.balance;
-        const balance = balanceValue < 0 
+        const balance = balanceValue < 0
           ? Math.abs(balanceValue).toFixed(3).padStart(9) + '-'
           : balanceValue.toFixed(3).padStart(10);
-        
+
         const line = date.padEnd(6) + ref + debit + credit + balance;
         text += line.substring(0, LINE_WIDTH) + '\n';
       });
     }
-    
+
     text += '-'.repeat(LINE_WIDTH) + '\n';
     const merciLine = 'Merci!';
     const padding = Math.floor((LINE_WIDTH - merciLine.length) / 2);
     text += ' '.repeat(padding) + merciLine + '\n';
     text += '='.repeat(LINE_WIDTH) + '\n\n\n\n';
-    
+
     return text;
   }
 

@@ -67,7 +67,7 @@ export class FacturesComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private printService: PrintService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.loadInvoices();
@@ -177,7 +177,7 @@ export class FacturesComponent implements OnInit, OnDestroy {
   viewInvoice(invoice: Invoice): void {
     this.loading = true;
     const url = `${environment.apiUrl}/invoices/${invoice.id}`;
-    
+
     this.http.get(url, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -228,7 +228,7 @@ export class FacturesComponent implements OnInit, OnDestroy {
 
   formatCurrency(amount: number | string): string {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(numAmount)) return '0,00 dt';
+    if (isNaN(numAmount)) return '0,00 TND';
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: 'TND',

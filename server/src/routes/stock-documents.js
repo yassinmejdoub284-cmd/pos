@@ -2364,30 +2364,36 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
             }
           }
 
+          // Determine the final product ID for stock management and record update
+          // SHOP depots use the parent product ID, others (ATELIER, DEPOT) use the child product ID
+          const finalProductId = targetDepot.type === 'SHOP' ? targetProductId : (mappedChildProductId || item.productId);
+
           // Update the document item record to reflect local IDs in the destination depot
           await tx.stockDocumentItem.update({
             where: { id: item.id },
             data: {
-              productId: targetProductId,
+              productId: finalProductId,
               parentProductId: targetProductId,
               childProductId: mappedChildProductId
             }
           });
+
+          // Store the resolved ID for grouping
+          item.resolvedProductId = finalProductId;
         }
 
-        // Group by target product ID and sum quantities
+        // Group by the appropriate product ID based on depot type
+        const groupedId = item.resolvedProductId || item.productId;
         const quantity = parseFloat(item.quantity) || 0;
 
-        if (groupedItems.has(targetProductId)) {
-          groupedItems.get(targetProductId).quantity += quantity;
-
+        if (groupedItems.has(groupedId)) {
+          groupedItems.get(groupedId).quantity += quantity;
         } else {
-          groupedItems.set(targetProductId, {
-            productId: targetProductId,
+          groupedItems.set(groupedId, {
+            productId: groupedId,
             quantity: quantity,
             parentProduct: parentProduct
           });
-
         }
       }
 

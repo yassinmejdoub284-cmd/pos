@@ -39,37 +39,37 @@ interface KPICard {
 })
 export class StockHistoryComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
-  
+
   // Depot and user management
   selectedDepot: Depot | null = null;
   availableDepots: Depot[] = [];
   isAdmin = false;
   showDepotSelector = false;
-  
+
   // UI state
   activeTab: 'dashboard' | 'archives' | 'analytics' = 'dashboard';
   activeArchiveTab: 'entry' | 'sortie' | 'transfert' | 'livraison' = 'entry';
   loading = false;
   error = '';
-  
+
   // Filters
   filters: StockHistoryFilters = {
     dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     dateTo: new Date().toISOString().split('T')[0]
   };
-  
+
   // Dashboard data
   kpiCards: KPICard[] = [];
   salesChartData: StockChartData[] = [];
   movementsChartData: StockChartData[] = [];
   topProductsData: TopProduct[] = [];
   topClientsData: TopClient[] = [];
-  
+
   // Archive data
   archiveData: StockDocument[] = [];
   selectedDocument: StockDocument | null = null;
   showDocumentDetails = false;
-  
+
   // Analytics data
   productAnalytics: ProductAnalytics[] = [];
   selectedProducts: ProductAnalytics[] = [];
@@ -84,7 +84,7 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
     private stockAnalyticsService: StockAnalyticsService,
     private printService: PrintService,
     private settingsService: SettingsService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.initializeComponent();
@@ -106,7 +106,7 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
   private initializeComponent(): void {
     const currentUser = this.authService.currentUser();
     this.isAdmin = currentUser?.role === 'ADMIN';
-    
+
     // Get depotId from route parameters
     this.route.params
       .pipe(takeUntil(this.destroy$))
@@ -123,14 +123,14 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
   private loadDepotById(depotId: string): void {
     this.loading = true;
     this.error = '';
-    
+
     this.depotsService.list()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (depots) => {
           this.availableDepots = depots.filter(d => d.isActive && d.type !== 'SHOP');
           const depot = this.availableDepots.find(d => d.id === parseInt(depotId, 10));
-          
+
           if (depot) {
             this.selectedDepot = depot;
             this.loadDashboardData();
@@ -151,14 +151,14 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
     const currentUser = this.authService.currentUser();
     this.loading = true;
     this.error = '';
-    
+
     // Load available depots
     this.depotsService.list()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (depots) => {
           this.availableDepots = depots.filter(d => d.isActive && d.type !== 'SHOP');
-          
+
           if (this.isAdmin) {
             // Show depot selector for admin users
             this.showDepotSelector = true;
@@ -200,21 +200,21 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
 
   private loadDashboardData(): void {
     if (!this.selectedDepot) return;
-    
+
     this.loading = true;
     this.error = '';
-    
+
     // Simulate async loading for better UX
     setTimeout(() => {
       // Load KPI data
       this.loadKPIData();
-      
+
       // Load chart data
       this.loadChartData();
-      
+
       // Load archive data for current tab
       this.loadArchiveData();
-      
+
       // Reset loading state
       this.loading = false;
     }, 500);
@@ -222,62 +222,62 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
 
   private loadKPIData(): void {
     if (!this.selectedDepot) return;
-    
+
     this.stockAnalyticsService.getKPIData(
       this.selectedDepot.id,
       this.filters.dateFrom,
       this.filters.dateTo
     ).pipe(takeUntil(this.destroy$))
-    .subscribe({
-      next: (kpiData: StockKPIData) => {
-        this.kpiCards = [
-          {
-            title: 'Ventes (aujourd\'hui)',
-            value: this.formatCurrency(kpiData.todaySales || 0),
-            change: kpiData.todaySalesChange || 0,
-            changeType: (kpiData.todaySalesChange || 0) >= 0 ? 'increase' : 'decrease',
-            icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
-            color: 'from-emerald-500 to-green-600'
-          },
-          {
-            title: 'Ventes (7 jours)',
-            value: this.formatCurrency(kpiData.weekSales || 0),
-            change: kpiData.weekSalesChange || 0,
-            changeType: (kpiData.weekSalesChange || 0) >= 0 ? 'increase' : 'decrease',
-            icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-            color: 'from-blue-500 to-cyan-600'
-          },
-          {
-            title: 'Quantités sorties',
-            value: (kpiData.totalExits || 0).toString(),
-            change: kpiData.exitsChange || 0,
-            changeType: (kpiData.exitsChange || 0) >= 0 ? 'increase' : 'decrease',
-            icon: 'M20 12H4m16 0l-4-4m4 4l-4 4',
-            color: 'from-red-500 to-pink-600'
-          },
-          {
-            title: 'Quantités entrées',
-            value: (kpiData.totalEntries || 0).toString(),
-            change: kpiData.entriesChange || 0,
-            changeType: (kpiData.entriesChange || 0) >= 0 ? 'increase' : 'decrease',
-            icon: 'M12 4v16m8-8H4',
-            color: 'from-amber-500 to-yellow-600'
-          },
-          {
-            title: 'Taux de rotation',
-            value: ((kpiData.turnoverRate || 0).toFixed(1)) + 'x',
-            change: kpiData.turnoverChange || 0,
-            changeType: (kpiData.turnoverChange || 0) >= 0 ? 'increase' : 'decrease',
-            icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
-            color: 'from-purple-500 to-violet-600'
-          }
-        ];
-      },
-      error: (error) => {
-        console.error('Error loading KPI data:', error);
-        this.error = 'Erreur lors du chargement des indicateurs';
-      }
-    });
+      .subscribe({
+        next: (kpiData: StockKPIData) => {
+          this.kpiCards = [
+            {
+              title: 'Ventes (aujourd\'hui)',
+              value: this.formatCurrency(kpiData.todaySales || 0),
+              change: kpiData.todaySalesChange || 0,
+              changeType: (kpiData.todaySalesChange || 0) >= 0 ? 'increase' : 'decrease',
+              icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
+              color: 'from-emerald-500 to-green-600'
+            },
+            {
+              title: 'Ventes (7 jours)',
+              value: this.formatCurrency(kpiData.weekSales || 0),
+              change: kpiData.weekSalesChange || 0,
+              changeType: (kpiData.weekSalesChange || 0) >= 0 ? 'increase' : 'decrease',
+              icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+              color: 'from-blue-500 to-cyan-600'
+            },
+            {
+              title: 'Quantités sorties',
+              value: (kpiData.totalExits || 0).toString(),
+              change: kpiData.exitsChange || 0,
+              changeType: (kpiData.exitsChange || 0) >= 0 ? 'increase' : 'decrease',
+              icon: 'M20 12H4m16 0l-4-4m4 4l-4 4',
+              color: 'from-red-500 to-pink-600'
+            },
+            {
+              title: 'Quantités entrées',
+              value: (kpiData.totalEntries || 0).toString(),
+              change: kpiData.entriesChange || 0,
+              changeType: (kpiData.entriesChange || 0) >= 0 ? 'increase' : 'decrease',
+              icon: 'M12 4v16m8-8H4',
+              color: 'from-amber-500 to-yellow-600'
+            },
+            {
+              title: 'Taux de rotation',
+              value: ((kpiData.turnoverRate || 0).toFixed(1)) + 'x',
+              change: kpiData.turnoverChange || 0,
+              changeType: (kpiData.turnoverChange || 0) >= 0 ? 'increase' : 'decrease',
+              icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+              color: 'from-purple-500 to-violet-600'
+            }
+          ];
+        },
+        error: (error) => {
+          console.error('Error loading KPI data:', error);
+          this.error = 'Erreur lors du chargement des indicateurs';
+        }
+      });
   }
 
   private loadChartData(): void {
@@ -289,14 +289,14 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
       this.filters.dateFrom,
       this.filters.dateTo
     ).pipe(takeUntil(this.destroy$))
-    .subscribe({
-      next: (data: StockChartData[]) => {
-        this.salesChartData = data;
-      },
-      error: (error) => {
-        console.error('Error loading sales chart data:', error);
-      }
-    });
+      .subscribe({
+        next: (data: StockChartData[]) => {
+          this.salesChartData = data;
+        },
+        error: (error) => {
+          console.error('Error loading sales chart data:', error);
+        }
+      });
 
     // Load stock movements data
     this.stockAnalyticsService.getStockMovements(
@@ -304,14 +304,14 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
       this.filters.dateFrom,
       this.filters.dateTo
     ).pipe(takeUntil(this.destroy$))
-    .subscribe({
-      next: (data: StockChartData[]) => {
-        this.movementsChartData = data;
-      },
-      error: (error) => {
-        console.error('Error loading movements chart data:', error);
-      }
-    });
+      .subscribe({
+        next: (data: StockChartData[]) => {
+          this.movementsChartData = data;
+        },
+        error: (error) => {
+          console.error('Error loading movements chart data:', error);
+        }
+      });
 
     // Load top products data
     this.stockAnalyticsService.getTopProducts(
@@ -320,14 +320,14 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
       this.filters.dateTo,
       10
     ).pipe(takeUntil(this.destroy$))
-    .subscribe({
-      next: (data: TopProduct[]) => {
-        this.topProductsData = data;
-      },
-      error: (error) => {
-        console.error('Error loading top products data:', error);
-      }
-    });
+      .subscribe({
+        next: (data: TopProduct[]) => {
+          this.topProductsData = data;
+        },
+        error: (error) => {
+          console.error('Error loading top products data:', error);
+        }
+      });
 
     // Load top clients data
     this.stockAnalyticsService.getTopClients(
@@ -336,19 +336,19 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
       this.filters.dateTo,
       10
     ).pipe(takeUntil(this.destroy$))
-    .subscribe({
-      next: (data: TopClient[]) => {
-        this.topClientsData = data;
-      },
-      error: (error) => {
-        console.error('Error loading top clients data:', error);
-      }
-    });
+      .subscribe({
+        next: (data: TopClient[]) => {
+          this.topClientsData = data;
+        },
+        error: (error) => {
+          console.error('Error loading top clients data:', error);
+        }
+      });
   }
 
   private loadArchiveData(): void {
     if (!this.selectedDepot) return;
-    
+
     this.stockAnalyticsService.getStockDocuments(
       this.selectedDepot.id,
       this.activeArchiveTab,
@@ -358,15 +358,15 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
       1, // page
       50 // limit
     ).pipe(takeUntil(this.destroy$))
-    .subscribe({
-      next: (response) => {
-        this.archiveData = response.documents;
-      },
-      error: (error) => {
-        console.error('Error loading archive data:', error);
-        this.error = 'Erreur lors du chargement des archives';
-      }
-    });
+      .subscribe({
+        next: (response) => {
+          this.archiveData = response.documents;
+        },
+        error: (error) => {
+          console.error('Error loading archive data:', error);
+          this.error = 'Erreur lors du chargement des archives';
+        }
+      });
   }
 
   // Tab management
@@ -420,20 +420,20 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
       this.filters.dateFrom,
       this.filters.dateTo
     ).pipe(takeUntil(this.destroy$))
-    .subscribe({
-      next: (data: ProductAnalytics[]) => {
-        this.productAnalytics = data;
-      },
-      error: (error) => {
-        console.error('Error loading product analytics:', error);
-        this.error = 'Erreur lors du chargement des analyses de produits';
-      }
-    });
+      .subscribe({
+        next: (data: ProductAnalytics[]) => {
+          this.productAnalytics = data;
+        },
+        error: (error) => {
+          console.error('Error loading product analytics:', error);
+          this.error = 'Erreur lors du chargement des analyses de produits';
+        }
+      });
   }
 
   selectProductForComparison(product: ProductAnalytics): void {
-    if (this.selectedProducts.length < this.maxSelectedProducts && 
-        !this.selectedProducts.find(p => p.id === product.id)) {
+    if (this.selectedProducts.length < this.maxSelectedProducts &&
+      !this.selectedProducts.find(p => p.id === product.id)) {
       this.selectedProducts.push(product);
     }
   }
@@ -513,7 +513,7 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
   // Test print method
   testPrint(): void {
 
-    
+
     // Check settings before printing
     this.settingsService.getSettings().subscribe({
       next: (settings: any) => {
@@ -521,7 +521,7 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
 
 
 
-        
+
         const testText = 'Test print from Stock History Module\nDesktop mode: ' + this.printService.getDesktopMode() + '\nSettings isDesktopVersion: ' + settings?.isDesktopVersion;
 
         this.printService.printPlainText(testText);
@@ -553,7 +553,7 @@ export class StockHistoryComponent implements OnInit, OnDestroy {
 
       const status = await this.printService.checkTauriStatus();
 
-      
+
       // Get settings for the alert
       this.settingsService.getSettings().subscribe({
         next: (settings: any) => {

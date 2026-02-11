@@ -73,13 +73,13 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private returnsService: ReturnsService,
     private http: HttpClient
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     // Ensure auth state is loaded (auth guard already verified, just restore if needed)
     const token = this.authService.getToken();
     const userStr = sessionStorage.getItem('user');
-    
+
     // Restore auth state if needed (but don't redirect - guard handles that)
     if (token && userStr && !this.authService.isAuthenticated()) {
       try {
@@ -141,12 +141,12 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
     const isAuthenticated = this.authService.isAuthenticated();
     let token = this.authService.getToken();
     const currentUser = this.authService.currentUser();
-    
+
     // If not authenticated or no token, try to restore from sessionStorage
     if (!isAuthenticated || !token) {
       const storedToken = sessionStorage.getItem('token');
       const storedUser = sessionStorage.getItem('user');
-      
+
       if (storedToken && storedUser) {
         try {
           const user = JSON.parse(storedUser);
@@ -159,7 +159,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
         }
       }
     }
-    
+
     // In development mode, use mock admin token if no token is available
     if (!token && !environment.production) {
       const mockAdminToken = 'mock-jwt-token-ADMIN-DEV-PERSISTENT';
@@ -184,7 +184,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
       token = mockAdminToken;
 
     }
-    
+
     // Verify token exists before making request
     if (!token) {
       console.error('No token available for article extracts request');
@@ -207,17 +207,17 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     this.error = '';
-    
+
     // Use the new article-extracts endpoint
     const depotIdNum = Number(this.depotId);
 
     // Store the original visitingDepotId to restore it later
     const originalVisitingDepotId = sessionStorage.getItem('visitingDepotId');
-    
+
     // Set the visitingDepotId in sessionStorage so the interceptor adds the correct header
     sessionStorage.setItem('visitingDepotId', depotIdNum.toString());
 
-    
+
     // Verify token is available before making request
     const finalToken = sessionStorage.getItem('token') || this.authService.getToken();
     if (!finalToken) {
@@ -229,14 +229,14 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
       }, 2000);
       return;
     }
-    
+
 
 
 
     // First, get all sessions for this depot
-    this.sessionsService.getSessions({ 
+    this.sessionsService.getSessions({
       depotId: depotIdNum,
-      limit: 10 
+      limit: 10
     })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -267,7 +267,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
 
           // Get session reports for all sessions in parallel
           // Keep visitingDepotId set so the interceptor uses the correct depot
-          const reportRequests = sortedSessions.map(session => 
+          const reportRequests = sortedSessions.map(session =>
             this.sessionsService.getSessionReport(session.id, 'Z', 'html', depotIdNum)
               .pipe(
                 map(report => ({ session, report })),
@@ -288,241 +288,241 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
                 } else {
                   sessionStorage.removeItem('visitingDepotId');
                 }
-                
+
                 // Fetch return requests and process extracts
                 this.fetchReturnRequestsForSessions(sortedSessions, depotIdNum).then(returnRequestsBySession => {
                   // Process each session report and convert to SessionExtract format
                   this.extracts = sessionReports
                     .filter(({ report }) => report !== null)
                     .map(({ session, report }) => {
-                    const sessionReport = report as any;
-                    const sessionData = sessionReport.session;
-                    const summary = sessionReport.summary || {};
-                    
-                    // Build article grouping from session sales (same as print service)
-                    const sales: any[] = (sessionData?.sales || []) as any[];
-                    const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number; discount: number; returnAmount: number }>> = {};
-                    const cancelledSales: any[] = [];
-                    
-                    // Get return requests for this session
-                    const sessionReturnRequests = returnRequestsBySession.get(session.id) || [];
+                      const sessionReport = report as any;
+                      const sessionData = sessionReport.session;
+                      const summary = sessionReport.summary || {};
 
-                    // Separate completed, cancelled, and gift sales
-                    sales.forEach(sale => {
-                      const saleStatus = (sale.status || '').toUpperCase();
-                      const notes = (sale.notes || '').toString();
-                      const isGift = saleStatus === 'CADEAU' || saleStatus === 'PENDING_ADMIN' || notes.startsWith('Cadeau -');
-                      
-                      // Exclude gift tickets (CADEAU) - they should not be counted
-                      if (isGift) {
-                        return; // Skip gift tickets completely
-                      }
-                      
-                      if (saleStatus === 'CANCELLED' || saleStatus === 'REFUNDED') {
-                        cancelledSales.push(sale);
-                      } else {
-                        const items: any[] = (sale.items || []) as any[];
-                        items.forEach(it => {
-                          const productName: string = (it.productName || it.product?.name || 'Produit').toString();
-                          const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
-                          const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
-                          const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
-                          const lineDiscount: number = parseFloat(String(it.discount ?? 0)) || 0;
-                          
-                          // Initialize family if not exists
-                          if (!familyArticleTotals[familyName]) {
-                            familyArticleTotals[familyName] = {};
-                          }
-                          
-                          // Initialize article if not exists
-                          if (!familyArticleTotals[familyName][productName]) {
-                            familyArticleTotals[familyName][productName] = { quantity: 0, total: 0, discount: 0, returnAmount: 0 };
-                          }
-                          
-                          familyArticleTotals[familyName][productName].quantity += qty;
-                          familyArticleTotals[familyName][productName].total += lineTotal;
-                          familyArticleTotals[familyName][productName].discount += lineDiscount;
-                        });
-                      }
-                    });
-                    
-                    // Process return requests to calculate return amounts by article
-                    sessionReturnRequests.forEach((returnRequest: ReturnRequest) => {
-                      if (returnRequest.status === 'PROCESSED' && returnRequest.items) {
-                        const totalRefund = parseFloat(String(returnRequest.originalSaleTotal || 0)) || 0;
-                        
-                        returnRequest.items.forEach(item => {
-                          if (!item.product) return;
-                          
-                          const productName = item.product.name || 'Produit';
-                          const familyName = item.product.famille?.name || 'Sans famille';
-                          const nonRebutQty = parseFloat(String(item.nonRebutQty || item.requestedQty || 0)) || 0;
-                          
-                          if (nonRebutQty > 0) {
-                            // Initialize family/article if not exists
+                      // Build article grouping from session sales (same as print service)
+                      const sales: any[] = (sessionData?.sales || []) as any[];
+                      const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number; discount: number; returnAmount: number }>> = {};
+                      const cancelledSales: any[] = [];
+
+                      // Get return requests for this session
+                      const sessionReturnRequests = returnRequestsBySession.get(session.id) || [];
+
+                      // Separate completed, cancelled, and gift sales
+                      sales.forEach(sale => {
+                        const saleStatus = (sale.status || '').toUpperCase();
+                        const notes = (sale.notes || '').toString();
+                        const isGift = saleStatus === 'CADEAU' || saleStatus === 'PENDING_ADMIN' || notes.startsWith('Cadeau -');
+
+                        // Exclude gift tickets (CADEAU) - they should not be counted
+                        if (isGift) {
+                          return; // Skip gift tickets completely
+                        }
+
+                        if (saleStatus === 'CANCELLED' || saleStatus === 'REFUNDED') {
+                          cancelledSales.push(sale);
+                        } else {
+                          const items: any[] = (sale.items || []) as any[];
+                          items.forEach(it => {
+                            const productName: string = (it.productName || it.product?.name || 'Produit').toString();
+                            const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
+                            const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
+                            const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+                            const lineDiscount: number = parseFloat(String(it.discount ?? 0)) || 0;
+
+                            // Initialize family if not exists
                             if (!familyArticleTotals[familyName]) {
                               familyArticleTotals[familyName] = {};
                             }
+
+                            // Initialize article if not exists
                             if (!familyArticleTotals[familyName][productName]) {
                               familyArticleTotals[familyName][productName] = { quantity: 0, total: 0, discount: 0, returnAmount: 0 };
                             }
-                            
-                            // Calculate return amount: use unit price from product or distribute total refund proportionally
-                            const unitPrice = parseFloat(String(item.product.prix_vente_TTC || 0)) || 0;
-                            const itemReturnAmount = unitPrice > 0 ? nonRebutQty * unitPrice : 0;
-                            
-                            familyArticleTotals[familyName][productName].returnAmount = 
-                              (familyArticleTotals[familyName][productName].returnAmount || 0) + itemReturnAmount;
-                          }
-                        });
-                      }
-                    });
 
-                    // Convert to families array format
-                    const families: FamilyData[] = Object.keys(familyArticleTotals)
-                      .sort()
-                      .map(familyName => {
-                        const products: ProductData[] = Object.keys(familyArticleTotals[familyName])
-                          .map(productName => {
-                            const productData = familyArticleTotals[familyName][productName];
-                            return {
-                              id: 0,
-                              name: productName,
-                              quantity: productData.quantity,
-                              revenue: productData.total,
-                              discount: productData.discount,
-                              unitPrice: productData.quantity > 0 ? productData.total / productData.quantity : 0,
-                              returnAmount: productData.returnAmount || 0
-                            };
+                            familyArticleTotals[familyName][productName].quantity += qty;
+                            familyArticleTotals[familyName][productName].total += lineTotal;
+                            familyArticleTotals[familyName][productName].discount += lineDiscount;
                           });
-                        
-                        const totalRevenue = products.reduce((sum, p) => sum + p.revenue, 0);
-                        const totalDiscount = products.reduce((sum, p) => sum + p.discount, 0);
-                        
-                        return {
-                          id: 0, // Will be set if available
-                          name: familyName,
-                          totalRevenue,
-                          totalDiscount,
-                          products
-                        };
+                        }
                       });
 
-                    // Calculate totals from actual sales (same as print service)
-                    // Exclude cancelled, refunded, and gift tickets (CADEAU)
-                    const completedSales = sales.filter(s => {
-                      const st = (s.status || '').toUpperCase();
-                      const notes = (s.notes || '').toString();
-                      const isGift = st === 'CADEAU' || st === 'PENDING_ADMIN' || notes.startsWith('Cadeau -');
-                      return st !== 'CANCELLED' && st !== 'REFUNDED' && !isGift;
-                    });
-                    
-                    const totalRevenue = completedSales.reduce((sum, s) => sum + parseFloat(s.finalTotal || 0), 0);
-                    const totalDiscount = completedSales.reduce((sum, s) => sum + parseFloat(s.discount || 0), 0);
-                    
-                    const totalCancelled = cancelledSales.reduce((sum, s) => sum + parseFloat(s.finalTotal || 0), 0);
+                      // Process return requests to calculate return amounts by article
+                      sessionReturnRequests.forEach((returnRequest: ReturnRequest) => {
+                        if (returnRequest.status === 'PROCESSED' && returnRequest.items) {
+                          const totalRefund = parseFloat(String(returnRequest.originalSaleTotal || 0)) || 0;
 
-                    // Calculate expenses, supplier payments, and withdrawals from cash movements
-                    const cashMovements: CashMovement[] = (sessionData.cashMovements || []) as CashMovement[];
-                    const totalExpenses = cashMovements
-                      .filter((m: CashMovement) => {
-                        const reason = String(m.reason || '');
-                        return (m.type === 'SORTIE' || m.type === 'DEPOT_COFFRE') && 
-                               !reason.includes('Remboursement') && 
-                               !reason.includes('[REJETÉ]') &&
-                               !reason.includes('[SUPPRIMÉ]') &&
-                               !reason.includes('Fournisseur') &&
-                               !reason.includes('fournisseur');
-                      })
-                      .reduce((sum: number, m: CashMovement) => sum + parseFloat(String(m.amount || 0)), 0);
+                          returnRequest.items.forEach(item => {
+                            if (!item.product) return;
 
-                    const supplierPayments = cashMovements
-                      .filter((m: CashMovement) => {
-                        const reason = String(m.reason || '');
-                        return m.type === 'SORTIE' && 
-                               (reason.includes('Fournisseur') || reason.includes('fournisseur')) &&
-                               !reason.includes('[REJETÉ]') &&
-                               !reason.includes('[SUPPRIMÉ]');
-                      })
-                      .reduce((sum: number, m: CashMovement) => sum + parseFloat(String(m.amount || 0)), 0);
+                            const productName = item.product.name || 'Produit';
+                            const familyName = item.product.famille?.name || 'Sans famille';
+                            const nonRebutQty = parseFloat(String(item.nonRebutQty || item.requestedQty || 0)) || 0;
 
-                    const withdrawals = cashMovements
-                      .filter((m: CashMovement) => {
-                        const reason = String(m.reason || '');
-                        return m.type === 'RETRAIT_CENTRALE' &&
-                               !reason.includes('[REJETÉ]') &&
-                               !reason.includes('[SUPPRIMÉ]');
-                      })
-                      .reduce((sum: number, m: CashMovement) => sum + parseFloat(String(m.amount || 0)), 0);
+                            if (nonRebutQty > 0) {
+                              // Initialize family/article if not exists
+                              if (!familyArticleTotals[familyName]) {
+                                familyArticleTotals[familyName] = {};
+                              }
+                              if (!familyArticleTotals[familyName][productName]) {
+                                familyArticleTotals[familyName][productName] = { quantity: 0, total: 0, discount: 0, returnAmount: 0 };
+                              }
 
-                    const totalReturnAmount = cashMovements
-                      .filter((m: CashMovement) => {
-                        const reason = String(m.reason || '').toLowerCase();
-                        return (m.type === 'SORTIE' || m.type === 'ENTREE') &&
-                               (reason.includes('remboursement retour article') || reason.includes('retour article')) &&
-                               !reason.includes('[REJETÉ]') &&
-                               !reason.includes('[SUPPRIMÉ]');
-                      })
-                      .reduce((sum: number, m: CashMovement) => {
-                        const amount = Math.abs(parseFloat(String(m.amount || 0)));
-                        return sum + amount;
-                      }, 0);
+                              // Calculate return amount: use unit price from product or distribute total refund proportionally
+                              const unitPrice = parseFloat(String(item.product.prix_vente_TTC || 0)) || 0;
+                              const itemReturnAmount = unitPrice > 0 ? nonRebutQty * unitPrice : 0;
 
-                    const totalCash = totalRevenue - totalDiscount - totalExpenses - supplierPayments - withdrawals;
-
-                    let clientCreditAmount = 0;
-                    let clientPaymentAmount = 0;
-
-                    if (summary && typeof summary === 'object') {
-                      clientCreditAmount = parseFloat(String(summary.creditOutstanding || summary['creditOutstanding'] || 0)) || 0;
-                      clientPaymentAmount = parseFloat(String(summary.clientPaymentsTotal || summary['clientPaymentsTotal'] || 0)) || 0;
-                    }
-
-                    if (clientCreditAmount === 0) {
-                      const creditSales = completedSales.filter(s => {
-                        const paymentType = (s.paymentType || '').toUpperCase();
-                        return paymentType === 'CREDIT';
+                              familyArticleTotals[familyName][productName].returnAmount =
+                                (familyArticleTotals[familyName][productName].returnAmount || 0) + itemReturnAmount;
+                            }
+                          });
+                        }
                       });
-                      
-                      if (creditSales.length > 0) {
-                        const totalCreditSales = creditSales.reduce((sum, s) => {
-                          const total = parseFloat(s.finalTotal || 0);
-                          const advance = parseFloat(s.advancePayment || 0);
-                          return sum + Math.max(0, total - advance);
+
+                      // Convert to families array format
+                      const families: FamilyData[] = Object.keys(familyArticleTotals)
+                        .sort()
+                        .map(familyName => {
+                          const products: ProductData[] = Object.keys(familyArticleTotals[familyName])
+                            .map(productName => {
+                              const productData = familyArticleTotals[familyName][productName];
+                              return {
+                                id: 0,
+                                name: productName,
+                                quantity: productData.quantity,
+                                revenue: productData.total,
+                                discount: productData.discount,
+                                unitPrice: productData.quantity > 0 ? productData.total / productData.quantity : 0,
+                                returnAmount: productData.returnAmount || 0
+                              };
+                            });
+
+                          const totalRevenue = products.reduce((sum, p) => sum + p.revenue, 0);
+                          const totalDiscount = products.reduce((sum, p) => sum + p.discount, 0);
+
+                          return {
+                            id: 0, // Will be set if available
+                            name: familyName,
+                            totalRevenue,
+                            totalDiscount,
+                            products
+                          };
+                        });
+
+                      // Calculate totals from actual sales (same as print service)
+                      // Exclude cancelled, refunded, and gift tickets (CADEAU)
+                      const completedSales = sales.filter(s => {
+                        const st = (s.status || '').toUpperCase();
+                        const notes = (s.notes || '').toString();
+                        const isGift = st === 'CADEAU' || st === 'PENDING_ADMIN' || notes.startsWith('Cadeau -');
+                        return st !== 'CANCELLED' && st !== 'REFUNDED' && !isGift;
+                      });
+
+                      const totalRevenue = completedSales.reduce((sum, s) => sum + parseFloat(s.finalTotal || 0), 0);
+                      const totalDiscount = completedSales.reduce((sum, s) => sum + parseFloat(s.discount || 0), 0);
+
+                      const totalCancelled = cancelledSales.reduce((sum, s) => sum + parseFloat(s.finalTotal || 0), 0);
+
+                      // Calculate expenses, supplier payments, and withdrawals from cash movements
+                      const cashMovements: CashMovement[] = (sessionData.cashMovements || []) as CashMovement[];
+                      const totalExpenses = cashMovements
+                        .filter((m: CashMovement) => {
+                          const reason = String(m.reason || '');
+                          return (m.type === 'SORTIE' || m.type === 'DEPOT_COFFRE') &&
+                            !reason.includes('Remboursement') &&
+                            !reason.includes('[REJETÉ]') &&
+                            !reason.includes('[SUPPRIMÉ]') &&
+                            !reason.includes('Fournisseur') &&
+                            !reason.includes('fournisseur');
+                        })
+                        .reduce((sum: number, m: CashMovement) => sum + parseFloat(String(m.amount || 0)), 0);
+
+                      const supplierPayments = cashMovements
+                        .filter((m: CashMovement) => {
+                          const reason = String(m.reason || '');
+                          return m.type === 'SORTIE' &&
+                            (reason.includes('Fournisseur') || reason.includes('fournisseur')) &&
+                            !reason.includes('[REJETÉ]') &&
+                            !reason.includes('[SUPPRIMÉ]');
+                        })
+                        .reduce((sum: number, m: CashMovement) => sum + parseFloat(String(m.amount || 0)), 0);
+
+                      const withdrawals = cashMovements
+                        .filter((m: CashMovement) => {
+                          const reason = String(m.reason || '');
+                          return m.type === 'RETRAIT_CENTRALE' &&
+                            !reason.includes('[REJETÉ]') &&
+                            !reason.includes('[SUPPRIMÉ]');
+                        })
+                        .reduce((sum: number, m: CashMovement) => sum + parseFloat(String(m.amount || 0)), 0);
+
+                      const totalReturnAmount = cashMovements
+                        .filter((m: CashMovement) => {
+                          const reason = String(m.reason || '').toLowerCase();
+                          return (m.type === 'SORTIE' || m.type === 'ENTREE') &&
+                            (reason.includes('remboursement retour article') || reason.includes('retour article')) &&
+                            !reason.includes('[REJETÉ]') &&
+                            !reason.includes('[SUPPRIMÉ]');
+                        })
+                        .reduce((sum: number, m: CashMovement) => {
+                          const amount = Math.abs(parseFloat(String(m.amount || 0)));
+                          return sum + amount;
                         }, 0);
-                        clientCreditAmount = totalCreditSales;
+
+                      const totalCash = totalRevenue - totalDiscount - totalExpenses - supplierPayments - withdrawals;
+
+                      let clientCreditAmount = 0;
+                      let clientPaymentAmount = 0;
+
+                      if (summary && typeof summary === 'object') {
+                        clientCreditAmount = parseFloat(String(summary.creditOutstanding || summary['creditOutstanding'] || 0)) || 0;
+                        clientPaymentAmount = parseFloat(String(summary.clientPaymentsTotal || summary['clientPaymentsTotal'] || 0)) || 0;
                       }
-                    }
 
-                    if (clientPaymentAmount === 0) {
-                      const clientPaymentMovements = cashMovements.filter((m: CashMovement) => {
-                        const reason = String(m.reason || '').toLowerCase();
-                        return (m.type === 'ENTREE' || m.type === 'SORTIE') && 
-                               (reason.includes('crédit client') || reason.includes('credit client') ||
-                                reason.includes('encaissement crédit') || reason.includes('encaissement credit') ||
-                                reason.includes('règlement crédit') || reason.includes('reglement credit')) &&
-                               !reason.includes('[REJETÉ]') && !reason.includes('[SUPPRIMÉ]');
-                      });
-                      
-                      if (clientPaymentMovements.length > 0) {
-                        clientPaymentAmount = clientPaymentMovements.reduce((sum: number, m: CashMovement) => {
-                          const amount = parseFloat(String(m.amount || 0));
-                          return m.type === 'ENTREE' ? sum + amount : sum - amount;
-                        }, 0);
-                        clientPaymentAmount = Math.max(0, clientPaymentAmount);
+                      if (clientCreditAmount === 0) {
+                        const creditSales = completedSales.filter(s => {
+                          const paymentType = (s.paymentType || '').toUpperCase();
+                          return paymentType === 'CREDIT';
+                        });
+
+                        if (creditSales.length > 0) {
+                          const totalCreditSales = creditSales.reduce((sum, s) => {
+                            const total = parseFloat(s.finalTotal || 0);
+                            const advance = parseFloat(s.advancePayment || 0);
+                            return sum + Math.max(0, total - advance);
+                          }, 0);
+                          clientCreditAmount = totalCreditSales;
+                        }
                       }
-                    }
 
-                    const cancelledTickets = cancelledSales.map(s => ({
-                      id: s.id,
-                      ticketNumber: s.ticketNumber || s.dailyTicketNumber || `#${s.id}`,
-                      amount: parseFloat(s.finalTotal || 0)
-                    }));
+                      if (clientPaymentAmount === 0) {
+                        const clientPaymentMovements = cashMovements.filter((m: CashMovement) => {
+                          const reason = String(m.reason || '').toLowerCase();
+                          return (m.type === 'ENTREE' || m.type === 'SORTIE') &&
+                            (reason.includes('crédit client') || reason.includes('credit client') ||
+                              reason.includes('encaissement crédit') || reason.includes('encaissement credit') ||
+                              reason.includes('règlement crédit') || reason.includes('reglement credit')) &&
+                            !reason.includes('[REJETÉ]') && !reason.includes('[SUPPRIMÉ]');
+                        });
 
-                    const sessionDate = session.closedAt || session.openedAt;
-                    const dateStr = sessionDate instanceof Date 
-                      ? sessionDate.toISOString().split('T')[0]
-                      : new Date(sessionDate).toISOString().split('T')[0];
+                        if (clientPaymentMovements.length > 0) {
+                          clientPaymentAmount = clientPaymentMovements.reduce((sum: number, m: CashMovement) => {
+                            const amount = parseFloat(String(m.amount || 0));
+                            return m.type === 'ENTREE' ? sum + amount : sum - amount;
+                          }, 0);
+                          clientPaymentAmount = Math.max(0, clientPaymentAmount);
+                        }
+                      }
+
+                      const cancelledTickets = cancelledSales.map(s => ({
+                        id: s.id,
+                        ticketNumber: s.ticketNumber || s.dailyTicketNumber || `#${s.id}`,
+                        amount: parseFloat(s.finalTotal || 0)
+                      }));
+
+                      const sessionDate = session.closedAt || session.openedAt;
+                      const dateStr = sessionDate instanceof Date
+                        ? sessionDate.toISOString().split('T')[0]
+                        : new Date(sessionDate).toISOString().split('T')[0];
 
                       return {
                         sessionId: session.id,
@@ -597,12 +597,12 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
             message: err.error?.error || err.message,
             url: err.url
           });
-          
+
           if (err.status === 401) {
             // 401 means unauthorized - token is invalid or expired
             const errorMessage = err.error?.error || 'Token invalide ou expiré';
             const token = this.authService.getToken() || sessionStorage.getItem('token');
-            
+
             if (!token) {
               // No token - session expired, redirect to login
               this.error = 'Session expirée: Veuillez vous reconnecter pour accéder aux extraits.';
@@ -709,7 +709,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
   }
 
   formatCurrency(amount: number): string {
-    return amount.toFixed(3) + ' TND';
+    return amount.toFixed(3) + ' DT';
   }
 
   formatTicketNumber(ticketNumber: string | number | undefined | null): string {
@@ -743,35 +743,35 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
 
   private async fetchReturnRequestsForSessions(sessions: SessionCaisse[], depotId: number): Promise<Map<number, ReturnRequest[]>> {
     const returnRequestsMap = new Map<number, ReturnRequest[]>();
-    
+
     try {
       const token = this.authService.getToken() || sessionStorage.getItem('token');
       if (!token) return returnRequestsMap;
-      
+
       const headers = new HttpHeaders({
         'Authorization': `Bearer ${token}`,
         'X-Depot-Id': depotId.toString()
       });
-      
+
       const allReturnRequests = await this.returnsService.listReturnRequests('PROCESSED')
         .pipe(catchError(() => of([] as ReturnRequest[])))
         .toPromise();
-      
+
       if (!allReturnRequests || allReturnRequests.length === 0) {
         sessions.forEach(s => returnRequestsMap.set(s.id, []));
         return returnRequestsMap;
       }
-      
+
       const depotReturnRequests = allReturnRequests.filter(req => req.depotId === depotId);
-      
+
       for (const session of sessions) {
-        const sessionStart = session.openedAt instanceof Date 
-          ? session.openedAt 
+        const sessionStart = session.openedAt instanceof Date
+          ? session.openedAt
           : new Date(session.openedAt);
-        const sessionEnd = session.closedAt 
+        const sessionEnd = session.closedAt
           ? (session.closedAt instanceof Date ? session.closedAt : new Date(session.closedAt))
           : new Date();
-        
+
         const sessionRequests = depotReturnRequests.filter(req => {
           const approvedAt = req.approvedAt ? new Date(req.approvedAt) : null;
           if (!approvedAt) {
@@ -781,14 +781,14 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
           }
           return approvedAt >= sessionStart && approvedAt <= sessionEnd;
         });
-        
+
         returnRequestsMap.set(session.id, sessionRequests);
       }
     } catch (error) {
       console.error('Error fetching return requests:', error);
       sessions.forEach(s => returnRequestsMap.set(s.id, []));
     }
-    
+
     return returnRequestsMap;
   }
 

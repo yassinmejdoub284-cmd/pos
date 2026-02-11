@@ -8,8 +8,8 @@ import { SupplierService } from '../core/services/supplier.service';
 import { PrintService } from '../core/services/print.service';
 import { AuthService } from '../core/services/auth.service';
 import { ExpenseService } from '../core/services/expense.service';
-import { 
-  Supplier, 
+import {
+  Supplier,
   SupplierSummary
 } from '../core/models/supplier.model';
 
@@ -24,7 +24,7 @@ export class SupplierStatementComponent implements OnInit {
   supplierSummaries: SupplierSummary[] = [];
   loading = false;
   isAdmin = false;
-  
+
   // Filters
   filters = {
     supplierId: null as number | null,
@@ -33,13 +33,13 @@ export class SupplierStatementComponent implements OnInit {
   };
 
   constructor(
-    private http: HttpClient, 
+    private http: HttpClient,
     public router: Router,
     private supplierService: SupplierService,
     private printService: PrintService,
     private authService: AuthService,
     private expenseService: ExpenseService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
@@ -108,14 +108,14 @@ export class SupplierStatementComponent implements OnInit {
   }
 
   printStatementA4(supplierId: number): void {
-    this.router.navigate(['/supplier-statement', supplierId], { 
-      queryParams: { print: 'a4' } 
+    this.router.navigate(['/supplier-statement', supplierId], {
+      queryParams: { print: 'a4' }
     });
   }
 
   printStatementThermal(supplierId: number): void {
-    this.router.navigate(['/supplier-statement', supplierId], { 
-      queryParams: { print: 'thermal' } 
+    this.router.navigate(['/supplier-statement', supplierId], {
+      queryParams: { print: 'thermal' }
     });
   }
 }

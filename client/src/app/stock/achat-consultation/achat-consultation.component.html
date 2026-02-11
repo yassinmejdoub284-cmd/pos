@@ -3,10 +3,14 @@
     <div class="bg-white/90 rounded-3xl p-6 mb-6 border border-purple-100">
       <div class="flex justify-between items-center mb-6">
         <div class="flex items-center gap-4">
-          <div class="w-14 h-14 bg-gradient-to-br from-pink-300 to-purple-300 rounded-2xl flex items-center justify-center">
+          <div
+            class="w-14 h-14 bg-gradient-to-br from-pink-300 to-purple-300 rounded-2xl flex items-center justify-center">
             <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+              </path>
             </svg>
           </div>
           <div>
@@ -27,7 +31,8 @@
           <button (click)="goBack()"
             class="bg-purple-100 text-purple-700 px-6 py-3 rounded-2xl font-semibold flex items-center gap-2">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+              </path>
             </svg>
             Retour
           </button>
@@ -35,10 +40,8 @@
       </div>
 
       <div class="flex items-center gap-4">
-        <button (click)="toggleCompactMode()"
-          [class.bg-purple-200]="isCompactMode()"
-          [class.text-purple-800]="isCompactMode()"
-          [class.bg-purple-50]="!isCompactMode()"
+        <button (click)="toggleCompactMode()" [class.bg-purple-200]="isCompactMode()"
+          [class.text-purple-800]="isCompactMode()" [class.bg-purple-50]="!isCompactMode()"
           [class.text-purple-600]="!isCompactMode()"
           class="border-2 border-purple-200 px-4 py-2 rounded-xl font-medium flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,14 +50,13 @@
           Mode compact
         </button>
 
-        <button (click)="toggleGridView()"
-          [class.bg-purple-200]="isGridView()"
-          [class.text-purple-800]="isGridView()"
-          [class.bg-purple-50]="!isGridView()"
-          [class.text-purple-600]="!isGridView()"
+        <button (click)="toggleGridView()" [class.bg-purple-200]="isGridView()" [class.text-purple-800]="isGridView()"
+          [class.bg-purple-50]="!isGridView()" [class.text-purple-600]="!isGridView()"
           class="border-2 border-purple-200 px-4 py-2 rounded-xl font-medium flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+            </path>
           </svg>
           Vue grille
         </button>
@@ -62,250 +64,286 @@
     </div>
 
     @if (loading()) {
-      <div class="bg-white/90 rounded-3xl p-12 border border-purple-100 text-center">
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-        <span class="block mt-4 text-purple-600">Chargement des documents...</span>
-      </div>
+    <div class="bg-white/90 rounded-3xl p-12 border border-purple-100 text-center">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
+      <span class="block mt-4 text-purple-600">Chargement des documents...</span>
+    </div>
     }
 
     @if (error()) {
-      <div class="bg-pink-100 border-2 border-pink-200 rounded-3xl p-4 text-pink-800">
-        {{ error() }}
-      </div>
+    <div class="bg-pink-100 border-2 border-pink-200 rounded-3xl p-4 text-pink-800">
+      {{ error() }}
+    </div>
     }
 
     @if (!loading() && !error() && displayedDocuments().length === 0) {
-      <div class="bg-white/90 rounded-3xl p-12 border border-purple-100 text-center">
-        <div class="w-16 h-16 bg-gradient-to-br from-pink-200 to-purple-200 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-        </div>
-        <span class="text-lg font-semibold text-purple-800 block mb-2">Aucun document</span>
-        <span class="text-purple-600 block">Aucun document trouvé pour ce dépôt</span>
+    <div class="bg-white/90 rounded-3xl p-12 border border-purple-100 text-center">
+      <div
+        class="w-16 h-16 bg-gradient-to-br from-pink-200 to-purple-200 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+          </path>
+        </svg>
       </div>
+      <span class="text-lg font-semibold text-purple-800 block mb-2">Aucun document</span>
+      <span class="text-purple-600 block">Aucun document trouvé pour ce dépôt</span>
+    </div>
     }
 
     @if (!loading() && !error() && displayedDocuments().length > 0) {
-      @if (isGridView()) {
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          @for (doc of displayedDocuments(); track doc.id) {
-            <div class="bg-white/90 border-2 border-purple-100 rounded-3xl p-5">
-              <div class="flex items-start justify-between mb-4">
-                <div class="flex-1">
-                  <div class="flex items-center gap-2 mb-3">
-                    <span class="font-bold text-lg text-purple-800">{{ doc.numero }}</span>
-                  </div>
-                  <div class="space-y-2 text-sm">
-                    <div class="flex items-center gap-2 text-purple-600">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                      </svg>
-                      <span>{{ formatDate(doc.createdAt) }}</span>
-                    </div>
-                    @if (doc.destinataire) {
-                      <div class="flex items-center gap-2 text-purple-600">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                        </svg>
-                        <span>{{ doc.destinataire.name }}</span>
-                      </div>
-                    }
-                    <div class="flex items-center gap-2 text-purple-600">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                      </svg>
-                      <span>{{ doc.items?.length || 0 }} article(s)</span>
-                    </div>
-                  </div>
-                </div>
+    @if (isGridView()) {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      @for (doc of displayedDocuments(); track doc.id) {
+      <div class="bg-white/90 border-2 border-purple-100 rounded-3xl p-5">
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="font-bold text-lg text-purple-800">{{ doc.numero }}</span>
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center gap-2 text-purple-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <span>{{ formatDate(doc.createdAt) }}</span>
+              </div>
+              @if (doc.destinataire) {
+              <div class="flex items-center gap-2 text-purple-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+                  </path>
+                </svg>
+                <span>{{ doc.destinataire.name }}</span>
+              </div>
+              }
+              <div class="flex items-center gap-2 text-purple-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+                <span>{{ doc.items?.length || 0 }} article(s)</span>
+              </div>
+            </div>
+          </div>
+          <span class="px-3 py-1 rounded-xl text-xs font-semibold" [ngClass]="getStatusClass(doc.status)">
+            {{ getStatusLabel(doc.status) }}
+          </span>
+        </div>
+        <div class="border-t-2 border-purple-100 pt-4 mt-4">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-sm text-purple-600">Total:</span>
+            <span class="text-lg font-bold text-purple-800">{{ getDocumentTotal(doc) | number:'1.2-2' }} DT</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button (click)="viewDocument(doc.id)"
+              class="flex-1 bg-purple-100 text-purple-700 px-3 py-2 rounded-xl font-medium text-sm flex items-center justify-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+                </path>
+              </svg>
+              Voir
+            </button>
+            <button (click)="editDocument(doc.id)"
+              class="flex-1 bg-indigo-100 text-indigo-700 px-3 py-2 rounded-xl font-medium text-sm flex items-center justify-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                </path>
+              </svg>
+              Modifier
+            </button>
+            <button (click)="deleteDocument(doc.id)"
+              class="flex-1 bg-pink-100 text-pink-700 px-3 py-2 rounded-xl font-medium text-sm flex items-center justify-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                </path>
+              </svg>
+              Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+    } @else {
+    <div class="bg-white/90 rounded-3xl border-2 border-purple-100 overflow-hidden">
+      <div>
+        <table class="w-full">
+          <thead class="bg-purple-50 border-b-2 border-purple-100 sticky top-0">
+            <tr>
+              <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Numéro</th>
+              <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Date</th>
+              <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Destinataire</th>
+              <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Articles</th>
+              <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Total</th>
+              <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Statut</th>
+              <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y-2 divide-purple-50">
+            @for (doc of displayedDocuments(); track doc.id) {
+            <tr class="bg-white/40">
+              <td class="px-5 py-4 text-sm font-medium text-purple-800">{{ doc.numero }}</td>
+              <td class="px-5 py-4 text-sm text-purple-600">{{ formatDate(doc.createdAt) }}</td>
+              <td class="px-5 py-4 text-sm text-purple-600">{{ doc.destinataire?.name || '-' }}</td>
+              <td class="px-5 py-4 text-sm text-purple-600">{{ doc.items?.length || 0 }}</td>
+              <td class="px-5 py-4 text-sm font-semibold text-purple-800">{{ getDocumentTotal(doc) | number:'1.2-2' }}
+                DT</td>
+              <td class="px-5 py-4">
                 <span class="px-3 py-1 rounded-xl text-xs font-semibold" [ngClass]="getStatusClass(doc.status)">
                   {{ getStatusLabel(doc.status) }}
                 </span>
-              </div>
-              <div class="border-t-2 border-purple-100 pt-4 mt-4">
-                <div class="flex items-center justify-between mb-4">
-                  <span class="text-sm text-purple-600">Total:</span>
-                  <span class="text-lg font-bold text-purple-800">{{ getDocumentTotal(doc) | number:'1.2-2' }} TND</span>
-                </div>
+              </td>
+              <td class="px-5 py-4">
                 <div class="flex items-center gap-2">
                   <button (click)="viewDocument(doc.id)"
-                    class="flex-1 bg-purple-100 text-purple-700 px-3 py-2 rounded-xl font-medium text-sm flex items-center justify-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    class="bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+                      </path>
                     </svg>
                     Voir
                   </button>
                   <button (click)="editDocument(doc.id)"
-                    class="flex-1 bg-indigo-100 text-indigo-700 px-3 py-2 rounded-xl font-medium text-sm flex items-center justify-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
+                      </path>
                     </svg>
                     Modifier
                   </button>
                   <button (click)="deleteDocument(doc.id)"
-                    class="flex-1 bg-pink-100 text-pink-700 px-3 py-2 rounded-xl font-medium text-sm flex items-center justify-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    class="bg-pink-100 text-pink-700 px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                      </path>
                     </svg>
                     Supprimer
                   </button>
                 </div>
-              </div>
-            </div>
-          }
-        </div>
-      } @else {
-        <div class="bg-white/90 rounded-3xl border-2 border-purple-100 overflow-hidden">
-          <div>
-            <table class="w-full">
-              <thead class="bg-purple-50 border-b-2 border-purple-100 sticky top-0">
-                <tr>
-                  <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Numéro</th>
-                  <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Date</th>
-                  <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Destinataire</th>
-                  <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Articles</th>
-                  <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Total</th>
-                  <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Statut</th>
-                  <th class="px-5 py-4 text-left text-xs font-semibold text-purple-700 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y-2 divide-purple-50">
-                @for (doc of displayedDocuments(); track doc.id) {
-                  <tr class="bg-white/40">
-                    <td class="px-5 py-4 text-sm font-medium text-purple-800">{{ doc.numero }}</td>
-                    <td class="px-5 py-4 text-sm text-purple-600">{{ formatDate(doc.createdAt) }}</td>
-                    <td class="px-5 py-4 text-sm text-purple-600">{{ doc.destinataire?.name || '-' }}</td>
-                    <td class="px-5 py-4 text-sm text-purple-600">{{ doc.items?.length || 0 }}</td>
-                    <td class="px-5 py-4 text-sm font-semibold text-purple-800">{{ getDocumentTotal(doc) | number:'1.2-2' }} TND</td>
-                    <td class="px-5 py-4">
-                      <span class="px-3 py-1 rounded-xl text-xs font-semibold" [ngClass]="getStatusClass(doc.status)">
-                        {{ getStatusLabel(doc.status) }}
-                      </span>
-                    </td>
-                    <td class="px-5 py-4">
-                      <div class="flex items-center gap-2">
-                        <button (click)="viewDocument(doc.id)"
-                          class="bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1">
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                          </svg>
-                          Voir
-                        </button>
-                        <button (click)="editDocument(doc.id)"
-                          class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1">
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                          </svg>
-                          Modifier
-                        </button>
-                        <button (click)="deleteDocument(doc.id)"
-                          class="bg-pink-100 text-pink-700 px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1">
-                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                          </svg>
-                          Supprimer
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </div>
-      }
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+    }
     }
   </div>
 
   @if (showViewModal()) {
-    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" (click)="closeViewModal()">
-      <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" (click)="$event.stopPropagation()">
-        <div class="flex items-center justify-between p-6 border-b-2 border-purple-100">
-          <h2 class="text-2xl font-bold text-purple-800">
-            {{ actionType() === 'entry' ? 'Bon d\'entrée' : 'Bon de retour' }} - {{ viewingDocument()?.numero }}
-          </h2>
-          <div class="flex items-center gap-3">
-            <button (click)="printDocument()"
-              class="bg-purple-100 text-purple-700 px-4 py-2 rounded-xl font-medium flex items-center gap-2">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-              </svg>
-              Imprimer
-            </button>
-            <button (click)="closeViewModal()"
-              class="bg-pink-100 text-pink-700 px-4 py-2 rounded-xl font-medium flex items-center gap-2">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-              Fermer
-            </button>
-          </div>
-        </div>
-        <div class="overflow-auto p-6 flex-1 bg-gray-50">
-          <style>
-            .document-preview {
-              font-family: Arial, Helvetica, sans-serif;
-              font-size: 12px;
-              line-height: 1.5;
-              color: #000;
-            }
-            .document-preview .container {
-              max-width: 800px;
-              margin: 0 auto;
-              padding: 10px 0 0 0;
-              background: white;
-            }
-            .document-preview .header {
-              display: flex;
-              flex-direction: column;
-              margin-bottom: 14px;
-              border-bottom: 1px solid #000;
-              padding-bottom: 8px;
-            }
-            .document-preview .title {
-              font-size: 20px;
-              font-weight: 900;
-              margin-bottom: 2px;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-            }
-            .document-preview table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 12px 0 0 0;
-              font-size: 12px;
-              border: 1px solid #000;
-            }
-            .document-preview th, .document-preview td {
-              border: 1px solid #000;
-              padding: 6px 8px;
-              text-align: left;
-            }
-            .document-preview th {
-              background-color: transparent;
-              font-weight: bold;
-              text-align: center;
-              font-size: 11px;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            }
-            .document-preview .total-row {
-              background-color: #f0f0f0;
-              font-weight: bold;
-            }
-            .document-preview .text-right {
-              text-align: right;
-            }
-            .document-preview .text-center {
-              text-align: center;
-            }
-          </style>
-          <div [innerHTML]="documentHtml()" class="document-preview bg-white p-6 rounded-lg shadow-sm"></div>
+  <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+    (click)="closeViewModal()">
+    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+      (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between p-6 border-b-2 border-purple-100">
+        <h2 class="text-2xl font-bold text-purple-800">
+          {{ actionType() === 'entry' ? 'Bon d\'entrée' : 'Bon de retour' }} - {{ viewingDocument()?.numero }}
+        </h2>
+        <div class="flex items-center gap-3">
+          <button (click)="printDocument()"
+            class="bg-purple-100 text-purple-700 px-4 py-2 rounded-xl font-medium flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+              </path>
+            </svg>
+            Imprimer
+          </button>
+          <button (click)="closeViewModal()"
+            class="bg-pink-100 text-pink-700 px-4 py-2 rounded-xl font-medium flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            Fermer
+          </button>
         </div>
       </div>
+      <div class="overflow-auto p-6 flex-1 bg-gray-50">
+        <style>
+          .document-preview {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #000;
+          }
+
+          .document-preview .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 10px 0 0 0;
+            background: white;
+          }
+
+          .document-preview .header {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 14px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 8px;
+          }
+
+          .document-preview .title {
+            font-size: 20px;
+            font-weight: 900;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+
+          .document-preview table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 0 0;
+            font-size: 12px;
+            border: 1px solid #000;
+          }
+
+          .document-preview th,
+          .document-preview td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            text-align: left;
+          }
+
+          .document-preview th {
+            background-color: transparent;
+            font-weight: bold;
+            text-align: center;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .document-preview .total-row {
+            background-color: #f0f0f0;
+            font-weight: bold;
+          }
+
+          .document-preview .text-right {
+            text-align: right;
+          }
+
+          .document-preview .text-center {
+            text-align: center;
+          }
+        </style>
+        <div [innerHTML]="documentHtml()" class="document-preview bg-white p-6 rounded-lg shadow-sm"></div>
+      </div>
     </div>
+  </div>
   }
 </div>

@@ -10,12 +10,14 @@ import { DepotsService } from '../core/services/depots.service';
 import { SuppliersService } from '../core/services/suppliers.service';
 import { ExpenseService } from '../core/services/expense.service';
 import { ProduitsDeCaisseService } from '../core/services/produits-de-caisse.service';
+import { ClientsService } from '../core/services/clients.service';
 
 import {
   DashboardStats,
   BoutiqueRevenue,
   DepotRevenue,
   SupplierCredit,
+  ClientCredit,
   BoutiqueExpense
 } from '../core/models/dashboard.model';
 
@@ -39,9 +41,11 @@ export class AdminHomeComponent implements OnInit {
     totalExpenses: 0,
     totalNet: 0,
     totalSupplierCredit: 0,
+    totalClientCredit: 0,
     revenueByBoutique: [],
     revenueByDepot: [],
     supplierCreditByDepot: [],
+    clientCreditByDepot: [],
     expensesByBoutique: []
   });
 
@@ -50,6 +54,7 @@ export class AdminHomeComponent implements OnInit {
   revenueByDepotChartData = signal<ChartConfiguration['data']>({ datasets: [], labels: [] });
   expensesByBoutiqueChartData = signal<ChartConfiguration['data']>({ datasets: [], labels: [] });
   supplierCreditChartData = signal<ChartConfiguration['data']>({ datasets: [], labels: [] });
+  clientCreditChartData = signal<ChartConfiguration['data']>({ datasets: [], labels: [] });
 
   // Chart Options
   barChartOptions: ChartConfiguration['options'] = {
@@ -78,6 +83,7 @@ export class AdminHomeComponent implements OnInit {
     private salesService: SalesService,
     private depotsService: DepotsService,
     private suppliersService: SuppliersService,
+    private clientsService: ClientsService,
     private expenseService: ExpenseService,
     private produitsDeCaisseService: ProduitsDeCaisseService,
     private router: Router
@@ -124,11 +130,12 @@ export class AdminHomeComponent implements OnInit {
       // We still fetch expenses for reference or drill-down if needed, but main stat comes from cashFlow
       expenses: this.expenseService.getExpenses({ startDate: startDateStr, limit: 1000 }),
       // Fetch verified cash outflows (Sortie de Caisse)
-      cashFlow: this.expenseService.getCashFlowStats({ startDate: startDateStr })
+      cashFlow: this.expenseService.getCashFlowStats({ startDate: startDateStr }),
+      clients: this.clientsService.getClients(1, 1000, '', '', true) // Fetch active clients to calculate current debt
     }).subscribe({
       next: (data: any) => {
         // We'll process data and handle product fetching inside processData
-        this.processData(data.sales, data.depots, data.suppliers, data.expenses, data.cashFlow);
+        this.processData(data.sales, data.depots, data.suppliers, data.expenses, data.cashFlow, data.clients?.clients || []);
       },
       error: (err) => {
         console.error('Dashboard load error', err);
@@ -138,7 +145,7 @@ export class AdminHomeComponent implements OnInit {
     });
   }
 
-  async processData(sales: any[], depots: any[], suppliers: any[], expenses: any[], cashFlow: any[] = []) {
+  async processData(sales: any[], depots: any[], suppliers: any[], expenses: any[], cashFlow: any[] = [], clients: any[] = []) {
     try {
       // 1. Map Depots
       console.log('Depots loaded:', depots);
@@ -234,6 +241,32 @@ export class AdminHomeComponent implements OnInit {
       });
       supplierCreditByDepot.sort((a, b) => b.totalCredit - a.totalCredit);
 
+      // --- Section 5: Client Credit ---
+      const clientCreditByDepot: ClientCredit[] = [];
+      const getClientCreditEntry = (depotId: number | 'unassigned', name: string) => {
+        let entry = clientCreditByDepot.find(s => s.depotId === depotId);
+        if (!entry) {
+          entry = { depotId, depotName: name, totalCredit: 0 };
+          clientCreditByDepot.push(entry);
+        }
+        return entry;
+      };
+
+      let totalClientCredit = 0;
+      clients.forEach((cli: any) => {
+        const debt = parseFloat(cli.currentDebt || 0);
+        if (debt > 0) {
+          totalClientCredit += debt;
+          if (cli.depotId) {
+            const depot = depotMap.get(cli.depotId);
+            getClientCreditEntry(cli.depotId, depot ? depot.name : 'Unknown Depot').totalCredit += debt;
+          } else {
+            getClientCreditEntry('unassigned', 'Non assigné').totalCredit += debt;
+          }
+        }
+      });
+      clientCreditByDepot.sort((a, b) => b.totalCredit - a.totalCredit);
+
 
       // --- Section 2: Revenue by Depot (Source/Atelier) ---
 
@@ -309,9 +342,11 @@ export class AdminHomeComponent implements OnInit {
         totalExpenses,
         totalNet: totalRevenue - totalExpenses,
         totalSupplierCredit,
+        totalClientCredit,
         revenueByBoutique,
         revenueByDepot,
         supplierCreditByDepot,
+        clientCreditByDepot,
         expensesByBoutique
       });
 
@@ -359,6 +394,18 @@ export class AdminHomeComponent implements OnInit {
         {
           data: stats.supplierCreditByDepot.map(i => i.totalCredit),
           backgroundColor: ['#fca5a5', '#fdba74', '#fcd34d', '#86efac', '#93c5fd', '#c4b5fd', '#f9a8d4'],
+          hoverOffset: 4
+        }
+      ]
+    });
+
+    // 5. Client Credit (Pie)
+    this.clientCreditChartData.set({
+      labels: stats.clientCreditByDepot.map(i => i.depotName),
+      datasets: [
+        {
+          data: stats.clientCreditByDepot.map(i => i.totalCredit),
+          backgroundColor: ['#93c5fd', '#c4b5fd', '#f9a8d4', '#fca5a5', '#fdba74', '#fcd34d', '#86efac'],
           hoverOffset: 4
         }
       ]

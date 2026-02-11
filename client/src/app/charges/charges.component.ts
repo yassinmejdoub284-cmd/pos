@@ -20,7 +20,7 @@ Chart.register(...registerables);
 export class ChargesComponent implements OnInit, AfterViewInit {
   @ViewChild('pieChartCanvas') pieChartCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('lineChartCanvas') lineChartCanvas!: ElementRef<HTMLCanvasElement>;
-  
+
   categories: ExpenseCategory[] = [];
   suppliers: any[] = [];
   depots: any[] = [];
@@ -92,12 +92,12 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     private route: ActivatedRoute,
     private supplierService: SupplierService,
     private depotsService: DepotsService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.loadCurrentUser();
     this.loadData();
-    
+
     this.route.queryParams.subscribe(params => {
       if (params['action']) {
         switch (params['action']) {
@@ -119,7 +119,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    
+
     this.startDate = firstDay.toISOString().split('T')[0];
     this.endDate = lastDay.toISOString().split('T')[0];
   }
@@ -140,7 +140,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
     const user = this.authService.currentUser();
     const isAdminUser = user?.role === 'ADMIN';
-    
+
     const filters: any = {
       limit: 10000
     };
@@ -151,7 +151,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
     if (this.selectedDepotId) {
       filters.depotId = this.selectedDepotId;
     }
-    
+
     const requests: any = {
       categories: this.expenseService.getCategories(),
       expenses: this.expenseService.getExpenses(filters),
@@ -177,13 +177,13 @@ export class ChargesComponent implements OnInit, AfterViewInit {
         this.expenses = results.expenses || [];
         this.suppliers = (results.suppliers || []).filter((s: any) => s.isActive !== false);
         this.depots = (results.depots || []).filter((d: any) => d.isActive !== false);
-        
+
         if (isAdminUser && results.stats) {
           this.stats = results.stats || null;
         } else {
           this.stats = null;
         }
-        
+
         this.pendingExpenses = this.expenses.filter(e => !e.isApproved);
         this.loading = false;
       },
@@ -220,8 +220,8 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
   get filteredSuppliers(): any[] {
     const query = this.supplierSearch.trim().toLowerCase();
-    if (!query) { 
-      return this.suppliers; 
+    if (!query) {
+      return this.suppliers;
     }
     const filtered = this.suppliers.filter(s =>
       (s.name || '').toLowerCase().includes(query) ||
@@ -499,7 +499,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
   private groupExpensesByDate(): { [key: string]: number } {
     const dailyData: { [key: string]: number } = {};
-    
+
     this.expenses.forEach(expense => {
       const date = expense.date.split('T')[0]; // Get just the date part
       dailyData[date] = (dailyData[date] || 0) + expense.amount;
@@ -510,9 +510,9 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
   private formatDateForChart(dateString: string): string {
     const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', { 
-      day: '2-digit', 
-      month: '2-digit' 
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit'
     });
   }
 
@@ -566,7 +566,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
       // Get current depot ID (visiting depot or user's depot)
       const visitingDepotId = sessionStorage.getItem('visitingDepotId');
       const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (this.currentUser.depotId || null);
-      
+
       if (!currentDepotId) {
         this.error = 'Aucun dépôt sélectionné. Veuillez sélectionner un dépôt.';
         return;
@@ -582,7 +582,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
 
       await this.expenseService.createExpense(expense).toPromise();
-      
+
       this.closeAddExpenseModal();
       // Reload data to show the new expense
       this.loadData();
@@ -601,7 +601,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
     try {
       await this.expenseService.createCategory(this.newCategory).toPromise();
-      
+
       this.closeAddCategoryModal();
       this.loadData();
     } catch (error) {
@@ -712,7 +712,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
 
   getFilteredExpenses(): Expense[] {
     let filtered = this.expenses;
-    
+
     // Apply active filter
     if (this.activeFilter !== 'all') {
       switch (this.activeFilter) {
@@ -736,21 +736,21 @@ export class ChargesComponent implements OnInit, AfterViewInit {
           break;
       }
     }
-    
+
     // Apply supplier filter
     if (this.selectedSupplierFilter !== null) {
       filtered = filtered.filter(expense => expense.supplierId === this.selectedSupplierFilter);
     }
-    
+
     // Apply category filter
     if (this.selectedCategoryFilter !== null) {
       filtered = filtered.filter(expense => expense.categoryId === this.selectedCategoryFilter);
     }
-    
+
     // Apply search query
     if (this.searchQuery.trim()) {
       const query = this.searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(expense => 
+      filtered = filtered.filter(expense =>
         expense.category?.name.toLowerCase().includes(query) ||
         expense.user?.firstName.toLowerCase().includes(query) ||
         expense.user?.lastName.toLowerCase().includes(query) ||
@@ -758,7 +758,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
         expense.id.toString().includes(query)
       );
     }
-    
+
     return filtered;
   }
 

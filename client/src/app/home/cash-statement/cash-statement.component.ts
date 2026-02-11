@@ -100,7 +100,7 @@ export class CashStatementComponent implements OnInit {
   dailySummaries: DailySummary[] = [];
   loading = false;
   showSummary = true;
-  
+
   // Filters
   filters = {
     startDate: '',
@@ -108,7 +108,7 @@ export class CashStatementComponent implements OnInit {
     sessionId: null as number | null
   };
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private http: HttpClient, private router: Router) { }
 
   ngOnInit(): void {
     this.loadDailySummary();
@@ -118,7 +118,7 @@ export class CashStatementComponent implements OnInit {
     this.loading = true;
     let url = `${environment.apiUrl}/cash-statements/statement?`;
     const params = new URLSearchParams();
-    
+
     if (this.filters.startDate) {
       params.append('startDate', this.filters.startDate);
     }
@@ -128,7 +128,7 @@ export class CashStatementComponent implements OnInit {
     if (this.filters.sessionId) {
       params.append('sessionId', this.filters.sessionId.toString());
     }
-    
+
     url += params.toString();
 
     this.http.get<CashStatement>(url).subscribe({
@@ -153,10 +153,10 @@ export class CashStatementComponent implements OnInit {
     this.loading = true;
     let url = `${environment.apiUrl}/cash-statements/summary?`;
     const params = new URLSearchParams();
-    
+
     params.append('startDate', this.filters.startDate);
     params.append('endDate', this.filters.endDate);
-    
+
     url += params.toString();
 
     this.http.get<DailySummary[]>(url).subscribe({
@@ -241,7 +241,7 @@ export class CashStatementComponent implements OnInit {
 
     // Create CSV content
     const csvContent = this.generateCSV();
-    
+
     // Create and download file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');

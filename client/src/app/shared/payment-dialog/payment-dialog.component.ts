@@ -141,7 +141,7 @@ export class PaymentDialogComponent implements OnInit, OnChanges {
   loading = false;
   error = false;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   onBackdropClick(event: Event): void {
     if (event.target === event.currentTarget) {

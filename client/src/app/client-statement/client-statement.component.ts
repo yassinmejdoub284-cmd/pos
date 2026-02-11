@@ -41,7 +41,7 @@ export class ClientStatementComponent implements OnInit {
   clientSummaries: ClientSummary[] = [];
   loading = false;
   isAdmin = false;
-  
+
   // Filters
   filters = {
     clientId: null as number | null,
@@ -50,10 +50,10 @@ export class ClientStatementComponent implements OnInit {
   };
 
   constructor(
-    private http: HttpClient, 
+    private http: HttpClient,
     public router: Router,
     private authService: AuthService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
@@ -64,14 +64,14 @@ export class ClientStatementComponent implements OnInit {
     this.loading = true;
     let url = `${environment.apiUrl}/client-statements/statements/summary?`;
     const params = new URLSearchParams();
-    
+
     if (this.filters.startDate) {
       params.append('startDate', this.filters.startDate);
     }
     if (this.filters.endDate) {
       params.append('endDate', this.filters.endDate);
     }
-    
+
     url += params.toString();
 
     this.http.get<ClientSummary[]>(url).subscribe({
@@ -108,7 +108,7 @@ export class ClientStatementComponent implements OnInit {
   formatAmount(amount: number): string {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
-      currency: 'TND'
+      currency: 'DT'
     }).format(amount);
   }
 
@@ -127,14 +127,14 @@ export class ClientStatementComponent implements OnInit {
   }
 
   printStatementA4(clientId: number): void {
-    this.router.navigate(['/client-statement', clientId], { 
-      queryParams: { print: 'a4' } 
+    this.router.navigate(['/client-statement', clientId], {
+      queryParams: { print: 'a4' }
     });
   }
 
   printStatementThermal(clientId: number): void {
-    this.router.navigate(['/client-statement', clientId], { 
-      queryParams: { print: 'thermal' } 
+    this.router.navigate(['/client-statement', clientId], {
+      queryParams: { print: 'thermal' }
     });
   }
 }

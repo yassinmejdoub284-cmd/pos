@@ -64,11 +64,11 @@ export class ClientStatementComponent implements OnInit {
   statement: ClientStatement | null = null;
   loading = false;
   showSummary = true;
-  
+
   // Ticket Dialog
   showTicketDialog = false;
   selectedTicketId: number | null = null;
-  
+
   // Filters
   filters = {
     clientId: null as number | null,
@@ -76,7 +76,7 @@ export class ClientStatementComponent implements OnInit {
     endDate: ''
   };
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private http: HttpClient, private router: Router) { }
 
   ngOnInit(): void {
     this.loadClientSummaries();
@@ -86,14 +86,14 @@ export class ClientStatementComponent implements OnInit {
     this.loading = true;
     let url = `${environment.apiUrl}/client-statements/statements/summary?`;
     const params = new URLSearchParams();
-    
+
     if (this.filters.startDate) {
       params.append('startDate', this.filters.startDate);
     }
     if (this.filters.endDate) {
       params.append('endDate', this.filters.endDate);
     }
-    
+
     url += params.toString();
 
     this.http.get<ClientSummary[]>(url).subscribe({
@@ -117,14 +117,14 @@ export class ClientStatementComponent implements OnInit {
     this.loading = true;
     let url = `${environment.apiUrl}/client-statements/${this.filters.clientId}/statement?`;
     const params = new URLSearchParams();
-    
+
     if (this.filters.startDate) {
       params.append('startDate', this.filters.startDate);
     }
     if (this.filters.endDate) {
       params.append('endDate', this.filters.endDate);
     }
-    
+
     url += params.toString();
 
     this.http.get<ClientStatement>(url).subscribe({
@@ -217,7 +217,7 @@ export class ClientStatementComponent implements OnInit {
 
     // Create CSV content
     const csvContent = this.generateCSV();
-    
+
     // Create and download file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');

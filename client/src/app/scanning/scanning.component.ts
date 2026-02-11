@@ -50,7 +50,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   showDocumentTypeModal = false;
   showDocumentConfigurationModal = false;
   selectedDocumentType: 'livraison' | 'sortie' | 'transfert' | 'facture' | null = null;
-  
+
   // Document configuration
   documentConfig = {
     client: false,
@@ -81,7 +81,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   selectedProductForColisEdit: any = null;
   editedColisCount = '';
   shouldClearColisOnFirstTap = false;
-  
+
   // Manual Add Modals
   showManualAddModal = false;
   showProductSelectionModal = false;
@@ -94,7 +94,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   shouldClearManualColisOnFirstTap = false;
   searchQuery = '';
   filteredProduitsDeCaisse: any[] = [];
-  
+
   // Selected values
   selectedClient: any = null;
   selectedDepot: any = null;
@@ -104,7 +104,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   invoiceNumber = '';
   validityFromDate = '';
   validityToDate = '';
-  
+
   // Data for selections
   clients: any[] = [];
   depots: any[] = [];
@@ -117,7 +117,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   // Products cache for fast lookup
   public productsCache = new Map<number, Product>();
   public produitsDeCaisseCache = new Map<number, ProduitDeCaisse>();
-  
+
   // Wholesale rules for pricing
   private wholesaleRules: WholesaleRule[] = [];
 
@@ -140,7 +140,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     private sessionsService: SessionsService,
     private authService: AuthService,
     private wholesaleRulesService: WholesaleRulesService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.initializeSounds();
@@ -155,7 +155,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.loadDrivers();
     this.loadSettings();
     this.loadWholesaleRules();
-    
+
     // Also try to get the active session directly
     this.sessionsService.getActiveSessionByDepot().subscribe({
       next: (session) => {
@@ -222,21 +222,21 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   isAnyModalOpen(): boolean {
     return this.showDocumentTypeModal ||
-           this.showDocumentConfigurationModal ||
-           this.showClientSelectionModal ||
-           this.showDepotSelectionModal ||
-           this.showVehicleSelectionModal ||
-           this.showDriverSelectionModal ||
-           this.showManualDestinationModal ||
-           this.showInvoiceNumberModal ||
-           this.showValidityModal ||
-           this.showScanDetailsModal ||
-           this.showQuantityEditModal ||
-           this.showColisEditModal ||
-           this.showManualAddModal ||
-           this.showProductSelectionModal ||
-           this.showManualQuantityModal ||
-           this.showManualColisModal;
+      this.showDocumentConfigurationModal ||
+      this.showClientSelectionModal ||
+      this.showDepotSelectionModal ||
+      this.showVehicleSelectionModal ||
+      this.showDriverSelectionModal ||
+      this.showManualDestinationModal ||
+      this.showInvoiceNumberModal ||
+      this.showValidityModal ||
+      this.showScanDetailsModal ||
+      this.showQuantityEditModal ||
+      this.showColisEditModal ||
+      this.showManualAddModal ||
+      this.showProductSelectionModal ||
+      this.showManualQuantityModal ||
+      this.showManualColisModal;
   }
 
   private loadProducts(): void {
@@ -302,7 +302,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         console.warn('No depot ID available, skipping produits de caisse load');
         return;
       }
-      
+
       // Fetch scannable articles, active depot products, and ALL master products for metadata
       const [produitsDeCaisse, depotProducts, allMasterProducts] = await Promise.all([
         this.produitsDeCaisseService.getActiveProduitsDeCaisse(depotId).toPromise(),
@@ -323,7 +323,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       if (produitsDeCaisse) {
         produitsDeCaisse.forEach(produit => {
           this.produitsDeCaisseCache.set(produit.id, produit);
-          
+
           // Aggressively populate parent product metadata from sub-product data
           // This ensures we have basic info for parents even if not assigned to this depot
           if (produit.parentProduct) {
@@ -348,7 +348,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         return produit.name;
       }
     }
-    
+
     // Return null if not found in sous-produits - NO fallback to main products
     return null;
   }
@@ -382,14 +382,14 @@ export class ScanningComponent implements OnInit, OnDestroy {
     const samples = Math.floor(sampleRate * duration);
     const buffer = new ArrayBuffer(44 + samples * 2);
     const view = new DataView(buffer);
-    
+
     // WAV header
     const writeString = (offset: number, string: string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
       }
     };
-    
+
     writeString(0, 'RIFF');
     view.setUint32(4, 36 + samples * 2, true);
     writeString(8, 'WAVE');
@@ -403,13 +403,13 @@ export class ScanningComponent implements OnInit, OnDestroy {
     view.setUint16(34, 16, true);
     writeString(36, 'data');
     view.setUint32(40, samples * 2, true);
-    
+
     // Generate sine wave with higher amplitude
     for (let i = 0; i < samples; i++) {
       const sample = Math.sin(2 * Math.PI * frequency * i / sampleRate) * 0.8;
       view.setInt16(44 + i * 2, sample * 32767, true);
     }
-    
+
     const blob = new Blob([buffer], { type: 'audio/wav' });
     return URL.createObjectURL(blob);
   }
@@ -519,7 +519,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       // Quantity "01150" is at positions 7-11 (0-indexed: 6-10)
       const articleIdStr = barcode.substring(4, 7); // positions 6-8: "001"
       const quantityStr = barcode.substring(7, 12); // positions 7-11: "01150"
-      
+
       const articleId = parseInt(articleIdStr, 10);
       const quantity = parseInt(quantityStr, 10);
 
@@ -555,7 +555,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
       // EXCLUSIVE RESOLUTION LOGIC: 
       // Barcodes (2321...) ALWAYS refer to ProduitDeCaisse (SELECT * FROM produits_de_caisse)
-      
+
       let productId: number | null = null;
       let productName: string | null = null;
       let isMapped = false;
@@ -564,18 +564,18 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
       // Lookup ONLY in POS Item Cache
       const posItem = this.produitsDeCaisseCache.get(articleId);
-      
+
       if (posItem) {
         childProductId = posItem.id;
         childProductName = posItem.name;
 
         // Use parseProductIds to get all parent IDs associated with this sub-product
         const parentIds = this.parseProductIds(posItem);
-        
+
         if (parentIds.length > 0) {
           // Find the first parent that is present in the cache
           // Metadata was ghosted into productsCache during loadProduitsDeCaisse
-          
+
           let filteredParentIds = parentIds;
           // DEPOT FILTERING RULE: Only filter parents when a destination depot exists (Transfert)
           if (this.selectedDocumentType === 'transfert' && this.selectedDepot) {
@@ -584,7 +584,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
               const p = this.productsCache.get(parentId);
               return p?.depotAssignments?.some(da => da.depotId === destinationDepotId);
             });
-            
+
             if (depotMatchedIds.length > 0) {
               filteredParentIds = depotMatchedIds;
             }
@@ -628,7 +628,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         this.resetScanningState();
         return;
       }
-      
+
       // Create individual scan entry
       const individualScan = {
         id: `${articleId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -636,12 +636,12 @@ export class ScanningComponent implements OnInit, OnDestroy {
         timestamp: new Date(),
         barcode: barcode
       };
-      
+
       // Find existing item or create new one
       // MATCH BY ARTICLE ID (Sub-article ID), not Parent ID
       // This allows grouping by parent in the UI while keeping sub-article identity
       const existingItemIndex = this.scannedItems.findIndex(item => item.articleId === articleId);
-      
+
       if (existingItemIndex >= 0) {
         // Update existing item - add quantity and increment count
         this.scannedItems[existingItemIndex].quantity += quantity;
@@ -713,7 +713,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   private showSuccess(message: string): void {
     this.success = message;
     this.error = '';
-    
+
     // Clear success message after 3 seconds
     setTimeout(() => {
       this.success = '';
@@ -723,7 +723,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   private showError(message: string): void {
     this.error = message;
     this.success = '';
-    
+
     // Clear error message after 5 seconds
     setTimeout(() => {
       this.error = '';
@@ -745,11 +745,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   viewProductDetails(): void {
     if (this.lastScannedProduct) {
-      this.router.navigate(['/stock/produits'], { 
-        queryParams: { 
+      this.router.navigate(['/stock/produits'], {
+        queryParams: {
           search: this.lastScannedProduct.name,
-          highlight: this.lastScannedProduct.id 
-        } 
+          highlight: this.lastScannedProduct.id
+        }
       });
     }
   }
@@ -757,17 +757,17 @@ export class ScanningComponent implements OnInit, OnDestroy {
   getScannedQuantity(): string {
     // Extract quantity from the last scanned code
     if (!this.scannedCode) return 'N/A';
-    
+
     const code = this.sanitizeTo13(this.scannedCode);
     if (!code || code.length !== 13) return 'N/A';
-    
+
     try {
       const quantityStr = code.substring(7, 12);
       const quantity = parseInt(quantityStr, 10);
-      
+
       if (isNaN(quantity)) return 'N/A';
-      
-      return `${quantity}g (${(quantity/1000).toFixed(3)}kg)`;
+
+      return `${quantity}g (${(quantity / 1000).toFixed(3)}kg)`;
     } catch {
       return 'N/A';
     }
@@ -788,7 +788,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         return;
       }
     }
-    
+
     this.scannedItems = [];
     this.resetDocumentConfig();
     this.selectedDocumentType = null;
@@ -797,7 +797,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   }
 
   removeScannedItem(articleId: number): void {
-      this.scannedItems = this.scannedItems.filter(item => item.articleId !== articleId);
+    this.scannedItems = this.scannedItems.filter(item => item.articleId !== articleId);
   }
 
   // Scan Details Modal Methods
@@ -817,39 +817,39 @@ export class ScanningComponent implements OnInit, OnDestroy {
       const scanIndex = this.scannedItems[itemIndex].individualScans.findIndex(scan => scan.id === scanId);
       if (scanIndex >= 0) {
         const removedScan = this.scannedItems[itemIndex].individualScans[scanIndex];
-        
+
         // Remove the individual scan
         this.scannedItems[itemIndex].individualScans.splice(scanIndex, 1);
-        
+
         // Update totals
         this.scannedItems[itemIndex].quantity -= removedScan.quantity;
         this.scannedItems[itemIndex].count -= 1;
         this.scannedItems[itemIndex].colisCount -= 1; // Decrement colis count
-        
+
         // Update last scanned time
         if (this.scannedItems[itemIndex].individualScans.length > 0) {
           this.scannedItems[itemIndex].lastScanned = this.scannedItems[itemIndex].individualScans
             .reduce((latest, scan) => scan.timestamp > latest ? scan.timestamp : latest, new Date(0));
         }
-        
+
         // Update the selectedProductForDetails object to reflect the changes immediately
         if (this.selectedProductForDetails) {
           // Remove the scan from selectedProductForDetails
           this.selectedProductForDetails.individualScans = this.selectedProductForDetails.individualScans.filter((scan: any) => scan.id !== scanId);
-          
+
           // Update the total quantity, count, and colis count in selectedProductForDetails
           this.selectedProductForDetails.quantity = this.scannedItems[itemIndex].quantity;
           this.selectedProductForDetails.count = this.scannedItems[itemIndex].count;
           this.selectedProductForDetails.colisCount = this.scannedItems[itemIndex].colisCount;
         }
-        
+
         // Remove the entire item if no scans remain
         if (this.scannedItems[itemIndex].individualScans.length === 0) {
           this.scannedItems.splice(itemIndex, 1);
           this.closeScanDetailsModal();
         }
-        
-        this.success = `Scan supprimé (${(removedScan.quantity/1000).toFixed(3)}kg)`;
+
+        this.success = `Scan supprimé (${(removedScan.quantity / 1000).toFixed(3)}kg)`;
         setTimeout(() => { this.success = ''; }, 3000);
       }
     }
@@ -911,12 +911,12 @@ export class ScanningComponent implements OnInit, OnDestroy {
       if (scanToUpdate) {
         scanToUpdate.quantity = newQuantityInGrams;
       }
-      
+
       // Update the total quantity in selectedProductForDetails
       this.selectedProductForDetails.quantity = this.scannedItems[itemIndex].quantity;
     }
 
-    this.success = `Quantité modifiée: ${(oldQuantity/1000).toFixed(3)}kg → ${(newQuantityInGrams/1000).toFixed(3)}kg`;
+    this.success = `Quantité modifiée: ${(oldQuantity / 1000).toFixed(3)}kg → ${(newQuantityInGrams / 1000).toFixed(3)}kg`;
     setTimeout(() => { this.success = ''; }, 3000);
 
     this.closeQuantityEditModal();
@@ -1021,7 +1021,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     if (!this.selectedProductForDetails || !this.selectedProductForDetails.individualScans || this.selectedProductForDetails.individualScans.length === 0) {
       return null;
     }
-    
+
     return this.selectedProductForDetails.individualScans.reduce((latest: Date, scan: any) => {
       return scan.timestamp > latest ? scan.timestamp : latest;
     }, new Date(0));
@@ -1038,21 +1038,21 @@ export class ScanningComponent implements OnInit, OnDestroy {
     if (this.scannedItems.length === 0) {
       return null;
     }
-    
+
     let globalMostRecent = new Date(0);
-    
+
     this.scannedItems.forEach(item => {
       if (item.individualScans && item.individualScans.length > 0) {
         const itemMostRecent = item.individualScans.reduce((latest: Date, scan: any) => {
           return scan.timestamp > latest ? scan.timestamp : latest;
         }, new Date(0));
-        
+
         if (itemMostRecent > globalMostRecent) {
           globalMostRecent = itemMostRecent;
         }
       }
     });
-    
+
     return globalMostRecent.getTime() > 0 ? globalMostRecent : null;
   }
 
@@ -1067,13 +1067,13 @@ export class ScanningComponent implements OnInit, OnDestroy {
     if (!subProduct.individualScans || subProduct.individualScans.length === 0) {
       return false;
     }
-    
+
     const globalMostRecentTimestamp = this.getGlobalMostRecentScanTimestamp();
     if (!globalMostRecentTimestamp) {
       return false;
     }
-    
-    return subProduct.individualScans.some((scan: any) => 
+
+    return subProduct.individualScans.some((scan: any) =>
       scan.timestamp.getTime() === globalMostRecentTimestamp.getTime()
     );
   }
@@ -1158,13 +1158,13 @@ export class ScanningComponent implements OnInit, OnDestroy {
       if (!groups.has(groupKey)) {
         groups.set(groupKey, []);
       }
-      
+
       // Add color information if available (placeholder for now)
       const itemWithColor = {
         ...item,
         color: 'Sans couleur' // TODO: Add color property to ProduitDeCaisse model
       };
-      
+
       groups.get(groupKey)!.push(itemWithColor);
     });
 
@@ -1194,25 +1194,25 @@ export class ScanningComponent implements OnInit, OnDestroy {
     for (const [groupKey, items] of groups) {
       const displayParents: Array<{ id: number, name: string, depotId?: number, depotName?: string }> = [];
       const parentIds = new Set<number>();
-      
+
       if (!groupKey.startsWith('-')) {
         groupKey.split(',').forEach(id => parentIds.add(parseInt(id, 10)));
       }
 
       parentIds.forEach(id => {
-      const p = this.productsCache.get(id);
-      if (p) {
-        const mainDepot = p.depotAssignments && p.depotAssignments.length > 0 ? p.depotAssignments[0].depot : null;
-        displayParents.push({ 
-          id: p.id, 
-          name: p.name,
-          depotId: mainDepot?.id,
-          depotName: mainDepot?.name
-        });
-      }
-    });
+        const p = this.productsCache.get(id);
+        if (p) {
+          const mainDepot = p.depotAssignments && p.depotAssignments.length > 0 ? p.depotAssignments[0].depot : null;
+          displayParents.push({
+            id: p.id,
+            name: p.name,
+            depotId: mainDepot?.id,
+            depotName: mainDepot?.name
+          });
+        }
+      });
 
-    // Filter parents based on the current context (flux)
+      // Filter parents based on the current context (flux)
       if (displayParents.length > 1) {
         // PRIORITY 1: Destination Depot (selectedDepot)
         if (this.selectedDepot) {
@@ -1221,7 +1221,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
             displayParents.splice(0, displayParents.length, ...destMatch);
           }
         }
-        
+
         // PRIORITY 2: Source Depot (currentDepotId) - Only if no destination match found
         if (displayParents.length > 1 && this.currentDepotId) {
           const sourceMatch = displayParents.filter(p => p.depotId === this.currentDepotId);
@@ -1230,11 +1230,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
           }
         }
 
-      // If still multiple, just take the first one to avoid redundancy
-      if (displayParents.length > 1) {
-        displayParents.splice(1);
+        // If still multiple, just take the first one to avoid redundancy
+        if (displayParents.length > 1) {
+          displayParents.splice(1);
+        }
       }
-    }
 
       const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
       const totalPrice = items.reduce((sum, item) => {
@@ -1246,7 +1246,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
           if (this.hasCustomPrice(produit)) {
             prixUnitaire = this.getWholesalePrice(produit);
           }
-          
+
           const quantite = item.quantity / 1000; // Convert to kg
           return sum + (prixUnitaire * quantite);
         }
@@ -1272,24 +1272,24 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   getProductFamilyName(product: ProduitDeCaisse | null): string {
     if (!product) return 'Général';
-    
+
     // If famille is a string, return it directly
     if (typeof product.famille === 'string') {
       return product.famille;
     }
-    
+
     // If famille is an object with a name property, return the name
     if (product.famille && typeof product.famille === 'object' && 'name' in product.famille) {
       return product.famille.name || 'Général';
     }
-    
+
     // Fallback
     return 'Général';
   }
 
   getParentProductImage(produit: any): string | null {
     if (!produit) return null;
-    
+
     // If this produit has a parentProductId, get the parent product image
     if (produit.parentProductId) {
       const parentProduct = this.productsCache.get(produit.parentProductId) || null;
@@ -1297,7 +1297,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
         return parentProduct.photo;
       }
     }
-    
+
     // If no parent product or no image, return null
     return null;
   }
@@ -1341,7 +1341,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     if (applicableRule) {
       const basePrice = produit.prix_vente_TTC || 0;
       const ruleVal = Number(applicableRule.value) || 0;
-      
+
       if (applicableRule.ruleType === 'percentage') {
         return basePrice * (1 - ruleVal / 100);
       } else if (applicableRule.ruleType === 'fixed') {
@@ -1358,7 +1358,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   private findApplicableWholesaleRule(productId: number): WholesaleRule | null {
     // Since wholesale rules don't have specific productIds, apply the first active rule
     // In a real system, you might want to have more sophisticated rule matching
-    return this.wholesaleRules.find(rule => 
+    return this.wholesaleRules.find(rule =>
       !rule.isArchived
     ) || null;
   }
@@ -1442,15 +1442,15 @@ export class ScanningComponent implements OnInit, OnDestroy {
   getContrastColor(hexColor: string): string {
     // Remove # if present
     const color = hexColor.replace('#', '');
-    
+
     // Convert to RGB
     const r = parseInt(color.substr(0, 2), 16);
     const g = parseInt(color.substr(2, 2), 16);
     const b = parseInt(color.substr(4, 2), 16);
-    
+
     // Calculate luminance
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    
+
     // Return black for light colors, white for dark colors
     return luminance > 0.5 ? '#000000' : '#ffffff';
   }
@@ -1461,12 +1461,12 @@ export class ScanningComponent implements OnInit, OnDestroy {
       this.playErrorSound();
       return;
     }
-    
+
     if (!this.selectedDocumentType) {
       this.showDocumentTypeSelection();
       return;
     }
-    
+
     this.proceedToNextSelection();
   }
 
@@ -1490,9 +1490,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
       setTimeout(() => { this.error = ''; }, 3000);
       return;
     }
-    
+
     this.showInvoiceNumberModal = false;
-    
+
     // Continue with the document configuration flow
     if (this.selectedDocumentType) {
       this.loadDocumentTypeDefaults(this.selectedDocumentType);
@@ -1503,16 +1503,16 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.selectedDocumentType = type;
     this.closeDocumentTypeModal();
     this.resetDocumentConfig();
-    
+
     // Apply defaults immediately (synchronously)
     this.applyDocumentTypeDefaults(type);
-    
+
     // If facture is selected, show invoice number modal first
     if (type === 'facture') {
       this.showInvoiceNumberModal = true;
       return;
     }
-    
+
     // Then try to load from server settings (asynchronously)
     this.loadDocumentTypeDefaults(type);
   }
@@ -1535,7 +1535,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.manualDestination = '';
     this.validityFromDate = '';
     this.validityToDate = '';
-    
+
     // Close all modals
     this.showClientSelectionModal = false;
     this.showDepotSelectionModal = false;
@@ -1550,12 +1550,12 @@ export class ScanningComponent implements OnInit, OnDestroy {
     this.resetDocumentConfig();
     this.selectedDocumentType = null;
     this.invoiceNumber = '';
-    
+
     // Close all document-related modals
     this.showDocumentTypeModal = false;
     this.showDocumentConfigurationModal = false;
     this.showInvoiceNumberModal = false;
-    
+
     // Show a message to the user
     this.success = 'Création de document annulée';
     setTimeout(() => { this.success = ''; }, 3000);
@@ -1563,7 +1563,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   private applyDocumentTypeDefaults(type: 'livraison' | 'sortie' | 'transfert' | 'facture'): void {
 
-    
+
     // Define default configurations for each document type
     const defaultConfigs = {
       livraison: {
@@ -1611,7 +1611,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     // Apply the defaults immediately
     const defaults = defaultConfigs[type];
 
-    
+
     this.documentConfig = {
       client: defaults.client,
       depot: defaults.depot,
@@ -1622,20 +1622,20 @@ export class ScanningComponent implements OnInit, OnDestroy {
       tvaAndPrix: defaults.tvaAndPrix,
       validity: defaults.validity
     };
-    
+
 
   }
 
   private loadDocumentTypeDefaults(type: 'livraison' | 'sortie' | 'transfert' | 'facture'): void {
 
-    
+
     // Try to load settings from server to override defaults
     this.settingsService.getSettings().subscribe({
       next: (settings) => {
 
 
 
-        
+
         if (settings?.documentTypeDefaults?.[type]) {
           const serverDefaults = settings.documentTypeDefaults[type] as any;
 
@@ -1677,7 +1677,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
   private loadCurrentDepot(): void {
     // First try to get the current session directly
     const currentSession = this.sessionsService.currentSession();
-    
+
     if (currentSession && currentSession.depotId) {
       this.currentDepotId = currentSession.depotId;
       if (currentSession.depot) {
@@ -1734,14 +1734,14 @@ export class ScanningComponent implements OnInit, OnDestroy {
   private tryAlternativeDepotLoading(): void {
     // Try to get depot from user profile
     const currentUser = this.authService.currentUser();
-    
+
     if (currentUser && currentUser.depotId) {
       this.currentDepotId = currentUser.depotId;
       this.loadDepotById(this.currentDepotId);
       this.loadProduitsDeCaisse();
       return;
     }
-    
+
     // Try to get depot from localStorage
     const storedDepotId = localStorage.getItem('currentDepotId');
     if (storedDepotId) {
@@ -1750,7 +1750,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       this.loadProduitsDeCaisse();
       return;
     }
-    
+
     // Try to get depot from ticket counter service localStorage
     const ticketStateKeys = Object.keys(localStorage).filter(key => key.startsWith('pos_ticket_state_depot_'));
     if (ticketStateKeys.length > 0) {
@@ -1760,7 +1760,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       this.loadProduitsDeCaisse();
       return;
     }
-    
+
     // If no depot found, try to get the first available depot as fallback
     this.depotsService.list().subscribe({
       next: (depots) => {
@@ -1812,7 +1812,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
     // Get current depot characteristics for filtering
     const currentDepot = this.currentDepot;
-    
+
     // Filter depots based on enterprise characteristics
     // This is a simplified approach - in a real system, you'd have explicit enterprise/company relationships
     const filteredDepots = allDepots.filter((d: any) => {
@@ -1825,7 +1825,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       // - Include all MAIN type depots (they're usually central/enterprise level)
       // - Include depots that share similar characteristics with current depot
       // - Exclude depots that are clearly from different enterprises (different city, very different naming patterns)
-      
+
       // Include MAIN type depots (enterprise level)
       if (d.type === 'MAIN') {
         return true;
@@ -1893,7 +1893,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   toggleConfigOption(option: keyof typeof this.documentConfig): void {
     this.documentConfig[option] = !this.documentConfig[option];
-    
+
     // Clear related selections when unchecked
     if (!this.documentConfig[option]) {
       switch (option) {
@@ -1924,9 +1924,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
 
 
-    
+
     this.closeDocumentConfigurationModal();
-    
+
     // Show selection modals based on configuration in sequence
     // Start with the first required selection
     this.proceedToNextSelection();
@@ -1940,7 +1940,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
 
 
-    
+
     // Check what selections are still needed in order
     if (this.documentConfig.client && !this.selectedClient) {
 
@@ -1975,9 +1975,9 @@ export class ScanningComponent implements OnInit, OnDestroy {
       } else {
         // Just configuration complete, stop here and let user scan
         this.success = 'Configuration terminée. Vous pouvez commencer à scanner.';
-        setTimeout(() => { 
+        setTimeout(() => {
           if (this.success === 'Configuration terminée. Vous pouvez commencer à scanner.') {
-            this.success = ''; 
+            this.success = '';
           }
         }, 3000);
       }
@@ -2007,11 +2007,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
   selectDepot(depot: any): void {
     this.selectedDepot = depot;
     this.showDepotSelectionModal = false;
-    
+
     // Trigger update of grouped items to reflect new depot context
     // This ensures parent headers are recalculated preference for the new destination
-    this.getGroupedScannedItems(); 
-    
+    this.getGroupedScannedItems();
+
     this.proceedToNextSelection();
   }
 
@@ -2073,7 +2073,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
     const today = new Date();
     const threeDaysLater = new Date();
     threeDaysLater.setDate(today.getDate() + 3);
-    
+
     this.validityFromDate = today.toISOString().split('T')[0];
     this.validityToDate = threeDaysLater.toISOString().split('T')[0];
   }
@@ -2081,34 +2081,34 @@ export class ScanningComponent implements OnInit, OnDestroy {
   // Document Generation
   private generateDocument(): void {
 
-    
+
     // Validate that we have the required depot information
     if (!this.currentDepotId) {
       this.error = 'Erreur: Impossible de déterminer le dépôt actuel. Veuillez vous reconnecter.';
       setTimeout(() => { this.error = ''; }, 5000);
       return;
     }
-    
+
     this.loading = true;
     this.error = '';
     this.success = '';
 
     // Get the document type for number generation
     const documentType = this.getDocumentTypeForAPI();
-    
+
     // Get next document number to avoid duplicates
     this.stockDocumentsService.getNextDocumentNumber(documentType).subscribe({
       next: (nextNumber) => {
 
-        
+
         const documentData = this.prepareDocumentData();
-        
+
         // Final sanity check: ensuring all items have a productId
         const invalidItems = documentData.items.filter((item: any) => !item.productId);
         if (invalidItems.length > 0) {
-            this.error = 'Erreur: Certains articles n\'on pas d\'ID de produit valide';
-            this.loading = false;
-            return;
+          this.error = 'Erreur: Certains articles n\'on pas d\'ID de produit valide';
+          this.loading = false;
+          return;
         }
 
         // Final sanity check for items array
@@ -2127,15 +2127,15 @@ export class ScanningComponent implements OnInit, OnDestroy {
           next: (savedDocument) => {
             this.loading = false;
             this.success = `Document ${savedDocument.numero} créé avec succès!`;
-            
+
             // Open the document for printing
             this.openDocumentForPrint(savedDocument);
-            
+
             // Clear scanned items and reset
             this.scannedItems = []; // Explicitly clear local array
             this.resetDocumentConfig();
             this.selectedDocumentType = null;
-            
+
             setTimeout(() => { this.success = ''; }, 3000);
           },
           error: (error) => {
@@ -2157,27 +2157,27 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   private openDocumentForPrint(document: any): void {
 
-    
+
     // Navigate to the generic document details page for printing
     // This will open the document in a new tab/window for printing
     const documentUrl = `/stock/documents/${document.id}`;
-    
+
     // Open in new tab for printing
     window.open(documentUrl, '_blank');
   }
 
   private prepareDocumentData(): any {
     const documentType = this.getDocumentTypeForAPI();
-    
+
     // Ensure we have a valid current depot ID
     const emetteurId = this.currentDepotId || 1;
     // For documents that don't require a destination depot, use the same depot as sender
     const destinataireId = this.selectedDepot?.id || emetteurId;
-    
 
 
 
-    
+
+
     const documentData: any = {
       type: documentType,
       numero: this.invoiceNumber && this.selectedDocumentType === 'facture' ? this.invoiceNumber : undefined,
@@ -2188,27 +2188,32 @@ export class ScanningComponent implements OnInit, OnDestroy {
         const produit = this.produitsDeCaisseCache.get(item.articleId);
         const parentProductId = produit?.parentProductId || item.articleId;
         const parentProduct = this.productsCache.get(parentProductId);
-        
+
+        // Determine if we should use the parent or child product for stock management
+        // If destination is not a 'SHOP' (e.g. ATELIER or DEPOT), we transfer children
+        const isShop = this.selectedDepot?.type === 'SHOP';
+        const targetProductId = isShop ? parentProductId : item.articleId;
+
         const baseItem = {
-          productId: parentProductId, // Use parent product ID for stock management
+          productId: targetProductId, // Use appropriate ID for stock management
           quantity: item.quantity / 1000, // Convert to kg
           count: item.count,
           colisCount: item.colisCount, // Include the colis count
           famille: parentProduct?.famille || parentProduct?.name || 'Produit scanné',
-          parentProductId: parentProductId, // Add parent reference for grouping
+          parentProductId: parentProductId, // Keep parent reference for link
           childProductName: produit?.name || `CHILDREN ${item.articleId}`, // Add child name for display
           childProductId: item.articleId // Keep child product ID for reference
         };
-        
+
         // Always include price fields if produit exists
         if (produit) {
           let prixUnitaire = produit.prix_vente_TTC || 0;
-          
+
           // Apply custom/bundle pricing when available (for any client)
           if (this.hasCustomPrice(produit)) {
             prixUnitaire = this.getWholesalePrice(produit);
           }
-          
+
           const tva = produit.tva || 19;
           const quantite = item.quantity / 1000; // Convert to kg
           const montantTTC = prixUnitaire * quantite;
@@ -2216,7 +2221,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
           const tvaFraction = tva <= 1 ? tva : tva / 100;
           const montantHT = Math.round((montantTTC / (1 + tvaFraction)) * 1000) / 1000;
           const montantTVA = Math.round((montantTTC - montantHT) * 1000) / 1000;
-          
+
           return {
             ...baseItem,
             prixUnitaire: prixUnitaire,
@@ -2226,7 +2231,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
             montantTTC: montantTTC
           };
         }
-        
+
         return baseItem;
       })
     };
@@ -2439,11 +2444,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
     // Group produits by parent product set
     this.filteredProduitsDeCaisse.forEach(produit => {
       const allParentIds = this.parseProductIds(produit);
-      
+
       if (allParentIds.length > 0) {
         // Create a canonical key: sorted parent IDs as string
         const groupKey = allParentIds.sort((a, b) => a - b).join(',');
-        
+
         if (!groups.has(groupKey)) {
           groups.set(groupKey, []);
         }
@@ -2472,7 +2477,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       if (groupKey !== "-1") {
         const parentIds = groupKey.split(',').map(id => parseInt(id, 10));
         parentId = parentIds[0]; // First parent as "id" for internal logic
-        
+
         // Resolve all parents for display
         parentIds.forEach(id => {
           const p = this.productsCache.get(id);
@@ -2487,8 +2492,8 @@ export class ScanningComponent implements OnInit, OnDestroy {
             }
 
             const mainDepot = p.depotAssignments && p.depotAssignments.length > 0 ? p.depotAssignments[0].depot : null;
-            displayParents.push({ 
-              id: p.id, 
+            displayParents.push({
+              id: p.id,
               name: p.name,
               depotId: mainDepot?.id,
               depotName: mainDepot?.name
@@ -2531,7 +2536,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
 
   getParentProductName(produit: any): string {
     if (!produit) return '';
-    
+
     const parentIds = this.parseProductIds(produit);
     if (parentIds.length === 0) return '';
 
@@ -2621,48 +2626,48 @@ export class ScanningComponent implements OnInit, OnDestroy {
     // UNIFIED RESOLUTION LOGIC FOR MANUAL ADD:
     // Resolve productId from the selected item (which comes from ProduitsDeCaisseCache)
     // Note: Manual add usually selects from ProduitsDeCaisseCache (since that's what filteredProduitsDeCaisse uses)
-    
+
     // EXCLUSIVE RESOLUTION LOGIC FOR MANUAL ADD:
     // Manual add MUST resolve from ProduitDeCaisse (SELECT * FROM produits_de_caisse)
-    
+
     let productId: number | null = null;
     let productName: string | null = null;
     let isMapped = false;
-    
-    const posItem = this.produitsDeCaisseCache.get(articleId);
-    
-    if (posItem) {
-        // Use parseProductIds to get all parent IDs associated with this sub-product
-        const parentIds = this.parseProductIds(posItem);
-        
-        if (parentIds.length > 0) {
-          // Find the first parent that is present in the cache
-          for (const parentId of parentIds) {
-            const parentProduct = this.productsCache.get(parentId);
-            if (parentProduct) {
-              productId = parentProduct.id;
-              productName = parentProduct.name;
-              isMapped = true;
-              break;
-            }
-          }
 
-          if (!isMapped) {
-            this.showError(`Produit de stock introuvable pour "${posItem.name}" (ID Parents: ${parentIds.join(', ')})`);
-            return;
+    const posItem = this.produitsDeCaisseCache.get(articleId);
+
+    if (posItem) {
+      // Use parseProductIds to get all parent IDs associated with this sub-product
+      const parentIds = this.parseProductIds(posItem);
+
+      if (parentIds.length > 0) {
+        // Find the first parent that is present in the cache
+        for (const parentId of parentIds) {
+          const parentProduct = this.productsCache.get(parentId);
+          if (parentProduct) {
+            productId = parentProduct.id;
+            productName = parentProduct.name;
+            isMapped = true;
+            break;
           }
-        } else {
-          this.showError(`Article ${articleId} (${posItem.name}) n'est pas lié à un produit de stock`);
+        }
+
+        if (!isMapped) {
+          this.showError(`Produit de stock introuvable pour "${posItem.name}" (ID Parents: ${parentIds.join(', ')})`);
           return;
         }
-    } else {
-        this.showError(`Article ${articleId} introuvable dans la table produits_de_caisse`);
+      } else {
+        this.showError(`Article ${articleId} (${posItem.name}) n'est pas lié à un produit de stock`);
         return;
+      }
+    } else {
+      this.showError(`Article ${articleId} introuvable dans la table produits_de_caisse`);
+      return;
     }
 
     if (!productId || !productName) {
-        this.showError(`Résolution du produit de stock impossible pour l'article ${articleId}`);
-        return;
+      this.showError(`Résolution du produit de stock impossible pour l'article ${articleId}`);
+      return;
     }
 
     // Create individual scan entry for manual add
@@ -2685,7 +2690,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       this.scannedItems[existingItemIndex].colisCount += colisCount;
       this.scannedItems[existingItemIndex].lastScanned = new Date();
       this.scannedItems[existingItemIndex].individualScans.push(individualScan);
-      this.success = `${posItem.name} ajouté manuellement (${this.scannedItems[existingItemIndex].count}x, Qty: ${(this.scannedItems[existingItemIndex].quantity/1000).toFixed(3)}kg)`;
+      this.success = `${posItem.name} ajouté manuellement (${this.scannedItems[existingItemIndex].count}x, Qty: ${(this.scannedItems[existingItemIndex].quantity / 1000).toFixed(3)}kg)`;
     } else {
       // Add new item
       this.scannedItems.push({
@@ -2808,7 +2813,7 @@ export class ScanningComponent implements OnInit, OnDestroy {
       // Cyan group
       ['bg-cyan-400 border-cyan-500', 'bg-cyan-300 border-cyan-400', 'bg-cyan-500 border-cyan-600']
     ];
-    
+
     const colorSet = colorSets[groupIndex % colorSets.length];
     return colorSet[productIndex % colorSet.length];
   }

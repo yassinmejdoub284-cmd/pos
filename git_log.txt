@@ -212,7 +212,7 @@ Date:   Mon Oct 13 19:42:31 2025 +0100
     Enhance document management and UI components for improved user experience
     
     - Added a new route for documents reception with lazy loading for better performance.
-    - Updated approvals and scanning components to reflect currency changes from TND to DT for consistency.
+    - Updated approvals and scanning components to reflect currency changes from DT to DT for consistency.
     - Enhanced caisse component with new cancel ticket modal for improved ticket management.
     - Refactored stock document management to remove deprecated components and streamline document handling.
     - Improved session history and invoice extracts components for better financial visibility and user interaction.
