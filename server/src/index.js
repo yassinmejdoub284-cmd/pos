@@ -14,7 +14,6 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { Server } = require('socket.io');
 const authRoutes = require('./routes/auth');
 const salesRoutes = require('./routes/sales');
 const productsRoutes = require('./routes/products');
@@ -124,15 +123,6 @@ try {
   server = http.createServer(app);
 
 }
-
-const io = new Server(server, { cors: { origin: '*'} });
-
-// Make io instance available to routes
-app.set('io', io);
-
-io.on('connection', (socket) => {
-  socket.on('disconnect', () => {});
-});
 
 const PORT = process.env.PORT || 3255;
 server.listen(PORT, () => {

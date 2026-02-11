@@ -16,10 +16,6 @@
   animation: slide-in 0.3s ease-out;
 }
 
-.flex > *,
-.grid > * {
-  min-width: 0;
-}
 
 /* Keep only essential CSS variables for colors that aren't in Tailwind config */
 :root {

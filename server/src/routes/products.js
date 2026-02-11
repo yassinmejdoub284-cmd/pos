@@ -105,7 +105,7 @@ function isValidImageUrl(url) {
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { depotId, search, all } = req.query;
+    const { depotId, search, all, page = 1, limit = 100, minimal } = req.query;
     
     // Enforce depot isolation - use user's depotId or provided depotId
     const userDepotId = req.user?.depotId;
@@ -144,13 +144,26 @@ router.get('/', authenticateToken, async (req, res) => {
       ].filter(condition => condition.id !== undefined || condition.name || condition.barcode);
     }
     
-    const products = await prisma.product.findMany({
+    const queryOptions = {
       where: whereClause,
       orderBy: [
         { displayIndex: 'asc' },
         { createdAt: 'desc' }
       ],
-      include: {
+      skip: (parseInt(page) - 1) * parseInt(limit),
+      take: parseInt(limit)
+    };
+
+    if (minimal === 'true') {
+      queryOptions.select = {
+        id: true,
+        name: true,
+        prix_vente_TTC: true,
+        barcode: true,
+        unite: true
+      };
+    } else {
+      queryOptions.include = {
         famille: true,
         inventory: {
           include: {
@@ -169,8 +182,10 @@ router.get('/', authenticateToken, async (req, res) => {
             targetProductId: true
           }
         }
-      }
-    });
+      };
+    }
+
+    const products = await prisma.product.findMany(queryOptions);
     
     res.json(products);
   } catch (error) {

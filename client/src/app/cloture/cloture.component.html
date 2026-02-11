@@ -84,8 +84,7 @@
       </div>
       <div
         class="px-2 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-xs inline-flex items-center gap-1.5 cursor-pointer select-none"
-        (click)="showCreditDetailsModal = true"
-        title="Cliquez pour voir le détail des ventes en crédit">
+        (click)="showCreditDetailsModal = true" title="Cliquez pour voir le détail des ventes en crédit">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 7h16" />
@@ -115,7 +114,7 @@
               Encaissement
             </span>
             <span class="text-right text-base md:text-lg font-bold text-emerald-700">{{
-                formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + cashFromSalesNetOfCredit() +
+              formatCurrency(getClientPaymentsTotal() + getTotalOrderAdvances() + cashFromSalesNetOfCredit() +
               getFundingsTotal())
               }}</span>
           </label>
@@ -246,10 +245,13 @@
                   (ngModelChange)="cashMoreSchemaFlag = $event" />
                 <div class="mt-2 max-h-32 overflow-y-auto divide-y">
                   @for (s of cashSalesDetails(); track s.id; let i = $index) {
-                  @if (i < 2 || cashMoreSchemaFlag) { <div class="flex items-center justify-between py-1 text-sm cursor-pointer" (click)="openTicketDetails(s.id)">
+                  @if (i < 2 || cashMoreSchemaFlag) { <div
+                    class="flex items-center justify-between py-1 text-sm cursor-pointer"
+                    (click)="openTicketDetails(s.id)">
                     <div class="text-slate-600"
                       [ngClass]="(($any(s).status || '').toUpperCase() === 'CANCELLED') ? 'line-through decoration-2 decoration-gray-700' : ''">
-                      {{ ($any(s).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ getTicketDisplayNo(s) }}
+                      {{ ($any(s).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{
+                      getTicketDisplayNo(s) }}
                       @if ((s.discount || 0) > 0) {
                       <span
                         class="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 ml-1">{{
@@ -357,7 +359,7 @@
 
         <!-- Children with vertical connector (toggleable) -->
         <div
-          class="mt-3 relative pl-6 hidden peer-checked:block section-children max-h-72 md:max-h-96 overflow-y-auto pr-2">
+          class="mt-3 relative pl-4 hidden peer-checked:block section-children max-h-72 md:max-h-96 overflow-y-auto pr-2">
           <div class="absolute left-3 top-0 bottom-0 border-l border-rose-200"></div>
 
           <div class="relative group rounded-lg border border-rose-200 bg-rose-50/60 p-2 mb-2 transition">
@@ -581,8 +583,9 @@
               <div class="text-xs text-slate-600">Calcul: Ventes TTC - Ventes en crédits</div>
               @if (cashSalesDetails().length) {
               <div class="mt-2 max-h-32 overflow-y-auto divide-y">
-            @for (s of cashSalesDetails(); track s.id) {
-            <div class="flex items-center justify-between py-1 text-sm cursor-pointer" (click)="openTicketDetails(s.id)">
+                @for (s of cashSalesDetails(); track s.id) {
+                <div class="flex items-center justify-between py-1 text-sm cursor-pointer"
+                  (click)="openTicketDetails(s.id)">
                   <div class="text-slate-600"
                     [ngClass]="(['REFUNDED','CANCELLED'].includes(($any(s).status || '').toUpperCase())) ? 'line-through decoration-2 decoration-gray-800' : ''">
                     Ticket #{{ getTicketDisplayNo(s) }}
@@ -894,9 +897,11 @@
               (ngModelChange)="cashMoreExpandedFlag = $event" />
             <div class="max-h-40 overflow-y-auto divide-y">
               @for (s of cashSalesDetails(); track s.id; let i = $index) {
-              @if (i < 2 || cashMoreExpandedFlag) { <div class="flex items-center justify-between py-1 text-sm cursor-pointer" (click)="openTicketDetails(s.id)">
+              @if (i < 2 || cashMoreExpandedFlag) { <div
+                class="flex items-center justify-between py-1 text-sm cursor-pointer" (click)="openTicketDetails(s.id)">
                 <div class="text-slate-600">
-                   {{ ($any(s).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ getTicketDisplayNo(s) }}
+                  {{ ($any(s).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{
+                  getTicketDisplayNo(s) }}
                   @if ((s.discount || 0) > 0) {
                   <span
                     class="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 ml-1">{{
@@ -1081,12 +1086,15 @@
       </div>
       <div class="max-h-[60vh] overflow-y-auto divide-y">
         @for (t of sessionTickets(); track t.id) {
-        <div class="px-4 py-2" [ngClass]="(['REFUNDED','CANCELLED'].includes(($any(t).status || '').toUpperCase())) ? 'opacity-60' : ''">
+        <div class="px-4 py-2"
+          [ngClass]="(['REFUNDED','CANCELLED'].includes(($any(t).status || '').toUpperCase())) ? 'opacity-60' : ''">
           <div class="text-slate-600 text-xs"
             [ngClass]="(['REFUNDED','CANCELLED'].includes(($any(t).status || '').toUpperCase())) ? 'line-through decoration-2 decoration-gray-800' : ''">
-            {{ ($any(t).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{ getTicketDisplayNo(t) }}
+            {{ ($any(t).createdAt || currentSession()?.openedAt) | date:'dd/MM HH:mm' }} · Ticket #{{
+            getTicketDisplayNo(t) }}
             @if (['REFUNDED','CANCELLED'].includes(($any(t).status || '').toUpperCase())) {
-            <span class="text-[10px] px-1 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 ml-2">Annulé</span>
+            <span
+              class="text-[10px] px-1 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 ml-2">Annulé</span>
             }
             @if (((($any(t).totalAmount || 0) - (t.amount || 0)) > 0)) {
             <span class="text-[10px] px-1 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200 ml-2">{{
@@ -1363,7 +1371,8 @@
         <h3 class="text-lg font-semibold text-amber-800">Détail des Ventes en Crédit</h3>
         <p class="text-xs text-amber-600">Total: {{ formatCurrency(getTotalCreditFromDetails()) }}</p>
       </div>
-      <button (click)="showCreditDetailsModal = false" class="text-amber-600 hover:text-amber-800" aria-label="Fermer">✕</button>
+      <button (click)="showCreditDetailsModal = false" class="text-amber-600 hover:text-amber-800"
+        aria-label="Fermer">✕</button>
     </div>
     <div class="p-4 overflow-y-auto max-h-[70vh]">
       @if (getCreditSalesDetails().length > 0) {
@@ -1396,7 +1405,8 @@
           <tfoot class="bg-amber-100">
             <tr>
               <td colspan="4" class="px-3 py-2 text-right font-semibold text-amber-800">Total Crédit:</td>
-              <td class="px-3 py-2 text-right font-bold text-amber-900">{{ formatCurrency(getTotalCreditFromDetails()) }}</td>
+              <td class="px-3 py-2 text-right font-bold text-amber-900">{{ formatCurrency(getTotalCreditFromDetails())
+                }}</td>
             </tr>
           </tfoot>
         </table>
@@ -1404,7 +1414,8 @@
       } @else {
       <div class="text-center py-8 text-amber-600">
         <p>Aucune vente en crédit trouvée dans cette session.</p>
-        <p class="text-xs mt-2">Les ventes en crédit apparaissent ici lorsqu'un client n'a pas payé la totalité de sa commande.</p>
+        <p class="text-xs mt-2">Les ventes en crédit apparaissent ici lorsqu'un client n'a pas payé la totalité de sa
+          commande.</p>
       </div>
       }
     </div>

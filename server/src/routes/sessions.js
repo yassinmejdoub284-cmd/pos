@@ -1728,24 +1728,45 @@ async function calculateSessionSummary(sessionId) {
 
   const sessionDepotId = sessionInfo.depotId;
 
-  // Load session with sales filtered by depotId
+  // Load session with sales filtered by depotId, choosing only necessary fields
   const session = await prisma.sessionCaisse.findUnique({
     where: { id: sessionId },
-    include: {
+    select: {
+      id: true,
+      openedAt: true,
+      closedAt: true,
+      status: true,
+      openingFund: true,
+      countedCash: true,
+      posId: true,
+      depotId: true,
+      userId: true,
       sales: {
         where: {
           // CRITICAL: Filter sales by session's depotId to ensure depot isolation
           depotId: sessionDepotId,
           paymentType: { in: ['COMPTANT', 'CREDIT'] }
         },
-        include: {
-          paymentMethod: true,
-          client: {
+        select: {
+          id: true,
+          status: true,
+          paymentType: true,
+          total: true,
+          discount: true,
+          finalTotal: true,
+          advancePayment: true,
+          depotId: true,
+          paymentMethod: {
             select: {
               id: true,
+              name: true,
+              type: true
+            }
+          },
+          user: {
+            select: {
               firstName: true,
-              lastName: true,
-              code: true
+              lastName: true
             }
           }
         }
@@ -1753,6 +1774,14 @@ async function calculateSessionSummary(sessionId) {
       cashMovements: {
         where: {
           sessionId: sessionId
+        },
+        select: {
+          id: true,
+          amount: true,
+          type: true,
+          reason: true,
+          ticketId: true,
+          sessionId: true
         }
       }
     }
@@ -2284,9 +2313,20 @@ async function calculateSessionSummary(sessionId) {
     sortie,
     salesByPayment,
     totalSales: session.sales
-      .filter(s => !['REFUNDED', 'CANCELLED'].includes((s.status || '').toUpperCase()))
-      .reduce((sum, sale) => sum + parseFloat(sale.finalTotal), 0),
-    totalTickets: session.sales.filter(s => !['REFUNDED', 'CANCELLED'].includes((s.status || '').toUpperCase())).length,
+      .filter(s => !['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
+      .reduce((sum, sale) => sum + (parseFloat(sale.finalTotal) || 0), 0),
+    totalTickets: session.sales.filter(s => !['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN'].includes((s.status || '').toUpperCase())).length,
+    userSummary: Array.from(
+      session.sales.reduce((acc, sale) => {
+        const status = (sale.status || '').toUpperCase();
+        if (['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN'].includes(status)) return acc;
+        const firstName = sale.user?.firstName || '';
+        const lastName = sale.user?.lastName || '';
+        const userName = (firstName + ' ' + lastName).trim() || 'Utilisateur inconnu';
+        acc.set(userName, (acc.get(userName) || 0) + (parseFloat(sale.finalTotal) || 0));
+        return acc;
+      }, new Map())
+    ).map(([userName, totalSales]) => ({ userName, totalSales })).sort((a,b) => b.totalSales - a.totalSales),
     creditOutstanding,
     creditSalesTotal, // Total credit sales amount (sum of all DEBT transactions)
     creditAdvancePaid,

@@ -862,25 +862,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   // Computed signal for total sales (sum of all ticket totals) - includes all sales including credit sales
   // Auto-updates when session or sales data changes
   totalSalesTTC = computed(() => {
-    // Use Z report sales data (same as tickets modal) if available, otherwise fall back to session sales
-    const zSales = this.zReportSales();
-    const session = this.currentSession();
-    const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
-    
-    // Sum up all ticket amounts - use finalTotal to include full sale amount for credit sales
-    // Exclude canceled, refunded, and gift tickets (CADEAU) from total sales TTC
-    return sales.reduce((total: number, sale: any) => {
-      const status = (sale.status || '').toUpperCase();
-      // Exclude canceled, refunded, and gift tickets from total sales TTC
-      // Gift tickets (CADEAU) have amount = 0 and should not be counted in sales
-      if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
-        return total;
-      }
-      // Use finalTotal first to include full sale amount (including credit sales)
-      // Fallback to paidAmount or amount if finalTotal is not available
-      const amount = parseFloat((sale.finalTotal ?? sale.paidAmount ?? sale.amount ?? 0) as any) || 0;
-      return total + amount;
-    }, 0);
+    return (this.currentSession() as any)?.summary?.totalSales || 0;
   });
 
   // Computed signal for total tickets count - auto-updates when session changes
@@ -1010,48 +992,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Get user sales summary for display under solde de caisse - uses same logic as tickets modal
   getUserSalesSummary(): Array<{ userName: string; totalSales: number }> {
-    const session = this.currentSession();
-    if (!session) return [];
-
-    // Use Z report sales data (same as tickets modal) if available, otherwise fall back to session sales
-    const zSales = this.zReportSales();
-    const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
-    if (!sales.length) return [];
-
-    // Group sales by user - use EXACT same calculation as tickets modal
-    const userSalesMap = new Map<string, number>();
-    
-    sales.forEach((sale: any) => {
-      const status = (sale.status || '').toUpperCase();
-      // Exclude canceled, refunded, and gift tickets from user sales summary
-      // Gift tickets (CADEAU) should not be counted in sales
-      if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
-        return;
-      }
-      
-      // Use EXACT same calculation as openTicketsModal: paidAmount ?? finalTotal ?? amount ?? 0
-      const amount = parseFloat((sale.paidAmount ?? sale.finalTotal ?? sale.amount ?? 0) as any) || 0;
-      
-      // Get user name - handle cases where user might be missing
-      let userName = 'Utilisateur inconnu';
-      if (sale.user) {
-        const firstName = sale.user.firstName || '';
-        const lastName = sale.user.lastName || '';
-        userName = `${firstName} ${lastName}`.trim() || 'Utilisateur inconnu';
-      }
-
-      // Sum up amounts per user (include all sales, even without user)
-      if (userSalesMap.has(userName)) {
-        userSalesMap.set(userName, userSalesMap.get(userName)! + amount);
-      } else {
-        userSalesMap.set(userName, amount);
-      }
-    });
-
-    // Convert to array and sort by sales amount (descending)
-    return Array.from(userSalesMap.entries())
-      .map(([userName, totalSales]) => ({ userName, totalSales }))
-      .sort((a, b) => b.totalSales - a.totalSales);
+    return (this.currentSession() as any)?.summary?.userSummary || [];
   }
 
   // Load and show current session tickets (id + amount)
@@ -1340,28 +1281,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
             currentSession.id !== session.id;
           
           // Only load if we actually need it and haven't already loaded it
-          if (needsSalesData && !this.isLoadingSalesData && this.lastLoadedSessionId !== session.id) {
-            this.requestedSalesDataForSessionId = session.id;
-            this.loadSessionSalesData(session.id);
-          }
-          
-          // Load Z report sales data for totalSalesTTC calculation
-          // Refresh on every session update to ensure totalSalesTTC is always current
-          if (!currentSession || currentSession.id !== session.id || this.zReportSales().length === 0) {
-            this.loadZReportSalesData(session.id);
-          } else if (currentSession.id === session.id) {
-            // Refresh Z report sales even if session ID is same to get latest sales data
-            // This ensures totalSalesTTC updates when new sales are added
-            this.loadZReportSalesData(session.id);
-          }
-          
-          // Only load cash details if we don't have them yet or session changed
-          const needsCashDetails = !this.cashSalesDetails().length || 
-            (currentSession && currentSession.id !== session.id);
-          
-          if (needsCashDetails && !this.cashSalesLoading()) {
-            this.loadCashSalesDetails();
-          }
+          // Auto-loading of session sales data and cash details removed to improve performance.
+          // These are now loaded on demand (e.g., when expanding sections or opening modals).
         }
         
         if (!silent) this.loading.set(false);
@@ -1414,28 +1335,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
             currentSession.id !== session.id;
           
           // Only load if we actually need it and haven't already loaded it
-          if (needsSalesData && !this.isLoadingSalesData && this.lastLoadedSessionId !== session.id) {
-            this.requestedSalesDataForSessionId = session.id;
-            this.loadSessionSalesData(session.id);
-          }
-          
-          // Load Z report sales data for totalSalesTTC calculation
-          // Refresh on every session update to ensure totalSalesTTC is always current
-          if (!currentSession || currentSession.id !== session.id || this.zReportSales().length === 0) {
-            this.loadZReportSalesData(session.id);
-          } else if (currentSession.id === session.id) {
-            // Refresh Z report sales even if session ID is same to get latest sales data
-            // This ensures totalSalesTTC updates when new sales are added
-            this.loadZReportSalesData(session.id);
-          }
-          
-          // Only load cash details if we don't have them yet or session changed
-          const needsCashDetails = !this.cashSalesDetails().length || 
-            (currentSession && currentSession.id !== session.id);
-          
-          if (needsCashDetails && !this.cashSalesLoading()) {
-            this.loadCashSalesDetails();
-          }
+          // Auto-loading of heavy data removed from polling/refresh logic
         }
         
         if (!silent) this.loading.set(false);

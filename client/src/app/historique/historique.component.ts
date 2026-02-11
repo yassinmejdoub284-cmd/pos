@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Location } from '@angular/common';
 import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { filter, takeUntil, catchError } from 'rxjs/operators';
 import { Subject, forkJoin, of } from 'rxjs';
@@ -62,6 +63,7 @@ export class HistoriqueComponent implements OnInit {
   // Session-based filtering
   sessionIds: number[] = [];
   allSessions: any[] = []; // Store all sessions for pagination
+  groupedSales: { sessionKey: string; sessionLabel: string; sessionDateLabel?: string; sessionSuffix?: string; sales: Sale[] }[] = [];
 
   // Return/Exchange request modal state
   showReturnRequestModal = false;
@@ -95,8 +97,13 @@ export class HistoriqueComponent implements OnInit {
     private authService: AuthService,
     private settingsService: SettingsService,
     private sessionsService: SessionsService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private location: Location
   ) {}
+
+  goBack(): void {
+    this.location.back();
+  }
 
   ngOnInit(): void {
     // Initialize with empty arrays to prevent undefined errors
@@ -177,6 +184,7 @@ export class HistoriqueComponent implements OnInit {
       const currentSession = this.allSessions[this.currentSessionPage - 1];
       if (currentSession) {
         params.sessionIds = [currentSession.id];
+        params.limit = 50; // Reduced limit per session to prevent memory issues
       } else {
         // If current session page is out of bounds, load all sales with a wide date range
         const endDate = new Date();
@@ -197,7 +205,7 @@ export class HistoriqueComponent implements OnInit {
       startDate.setFullYear(endDate.getFullYear() - 2); // Load last 2 years of data
       params.startDate = startDate.toISOString();
       params.endDate = endDate.toISOString();
-      params.limit = 10000; // Increase limit to get more data
+      params.limit = 100; // Use a reasonable limit to prevent memory issues
 
     }
 
@@ -209,8 +217,8 @@ export class HistoriqueComponent implements OnInit {
         next: (sales: any) => {
 
           this.sales = sales || [];
-          this.filteredSales = this.sales;
           this.totalItems = this.sales.length;
+          this.applyFilters(); // This will update filteredSales and groupedSales
           this.loading = false;
           
           if (this.sales.length === 0) {
@@ -552,6 +560,7 @@ export class HistoriqueComponent implements OnInit {
 
     this.totalItems = this.filteredSales.length;
     this.currentSessionPage = 1;
+    this.updateGroupedSales();
     
     console.log('Filter result:', {
       originalCount: this.sales.length,
@@ -589,23 +598,13 @@ export class HistoriqueComponent implements OnInit {
     return current ? Number(current.id) : null;
   }
 
-  get paginatedSales(): Sale[] {
-    // Ensure we only show sales belonging to the currently selected session
-    const currentSessionId = this.getCurrentSessionId();
-    if (currentSessionId == null) {
-      return this.filteredSales;
-    }
-    return this.filteredSales.filter((sale: Sale) => {
-      const sid = (sale?.session?.id ?? null);
-      return sid === currentSessionId;
-    });
-  }
-
   // Group by session for multigrid sections (fallback to 'Sans session')
-  get groupedSalesBySession(): { sessionKey: string; sessionLabel: string; sessionDateLabel?: string; sessionSuffix?: string; sales: Sale[] }[] {
+  updateGroupedSales(): void {
+    const paginated = this.getPaginatedSalesInternal();
+    
     // Build groups by session id
     const bySession = new Map<string, Sale[]>();
-    for (const sale of this.paginatedSales) {
+    for (const sale of paginated) {
       const sessionId = (sale as any)?.session?.id ?? null;
       const key = sessionId ? String(sessionId) : 'none';
       if (!bySession.has(key)) bySession.set(key, []);
@@ -613,13 +612,13 @@ export class HistoriqueComponent implements OnInit {
     }
 
     // Derive a date/time label per session based on the last sale's date (closure time)
-    const sessionDateLabel = new Map<string, string>();
-    const sessionTimeLabel = new Map<string, string>();
+    const sessionDateLabels = new Map<string, string>();
+    const sessionTimeLabels = new Map<string, string>();
     const dateCounts = new Map<string, number>();
     for (const [key, sales] of bySession.entries()) {
       if (key === 'none') {
-        sessionDateLabel.set(key, 'Sans session');
-        sessionTimeLabel.set(key, '');
+        sessionDateLabels.set(key, 'Sans session');
+        sessionTimeLabels.set(key, '');
         continue;
       }
       // Use last sale date/time in the group as closure time
@@ -629,13 +628,13 @@ export class HistoriqueComponent implements OnInit {
       const lastDate = new Date(lastTimestamp);
       const dateLabel = lastDate.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
       const timeLabel = lastDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      sessionDateLabel.set(key, dateLabel);
-      sessionTimeLabel.set(key, timeLabel);
+      sessionDateLabels.set(key, dateLabel);
+      sessionTimeLabels.set(key, timeLabel);
       dateCounts.set(dateLabel, (dateCounts.get(dateLabel) || 0) + 1);
     }
 
     // Sort groups: by date desc (using the first sale date), then by session id desc, with 'none' last
-    const groups = Array.from(bySession.entries())
+    this.groupedSales = Array.from(bySession.entries())
       .sort((a, b) => {
         const [aKey, aSales] = a;
         const [bKey, bSales] = b;
@@ -652,8 +651,8 @@ export class HistoriqueComponent implements OnInit {
         if (key === 'none') {
           return { sessionKey: key, sessionLabel: 'Sans session', sales };
         }
-        const dateLabel = sessionDateLabel.get(key) || '';
-        const timeLabel = sessionTimeLabel.get(key) || '';
+        const dateLabel = sessionDateLabels.get(key) || '';
+        const timeLabel = sessionTimeLabels.get(key) || '';
         const countForDate = dateCounts.get(dateLabel) || 0;
         const suffix = countForDate > 1 ? `(#${key})` : '';
         return {
@@ -664,7 +663,34 @@ export class HistoriqueComponent implements OnInit {
           sales
         };
       });
-    return groups;
+  }
+
+  getPaginatedSalesInternal(): Sale[] {
+    // Ensure we only show sales belonging to the currently selected session
+    const currentSessionId = this.getCurrentSessionId();
+    if (currentSessionId == null) {
+      return this.filteredSales;
+    }
+    return this.filteredSales.filter((sale: Sale) => {
+      const sid = (sale?.session?.id ?? null);
+      return sid === currentSessionId;
+    });
+  }
+
+  get paginatedSales(): Sale[] {
+    const currentSessionId = this.getCurrentSessionId();
+    if (currentSessionId == null) {
+      return this.filteredSales;
+    }
+    return this.filteredSales.filter((sale: Sale) => {
+      const sid = (sale?.session?.id ?? null);
+      return sid === currentSessionId;
+    });
+  }
+
+  // Getter for template to maintain compatibility, but it just returns the precomputed value
+  get groupedSalesBySession(): { sessionKey: string; sessionLabel: string; sessionDateLabel?: string; sessionSuffix?: string; sales: Sale[] }[] {
+    return this.groupedSales;
   }
 
   // Collapsible helpers
@@ -930,7 +956,7 @@ export class HistoriqueComponent implements OnInit {
   }
 
   loadProducts(): void {
-    this.http.get(`${environment.apiUrl}/products`)
+    this.http.get(`${environment.apiUrl}/products`, { params: { minimal: 'true', limit: '500' } })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (products: any) => {

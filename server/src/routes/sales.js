@@ -1373,7 +1373,7 @@ router.post('/gift/fix-stock', authenticateToken, async (req, res) => {
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { startDate, endDate, status, paymentMethod, page = 1, limit = 1000, sessionIds, depotId } = req.query;
+    const { startDate, endDate, status, paymentMethod, page = 1, limit = 50, sessionIds, depotId } = req.query;
 
     // Enforce depot isolation - use user's depot, visiting depot, or provided depot
     const userDepotId = req.user?.depotId;
@@ -1445,7 +1445,22 @@ router.get('/', authenticateToken, async (req, res) => {
         advancePaymentMethod: { select: { name: true } },
         client: { select: { firstName: true, lastName: true, code: true } },
         user: { select: { firstName: true, lastName: true } },
-        items: true,
+        items: {
+          select: {
+            id: true,
+            productId: true,
+            productName: true,
+            quantity: true,
+            unitPrice: true,
+            total: true,
+            discount: true,
+            isWholesale: true,
+            bundleQuantity: true,
+            bundleSize: true,
+            bundlePrice: true,
+            marginPercent: true
+          }
+        },
         session: { select: { id: true } }
       },
       orderBy: { createdAt: 'desc' },
@@ -1541,7 +1556,8 @@ router.get('/current-session/tickets', async (req, res) => {
         user: { select: { firstName: true, lastName: true } },
         items: true
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: 20 // Only take recent 20 tickets for current session
     });
 
     // Convert Decimal fields to numbers for proper serialization

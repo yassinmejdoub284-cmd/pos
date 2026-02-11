@@ -2968,4 +2968,112 @@ router.get('/suppliers', authenticateToken, async (req, res) => {
   }
 });
 
+// État des mouvements de stock — Dépôt / Atelier (sorties sous-produits)
+router.get('/etat-mvt-stock-depot', async (req, res) => {
+  try {
+    const { startDate, endDate, depotId } = req.query;
+
+    // Build where clause for documents
+    const documentWhere = {
+      status: { in: ['SENT', 'RECEIVED', 'COMPLETED'] },
+      emetteur: {
+        type: { not: 'SHOP' }
+      }
+    };
+
+    if (depotId) {
+      documentWhere.emetteurId = parseInt(depotId);
+    }
+
+    if (startDate && endDate) {
+      documentWhere.createdAt = {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      };
+    }
+
+    // Fetch document items with child products from non-SHOP depots
+    const documentItems = await prisma.stockDocumentItem.findMany({
+      where: {
+        document: documentWhere,
+        childProductId: { not: null }
+      },
+      include: {
+        document: {
+          select: {
+            id: true,
+            numero: true,
+            type: true,
+            status: true,
+            createdAt: true,
+            emetteur: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                type: true
+              }
+            },
+            destinataire: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                type: true
+              }
+            }
+          }
+        },
+        product: {
+          select: {
+            id: true,
+            name: true,
+            prix_achat: true,
+            prix_vente_TTC: true,
+            tva: true,
+            famille: {
+              select: { name: true }
+            }
+          }
+        }
+      },
+      orderBy: [
+        { document: { createdAt: 'desc' } },
+        { id: 'asc' }
+      ]
+    });
+
+    // Format the response
+    const formattedItems = documentItems.map(item => ({
+      id: item.id,
+      date: item.document.createdAt.toISOString(),
+      documentNumero: item.document.numero,
+      documentType: item.document.type,
+      documentStatus: item.document.status,
+      depotName: item.document.emetteur.name,
+      depotCode: item.document.emetteur.code,
+      depotType: item.document.emetteur.type,
+      destinataireName: item.document.destinataire.name,
+      parentProductId: item.parentProductId,
+      parentProductName: item.product?.name || item.famille || '',
+      childProductId: item.childProductId,
+      childProductName: item.childProductName || '',
+      quantity: parseFloat(item.quantity),
+      prixUnitaire: item.prixUnitaire ? parseFloat(item.prixUnitaire) : null,
+      purchasePrice: item.purchasePrice ? parseFloat(item.purchasePrice) : null,
+      montantHT: item.montantHT ? parseFloat(item.montantHT) : null,
+      montantTTC: item.montantTTC ? parseFloat(item.montantTTC) : null,
+      montantTVA: item.montantTVA ? parseFloat(item.montantTVA) : null,
+      tva: item.tva ? parseFloat(item.tva) : null,
+      famille: item.product?.famille?.name || item.famille || '',
+      colisCount: item.colisCount || 1
+    }));
+
+    res.json(formattedItems);
+  } catch (error) {
+    console.error('Error fetching etat-mvt-stock-depot:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 module.exports = router; 

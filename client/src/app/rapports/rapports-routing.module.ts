@@ -41,9 +41,10 @@ const routes: Routes = [
     loadChildren: () => import('./inventory-sales-reconciliation/inventory-sales-reconciliation.module').then(m => m.InventorySalesReconciliationModule)
   },
   { 
-    path: 'inventory-balance', 
-    loadChildren: () => import('./inventory-balance/inventory-balance.module').then(m => m.InventoryBalanceModule)
-  }
+    path: 'etat-mvt-stock-depot', 
+    loadChildren: () => import('./etat-mvt-stock-depot/etat-mvt-stock-depot.module').then(m => m.EtatMvtStockDepotModule)
+  },
+
 ];
 
 @NgModule({
