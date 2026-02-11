@@ -62,6 +62,7 @@ export class BonRetourComponent implements OnInit {
   showSupplierModal = false;
   showProductModal = false;
   showDepotModal = false;
+  supplierSearchQuery = '';
 
   productCategories: string[] = ['Tous'];
   selectedCategory = signal<string>('Tous');
@@ -71,6 +72,17 @@ export class BonRetourComponent implements OnInit {
   selectedField: 'quantity' | 'unitPrice' | null = null;
   lastEnteredValue: string = '';
   Math = Math;
+
+  get filteredSuppliers(): Supplier[] {
+    if (!this.supplierSearchQuery) {
+      return this.suppliers;
+    }
+    const q = this.supplierSearchQuery.toLowerCase();
+    return this.suppliers.filter(s => 
+      (s.name || '').toLowerCase().includes(q) || 
+      (s.phone || '').toLowerCase().includes(q)
+    );
+  }
 
   constructor(
     private route: ActivatedRoute,

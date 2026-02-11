@@ -20,6 +20,7 @@ router.get('/', async (req, res) => {
     
     const depots = await prisma.depot.findMany({
       where: whereClause,
+      include: { company: true },
       orderBy: { name: 'asc' }
     });
     res.json(depots);

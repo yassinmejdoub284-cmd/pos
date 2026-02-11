@@ -643,6 +643,9 @@
           },
           "extrait-par-article": {
             "visible": true
+          },
+          "admin": {
+            "visible": true
           }
         },
         "meta": {

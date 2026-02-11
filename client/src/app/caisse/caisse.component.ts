@@ -567,7 +567,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.loadProducts();
     this.loadPendingTemporarySalesCount();
     this.loadPendingGiftSalesCount();
-    this.loadInvoiceRequests(); // Load existing invoice requests
     this.loadPendingReturnRequests(); // Load pending return requests
     this.loadSettings();
 
@@ -6698,23 +6697,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.calculatedChange = 0;
   }
 
-  // Invoice request methods
-  loadInvoiceRequests(): void {
-    this.http.get(`${environment.apiUrl}/invoices/requests`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    }).subscribe({
-      next: (response: any) => {
-        this.invoiceRequests = response.requests || [];
-      },
-      error: (error) => {
-        console.error('Error loading invoice requests:', error);
-        this.invoiceRequests = [];
-      }
-    });
-  }
-
   loadPendingReturnRequests(): void {
     this.returnsService.listReturnRequests('PENDING').subscribe({
       next: (requests) => {
@@ -6867,7 +6849,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
           next: (response: any) => {
             this.showAlertMessage('Demande de facture envoyée avec succès!', 'success');
             this.closeInvoiceRequestModal();
-            this.loadInvoiceRequests();
             // Clear the cart since the sale is now completed
             this.clearCart(this.activeCartId);
             // Reset filter to "Tous" after successful sale
@@ -6901,7 +6882,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
       next: (response: any) => {
         this.showAlertMessage('Demande de facture envoyée avec succès!', 'success');
         this.closeInvoiceRequestModal();
-        this.loadInvoiceRequests(); // Refresh the list
       },
       error: (error) => {
         console.error('Error submitting invoice request:', error);
@@ -7912,5 +7892,37 @@ export class CaisseComponent implements OnInit, OnDestroy {
       // Remove the custom property
       (this.todaysTickets[ticketIndex] as any).isPendingRefund = false;
     }
+  }
+
+  // Numpad methods for temporary sale payment dialog
+  addToAmountPaid(digit: string): void {
+    if (!this.amountPaid) {
+      this.amountPaid = 0;
+    }
+    const currentValue = this.amountPaid.toString();
+    const newValue = currentValue === '0' ? digit : currentValue + digit;
+    this.amountPaid = parseFloat(newValue);
+    this.onAmountPaidChange();
+  }
+
+  addDecimalToAmountPaid(): void {
+    if (!this.amountPaid) {
+      this.amountPaid = 0;
+    }
+    const currentValue = this.amountPaid.toString();
+    if (!currentValue.includes('.')) {
+      this.amountPaid = parseFloat(currentValue + '.');
+    }
+  }
+
+  clearAmountPaid(): void {
+    const currentValue = this.amountPaid?.toString() || '0';
+    if (currentValue.length > 1) {
+      const newValue = currentValue.slice(0, -1);
+      this.amountPaid = parseFloat(newValue) || 0;
+    } else {
+      this.amountPaid = 0;
+    }
+    this.onAmountPaidChange();
   }
 } 

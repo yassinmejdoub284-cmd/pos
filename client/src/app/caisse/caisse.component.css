@@ -97,7 +97,7 @@
 @media screen and (min-height: 910px) {
   .product-button {
     width: 100px;
-    min-width: 180px !important;
+    min-width: 170px !important;
     max-width: 100px;
   }
 }
@@ -108,4 +108,78 @@
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+}
+
+/* Hide scrollbar for products grid while maintaining scroll functionality */
+.product-grid-container {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.product-grid-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* Mobile-specific styles for phones */
+@media screen and (max-width: 768px) {
+  .product-button {
+    width: 75px !important;
+    height: 110px !important;
+    min-width: 75px !important;
+    min-height: 110px !important;
+    max-width: 75px !important;
+    max-height: 110px !important;
+  }
+  
+  .product-grid {
+    gap: 8px !important;
+  }
+}
+
+/* Extra small phones */
+@media screen and (max-width: 480px) {
+  .product-button {
+    width: 56px !important;
+    height: 105px !important;
+    min-width: 56px !important;
+    min-height: 105px !important;
+    max-width: 70px !important;
+    max-height: 105px !important;
+  }
+  
+  .product-grid {
+    gap: 6px !important;
+  }
+}
+
+/* Small phones in portrait */
+@media screen and (max-width: 375px) {
+  .product-button {
+    width: 65px !important;
+    height: 100px !important;
+    min-width: 65px !important;
+    min-height: 100px !important;
+    max-width: 65px !important;
+    max-height: 100px !important;
+  }
+  
+  .product-grid {
+    gap: 5px !important;
+  }
+}
+
+/* Landscape mode on phones */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+  .product-button {
+    width: 70px !important;
+    height: 95px !important;
+    min-width: 70px !important;
+    min-height: 95px !important;
+    max-width: 70px !important;
+    max-height: 95px !important;
+  }
+  
+  .product-grid {
+    gap: 6px !important;
+  }
 }

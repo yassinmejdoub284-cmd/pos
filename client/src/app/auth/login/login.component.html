@@ -162,63 +162,150 @@
 </div>
 
 <!-- Admin depot selection dialog -->
-<div *ngIf="showDepotChoice" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40">
-  <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border p-4 md:p-6">
-    <div class="flex items-start justify-between mb-4">
-      <div>
-        <span class="text-xl font-bold">Choisir le dépôt de visite</span>
-        <span class="block text-sm text-gray-600">Sélectionnez le dépôt que vous souhaitez visiter pour cette session
-          administrateur.</span>
+<!-- Admin depot selection dialog -->
+<div *ngIf="showDepotChoice"
+  class="fixed inset-0 z-[60] flex items-center justify-center bg-[#111827]/30 p-0 sm:p-4 backdrop-blur-sm">
+  <!-- Responsive Modal Container -->
+  <div
+    class="bg-white w-full h-auto max-h-[90vh] sm:max-w-[800px] flex flex-col rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden border-0 m-4 sm:m-0"
+    [style.width]="'min(800px, 94%)'">
+
+    <!-- Header - Slim & Modern -->
+    <div class="px-6 py-4 flex items-center justify-between border-b border-gray-50">
+      <div class="flex items-center gap-3">
+        <div class="w-1.5 h-6 bg-gradient-to-b from-[#8B5CF6] to-[#10B981] rounded-full"></div>
+        <h2 class="text-[18px] font-extrabold text-[#111827] tracking-tight uppercase">Choisir le dépôt</h2>
       </div>
-      <button (click)="cancelDepotSelection()" class="px-2 py-1 rounded-lg border">Fermer</button>
-    </div>
-
-    <!-- Type filters -->
-    <div class="flex flex-wrap gap-2 mb-4">
-      <button (click)="activeTypeFilter = 'ALL'"
-        [class]="activeTypeFilter==='ALL' ? 'text-white' : 'bg-gray-100 text-gray-700'"
-        class="px-3 py-1.5 rounded-full text-xs font-semibold border"
-        [style.backgroundColor]="activeTypeFilter==='ALL' ? primaryColor : undefined">Tous</button>
-      <button *ngFor="let t of depotTypes" (click)="activeTypeFilter = t"
-        [class]="activeTypeFilter===t ? 'text-white' : 'bg-gray-100 text-gray-700'"
-        class="px-3 py-1.5 rounded-full text-xs font-semibold border"
-        [style.backgroundColor]="activeTypeFilter===t ? primaryColor : undefined">{{ getTypeLabel(t) }}</button>
-    </div>
-
-    <!-- Depot cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      <button type="button" *ngFor="let d of getFilteredDepots()" (click)="selectedDepotId = d.id"
-        [class]="selectedDepotId===d.id ? 'ring-2' : ''"
-        class="text-left bg-white rounded-xl border p-4 transition-shadow"
-        [style.borderColor]="selectedDepotId===d.id ? primaryColor : undefined"
-        [style.boxShadow]="selectedDepotId===d.id ? '0 0 0 2px ' + primaryColor + '33' : undefined">
-        <div class="flex items-start gap-3">
-          <div class="text-2xl" aria-hidden="true">{{ getDepotIcon(d.type) }}</div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <div class="font-semibold truncate">{{ d.name }}</div>
-              <span class="text-xs text-gray-500 ml-2">{{ d.code }}</span>
-            </div>
-            <div class="flex items-center gap-2 mt-1">
-              <span
-                class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700 border">{{
-                getTypeLabel(d.type) }}</span>
-              <span *ngIf="d.city" class="text-[10px] text-gray-500">{{ d.city }}</span>
-            </div>
-          </div>
-        </div>
+      <button (click)="cancelDepotSelection()"
+        class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-50 text-[#6B7280] active:bg-gray-100 active:scale-95 transition-all">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
       </button>
     </div>
 
-    <!-- Footer actions -->
-    <div class="flex justify-end gap-2 mt-5">
-      <button (click)="cancelDepotSelection()" class="px-3 py-2 rounded-lg border">Annuler</button>
+    <!-- Scrollable Content -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+      <!-- Filters Row - Structured Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <button (click)="activeTypeFilter = 'ALL'"
+          [class]="activeTypeFilter === 'ALL' ? 'bg-[#8B5CF6] text-white shadow-md' : 'bg-[#F4F6FA] text-[#6B7280]'"
+          class="h-[38px] px-2 rounded-full text-[13px] font-bold transition-all active:scale-95 flex items-center justify-center">
+          Tous
+        </button>
+        <button *ngFor="let t of depotTypes" (click)="activeTypeFilter = t"
+          [class]="activeTypeFilter === t ? 'bg-[#8B5CF6] text-white shadow-md' : 'bg-white text-[#8B5CF6] border border-[#EDE9FE]'"
+          class="h-[38px] px-2 rounded-full text-[13px] font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap">
+          <ng-container [ngSwitch]="getDepotIcon(t)">
+            <svg *ngSwitchCase="'store'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 21h18M3 7l1-4h16l1 4M4 10h16M4 10v11M20 10v11M8 21v-4a1 1 0 011-1h6a1 1 0 011 1v4"></path>
+            </svg>
+            <svg *ngSwitchCase="'building'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+              </path>
+            </svg>
+            <svg *ngSwitchCase="'globe'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9">
+              </path>
+            </svg>
+          </ng-container>
+          {{ getTypeLabel(t) }}
+        </button>
+      </div>
+
+      <!-- Depot List Grid - Compact 2 Columns -->
+      <div class="grid grid-cols-2 gap-3 sm:gap-4" role="listbox" aria-label="Liste des dépôts">
+        <button type="button" *ngFor="let d of getFilteredDepots()" [id]="'depot-card-' + d.id"
+          (click)="selectedDepotId = d.id" (keydown)="handleDepotKeydown($event, d.id)" role="option"
+          [attr.aria-selected]="selectedDepotId === d.id"
+          class="group relative text-center rounded-[22px] p-5 transition-all duration-300 active:scale-[0.98] flex flex-col items-center gap-3 overflow-hidden border-2"
+          [class]="selectedDepotId === d.id ? 
+                  (d.type === 'SHOP' ? 'border-[#10B981] bg-white shadow-lg ring-4 ring-[#10B981]/10' : 
+                   d.type === 'MAIN' ? 'border-[#8B5CF6] bg-white shadow-lg ring-4 ring-[#8B5CF6]/10' : 
+                   'border-[#0EA5E9] bg-white shadow-lg ring-4 ring-[#0EA5E9]/10') : 
+                  (d.type === 'SHOP' ? 'border-[#D1FAE5] bg-[#F0FDF4]' : 
+                   d.type === 'MAIN' ? 'border-[#EDE9FE] bg-[#F5F3FF]' : 
+                   'border-[#E0F2FE] bg-[#F0F9FF]')">
+
+          <!-- Subtle Decorative Background -->
+          <div class="absolute -bottom-10 -right-10 w-24 h-24 blur-3xl rounded-full opacity-40 transition-colors"
+            [class]="d.type === 'SHOP' ? 'bg-[#10B981]/20' : d.type === 'MAIN' ? 'bg-[#8B5CF6]/20' : 'bg-[#0EA5E9]/20'">
+          </div>
+
+          <!-- Enterprise Logo Watermark - Refined Visibility -->
+          <div
+            class="absolute inset-0 flex items-center justify-center opacity-[0.12] pointer-events-none overflow-hidden p-8 z-0 scale-125">
+            <img [src]="getFullLogoUrl(d.logo)" alt="logo"
+              class="max-w-[120%] max-h-[120%] object-contain filter grayscale opacity-100">
+          </div>
+
+          <!-- Icon Badge - Scaled Down -->
+          <div
+            class="w-12 h-12 rounded-[18px] flex items-center justify-center flex-shrink-0 shadow-sm border border-white/80 bg-white transition-all duration-300">
+            <ng-container [ngSwitch]="getDepotIcon(d.type)">
+              <svg *ngSwitchCase="'building'" class="w-6 h-6 text-[#8B5CF6]" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+                </path>
+              </svg>
+              <svg *ngSwitchCase="'globe'" class="w-6 h-6 text-[#0EA5E9]" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9">
+                </path>
+              </svg>
+              <svg *ngSwitchCase="'store'" class="w-6 h-6 text-[#10B981]" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 21h18M3 7l1-4h16l1 4M4 10h16M4 10v11M20 10v11M8 21v-4a1 1 0 011-1h6a1 1 0 011 1v4"></path>
+              </svg>
+              <svg *ngSwitchDefault class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+              </svg>
+            </ng-container>
+          </div>
+
+          <!-- Details - Compact Stacked -->
+          <div class="flex flex-col items-center gap-0.5 flex-1 min-w-0">
+            <div class="text-[16px] font-bold text-[#111827] leading-tight text-center">{{ d.name }}</div>
+            <div class="text-[12px] font-bold tracking-wide transition-colors"
+              [class]="d.type === 'SHOP' ? 'text-[#10B981]' : d.type === 'MAIN' ? 'text-[#8B5CF6]' : 'text-[#0EA5E9]'">
+              {{ (d.city || 'Standard') | titlecase }}
+            </div>
+          </div>
+
+          <!-- Selection Check Indicator - Contextual Color -->
+          <div *ngIf="selectedDepotId === d.id" class="absolute top-4 right-5"
+            [class]="d.type === 'SHOP' ? 'text-[#10B981]' : d.type === 'MAIN' ? 'text-[#8B5CF6]' : 'text-[#0EA5E9]'">
+            <div class="bg-white p-1 rounded-full shadow-md border border-current">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer Actions -->
+    <div class="bg-white/50 backdrop-blur-md p-6 border-t border-gray-100 flex justify-end gap-3 sticky bottom-0">
+      <button (click)="cancelDepotSelection()"
+        class="h-[48px] px-8 rounded-2xl text-[#111827] font-bold bg-white border border-gray-200 shadow-sm active:bg-gray-50 transition-all">
+        Annuler
+      </button>
       <button (click)="confirmDepotSelection()" [disabled]="!selectedDepotId"
-        class="px-3 py-2 rounded-lg text-white disabled:opacity-50"
-        [style.backgroundColor]="primaryColor">Confirmer</button>
+        class="h-[48px] px-10 rounded-2xl text-white font-bold bg-gradient-to-r from-orange-400 to-pink-500 disabled:from-gray-300 disabled:to-gray-400 disabled:shadow-none shadow-[0_8px_16px_rgba(249,115,22,0.25)] transition-all active:scale-[0.98] disabled:cursor-not-allowed">
+        Confirmer
+      </button>
     </div>
   </div>
 </div>
+
 
 <!-- Password Change Modal -->
 <div *ngIf="showPasswordChange" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40">

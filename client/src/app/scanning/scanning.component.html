@@ -38,9 +38,10 @@
     <!-- Center: Active Session Chips (Streamlined - Responsive) -->
     <div *ngIf="selectedDocumentType"
       class="flex flex-wrap items-center justify-center gap-2 bg-white/40 backdrop-blur-md p-2 xl:p-1.5 rounded-[24px] xl:rounded-[20px] border border-white/50 shadow-sm animate-fade-in-down w-full xl:w-auto">
-      <!-- ... chips content stay the same ... -->
+
       <!-- Type Chip -->
-      <div class="flex items-center gap-2 px-3 py-2 bg-indigo-600 rounded-[14px] shadow-sm text-white">
+      <div (click)="showDocumentTypeSelection()"
+        class="flex items-center gap-2 px-3 py-2 bg-indigo-600 rounded-[14px] shadow-sm text-white cursor-pointer hover:bg-indigo-700 transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -49,18 +50,19 @@
       </div>
 
       <!-- Client Chip (If present) -->
-      <div *ngIf="selectedClient"
-        class="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100/50 rounded-[14px] text-blue-700">
+      <div *ngIf="selectedClient || documentConfig.client" (click)="showClientSelectionModal = true"
+        class="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100/50 rounded-[14px] text-blue-700 cursor-pointer hover:bg-blue-100 transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
             d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
-        <span class="text-xs font-extra-bold truncate max-w-[120px]">{{ selectedClient.name }}</span>
+        <span class="text-xs font-extra-bold truncate max-w-[120px]">{{ selectedClient?.name || 'Sélectionner Client'
+          }}</span>
       </div>
 
       <!-- Path Chip (Source -> Destination) -->
-      <div
-        class="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200/50 rounded-[14px] text-slate-700">
+      <div (click)="showDepotSelectionModal = true"
+        class="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200/50 rounded-[14px] text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors">
         <span class="text-[10px] font-bold text-slate-400 uppercase">Flux:</span>
         <span class="text-xs font-bold">{{ currentDepot?.name || 'Local' }}</span>
         <svg class="w-3 h-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,18 +74,18 @@
       </div>
 
       <!-- Logistics Details (Compact) -->
-      <div *ngIf="selectedVehicle || selectedDriver" class="flex gap-1.5 pl-2 pr-1">
-        <div *ngIf="selectedVehicle"
-          class="w-8 h-8 bg-slate-800 rounded-xl flex items-center justify-center text-slate-100 shadow-sm"
-          [title]="selectedVehicle.immatriculation">
+      <div *ngIf="documentConfig.vehicle || documentConfig.driver" class="flex gap-1.5 pl-2 pr-1">
+        <div *ngIf="documentConfig.vehicle" (click)="showVehicleSelectionModal = true"
+          class="w-8 h-8 bg-slate-800 rounded-xl flex items-center justify-center text-slate-100 shadow-sm cursor-pointer hover:bg-slate-700 transition-colors"
+          [title]="selectedVehicle?.immatriculation || 'Sélectionner Véhicule'">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1" />
           </svg>
         </div>
-        <div *ngIf="selectedDriver"
-          class="w-8 h-8 bg-slate-800 rounded-xl flex items-center justify-center text-slate-100 shadow-sm"
-          [title]="selectedDriver.firstName">
+        <div *ngIf="documentConfig.driver" (click)="showDriverSelectionModal = true"
+          class="w-8 h-8 bg-slate-800 rounded-xl flex items-center justify-center text-slate-100 shadow-sm cursor-pointer hover:bg-slate-700 transition-colors"
+          [title]="selectedDriver?.firstName || 'Sélectionner Chauffeur'">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

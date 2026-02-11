@@ -671,10 +671,34 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
         orderBy: { createdAt: 'asc' }
       });
 
+      // Filter out transactions linked to documents to avoid double counting
+      const filteredDebtTransactions = allDebtTransactions.filter(transaction => {
+        if (transaction.notes) {
+          if (transaction.notes.includes('Bon de retour')) {
+            const isDuplicate = allBonRetourDocuments.some(doc => 
+              (doc.numero && transaction.notes.includes(doc.numero)) || 
+              (transaction.notes.includes(`#${doc.id}`))
+            );
+            if (isDuplicate) return false;
+          }
+          if (transaction.notes.includes("Bon d'entrée") || transaction.notes.includes("Bon d entrée")) {
+            // IF PAYMENT, KEEP IT!
+            if (transaction.type === 'PAYMENT') return true;
+
+            const isDuplicate = allBonEntreeDocuments.some(doc => 
+              (doc.numero && transaction.notes.includes(doc.numero)) || 
+              (transaction.notes.includes(`#${doc.id}`))
+            );
+            if (isDuplicate) return false;
+          }
+        }
+        return true;
+      });
+
       // Filter debt transactions for period calculations (same logic as statement endpoint)
       // Include ALL DEBT type transactions (initial balances) regardless of date
       // Only filter PAYMENT type transactions by date range
-      const debtTransactions = allDebtTransactions.filter(t => 
+      const debtTransactions = filteredDebtTransactions.filter(t => 
         t.type === 'DEBT' || (t.type === 'PAYMENT' && new Date(t.createdAt) >= start && new Date(t.createdAt) <= end)
       );
 
@@ -709,7 +733,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           };
         }),
         // 3. Debt transactions: standalone debt/payment adjustments (includes ALL transactions)
-        ...allDebtTransactions.map(transaction => {
+        ...filteredDebtTransactions.map(transaction => {
           const amount = parseFloat(transaction.amount);
           return {
             date: transaction.createdAt,
@@ -1025,7 +1049,7 @@ router.get('/statements/summary', authenticateToken, async (req, res) => {
           };
         });
 
-      const normalizedDebtTransactions = allDebtTransactions.map(transaction => {
+      const normalizedDebtTransactions = filteredDebtTransactions.map(transaction => {
         const amount = parseFloat(transaction.amount);
         return {
           debit: transaction.type === 'PAYMENT' ? amount : 0,
@@ -1410,7 +1434,33 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
         };
       }),
       // Debt transactions: standalone debt/payment adjustments
-      ...debtTransactions.map(transaction => {
+      ...debtTransactions
+        .filter(transaction => {
+          // Filter out transactions linked to Bon de retour documents already counted
+          if (transaction.notes && transaction.notes.includes('Bon de retour')) {
+            const isDuplicate = bonRetourDocuments.some(doc => 
+              (doc.numero && transaction.notes.includes(doc.numero)) || 
+              (transaction.notes.includes(`#${doc.id}`))
+            );
+            if (isDuplicate) return false;
+          }
+          
+          // Filter out transactions linked to Bon d'entrée documents already counted
+          // But only exclude DEBT type transactions (which duplicate the invoice). 
+          // Keep PAYMENT type transactions as they represent payments for the invoice.
+          if (transaction.notes && (transaction.notes.includes("Bon d'entrée") || transaction.notes.includes("Bon d entrée"))) {
+            if (transaction.type === 'PAYMENT') return true;
+            
+            const isDuplicate = bonEntreeDocuments.some(doc => 
+              (doc.numero && transaction.notes.includes(doc.numero)) || 
+              (transaction.notes.includes(`#${doc.id}`))
+            );
+            if (isDuplicate) return false;
+          }
+          
+          return true;
+        })
+        .map(transaction => {
         const amount = parseFloat(transaction.amount);
 
         return {

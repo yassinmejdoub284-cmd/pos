@@ -31,7 +31,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   qwertyRow2 = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'];
   qwertyRow3 = ['Z', 'X', 'C', 'V', 'B', 'N', 'M'];
 
-  depots: { id: number; name: string; code: string; type?: string; city?: string }[] = [];
+  depots: { id: number; name: string; code: string; type?: string; city?: string; logo?: string }[] = [];
   showDepotChoice = false;
   selectedDepotId: number | null = null;
   depotTypes: string[] = [];
@@ -347,7 +347,14 @@ export class LoginComponent implements OnInit, OnDestroy {
   private async loadDepots(): Promise<void> {
     try {
       const depots = await this.http.get<any[]>(`${environment.apiUrl}/depots`).toPromise();
-      this.depots = (depots || []).map(d => ({ id: d.id, name: d.name, code: d.code, type: d.type, city: d.city }));
+      this.depots = (depots || []).map(d => ({ 
+        id: d.id, 
+        name: d.name, 
+        code: d.code, 
+        type: d.type, 
+        city: d.city,
+        logo: d.company?.logoUrl 
+      }));
       const typeSet = new Set<string>();
       this.depots.forEach(d => { if (d.type) typeSet.add(d.type); });
       this.depotTypes = Array.from(typeSet);
@@ -402,18 +409,43 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   // UI helpers for depot cards
-  getFilteredDepots(): { id: number; name: string; code: string; type?: string; city?: string }[] {
+  getFilteredDepots(): { id: number; name: string; code: string; type?: string; city?: string; logo?: string }[] {
     if (this.activeTypeFilter === 'ALL') return this.depots;
     return this.depots.filter(d => d.type === this.activeTypeFilter);
   }
 
+  handleDepotKeydown(event: KeyboardEvent, depotId: number): void {
+    const filtered = this.getFilteredDepots();
+    const currentIndex = filtered.findIndex(d => d.id === depotId);
+    
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      const nextIndex = (currentIndex + 1) % filtered.length;
+      this.selectedDepotId = filtered[nextIndex].id;
+      // Focus the next element if possible (we'd need a way to target it, maybe via ID)
+      document.getElementById(`depot-card-${this.selectedDepotId}`)?.focus();
+    } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      const prevIndex = (currentIndex - 1 + filtered.length) % filtered.length;
+      this.selectedDepotId = filtered[prevIndex].id;
+      document.getElementById(`depot-card-${this.selectedDepotId}`)?.focus();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      this.selectedDepotId = depotId;
+      this.confirmDepotSelection();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelDepotSelection();
+    }
+  }
+
   getDepotIcon(type?: string): string {
     switch (type) {
-      case 'MAIN': return '🏢';
-      case 'BRANCH': return '🌐';
-      case 'SHOP': return '🛍️';
-      case 'WAREHOUSE': return '🏬';
-      default: return '🏷️';
+      case 'MAIN': return 'building';
+      case 'BRANCH': return 'globe';
+      case 'SHOP': return 'store';
+      case 'WAREHOUSE': return 'archive';
+      default: return 'tag';
     }
   }
 
@@ -423,8 +455,17 @@ export class LoginComponent implements OnInit, OnDestroy {
       case 'BRANCH': return 'Agence';
       case 'SHOP': return 'Magasin';
       case 'WAREHOUSE': return 'Entrepôt';
-      default: return 'Autre';
+      default: return 'Dépôt';
     }
+  }
+
+  getFullLogoUrl(logo?: string): string {
+    if (!logo) return this.themeLogoUrl;
+    if (logo.startsWith('http')) return logo;
+    const baseUrl = environment.apiUrl.replace('/api', '');
+    // Ensure logo doesn't start with leading slash since baseUrl doesn't end with one after replacement usually
+    const path = logo.startsWith('/') ? logo.substring(1) : logo;
+    return `${baseUrl}/${path}`;
   }
 
   // Password change methods

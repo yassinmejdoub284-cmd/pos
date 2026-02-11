@@ -16,6 +16,11 @@
   animation: slide-in 0.3s ease-out;
 }
 
+.flex > *,
+.grid > * {
+  min-width: 0;
+}
+
 /* Keep only essential CSS variables for colors that aren't in Tailwind config */
 :root {
   --color-bg: #f8f7ff; /* soft lavender page background */
@@ -37,6 +42,11 @@
   --color-text: #374151;          /* slate-700 for professional readable text */
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+
 html, body {
   font-family: 'Inter', 'Roboto', Arial, sans-serif;
   background-color: var(--color-bg);
@@ -46,6 +56,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden; /* overflow-x-hidden */
+  width: 100%;
 }
 
 body {
@@ -434,6 +445,7 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   * {
     margin: 0 !important;
     padding: 0 !important;
+    box-sizing: border-box;
   }
 
   @page {

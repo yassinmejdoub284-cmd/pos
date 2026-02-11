@@ -178,19 +178,47 @@
     box-shadow: none;
   }
 }
+/* Modern Header Effects */
+.backdrop-blur-md {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
 
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+  100% { transform: translateY(0px); }
+}
 
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
 
+/* Custom Scrollbar for Categories */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
+  width: 4px;
+}
 
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
 
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(239, 68, 68, 0.2);
+  border-radius: 10px;
+}
 
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(239, 68, 68, 0.4);
+}
 
-
-
-
-
-
-
-
-
-
+/* Compact input highlighting */
+.field-selected {
+  background-color: #fef2f2 !important;
+  border-color: #f87171 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  outline: 2px solid #fca5a5 !important;
+  outline-offset: -2px !important;
+}

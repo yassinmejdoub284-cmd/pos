@@ -119,7 +119,10 @@ export class DocumentsReceptionComponent implements OnInit {
         const filteredData = data.filter((doc: any) => {
           const byId = doc?.destinataireId === depotId || doc?.destinataire?.id === depotId;
           const byName = !!selectedDepotName && (doc?.destinataire?.name === selectedDepotName);
-          return byId || byName;
+          // Only show documents that need action (SENT) and have items
+          const isPending = doc.status === 'SENT';
+          const hasItems = doc.items && doc.items.length > 0;
+          return (byId || byName) && isPending && hasItems;
         });
 
         this.documents.set(filteredData);
@@ -200,7 +203,7 @@ export class DocumentsReceptionComponent implements OnInit {
 
     const grouped = document.items.reduce((acc: any, item: any) => {
       const parentName = item.product?.famille?.name || item.famille || item.parentProductName || 'Produit';
-      const childName = item.product?.name || item.childProductName || `Produit ${item.productId}`;
+      const childName = item.childProductName || item.product?.name || `Produit ${item.productId}`;
       const productKey = `${item.productId}_${item.quantity}_${item.count}`;
       
       if (!acc[parentName]) {

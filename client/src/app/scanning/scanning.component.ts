@@ -1213,20 +1213,22 @@ export class ScanningComponent implements OnInit, OnDestroy {
     });
 
     // Filter parents based on the current context (flux)
-    if (displayParents.length > 1) {
-      if (this.selectedDepot) {
-        const destMatch = displayParents.filter(p => p.depotId === this.selectedDepot.id);
-        if (destMatch.length > 0) {
-          displayParents.splice(0, displayParents.length, ...destMatch);
+      if (displayParents.length > 1) {
+        // PRIORITY 1: Destination Depot (selectedDepot)
+        if (this.selectedDepot) {
+          const destMatch = displayParents.filter(p => p.depotId === this.selectedDepot.id);
+          if (destMatch.length > 0) {
+            displayParents.splice(0, displayParents.length, ...destMatch);
+          }
         }
-      }
-      
-      if (displayParents.length > 1 && this.currentDepotId) {
-        const sourceMatch = displayParents.filter(p => p.depotId === this.currentDepotId);
-        if (sourceMatch.length > 0) {
-          displayParents.splice(0, displayParents.length, ...sourceMatch);
+        
+        // PRIORITY 2: Source Depot (currentDepotId) - Only if no destination match found
+        if (displayParents.length > 1 && this.currentDepotId) {
+          const sourceMatch = displayParents.filter(p => p.depotId === this.currentDepotId);
+          if (sourceMatch.length > 0) {
+            displayParents.splice(0, displayParents.length, ...sourceMatch);
+          }
         }
-      }
 
       // If still multiple, just take the first one to avoid redundancy
       if (displayParents.length > 1) {
@@ -1851,12 +1853,6 @@ export class ScanningComponent implements OnInit, OnDestroy {
       return false;
     });
 
-    console.log('Filtered depots for transfer:', {
-      currentDepot: currentDepot,
-      totalDepots: allDepots.length,
-      filteredDepots: filteredDepots.length,
-      filteredDepotNames: filteredDepots.map(d => d.name)
-    });
 
     return filteredDepots;
   }
@@ -2011,6 +2007,11 @@ export class ScanningComponent implements OnInit, OnDestroy {
   selectDepot(depot: any): void {
     this.selectedDepot = depot;
     this.showDepotSelectionModal = false;
+    
+    // Trigger update of grouped items to reflect new depot context
+    // This ensures parent headers are recalculated preference for the new destination
+    this.getGroupedScannedItems(); 
+    
     this.proceedToNextSelection();
   }
 
@@ -2102,13 +2103,6 @@ export class ScanningComponent implements OnInit, OnDestroy {
         
         const documentData = this.prepareDocumentData();
         
-        // Detailed logging for debugging
-        console.log('Generating document with data:', {
-          type: documentData.type,
-          itemCount: documentData.items?.length,
-          items: documentData.items
-        });
-
         // Final sanity check: ensuring all items have a productId
         const invalidItems = documentData.items.filter((item: any) => !item.productId);
         if (invalidItems.length > 0) {

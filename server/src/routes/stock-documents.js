@@ -2312,7 +2312,67 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
           parentProduct = await tx.product.findUnique({
             where: { id: item.productId }
           });
+        }
 
+        if (parentProduct) {
+          let mappedChildProductId = item.childProductId;
+
+          // Resolve the correct product ID for the DESTINATION depot by name
+          // This avoids the "ghost ID" trap where a previous incorrect transfer created a wrong inventory record.
+          const normalizedName = parentProduct.name.trim();
+
+          const matchByName = await tx.product.findFirst({
+            where: {
+              name: {
+                equals: normalizedName
+              },
+              depotAssignments: {
+                some: { depotId: parseInt(depotId) }
+              }
+            }
+          });
+
+          if (matchByName) {
+            targetProductId = matchByName.id;
+          } else {
+            // Fallback: If no dedicated product found for THIS depot, use source ID
+            targetProductId = parentProduct.id;
+          }
+
+          // Remap Child Product (Variant) if it exists
+          if (item.childProductId) {
+            const sourceChild = await tx.produitDeCaisse.findUnique({
+              where: { id: item.childProductId }
+            });
+
+            if (sourceChild) {
+              const normalizedChildName = sourceChild.name.trim();
+
+              // Find the equivalent child in the target depot linked to our mapped parent
+              const targetChild = await tx.produitDeCaisse.findFirst({
+                where: {
+                  name: {
+                    equals: normalizedChildName
+                  },
+                  parentProductId: targetProductId
+                }
+              });
+
+              if (targetChild) {
+                mappedChildProductId = targetChild.id;
+              }
+            }
+          }
+
+          // Update the document item record to reflect local IDs in the destination depot
+          await tx.stockDocumentItem.update({
+            where: { id: item.id },
+            data: {
+              productId: targetProductId,
+              parentProductId: targetProductId,
+              childProductId: mappedChildProductId
+            }
+          });
         }
 
         // Group by target product ID and sum quantities
@@ -2670,6 +2730,7 @@ router.post('/', authenticateToken, async (req, res) => {
               notes: typeof item.famille === 'object' ? item.famille.name : (item.notes || null),
               barcode: item.barcode || null,
               parentProductId: item.parentProductId || null,
+              childProductId: item.childProductId || null,
               childProductName: item.childProductName || null
             }))
           },
