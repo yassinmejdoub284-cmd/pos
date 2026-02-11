@@ -83,18 +83,18 @@ export class ApprovalsComponent implements OnInit {
     private http: HttpClient,
     private returnsService: ReturnsService,
     private authService: AuthService
-  ) {}
+  ) { }
 
   // Get withdrawal amount from session data
   getTotalEncaissements(sessionData: any): number {
     if (!sessionData) return 0;
-    
+
     // Get withdrawal amount from cash movements
     const cashMovements = sessionData.session?.cashMovements || [];
     const withdrawalAmount = cashMovements
       .filter((m: any) => m.type === 'RETRAIT_CENTRALE')
       .reduce((sum: number, m: any) => sum + (parseFloat(m.amount || 0) || 0), 0);
-    
+
     return withdrawalAmount;
   }
 
@@ -104,7 +104,7 @@ export class ApprovalsComponent implements OnInit {
       if (typeof window !== 'undefined' && 'Notification' in window) {
         this.isNotificationsSubscribed = Notification.permission === 'granted';
       }
-    } catch {}
+    } catch { }
     this.route.queryParamMap.subscribe(params => {
       const tab = params.get('tab') as any;
       if (tab === 'PENDING_ADMIN' || tab === 'CADEAU' || tab === 'CADEAU_REJETES' || tab === 'EXPENSES' || tab === 'CLOTURE' || tab === 'ALL' || tab === 'HISTORY' || tab === 'RETURNS' || tab === 'INVOICES') {
@@ -243,7 +243,7 @@ export class ApprovalsComponent implements OnInit {
           if (!req.session || !req.session.id) {
             return; // Skip if session doesn't exist (orphaned change request)
           }
-          
+
           const sessionId = req.session.id;
           // Only use depotId from session if available - don't fallback to user's depotId
           // as it might not match the session's actual depot
@@ -252,20 +252,23 @@ export class ApprovalsComponent implements OnInit {
           // For non-admins, use the session's depotId if available
           const isAdmin = this.authService.isAdmin();
           const depotId = isAdmin ? undefined : sessionDepotId;
-          
+
           if (sessionId && !this.clotureSummaries[sessionId]) {
+            // Mark as loading to prevent duplicate requests while in progress
+            this.clotureSummaries[sessionId] = { loading: true };
+
             this.sessionsService.getSessionReport(sessionId, 'Z', 'html', depotId).subscribe({
               next: (report) => {
                 this.clotureSummaries[sessionId] = report;
               },
               error: (error) => {
-                // Only log 404 errors if they're not expected (e.g., session deleted)
+                // Mark as failed to avoid retrying in subsequent cycles
+                this.clotureSummaries[sessionId] = { error: true, status: error.status };
+
+                // Only log non-404 errors if they're not expected
                 if (error.status !== 404) {
-                  console.warn(`Failed to load session report for session ${sessionId} (depotId: ${depotId || 'not specified'}, sessionDepotId: ${sessionDepotId || 'not available'}):`, error);
+                  console.warn(`Failed to load session report for session ${sessionId}:`, error);
                 }
-                // Don't show error to user as this is just for display enhancement
-                // Mark as attempted to avoid retrying
-                this.clotureSummaries[sessionId] = null;
               }
             });
           }
@@ -283,7 +286,7 @@ export class ApprovalsComponent implements OnInit {
       next: (approvedRequests) => {
         this.approvalsService.getVarianceChangeRequests('REJECTED').subscribe({
           next: (rejectedRequests) => {
-            this.historyRequests = [...approvedRequests, ...rejectedRequests].sort((a, b) => 
+            this.historyRequests = [...approvedRequests, ...rejectedRequests].sort((a, b) =>
               new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
             );
             // Load Z-report data for history requests too
@@ -292,7 +295,7 @@ export class ApprovalsComponent implements OnInit {
               if (!req.session || !req.session.id) {
                 return; // Skip if session doesn't exist (orphaned change request)
               }
-              
+
               const sessionId = req.session.id;
               // Only use depotId from session if available - don't fallback to user's depotId
               // as it might not match the session's actual depot
@@ -301,20 +304,22 @@ export class ApprovalsComponent implements OnInit {
               // For non-admins, use the session's depotId if available
               const isAdmin = this.authService.isAdmin();
               const depotId = isAdmin ? undefined : sessionDepotId;
-              
+
               if (sessionId && !this.clotureSummaries[sessionId]) {
+                // Mark as loading to prevent duplicate requests
+                this.clotureSummaries[sessionId] = { loading: true };
+
                 this.sessionsService.getSessionReport(sessionId, 'Z', 'html', depotId).subscribe({
                   next: (report) => {
                     this.clotureSummaries[sessionId] = report;
                   },
                   error: (error) => {
-                    // Only log 404 errors if they're not expected (e.g., session deleted)
+                    // Mark as failed to avoid retrying
+                    this.clotureSummaries[sessionId] = { error: true, status: error.status };
+
                     if (error.status !== 404) {
-                      console.warn(`Failed to load session report for session ${sessionId} (depotId: ${depotId || 'not specified'}, sessionDepotId: ${sessionDepotId || 'not available'}):`, error);
+                      console.warn(`Failed to load session report for history session ${sessionId}:`, error);
                     }
-                    // Don't show error to user as this is just for display enhancement
-                    // Mark as attempted to avoid retrying
-                    this.clotureSummaries[sessionId] = null;
                   }
                 });
               }
@@ -400,15 +405,15 @@ export class ApprovalsComponent implements OnInit {
     }
 
     // First reject the change request
-    this.approvalsService.rejectChangeRequest(this.rejectTarget.id, { 
-      reasonCode: 'ECART_COMPTAGE', 
-      notes: this.rejectNotes.trim() || `Correction: montant corrigé à ${this.correctedAmount} DT` 
+    this.approvalsService.rejectChangeRequest(this.rejectTarget.id, {
+      reasonCode: 'ECART_COMPTAGE',
+      notes: this.rejectNotes.trim() || `Correction: montant corrigé à ${this.correctedAmount} DT`
     }).subscribe({
       next: () => {
         this.showRejectModal = false;
         this.loadVarianceRequests();
         this.loadHistoryRequests();
-        
+
         // Then directly correct the session with the provided amount
         this.correctSessionDirectly(this.rejectTarget!, this.correctedAmount);
       },
@@ -433,7 +438,7 @@ export class ApprovalsComponent implements OnInit {
     }
 
     const expectedCash = sessionData.summary?.expectedCash || 0;
-    
+
     // Send the corrected amount directly to the backend
     // The backend will calculate the proper adjustment
 
@@ -453,7 +458,7 @@ export class ApprovalsComponent implements OnInit {
             this.showAlertMessage('Clôture rejetée et corrigée avec succès', 'success');
             this.loadVarianceRequests();
             this.loadHistoryRequests();
-            
+
             // Backend automatically updates existing open session with corrected balance
             if (response.updatedOpenSession) {
             }
@@ -490,7 +495,7 @@ export class ApprovalsComponent implements OnInit {
             this.correctionFonds = 0;
             this.correctionRetrait = undefined;
           },
-          error: () => {}
+          error: () => { }
         });
       },
       error: () => {
@@ -502,8 +507,8 @@ export class ApprovalsComponent implements OnInit {
   finalizeCorrection(): void {
     if (!this.correctionSessionId) return;
     const denominations: { [key: string]: number } = {}; // keep empty unless needed
-    
-    
+
+
     this.sessionsService.closeSession(this.correctionSessionId, {
       countedCash: Number(this.correctionCountedCash || 0),
       fonds: Number(this.correctionFonds || 0),
@@ -635,9 +640,9 @@ export class ApprovalsComponent implements OnInit {
   }
 
   isAdminCorrected(req: ChangeRequest): boolean {
-    return req.status === 'APPROVED' && 
-           !!req.rejectionNotes && 
-           req.rejectionNotes.includes('Correction effectuée par administrateur');
+    return req.status === 'APPROVED' &&
+      !!req.rejectionNotes &&
+      req.rejectionNotes.includes('Correction effectuée par administrateur');
   }
 
 
@@ -650,7 +655,7 @@ export class ApprovalsComponent implements OnInit {
         this.loadingReturns = false;
       },
       error: (error) => {
-        
+
         this.loadingReturns = false;
         this.showAlertMessage('Erreur lors du chargement des bons de retour', 'error');
       }
@@ -680,7 +685,7 @@ export class ApprovalsComponent implements OnInit {
         this.loadReturnHistory();
       },
       error: (e) => {
-        
+
         this.showAlertMessage("Erreur lors de l'approbation du bon de retour", 'error');
       }
     });
@@ -688,7 +693,7 @@ export class ApprovalsComponent implements OnInit {
 
   rejectReturnRequest(request: ReturnRequest): void {
     const reason = prompt('Raison du rejet (optionnel):') || '';
-    
+
     if (confirm('Êtes-vous sûr de vouloir rejeter ce bon de retour ?')) {
       this.returnsService.rejectReturnRequest(request.id, reason).subscribe({
         next: () => {
@@ -697,7 +702,7 @@ export class ApprovalsComponent implements OnInit {
           this.loadReturnHistory();
         },
         error: (error) => {
-        
+
           this.showAlertMessage("Erreur lors du rejet du bon de retour", 'error');
         }
       });
@@ -707,7 +712,7 @@ export class ApprovalsComponent implements OnInit {
   loadPendingRebuts(): void {
     this.returnsService.listRebuts('PENDING_AUTHORITY').subscribe({
       next: (rows) => this.pendingRebuts = rows,
-      error: () => {}
+      error: () => { }
     });
   }
 
@@ -718,7 +723,7 @@ export class ApprovalsComponent implements OnInit {
       next: (approved) => {
         this.returnsService.listReturnRequests('REJECTED').subscribe({
           next: (rejected) => {
-            this.returnHistory = [...approved, ...rejected].sort((a, b) => 
+            this.returnHistory = [...approved, ...rejected].sort((a, b) =>
               new Date((b as any).updatedAt || b.createdAt).getTime() - new Date((a as any).updatedAt || a.createdAt).getTime()
             );
             this.loadingReturnHistory = false;
@@ -748,9 +753,9 @@ export class ApprovalsComponent implements OnInit {
 
   // Invoice requests methods
   loadInvoiceRequests(): void {
-    this.http.get(`${environment.apiUrl}/invoices/requests`).subscribe({
+    this.http.get(`${environment.apiUrl}/invoices/requests/pending`).subscribe({
       next: (response: any) => {
-        this.invoiceRequests = response.requests || [];
+        this.invoiceRequests = response;
       },
       error: (error) => {
         console.error('Error loading invoice requests:', error);
@@ -773,7 +778,7 @@ export class ApprovalsComponent implements OnInit {
   getNextInvoiceNumber(): void {
     this.http.get(`${environment.apiUrl}/invoices/next-number`).subscribe({
       next: (response: any) => {
-        this.invoiceApprovalData.invoiceNumber = response.nextNumber;
+        this.invoiceApprovalData.invoiceNumber = response.nextInvoiceNumber;
       },
       error: (error) => {
         console.error('Error getting next invoice number:', error);
@@ -786,7 +791,7 @@ export class ApprovalsComponent implements OnInit {
     if (!this.selectedInvoiceRequest || !this.invoiceApprovalData.invoiceNumber) return;
 
     this.submittingInvoiceApproval = true;
-    this.http.put(`${environment.apiUrl}/invoices/requests/${this.selectedInvoiceRequest.id}/approve`, {
+    this.http.post(`${environment.apiUrl}/invoices/requests/${this.selectedInvoiceRequest.id}/approve`, {
       invoiceNumber: this.invoiceApprovalData.invoiceNumber
     }).subscribe({
       next: () => {
@@ -796,7 +801,8 @@ export class ApprovalsComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error approving invoice request:', error);
-        this.showAlertMessage('Erreur lors de l\'approbation de la demande', 'error');
+        const errorMsg = error.error?.error || 'Erreur lors de l\'approbation de la demande';
+        this.showAlertMessage(errorMsg, 'error');
       },
       complete: () => {
         this.submittingInvoiceApproval = false;
@@ -807,14 +813,15 @@ export class ApprovalsComponent implements OnInit {
   rejectInvoiceRequest(request: any): void {
     if (!confirm('Voulez-vous vraiment rejeter cette demande de facture ?')) return;
 
-    this.http.put(`${environment.apiUrl}/invoices/requests/${request.id}/reject`, {}).subscribe({
+    this.http.post(`${environment.apiUrl}/invoices/requests/${request.id}/reject`, {}).subscribe({
       next: () => {
         this.showAlertMessage('Demande de facture rejetée', 'success');
         this.loadInvoiceRequests();
       },
       error: (error) => {
         console.error('Error rejecting invoice request:', error);
-        this.showAlertMessage('Erreur lors du rejet de la demande', 'error');
+        const errorMsg = error.error?.error || 'Erreur lors du rejet de la demande';
+        this.showAlertMessage(errorMsg, 'error');
       }
     });
   }

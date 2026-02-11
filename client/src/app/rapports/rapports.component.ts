@@ -8,7 +8,7 @@ import { Router } from '@angular/router';
 })
 export class RapportsComponent {
 
-  constructor(private router: Router) {}
+  constructor(private router: Router) { }
 
   navigateToReport(reportType: string) {
     switch (reportType) {
@@ -41,6 +41,9 @@ export class RapportsComponent {
         break;
       case 'etat-mvt-stock-depot':
         this.router.navigate(['/rapports/etat-mvt-stock-depot']);
+        break;
+      case 'audit-logs':
+        this.router.navigate(['/rapports/audit-logs']);
         break;
 
     }

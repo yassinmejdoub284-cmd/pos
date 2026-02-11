@@ -1413,8 +1413,9 @@ router.get('/:id/report', authenticateToken, async (req, res) => {
     let targetDepotId;
     const isAdmin = req.user?.role === 'ADMIN' || isUserSuperAdmin;
     if (isAdmin) {
-      // Admins and super admins: only filter by depot if explicitly provided via header
-      targetDepotId = visitingDepotId || null;
+      // Admins and super admins: bypass the visiting depot filter for specific session reports
+      // to allow viewing reports from any depot in the context of approvals/history
+      targetDepotId = null;
     } else {
       // Non-admins: use visiting depot or fallback to user's depot
       targetDepotId = visitingDepotId || userDepotId;
@@ -2327,7 +2328,7 @@ async function calculateSessionSummary(sessionId) {
         acc.set(userName, (acc.get(userName) || 0) + (parseFloat(sale.finalTotal) || 0));
         return acc;
       }, new Map())
-    ).map(([userName, totalSales]) => ({ userName, totalSales })).sort((a,b) => b.totalSales - a.totalSales),
+    ).map(([userName, totalSales]) => ({ userName, totalSales })).sort((a, b) => b.totalSales - a.totalSales),
     creditOutstanding,
     creditSalesTotal, // Total credit sales amount (sum of all DEBT transactions)
     creditAdvancePaid,
@@ -2415,7 +2416,7 @@ async function generateZReport(sessionId, closureData = {}) {
   // For CMD_TERMINEE sales (completed temporary sales), use cash movement amount instead
   try {
     const saleIds = session.sales.map(s => s.id);
-    
+
     // Get cash movements for CMD_TERMINEE sales (completion payments)
     const cmdTermineeSales = session.sales.filter(s => (s.status || '').toUpperCase() === 'CMD_TERMINEE');
     const cashMovementsBySaleId = {};
@@ -2430,7 +2431,7 @@ async function generateZReport(sessionId, closureData = {}) {
           }
         }
       });
-      
+
       // Extract sale ID from reason and map to amount
       cashMovements.forEach(m => {
         const match = m.reason?.match(/Règlement commande #(\d+)/);
@@ -2442,7 +2443,7 @@ async function generateZReport(sessionId, closureData = {}) {
         }
       });
     }
-    
+
     if (saleIds.length > 0) {
       const debts = await prisma.clientDebtTransaction.findMany({
         where: { type: 'DEBT', saleId: { in: saleIds } },
@@ -2461,7 +2462,7 @@ async function generateZReport(sessionId, closureData = {}) {
         if (status === 'CMD_TERMINEE' && cashMovementsBySaleId[s.id] !== undefined) {
           return { ...s, paidAmount: cashMovementsBySaleId[s.id] };
         }
-        
+
         // For other sales, compute as before
         const total = parseFloat(s.finalTotal || 0) || 0;
         const debtForSale = debtBySaleId[s.id] || 0;

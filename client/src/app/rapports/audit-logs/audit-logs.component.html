@@ -1,0 +1,404 @@
+<div class="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 px-4 py-6">
+    <div class="max-w-7xl mx-auto">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-4">
+                <button (click)="navigateToReports()"
+                    class="p-2 rounded-2xl bg-white border border-gray-200 hover:bg-gray-50 transition-colors duration-300"
+                    title="Retour aux rapports">
+                    <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                </button>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-1">📋 Audit & Logs</h1>
+                    <p class="text-gray-600">Historique des actions et modifications du système</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques du jour -->
+        <div *ngIf="dailyStats && !loadingStats" class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">📊 Résumé d'aujourd'hui</h2>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-indigo-600">{{dailyStats.totalActions}}</div>
+                    <div class="text-sm text-gray-600">Actions totales</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-green-600">{{dailyStats.creates}}</div>
+                    <div class="text-sm text-gray-600">Créations</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-blue-600">{{dailyStats.updates}}</div>
+                    <div class="text-sm text-gray-600">Modifications</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-red-600">{{dailyStats.deletes}}</div>
+                    <div class="text-sm text-gray-600">Suppressions</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-orange-600">{{dailyStats.criticalActions}}</div>
+                    <div class="text-sm text-gray-600">Actions critiques</div>
+                </div>
+            </div>
+            <div *ngIf="dailyStats.mostActiveUser" class="mt-4 text-center text-sm text-gray-600">
+                👤 Utilisateur le plus actif : <span class="font-semibold">{{dailyStats.mostActiveUser}}</span>
+            </div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">🔍 Filtres</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+                <!-- Période -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">📅 Période</label>
+                    <select [(ngModel)]="selectedPeriod" (change)="applyPredefinedPeriod(selectedPeriod)"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option *ngFor="let period of predefinedPeriods" [value]="period.value">
+                            {{period.label}}
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Dates personnalisées (si période = custom) -->
+                <div *ngIf="selectedPeriod === 'custom'">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Du</label>
+                    <input type="date" [(ngModel)]="filters.startDate" (change)="applyFilters()"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+
+                <div *ngIf="selectedPeriod === 'custom'">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Au</label>
+                    <input type="date" [(ngModel)]="filters.endDate" (change)="applyFilters()"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+
+                <!-- Utilisateur -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">👤 Utilisateur</label>
+                    <select [(ngModel)]="filters.userId" (change)="applyFilters()"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option [value]="null">Tous les utilisateurs</option>
+                        <option *ngFor="let user of users" [value]="user.id">
+                            {{user.firstName}} {{user.lastName}}
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Type de table -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">📋 Type</label>
+                    <select [(ngModel)]="filters.tableName" (change)="applyFilters()"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option *ngFor="let type of tableTypes" [value]="type.value">
+                            {{type.label}}
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Action -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">🎯 Action</label>
+                    <select [(ngModel)]="filters.action" (change)="applyFilters()"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option *ngFor="let action of actionTypes" [value]="action.value">
+                            {{action.label}}
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Recherche -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">🔍 Recherche</label>
+                    <input type="text" [(ngModel)]="filters.search" (ngModelChange)="onSearchChange($event)"
+                        placeholder="Rechercher dans les logs..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+            </div>
+
+            <!-- Boutons d'action -->
+            <div class="flex items-center justify-between mt-4">
+                <button (click)="resetFilters()"
+                    class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                    Réinitialiser
+                </button>
+                <div class="text-sm text-gray-600">
+                    {{totalCount}} résultat{{totalCount > 1 ? 's' : ''}}
+                </div>
+            </div>
+        </div>
+
+        <!-- Message d'erreur -->
+        <div *ngIf="errorMessage" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clip-rule="evenodd"></path>
+                </svg>
+                <span class="text-red-800">{{errorMessage}}</span>
+            </div>
+        </div>
+
+        <!-- Loading state -->
+        <div *ngIf="loading" class="space-y-4">
+            <div *ngFor="let i of [1,2,3,4,5]" class="bg-white rounded-xl shadow-lg p-6 animate-pulse">
+                <div class="flex items-start space-x-4">
+                    <div class="w-12 h-12 bg-gray-200 rounded-full"></div>
+                    <div class="flex-1 space-y-3">
+                        <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des logs groupés par jour -->
+        <div *ngIf="!loading && logs.length > 0" class="space-y-6">
+            <div *ngFor="let group of getLogsByDay()">
+                <!-- Séparateur de jour -->
+                <div class="flex items-center my-6">
+                    <div class="flex-1 border-t border-gray-300"></div>
+                    <div class="px-4 text-sm font-semibold text-gray-600">{{group.date}}</div>
+                    <div class="flex-1 border-t border-gray-300"></div>
+                </div>
+
+                <!-- Cartes des logs -->
+                <div class="space-y-3">
+                    <div *ngFor="let log of group.logs" (click)="openDetailsModal(log)"
+                        class="bg-white rounded-xl shadow-lg p-5 cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] border-l-4"
+                        [ngClass]="{
+              'border-green-500': log.action === 'CREATE',
+              'border-blue-500': log.action === 'UPDATE',
+              'border-red-500': log.action === 'DELETE'
+            }">
+
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-start space-x-4 flex-1">
+                                <!-- Icône de table -->
+                                <div class="text-3xl">{{translator.getTableIcon(log.tableName)}}</div>
+
+                                <div class="flex-1">
+                                    <!-- Description -->
+                                    <div class="flex items-center space-x-2 mb-1">
+                                        <span class="font-semibold text-gray-800">
+                                            {{translator.generateDescription(log)}}
+                                        </span>
+                                        <!-- Badge action sensible -->
+                                        <span *ngIf="translator.isSensitiveAction(log)"
+                                            class="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">
+                                            ⚠️ Sensible
+                                        </span>
+                                    </div>
+
+                                    <!-- Timestamp relatif -->
+                                    <div class="text-sm text-gray-600 mb-2">
+                                        🕐 {{translator.formatRelativeDate(log.createdAt)}}
+                                    </div>
+
+                                    <!-- Informations complémentaires -->
+                                    <div class="flex items-center space-x-4 text-sm text-gray-500">
+                                        <span *ngIf="log.userAgent">
+                                            {{translator.parseUserAgent(log.userAgent)}}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Badge d'action -->
+                            <div class="ml-4">
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold" [ngClass]="{
+                    'bg-green-100 text-green-800': log.action === 'CREATE',
+                    'bg-blue-100 text-blue-800': log.action === 'UPDATE',
+                    'bg-red-100 text-red-800': log.action === 'DELETE'
+                  }">
+                                    {{translator.getActionIcon(log.action)}} {{log.action}}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty state -->
+        <div *ngIf="!loading && logs.length === 0" class="bg-white rounded-xl shadow-lg p-12 text-center">
+            <div class="text-6xl mb-4">📭</div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">Aucun log trouvé</h3>
+            <p class="text-gray-600 mb-6">
+                Aucune action n'a été enregistrée pour les critères sélectionnés.
+            </p>
+            <button (click)="resetFilters()"
+                class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                Réinitialiser les filtres
+            </button>
+        </div>
+
+        <!-- Pagination -->
+        <div *ngIf="!loading && logs.length > 0"
+            class="flex items-center justify-between mt-8 bg-white rounded-xl shadow-lg p-4">
+            <div class="text-sm text-gray-600">
+                Page {{currentPage}} sur {{totalPages}} ({{totalCount}} résultats)
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <button (click)="goToPage(currentPage - 1)" [disabled]="!hasPrevPage"
+                    class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    Précédent
+                </button>
+
+                <div class="flex items-center space-x-1">
+                    <button *ngFor="let page of [currentPage - 1, currentPage, currentPage + 1]"
+                        (click)="goToPage(page)" [disabled]="page < 1 || page > totalPages" [ngClass]="{
+              'bg-indigo-600 text-white': page === currentPage,
+              'bg-white text-gray-700 hover:bg-gray-50': page !== currentPage
+            }" class="px-3 py-2 border border-gray-300 rounded-lg disabled:hidden transition-colors">
+                        {{page}}
+                    </button>
+                </div>
+
+                <button (click)="goToPage(currentPage + 1)" [disabled]="!hasNextPage"
+                    class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    Suivant
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal de détails -->
+<div *ngIf="showDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    (click)="closeDetailsModal()">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        (click)="$event.stopPropagation()">
+
+        <!-- Header du modal -->
+        <div
+            class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+            <h2 class="text-2xl font-bold text-gray-800">Détails de l'action</h2>
+            <button (click)="closeDetailsModal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Contenu du modal -->
+        <div *ngIf="loadingDetails" class="p-12 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <p class="text-gray-600 mt-4">Chargement des détails...</p>
+        </div>
+
+        <div *ngIf="!loadingDetails && selectedLog" class="p-6 space-y-6">
+
+            <!-- Qui ? -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">👤 Qui ?</h3>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="font-semibold text-gray-800">
+                        {{selectedLog.user.firstName}} {{selectedLog.user.lastName}}
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        Rôle : {{selectedLog.user.role}}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quand ? -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">🕐 Quand ?</h3>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-gray-800">
+                        {{selectedLog.createdAt | date:'dd MMMM yyyy à HH:mm:ss':'':'fr'}}
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        {{translator.formatRelativeDate(selectedLog.createdAt)}}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quoi ? -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">📋 Quoi ?</h3>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-2xl">{{translator.getTableIcon(selectedLog.tableName)}}</span>
+                        <span class="font-semibold text-gray-800">
+                            {{translator.generateDescription(selectedLog)}}
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        Table : {{translator.translateTableName(selectedLog.tableName)}} (ID: {{selectedLog.recordId}})
+                    </div>
+                </div>
+            </div>
+
+            <!-- Depuis où ? -->
+            <div *ngIf="selectedLog.userAgent">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">📍 Depuis où ?</h3>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="text-gray-800">
+                        Appareil : {{translator.parseUserAgent(selectedLog.userAgent)}}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modifications (pour UPDATE) -->
+            <div *ngIf="selectedLog.action === 'UPDATE' && getChanges(selectedLog).length > 0">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">🔄 Modifications</h3>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-gray-300">
+                                <th class="text-left py-2 text-gray-700">Champ</th>
+                                <th class="text-left py-2 text-gray-700">Avant</th>
+                                <th class="text-center py-2 text-gray-700"></th>
+                                <th class="text-left py-2 text-gray-700">Après</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let change of getChanges(selectedLog)" class="border-b border-gray-200">
+                                <td class="py-3 font-medium text-gray-800">
+                                    {{translator.translateFieldName(change.field)}}
+                                </td>
+                                <td class="py-3 text-red-600 line-through">
+                                    {{change.oldValue}}
+                                </td>
+                                <td class="py-3 text-center text-gray-400">→</td>
+                                <td class="py-3 text-green-600 font-semibold">
+                                    {{change.newValue}}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Valeurs complètes (JSON) -->
+            <div *ngIf="selectedLog.newValues || selectedLog.oldValues">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">📝 Données complètes</h3>
+
+                <div *ngIf="selectedLog.newValues" class="mb-4">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Nouvelles valeurs :</h4>
+                    <pre
+                        class="bg-gray-50 rounded-lg p-4 text-xs overflow-x-auto">{{selectedLog.newValues | json}}</pre>
+                </div>
+
+                <div *ngIf="selectedLog.oldValues">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Anciennes valeurs :</h4>
+                    <pre
+                        class="bg-gray-50 rounded-lg p-4 text-xs overflow-x-auto">{{selectedLog.oldValues | json}}</pre>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

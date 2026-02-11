@@ -2,6 +2,7 @@ const express = require('express');
 const { prisma } = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
 const { sendPushToAll } = require('../lib/push');
+const { getDepotSettings } = require('../lib/settings');
 // PDF service removed - using HTML print instead
 
 const router = express.Router();
@@ -26,7 +27,7 @@ async function getNextInvoiceNumber(depotId) {
     const day = String(now.getDate()).padStart(2, '0');
     const timestamp = now.getTime().toString().slice(-6);
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    
+
     // Format: FAC-YYMMDD-XXXXXX-XXX (e.g., FAC-250125-123456-789)
     return `FAC-${year}${month}${day}-${timestamp}-${random}`;
   } catch (error) {
@@ -43,18 +44,18 @@ router.get('/', authenticateToken, async (req, res) => {
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 20;
     const offset = (pageNum - 1) * limitNum;
-    
+
     // Enforce depot isolation - use user's depotId
     const userDepotId = req.user?.depotId;
     if (!userDepotId && req.user?.role !== 'ADMIN') {
       return res.status(400).json({ error: 'User must be assigned to a depot to view invoices' });
     }
-    
+
     const where = {};
     if (userDepotId) {
       where.depotId = userDepotId;
     }
-    
+
     // Validate enums to avoid Prisma enum errors
     const allowedStatus = ['DRAFT', 'ISSUED', 'CANCELLED'];
     const allowedSource = ['DAILY_EXTRACT', 'TICKET_REQUEST'];
@@ -71,7 +72,7 @@ router.get('/', authenticateToken, async (req, res) => {
       // Exclude rows with invalid stored enum values
       where.source = { in: allowedSource };
     }
-    
+
     const [invoices, total] = await Promise.all([
       prisma.invoice.findMany({
         where,
@@ -96,7 +97,7 @@ router.get('/', authenticateToken, async (req, res) => {
       }),
       prisma.invoice.count({ where })
     ]);
-    
+
     res.json({
       invoices,
       pagination: {
@@ -122,7 +123,7 @@ router.get('/requests', authenticateToken, async (req, res) => {
     }
 
     const requests = await prisma.invoiceRequest.findMany({
-      where: { 
+      where: {
         sale: {
           userId: req.user.id // Only show requests for sales made by this user
         }
@@ -145,7 +146,7 @@ router.get('/requests', authenticateToken, async (req, res) => {
       },
       orderBy: { createdAt: 'desc' }
     });
-    
+
     res.json({ requests });
   } catch (error) {
     console.error('Error getting invoice requests:', error);
@@ -182,7 +183,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-    
+
     // For non-admin users, check depot access
     if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
       return res.status(403).json({ error: 'Access denied: Cannot access other depot invoices' });
@@ -209,11 +210,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     if (!invoice) {
       return res.status(404).json({ error: 'Invoice not found' });
     }
-    
+
     res.json(invoice);
   } catch (error) {
     console.error('Error fetching invoice:', error);
@@ -231,67 +232,67 @@ router.post('/', authenticateToken, async (req, res) => {
       status = 'DRAFT',
       companyId
     } = req.body;
-    
+
     // Validate required fields
     if (!clientId || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ 
-        error: 'Client ID and items are required' 
+      return res.status(400).json({
+        error: 'Client ID and items are required'
       });
     }
-    
+
     // Get client information
     const client = await prisma.client.findUnique({
       where: { id: parseInt(clientId) }
     });
-    
+
     if (!client) {
       return res.status(404).json({ error: 'Client not found' });
     }
-    
+
     // Enforce depot isolation - use user's depotId
     const userDepotId = req.user?.depotId;
     if (!userDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot to create invoices' });
     }
-    
+
     // Get next invoice number
     const invoiceNumber = await getNextInvoiceNumber(userDepotId);
-    
+
     // Determine issuing company info
     const depot = await prisma.depot.findUnique({ where: { id: userDepotId } });
-    const appSettings = await prisma.appSettings.findFirst();
+    const appSettings = getDepotSettings(userDepotId);
     const company = companyId
       ? await prisma.company.findUnique({ where: { id: Number(companyId) } })
       : null;
-    
+
     // Calculate totals
     let subtotalHTVA = 0;
     let totalTVA = 0;
     let totalTTC = 0;
-    
+
     const invoiceLines = [];
-    
+
     for (const item of items) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId },
         include: { famille: true }
       });
-      
+
       if (!product) continue;
-      
+
       const { prixHTVA, montantTVA } = calculateHTVAAndTVA(
-        item.unitPrice, 
+        item.unitPrice,
         parseFloat(product.tva)
       );
-      
+
       const sousTotalTTC = item.quantity * item.unitPrice;
       const sousTotalHTVA = item.quantity * prixHTVA;
       const sousTotalTVA = item.quantity * montantTVA;
-      
+
       subtotalHTVA += sousTotalHTVA;
       totalTVA += sousTotalTVA;
       totalTTC += sousTotalTTC;
-      
+
       invoiceLines.push({
         productId: product.id,
         familleName: product.famille.name,
@@ -306,12 +307,12 @@ router.post('/', authenticateToken, async (req, res) => {
         sousTotalTTC: sousTotalTTC
       });
     }
-    
+
     // Create invoice with retry logic for uniqueness
     let invoice;
     let attempts = 0;
     const maxAttempts = 3;
-    
+
     while (attempts < maxAttempts) {
       try {
         invoice = await prisma.invoice.create({
@@ -372,7 +373,7 @@ router.post('/', authenticateToken, async (req, res) => {
     // Add additional fields that the frontend expects
     invoice.numero = invoice.invoiceNumber;
     invoice.createdAt = invoice.issueDate;
-    
+
     // Send push notification for new invoice
     try {
       await sendPushToAll({
@@ -383,7 +384,7 @@ router.post('/', authenticateToken, async (req, res) => {
     } catch (e) {
       console.warn('[invoices.create] Failed to send push notification:', e);
     }
-    
+
     res.status(201).json(invoice);
   } catch (error) {
     console.error('Error creating invoice:', error);
@@ -402,59 +403,59 @@ router.post('/from-extract', authenticateToken, async (req, res) => {
       notes,
       companyId
     } = req.body;
-    
+
     // Validate invoice number uniqueness
     const existingInvoice = await prisma.invoice.findFirst({
       where: { invoiceNumber }
     });
-    
+
     if (existingInvoice) {
-      return res.status(400).json({ 
-        error: 'Numéro de facture déjà existant. Choisissez un autre.' 
+      return res.status(400).json({
+        error: 'Numéro de facture déjà existant. Choisissez un autre.'
       });
     }
-    
+
     // Enforce depot isolation - use user's depotId
     const userDepotId = req.user?.depotId;
     if (!userDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot to create invoices from daily extract' });
     }
-    
+
     // Determine issuing company info
-    const appSettings = await prisma.appSettings.findFirst();
+    const appSettings = getDepotSettings(userDepotId);
     const depot = await prisma.depot.findUnique({ where: { id: userDepotId } });
     const company = companyId
       ? await prisma.company.findUnique({ where: { id: Number(companyId) } })
       : null;
-    
+
     // Calculate totals
     let subtotalHTVA = 0;
     let totalTVA = 0;
     let totalTTC = 0;
-    
+
     const invoiceLines = [];
-    
+
     for (const line of lines) {
       const product = await prisma.product.findUnique({
         where: { id: line.productId },
         include: { famille: true }
       });
-      
+
       if (!product) continue;
-      
+
       const { prixHTVA, montantTVA } = calculateHTVAAndTVA(
-        line.prixVenteTTC, 
+        line.prixVenteTTC,
         parseFloat(product.tva)
       );
-      
+
       const sousTotalTTC = line.quantity * line.prixVenteTTC;
       const sousTotalHTVA = line.quantity * prixHTVA;
       const sousTotalTVA = line.quantity * montantTVA;
-      
+
       subtotalHTVA += sousTotalHTVA;
       totalTVA += sousTotalTVA;
       totalTTC += sousTotalTTC;
-      
+
       invoiceLines.push({
         productId: product.id,
         familleName: product.famille.name,
@@ -469,7 +470,7 @@ router.post('/from-extract', authenticateToken, async (req, res) => {
         sousTotalTTC: sousTotalTTC
       });
     }
-    
+
     // Create invoice
     const invoice = await prisma.invoice.create({
       data: {
@@ -507,7 +508,7 @@ router.post('/from-extract', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     res.status(201).json(invoice);
   } catch (error) {
     console.error('Error creating invoice from extract:', error);
@@ -519,13 +520,13 @@ router.post('/from-extract', authenticateToken, async (req, res) => {
 router.post('/request-from-ticket', authenticateToken, async (req, res) => {
   try {
     const { saleId, requestNotes } = req.body;
-    
+
     // Enforce depot isolation - use user's depotId
     const userDepotId = req.user?.depotId;
     if (!userDepotId) {
       return res.status(400).json({ error: 'User must be assigned to a depot to create invoice requests' });
     }
-    
+
     // Verify sale exists and belongs to user's depot
     const sale = await prisma.sale.findFirst({
       where: {
@@ -546,22 +547,22 @@ router.post('/request-from-ticket', authenticateToken, async (req, res) => {
         client: true
       }
     });
-    
+
     if (!sale) {
       return res.status(404).json({ error: 'Sale not found or not completed' });
     }
-    
+
     // Check if invoice request already exists for this sale
     const existingRequest = await prisma.invoiceRequest.findFirst({
       where: { saleId }
     });
-    
+
     if (existingRequest) {
-      return res.status(400).json({ 
-        error: 'Une demande de facture existe déjà pour ce ticket' 
+      return res.status(400).json({
+        error: 'Une demande de facture existe déjà pour ce ticket'
       });
     }
-    
+
     // Create invoice request
     const invoiceRequest = await prisma.invoiceRequest.create({
       data: {
@@ -590,7 +591,7 @@ router.post('/request-from-ticket', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     res.status(201).json(invoiceRequest);
   } catch (error) {
     console.error('Error creating invoice request:', error);
@@ -631,7 +632,7 @@ router.get('/requests/pending', authenticateToken, async (req, res) => {
       },
       orderBy: { createdAt: 'asc' }
     });
-    
+
 
     res.json(requests);
   } catch (error) {
@@ -643,7 +644,7 @@ router.get('/requests/pending', authenticateToken, async (req, res) => {
 // Approve invoice request
 router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
   try {
-    
+
     const { invoiceNumber } = req.body;
     const requestId = parseInt(req.params.id);
     if (isNaN(requestId)) {
@@ -652,18 +653,18 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
     if (!prisma || !prisma.invoiceRequest) {
       return res.status(503).json({ error: 'Invoice request model unavailable' });
     }
-    
+
     // Validate invoice number uniqueness
     const existingInvoice = await prisma.invoice.findFirst({
       where: { invoiceNumber }
     });
-    
+
     if (existingInvoice) {
-      return res.status(400).json({ 
-        error: 'Numéro de facture déjà existant. Choisissez un autre.' 
+      return res.status(400).json({
+        error: 'Numéro de facture déjà existant. Choisissez un autre.'
       });
     }
-    
+
     // Get the request
     const invoiceRequest = await prisma.invoiceRequest.findUnique({
       where: { id: requestId },
@@ -685,35 +686,35 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     if (!invoiceRequest || invoiceRequest.status !== 'PENDING') {
       return res.status(404).json({ error: 'Request not found or not pending' });
     }
-    
+
     // Get app settings for company info (fallback)
-    const appSettings = await prisma.appSettings.findFirst();
-    
+    const appSettings = getDepotSettings(invoiceRequest.sale.depotId);
+
     // Calculate totals
     let subtotalHTVA = 0;
     let totalTVA = 0;
     let totalTTC = 0;
-    
+
     const invoiceLines = [];
-    
+
     for (const item of invoiceRequest.sale.items) {
       const { prixHTVA, montantTVA } = calculateHTVAAndTVA(
-        parseFloat(item.unitPrice), 
+        parseFloat(item.unitPrice),
         parseFloat(item.product.tva)
       );
-      
+
       const sousTotalTTC = parseFloat(item.total);
       const sousTotalHTVA = item.quantity * prixHTVA;
       const sousTotalTVA = item.quantity * montantTVA;
-      
+
       subtotalHTVA += sousTotalHTVA;
       totalTVA += sousTotalTVA;
       totalTTC += sousTotalTTC;
-      
+
       invoiceLines.push({
         productId: item.product.id,
         familleName: item.product.famille.name,
@@ -728,7 +729,7 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
         sousTotalTTC: sousTotalTTC
       });
     }
-    
+
     // Create invoice
     const invoice = await prisma.invoice.create({
       data: {
@@ -739,7 +740,7 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
         companyName: appSettings?.companyName || invoiceRequest.sale.depot.name,
         companyAddress: invoiceRequest.sale.depot.address,
         companyMatricule: appSettings?.companyMatricule,
-        customerName: invoiceRequest.sale.client 
+        customerName: invoiceRequest.sale.client
           ? `${invoiceRequest.sale.client.firstName} ${invoiceRequest.sale.client.lastName}`
           : 'Client anonyme',
         customerAddress: invoiceRequest.sale.client?.address,
@@ -757,7 +758,7 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
         }
       }
     });
-    
+
     // Update request status
     await prisma.invoiceRequest.update({
       where: { id: requestId },
@@ -769,8 +770,8 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
         invoiceNumber
       }
     });
-    
-    res.json({ 
+
+    res.json({
       message: 'Invoice request approved and invoice created',
       invoice: {
         id: invoice.id,
@@ -786,7 +787,7 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
 // Reject invoice request
 router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
   try {
-    
+
     const { rejectionReason } = req.body;
     const requestId = parseInt(req.params.id);
     if (isNaN(requestId)) {
@@ -795,15 +796,15 @@ router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
     if (!prisma || !prisma.invoiceRequest) {
       return res.status(503).json({ error: 'Invoice request model unavailable' });
     }
-    
+
     const invoiceRequest = await prisma.invoiceRequest.findUnique({
       where: { id: requestId }
     });
-    
+
     if (!invoiceRequest || invoiceRequest.status !== 'PENDING') {
       return res.status(404).json({ error: 'Request not found or not pending' });
     }
-    
+
     await prisma.invoiceRequest.update({
       where: { id: requestId },
       data: {
@@ -813,7 +814,7 @@ router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
         rejectionReason
       }
     });
-    
+
     res.json({ message: 'Invoice request rejected' });
   } catch (error) {
     console.error('Error rejecting invoice request:', error);
@@ -834,7 +835,7 @@ router.patch('/:id/mark-printed', authenticateToken, async (req, res) => {
     const visitingDepotHeader = req.headers['x-depot-id'];
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
     const targetDepotId = visitingDepotId || userDepotId;
-    
+
     // For non-admin users, check depot access
     if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
       return res.status(403).json({ error: 'Access denied: Cannot access other depot invoices' });
@@ -846,17 +847,17 @@ router.patch('/:id/mark-printed', authenticateToken, async (req, res) => {
         ...(targetDepotId ? { depotId: targetDepotId } : (req.user?.role === 'ADMIN' ? {} : { depotId: userDepotId }))
       }
     });
-    
+
     if (!invoice) {
       return res.status(404).json({ error: 'Invoice not found' });
     }
-    
+
     // Update the invoice to mark it as printed
     const updatedInvoice = await prisma.invoice.update({
       where: { id: invoiceId },
       data: { printedAt: new Date() }
     });
-    
+
     res.json({ success: true, invoice: updatedInvoice });
   } catch (error) {
     console.error('Error marking invoice as printed:', error);
@@ -994,9 +995,9 @@ router.post('/finalize-draft', authenticateToken, async (req, res) => {
 
     // For now, simulate success
 
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: 'Brouillon finalisé avec succès',
       invoiceId: `INV-${Date.now()}`
     });
@@ -1023,7 +1024,7 @@ function processPDFDataToInvoiceLines(pdfData) {
     const article = row.rawData['Article'] || row.rawData['article'] || row.rawData['designation'] || `Article ${index + 1}`;
     const designationLegale = row.rawData['Désignation légale'] || row.rawData['designation_legale'] || article;
     const famille = row.rawData['Famille'] || row.rawData['famille'] || 'Général';
-    
+
     // Extract prices
     const prixTTC = parseFloat(row.rawData['PV TTC'] || row.rawData['prix_ttc'] || row.rawData['ttc'] || '0');
     const prixHTVA = parseFloat(row.rawData['PV HTVA'] || row.rawData['prix_htva'] || row.rawData['htva'] || '0');

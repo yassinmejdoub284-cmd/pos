@@ -220,17 +220,17 @@ export class TicketActionDialogComponent {
 
   getFirstRowActions(): TicketAction[] {
     // First row: Print, Invoice, Details
-    return this.ticketActions.filter(action => 
-      action.id === 'print-ticket' || 
-      action.id === 'request-invoice' || 
+    return this.ticketActions.filter(action =>
+      action.id === 'print-ticket' ||
+      action.id === 'request-invoice' ||
       action.id === 'check-details'
     );
   }
 
   getSecondRowActions(): TicketAction[] {
     // Second row: Return/Exchange, Cancel (Instant Refund)
-    return this.ticketActions.filter(action => 
-      action.id === 'return-exchange' || 
+    return this.ticketActions.filter(action =>
+      action.id === 'return-exchange' ||
       action.id === 'instant-refund'
     );
   }

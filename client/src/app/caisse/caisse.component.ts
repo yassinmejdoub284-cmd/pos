@@ -360,6 +360,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   // Barcode scanner
   barcodeBuffer: string = '';
   barcodeTimeout: any = null;
+  private invoiceRefreshInterval: any;
 
 
   // Action buttons configuration
@@ -420,13 +421,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
       color: '#ff80b0', // Violet-500: wholesale
       action: () => this.toggleWholesaleMode()
     }
-    // {
-    //   id: 'validate',
-    //   label: 'Régler',
-    //   icon: 'M4 6h16M4 10h16M4 14h10', // credit card
-    //   color: '#10b981', // Green-500: confirm/positive
-    //   action: () => this.validateSale()
-    // }
   ];
 
   commandButtons = [
@@ -583,6 +577,16 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.initializeDragDrop();
     this.setupTouchEventListeners();
     this.loadWholesaleRules();
+
+    // Initial load for approved invoices and requests
+    this.loadApprovedInvoices();
+    this.loadPendingInvoiceRequests();
+
+    // Set up periodic refresh for unprinted invoices and requests (every 30 seconds)
+    this.invoiceRefreshInterval = setInterval(() => {
+      this.loadApprovedInvoices();
+      this.loadPendingInvoiceRequests();
+    }, 30000);
   }
 
   // Multi-client system methods
@@ -1844,6 +1848,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
   unprintedInvoicesCount = 0;
   // Fast lookup for approved invoices by saleId
   private approvedInvoicesSet: Set<number> = new Set<number>();
+  private printedInvoicesSet: Set<number> = new Set<number>();
+  private pendingInvoiceRequestsSet: Set<number> = new Set<number>();
 
   // Return requests for pending refunds
   pendingReturnRequests: any[] = [];
@@ -2169,21 +2175,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.isReturnMode = true;
     this.isClientReturnMode = true;
     this.showReturnClientSelectionDialog = false;
-    
+
     // Toggle wholesale mode if client is wholesale
     const isWholesaleClient = client.clientType === 'WHOLESALE';
     this.isWholesaleMode = isWholesaleClient;
-    
+
     // Load client prices for return
     this.loadClientPrices(client.id);
-    
+
     // Reload products to show wholesale products if needed
     if (isWholesaleClient) {
       this.loadProducts();
     } else {
       this.filterProducts();
     }
-    
+
     this.showAlertMessage(`Mode retour article (Client: ${client.firstName} ${client.lastName})${isWholesaleClient ? ' - Mode Gros activé' : ''} activé`, 'info');
   }
 
@@ -3144,10 +3150,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.http.post(`${environment.apiUrl}/invoices/request-from-ticket`, requestData).subscribe({
       next: () => {
         this.showAlertMessage('Demande de facture envoyée avec succès!', 'success');
+        this.loadPendingInvoiceRequests(); // Immediate refresh
       },
       error: (error) => {
         console.error('Error requesting invoice after sale:', error);
-        this.showAlertMessage('Erreur lors de l\'envoi de la demande de facture', 'error');
+        const errorMsg = error.error?.error || 'Erreur lors de l\'envoi de la demande de facture';
+        this.showAlertMessage(errorMsg, 'error');
       },
       complete: () => {
         this.isInvoiceRequestPending = false;
@@ -5732,6 +5740,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
                 .filter((id: any) => typeof id === 'number')
             );
             this.loadingTodaysTickets = false;
+            // Also load pending requests to ensure "Facture Envoyé" status is up to date
+            this.loadPendingInvoiceRequests();
           },
           error: () => {
             this.approvedInvoices = [];
@@ -5750,6 +5760,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   isTicketInvoiceApproved(ticket: any): boolean {
     return this.approvedInvoicesSet.has(ticket?.id);
+  }
+
+  isTicketInvoicePrinted(ticket: any): boolean {
+    return this.printedInvoicesSet.has(ticket?.id);
   }
 
   isTicketWholesale(ticket: any): boolean {
@@ -5782,6 +5796,15 @@ export class CaisseComponent implements OnInit, OnDestroy {
     if (this.isTicketPendingRefund(ticket)) {
       return 'Annulation en cours';
     }
+
+    // Check for invoice status before other statuses
+    if (this.isTicketInvoiceApproved(ticket)) {
+      return 'Facture';
+    }
+    if (this.hasPendingInvoiceRequest(ticket)) {
+      return 'Facture Envoyé';
+    }
+
     if (ticket.status === 'COMPLETED') {
       return this.isTicketWholesale(ticket) ? 'Gros' : 'Terminé';
     }
@@ -6108,6 +6131,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     // Clean up barcode scanner timeout
     if (this.barcodeTimeout) {
       clearTimeout(this.barcodeTimeout);
+    }
+
+    if (this.invoiceRefreshInterval) {
+      clearInterval(this.invoiceRefreshInterval);
     }
 
     this.destroy$.next();
@@ -6718,9 +6745,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   hasPendingInvoiceRequest(ticket: any): boolean {
-    if (!ticket) return false;
-    const saleId = ticket.id;
-    return this.invoiceRequests.some(req => req.saleId === saleId && (req.status === 'PENDING' || req.status === 'REQUESTED'));
+    if (!ticket || !ticket.id) return false;
+    return this.pendingInvoiceRequestsSet.has(Number(ticket.id));
   }
 
   hasPendingRefundRequest(ticket: any): boolean {
@@ -6881,11 +6907,13 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.http.post(`${environment.apiUrl}/invoices/request-from-ticket`, requestData).subscribe({
       next: (response: any) => {
         this.showAlertMessage('Demande de facture envoyée avec succès!', 'success');
+        this.loadPendingInvoiceRequests(); // Immediate refresh
         this.closeInvoiceRequestModal();
       },
       error: (error) => {
         console.error('Error submitting invoice request:', error);
-        this.showAlertMessage('Erreur lors de l\'envoi de la demande', 'error');
+        const errorMsg = error.error?.error || 'Erreur lors de l\'envoi de la demande';
+        this.showAlertMessage(errorMsg, 'error');
         this.submittingInvoiceRequest = false;
       }
     });
@@ -7108,11 +7136,42 @@ export class CaisseComponent implements OnInit, OnDestroy {
       next: (response: any) => {
         this.approvedInvoices = response.invoices || [];
         this.unprintedInvoicesCount = this.approvedInvoices.filter(invoice => !invoice.printedAt).length;
+
+        // Update fast lookup set for ticket menu highlighting
+        this.approvedInvoicesSet.clear();
+        this.printedInvoicesSet.clear();
+        this.approvedInvoices.forEach(inv => {
+          if (inv.saleId) {
+            this.approvedInvoicesSet.add(inv.saleId);
+            if (inv.printedAt) {
+              this.printedInvoicesSet.add(inv.saleId);
+            }
+          }
+        });
       },
       error: (error) => {
         console.error('Error loading approved invoices:', error);
         this.approvedInvoices = [];
         this.unprintedInvoicesCount = 0;
+      }
+    });
+  }
+
+  loadPendingInvoiceRequests(): void {
+    this.http.get(`${environment.apiUrl}/invoices/requests/pending`).subscribe({
+      next: (response: any) => {
+        this.invoiceRequests = response || [];
+        // Update fast lookup set
+        this.pendingInvoiceRequestsSet.clear();
+        this.invoiceRequests.forEach(req => {
+          if (req.saleId) {
+            this.pendingInvoiceRequestsSet.add(Number(req.saleId));
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Error loading pending invoice requests:', error);
+        this.invoiceRequests = [];
       }
     });
   }

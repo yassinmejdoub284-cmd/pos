@@ -1362,8 +1362,8 @@
           </div>
           <div class="col-span-2">
             <span class="text-slate-600">Demandé par:</span>
-            <span class="font-semibold text-slate-800 ml-2">{{ selectedInvoiceRequest.requestedBy.firstName }} {{
-              selectedInvoiceRequest.requestedBy.lastName }}</span>
+            <span class="font-semibold text-slate-800 ml-2">{{ selectedInvoiceRequest.requestedBy?.firstName }} {{
+              selectedInvoiceRequest.requestedBy?.lastName }}</span>
           </div>
         </div>
         <div *ngIf="selectedInvoiceRequest.requestNotes" class="mt-3">

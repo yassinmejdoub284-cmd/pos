@@ -1,0 +1,107 @@
+
+model Invoice {
+  id                Int             @id @default(autoincrement())
+  invoiceNumber     String          @unique @map("invoice_number") @db.VarChar(50)
+  status            InvoiceStatus   @default(DRAFT)
+  source            InvoiceSource
+  issueDate         DateTime        @map("issue_date")
+  dueDate           DateTime?       @map("due_date")
+  paymentMethod     String?         @map("payment_method") @db.VarChar(50)
+  companyName       String          @map("company_name") @db.VarChar(200)
+  companyAddress    String          @map("company_address") @db.Text
+  companyMatricule  String?         @map("company_matricule") @db.VarChar(50)
+  customerName      String          @map("customer_name") @db.VarChar(200)
+  customerAddress   String?         @map("customer_address") @db.Text
+  customerMatricule String?         @map("customer_matricule") @db.VarChar(50)
+  subtotalHTVA      Decimal         @map("subtotal_htva") @db.Decimal(12, 3)
+  totalTVA          Decimal         @map("total_tva") @db.Decimal(12, 3)
+  totalTTC          Decimal         @map("total_ttc") @db.Decimal(12, 3)
+  amountInWords     String?         @map("amount_in_words") @db.Text
+  depotId           Int             @map("depot_id")
+  clientId          Int?            @map("client_id")
+  createdById       Int             @map("created_by_id")
+  saleId            Int?            @map("sale_id")
+  notes             String?         @db.Text
+  quantityNote      String?         @map("quantity_note") @db.Text
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  companyId         Int?            @map("company_id")
+  lines             InvoiceLine[]
+  invoiceRequest    InvoiceRequest?
+  client            Client?         @relation(fields: [clientId], references: [id])
+  company           Company?        @relation(fields: [companyId], references: [id])
+  createdBy         User            @relation("InvoiceCreator", fields: [createdById], references: [id])
+  depot             Depot           @relation(fields: [depotId], references: [id])
+  sale              Sale?           @relation(fields: [saleId], references: [id])
+
+  @@index([clientId], map: "invoices_client_id_fkey")
+  @@index([companyId], map: "invoices_company_id_fkey")
+  @@index([createdById], map: "invoices_created_by_id_fkey")
+  @@index([depotId], map: "invoices_depot_id_fkey")
+  @@index([saleId], map: "invoices_sale_id_fkey")
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id               Int      @id @default(autoincrement())
+  invoiceId        Int      @map("invoice_id")
+  productId        Int      @map("product_id")
+  familleName      String   @map("famille_name") @db.VarChar(100)
+  productName      String   @map("product_name") @db.VarChar(200)
+  legalDesignation String?  @map("legal_designation") @db.VarChar(200)
+  unite            String   @db.VarChar(20)
+  quantity         Decimal  @db.Decimal(10, 3)
+  prixVenteTTC     Decimal  @map("prix_vente_ttc") @db.Decimal(10, 2)
+  prixVenteHTVA    Decimal  @map("prix_vente_htva") @db.Decimal(10, 2)
+  tvaPercent       Decimal  @map("tva_percent") @db.Decimal(5, 2)
+  montantTVA       Decimal  @map("montant_tva") @db.Decimal(10, 2)
+  sousTotalTTC     Decimal  @map("sous_total_ttc") @db.Decimal(10, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
+  invoice          Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product          Product  @relation(fields: [productId], references: [id])
+
+  @@index([invoiceId], map: "invoice_lines_invoice_id_fkey")
+  @@index([productId], map: "invoice_lines_product_id_fkey")
+  @@map("invoice_lines")
+}
+
+model InvoiceRequest {
+  id              Int                  @id @default(autoincrement())
+  status          InvoiceRequestStatus @default(PENDING)
+  invoiceNumber   String?              @map("invoice_number") @db.VarChar(50)
+  saleId          Int                  @map("sale_id")
+  requestedById   Int                  @map("requested_by_id")
+  approvedById    Int?                 @map("approved_by_id")
+  approvedAt      DateTime?            @map("approved_at")
+  invoiceId       Int?                 @unique @map("invoice_id")
+  requestNotes    String?              @map("request_notes") @db.Text
+  rejectionReason String?              @map("rejection_reason") @db.Text
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  approvedBy      User?                @relation("InvoiceRequestApprover", fields: [approvedById], references: [id])
+  invoice         Invoice?             @relation(fields: [invoiceId], references: [id])
+  requestedBy     User                 @relation("InvoiceRequestCreator", fields: [requestedById], references: [id])
+  sale            Sale                 @relation(fields: [saleId], references: [id])
+
+  @@index([approvedById], map: "invoice_requests_approved_by_id_fkey")
+  @@index([requestedById], map: "invoice_requests_requested_by_id_fkey")
+  @@index([saleId], map: "invoice_requests_sale_id_fkey")
+  @@map("invoice_requests")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+enum InvoiceRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InvoiceSource {
+  DAILY_EXTRACT
+  TICKET_REQUEST
+}

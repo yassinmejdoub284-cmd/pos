@@ -31,6 +31,13 @@
               (click)="onTicketIdClick()" title="Cliquer pour voir les tickets d'aujourd'hui">
               #{{ getCurrentTicketNumber() }}
 
+              <!-- Badge for unprinted invoices -->
+              <div *ngIf="unprintedInvoicesCount > 0"
+                class="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-pulse z-20"
+                title="{{ unprintedInvoicesCount }} facture(s) approuvée(s) non imprimée(s)">
+                {{ unprintedInvoicesCount }}
+              </div>
+
               <!-- Ticket Menu Dropdown -->
               <div *ngIf="showTicketMenu"
                 class="absolute top-full left-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
@@ -46,6 +53,18 @@
                   </div>
                 </div>
 
+                <!-- Quick access to approved invoices -->
+                <div *ngIf="unprintedInvoicesCount > 0" class="p-2 border-b border-blue-100 bg-blue-50">
+                  <button (click)="viewApprovedInvoices(); $event.stopPropagation()"
+                    class="w-full py-2 bg-blue-600 text-white rounded text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 animate-pulse">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 10-8 0v4a2 2 0 002 2" />
+                    </svg>
+                    Imprimer Factures ({{ unprintedInvoicesCount }})
+                  </button>
+                </div>
+
                 <div *ngIf="loadingTodaysTickets" class="p-4 text-center">
                   <div class="text-sm text-gray-500">Chargement...</div>
                 </div>
@@ -57,7 +76,7 @@
                 <div *ngIf="!loadingTodaysTickets && todaysTickets.length > 0" class="max-h-64 overflow-y-auto">
                   <div *ngFor="let ticket of todaysTickets" (click)="onTicketSelect(ticket)" [ngClass]="
                          isTicketInvoiceApproved(ticket)
-                           ? 'p-3 border-b border-green-400 bg-green-300 animate-pulse cursor-pointer transition-colors'
+                           ? ('p-3 border-b border-green-400 bg-green-300 cursor-pointer transition-colors ' + (!isTicketInvoicePrinted(ticket) ? 'animate-pulse' : ''))
                            : (hasPendingInvoiceRequest(ticket)
                                ? 'p-3 border-b border-orange-400 bg-orange-200 animate-pulse cursor-pointer transition-colors'
                                : 'p-3 border-b border-gray-100 cursor-pointer transition-colors')

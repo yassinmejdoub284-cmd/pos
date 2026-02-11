@@ -44,6 +44,8 @@ const produitsDeCaisseRoutes = require('./routes/produits-de-caisse');
 const driversRoutes = require('./routes/drivers');
 const vehiclesRoutes = require('./routes/vehicles');
 const adminDashboardRoutes = require('./routes/admin-dashboard');
+const invoicesRoutes = require('./routes/invoices');
+const auditLogsRoutes = require('./routes/audit-logs');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -102,6 +104,8 @@ app.use('/api/produits-de-caisse', authenticateToken, produitsDeCaisseRoutes);
 app.use('/api/drivers', authenticateToken, driversRoutes);
 app.use('/api/vehicles', authenticateToken, vehiclesRoutes);
 app.use('/api/admin-dashboard', authenticateToken, adminDashboardRoutes);
+app.use('/api/invoices', authenticateToken, invoicesRoutes);
+app.use('/api/audit-logs', auditLogsRoutes);
 
 // Create HTTP or HTTPS server based on env
 let server;

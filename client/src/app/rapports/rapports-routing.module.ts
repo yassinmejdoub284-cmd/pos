@@ -4,46 +4,50 @@ import { RapportsComponent } from './rapports.component';
 
 const routes: Routes = [
   { path: '', component: RapportsComponent },
-  { 
-    path: 'daily-monthly', 
+  {
+    path: 'daily-monthly',
     loadChildren: () => import('./daily-monthly/daily-monthly.module').then(m => m.DailyMonthlyModule)
   },
-  { 
-    path: 'sales-by-category', 
+  {
+    path: 'sales-by-category',
     loadChildren: () => import('./sales-by-category/sales-by-category.module').then(m => m.SalesByCategoryModule)
   },
-  { 
-    path: 'credit-sales', 
+  {
+    path: 'credit-sales',
     loadChildren: () => import('./credit-sales/credit-sales.module').then(m => m.CreditSalesModule)
   },
-  { 
-    path: 'finance', 
+  {
+    path: 'finance',
     loadChildren: () => import('./finance/finance.module').then(m => m.FinanceModule)
   },
-  { 
-    path: 'expenses', 
+  {
+    path: 'expenses',
     loadChildren: () => import('./expenses/expenses.module').then(m => m.ExpensesModule)
   },
-  { 
-    path: 'dashboard', 
+  {
+    path: 'dashboard',
     loadChildren: () => import('./dashboard/dashboard.module').then(m => m.DashboardModule)
   },
-  { 
-    path: 'etat-mvt-stock', 
+  {
+    path: 'etat-mvt-stock',
     loadChildren: () => import('./etat-mvt-stock/etat-mvt-stock.module').then(m => m.EtatMvtStockModule)
   },
-  { 
-    path: 'sessions-history', 
+  {
+    path: 'sessions-history',
     loadChildren: () => import('./sessions-history/sessions-history.module').then(m => m.SessionsHistoryModule)
   },
-  { 
-    path: 'inventory-sales-reconciliation', 
+  {
+    path: 'inventory-sales-reconciliation',
     loadChildren: () => import('./inventory-sales-reconciliation/inventory-sales-reconciliation.module').then(m => m.InventorySalesReconciliationModule)
   },
-  { 
-    path: 'etat-mvt-stock-depot', 
+  {
+    path: 'etat-mvt-stock-depot',
     loadChildren: () => import('./etat-mvt-stock-depot/etat-mvt-stock-depot.module').then(m => m.EtatMvtStockDepotModule)
   },
+  {
+    path: 'audit-logs',
+    loadChildren: () => import('./audit-logs/audit-logs.module').then(m => m.AuditLogsModule)
+  }
 
 ];
 

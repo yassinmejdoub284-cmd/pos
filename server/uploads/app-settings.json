@@ -174,13 +174,13 @@
     }
   },
   "3": {
-    "companyName": "mima house ",
-    "logoUrl": "/uploads/logos/logo-1770488257333-130686763.png",
-    "companyAddress": "rue taniour km 1.5 imm zaphhyr",
-    "companyPhone": "22212319",
+    "companyName": "",
+    "logoUrl": "",
+    "companyAddress": "",
+    "companyPhone": "",
     "companyEmail": "",
     "companyRC": "",
-    "companyMF": "1151916J/P/M/000",
+    "companyMF": "",
     "loyaltyEnabled": false,
     "loyaltyRate": 1,
     "maxDiscountPercent": 50,
@@ -214,7 +214,7 @@
     "ticketWidth": 58,
     "droitDeTimbre": false,
     "autoApproveExpenseBelow": 0,
-    "allowNegativeStock": true,
+    "allowNegativeStock": false,
     "printSettings": {
       "showLogo": true,
       "logoSize": "medium",

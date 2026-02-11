@@ -1,0 +1,529 @@
+commit 1cdfeb17177a7c7895bce0f698213b43ab3adf6d
+Author: Mohamed Fakhfakh <imohamedfakhfakh@icloud.com>
+Date:   Wed Feb 11 05:30:33 2026 +0100
+
+    v1.4
+
+D	client/src/app/rapports/inventory-balance/inventory-balance.component.css
+D	client/src/app/rapports/inventory-balance/inventory-balance.component.html
+D	client/src/app/rapports/inventory-balance/inventory-balance.component.ts
+D	client/src/app/rapports/inventory-balance/inventory-balance.module.ts
+D	server/src/config/database.js
+D	server/src/socket/handlers.js
+
+commit 8a4f158793bdc81f320dc4c24f08c325d5a4fbc1
+Author: Mohamed Fakhfakh <imohamedfakhfakh@icloud.com>
+Date:   Wed Feb 11 04:19:26 2026 +0100
+
+    v1.3.5
+
+D	client/src/app/inventory/inventory-balance/inventory-balance.component.css
+D	client/src/app/inventory/inventory-balance/inventory-balance.component.html
+D	client/src/app/inventory/inventory-balance/inventory-balance.component.ts
+D	client/src/app/inventory/inventory-balance/inventory-balance.module.ts
+D	server/src/routes/credit-entries.js
+D	server/src/routes/manual-entries.js
+D	server/src/routes/releve-inventaire.js
+
+commit 2928fb10f39b3a979aed09ea135487e8855271c8
+Author: Mohamed Fakhfakh <imohamedfakhfakh@icloud.com>
+Date:   Sat Feb 7 06:46:34 2026 +0100
+
+    v1.3.0 (F)
+
+D	IMPLEMENTATION_SUMMARY.md
+D	MIGRATION_VRAC.md
+D	client/src/app/core/services/attendance.service.ts
+D	client/src/app/core/services/enterprise.service.ts
+D	client/src/app/core/services/notifications.service.ts
+D	client/src/app/core/services/reminders.service.ts
+D	client/src/app/core/services/salon.service.ts
+D	client/src/app/enterprise/enterprise-routing.module.ts
+D	client/src/app/enterprise/enterprise.component.ts
+D	client/src/app/enterprise/enterprise.module.ts
+D	client/src/app/enterprise/home/home.component.css
+D	client/src/app/enterprise/home/home.component.html
+D	client/src/app/enterprise/home/home.component.ts
+D	client/src/app/enterprise/shared/enterprise-layout/enterprise-layout.component.css
+D	client/src/app/enterprise/shared/enterprise-layout/enterprise-layout.component.html
+D	client/src/app/enterprise/shared/enterprise-layout/enterprise-layout.component.ts
+D	client/src/app/enterprise/shared/enterprise-sidebar/enterprise-sidebar.component.css
+D	client/src/app/enterprise/shared/enterprise-sidebar/enterprise-sidebar.component.html
+D	client/src/app/enterprise/shared/enterprise-sidebar/enterprise-sidebar.component.ts
+D	client/src/app/factures/factures-routing.module.ts
+D	client/src/app/factures/factures.component.css
+D	client/src/app/factures/factures.component.html
+D	client/src/app/factures/factures.component.ts
+D	client/src/app/factures/factures.module.ts
+D	client/src/app/pointage/pointage-history.component.html
+D	client/src/app/pointage/pointage-history.component.ts
+D	client/src/app/pointage/pointage-routing.module.ts
+D	client/src/app/pointage/pointage.component.html
+D	client/src/app/pointage/pointage.component.ts
+D	client/src/app/pointage/pointage.module.ts
+D	client/src/app/rapports/inventory-sales-reconciliation/inventory-sales-reconciliation.component.css
+D	client/src/app/rapports/inventory-sales-reconciliation/inventory-sales-reconciliation.component.html
+D	client/src/app/rapports/inventory-sales-reconciliation/inventory-sales-reconciliation.component.ts
+D	client/src/app/rapports/inventory-sales-reconciliation/inventory-sales-reconciliation.module.ts
+D	client/src/app/reminders/reminder-edit.component.ts
+D	client/src/app/reminders/reminder-new.component.ts
+D	client/src/app/reminders/reminders-list.component.ts
+D	client/src/app/reminders/reminders-routing.module.ts
+D	client/src/app/reminders/reminders.module.ts
+D	client/src/app/shared/components/conservation-warnings/conservation-warnings.component.ts
+D	client/src/app/shared/components/in-app-reminder-notification/in-app-reminder-notification.component.ts
+D	client/src/app/shared/enterprise-action-dialog/enterprise-action-dialog.component.ts
+D	client/src/app/stock/product-links/product-links.component.css
+D	client/src/app/stock/product-links/product-links.component.html
+D	client/src/app/stock/product-links/product-links.component.ts
+D	client/src/app/stock/products/vrac-statistics/vrac-statistics.component.html
+D	client/src/app/stock/products/vrac-statistics/vrac-statistics.component.ts
+D	client/src/app/tables-salon/dialogs/add-salon-dialog.component.ts
+D	client/src/app/tables-salon/dialogs/add-table-dialog.component.ts
+D	client/src/app/tables-salon/dialogs/duplicate-table-dialog.component.ts
+D	client/src/app/tables-salon/dialogs/edit-salon-dialog.component.ts
+D	client/src/app/tables-salon/dialogs/edit-table-dialog.component.ts
+D	client/src/app/tables-salon/tables-salon-routing.module.ts
+D	client/src/app/tables-salon/tables-salon.component.css
+D	client/src/app/tables-salon/tables-salon.component.html
+D	client/src/app/tables-salon/tables-salon.component.ts
+D	client/src/app/tables-salon/tables-salon.module.ts
+D	client/src/app/vente-tables/vente-tables-routing.module.ts
+D	client/src/app/vente-tables/vente-tables.component.css
+D	client/src/app/vente-tables/vente-tables.component.html
+D	client/src/app/vente-tables/vente-tables.component.ts
+D	client/src/app/vente-tables/vente-tables.module.ts
+D	server/src/routes/attendance.js
+D	server/src/routes/credit-entries.js
+D	server/src/routes/invoices.js
+D	server/src/routes/manual-entries.js
+D	server/src/routes/notifications.js
+D	server/src/routes/releve-inventaire.js
+D	server/src/routes/reminders.js
+D	server/src/routes/salons.js
+D	server/src/routes/table-sales.js
+D	server/src/routes/tables.js
+
+commit 1c2ceb7b16da5e7c83316922026f2860b1927574
+Author: Yassin Mejdoub <yassinmejdoub011@gmail.com>
+Date:   Tue Jan 27 04:03:47 2026 +0100
+
+    feat: Implement client return voucher management with dedicated stock document routes and services.
+
+D	products_202601251718.json
+
+commit 92b67acea10ebe3f3bad80b24a22bd29879fdbf9
+Author: Mohamed Fakhfakh <imohamedfakhfakh@icloud.com>
+Date:   Sun Nov 23 15:52:33 2025 +0100
+
+    v1.2.0
+
+D	.env
+D	POS-80C
+D	README.md
+D	server/DEPOT_ISOLATION_VERIFICATION.md
+D	server/check-depot-sessions.js
+D	server/check-session.js
+D	server/check-sessions.js
+D	server/check-users.js
+D	server/create-credit-entries-table.js
+D	server/create-test-expense.js
+D	server/src/scripts/README.md
+D	server/src/scripts/check-sessions.js
+D	server/src/scripts/create-user-depots-table.js
+D	server/src/scripts/fix-gift-stock-force.js
+D	server/src/scripts/fix-gift-stock.js
+D	server/src/scripts/get-daily-extract.js
+D	server/src/scripts/grant-admin-access.js
+D	server/src/scripts/grant-caisse-access.js
+D	server/src/scripts/grant-depot-access.js
+D	server/src/scripts/grant-depot-access.sql
+D	server/src/scripts/grant-full-access-pin-33000.js
+D	server/src/scripts/migrate-pin-unique-per-depot.js
+D	server/src/scripts/test-depot-isolation.js
+D	server/src/scripts/test-expense-save.js
+D	server/src/scripts/update-historique-access.js
+D	server/src/scripts/verify-post-depot-save.js
+
+commit 516c3140def1a0cdb0441361be5e864b5456b371
+Author: Mohamed Fakhfakh <imohamedfakhfakh@icloud.com>
+Date:   Fri Nov 14 03:16:07 2025 +0100
+
+    Remove unused Prisma schema file to streamline project structure
+
+D	prisma/schema.prisma
+
+commit d989285d0089baa107cc022a92bea2c1acab6c6c
+Author: Mohamed Fakhfakh <imohamedfakhfakh@icloud.com>
+Date:   Wed Nov 5 08:43:47 2025 +0100
+
+    v1.1
+
+D	client/src/app/invoices/invoices-routing.module.ts
+D	client/src/app/invoices/invoices.component.css
+D	client/src/app/invoices/invoices.component.html
+D	client/src/app/invoices/invoices.component.ts
+D	client/src/app/invoices/invoices.module.ts
+D	client/src/app/rapports/invoice-extracts/invoice-extracts.component.html
+D	client/src/app/rapports/invoice-extracts/invoice-extracts.component.ts
+D	client/src/app/rapports/invoice-extracts/invoice-extracts.module.ts
+D	client/src/app/shared/billing-center-action-dialog/billing-center-action-dialog.component.ts
+D	client/src/app/shared/erp-unlock-dialog/erp-unlock-dialog.component.ts
+
+commit 0f3f4bed12330acb85886e1d23db3f5c3f3b3f2a
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Sun Oct 19 03:10:47 2025 +0100
+
+    v1.0.1a
+
+D	.VSCodeCounter/2025-09-25_21-05-36/details.md
+D	.VSCodeCounter/2025-09-25_21-05-36/diff-details.md
+D	.VSCodeCounter/2025-09-25_21-05-36/diff.csv
+D	.VSCodeCounter/2025-09-25_21-05-36/diff.md
+D	.VSCodeCounter/2025-09-25_21-05-36/diff.txt
+D	.VSCodeCounter/2025-09-25_21-05-36/results.csv
+D	.VSCodeCounter/2025-09-25_21-05-36/results.json
+D	.VSCodeCounter/2025-09-25_21-05-36/results.md
+D	.VSCodeCounter/2025-09-25_21-05-36/results.txt
+D	.VSCodeCounter/2025-09-25_21-06-33/details.md
+D	.VSCodeCounter/2025-09-25_21-06-33/diff-details.md
+D	.VSCodeCounter/2025-09-25_21-06-33/diff.csv
+D	.VSCodeCounter/2025-09-25_21-06-33/diff.md
+D	.VSCodeCounter/2025-09-25_21-06-33/diff.txt
+D	.VSCodeCounter/2025-09-25_21-06-33/results.csv
+D	.VSCodeCounter/2025-09-25_21-06-33/results.json
+D	.VSCodeCounter/2025-09-25_21-06-33/results.md
+D	.VSCodeCounter/2025-09-25_21-06-33/results.txt
+D	client/src/app/auth/login-hentati/login-hentati.component.css
+D	client/src/app/auth/login-hentati/login-hentati.component.html
+D	client/src/app/auth/login-hentati/login-hentati.component.ts
+D	client/src/app/core/guards/login-redirect.guard.ts
+D	client/src/app/core/services/login-redirect.service.ts
+D	client/src/app/enterprise/suppliers/enterprise-suppliers.component.css
+D	client/src/app/enterprise/suppliers/enterprise-suppliers.component.html
+D	client/src/app/enterprise/suppliers/enterprise-suppliers.component.ts
+D	fix-vehicles.js
+D	server/src/routes/enterprise-suppliers.js
+
+commit 4b9def3d875bed20d89a77dd4a8e9161d7312def
+Author: Mohamed Fakhfakh <imohamedfakhfakh@icloud.com>
+Date:   Mon Oct 13 19:42:31 2025 +0100
+
+    Enhance document management and UI components for improved user experience
+    
+    - Added a new route for documents reception with lazy loading for better performance.
+    - Updated approvals and scanning components to reflect currency changes from TND to DT for consistency.
+    - Enhanced caisse component with new cancel ticket modal for improved ticket management.
+    - Refactored stock document management to remove deprecated components and streamline document handling.
+    - Improved session history and invoice extracts components for better financial visibility and user interaction.
+    - Introduced validity options in scanning and stock components to enhance document management capabilities.
+
+D	client/src/app/stock/documents/bon-livraison/bon-livraison.component.css
+D	client/src/app/stock/documents/bon-livraison/bon-livraison.component.html
+D	client/src/app/stock/documents/bon-livraison/bon-livraison.component.ts
+D	client/src/app/stock/documents/bon-sortie/bon-sortie.component.css
+D	client/src/app/stock/documents/bon-sortie/bon-sortie.component.html
+D	client/src/app/stock/documents/bon-sortie/bon-sortie.component.ts
+D	client/src/app/stock/documents/bon-transfert/bon-transfert.component.css
+D	client/src/app/stock/documents/bon-transfert/bon-transfert.component.html
+D	client/src/app/stock/documents/bon-transfert/bon-transfert.component.ts
+
+commit ac046ed505be1c5d7019b86006870f29535c0b49
+Author: Mohamed Fakhfakh <imohamedfakhfakh@icloud.com>
+Date:   Fri Oct 10 19:32:21 2025 +0100
+
+    Enhance routing and UI components for improved functionality and user experience
+    
+    - Added a new route for the scanning feature with lazy loading for better performance.
+    - Updated caisse.component.html to improve product display with trackBy for better rendering efficiency.
+    - Enhanced expense input fields in caisse.component.html for clearer labeling and improved user interaction.
+    - Refactored caisse.component.ts to manage expense amounts more effectively and introduced new methods for handling input.
+    - Improved document type defaults configuration in parametres.component.html and parametres.component.ts for better document management.
+    - Updated client-payments.component.html and client-payments.component.ts to enhance payment form layout and functionality.
+    - Removed deprecated daily-extract component and its associated files to streamline the codebase.
+
+D	client/src/app/rapports/daily-extract/daily-extract.component.html
+D	client/src/app/rapports/daily-extract/daily-extract.component.ts
+D	client/src/app/rapports/daily-extract/daily-extract.module.ts
+
+commit 0bb7361a901f25b470c89d3f96ca36f1d487f715
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Mon Sep 29 15:41:59 2025 +0100
+
+    Add Matricule Fiscal field to client forms and enhance client model and add etat mvt
+
+D	client/src/app/stock/shop-transfer/shop-transfer-simple.component.ts
+
+commit a9c62447978ee47b19749090df046c2673f91f7f
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Sun Sep 28 09:55:29 2025 +0100
+
+    Implement image upload enhancements for families and products
+    
+    - Added methods to update family and product photo URLs in FamiliesService and ProductsService.
+    - Enhanced ImageUploadModalComponent to support image uploads via file selection or direct URL input.
+    - Updated FamiliesComponent and ProductsComponent to handle image uploads from both file and URL sources.
+    - Improved error handling and user feedback during image upload processes.
+
+D	server/prisma/.env
+
+commit 1ac55d692c19e5a737960207d27cb2c0ddd7e5ba
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Sun Sep 28 08:24:17 2025 +0100
+
+    Enhance routing and UI components for improved user experience
+    
+    - Updated app.routes.ts to include roleRedirectGuard for enhanced route protection.
+    - Added a new billing-center route that redirects to invoices for better navigation.
+    - Improved caisse.component.html and caisse.component.ts with a ticket details modal for better ticket management.
+    - Enhanced clients.component.html and clients.component.ts for better performance and user interaction.
+    - Refactored stock.component.html and stock.component.ts to improve error handling and user feedback.
+    - Updated supplier-payments.component.html and supplier-payments.component.ts to include an error dialog for better error management.
+    - Improved overall UI consistency and responsiveness across various components.
+
+D	server/fix-vehicles.js
+
+commit 280b22a3f99635b2d8fe3330a3fa45b60d0dabbd
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Sat Sep 27 18:58:19 2025 +0100
+
+    Add inventory module and enhance routing for stock management
+    
+    - Introduced a new route for the inventory module in app-routing.module.ts to facilitate inventory management.
+    - Updated caisse.component.html and caisse.component.ts for improved UI and functionality.
+    - Enhanced product model to include new fields and improved data handling.
+    - Refactored various components for better maintainability and user experience.
+    - Improved error handling and logging in attendance and stock document services.
+
+D	server/prisma/migrations/20250101120000_add_produits_de_caisse/migration.sql
+D	server/prisma/migrations/20250110000000_add_wholesale_rules/migration.sql
+D	server/prisma/migrations/20250110000001_add_supplier_payments/migration.sql
+D	server/prisma/migrations/20250831235945_add_expense_models/migration.sql
+D	server/prisma/migrations/20250901005756_add_audit_logging/migration.sql
+D	server/prisma/migrations/20250901012326_add_payment_fields/migration.sql
+D	server/prisma/migrations/20250901031830_update_product_model/migration.sql
+D	server/prisma/migrations/20250901031920_product/migration.sql
+D	server/prisma/migrations/20250901032620_add_stock_documents/migration.sql
+D	server/prisma/migrations/20250901033656_add_stock_flow_models/migration.sql
+D	server/prisma/migrations/20250901043227_add_product_conservation/migration.sql
+D	server/prisma/migrations/20250901082823_add_temporary_sale_fields/migration.sql
+D	server/prisma/migrations/20250901083701_add_temporary_to_sale_status/migration.sql
+D	server/prisma/migrations/20250901085213_add_gift_statuses/migration.sql
+D	server/prisma/migrations/20250901091456_add_clients_system/migration.sql
+D	server/prisma/migrations/20250901091846_client/migration.sql
+D	server/prisma/migrations/20250901095412_add_client_age_group/migration.sql
+D	server/prisma/migrations/20250904153622_add_vrague_support/migration.sql
+D	server/prisma/migrations/20250906191718_update_vrague_to_vrac/migration.sql
+D	server/prisma/migrations/20250906214845_add_advance_payment_support/migration.sql
+D	server/prisma/migrations/20250906221101_add_notes_after_advance/migration.sql
+D	server/prisma/migrations/20250907014543_add_pin_field/migration.sql
+D	server/prisma/migrations/20250907015147_update_pin_length_to_8/migration.sql
+D	server/prisma/migrations/20250907034552_support_decimal_quantities/migration.sql
+D	server/prisma/migrations/20250908025255_add_display_index/migration.sql
+D	server/prisma/migrations/20250909155718_add_wholesale_bundle_support/migration.sql
+D	server/prisma/migrations/20250911083213_reset/migration.sql
+D	server/prisma/migrations/20250911105756_add_sale_payment_type/migration.sql
+D	server/prisma/migrations/20250911163421_add_rejection_fields_to_change_requests/migration.sql
+D	server/prisma/migrations/20250911163730_add_admin_corrected_session_status/migration.sql
+D	server/prisma/migrations/20250911172545_add_original_counted_cash/migration.sql
+D	server/prisma/migrations/20250912170210_payment_and_many_12_09/migration.sql
+D	server/prisma/migrations/20250913223910_add_customer_type_field/migration.sql
+D	server/prisma/migrations/20250913224442_update_client_depot_reference/migration.sql
+D	server/prisma/migrations/20250913231733_add_designation_legale_field/migration.sql
+D	server/prisma/migrations/20250914014017_add_invoice_system/migration.sql
+D	server/prisma/migrations/20250914040153_add_direct_creation_invoice_source/migration.sql
+D	server/prisma/migrations/20250915151458_add_purchase_price_to_products/migration.sql
+D	server/prisma/migrations/20250915151528_add_purchase_price_to_stock_document_items/migration.sql
+D	server/prisma/migrations/20250915171355_add_company_details_to_app_settings/migration.sql
+D	server/prisma/migrations/20250917051601_add_is_wholesale_to_sales/migration.sql
+D	server/prisma/migrations/20250918170133_add_temporary_fields/migration.sql
+D	server/prisma/migrations/20250918170249_add_pdf_import_source/migration.sql
+D	server/prisma/migrations/20250918174833_add_is_temporary_to_invoice/migration.sql
+D	server/prisma/migrations/20250918194938_add_supplier_debt_tracking/migration.sql
+D	server/prisma/migrations/20250920134838_add_original_sale_to_return_requests/migration.sql
+D	server/prisma/migrations/20250921120225_add_print_settings/migration.sql
+D	server/prisma/migrations/20250923221236_add_is_desktop_version/migration.sql
+D	server/prisma/migrations/20250924062039_companies/migration.sql
+D	server/prisma/migrations/20250924071122_add_company_to_invoices/migration.sql
+D	server/prisma/migrations/20250924164836_presence/migration.sql
+D	server/prisma/migrations/20250924182601_attendance/migration.sql
+D	server/prisma/migrations/20250925175627_pc_bar/migration.sql
+D	server/prisma/migrations/20250925191954_caisseproduits/migration.sql
+D	server/prisma/migrations/20250925192547_add_depot_to_produits_de_caisse/migration.sql
+D	server/prisma/migrations/20250925193044_caisse/migration.sql
+D	server/prisma/migrations/20250925195439_add_driver_model/migration.sql
+D	server/prisma/migrations/20250925195759_add_vehicles/migration.sql
+D	server/prisma/migrations/20250925201856_add_logo_url_to_vehicle_brands/migration.sql
+D	server/prisma/migrations/migration_lock.toml
+
+commit d5c2277129da98e1403879f9674a669799a3ada9
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Wed Sep 24 03:24:50 2025 +0100
+
+    Implement desktop printing support and enhance settings
+    
+    - Updated the print service to utilize Tauri's backend for direct printing capabilities.
+    - Refactored the CaisseComponent to streamline printing logic and added support for daily ticket numbers.
+    - Introduced a new field in the Sale model for daily ticket numbers.
+    - Enhanced app settings to include a toggle for desktop version functionality.
+    - Updated the .gitignore to exclude Tauri build artifacts and unnecessary files.
+    - Removed deprecated Tauri configuration files and directories to clean up the project structure.
+
+D	client/src-tauri/.gitignore
+D	client/src-tauri/Cargo.toml
+D	client/src-tauri/capabilities/default.json
+D	client/src-tauri/icons/128x128.png
+D	client/src-tauri/icons/128x128@2x.png
+D	client/src-tauri/icons/32x32.png
+D	client/src-tauri/icons/Square107x107Logo.png
+D	client/src-tauri/icons/Square142x142Logo.png
+D	client/src-tauri/icons/Square150x150Logo.png
+D	client/src-tauri/icons/Square284x284Logo.png
+D	client/src-tauri/icons/Square30x30Logo.png
+D	client/src-tauri/icons/Square310x310Logo.png
+D	client/src-tauri/icons/Square44x44Logo.png
+D	client/src-tauri/icons/Square71x71Logo.png
+D	client/src-tauri/icons/Square89x89Logo.png
+D	client/src-tauri/icons/StoreLogo.png
+D	client/src-tauri/icons/icon.icns
+D	client/src-tauri/icons/icon.ico
+D	client/src-tauri/icons/icon.png
+D	client/src-tauri/scripts/test-fullwidth.ps1
+D	client/src-tauri/src/lib.rs
+D	client/src-tauri/src/main.rs
+D	client/src-tauri/tauri.conf.json
+
+commit f866325877aa9357fd88f9332a36e056b5392b69
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Tue Sep 23 17:36:27 2025 +0100
+
+    Enhance stock management and printing features
+    
+    - Added new routes and components for stock management, including stock check functionality.
+    - Introduced return history and improved approvals component with additional tabs.
+    - Enhanced print service to support Tauri's printer API for better printing capabilities.
+    - Updated app settings to include print settings and logo upload functionality.
+    - Improved UI elements across various components for better user experience.
+    - Removed deprecated files and optimized image handling for product photos.
+
+D	client/tailwind.config.js
+
+commit c116eea0c33f26d4ddf54580b4cfd513bc361c43
+Author: Mohamed Fakhfakh <imohamedfakhfakh@icloud.com>
+Date:   Sun Sep 14 01:32:08 2025 +0100
+
+    Refactor client and inventory management components
+    
+    - Removed approval requirements from product and sale models.
+    - Introduced depot selection in client creation and editing forms.
+    - Enhanced client filtering to show only those with valid depot access.
+    - Updated inventory routes to include depot-specific endpoints.
+    - Improved UI for inventory and client management, including new legal designation field for products.
+    - Removed deprecated expense management components and streamlined stock management features.
+
+D	client/src/app/stock/depot-expenses/depot-expenses-routing.module.ts
+D	client/src/app/stock/depot-expenses/depot-expenses.component.html
+D	client/src/app/stock/depot-expenses/depot-expenses.component.ts
+D	client/src/app/stock/depot-expenses/depot-expenses.module.ts
+
+commit d379ca6ca07f7692af853ff7a117dd311faa0f0f
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Sat Sep 13 17:23:36 2025 +0100
+
+    Enhance routing and UI components for inventory and approvals
+    
+    - Added new routes for inventory and supplier payments modules.
+    - Introduced ApprovalsHistoryComponent to track approval history.
+    - Updated ApprovalsComponent to include a history tab and improved UI elements.
+    - Enhanced the overall styling and responsiveness of various components.
+    - Removed deprecated supplier payment and statement components from the home module.
+    - Updated server routes to include new endpoints for inventory management.
+
+D	client/src/app/home/supplier-payment/supplier-payment.component.html
+D	client/src/app/home/supplier-payment/supplier-payment.component.ts
+D	client/src/app/suppliers/suppliers-routing.module.ts
+D	server/prisma/migrations/20250902184820_init/migration.sql
+
+commit 3c5500ff9984163c3f6a796c4e5e59a030aac2c0
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Thu Sep 11 09:43:08 2025 +0100
+
+    Update dependencies, enhance routing, and improve UI components
+    
+    - Updated Tailwind CSS and PostCSS dependencies to version 4.1.13.
+    - Added new routes for suppliers and home modules in the app-routing module.
+    - Enhanced the approvals component with better accessibility features.
+    - Refactored various components to improve styling and responsiveness.
+    - Removed unused CSS files to streamline the project.
+    - Introduced new settings for auto-approval of expenses below a specified threshold.
+    - Updated server routes to include new endpoints for supplier payments and wholesale rules.
+
+D	client/src/app/auth/login/login.component.css
+D	client/src/app/home/items.ts
+D	client/src/app/stock/branch-inventory/branch-inventory.component.css
+D	client/src/app/stock/depot-expenses/depot-expenses.component.css
+D	client/src/app/stock/depot-reception/depot-reception.component.css
+D	client/src/app/stock/documents/documents.component.css
+D	client/src/app/stock/families/families.component.css
+D	client/src/app/stock/families/family-form/family-form.component.css
+D	client/src/app/stock/prepare-lot/prepare-lot.component.css
+D	client/src/app/stock/products/products.component.css
+D	client/src/app/stock/shop-transfer/shop-transfer.component.css
+D	client/src/app/stock/site/site.component.css
+
+commit 23d1ee45d70a0d2ea223e01b7653315e41468fbd
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Sun Sep 7 08:32:41 2025 +0100
+
+    ✅ Interfaces revues (mode clair + couleurs vives)
+    ✅ Ajout tag produits vrac
+    ✅ Classement produits selon meilleures ventes
+    ✅ Upload d’images produits
+    ✅ Prix affiché en haut à gauche
+    ✅ Vente temporaire (paiement d’avance) + historique commandes
+    ✅ Saisie rapide : prix ↔ produit (toggle)
+    ✅ Vente avec remise (calcul auto) + paramétrage max remise
+    ✅ N° ticket séquentiel (reset après clôture)
+    ✅ Recherche historique par tous les critères (id, prix, etc.)
+    ✅ Impression : au clic sur espèces → demande si imprimer ou pas
+    ✅ Authentification système
+    ✅ Décrémentation stock à chaque vente
+    ✅ Multi-cart (servir plusieurs clients à la fois)
+    ✅ Restriction accès extraits journaliers (5 jours)
+    ✅ Archive extraits accessible admin
+    ✅ Alimentation de caisse par manager/admin
+    ✅ Rapport Journalier/Mensuel : CA, prix achat, résultat par site/date
+    ✅ Vente/Achat par rubrique : article, famille, qté, total TTC, résultat
+    ✅ Vente à crédit : suivi clients, montants dus, échéances
+    ✅ Finance : relevé client & fournisseur
+    ✅ Dépenses : nature, montant, statut
+    ✅ Dashboard ventes/achats/clients/résultats
+    ✅ Rework interface extrait journalier imprimable
+    ✅ Charges & règlements par dépôt
+
+D	client/src/app/stock/products/vrague-conversion-form/vrague-conversion-form.component.css
+D	client/src/app/stock/products/vrague-conversion-form/vrague-conversion-form.component.html
+D	client/src/app/stock/products/vrague-statistics/vrague-statistics.component.css
+
+commit 5fb924bed1dcb4c312d4e4fda01b90e9c9965c8e
+Author: Mohamed <imohamedfakhfakh@icloud.com>
+Date:   Thu Sep 4 16:50:48 2025 +0100
+
+    update
+
+D	server/prisma/migrations/20250101000000_add_product_families/migration.sql
+D	server/prisma/migrations/20250831235945_add_expense_models/migration.sql
+D	server/prisma/migrations/20250901005756_add_audit_logging/migration.sql
+D	server/prisma/migrations/20250901012326_add_payment_fields/migration.sql
+D	server/prisma/migrations/20250901031830_update_product_model/migration.sql
+D	server/prisma/migrations/20250901031920_product/migration.sql
+D	server/prisma/migrations/20250901032620_add_stock_documents/migration.sql
+D	server/prisma/migrations/20250901033656_add_stock_flow_models/migration.sql
+D	server/prisma/migrations/20250901043227_add_product_conservation/migration.sql
+D	server/prisma/migrations/20250901082823_add_temporary_sale_fields/migration.sql
+D	server/prisma/migrations/20250901083701_add_temporary_to_sale_status/migration.sql
+D	server/prisma/migrations/20250901085213_add_gift_statuses/migration.sql
+D	server/prisma/migrations/20250901091456_add_clients_system/migration.sql
+D	server/prisma/migrations/20250901091846_client/migration.sql
+D	server/prisma/migrations/20250901095412_add_client_age_group/migration.sql
+D	server/prisma/migrations/20250901163938_update/migration.sql

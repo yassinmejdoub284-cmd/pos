@@ -2275,7 +2275,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
 
         if (item.parentProductId) {
 
-            targetProductId = item.parentProductId;
+          targetProductId = item.parentProductId;
           parentProduct = await tx.product.findUnique({
             where: { id: targetProductId }
           });
@@ -2644,17 +2644,27 @@ router.post('/', authenticateToken, async (req, res) => {
     let targetEmetteurId = fromDepotId || depotId || visitingDepotId || userDepotId;
     let targetDestinataireId = destinationDepotId || depotId || visitingDepotId || userDepotId;
 
-    // For non-admin users, validate depot access
-    if (req.user?.role !== 'ADMIN') {
+    // Define roles that can create documents for their depot
+    const privilegedRoles = ['ADMIN', 'MANAGER', 'CHEF_ATELIER'];
+    const isPrivilegedUser = privilegedRoles.includes(req.user?.role);
+
+    // For non-privileged users, validate depot access
+    if (!isPrivilegedUser) {
       if (!userDepotId) {
         return res.status(400).json({ error: 'User must be assigned to a depot to create stock documents' });
       }
-      // For non-admin, ensure they can only create documents for their depot
+      // For non-privileged users, ensure they can only create documents for their depot or visiting depot
       if (targetEmetteurId && targetEmetteurId !== userDepotId && targetEmetteurId !== visitingDepotId) {
-        return res.status(403).json({ error: 'Access denied: Cannot create documents for other depots' });
+        return res.status(403).json({
+          error: 'Access denied: Cannot create documents for other depots',
+          details: `Your role (${req.user?.role}) can only create documents for depot ${userDepotId}${visitingDepotId ? ` or visiting depot ${visitingDepotId}` : ''}, but you tried to create for depot ${targetEmetteurId}`
+        });
       }
       if (targetDestinataireId && targetDestinataireId !== userDepotId && targetDestinataireId !== visitingDepotId) {
-        return res.status(403).json({ error: 'Access denied: Cannot create documents for other depots' });
+        return res.status(403).json({
+          error: 'Access denied: Cannot create documents for other depots',
+          details: `Your role (${req.user?.role}) can only create documents for depot ${userDepotId}${visitingDepotId ? ` or visiting depot ${visitingDepotId}` : ''}, but you tried to create for depot ${targetDestinataireId}`
+        });
       }
     }
 
@@ -3852,14 +3862,14 @@ router.post('/return', authenticateToken, async (req, res) => {
           emetteurId: depotIdInt,
           destinataireId: depotIdInt,
           clientId: clientIdInt,
-          notes: isClientReturn 
+          notes: isClientReturn
             ? `Client:${clientIdInt}${notes ? ' | ' + notes : ''}`
             : `Supplier:${supplierIdInt}${notes ? ' | ' + notes : ''}`,
           items: {
             create: items.map((item) => ({
               productId: parseInt(item.productId),
               famille: typeof item.famille === 'object' ? item.famille.name : (item.famille || 'Divers'),
-              quantity: isSupplierReturn 
+              quantity: isSupplierReturn
                 ? -Math.abs(parseQuantity(item.quantity)) // Negative for supplier returns (products leaving)
                 : Math.abs(parseQuantity(item.quantity)), // Positive for client returns (products coming back)
               purchasePrice: item.purchasePrice ? parseFloat(item.purchasePrice) : null,

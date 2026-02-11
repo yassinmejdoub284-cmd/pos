@@ -63,7 +63,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
               return paymentType === 'COMPTANT' && sale.status === 'COMPLETED';
             })
             .reduce((sum, sale) => sum + parseFloat(sale.finalTotal || 0), 0);
-          
+
           const cashMovements = activeSession.cashMovements.reduce((sum, mv) => {
             const amount = parseFloat(mv.amount || 0);
             if (mv.type === 'ENTREE' || mv.type === 'RETRAIT_CENTRALE') {
@@ -73,7 +73,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
             }
             return sum;
           }, 0);
-          
+
           soldeCaisse = parseFloat(activeSession.openingFund || 0) + cashSales + cashMovements;
         }
       }
@@ -298,6 +298,56 @@ router.get('/stats', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching admin dashboard stats:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des statistiques' });
+  }
+});
+
+// New endpoint to get real cash outflow (Sortie Caisse) by depot
+router.get('/cash-flow-stats', authenticateToken, async (req, res) => {
+  try {
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Access denied: Admin only' });
+    }
+
+    const { startDate, endDate } = req.query;
+    const start = startDate ? new Date(startDate) : new Date(new Date().setHours(0, 0, 0, 0));
+    const end = endDate ? new Date(endDate) : new Date(new Date().setHours(23, 59, 59, 999));
+
+    // Fetch all cash movements of type SORTIE within range
+    const cashMovements = await prisma.cashMovement.findMany({
+      where: {
+        type: 'SORTIE',
+        createdAt: {
+          gte: start,
+          lte: end
+        }
+      },
+      include: {
+        session: {
+          select: { depotId: true }
+        }
+      }
+    });
+
+    // Aggregate by depot
+    const movementsByDepot = {};
+    cashMovements.forEach(cm => {
+      const depotId = cm.session?.depotId || 'unknown';
+      if (!movementsByDepot[depotId]) {
+        movementsByDepot[depotId] = 0;
+      }
+      movementsByDepot[depotId] += parseFloat(cm.amount || 0);
+    });
+
+    const result = Object.entries(movementsByDepot).map(([depotId, total]) => ({
+      depotId: depotId === 'unknown' ? null : parseInt(depotId),
+      totalOutflow: total
+    }));
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('Error fetching cash flow stats:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des flux de trésorerie' });
   }
 });
 

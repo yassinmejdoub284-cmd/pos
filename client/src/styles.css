@@ -6,6 +6,7 @@
     transform: translateX(100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -19,23 +20,37 @@
 
 /* Keep only essential CSS variables for colors that aren't in Tailwind config */
 :root {
-  --color-bg: #f8f7ff; /* soft lavender page background */
-  --color-warm: #eef2ff; /* deprecated warm -> mapped to pastel surface */
-  --color-cozy: #eef2ff; /* deprecated cozy -> mapped to pastel surface */
+  --color-bg: #f8f7ff;
+  /* soft lavender page background */
+  --color-warm: #eef2ff;
+  /* deprecated warm -> mapped to pastel surface */
+  --color-cozy: #eef2ff;
+  /* deprecated cozy -> mapped to pastel surface */
   /* Pastel input theme */
-  --color-input-border: #c7d2fe; /* pastel indigo-200 */
-  --color-input-focus-border: #a5b4fc; /* pastel indigo-300 */
-  --color-input-focus-shadow: rgba(99, 102, 241, 0.15); /* indigo-500 @ 15% */
-  --color-input-focus-bg: #eef2ff; /* indigo-50 */
+  --color-input-border: #c7d2fe;
+  /* pastel indigo-200 */
+  --color-input-focus-border: #a5b4fc;
+  /* pastel indigo-300 */
+  --color-input-focus-shadow: rgba(99, 102, 241, 0.15);
+  /* indigo-500 @ 15% */
+  --color-input-focus-bg: #eef2ff;
+  /* indigo-50 */
   /* Surfaces */
-  --color-surface: #ffffff; /* cards */
-  --color-surface-muted: #eef2ff; /* inputs, subtle areas */
+  --color-surface: #ffffff;
+  /* cards */
+  --color-surface-muted: #eef2ff;
+  /* inputs, subtle areas */
   /* Pastel accent theme */
-  --color-accent: #c7d2fe;        /* indigo-200 */
-  --color-accent-strong: #a5b4fc; /* indigo-300 */
-  --color-accent-deep: #818cf8;   /* indigo-400 */
-  --color-accent-deeper: #6366f1; /* indigo-500 */
-  --color-text: #374151;          /* slate-700 for professional readable text */
+  --color-accent: #c7d2fe;
+  /* indigo-200 */
+  --color-accent-strong: #a5b4fc;
+  /* indigo-300 */
+  --color-accent-deep: #818cf8;
+  /* indigo-400 */
+  --color-accent-deeper: #6366f1;
+  /* indigo-500 */
+  --color-text: #374151;
+  /* slate-700 for professional readable text */
 }
 
 html {
@@ -43,185 +58,230 @@ html {
 }
 
 
-html, body {
+html,
+body {
   font-family: 'Inter', 'Roboto', Arial, sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-size: 16px; /* text-base */
-  min-height: 100vh !important; /* min-h-screen */
+  font-size: 16px;
+  /* text-base */
+  min-height: 100vh !important;
+  /* min-h-screen */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden; /* overflow-x-hidden */
+  overflow-x: hidden;
+  /* overflow-x-hidden */
   width: 100%;
 }
 
 body {
-  margin: 0; /* m-0 */
-  padding: 0; /* p-0 */
+  margin: 0;
+  /* m-0 */
+  padding: 0;
+  /* p-0 */
 }
 
 .marker-icon {
-  font-size: 3em !important; /* text-5xl */
+  font-size: 3em !important;
+  /* text-5xl */
 }
 
 .marker-label {
-  font-size: 0.75rem; /* text-xs */
-  font-weight: 600; /* font-semibold */
+  font-size: 0.75rem;
+  /* text-xs */
+  font-weight: 600;
+  /* font-semibold */
   font-family: 'Inter', 'Roboto', Arial, sans-serif;
-  background-color: white; /* bg-white */
-  text-align: center; /* text-center */
-  border: 1px solid #d1d5db; /* border border-gray-300 */
+  background-color: white;
+  /* bg-white */
+  text-align: center;
+  /* text-center */
+  border: 1px solid #d1d5db;
+  /* border border-gray-300 */
   margin-left: -4rem !important;
   margin-top: -10px;
 }
 
 .card {
-  background-color: white; /* bg-white */
-  border-radius: 1rem; /* rounded-2xl */
-  padding: 2rem; /* p-8 */
-  margin-bottom: 2rem; /* mb-8 */
+  background-color: white;
+  /* bg-white */
+  border-radius: 1rem;
+  /* rounded-2xl */
+  padding: 2rem;
+  /* p-8 */
+  margin-bottom: 2rem;
+  /* mb-8 */
 }
 
 .btn {
-  border-radius: 0.75rem; /* rounded-xl */
-  padding: 0.75rem 1.5rem; /* px-6 py-3 */
-  font-weight: 600; /* font-semibold */
-  font-size: 1rem; /* text-base */
+  border-radius: 0.75rem;
+  /* rounded-xl */
+  padding: 0.75rem 1.5rem;
+  /* px-6 py-3 */
+  font-weight: 600;
+  /* font-semibold */
+  font-size: 1rem;
+  /* text-base */
   background-color: var(--color-accent-deep);
-  color: white; /* text-white */
-  border: none; /* border-0 */
-  cursor: pointer; /* cursor-pointer */
-}
-.btn:hover, .btn:focus {
-  background-color: var(--color-accent-deeper);
-  transform: translateY(-2px) scale(1.05); /* transform -translate-y-0.5 scale-105 */
+  color: white;
+  /* text-white */
+  border: none;
+  /* border-0 */
+  cursor: pointer;
+  /* cursor-pointer */
 }
 
-input, select, textarea {
-  border-radius: 0.5rem; /* rounded-lg */
-  border: 2px solid var(--color-input-border); /* pastel input border */
-  padding: 0.75rem 1rem; /* px-4 py-3 */
-  font-size: 1rem; /* text-base */
-  background-color: white; /* bg-white */
+.btn:hover,
+.btn:focus {
+  background-color: var(--color-accent-deeper);
+  transform: translateY(-2px) scale(1.05);
+  /* transform -translate-y-0.5 scale-105 */
+}
+
+input,
+select,
+textarea {
+  border-radius: 0.5rem;
+  /* rounded-lg */
+  border: 2px solid var(--color-input-border);
+  /* pastel input border */
+  padding: 0.75rem 1rem;
+  /* px-4 py-3 */
+  font-size: 1rem;
+  /* text-base */
+  background-color: white;
+  /* bg-white */
   color: var(--color-text);
 }
-input:focus, select:focus, textarea:focus {
-  border-color: var(--color-input-focus-border); /* pastel input focus border */
-  outline: none; /* outline-none */
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-input-focus-border);
+  /* pastel input focus border */
+  outline: none;
+  /* outline-none */
   background: var(--color-input-focus-bg);
 }
 
 ::-webkit-scrollbar {
-  width: 8px; /* w-2 */
+  width: 8px;
+  /* w-2 */
   background: var(--color-surface-muted);
 }
+
 ::-webkit-scrollbar-thumb {
   background-color: var(--color-accent-strong);
-  border-radius: 0.5rem; /* rounded-lg */
+  border-radius: 0.5rem;
+  /* rounded-lg */
 }
 
 /* Invisible scrollbar for modal content */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  -ms-overflow-style: none;
+  /* Internet Explorer 10+ */
 }
+
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Safari and Chrome */
+  display: none;
+  /* Safari and Chrome */
 }
 
 /* Mobile-specific styles for delivery tracking */
 @media (max-width: 768px) {
+
   /* Ensure content doesn't overflow on mobile */
   .min-h-screen {
     min-height: 100vh;
     overflow-x: hidden;
   }
-  
+
   /* Adjust map height for mobile */
   #map {
     height: 50vh !important;
     min-height: 300px;
   }
-  
+
   /* Ensure cards don't overflow */
   .bg-white {
     max-width: 100%;
     overflow: hidden;
   }
-  
+
   /* Adjust text sizes for mobile */
   .text-3xl {
     font-size: 1.5rem;
   }
-  
+
   .text-2xl {
     font-size: 1.25rem;
   }
-  
+
   .text-xl {
     font-size: 1.125rem;
   }
-  
+
   .text-lg {
     font-size: 1rem;
   }
-  
+
   /* Ensure buttons are properly sized */
   .px-4 {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
   }
-  
+
   .py-2 {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
   }
-  
+
   /* Adjust spacing for mobile */
   .gap-4 {
     gap: 0.75rem;
   }
-  
+
   .mb-8 {
     margin-bottom: 1.5rem;
   }
-  
+
   .p-6 {
     padding: 1rem;
   }
-  
+
   /* Ensure floating action button doesn't interfere */
   .fixed {
     z-index: 9999;
   }
-  
+
   /* Adjust legend positioning */
   .absolute.bottom-6.right-6 {
     bottom: 0.5rem;
     right: 0.5rem;
     max-width: 200px;
   }
-  
+
   /* Adjust card padding for mobile */
   .p-4 {
     padding: 0.75rem;
   }
-  
+
   /* Ensure text truncation works */
   .truncate {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  
+
   /* Adjust icon sizes for mobile */
   .text-3xl {
     font-size: 1.5rem;
   }
-  
+
   .text-2xl {
     font-size: 1.25rem;
   }
-  
+
   .text-xl {
     font-size: 1.125rem;
   }
@@ -229,36 +289,37 @@ input:focus, select:focus, textarea:focus {
 
 /* Additional mobile optimizations */
 @media (max-width: 480px) {
+
   /* Further reduce sizes for very small screens */
   .text-lg {
     font-size: 0.875rem;
   }
-  
+
   .text-sm {
     font-size: 0.75rem;
   }
-  
+
   .text-xs {
     font-size: 0.625rem;
   }
-  
+
   /* Adjust padding for very small screens */
   .px-4 {
     padding-left: 0.5rem;
     padding-right: 0.5rem;
   }
-  
+
   .py-2 {
     padding-top: 0.375rem;
     padding-bottom: 0.375rem;
   }
-  
+
   /* Ensure map controls are accessible */
   .absolute.top-6.left-6 {
     top: 0.5rem;
     left: 0.5rem;
   }
-  
+
   /* Adjust floating action button size */
   .h-16.w-16 {
     height: 3rem;
@@ -276,16 +337,19 @@ input:focus, select:focus, textarea:focus {
 
 /* iOS Safari specific fixes */
 @supports (-webkit-touch-callout: none) {
+
   /* Prevent zoom on input focus in iOS Safari */
-  input, select, textarea {
+  input,
+  select,
+  textarea {
     font-size: 16px !important;
   }
-  
+
   /* Fix for iOS Safari viewport height issues */
   .min-h-screen {
     min-height: -webkit-fill-available;
   }
-  
+
   /* Fix for iOS Safari flexbox issues */
   .flex {
     -webkit-box-flex: 1;
@@ -293,63 +357,77 @@ input:focus, select:focus, textarea:focus {
     -ms-flex: 1;
     flex: 1;
   }
-  
+
   /* Prevent iOS Safari from adding its own styling */
-  button, input, select, textarea {
+  button,
+  input,
+  select,
+  textarea {
     border-radius: 0;
   }
-  
+
   /* Fix for iOS Safari position: fixed issues */
   .fixed {
     position: fixed;
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
   }
-  
+
   /* Ensure proper touch targets on iOS */
-  button, a {
+  button,
+  a {
     min-height: 44px;
     min-width: 44px;
   }
-  
+
   /* Ensure proper z-index stacking on iOS */
-  .z-10, .z-20, .z-50, .z-\[9999\] {
+  .z-10,
+  .z-20,
+  .z-50,
+  .z-\[9999\] {
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
   }
 }
 
-a{
+a {
   text-decoration-line: none !important;
 }
 
-input, select{
+input,
+select {
   background-color: var(--color-surface-muted);
   padding: 10px;
   border-bottom: solid 2px var(--color-input-border);
-  border-end-end-radius: 0.75rem; /* var(--radius-sm) */
-  border-end-start-radius: 0.75rem; /* var(--radius-sm) */
+  border-end-end-radius: 0.75rem;
+  /* var(--radius-sm) */
+  border-end-start-radius: 0.75rem;
+  /* var(--radius-sm) */
   outline: none !important;
 }
-input:focus, select:focus {
+
+input:focus,
+select:focus {
   background-color: var(--color-input-focus-bg);
   border-bottom-color: var(--color-input-focus-border);
 }
 
-button{
+button {
   cursor: pointer;
 }
 
-[dir=rtl] .mat-mdc-text-field-wrapper{
+[dir=rtl] .mat-mdc-text-field-wrapper {
   height: 40px !important;
   padding: 0 !important;
   margin-top: 5px;
 }
-.mdc-text-field{
+
+.mdc-text-field {
   border: none !important;
   height: auto !important;
 }
-.mdc-text-field--no-label .mat-mdc-form-field-infix{
+
+.mdc-text-field--no-label .mat-mdc-form-field-infix {
   padding: 0 !important;
   border-bottom: 0 !important;
 }
@@ -410,8 +488,15 @@ button{
   background: transparent;
 }
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
 
 @media print {
   @page {
@@ -420,23 +505,70 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 }
 
 @media print {
-  html, body { 
-    height: auto !important; 
-    overflow: visible !important; 
+
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
     margin: 0 !important;
     padding: 0 !important;
   }
-  .fixed, .sticky { position: static !important; }
-  .overflow-hidden, .overflow-x-auto, .overflow-y-auto, .overflow-auto { overflow: visible !important; }
-  .min-h-screen { min-height: 0 !important; }
-  .shadow, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl { box-shadow: none !important; }
-  .rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl { border-radius: 0 !important; }
-  thead { display: table-header-group; }
-  tfoot { display: table-footer-group; }
-  tr { page-break-inside: avoid; }
-  .bg-blue-50, .bg-blue-800, .bg-blue-900, .bg-gray-50 { background: transparent !important; }
-  .border-b-4 { border-bottom-width: 0 !important; }
-  
+
+  .fixed,
+  .sticky {
+    position: static !important;
+  }
+
+  .overflow-hidden,
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-auto {
+    overflow: visible !important;
+  }
+
+  .min-h-screen {
+    min-height: 0 !important;
+  }
+
+  .shadow,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
+
+  .rounded,
+  .rounded-md,
+  .rounded-lg,
+  .rounded-xl,
+  .rounded-2xl {
+    border-radius: 0 !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  .bg-blue-50,
+  .bg-blue-800,
+  .bg-blue-900,
+  .bg-gray-50 {
+    background: transparent !important;
+  }
+
+  .border-b-4 {
+    border-bottom-width: 0 !important;
+  }
+
   /* Force zero margins on all elements */
   * {
     margin: 0 !important;
@@ -445,9 +577,10 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   }
 
   @page {
-    margin: 0 !important;   /* 🔥 remove browser print margins */
+    margin: 0 !important;
+    /* 🔥 remove browser print margins */
   }
-  
+
   /* Specific rules for daily extract (extrait journalière) */
   .extrait-journaliere,
   .daily-extract,
@@ -459,7 +592,7 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
     border: none !important;
     box-shadow: none !important;
   }
-  
+
   /* Remove margins from all text elements in extract */
   .extrait-journaliere *,
   .daily-extract *,
@@ -471,8 +604,16 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
     line-height: 1.2 !important;
   }
 }
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
 
 
 .fc-toolbar {
@@ -487,7 +628,8 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 }
 
 .fc-toolbar-title {
-  font-size: 16px !important; /* ✅ Smaller title */
+  font-size: 16px !important;
+  /* ✅ Smaller title */
 }
 
 @media (max-width: 768px) {
@@ -495,7 +637,8 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
     font-size: 12px !important;
     padding: 5px 8px !important;
   }
-  .fc-toolbar-title{
+
+  .fc-toolbar-title {
     font-size: 1rem !important;
   }
 }
@@ -516,7 +659,8 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   visibility: visible !important;
 }
 
-.leaflet-top, .leaflet-bottom {
+.leaflet-top,
+.leaflet-bottom {
   z-index: 1000 !important;
 }
 
@@ -542,6 +686,7 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -553,6 +698,7 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
     opacity: 0;
     transform: scale(0.9) translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -575,11 +721,13 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 }
 
 .origin-icon .inner-circle {
-  background: #3b82f6; /* blue-500 */
+  background: #3b82f6;
+  /* blue-500 */
 }
 
 .destination-icon .inner-circle {
-  background: #22c55e; /* green-500 */
+  background: #22c55e;
+  /* green-500 */
 }
 
 .current-icon .inner-circle {
@@ -601,16 +749,18 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
     transform: scale(1);
     opacity: 0.6;
   }
+
   50% {
     transform: scale(1.5);
     opacity: 0.3;
   }
+
   100% {
     transform: scale(2);
     opacity: 0;
   }
 }
- 
+
 .reset-input-style {
   background: #fff !important;
   border-radius: 4px !important;

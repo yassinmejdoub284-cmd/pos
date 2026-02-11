@@ -226,12 +226,12 @@ export class StockComponent implements OnInit {
   onDocumentsActionSelected(actionId: 'all' | 'bon-livraison' | 'bon-expedition' | 'bon-transfert'): void {
     this.showDocumentsDialog = false;
     const type = actionId === 'bon-livraison'
-        ? 'BON_ENTREE_MAGASIN'
-        : actionId === 'bon-expedition'
-          ? 'BON_EXPEDITION'
-          : actionId === 'bon-transfert'
-            ? 'BON_TRANSFERT'
-            : '';
+      ? 'BON_ENTREE_MAGASIN'
+      : actionId === 'bon-expedition'
+        ? 'BON_EXPEDITION'
+        : actionId === 'bon-transfert'
+          ? 'BON_TRANSFERT'
+          : '';
     const currentUser = this.authService.currentUser();
     if (this.isAdmin()) {
       this.documentsSelectedType = type;
@@ -623,4 +623,3 @@ export class StockComponent implements OnInit {
   }
 
 }
- 

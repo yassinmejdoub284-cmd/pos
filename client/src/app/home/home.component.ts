@@ -48,11 +48,11 @@ export class HomeComponent implements OnInit, OnDestroy {
     pendingApprovals: 0,
     activeSession: false
   });
-  
+
   loading = signal(true);
   currentTime = signal(new Date());
   greeting = signal('');
-  
+
   // Dialog states
   showExpenseActionDialog = signal(false);
   showClientActionDialog = signal(false);
@@ -62,14 +62,14 @@ export class HomeComponent implements OnInit, OnDestroy {
   showHistoriqueChoiceDialog = signal(false);
   showExtraitDepotDialog = signal(false);
   showCompanySwitchDialog = signal(false);
-  companySwitchData = signal<{companyName: string; logoUrl: string} | null>(null);
+  companySwitchData = signal<{ companyName: string; logoUrl: string } | null>(null);
 
   // Settings
   appSettings = signal<AppSettings | null>(null);
   companyName = signal('SoluMove PoS');
   companyLogo = signal('');
   logoLoadError = signal(false);
-  
+
   // Pending breakdown
   private pendingGiftCount = 0;
   private pendingExpenseCount = 0;
@@ -79,11 +79,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   salesVsYesterdayPct: number = 0;
   transactionsVsYesterdayPct: number = 0;
 
-  
+
   // Performance optimization
   private destroy$ = new Subject<void>();
   private timeInterval: any;
-  
+
   // Cached filtered actions to avoid repeated computation
   private _cachedFilteredActions: QuickAction[] = [];
   private _lastUserRole: string | null = null;
@@ -107,6 +107,16 @@ export class HomeComponent implements OnInit, OnDestroy {
       icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
       color: 'from-sky-500 to-cyan-600',
       gradient: 'from-sky-50 to-cyan-100',
+      roles: ['ADMIN', 'MANAGER', 'CASHIER']
+    },
+    {
+      id: 'factures',
+      title: 'Factures',
+      description: 'Gestion facturation',
+      route: '/factures',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      color: 'from-blue-500 to-indigo-600',
+      gradient: 'from-blue-50 to-indigo-100',
       roles: ['ADMIN', 'MANAGER', 'CASHIER']
     },
     {
@@ -227,7 +237,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     {
       id: 'extrait-par-article',
       title: 'Extrait par Article',
-      description: 'Rapport par article',
       route: '/extrait-par-article',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
       color: 'from-teal-500 to-cyan-600',
@@ -237,7 +246,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     {
       id: 'admin',
       title: 'Résumé',
-      description: 'Gestion centrale',
       route: '/admin-home',
       icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
       color: 'from-violet-600 to-indigo-700',
@@ -269,14 +277,14 @@ export class HomeComponent implements OnInit, OnDestroy {
     private router: Router,
     private cdr: ChangeDetectorRef,
     private http: HttpClient
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.currentUser.set(this.authService.currentUser());
     try {
       const u: any = this.currentUser();
       const roleKey = u?.roleKey || u?.role;
-    } catch {}
+    } catch { }
     // Clear cached actions on init to ensure fresh filtering
     this._cachedFilteredActions = [];
     this._lastUserRole = null;
@@ -284,7 +292,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadDashboardStats();
     this.loadSettings(); // Loads default settings first
     this.loadCompanyDetails(); // Overrides with company specific details if available
-    
+
     // Update time every minute - optimized with proper cleanup
     this.timeInterval = setInterval(() => {
       this.currentTime.set(new Date());
@@ -313,7 +321,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   loadDashboardStats(): void {
     this.loading.set(true);
-    
+
     // Optimize: Load critical data first, then non-critical data
     const criticalData$ = forkJoin({
       sales: this.salesService.getSales().pipe(
@@ -377,16 +385,16 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private processCriticalData(data: any): void {
     const { sales, session } = data;
-    
+
     // Process sales data
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-    
+
     const userDepotId = this.currentUser()?.depotId;
     const filteredSales = userDepotId ? sales.filter((sale: any) => sale.depotId === userDepotId) : sales;
-    
+
     const todaySales = filteredSales.filter((sale: any) => {
       const saleDate = new Date(sale.createdAt);
       saleDate.setHours(0, 0, 0, 0);
@@ -408,10 +416,10 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     this.salesVsYesterdayPct = this.computePercentageChange(todaySalesTotal, yesterdaySalesTotal);
     this.transactionsVsYesterdayPct = this.computePercentageChange(todayTransactions, yesterdayTransactions);
-    
+
     // Count pending approvals from sales
     this.pendingGiftCount = filteredSales.filter((sale: any) => sale.status === 'PENDING_ADMIN').length;
-    
+
     // Update dashboard stats with critical data
     this.dashboardStats.update(stats => ({
       ...stats,
@@ -419,21 +427,21 @@ export class HomeComponent implements OnInit, OnDestroy {
       todayTransactions: todayTransactions,
       activeSession: !!session
     }));
-    
+
     this.updatePendingApprovals();
   }
 
   private processNonCriticalData(data: any): void {
     const { expenses, varianceRequests } = data;
-    
+
     const userDepotId = this.currentUser()?.depotId;
-    
+
     const filteredExpenses = userDepotId ? (expenses || []).filter((e: any) => e.depotId === userDepotId) : (expenses || []);
     this.pendingExpenseCount = filteredExpenses.filter((e: any) => !e.isApproved).length;
-    
+
     const filteredRequests = userDepotId ? (varianceRequests || []).filter((r: any) => r.session?.depot?.id === userDepotId) : (varianceRequests || []);
     this.pendingClotureCount = filteredRequests.length;
-    
+
     this.updatePendingApprovals();
   }
 
@@ -464,15 +472,20 @@ export class HomeComponent implements OnInit, OnDestroy {
         const visibleIds = Object.keys(roleAccessBlocks).filter(k => roleAccessBlocks[k]?.visible === true);
         // If extrait-par-article is not in visibleIds but user has ADMIN/MANAGER role, include it
         const userRole = currentUser?.role || '';
-        const shouldIncludeExtrait = (userRole === 'ADMIN' || userRole === 'MANAGER') && 
-                                     !visibleIds.includes('extrait-par-article') &&
-                                     this.quickActions.find(a => a.id === 'extrait-par-article');
-        
+
+        // Force inclusion of Résumé for ADMIN role even if not in config
+        if (userRole === 'ADMIN' && !visibleIds.includes('admin')) {
+          visibleIds.push('admin');
+        }
+
+        const shouldIncludeExtrait = (userRole === 'ADMIN' || userRole === 'MANAGER') &&
+          !visibleIds.includes('extrait-par-article') &&
+          this.quickActions.find(a => a.id === 'extrait-par-article');
+
         if (shouldIncludeExtrait) {
           visibleIds.push('extrait-par-article');
-
         }
-        
+
         this._cachedFilteredActions = this.quickActions.filter(a => visibleIds.includes(a.id));
 
 
@@ -593,7 +606,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   onExpenseActionSelected(actionId: string): void {
     this.showExpenseActionDialog.set(false);
-    
+
     switch (actionId) {
       case 'consult':
         this.router.navigate(['/charges']);
@@ -616,7 +629,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   onClientActionSelected(actionId: string): void {
     this.showClientActionDialog.set(false);
-    
+
     switch (actionId) {
       case 'consult':
         this.router.navigate(['/clients']);
@@ -655,7 +668,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   onSupplierActionSelected(actionId: string): void {
     this.showSupplierActionDialog.set(false);
-    
+
     switch (actionId) {
       case 'consult':
         this.router.navigate(['/suppliers']);
@@ -679,7 +692,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   onSettingsActionSelected(actionId: string): void {
     this.showSettingsActionDialog.set(false);
-    
+
     switch (actionId) {
       case 'general':
         this.router.navigate(['/parametres']);
@@ -725,10 +738,10 @@ export class HomeComponent implements OnInit, OnDestroy {
     // Stop all pending API calls
     this.destroy$.next();
     this.destroy$.complete();
-    
+
     // Clear session and redirect
     this.authService.logout();
-    
+
     // Navigate immediately - auth service will handle session clearing
     this.router.navigate(['/auth/login']);
   }
@@ -786,7 +799,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   loadCompanyDetails(): void {
     const user = this.currentUser();
     console.log('HomeComponent: Current User:', user);
-    
+
     // Strategy 0: Check for admin visiting depot ID in session storage
     const visitingDepotId = sessionStorage.getItem('visitingDepotId') || localStorage.getItem('visitingDepotId');
     const effectiveDepotId = visitingDepotId ? Number(visitingDepotId) : (user?.depotId);
@@ -795,7 +808,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (user && user.companyId && !visitingDepotId) {
       console.log('HomeComponent: User has direct company ID:', user.companyId);
       this.fetchAndSetCompany(user.companyId);
-    } 
+    }
     // Strategy 2: User has depot assignment (or visiting depot), resolve company from depot
     else if (effectiveDepotId) {
       console.log('HomeComponent: Resolving company from Effective Depot ID:', effectiveDepotId);
@@ -807,10 +820,10 @@ export class HomeComponent implements OnInit, OnDestroy {
             this.fetchAndSetCompany(depot.companyId);
           } else if (depot && depot.company) {
             // In case the backend returns the full company object nested
-             console.log('HomeComponent: Found Company object in Depot:', depot.company);
-             this.setCompanyData(depot.company);
+            console.log('HomeComponent: Found Company object in Depot:', depot.company);
+            this.setCompanyData(depot.company);
           } else {
-             console.log('HomeComponent: Depot exists but has no company assigned.');
+            console.log('HomeComponent: Depot exists but has no company assigned.');
           }
         },
         error: (err) => {
@@ -823,25 +836,25 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private fetchAndSetCompany(companyId: number): void {
-      this.companiesService.getById(companyId).subscribe({
-        next: (company) => {
-          this.setCompanyData(company);
-        },
-        error: (err) => {
-          console.error('HomeComponent: Error loading company details:', err);
-        }
-      });
+    this.companiesService.getById(companyId).subscribe({
+      next: (company) => {
+        this.setCompanyData(company);
+      },
+      error: (err) => {
+        console.error('HomeComponent: Error loading company details:', err);
+      }
+    });
   }
 
   private setCompanyData(company: any): void {
-      if (company) {
-        console.log('HomeComponent: Setting Company Data:', company);
-        this.companyName.set(company.raisonSociale);
-        if (company.logoUrl) {
-          this.companyLogo.set(company.logoUrl);
-          this.logoLoadError.set(false);
-        }
+    if (company) {
+      console.log('HomeComponent: Setting Company Data:', company);
+      this.companyName.set(company.raisonSociale);
+      if (company.logoUrl) {
+        this.companyLogo.set(company.logoUrl);
+        this.logoLoadError.set(false);
       }
+    }
   }
 
 
@@ -871,10 +884,19 @@ export class HomeComponent implements OnInit, OnDestroy {
   // Compute grid column class based on number of visible modules
   getGridColsClass(): string {
     const count = this.getFilteredActions().length;
-    if (count === 2) return 'grid-cols-2';
-    if (count === 3) return 'grid-cols-3';
-    if (count === 4) return 'grid-cols-3'; // 4–6 => 3 cols
-    if (count <= 6) return 'grid-cols-3';
-    return 'grid-cols-4';
+
+    // Optimized responsive layouts
+    // Mobile first: usually 1 or 2 columns
+    // SM (Tablet): 2 or 3 columns
+    // LG (Desktop): 3+ columns
+
+    if (count === 1) return 'grid-cols-1';
+    if (count === 2) return 'grid-cols-1 sm:grid-cols-2'; // Mobile: Stacked, Tablet+: Side by side
+    if (count === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+    if (count === 4) return 'grid-cols-2 lg:grid-cols-2'; // 2x2 grid is robust
+    if (count === 5) return 'grid-cols-2 lg:grid-cols-3'; // 2-3 split
+
+    // Fallback for counts > 5 (though handled by other container usually)
+    return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
   }
 } 

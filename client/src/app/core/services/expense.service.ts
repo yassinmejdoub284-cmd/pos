@@ -137,4 +137,11 @@ export class ExpenseService extends BaseApiService {
     const options = { ...this.getRequestOptions(), ...params };
     return this.http.get<ExpenseStats>(`${this.expensesUrl}/stats/summary`, options);
   }
+
+  getCashFlowStats(filters?: any): Observable<any[]> {
+    const params = filters ? { params: filters } : {};
+    const options = { ...this.getRequestOptions(), ...params };
+    // Note: the endpoint is in admin-dashboard route, not expenses route
+    return this.http.get<any[]>(`${this.apiUrl}/admin-dashboard/cash-flow-stats`, options);
+  }
 } 
