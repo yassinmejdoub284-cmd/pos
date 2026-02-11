@@ -1418,13 +1418,22 @@ router.get('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'depotId is required to view sales' });
     }
     
-    const whereClause = { depotId: targetDepotId };
-
     // Handle session-based filtering (priority over date filtering)
+    const whereClause = {};
+    
+    if (targetDepotId) {
+      whereClause.depotId = targetDepotId;
+    }
+
     if (sessionIds) {
       const sessionIdArray = sessionIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
       if (sessionIdArray.length > 0) {
         whereClause.sessionId = { in: sessionIdArray };
+        // If we have sessionIds but no targetDepotId (e.g. admin browsing sessions), 
+        // we can remove the depotId filter to allow viewing those sessions
+        if (!targetDepotId) {
+          delete whereClause.depotId;
+        }
       }
     } else if (startDate && endDate) {
       // Fallback to date filtering if no sessionIds provided
@@ -1435,7 +1444,13 @@ router.get('/', authenticateToken, async (req, res) => {
 
     if (paymentMethod) whereClause.paymentMethodId = parseInt(paymentMethod);
 
-    whereClause.paymentType = { in: ['COMPTANT', 'CREDIT'] };
+    // Filter out TEMPORARY sales by default if they are not specifically requested
+    if (!status || status !== 'TEMPORARY') {
+       whereClause.status = { not: 'TEMPORARY' };
+    }
+    
+    // Support legacy sales without paymentType or other types
+    // whereClause.paymentType = { in: ['COMPTANT', 'CREDIT'] };
 
     // Get regular sales
     const sales = await prisma.sale.findMany({

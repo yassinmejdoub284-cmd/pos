@@ -2309,6 +2309,7 @@ async function calculateSessionSummary(sessionId) {
   return {
     expectedCash,
     cashSales,
+    cashFromSalesNetCredit,
     entree,
     sortie,
     salesByPayment,

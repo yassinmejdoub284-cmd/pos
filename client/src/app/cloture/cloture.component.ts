@@ -872,21 +872,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Computed signal for cash from sales - pure function, no side effects
   cashFromSalesNetOfCredit = computed(() => {
-    // Use cashSalesDetails() which is the actual data source being displayed
-    // This ensures consistency with the displayed tickets
+    // If we have detailed tickets loaded, use them for accuracy and consistency with UI
     const cashDetails = this.cashSalesDetails();
+    if (cashDetails.length > 0) {
+      return cashDetails.reduce((total: number, sale: any) => {
+        const status = (sale.status || '').toUpperCase();
+        if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
+          return total;
+        }
+        const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
+        return total + paidAmount;
+      }, 0);
+    }
     
-    // Sum up all paid amounts, excluding canceled, refunded, and cadeau tickets
-    return cashDetails.reduce((total: number, sale: any) => {
-      const status = (sale.status || '').toUpperCase();
-      // Exclude canceled, refunded, and cadeau tickets from encaissement
-      // Cadeau tickets have amount = 0 and should not be counted in encaissement
-      if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
-        return total;
-      }
-      const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
-      return total + paidAmount;
-    }, 0);
+    // Default to value from session summary if available (so user sees value before expanding)
+    const summary = (this.currentSession() as any)?.summary;
+    return parseFloat(summary?.cashFromSalesNetCredit || 0) || 0;
   });
 
   // Keep method for backward compatibility but use computed signal

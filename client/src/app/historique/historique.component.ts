@@ -498,20 +498,17 @@ export class HistoriqueComponent implements OnInit {
           (sale.items && sale.items.some(item => item.productName.toLowerCase().includes(query))) ||
           (sale.paymentMethod && sale.paymentMethod.name.toLowerCase().includes(query));
         if (!matchesSearch) {
-
           return false;
         }
       }
 
       // Status filter
       if (this.selectedStatus && sale.status !== this.selectedStatus) {
-
         return false;
       }
 
       // Payment method filter
       if (this.selectedPaymentMethod && sale.paymentMethod && sale.paymentMethod.id.toString() !== this.selectedPaymentMethod) {
-
         return false;
       }
 
@@ -521,15 +518,12 @@ export class HistoriqueComponent implements OnInit {
         const isTable = this.isTableSale(sale);
         
         if (this.selectedSaleType === 'wholesale' && !isWholesale) {
-
           return false;
         }
         if (this.selectedSaleType === 'retail' && (isWholesale || isTable)) {
-
           return false;
         }
         if (this.selectedSaleType === 'table' && !isTable) {
-
           return false;
         }
       }
@@ -542,14 +536,12 @@ export class HistoriqueComponent implements OnInit {
         if (this.startDate) {
           const startDateOnly = new Date(this.startDate);
           if (saleDateOnly < startDateOnly) {
-
             return false;
           }
         }
         if (this.endDate) {
           const endDateOnly = new Date(this.endDate);
           if (saleDateOnly > endDateOnly) {
-
             return false;
           }
         }
@@ -559,7 +551,6 @@ export class HistoriqueComponent implements OnInit {
     });
 
     this.totalItems = this.filteredSales.length;
-    this.currentSessionPage = 1;
     this.updateGroupedSales();
     
     console.log('Filter result:', {
