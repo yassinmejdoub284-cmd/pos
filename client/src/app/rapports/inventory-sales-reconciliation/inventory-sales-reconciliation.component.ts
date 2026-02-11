@@ -82,7 +82,7 @@ export interface ReleveInventaireRow {
   debut: number; // montant total
   credit: number; // montant total
   solde: number; // debut - credit
-  type: 'ENTRY' | 'CREDIT' | 'INVENTORY' | 'MANUAL_CREDIT';
+  type: 'ENTRY' | 'CREDIT' | 'INVENTORY';
   details?: string; // détails pour les écarts, numéros de caisse, etc.
   date?: Date;
   createdAt?: Date; // For proper date ordering
@@ -108,29 +108,7 @@ export interface ReleveInventaireRow {
   totalInventoryValue?: number; // Total inventory value for reference
 }
 
-export interface CreditEntry {
-  id?: number;
-  productId: number | null;
-  amount: number;
-  type: 'SALE' | 'FREE_ITEM' | 'EXIT_VOUCHER' | 'WHOLESALE_DIFFERENCE';
-  description: string;
-  date: Date;
-  createdAt?: Date;
-}
 
-// Manual Debit/Credit Entry interface
-export interface ManualEntry {
-  id?: number;
-  entryType: 'DEBIT' | 'CREDIT'; // Type of entry
-  amount: number;
-  description: string;
-  date: Date;
-  createdAt?: Date;
-  positionIndex: number; // Index where this entry should be inserted
-  referenceRowId?: string; // ID of the row after which this should be inserted
-  dateFrom: string; // Start date of the report range
-  dateTo: string; // End date of the report range
-}
 
 export interface ReleveInventaireSummary {
   totalProducts: number;
@@ -189,25 +167,12 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   // Relevé Inventaire data
   releveInventaireData: ReleveInventaireRow[] = [];
   releveInventaireSummary: ReleveInventaireSummary | null = null;
-  creditEntries: CreditEntry[] = [];
-  manualEntries: ManualEntry[] = []; // Manual debit/credit entries
+
   expandedBonEntree: Set<string> = new Set();
   expandedEcartGros: Set<string> = new Set();
   isInventoryMode: boolean = false; // Track if we're showing inventory-based data
   
-  // Manual entry modal state
-  isManualEntryModalOpen = false;
-  selectedRowIndex: number | null = null;
-  selectedRowId: string | null = null;
-  newManualEntry: ManualEntry = {
-    entryType: 'DEBIT',
-    amount: 0,
-    description: '',
-    date: new Date(),
-    positionIndex: 0,
-    dateFrom: '',
-    dateTo: ''
-  };
+
   // Snapshot and chaining state
   lastInventorySolde: number = 0;
   secondaryReleveRows: ReleveInventaireRow[] = [];
@@ -2061,11 +2026,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     // Set inventory mode to true when generating from reconciliation data
     this.isInventoryMode = true;
 
-    // Load existing credit entries to avoid duplicates
-    await this.loadExistingCreditEntries();
-    
-    // Load existing manual entries
-    await this.loadExistingManualEntries();
+
     
     // 1. Calculer le total des entrées pour référence (pas affiché)
     const totalDebut = await this.calculateTotalDebut();
@@ -2146,8 +2107,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
         }
       }
       
-      // Clean up any existing inventory discrepancy credit entries (remove manual credits)
-      await this.cleanupOldInventoryEcartCredits();
+
 
       // Add inventory line - direct solde from inventory, no variance applied
       const ecartText = inventoryVariance !== 0 ? ` | Écart: ${inventoryVariance >= 0 ? '+' : ''}${inventoryVariance.toFixed(2)} DT` : '';
@@ -2473,32 +2433,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     
     // 7. (INVENTAIRE moved to beginning - section 0)
     
-    // 8. Crédits manuels
-    for (const credit of this.creditEntries) {
-      // Use date from credit entry, with createdAt as fallback
-      let creditDate: Date;
-      if (credit.date instanceof Date) {
-        creditDate = credit.date;
-      } else if (credit.createdAt) {
-        creditDate = new Date(credit.createdAt);
-      } else if (typeof credit.date === 'string') {
-        creditDate = new Date(credit.date);
-      } else {
-        creditDate = new Date(); // Default to now
-      }
-      
-      addTransactionIfNotDuplicate({
-        id: `manual_${credit.id}`,
-        designation: `Crédit Manuel - ${credit.description}`,
-        debut: 0,
-        credit: credit.amount,
-        solde: -credit.amount,
-        type: 'MANUAL_CREDIT' as const,
-        details: `Type: ${this.getCreditTypeLabel(credit.type)}`,
-        date: creditDate,
-        createdAt: credit.createdAt ? new Date(credit.createdAt) : creditDate
-      });
-    }
+
     
     // Trier par date
     releveRows.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -2552,8 +2487,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     // Add sorted transactions to releveRows after inventory
     releveRows.push(...allTransactions);
     
-    // Insert manual entries at their correct positions
-    this.insertManualEntries(releveRows);
+
     
     // Log summary of documents & inventories gathered
     const dateFrom = new Date(this.startDate);
@@ -2566,7 +2500,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       globalEcarts: globalEcarts.length,
       discounts: discounts.length,
       stockReturns: stockReturns.length,
-      creditEntries: this.creditEntries.length,
+
       inventoryData: inventoryData?.length || 0,
       totalTransactions: allTransactions.length
     });
@@ -3578,395 +3512,13 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
   }
 
 
-  async removeCreditEntry(index: number): Promise<void> {
-    const entry = this.creditEntries[index];
-    
-    try {
-      // Remove from database
-      if (entry.id) {
-        await firstValueFrom(this.http.delete(`${environment.apiUrl}/credit-entries/${entry.id}`));
-      }
-      
-      // Remove from local array
-      this.creditEntries.splice(index, 1);
-      
-      // Regenerate the Relevé Inventaire
-      await this.generateReleveInventaireFromReconciliationData();
-    } catch (err) {
-      this.error = 'Erreur lors de la suppression du crédit';
-      console.error('Error removing credit entry:', err);
-    }
-  }
-
-  async saveInventoryToReleveInventaire(): Promise<void> {
-    try {
-      this.loading = true;
-      this.error = '';
-
-      // Get current inventory data
-      const inventoryData = await firstValueFrom(
-        this.http.get<any[]>(`${environment.apiUrl}/inventory?depotId=${this.depotId}`)
-      );
-
-      // Get products data
-      const productsData = await firstValueFrom(
-        this.http.get<any[]>(`${environment.apiUrl}/products?depotId=${this.depotId}`)
-      );
-
-      // Create releve inventaire entries from inventory
-      const releveEntries = inventoryData.map(item => {
-        const product = productsData.find(p => p.id === item.productId);
-        return {
-          productId: item.productId,
-          designation: product?.name || `Produit ID: ${item.productId}`,
-          debut: 0, // Initial balance
-          credit: 0, // No credit for inventory
-          solde: item.quantity, // Current quantity
-          type: 'INVENTORY',
-          details: `Inventaire actuel - ${item.quantity} unités`,
-          date: new Date(),
-          createdAt: new Date()
-        };
-      });
-
-      // Save to releve inventaire (you may need to create an API endpoint for this)
-      await firstValueFrom(
-        this.http.post(`${environment.apiUrl}/releve-inventaire`, {
-          depotId: this.depotId,
-          entries: releveEntries,
-          date: new Date()
-        })
-      );
-
-      this.success = 'Inventaire sauvegardé dans le tableau de relève inventaire';
-      setTimeout(() => this.success = '', 3000);
-
-    } catch (err) {
-      this.error = 'Erreur lors de la sauvegarde de l\'inventaire';
-      console.error('Error saving inventory to releve:', err);
-    } finally {
-      this.loading = false;
-    }
-  }
-
-  getCreditTypeLabel(type: string): string {
-    const labels: { [key: string]: string } = {
-      'SALE': 'Vente',
-      'FREE_ITEM': 'Gratuité',
-      'EXIT_VOUCHER': 'Bon de sortie',
-      'WHOLESALE_DIFFERENCE': 'Différence gros'
-    };
-    return labels[type] || type;
-  }
-
-  async loadExistingCreditEntries(): Promise<void> {
-    try {
-      const creditEntries = await firstValueFrom(this.http.get<CreditEntry[]>(`${environment.apiUrl}/credit-entries`));
-      // Convert date strings to Date objects for proper handling
-      this.creditEntries = (creditEntries || []).map(entry => ({
-        ...entry,
-        date: entry.date ? new Date(entry.date) : new Date(),
-        createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date()
-      }));
-    } catch (error: any) {
-      console.error('Error loading existing credit entries:', error);
-      // If it's a 503 error (table not available), that's expected
-      if (error.status === 503) {
-
-      }
-      this.creditEntries = []; // Initialize as empty array if loading fails
-    }
-  }
-
-  async loadExistingManualEntries(): Promise<void> {
-    try {
-      const dateFrom = this.startDate;
-      const dateTo = this.endDate;
-      
-      const manualEntries = await firstValueFrom(
-        this.http.get<ManualEntry[]>(`${environment.apiUrl}/manual-entries`, {
-          params: { dateFrom, dateTo }
-        })
-      );
-      
-      // Convert date strings to Date objects (but keep date as string for date input compatibility)
-      this.manualEntries = (manualEntries || []).map(entry => {
-        const entryDate = entry.date ? (typeof entry.date === 'string' ? entry.date : new Date(entry.date).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
-        return {
-          ...entry,
-          date: entryDate as any, // Keep as string for date input
-          createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date()
-        };
-      });
-    } catch (error: any) {
-      console.error('Error loading existing manual entries:', error);
-      // If it's a 503 error (table not available), that's expected
-      if (error.status === 503 || error.status === 404) {
-
-      }
-      this.manualEntries = []; // Initialize as empty array if loading fails
-    }
-  }
-
-  private insertManualEntries(releveRows: ReleveInventaireRow[]): void {
-    const dateFrom = this.startDate;
-    const dateTo = this.endDate;
-    
-    // Filter manual entries for current date range
-    const relevantEntries = this.manualEntries.filter(entry => 
-      entry.dateFrom === dateFrom && entry.dateTo === dateTo
-    );
-    
-    if (relevantEntries.length === 0) return;
-    
-    // Sort entries by positionIndex (ascending) and then by createdAt for consistent ordering
-    relevantEntries.sort((a, b) => {
-      if (a.positionIndex !== b.positionIndex) {
-        return a.positionIndex - b.positionIndex;
-      }
-      // If same position, sort by creation date
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateA - dateB;
-    });
-    
-    // Insert entries at their positions (insert from end to start to preserve indices)
-    // This ensures that when multiple entries have the same positionIndex, they're inserted correctly
-    for (let i = relevantEntries.length - 1; i >= 0; i--) {
-      const entry = relevantEntries[i];
-      // Ensure positionIndex is within valid range
-      const positionIndex = Math.max(0, Math.min(entry.positionIndex, releveRows.length));
-      
-      // Create ReleveInventaireRow from ManualEntry
-      const entryDate = typeof entry.date === 'string' ? new Date(entry.date) : (entry.date || new Date());
-      const row: ReleveInventaireRow = {
-        id: `manual_${entry.id || Date.now()}_${i}`,
-        designation: entry.description || `${entry.entryType === 'DEBIT' ? 'Débit' : 'Crédit'} Manuel`,
-        debut: entry.entryType === 'DEBIT' ? entry.amount : 0,
-        credit: entry.entryType === 'CREDIT' ? entry.amount : 0,
-        solde: 0, // Will be calculated later
-        type: entry.entryType === 'DEBIT' ? 'ENTRY' : 'CREDIT',
-        details: `Entrée manuelle - ${entry.entryType === 'DEBIT' ? 'Débit' : 'Crédit'}`,
-        date: entryDate,
-        createdAt: entry.createdAt || entryDate,
-        isInventory: false
-      };
-      
-      // Insert at the specified position
-      releveRows.splice(positionIndex, 0, row);
-    }
-  }
-
-  showManualEntryModal(rowIndex: number, rowId: string): void {
-    this.selectedRowIndex = rowIndex;
-    this.selectedRowId = rowId;
-    this.isManualEntryModalOpen = true;
-    
-    // Initialize new manual entry
-    const today = new Date();
-    const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    
-    // Count existing manual entries at the same position to adjust positionIndex
-    const existingEntriesAtPosition = this.manualEntries.filter(entry => 
-      entry.dateFrom === this.startDate && 
-      entry.dateTo === this.endDate && 
-      entry.positionIndex === rowIndex + 1
-    ).length;
-    
-    this.newManualEntry = {
-      entryType: 'DEBIT',
-      amount: 0,
-      description: '',
-      date: dateString as any, // Store as string for date input compatibility
-      positionIndex: rowIndex + 1 + existingEntriesAtPosition, // Insert after the selected row, accounting for existing entries
-      referenceRowId: rowId,
-      dateFrom: this.startDate,
-      dateTo: this.endDate
-    };
-  }
-
-  hideManualEntryModal(): void {
-    this.isManualEntryModalOpen = false;
-    this.selectedRowIndex = null;
-    this.selectedRowId = null;
-  }
-
-  async saveManualEntry(): Promise<void> {
-    if (!this.newManualEntry.amount || !this.newManualEntry.description) {
-      this.error = 'Veuillez remplir tous les champs obligatoires';
-      return;
-    }
-
-    if (this.selectedRowIndex === null) {
-      this.error = 'Erreur: position de ligne non définie';
-      return;
-    }
-
-    try {
-      // Prepare data for API
-      let entryDate: string;
-      if (this.newManualEntry.date instanceof Date) {
-        entryDate = this.newManualEntry.date.toISOString().split('T')[0];
-      } else if (typeof this.newManualEntry.date === 'string') {
-        entryDate = this.newManualEntry.date;
-      } else {
-        entryDate = new Date().toISOString().split('T')[0];
-      }
-      
-      const entryData = {
-        entryType: this.newManualEntry.entryType,
-        amount: parseFloat(this.newManualEntry.amount.toString()),
-        description: this.newManualEntry.description,
-        date: entryDate,
-        positionIndex: this.newManualEntry.positionIndex, // Use the calculated positionIndex from modal initialization
-        referenceRowId: this.selectedRowId,
-        dateFrom: this.startDate,
-        dateTo: this.endDate
-      };
 
 
 
-      // Save to database
-      const savedEntry = await firstValueFrom(
-        this.http.post<ManualEntry>(`${environment.apiUrl}/manual-entries`, entryData)
-      );
-      
 
-      
-      // Convert saved entry date to Date object
-      const savedEntryWithDate = {
-        ...savedEntry,
-        date: savedEntry.date ? new Date(savedEntry.date) : new Date(),
-        createdAt: savedEntry.createdAt ? new Date(savedEntry.createdAt) : new Date()
-      };
-      
-      // Add the entry to local array (avoid duplicates)
-      const existingIndex = this.manualEntries.findIndex(e => e.id === savedEntryWithDate.id);
-      if (existingIndex === -1) {
-        this.manualEntries.push(savedEntryWithDate);
-      } else {
-        this.manualEntries[existingIndex] = savedEntryWithDate;
-      }
-      
-      // Regenerate the Relevé Inventaire to include the new entry
-      await this.generateReleveInventaireFromReconciliationData();
-      
-      // Reset form
-      this.newManualEntry = {
-        entryType: 'DEBIT',
-        amount: 0,
-        description: '',
-        date: new Date(),
-        positionIndex: 0,
-        dateFrom: '',
-        dateTo: ''
-      };
-      
-      this.hideManualEntryModal();
-      this.success = 'Entrée ajoutée avec succès';
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        this.success = '';
-      }, 3000);
-    } catch (err: any) {
-      this.error = err.error?.error || 'Erreur lors de la sauvegarde de l\'entrée';
-      console.error('Error saving manual entry:', err);
-    }
-  }
 
-  async removeManualEntry(entryId: number): Promise<void> {
-    try {
-      // Remove from database
-      await firstValueFrom(this.http.delete(`${environment.apiUrl}/manual-entries/${entryId}`));
-      
-      // Remove from local array
-      this.manualEntries = this.manualEntries.filter(entry => entry.id !== entryId);
-      
-      // Regenerate the Relevé Inventaire
-      await this.generateReleveInventaireFromReconciliationData();
-      
-      this.success = 'Entrée supprimée avec succès';
-      setTimeout(() => {
-        this.success = '';
-      }, 3000);
-    } catch (err) {
-      this.error = 'Erreur lors de la suppression de l\'entrée';
-      console.error('Error removing manual entry:', err);
-    }
-  }
 
-  async deleteManualEntryFromRow(row: ReleveInventaireRow): Promise<void> {
-    // Extract entry ID from row.id (format: manual_<id>_<index>)
-    const match = row.id.match(/^manual_(\d+)_/);
-    if (!match) {
-      this.error = 'Impossible d\'identifier l\'entrée à supprimer';
-      return;
-    }
-    
-    const entryId = parseInt(match[1]);
-    await this.removeManualEntry(entryId);
-  }
 
-  async cleanupOldInventoryEcartCredits(): Promise<void> {
-    try {
-      // Find and remove old inventory discrepancy credit entries
-      const oldEcartCredits = this.creditEntries.filter(entry => 
-        entry.description.includes('Écart Inventaire')
-      );
-
-      for (const oldCredit of oldEcartCredits) {
-        if (oldCredit.id) {
-          try {
-            await firstValueFrom(this.http.delete(`${environment.apiUrl}/credit-entries/${oldCredit.id}`));
-
-          } catch (deleteError: any) {
-            // If entry doesn't exist (404), just continue
-            if (deleteError.status !== 404) {
-              console.error('Error deleting credit entry:', deleteError);
-            }
-          }
-        }
-      }
-
-      // Remove from local array
-      this.creditEntries = this.creditEntries.filter(entry => 
-        !entry.description.includes('Écart Inventaire')
-      );
-    } catch (error) {
-      console.error('Error cleaning up old inventory ecart credits:', error);
-    }
-  }
-
-  async removeInventoryEcartCredits(): Promise<void> {
-    try {
-      // Find all inventory discrepancy credit entries
-      const ecartCredits = this.creditEntries.filter(entry => 
-        entry.description.includes('Écart Inventaire')
-      );
-
-      for (const credit of ecartCredits) {
-        if (credit.id) {
-          try {
-            await firstValueFrom(this.http.delete(`${environment.apiUrl}/credit-entries/${credit.id}`));
-
-          } catch (deleteError: any) {
-            console.error('Error deleting inventory ecart credit:', deleteError);
-          }
-        }
-      }
-
-      // Remove from local array
-      this.creditEntries = this.creditEntries.filter(entry => 
-        !entry.description.includes('Écart Inventaire')
-      );
-
-      // Regenerate the Relevé Inventaire
-      await this.generateReleveInventaireFromReconciliationData();
-    } catch (error) {
-      console.error('Error removing inventory ecart credits:', error);
-    }
-  }
 
   getProductName(productId: number | null): string {
     if (productId === null) {

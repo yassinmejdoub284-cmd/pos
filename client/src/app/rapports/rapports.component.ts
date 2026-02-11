@@ -39,6 +39,9 @@ export class RapportsComponent {
       case 'etat-mvt-stock':
         this.router.navigate(['/rapports/etat-mvt-stock']);
         break;
+      case 'inventory-balance':
+        this.router.navigate(['/rapports/inventory-balance']);
+        break;
     }
   }
 

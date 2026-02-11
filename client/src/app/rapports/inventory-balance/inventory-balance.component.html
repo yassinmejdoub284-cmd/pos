@@ -7,20 +7,14 @@
         <p class="text-gray-600 mt-1">Désignation, Début, Crédit et Solde pour chaque article</p>
       </div>
       <div class="flex space-x-3">
-        <button 
-          (click)="showAddCreditModal()" 
-          class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-          </svg>
-          Ajouter Crédit
-        </button>
-        <button 
-          (click)="generateBalanceReport()" 
-          [disabled]="loading"
+
+        <button (click)="generateBalanceReport()" [disabled]="loading"
           class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center">
-          <svg class="w-4 h-4 mr-2" [class.animate-spin]="loading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          <svg class="w-4 h-4 mr-2" [class.animate-spin]="loading" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+            </path>
           </svg>
           {{ loading ? 'Génération...' : 'Actualiser' }}
         </button>
@@ -32,7 +26,9 @@
   <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
     <div class="flex">
       <svg class="w-5 h-5 text-red-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z">
+        </path>
       </svg>
       <p class="text-red-800">{{ error }}</p>
     </div>
@@ -48,9 +44,10 @@
   <div *ngIf="!loading && balanceData.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
     <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
       <h2 class="text-lg font-semibold text-gray-900">Tableau de Balance par Article</h2>
-      <p class="text-sm text-gray-600">Début = (Quantité × Prix de vente) | Crédit = Ventes + Gratuités + Bons de sortie + Différences gros | Solde = Début - Crédit</p>
+      <p class="text-sm text-gray-600">Début = (Quantité × Prix de vente) | Crédit = Ventes + Gratuités + Bons de sortie
+        + Différences gros | Solde = Début - Crédit</p>
     </div>
-    
+
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-gray-50">
@@ -62,16 +59,15 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let row of balanceData; let i = index" 
-              class="border-b border-gray-200 hover:bg-gray-50"
-              [class.bg-white]="i % 2 === 0"
-              [class.bg-gray-50]="i % 2 === 1">
+          <tr *ngFor="let row of balanceData; let i = index" class="border-b border-gray-200 hover:bg-gray-50"
+            [class.bg-white]="i % 2 === 0" [class.bg-gray-50]="i % 2 === 1">
             <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ row.designation }}</td>
-            <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-blue-600">{{ formatNumber(row.debut) }}</td>
-            <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-red-600">{{ formatNumber(row.credit) }}</td>
-            <td class="px-4 py-3 text-right font-bold text-lg" 
-                [class.text-green-600]="row.solde >= 0"
-                [class.text-red-600]="row.solde < 0">
+            <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-blue-600">{{
+              formatNumber(row.debut) }}</td>
+            <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-red-600">{{
+              formatNumber(row.credit) }}</td>
+            <td class="px-4 py-3 text-right font-bold text-lg" [class.text-green-600]="row.solde >= 0"
+              [class.text-red-600]="row.solde < 0">
               {{ formatNumber(row.solde) }}
             </td>
           </tr>
@@ -86,7 +82,7 @@
       <h2 class="text-lg font-semibold text-purple-900">Résumé Global</h2>
       <p class="text-sm text-purple-700">Totaux pour tous les produits</p>
     </div>
-    
+
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-purple-50">
@@ -100,18 +96,19 @@
         <tbody>
           <tr class="bg-purple-100 border-t-2 border-purple-300">
             <td class="px-4 py-4 text-left border-r border-purple-200 font-bold text-purple-900">TOTAL GLOBAL</td>
-            <td class="px-4 py-4 text-right border-r border-purple-200 font-bold text-blue-600 text-lg">{{ formatNumber(summary.totalDebut) }}</td>
-            <td class="px-4 py-4 text-right border-r border-purple-200 font-bold text-red-600 text-lg">{{ formatNumber(summary.totalCredit) }}</td>
-            <td class="px-4 py-4 text-right font-bold text-xl" 
-                [class.text-green-600]="summary.totalSolde >= 0"
-                [class.text-red-600]="summary.totalSolde < 0">
+            <td class="px-4 py-4 text-right border-r border-purple-200 font-bold text-blue-600 text-lg">{{
+              formatNumber(summary.totalDebut) }}</td>
+            <td class="px-4 py-4 text-right border-r border-purple-200 font-bold text-red-600 text-lg">{{
+              formatNumber(summary.totalCredit) }}</td>
+            <td class="px-4 py-4 text-right font-bold text-xl" [class.text-green-600]="summary.totalSolde >= 0"
+              [class.text-red-600]="summary.totalSolde < 0">
               {{ formatNumber(summary.totalSolde) }}
             </td>
           </tr>
         </tbody>
       </table>
     </div>
-    
+
     <!-- Summary Cards -->
     <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -132,9 +129,8 @@
         </div>
         <div class="text-center">
           <h4 class="font-semibold text-gray-900 mb-1">Solde Total</h4>
-          <p class="text-lg font-bold" 
-             [class.text-green-600]="summary.totalSolde >= 0"
-             [class.text-red-600]="summary.totalSolde < 0">
+          <p class="text-lg font-bold" [class.text-green-600]="summary.totalSolde >= 0"
+            [class.text-red-600]="summary.totalSolde < 0">
             {{ formatNumber(summary.totalSolde) }} dt
           </p>
           <p class="text-xs text-gray-500">Différence totale</p>
@@ -143,142 +139,19 @@
     </div>
   </div>
 
-  <!-- Credit Entries -->
-  <div *ngIf="creditEntries.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-    <div class="bg-orange-50 px-6 py-4 border-b border-gray-200">
-      <h2 class="text-lg font-semibold text-orange-900">Entrées de Crédit Ajoutées</h2>
-      <p class="text-sm text-orange-700">Crédits manuellement ajoutés par l'utilisateur</p>
-    </div>
-    
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-orange-50">
-          <tr>
-            <th class="px-4 py-3 text-left font-semibold text-orange-900 border-r border-orange-200">Produit</th>
-            <th class="px-4 py-3 text-center font-semibold text-orange-900 border-r border-orange-200">Type</th>
-            <th class="px-4 py-3 text-right font-semibold text-orange-900 border-r border-orange-200">Montant</th>
-            <th class="px-4 py-3 text-left font-semibold text-orange-900 border-r border-orange-200">Description</th>
-            <th class="px-4 py-3 text-center font-semibold text-orange-900 border-r border-orange-200">Date</th>
-            <th class="px-4 py-3 text-center font-semibold text-orange-900">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let entry of creditEntries; let i = index" 
-              class="border-b border-gray-200 hover:bg-gray-50"
-              [class.bg-white]="i % 2 === 0"
-              [class.bg-gray-50]="i % 2 === 1">
-            <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">
-              {{ getProductName(entry.productId) }}
-            </td>
-            <td class="px-4 py-3 text-center border-r border-gray-200">
-              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                {{ getCreditTypeLabel(entry.type) }}
-              </span>
-            </td>
-            <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-red-600">{{ formatNumber(entry.amount) }} dt</td>
-            <td class="px-4 py-3 text-left border-r border-gray-200">{{ entry.description }}</td>
-            <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatDate(entry.date) }}</td>
-            <td class="px-4 py-3 text-center">
-              <button 
-                (click)="removeCreditEntry(i)"
-                class="text-red-600 hover:text-red-800 transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+
 
   <!-- No Data Message -->
-  <div *ngIf="!loading && balanceData.length === 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+  <div *ngIf="!loading && balanceData.length === 0"
+    class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
     <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+      </path>
     </svg>
     <h3 class="text-lg font-semibold text-gray-900 mb-2">Aucune donnée trouvée</h3>
     <p class="text-gray-600">Aucun produit trouvé pour générer le rapport de balance.</p>
   </div>
 
-  <!-- Add Credit Modal -->
-  <div *ngIf="showAddCreditForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">Ajouter une Entrée de Crédit</h3>
-      </div>
-      
-      <form (ngSubmit)="addCreditEntry()" class="px-6 py-4 space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Produit</label>
-          <select 
-            [(ngModel)]="newCredit.productId" 
-            name="productId"
-            class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            <option value="">Sélectionner un produit...</option>
-            <option *ngFor="let product of products" [value]="product.id">
-              {{ product.name }}
-            </option>
-          </select>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Type de Crédit</label>
-          <select 
-            [(ngModel)]="newCredit.type" 
-            name="type"
-            class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            <option value="SALE">Vente</option>
-            <option value="FREE_ITEM">Gratuité</option>
-            <option value="EXIT_VOUCHER">Bon de sortie</option>
-            <option value="WHOLESALE_DIFFERENCE">Différence gros</option>
-          </select>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Montant (dt)</label>
-          <input 
-            type="number" 
-            [(ngModel)]="newCredit.amount" 
-            name="amount"
-            step="0.01"
-            min="0"
-            class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-          <textarea 
-            [(ngModel)]="newCredit.description" 
-            name="description"
-            rows="3"
-            class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
-          <input 
-            type="date" 
-            [(ngModel)]="newCredit.date" 
-            name="date"
-            class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        
-        <div class="flex justify-end space-x-3 pt-4">
-          <button 
-            type="button" 
-            (click)="hideAddCreditModal()"
-            class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-            Annuler
-          </button>
-          <button 
-            type="submit"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            Ajouter
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
+
 </div>

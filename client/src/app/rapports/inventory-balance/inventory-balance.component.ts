@@ -16,14 +16,7 @@ export interface InventoryBalanceRow {
   solde: number; // debut - credit
 }
 
-export interface CreditEntry {
-  id?: number;
-  productId: number;
-  amount: number;
-  type: 'SALE' | 'FREE_ITEM' | 'EXIT_VOUCHER' | 'WHOLESALE_DIFFERENCE';
-  description: string;
-  date: Date;
-}
+
 
 export interface InventoryBalanceSummary {
   totalProducts: number;
@@ -43,21 +36,14 @@ export class InventoryBalanceReportComponent implements OnInit {
   products: Product[] = [];
   balanceData: InventoryBalanceRow[] = [];
   summary: InventoryBalanceSummary | null = null;
-  creditEntries: CreditEntry[] = [];
+
   
   // UI state
   loading = false;
   error = '';
-  showAddCreditForm = false;
+
   
-  // Form for adding credit
-  newCredit: CreditEntry = {
-    productId: 0,
-    amount: 0,
-    type: 'SALE',
-    description: '',
-    date: new Date()
-  };
+
 
   constructor(
     private http: HttpClient,
@@ -209,69 +195,11 @@ export class InventoryBalanceReportComponent implements OnInit {
     };
   }
 
-  showAddCreditModal(): void {
-    this.showAddCreditForm = true;
-    this.newCredit = {
-      productId: 0,
-      amount: 0,
-      type: 'SALE',
-      description: '',
-      date: new Date()
-    };
-  }
 
-  hideAddCreditModal(): void {
-    this.showAddCreditForm = false;
-  }
 
-  addCreditEntry(): void {
-    if (!this.newCredit.productId || !this.newCredit.amount || !this.newCredit.description) {
-      this.error = 'Veuillez remplir tous les champs obligatoires';
-      return;
-    }
 
-    // Add the credit entry
-    this.creditEntries.push({ ...this.newCredit });
-    
-    // Update the balance for the affected product
-    const productIndex = this.balanceData.findIndex(row => row.productId === this.newCredit.productId);
-    if (productIndex !== -1) {
-      this.balanceData[productIndex].credit += this.newCredit.amount;
-      this.balanceData[productIndex].solde = this.balanceData[productIndex].debut - this.balanceData[productIndex].credit;
-    }
-    
-    // Recalculate summary
-    this.summary = this.calculateSummary(this.balanceData);
-    
-    this.hideAddCreditModal();
-  }
 
-  removeCreditEntry(index: number): void {
-    const entry = this.creditEntries[index];
-    
-    // Update the balance for the affected product
-    const productIndex = this.balanceData.findIndex(row => row.productId === entry.productId);
-    if (productIndex !== -1) {
-      this.balanceData[productIndex].credit -= entry.amount;
-      this.balanceData[productIndex].solde = this.balanceData[productIndex].debut - this.balanceData[productIndex].credit;
-    }
-    
-    // Remove the entry
-    this.creditEntries.splice(index, 1);
-    
-    // Recalculate summary
-    this.summary = this.calculateSummary(this.balanceData);
-  }
 
-  getCreditTypeLabel(type: string): string {
-    const labels: { [key: string]: string } = {
-      'SALE': 'Vente',
-      'FREE_ITEM': 'Gratuité',
-      'EXIT_VOUCHER': 'Bon de sortie',
-      'WHOLESALE_DIFFERENCE': 'Différence gros'
-    };
-    return labels[type] || type;
-  }
 
   formatNumber(value: number): string {
     return value.toLocaleString('fr-FR', { 

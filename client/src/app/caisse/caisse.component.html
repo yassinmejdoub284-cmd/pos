@@ -131,7 +131,21 @@
         </div>
       </div>
 
-      <div class="p-2 bg-white/90 rounded-xl border border-blue-200/60 shadow-lg grow">
+      <div class="p-2 bg-white/90 rounded-xl border border-blue-200/60 shadow-lg grow relative">
+        <!-- Pagination Arrows - Centered relative to the whole container -->
+        <button title="Page précédente" *ngIf="currentPage > 0" (click)="goToPreviousPage()"
+          class="absolute -left-4 top-1/2 -translate-y-1/2 -translate-x-2 z-30 bg-white text-gray-700 p-2 sm:p-3 rounded-full transition-all shadow-lg border border-blue-200 hover:bg-gray-50">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+        </button>
+
+        <button title="Page suivante" *ngIf="currentPage < totalPages - 1" (click)="goToNextPage()"
+          class="absolute -right-4 top-1/2 -translate-y-1/2 translate-x-2 z-30 bg-white text-gray-700 p-2 sm:p-3 rounded-full transition-all shadow-lg border border-blue-200 hover:bg-gray-50">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </button>
         <!-- Categories -->
         <div class="mb-4">
           <!-- Quick Filter Buttons -->
@@ -181,21 +195,6 @@
 
         <!-- Products Grid with Pagination -->
         <div class="relative">
-          <!-- Left Arrow - Absolute positioned relative to outer container -->
-          <button title="Page précédente" *ngIf="currentPage > 0" (click)="goToPreviousPage()"
-            class="absolute -left-4 top-1/2 -translate-y-1/2 -translate-x-2 z-10 bg-white text-gray-700 p-2 sm:p-3 rounded-full transition-all shadow-lg border border-blue-200">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
-          </button>
-
-          <!-- Right Arrow - Absolute positioned relative to outer container -->
-          <button title="Page suivante" *ngIf="currentPage < totalPages - 1" (click)="goToNextPage()"
-            class="absolute -right-4 top-1/2 -translate-y-1/2 translate-x-2 z-10 bg-white text-gray-700 p-2 sm:p-3 rounded-full transition-all shadow-lg border border-blue-200">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
-          </button>
 
           <!-- Scrollable Products Grid Container -->
           <div class="overflow-y-auto max-h-[calc(100vh-210px)] product-grid-container" (keydown)="onKeyDown($event)"

@@ -1,110 +1,80 @@
-/* Custom styles for ETAT MVT STOCK report */
-
-.report-table {
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
+/* Modern Scrollbar Styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.ticket-row {
-  background-color: #fef3c7 !important; /* yellow-100 */
-  border-left: 3px solid #f59e0b; /* yellow-500 */
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f8fafc;
 }
 
-.opening-row {
-  background-color: #f3f4f6 !important; /* gray-100 */
-  font-weight: 600;
-  border-left: 3px solid #6b7280; /* gray-500 */
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
 }
 
-.merged-notes-cell {
-  background-color: #dbeafe; /* blue-100 */
-  border: 1px solid #3b82f6; /* blue-500 */
-  padding: 8px;
-  font-size: 10px;
-  line-height: 1.2;
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-/* Ensure proper alignment for numeric columns */
+/* Numeric alignment and spacing */
 .numeric-cell {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  letter-spacing: -0.025em;
 }
 
-/* Header styling */
-.report-header {
-  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-  color: white;
-}
-
-/* Filter input styling */
-.filter-input {
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 11px;
-}
-
-.filter-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
-}
-
-/* Export button styling */
-.export-btn {
-  transition: all 0.2s ease-in-out;
-}
-
-.export-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Loading spinner */
-.loading-spinner {
-  border: 3px solid #f3f4f6;
-  border-top: 3px solid #3b82f6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .report-table {
-    font-size: 10px;
-  }
-  
-  .grid-cols-12 {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-  }
-}
-
-/* Print styles */
+/* Print optimizations */
 @media print {
   .no-print {
     display: none !important;
   }
   
-  .report-table {
-    font-size: 10px;
-    color: black !important;
+  .max-h-\[calc\(100vh-320px\)\] {
+    max-height: none !important;
+    overflow: visible !important;
   }
   
-  .ticket-row {
-    background-color: #fef3c7 !important;
+  body {
+    background: white !important;
+  }
+  
+  .bg-slate-50 {
+    background-color: #f8fafc !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   
-  .opening-row {
-    background-color: #f3f4f6 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  table {
+    page-break-inside: auto;
+  }
+  
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
   }
 }
 
+/* Smooth row transitions */
+tr {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Improved focus states */
+input:focus {
+  outline: none;
+}
+
+/* Badge-like behavior for groups */
+.group-header {
+  position: relative;
+}
+
+.group-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+}

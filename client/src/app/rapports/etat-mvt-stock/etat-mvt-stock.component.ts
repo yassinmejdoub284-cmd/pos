@@ -60,6 +60,7 @@ interface ReportRow {
   date: string;
   reference: string;
   movementId: number;
+  id: string; // Unique ID for tracking
 }
 
 interface InventoryData {
@@ -97,17 +98,45 @@ export class EtatMvtStockComponent implements OnInit {
   // Loading state
   isLoading = signal<boolean>(false);
   
-  // Computed filtered rows
+  // Reactive limit for "Infinite Scroll" behavior
+  displayLimit = signal<number>(200);
+
+  // Computed filtered rows with efficiency and performance limits
   computedFilteredRows = computed(() => {
     const rows = this.reportRows();
-    const dateFilter = this.dateFilter();
-    const articleFilter = this.articleFilter();
+    const dateFilter = this.dateFilter().toLowerCase();
+    const articleFilter = this.articleFilter().toLowerCase();
+    const limit = this.displayLimit();
     
-    return rows.filter(row => {
-      const dateMatch = !dateFilter || row.datePj.toLowerCase().includes(dateFilter.toLowerCase());
-      const articleMatch = !articleFilter || row.article.toLowerCase().includes(articleFilter.toLowerCase());
-      return dateMatch && articleMatch;
-    });
+    let filtered = rows;
+    if (dateFilter || articleFilter) {
+      filtered = rows.filter(row => {
+        const dateMatch = !dateFilter || row.datePj.toLowerCase().includes(dateFilter);
+        const articleMatch = !articleFilter || row.article.toLowerCase().includes(articleFilter);
+        return dateMatch && articleMatch;
+      });
+    }
+
+    // Limit the number of items rendered to prevent browser lag
+    return filtered.slice(0, limit);
+  });
+
+  // Check if there are more items to show
+  hasMoreItems = computed(() => {
+    const rows = this.reportRows();
+    const dateFilter = this.dateFilter().toLowerCase();
+    const articleFilter = this.articleFilter().toLowerCase();
+    
+    let totalCount = rows.length;
+    if (dateFilter || articleFilter) {
+      totalCount = rows.filter(row => {
+        const dateMatch = !dateFilter || row.datePj.toLowerCase().includes(dateFilter);
+        const articleMatch = !articleFilter || row.article.toLowerCase().includes(articleFilter);
+        return dateMatch && articleMatch;
+      }).length;
+    }
+
+    return totalCount > this.displayLimit();
   });
 
   private readonly printService = inject(PrintService);
@@ -339,7 +368,8 @@ export class EtatMvtStockComponent implements OnInit {
       date: '',
       reference: 'MOUVEMENT',
       movementId: 0,
-      isOpening: true
+      isOpening: true,
+      id: `opening-${productId}-${depotId}`
     };
     allRows.push(openingRow);
     
@@ -348,7 +378,7 @@ export class EtatMvtStockComponent implements OnInit {
     let runningValue = openingQty * openingCump;
     let cump = openingCump;
     
-    productMovements.forEach(movement => {
+    productMovements.forEach((movement, idx) => {
       const row = this.processMovement(movement, runningQty, runningValue, cump);
       
       // Update running balance
@@ -368,6 +398,7 @@ export class EtatMvtStockComponent implements OnInit {
       row.stockQte = runningQty;
       row.stockPu = cump;
       row.stockTotal = runningQty * cump;
+      row.id = `mvt-${movement.id}-${idx}`;
       
       allRows.push(row);
     });
@@ -455,7 +486,8 @@ export class EtatMvtStockComponent implements OnInit {
         date: date.toISOString(),
         reference: 'CLOTURE',
         movementId: 0,
-        isOpening: false
+        isOpening: false,
+        id: `closure-${productId}-${depotId}-${date.getTime()}`
       };
       
       allRows.push(consolidatedRow);
@@ -493,7 +525,8 @@ export class EtatMvtStockComponent implements OnInit {
       date: movement.date,
       reference: movement.reference || '',
       movementId: movement.id,
-      isTicket: rowType === 'TICKET'
+      isTicket: rowType === 'TICKET',
+      id: `mvt-${movement.id}`
     };
     
     if (movement.type === 'IN') {
@@ -575,6 +608,10 @@ export class EtatMvtStockComponent implements OnInit {
     const current = { ...this.collapsedGroups() };
     current[key] = !current[key];
     this.collapsedGroups.set(current);
+  }
+
+  loadMore() {
+    this.displayLimit.update(n => n + 300);
   }
 
   isGroupCollapsed(productId: number, depotId: number): boolean {

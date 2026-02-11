@@ -19,21 +19,23 @@
           <div class="flex items-center mb-3">
             <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
               <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
               </svg>
             </div>
             <h3 class="text-sm font-semibold text-gray-800">Mode de Plage</h3>
           </div>
           <div class="flex flex-col space-y-2">
-            <button type="button" 
-                    (click)="rangeMode = 'DATE'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+            <button type="button" (click)="rangeMode = 'DATE'"
+              [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
                              (rangeMode === 'DATE' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
                               (rangeMode === 'DATE' ? 'bg-white/20' : 'bg-blue-100')">
-                  <svg class="w-3 h-3" [class]="rangeMode === 'DATE' ? 'text-white' : 'text-blue-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  <svg class="w-3 h-3" [class]="rangeMode === 'DATE' ? 'text-white' : 'text-blue-600'" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3"></path>
                   </svg>
                 </div>
@@ -42,16 +44,18 @@
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
                             (rangeMode === 'DATE' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
-            
-            <button type="button" 
-                    (click)="rangeMode = 'INVENTORY'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+
+            <button type="button" (click)="rangeMode = 'INVENTORY'"
+              [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
                              (rangeMode === 'INVENTORY' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
                               (rangeMode === 'INVENTORY' ? 'bg-white/20' : 'bg-blue-100')">
-                  <svg class="w-3 h-3" [class]="rangeMode === 'INVENTORY' ? 'text-white' : 'text-blue-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                  <svg class="w-3 h-3" [class]="rangeMode === 'INVENTORY' ? 'text-white' : 'text-blue-600'" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+                    </path>
                   </svg>
                 </div>
                 <span class="font-medium text-sm">Inventaire → Inventaire</span>
@@ -59,16 +63,17 @@
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
                             (rangeMode === 'INVENTORY' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
-            
-            <button type="button" 
-                    (click)="rangeMode = 'LAST_INVENTORY'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+
+            <button type="button" (click)="rangeMode = 'LAST_INVENTORY'"
+              [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
                              (rangeMode === 'LAST_INVENTORY' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
                               (rangeMode === 'LAST_INVENTORY' ? 'bg-white/20' : 'bg-blue-100')">
-                  <svg class="w-3 h-3" [class]="rangeMode === 'LAST_INVENTORY' ? 'text-white' : 'text-blue-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  <svg class="w-3 h-3" [class]="rangeMode === 'LAST_INVENTORY' ? 'text-white' : 'text-blue-600'"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                 </div>
                 <span class="font-medium text-sm">Dernier → Avant Dernier</span>
@@ -84,21 +89,24 @@
           <div class="flex items-center mb-3">
             <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center mr-3">
               <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z">
+                </path>
               </svg>
             </div>
             <h3 class="text-sm font-semibold text-gray-800">Portée</h3>
           </div>
           <div class="flex flex-col space-y-2">
-            <button type="button" 
-                    (click)="scope = 'ONE_PRODUCT'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+            <button type="button" (click)="scope = 'ONE_PRODUCT'"
+              [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
                              (scope === 'ONE_PRODUCT' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-500 shadow-lg shadow-green-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
                               (scope === 'ONE_PRODUCT' ? 'bg-white/20' : 'bg-green-100')">
-                  <svg class="w-3 h-3" [class]="scope === 'ONE_PRODUCT' ? 'text-white' : 'text-green-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                  <svg class="w-3 h-3" [class]="scope === 'ONE_PRODUCT' ? 'text-white' : 'text-green-600'" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                   </svg>
                 </div>
                 <span class="font-medium text-sm">Un Produit</span>
@@ -106,16 +114,18 @@
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
                             (scope === 'ONE_PRODUCT' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
-            
-            <button type="button" 
-                    (click)="scope = 'ONE_CATEGORY'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+
+            <button type="button" (click)="scope = 'ONE_CATEGORY'"
+              [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
                              (scope === 'ONE_CATEGORY' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-500 shadow-lg shadow-green-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
                               (scope === 'ONE_CATEGORY' ? 'bg-white/20' : 'bg-green-100')">
-                  <svg class="w-3 h-3" [class]="scope === 'ONE_CATEGORY' ? 'text-white' : 'text-green-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                  <svg class="w-3 h-3" [class]="scope === 'ONE_CATEGORY' ? 'text-white' : 'text-green-600'" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z">
+                    </path>
                   </svg>
                 </div>
                 <span class="font-medium text-sm">Une Catégorie</span>
@@ -123,16 +133,18 @@
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
                             (scope === 'ONE_CATEGORY' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
-            
-            <button type="button" 
-                    (click)="scope = 'ALL_PRODUCTS'"
-                    [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+
+            <button type="button" (click)="scope = 'ALL_PRODUCTS'"
+              [class]="'group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
                              (scope === 'ALL_PRODUCTS' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white border-green-500 shadow-lg shadow-green-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
                               (scope === 'ALL_PRODUCTS' ? 'bg-white/20' : 'bg-green-100')">
-                  <svg class="w-3 h-3" [class]="scope === 'ALL_PRODUCTS' ? 'text-white' : 'text-green-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                  <svg class="w-3 h-3" [class]="scope === 'ALL_PRODUCTS' ? 'text-white' : 'text-green-600'" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                    </path>
                   </svg>
                 </div>
                 <span class="font-medium text-sm">Tous les Produits</span>
@@ -148,21 +160,25 @@
           <div class="flex items-center mb-3">
             <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center mr-3">
               <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z">
+                </path>
               </svg>
             </div>
             <h3 class="text-sm font-semibold text-gray-800">Mode de Valorisation</h3>
           </div>
           <div class="flex items-center w-full gap-2">
-            <button type="button" 
-                    (click)="valuationMode = 'CUMP'"
-                    [class]="'grow group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+            <button type="button" (click)="valuationMode = 'CUMP'"
+              [class]="'grow group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
                              (valuationMode === 'CUMP' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-500 shadow-lg shadow-purple-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
                               (valuationMode === 'CUMP' ? 'bg-white/20' : 'bg-purple-100')">
-                  <svg class="w-3 h-3" [class]="valuationMode === 'CUMP' ? 'text-white' : 'text-purple-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
+                  <svg class="w-3 h-3" [class]="valuationMode === 'CUMP' ? 'text-white' : 'text-purple-600'" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3">
+                    </path>
                   </svg>
                 </div>
                 <span class="font-medium text-sm">CUMP</span>
@@ -170,16 +186,17 @@
               <div [class]="'w-2 h-2 rounded-full transition-all ' + 
                             (valuationMode === 'CUMP' ? 'bg-white' : 'bg-transparent')"></div>
             </button>
-            
-            <button type="button" 
-                    (click)="valuationMode = 'FIFO'"
-                    [class]="'grow group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
+
+            <button type="button" (click)="valuationMode = 'FIFO'"
+              [class]="'grow group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-300 transform ' + 
                              (valuationMode === 'FIFO' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-500 shadow-lg shadow-purple-200' : 'bg-white text-gray-700 border-gray-200')">
               <div class="flex items-center">
                 <div [class]="'w-6 h-6 rounded-lg flex items-center justify-center mr-3 transition-colors ' + 
                               (valuationMode === 'FIFO' ? 'bg-white/20' : 'bg-purple-100')">
-                  <svg class="w-3 h-3" [class]="valuationMode === 'FIFO' ? 'text-white' : 'text-purple-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path>
+                  <svg class="w-3 h-3" [class]="valuationMode === 'FIFO' ? 'text-white' : 'text-purple-600'" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path>
                   </svg>
                 </div>
                 <span class="font-medium text-sm">FIFO</span>
@@ -194,58 +211,59 @@
               <div>
                 <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
                   <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                   </svg>
                   Date de Début
                 </label>
                 <div class="relative">
-                  <input 
-                    type="date" 
-                    [(ngModel)]="startDate" 
-                    title="Date de début"
+                  <input type="date" [(ngModel)]="startDate" title="Date de début"
                     class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200">
                 </div>
               </div>
               <div>
                 <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
                   <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                   Date de Fin
                 </label>
                 <div class="relative">
-                  <input 
-                    type="date" 
-                    [(ngModel)]="endDate" 
-                    title="Date de fin"
+                  <input type="date" [(ngModel)]="endDate" title="Date de fin"
                     class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200">
                 </div>
               </div>
             </div>
-    
+
             <!-- Inventory Range -->
             <div *ngIf="rangeMode === 'INVENTORY'" class="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-2">
               <div>
                 <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
                   <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                    </path>
                   </svg>
                   Inventaire de Début
                 </label>
                 <div class="relative">
-                  <select 
-                    [(ngModel)]="startInventoryId" 
-                    title="Inventaire de début"
+                  <select [(ngModel)]="startInventoryId" title="Inventaire de début"
                     class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 appearance-none bg-white">
                     <option value="">Sélectionner...</option>
                     <option *ngFor="let session of inventorySessions" [value]="session.id">
                       {{ session.numero }} - {{ formatDate(session.createdAt) }}
                     </option>
                   </select>
-                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                    </path>
                   </svg>
-                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                   </svg>
                 </div>
@@ -253,45 +271,46 @@
               <div>
                 <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
                   <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                   Inventaire de Fin
                 </label>
                 <div class="relative">
-                  <select 
-                    [(ngModel)]="endInventoryId" 
-                    title="Inventaire de fin"
+                  <select [(ngModel)]="endInventoryId" title="Inventaire de fin"
                     class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 appearance-none bg-white">
                     <option value="">Sélectionner...</option>
                     <option *ngFor="let session of inventorySessions" [value]="session.id">
                       {{ session.numero }} - {{ formatDate(session.createdAt) }}
                     </option>
                   </select>
-                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
-                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                   </svg>
                 </div>
               </div>
             </div>
-            
+
             <!-- Inventory List with Execute Stock Button -->
             <div class="mt-6">
               <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                 <h3 class="text-sm font-semibold text-gray-800 mb-3">Inventaires Disponibles</h3>
                 <div class="space-y-2 max-h-60 overflow-y-auto">
-                  <div *ngFor="let session of inventorySessions" 
-                       class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+                  <div *ngFor="let session of inventorySessions"
+                    class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
                     <div class="flex-1">
                       <span class="text-sm font-medium text-gray-900">{{ session.numero }}</span>
                       <span class="text-xs text-gray-500 ml-2">{{ formatDate(session.createdAt) }}</span>
                       <span *ngIf="session.depot" class="text-xs text-gray-500 ml-2">- {{ session.depot.name }}</span>
                     </div>
-                    <button 
-                      (click)="executerEnStock(session.id)"
-                      [disabled]="loading"
+                    <button (click)="executerEnStock(session.id)" [disabled]="loading"
                       class="ml-3 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors">
                       Executer en stock
                     </button>
@@ -299,59 +318,67 @@
                 </div>
               </div>
             </div>
-    
+
             <!-- Product Selection -->
             <div *ngIf="scope === 'ONE_PRODUCT'" class="space-y-4">
               <div>
                 <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
                   <svg class="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                   </svg>
                   Produit
                 </label>
                 <div class="relative">
-                  <select 
-                    [(ngModel)]="selectedProductId" 
-                    title="Sélectionner un produit"
+                  <select [(ngModel)]="selectedProductId" title="Sélectionner un produit"
                     class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 appearance-none bg-white">
                     <option value="">Sélectionner un produit...</option>
                     <option *ngFor="let product of products" [value]="product.id">
                       {{ product.name }}
                     </option>
                   </select>
-                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                   </svg>
-                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                   </svg>
                 </div>
               </div>
             </div>
-    
+
             <!-- Category Selection -->
             <div *ngIf="scope === 'ONE_CATEGORY'" class="space-y-4">
               <div>
                 <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
                   <svg class="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z">
+                    </path>
                   </svg>
                   Catégorie
                 </label>
                 <div class="relative">
-                  <select 
-                    [(ngModel)]="selectedCategoryId" 
-                    title="Sélectionner une catégorie"
+                  <select [(ngModel)]="selectedCategoryId" title="Sélectionner une catégorie"
                     class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 appearance-none bg-white">
                     <option value="">Sélectionner une catégorie...</option>
                     <option *ngFor="let category of categories" [value]="category.id">
                       {{ category.name }}
                     </option>
                   </select>
-                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z">
+                    </path>
                   </svg>
-                  <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                   </svg>
                 </div>
@@ -366,7 +393,9 @@
         <div class="flex items-center mb-3">
           <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center mr-3">
             <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+              </path>
             </svg>
           </div>
           <h3 class="text-sm font-semibold text-gray-800">Sélection du Dépôt</h3>
@@ -374,21 +403,22 @@
         <div class="max-w-md">
           <label class="flex items-center text-sm font-medium text-gray-700 mb-2">
             <svg class="w-4 h-4 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
+              </path>
             </svg>
             Dépôt
           </label>
           <div class="relative">
-            <select 
-              [(ngModel)]="depotId" 
-              title="Sélectionner un dépôt"
+            <select [(ngModel)]="depotId" title="Sélectionner un dépôt"
               class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 pl-10 pr-10 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 appearance-none bg-white">
               <option [ngValue]="null">Sélectionner un dépôt...</option>
               <option *ngFor="let depot of depots" [ngValue]="depot.id">
                 {{ depot.name }} {{ depot.code ? '(' + depot.code + ')' : '' }}
               </option>
             </select>
-            <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
           </div>
@@ -397,30 +427,16 @@
 
       <!-- Actions -->
       <div class="flex items-center justify-between mt-6 pt-6 border-t border-gray-200">
-        <div class="text-sm text-gray-600">
-          <p><strong>Pourquoi ce rapport ?</strong></p>
-          <p>Un tableau unique pour récapituler les achats et ventes au coût pour la portée et période sélectionnées — pour réconcilier COGS, mouvements et stock final.</p>
-          <p>Choisissez CUMP ou FIFO pour correspondre à la politique comptable. Ce n'est pas une feuille de marge de vente ; le Solde est toujours au coût.</p>
-        </div>
         <div class="flex space-x-3">
-          <button 
-            (click)="generateReport()" 
-            [disabled]="loading"
+          <button (click)="generateReport()" [disabled]="loading"
             class="bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg transform disabled:transform-none flex items-center">
-            <svg class="w-4 h-4 mr-2" [class.animate-spin]="loading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+            <svg class="w-4 h-4 mr-2" [class.animate-spin]="loading" fill="none" stroke="currentColor"
+              viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z">
+              </path>
             </svg>
             {{ loading ? 'Génération...' : 'Générer le Rapport' }}
-          </button>
-          
-          <button 
-            (click)="saveInventoryToReleveInventaire()" 
-            [disabled]="loading"
-            class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg transform disabled:transform-none flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
-            </svg>
-            Sauvegarder Inventaire
           </button>
         </div>
       </div>
@@ -430,7 +446,9 @@
     <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
       <div class="flex">
         <svg class="w-5 h-5 text-red-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z">
+          </path>
         </svg>
         <p class="text-red-800">{{ error }}</p>
       </div>
@@ -440,7 +458,8 @@
     <div *ngIf="success" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
       <div class="flex">
         <svg class="w-5 h-5 text-green-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
         <p class="text-green-800">{{ success }}</p>
       </div>
@@ -456,256 +475,297 @@
               <h2 class="text-xl font-bold text-gray-900">📊 Tableau de Réconciliation Inventaire & Ventes</h2>
               <p class="text-sm text-gray-600">Données détaillées de réconciliation pour tous les produits</p>
             </div>
-            <button 
-              (click)="toggleReconciliationTable()"
+            <button (click)="toggleReconciliationTable()"
               class="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-              <svg class="w-4 h-4 transition-transform duration-200" 
-                   [class.rotate-180]="!isReconciliationTableCollapsed"
-                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4 transition-transform duration-200"
+                [class.rotate-180]="!isReconciliationTableCollapsed" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
               <span>{{ isReconciliationTableCollapsed ? 'Afficher' : 'Masquer' }}</span>
             </button>
           </div>
         </div>
-        
+
         <!-- Reconciliation Table Content -->
         <div *ngIf="!isReconciliationTableCollapsed">
           <div *ngFor="let data of reconciliationData" class="border-t border-gray-200">
-        <!-- Product Header -->
-        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900">{{ data.productName }}</h3>
-          <p class="text-sm text-gray-600">Produit ID: {{ data.productId }}</p>
-          <div *ngIf="data.rows.length === 0" class="text-xs text-orange-600 mt-1">
-            ⚠️ Aucun mouvement trouvé pour cette période
-          </div>
-        </div>
+            <!-- Product Header -->
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900">{{ data.productName }}</h3>
+              <p class="text-sm text-gray-600">Produit ID: {{ data.productId }}</p>
+              <div *ngIf="data.rows.length === 0" class="text-xs text-orange-600 mt-1">
+                ⚠️ Aucun mouvement trouvé pour cette période
+              </div>
+            </div>
 
-        <!-- Multi-level Table -->
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <!-- Multi-level Header -->
-            <thead class="bg-gray-50">
-              <!-- Level 1: Main Groups -->
-              <tr>
-                <th rowspan="2" class="px-4 py-3 text-left font-semibold text-gray-900 border-r border-gray-200">Date</th>
-                <th rowspan="2" class="px-4 py-3 text-left font-semibold text-gray-900 border-r border-gray-200">Désignation</th>
-                <th colspan="3" class="px-4 py-3 text-center font-semibold text-gray-900 border-r border-gray-200">ACHAT</th>
-                <th colspan="3" class="px-4 py-3 text-center font-semibold text-gray-900">VENTE</th>
-              </tr>
-              <!-- Level 2: Individual Columns -->
-              <tr>
-                <!-- Achat Entrée -->
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Qté</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">P.U</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Totale</th>
-                <!-- Vente Sortie -->
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Qté</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">P.U</th>
-                <th class="px-2 py-2 text-center font-medium text-gray-600">Totale</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let row of data.rows; let i = index" 
-                  class="border-b border-gray-200"
-                  [class.bg-white]="i % 2 === 0"
-                  [class.bg-gray-50]="i % 2 === 1">
-                <td class="px-4 py-3 text-left border-r border-gray-200">{{ formatDate(row.date) }}</td>
-                <td class="px-4 py-3 text-left border-r border-gray-200">
-                  <div class="flex items-center space-x-2">
-                    <span>{{ row.designation }}</span>
-                    <span *ngIf="row.isWholesale" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                      <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                      </svg>
-                      GROS
-                    </span>
-                    <span *ngIf="row.isGift" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
-                      </svg>
-                      CADEAU
-                    </span>
+            <!-- Multi-level Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <!-- Multi-level Header -->
+                <thead class="bg-gray-50">
+                  <!-- Level 1: Main Groups -->
+                  <tr>
+                    <th rowspan="2" class="px-4 py-3 text-left font-semibold text-gray-900 border-r border-gray-200">
+                      Date</th>
+                    <th rowspan="2" class="px-4 py-3 text-left font-semibold text-gray-900 border-r border-gray-200">
+                      Désignation</th>
+                    <th colspan="3" class="px-4 py-3 text-center font-semibold text-gray-900 border-r border-gray-200">
+                      ACHAT</th>
+                    <th colspan="3" class="px-4 py-3 text-center font-semibold text-gray-900">VENTE</th>
+                  </tr>
+                  <!-- Level 2: Individual Columns -->
+                  <tr>
+                    <!-- Achat Entrée -->
+                    <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Qté</th>
+                    <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">P.U</th>
+                    <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Totale</th>
+                    <!-- Vente Sortie -->
+                    <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">Qté</th>
+                    <th class="px-2 py-2 text-center font-medium text-gray-600 border-r border-gray-200">P.U</th>
+                    <th class="px-2 py-2 text-center font-medium text-gray-600">Totale</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of data.rows; let i = index" class="border-b border-gray-200"
+                    [class.bg-white]="i % 2 === 0" [class.bg-gray-50]="i % 2 === 1">
+                    <td class="px-4 py-3 text-left border-r border-gray-200">{{ formatDate(row.date) }}</td>
+                    <td class="px-4 py-3 text-left border-r border-gray-200">
+                      <div class="flex items-center space-x-2">
+                        <span>{{ row.designation }}</span>
+                        <span *ngIf="row.isWholesale"
+                          class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                          <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                          </svg>
+                          GROS
+                        </span>
+                        <span *ngIf="row.isGift"
+                          class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7">
+                            </path>
+                          </svg>
+                          CADEAU
+                        </span>
+                      </div>
+                    </td>
+
+                    <!-- Achat Entrée -->
+                    <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatQuantity(row.achat.entree.qty) }}
+                    </td>
+                    <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.achat.entree.pu) }}
+                    </td>
+                    <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.achat.entree.totale)
+                      }}</td>
+
+                    <!-- Vente Sortie -->
+                    <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatQuantity(row.vente.sortie.qty) }}
+                    </td>
+                    <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.vente.sortie.pu) }}
+                    </td>
+                    <td class="px-2 py-3 text-right">{{ formatNumber(row.vente.sortie.totale) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- No Data Message -->
+              <div *ngIf="data.rows.length === 0" class="text-center py-8 text-gray-500">
+                <svg class="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                  </path>
+                </svg>
+                <p class="text-lg font-medium">Aucun mouvement trouvé</p>
+                <p class="text-sm">Ce produit n'a pas de mouvements d'achat ou de vente pour la période sélectionnée</p>
+              </div>
+            </div>
+
+            <!-- Summary Footer -->
+            <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <h4 class="font-semibold text-gray-900 mb-2">Achat Entrée</h4>
+                  <p class="text-gray-600">Qté: {{ formatQuantity(data.summary.totalAchatEntree.qty) }}</p>
+                  <p class="text-gray-600">Total: {{ formatNumber(data.summary.totalAchatEntree.totale) }} dt</p>
+                </div>
+                <div>
+                  <h4 class="font-semibold text-gray-900 mb-2">Achat Sortie</h4>
+                  <p class="text-gray-600">Qté: {{ formatQuantity(data.summary.totalAchatSortie.qty) }}</p>
+                  <p class="text-gray-600">Total: {{ formatNumber(data.summary.totalAchatSortie.totale) }} dt</p>
+                </div>
+                <div>
+                  <h4 class="font-semibold text-gray-900 mb-2">Vente Sortie</h4>
+                  <p class="text-gray-600">Qté: {{ formatQuantity(data.summary.totalVenteSortie.qty) }}</p>
+                  <p class="text-gray-600">Total: {{ formatNumber(data.summary.totalVenteSortie.totale) }} dt</p>
+                </div>
+                <div>
+                  <h4 class="font-semibold text-gray-900 mb-2">Stock Final</h4>
+                  <p class="text-gray-600">Qté: {{ formatQuantity(data.summary.endingStock.qty) }}</p>
+                  <p class="text-gray-600">Valeur: {{ formatNumber(data.summary.endingStock.value) }} dt</p>
+                  <p class="text-gray-600">P.U: {{ formatNumber(data.summary.endingStock.pu) }} dt</p>
+                </div>
+              </div>
+              <div class="mt-4 pt-4 border-t border-gray-200">
+                <div class="flex justify-between items-center">
+                  <div>
+                    <span class="font-semibold text-gray-900">COGS ({{ valuationMode }}):</span>
+                    <span class="ml-2 text-lg font-bold text-blue-600">{{ formatNumber(data.summary.cogs) }} dt</span>
                   </div>
-                </td>
-                
-                <!-- Achat Entrée -->
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatQuantity(row.achat.entree.qty) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.achat.entree.pu) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.achat.entree.totale) }}</td>
-                
-                <!-- Vente Sortie -->
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatQuantity(row.vente.sortie.qty) }}</td>
-                <td class="px-2 py-3 text-right border-r border-gray-200">{{ formatNumber(row.vente.sortie.pu) }}</td>
-                <td class="px-2 py-3 text-right">{{ formatNumber(row.vente.sortie.totale) }}</td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <!-- No Data Message -->
-          <div *ngIf="data.rows.length === 0" class="text-center py-8 text-gray-500">
-            <svg class="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-            </svg>
-            <p class="text-lg font-medium">Aucun mouvement trouvé</p>
-            <p class="text-sm">Ce produit n'a pas de mouvements d'achat ou de vente pour la période sélectionnée</p>
-          </div>
-        </div>
+                  <div class="text-sm text-gray-600">
+                    Mode de valorisation: {{ getValuationModeLabel(valuationMode) }}
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        <!-- Summary Footer -->
-        <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <h4 class="font-semibold text-gray-900 mb-2">Achat Entrée</h4>
-              <p class="text-gray-600">Qté: {{ formatQuantity(data.summary.totalAchatEntree.qty) }}</p>
-              <p class="text-gray-600">Total: {{ formatNumber(data.summary.totalAchatEntree.totale) }} dt</p>
-            </div>
-            <div>
-              <h4 class="font-semibold text-gray-900 mb-2">Achat Sortie</h4>
-              <p class="text-gray-600">Qté: {{ formatQuantity(data.summary.totalAchatSortie.qty) }}</p>
-              <p class="text-gray-600">Total: {{ formatNumber(data.summary.totalAchatSortie.totale) }} dt</p>
-            </div>
-            <div>
-              <h4 class="font-semibold text-gray-900 mb-2">Vente Sortie</h4>
-              <p class="text-gray-600">Qté: {{ formatQuantity(data.summary.totalVenteSortie.qty) }}</p>
-              <p class="text-gray-600">Total: {{ formatNumber(data.summary.totalVenteSortie.totale) }} dt</p>
-            </div>
-            <div>
-              <h4 class="font-semibold text-gray-900 mb-2">Stock Final</h4>
-              <p class="text-gray-600">Qté: {{ formatQuantity(data.summary.endingStock.qty) }}</p>
-              <p class="text-gray-600">Valeur: {{ formatNumber(data.summary.endingStock.value) }} dt</p>
-              <p class="text-gray-600">P.U: {{ formatNumber(data.summary.endingStock.pu) }} dt</p>
-            </div>
-          </div>
-          <div class="mt-4 pt-4 border-t border-gray-200">
-            <div class="flex justify-between items-center">
-              <div>
-                <span class="font-semibold text-gray-900">COGS ({{ valuationMode }}):</span>
-                <span class="ml-2 text-lg font-bold text-blue-600">{{ formatNumber(data.summary.cogs) }} dt</span>
+            <!-- Relevé Inventaire Table for this product -->
+            <div *ngIf="data.releveInventaire" class="bg-white border-t border-gray-200">
+              <div class="bg-emerald-50 px-6 py-3 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h3 class="text-lg font-semibold text-emerald-900">📊 Relevé Inventaire - {{ data.productName }}
+                    </h3>
+                    <p class="text-sm text-emerald-700">Désignation, Début, Crédit et Solde pour cet article</p>
+                  </div>
+                </div>
               </div>
-              <div class="text-sm text-gray-600">
-                Mode de valorisation: {{ getValuationModeLabel(valuationMode) }}
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Relevé Inventaire Table for this product -->
-        <div *ngIf="data.releveInventaire" class="bg-white border-t border-gray-200">
-          <div class="bg-emerald-50 px-6 py-3 border-b border-gray-200">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-lg font-semibold text-emerald-900">📊 Relevé Inventaire - {{ data.productName }}</h3>
-                <p class="text-sm text-emerald-700">Désignation, Début, Crédit et Solde pour cet article</p>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-emerald-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-semibold text-emerald-900 border-r border-emerald-200">
+                        Désignation</th>
+                      <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Début
+                        (dt)</th>
+                      <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Crédit
+                        (dt)</th>
+                      <th class="px-4 py-3 text-right font-semibold text-emerald-900">Solde (dt)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-b border-gray-200 hover:bg-gray-50">
+                      <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{
+                        data.releveInventaire.designation }}</td>
+                      <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-blue-600">{{
+                        formatNumber(data.releveInventaire.debut) }}</td>
+                      <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-red-600">{{
+                        formatNumber(data.releveInventaire.credit) }}</td>
+                      <td class="px-4 py-3 text-right font-bold text-lg"
+                        [class.text-green-600]="data.releveInventaire.solde >= 0"
+                        [class.text-red-600]="data.releveInventaire.solde < 0">
+                        {{ formatNumber(data.releveInventaire.solde) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
-          </div>
-          
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-emerald-50">
-                <tr>
-                  <th class="px-4 py-3 text-left font-semibold text-emerald-900 border-r border-emerald-200">Désignation</th>
-                  <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Début (dt)</th>
-                  <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Crédit (dt)</th>
-                  <th class="px-4 py-3 text-right font-semibold text-emerald-900">Solde (dt)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="border-b border-gray-200 hover:bg-gray-50">
-                  <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ data.releveInventaire.designation }}</td>
-                  <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-blue-600">{{ formatNumber(data.releveInventaire.debut) }}</td>
-                  <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-red-600">{{ formatNumber(data.releveInventaire.credit) }}</td>
-                  <td class="px-4 py-3 text-right font-bold text-lg" 
-                      [class.text-green-600]="data.releveInventaire.solde >= 0"
-                      [class.text-red-600]="data.releveInventaire.solde < 0">
-                    {{ formatNumber(data.releveInventaire.solde) }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
 
-        <!-- Écart Table -->
-        <div *ngIf="data.ecartData" class="bg-white border-t border-gray-200">
-          <div class="bg-blue-50 px-6 py-3 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-blue-900">📊 Tableau des Écarts</h3>
-            <p class="text-sm text-blue-700">Analyse des écarts entre chiffre d'affaire théorique et réalisé</p>
-          </div>
-          
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-blue-50">
-                <tr>
-                  <th class="px-4 py-3 text-left font-semibold text-blue-900 border-r border-blue-200">Produit</th>
-                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Qté Vendue</th>
-                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Prix Vente Unitaire</th>
-                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">CA Théorique</th>
-                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">CA Réalisé</th>
-                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart Vente Gros</th>
-                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart Gratuité</th>
-                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart Remise</th>
-                  <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart Global</th>
-                  <th class="px-4 py-3 text-center font-semibold text-blue-900">Déférence d'Écart</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="border-b border-gray-200">
-                  <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ data.ecartData.productName }}</td>
-                  <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatQuantity(data.ecartData.qtyVendu) }}</td>
-                  <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatNumber(data.ecartData.prixVenteUnitaire) }} dt</td>
-                  <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-green-600">{{ formatNumber(data.ecartData.chiffreAffaireTheorique) }} dt</td>
-                  <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-blue-600">{{ formatNumber(data.ecartData.chiffreAffaireRealise) }} dt</td>
-                  <td class="px-4 py-3 text-center border-r border-gray-200" [class]="data.ecartData.ecartVenteGros < 0 ? 'text-red-600' : 'text-orange-600'">
-                    {{ formatNumber(data.ecartData.ecartVenteGros) }} dt
-                  </td>
-                  <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{ formatNumber(data.ecartData.ecartGratuite) }} dt</td>
-                  <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{ formatNumber(data.ecartData.ecartRemise) }} dt</td>
-                  <td class="px-4 py-3 text-center border-r border-gray-200 font-bold text-lg" [class]="data.ecartData.ecartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
-                    {{ formatNumber(data.ecartData.ecartGlobal) }} dt
-                  </td>
-                  <td class="px-4 py-3 text-center font-bold text-lg" [class]="data.ecartData.deferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
-                    {{ formatNumber(data.ecartData.deferenceEcart) }} dt
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <!-- Écart Summary -->
-          <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div class="text-center">
-                <h4 class="font-semibold text-gray-900 mb-1">CA Théorique</h4>
-                <p class="text-lg font-bold text-green-600">{{ formatNumber(data.ecartData.chiffreAffaireTheorique) }} dt</p>
-                <p class="text-xs text-gray-500">Qté × Prix Unitaire</p>
+            <!-- Écart Table -->
+            <div *ngIf="data.ecartData" class="bg-white border-t border-gray-200">
+              <div class="bg-blue-50 px-6 py-3 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-blue-900">📊 Tableau des Écarts</h3>
+                <p class="text-sm text-blue-700">Analyse des écarts entre chiffre d'affaire théorique et réalisé</p>
               </div>
-              <div class="text-center">
-                <h4 class="font-semibold text-gray-900 mb-1">CA Réalisé</h4>
-                <p class="text-lg font-bold text-blue-600">{{ formatNumber(data.ecartData.chiffreAffaireRealise) }} dt</p>
-                <p class="text-xs text-gray-500">Chiffre d'affaire réel</p>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-blue-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-semibold text-blue-900 border-r border-blue-200">Produit</th>
+                      <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Qté Vendue
+                      </th>
+                      <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Prix Vente
+                        Unitaire</th>
+                      <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">CA
+                        Théorique</th>
+                      <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">CA Réalisé
+                      </th>
+                      <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart Vente
+                        Gros</th>
+                      <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart
+                        Gratuité</th>
+                      <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart
+                        Remise</th>
+                      <th class="px-4 py-3 text-center font-semibold text-blue-900 border-r border-blue-200">Écart
+                        Global</th>
+                      <th class="px-4 py-3 text-center font-semibold text-blue-900">Déférence d'Écart</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-b border-gray-200">
+                      <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ data.ecartData.productName
+                        }}</td>
+                      <td class="px-4 py-3 text-center border-r border-gray-200">{{
+                        formatQuantity(data.ecartData.qtyVendu) }}</td>
+                      <td class="px-4 py-3 text-center border-r border-gray-200">{{
+                        formatNumber(data.ecartData.prixVenteUnitaire) }} dt</td>
+                      <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-green-600">{{
+                        formatNumber(data.ecartData.chiffreAffaireTheorique) }} dt</td>
+                      <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-blue-600">{{
+                        formatNumber(data.ecartData.chiffreAffaireRealise) }} dt</td>
+                      <td class="px-4 py-3 text-center border-r border-gray-200"
+                        [class]="data.ecartData.ecartVenteGros < 0 ? 'text-red-600' : 'text-orange-600'">
+                        {{ formatNumber(data.ecartData.ecartVenteGros) }} dt
+                      </td>
+                      <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{
+                        formatNumber(data.ecartData.ecartGratuite) }} dt</td>
+                      <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{
+                        formatNumber(data.ecartData.ecartRemise) }} dt</td>
+                      <td class="px-4 py-3 text-center border-r border-gray-200 font-bold text-lg"
+                        [class]="data.ecartData.ecartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
+                        {{ formatNumber(data.ecartData.ecartGlobal) }} dt
+                      </td>
+                      <td class="px-4 py-3 text-center font-bold text-lg"
+                        [class]="data.ecartData.deferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
+                        {{ formatNumber(data.ecartData.deferenceEcart) }} dt
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <div class="text-center">
-                <h4 class="font-semibold text-gray-900 mb-1">Écart Global</h4>
-                <p class="text-lg font-bold" [class]="data.ecartData.ecartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
-                  {{ formatNumber(data.ecartData.ecartGlobal) }} dt
-                </p>
-                <p class="text-xs text-gray-500">Théorique - Réalisé</p>
-              </div>
-              <div class="text-center">
-                <h4 class="font-semibold text-gray-900 mb-1">Détail Écarts</h4>
-                <p class="text-sm text-orange-600">Gros: {{ formatNumber(data.ecartData.ecartVenteGros) }} dt</p>
-                <p class="text-sm text-red-600">Gratuité: {{ formatNumber(data.ecartData.ecartGratuite) }} dt</p>
-                <p class="text-sm text-red-600">Remise: {{ formatNumber(data.ecartData.ecartRemise) }} dt</p>
-                <p class="text-sm font-bold" [class]="data.ecartData.deferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
-                  Déférence: {{ formatNumber(data.ecartData.deferenceEcart) }} dt
-                </p>
+
+              <!-- Écart Summary -->
+              <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div class="text-center">
+                    <h4 class="font-semibold text-gray-900 mb-1">CA Théorique</h4>
+                    <p class="text-lg font-bold text-green-600">{{ formatNumber(data.ecartData.chiffreAffaireTheorique)
+                      }} dt</p>
+                    <p class="text-xs text-gray-500">Qté × Prix Unitaire</p>
+                  </div>
+                  <div class="text-center">
+                    <h4 class="font-semibold text-gray-900 mb-1">CA Réalisé</h4>
+                    <p class="text-lg font-bold text-blue-600">{{ formatNumber(data.ecartData.chiffreAffaireRealise) }}
+                      dt</p>
+                    <p class="text-xs text-gray-500">Chiffre d'affaire réel</p>
+                  </div>
+                  <div class="text-center">
+                    <h4 class="font-semibold text-gray-900 mb-1">Écart Global</h4>
+                    <p class="text-lg font-bold"
+                      [class]="data.ecartData.ecartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
+                      {{ formatNumber(data.ecartData.ecartGlobal) }} dt
+                    </p>
+                    <p class="text-xs text-gray-500">Théorique - Réalisé</p>
+                  </div>
+                  <div class="text-center">
+                    <h4 class="font-semibold text-gray-900 mb-1">Détail Écarts</h4>
+                    <p class="text-sm text-orange-600">Gros: {{ formatNumber(data.ecartData.ecartVenteGros) }} dt</p>
+                    <p class="text-sm text-red-600">Gratuité: {{ formatNumber(data.ecartData.ecartGratuite) }} dt</p>
+                    <p class="text-sm text-red-600">Remise: {{ formatNumber(data.ecartData.ecartRemise) }} dt</p>
+                    <p class="text-sm font-bold"
+                      [class]="data.ecartData.deferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
+                      Déférence: {{ formatNumber(data.ecartData.deferenceEcart) }} dt
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
         </div>
       </div>
 
@@ -717,118 +777,142 @@
               <h3 class="text-xl font-bold text-purple-900">📈 Tableau Global des Écarts</h3>
               <p class="text-sm text-purple-700">Résumé détaillé de tous les écarts par produit</p>
             </div>
-            <button 
-              (click)="toggleGlobalEcartTable()"
+            <button (click)="toggleGlobalEcartTable()"
               class="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
-              <svg class="w-4 h-4 transition-transform duration-200" 
-                   [class.rotate-180]="!isGlobalEcartTableCollapsed"
-                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4 transition-transform duration-200" [class.rotate-180]="!isGlobalEcartTableCollapsed"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
               <span>{{ isGlobalEcartTableCollapsed ? 'Afficher' : 'Masquer' }}</span>
             </button>
           </div>
         </div>
-        
+
         <!-- Global Écart Table Content -->
         <div *ngIf="!isGlobalEcartTableCollapsed">
           <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="bg-purple-50">
-              <tr>
-                <th class="px-4 py-3 text-left font-semibold text-purple-900 border-r border-purple-200">Produit</th>
-                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Qté Vendue</th>
-                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Prix Unitaire</th>
-                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">CA Théorique</th>
-                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">CA Réalisé</th>
-                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart Gros</th>
-                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart Gratuité</th>
-                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart Remise</th>
-                <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart Global</th>
-                <th class="px-4 py-3 text-center font-semibold text-purple-900">Déférence</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let product of globalEcartSummary.products; let i = index" 
-                  class="border-b border-gray-200"
-                  [class.bg-white]="i % 2 === 0"
-                  [class.bg-gray-50]="i % 2 === 1">
-                <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ product.productName }}</td>
-                <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatQuantity(product.qtyVendu) }}</td>
-                <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatNumber(product.prixVenteUnitaire) }} dt</td>
-                <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-green-600">{{ formatNumber(product.chiffreAffaireTheorique) }} dt</td>
-                <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-blue-600">{{ formatNumber(product.chiffreAffaireRealise) }} dt</td>
-                <td class="px-4 py-3 text-center border-r border-gray-200" [class]="product.ecartVenteGros < 0 ? 'text-red-600' : 'text-orange-600'">
-                  {{ formatNumber(product.ecartVenteGros) }} dt
-                </td>
-                <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{ formatNumber(product.ecartGratuite) }} dt</td>
-                <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{ formatNumber(product.ecartRemise) }} dt</td>
-                <td class="px-4 py-3 text-center border-r border-gray-200 font-bold" [class]="product.ecartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
-                  {{ formatNumber(product.ecartGlobal) }} dt
-                </td>
-                <td class="px-4 py-3 text-center font-bold" [class]="product.deferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
-                  {{ formatNumber(product.deferenceEcart) }} dt
-                </td>
-              </tr>
-            </tbody>
-            <!-- Total Row -->
-            <tfoot class="bg-purple-100">
-              <tr class="border-t-2 border-purple-300">
-                <td class="px-4 py-4 text-left border-r border-purple-200 font-bold text-purple-900">TOTAL GLOBAL</td>
-                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-purple-900">{{ formatQuantity(globalEcartSummary.totalQtyVendu) }}</td>
-                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-purple-900">-</td>
-                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-green-600">{{ formatNumber(globalEcartSummary.totalChiffreAffaireTheorique) }} dt</td>
-                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-blue-600">{{ formatNumber(globalEcartSummary.totalChiffreAffaireRealise) }} dt</td>
-                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold" [class]="globalEcartSummary.totalEcartVenteGros < 0 ? 'text-red-600' : 'text-orange-600'">
-                  {{ formatNumber(globalEcartSummary.totalEcartVenteGros) }} dt
-                </td>
-                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-red-600">{{ formatNumber(globalEcartSummary.totalEcartGratuite) }} dt</td>
-                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-red-600">{{ formatNumber(globalEcartSummary.totalEcartRemise) }} dt</td>
-                <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-lg" [class]="globalEcartSummary.totalEcartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
+            <table class="w-full text-sm">
+              <thead class="bg-purple-50">
+                <tr>
+                  <th class="px-4 py-3 text-left font-semibold text-purple-900 border-r border-purple-200">Produit</th>
+                  <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Qté Vendue
+                  </th>
+                  <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Prix
+                    Unitaire</th>
+                  <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">CA
+                    Théorique</th>
+                  <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">CA Réalisé
+                  </th>
+                  <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart Gros
+                  </th>
+                  <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart
+                    Gratuité</th>
+                  <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart
+                    Remise</th>
+                  <th class="px-4 py-3 text-center font-semibold text-purple-900 border-r border-purple-200">Écart
+                    Global</th>
+                  <th class="px-4 py-3 text-center font-semibold text-purple-900">Déférence</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let product of globalEcartSummary.products; let i = index" class="border-b border-gray-200"
+                  [class.bg-white]="i % 2 === 0" [class.bg-gray-50]="i % 2 === 1">
+                  <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ product.productName }}</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatQuantity(product.qtyVendu) }}</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatNumber(product.prixVenteUnitaire)
+                    }} dt</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-green-600">{{
+                    formatNumber(product.chiffreAffaireTheorique) }} dt</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200 font-semibold text-blue-600">{{
+                    formatNumber(product.chiffreAffaireRealise) }} dt</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200"
+                    [class]="product.ecartVenteGros < 0 ? 'text-red-600' : 'text-orange-600'">
+                    {{ formatNumber(product.ecartVenteGros) }} dt
+                  </td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{
+                    formatNumber(product.ecartGratuite) }} dt</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200 text-red-600">{{
+                    formatNumber(product.ecartRemise) }} dt</td>
+                  <td class="px-4 py-3 text-center border-r border-gray-200 font-bold"
+                    [class]="product.ecartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
+                    {{ formatNumber(product.ecartGlobal) }} dt
+                  </td>
+                  <td class="px-4 py-3 text-center font-bold"
+                    [class]="product.deferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
+                    {{ formatNumber(product.deferenceEcart) }} dt
+                  </td>
+                </tr>
+              </tbody>
+              <!-- Total Row -->
+              <tfoot class="bg-purple-100">
+                <tr class="border-t-2 border-purple-300">
+                  <td class="px-4 py-4 text-left border-r border-purple-200 font-bold text-purple-900">TOTAL GLOBAL</td>
+                  <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-purple-900">{{
+                    formatQuantity(globalEcartSummary.totalQtyVendu) }}</td>
+                  <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-purple-900">-</td>
+                  <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-green-600">{{
+                    formatNumber(globalEcartSummary.totalChiffreAffaireTheorique) }} dt</td>
+                  <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-blue-600">{{
+                    formatNumber(globalEcartSummary.totalChiffreAffaireRealise) }} dt</td>
+                  <td class="px-4 py-4 text-center border-r border-purple-200 font-bold"
+                    [class]="globalEcartSummary.totalEcartVenteGros < 0 ? 'text-red-600' : 'text-orange-600'">
+                    {{ formatNumber(globalEcartSummary.totalEcartVenteGros) }} dt
+                  </td>
+                  <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-red-600">{{
+                    formatNumber(globalEcartSummary.totalEcartGratuite) }} dt</td>
+                  <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-red-600">{{
+                    formatNumber(globalEcartSummary.totalEcartRemise) }} dt</td>
+                  <td class="px-4 py-4 text-center border-r border-purple-200 font-bold text-lg"
+                    [class]="globalEcartSummary.totalEcartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
+                    {{ formatNumber(globalEcartSummary.totalEcartGlobal) }} dt
+                  </td>
+                  <td class="px-4 py-4 text-center font-bold text-lg"
+                    [class]="globalEcartSummary.totalDeferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
+                    {{ formatNumber(globalEcartSummary.totalDeferenceEcart) }} dt
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Global Summary Cards -->
+          <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+              <div class="text-center">
+                <h4 class="font-semibold text-gray-900 mb-1">Produits</h4>
+                <p class="text-lg font-bold text-purple-600">{{ globalEcartSummary.totalProducts }}</p>
+                <p class="text-xs text-gray-500">Total produits</p>
+              </div>
+              <div class="text-center">
+                <h4 class="font-semibold text-gray-900 mb-1">CA Théorique</h4>
+                <p class="text-lg font-bold text-green-600">{{
+                  formatNumber(globalEcartSummary.totalChiffreAffaireTheorique) }} dt</p>
+                <p class="text-xs text-gray-500">Total théorique</p>
+              </div>
+              <div class="text-center">
+                <h4 class="font-semibold text-gray-900 mb-1">CA Réalisé</h4>
+                <p class="text-lg font-bold text-blue-600">{{
+                  formatNumber(globalEcartSummary.totalChiffreAffaireRealise) }} dt</p>
+                <p class="text-xs text-gray-500">Total réalisé</p>
+              </div>
+              <div class="text-center">
+                <h4 class="font-semibold text-gray-900 mb-1">Écart Global</h4>
+                <p class="text-lg font-bold"
+                  [class]="globalEcartSummary.totalEcartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
                   {{ formatNumber(globalEcartSummary.totalEcartGlobal) }} dt
-                </td>
-                <td class="px-4 py-4 text-center font-bold text-lg" [class]="globalEcartSummary.totalDeferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
+                </p>
+                <p class="text-xs text-gray-500">Différence totale</p>
+              </div>
+              <div class="text-center">
+                <h4 class="font-semibold text-gray-900 mb-1">Déférence</h4>
+                <p class="text-lg font-bold"
+                  [class]="globalEcartSummary.totalDeferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
                   {{ formatNumber(globalEcartSummary.totalDeferenceEcart) }} dt
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        
-        <!-- Global Summary Cards -->
-        <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-            <div class="text-center">
-              <h4 class="font-semibold text-gray-900 mb-1">Produits</h4>
-              <p class="text-lg font-bold text-purple-600">{{ globalEcartSummary.totalProducts }}</p>
-              <p class="text-xs text-gray-500">Total produits</p>
-            </div>
-            <div class="text-center">
-              <h4 class="font-semibold text-gray-900 mb-1">CA Théorique</h4>
-              <p class="text-lg font-bold text-green-600">{{ formatNumber(globalEcartSummary.totalChiffreAffaireTheorique) }} dt</p>
-              <p class="text-xs text-gray-500">Total théorique</p>
-            </div>
-            <div class="text-center">
-              <h4 class="font-semibold text-gray-900 mb-1">CA Réalisé</h4>
-              <p class="text-lg font-bold text-blue-600">{{ formatNumber(globalEcartSummary.totalChiffreAffaireRealise) }} dt</p>
-              <p class="text-xs text-gray-500">Total réalisé</p>
-            </div>
-            <div class="text-center">
-              <h4 class="font-semibold text-gray-900 mb-1">Écart Global</h4>
-              <p class="text-lg font-bold" [class]="globalEcartSummary.totalEcartGlobal < 0 ? 'text-red-600' : 'text-green-600'">
-                {{ formatNumber(globalEcartSummary.totalEcartGlobal) }} dt
-              </p>
-              <p class="text-xs text-gray-500">Différence totale</p>
-            </div>
-            <div class="text-center">
-              <h4 class="font-semibold text-gray-900 mb-1">Déférence</h4>
-              <p class="text-lg font-bold" [class]="globalEcartSummary.totalDeferenceEcart < 0 ? 'text-red-600' : 'text-purple-600'">
-                {{ formatNumber(globalEcartSummary.totalDeferenceEcart) }} dt
-              </p>
-              <p class="text-xs text-gray-500">Déférence totale</p>
+                </p>
+                <p class="text-xs text-gray-500">Déférence totale</p>
+              </div>
             </div>
           </div>
-        </div>
         </div>
       </div>
 
@@ -841,20 +925,20 @@
               <p class="text-sm text-emerald-700">Désignation, Début, Crédit et Solde pour chaque article</p>
             </div>
             <div class="flex items-center gap-2">
-              <button 
-                (click)="toggleHideSmallCredits()"
+              <button (click)="toggleHideSmallCredits()"
                 [class]="'flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ' + (hideSmallCredits ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-gray-600 text-white hover:bg-gray-700')">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21">
+                  </path>
                 </svg>
                 <span>{{ hideSmallCredits ? 'Afficher crédits < 0.100' : 'Masquer crédits < 0.100' }}</span>
               </button>
-              <button 
-                (click)="toggleReleveInventaireTable()"
+              <button (click)="toggleReleveInventaireTable()"
                 class="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors">
-                <svg class="w-4 h-4 transition-transform duration-200" 
-                     [class.rotate-180]="!isReleveInventaireTableCollapsed"
-                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 transition-transform duration-200"
+                  [class.rotate-180]="!isReleveInventaireTableCollapsed" fill="none" stroke="currentColor"
+                  viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
                 <span>{{ isReleveInventaireTableCollapsed ? 'Afficher' : 'Masquer' }}</span>
@@ -862,143 +946,131 @@
             </div>
           </div>
         </div>
-        
+
         <!-- Relevé Inventaire Table Content -->
         <div *ngIf="!isReleveInventaireTableCollapsed">
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
-            <thead class="bg-emerald-50">
-              <tr>
-                <th class="px-4 py-3 text-left font-semibold text-emerald-900 border-r border-emerald-200">Désignation</th>
-                <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Débit (dt)</th>
-                <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Crédit (dt)</th>
-                <th class="px-4 py-3 text-right font-semibold text-emerald-900">Solde (dt)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let row of releveInventaireData; let i = index" 
-                  class="border-b border-gray-200 hover:bg-gray-50"
-                  [class.bg-white]="i % 2 === 0 && !row.isInventory && !isInventoryMode"
-                  [class.bg-gray-50]="i % 2 === 1 && !row.isInventory && !isInventoryMode"
-                  [class.bg-green-100]="row.isInventory"
-                  [class.bg-gray-200]="isInventoryMode && !row.isInventory"
-                  [class.text-gray-600]="isInventoryMode && !row.isInventory"
-                  [class.hidden]="(isBonEntreeItem(row) && !isBonEntreeExpanded(getBonEntreeIdFromItem(row.id))) || (isEcartGrosChild(row) && !isEcartGrosExpanded(getEcartGrosParentId(row))) || shouldHideRow(row)"
-                  [class]="getEcartRowClass(row)"
-                  (click)="onEcartRowClick(row)">
-                <td class="px-4 py-3 text-left border-r border-gray-200 font-medium" 
-                    [class.text-green-800]="row.isInventory"
-                    [class.font-bold]="row.isInventory"
-                    [class.text-gray-600]="isInventoryMode && !row.isInventory"
-                    [class.cursor-pointer]="row.id.startsWith('bon_entree_') || row.isExpandable"
-                    (click)="row.id.startsWith('bon_entree_') ? toggleBonEntreeExpansion(row.id) : (row.isExpandable ? toggleEcartGrosExpansion(row.expandableId || '') : null)">
-                  <div class="flex items-center gap-2">
-                    <!-- Add Manual Entry Button -->
-                    <button 
-                      *ngIf="!row.isInventory && !isBonEntreeItem(row) && !isEcartGrosChild(row)"
-                      (click)="showManualEntryModal(i, row.id); $event.stopPropagation()"
-                      class="w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-xs font-bold transition-colors shadow-sm"
-                      title="Ajouter un débit/crédit">
-                      +
-                    </button>
-                    <!-- Bon Entree Expansion -->
-                    <svg *ngIf="row.id.startsWith('bon_entree_')" 
-                         class="w-4 h-4 mr-2 transition-transform duration-200"
-                         [class.rotate-90]="isBonEntreeExpanded(row.id)"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                    
-                    <!-- Ecart Gros Expansion -->
-                    <svg *ngIf="row.isExpandable" 
-                         class="w-4 h-4 mr-2 transition-transform duration-200"
-                         [class.rotate-90]="isEcartGrosExpanded(row.expandableId || '')"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                    
-                    <span [class.ml-6]="isBonEntreeItem(row) || isEcartGrosChild(row)">
-                      <!-- Handle wholesale sales with clickable "ventes gros" text -->
-                      <span *ngIf="row.wholesaleSales">
-                        {{ getTextBeforeWholesaleSales(row.designation) }}
-                        <span class="wholesale-sales-link" (click)="showWholesaleSalesDialog(row)">
-                          {{ getWholesaleSalesText(row.designation) }}
-                        </span>
-                        {{ getTextAfterWholesaleSales(row.designation) }}
-                      </span>
-                      <!-- Regular designation for non-wholesale rows -->
-                      <span *ngIf="!row.wholesaleSales">{{ row.designation }}</span>
-                    </span>
-                  </div>
-                  <span *ngIf="row.isInventory" class="text-xs text-green-600 ml-2">(Inventaire)</span>
-                  <div *ngIf="row.details" class="text-xs text-gray-500 mt-1">
-                    <span *ngIf="row.details.includes('Lien:')">
-                      {{ row.details.split('Lien:')[0] }}
-                      <a *ngIf="getSaleIdFromDetails(row.details)" 
-                         (click)="openSaleDetails(getSaleIdFromDetails(row.details)!); $event.stopPropagation()" 
-                         class="text-blue-600 hover:text-blue-800 underline cursor-pointer">
-                        Voir le ticket
-                      </a>
-                    </span>
-                    <span *ngIf="!row.details.includes('Lien:')">{{ row.details }}</span>
-                  </div>
-                </td>
-                <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold" 
-                    [class.text-blue-600]="!row.isInventory"
-                    [class.text-green-700]="row.isInventory">
-                  {{ formatNumber(row.debut) }}
-                </td>
-                <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold" 
-                    [class.text-red-600]="!row.isInventory"
-                    [class.text-green-700]="row.isInventory">
-                  {{ formatNumber(row.credit) }}
-                </td>
-                <td class="px-4 py-3 text-right font-bold text-lg relative" 
-                    [class.text-green-600]="row.solde >= 0 && !row.isInventory"
-                    [class.text-red-600]="row.solde < 0 && !row.isInventory"
-                    [class.text-green-800]="row.isInventory">
-                  {{ formatNumber(row.solde) }}
-                  <!-- Delete Manual Entry Button -->
-                  <button 
-                    *ngIf="row.id.startsWith('manual_') && !row.isInventory"
-                    (click)="deleteManualEntryFromRow(row); $event.stopPropagation()"
-                    class="absolute left-2 top-1/2 transform -translate-y-1/2 w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-xs font-bold transition-colors shadow-sm"
-                    title="Supprimer cette entrée manuelle">
-                    ×
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Relevé Inventaire Summary -->
-        <div *ngIf="releveInventaireSummary" class="bg-emerald-100 border-t border-emerald-200">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="bg-emerald-100">
+              <thead class="bg-emerald-50">
                 <tr>
-                  <th class="px-4 py-3 text-left font-semibold text-emerald-900 border-r border-emerald-200">Produits</th>
-                  <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Total Débit</th>
-                  <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Total Crédit</th>
-                  <th class="px-4 py-3 text-right font-semibold text-emerald-900">Total Solde</th>
+                  <th class="px-4 py-3 text-left font-semibold text-emerald-900 border-r border-emerald-200">Désignation
+                  </th>
+                  <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Débit (dt)
+                  </th>
+                  <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Crédit
+                    (dt)</th>
+                  <th class="px-4 py-3 text-right font-semibold text-emerald-900">Solde (dt)</th>
                 </tr>
               </thead>
               <tbody>
-                <tr class="bg-emerald-200 border-t-2 border-emerald-300">
-                  <td class="px-4 py-4 text-left border-r border-emerald-200 font-bold text-emerald-900">TOTAL GLOBAL</td>
-                  <td class="px-4 py-4 text-right border-r border-emerald-200 font-bold text-blue-600 text-lg">{{ formatNumber(releveInventaireSummary.totalDebut) }}</td>
-                  <td class="px-4 py-4 text-right border-r border-emerald-200 font-bold text-red-600 text-lg">{{ formatNumber(releveInventaireSummary.totalCredit) }}</td>
-                  <td class="px-4 py-4 text-right font-bold text-xl" 
-                      [class.text-green-600]="releveInventaireSummary.totalSolde >= 0"
-                      [class.text-red-600]="releveInventaireSummary.totalSolde < 0">
-                    {{ formatNumber(releveInventaireSummary.totalSolde) }}
+                <tr *ngFor="let row of releveInventaireData; let i = index"
+                  class="border-b border-gray-200 hover:bg-gray-50"
+                  [class.bg-white]="i % 2 === 0 && !row.isInventory && !isInventoryMode"
+                  [class.bg-gray-50]="i % 2 === 1 && !row.isInventory && !isInventoryMode"
+                  [class.bg-green-100]="row.isInventory" [class.bg-gray-200]="isInventoryMode && !row.isInventory"
+                  [class.text-gray-600]="isInventoryMode && !row.isInventory"
+                  [class.hidden]="(isBonEntreeItem(row) && !isBonEntreeExpanded(getBonEntreeIdFromItem(row.id))) || (isEcartGrosChild(row) && !isEcartGrosExpanded(getEcartGrosParentId(row))) || shouldHideRow(row)"
+                  [class]="getEcartRowClass(row)" (click)="onEcartRowClick(row)">
+                  <td class="px-4 py-3 text-left border-r border-gray-200 font-medium"
+                    [class.text-green-800]="row.isInventory" [class.font-bold]="row.isInventory"
+                    [class.text-gray-600]="isInventoryMode && !row.isInventory"
+                    [class.cursor-pointer]="row.id.startsWith('bon_entree_') || row.isExpandable"
+                    (click)="row.id.startsWith('bon_entree_') ? toggleBonEntreeExpansion(row.id) : (row.isExpandable ? toggleEcartGrosExpansion(row.expandableId || '') : null)">
+                    <div class="flex items-center gap-2">
+
+                      <!-- Bon Entree Expansion -->
+                      <svg *ngIf="row.id.startsWith('bon_entree_')"
+                        class="w-4 h-4 mr-2 transition-transform duration-200"
+                        [class.rotate-90]="isBonEntreeExpanded(row.id)" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                      </svg>
+
+                      <!-- Ecart Gros Expansion -->
+                      <svg *ngIf="row.isExpandable" class="w-4 h-4 mr-2 transition-transform duration-200"
+                        [class.rotate-90]="isEcartGrosExpanded(row.expandableId || '')" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                      </svg>
+
+                      <span [class.ml-6]="isBonEntreeItem(row) || isEcartGrosChild(row)">
+                        <!-- Handle wholesale sales with clickable "ventes gros" text -->
+                        <span *ngIf="row.wholesaleSales">
+                          {{ getTextBeforeWholesaleSales(row.designation) }}
+                          <span class="wholesale-sales-link" (click)="showWholesaleSalesDialog(row)">
+                            {{ getWholesaleSalesText(row.designation) }}
+                          </span>
+                          {{ getTextAfterWholesaleSales(row.designation) }}
+                        </span>
+                        <!-- Regular designation for non-wholesale rows -->
+                        <span *ngIf="!row.wholesaleSales">{{ row.designation }}</span>
+                      </span>
+                    </div>
+                    <span *ngIf="row.isInventory" class="text-xs text-green-600 ml-2">(Inventaire)</span>
+                    <div *ngIf="row.details" class="text-xs text-gray-500 mt-1">
+                      <span *ngIf="row.details.includes('Lien:')">
+                        {{ row.details.split('Lien:')[0] }}
+                        <a *ngIf="getSaleIdFromDetails(row.details)"
+                          (click)="openSaleDetails(getSaleIdFromDetails(row.details)!); $event.stopPropagation()"
+                          class="text-blue-600 hover:text-blue-800 underline cursor-pointer">
+                          Voir le ticket
+                        </a>
+                      </span>
+                      <span *ngIf="!row.details.includes('Lien:')">{{ row.details }}</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold"
+                    [class.text-blue-600]="!row.isInventory" [class.text-green-700]="row.isInventory">
+                    {{ formatNumber(row.debut) }}
+                  </td>
+                  <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold"
+                    [class.text-red-600]="!row.isInventory" [class.text-green-700]="row.isInventory">
+                    {{ formatNumber(row.credit) }}
+                  </td>
+                  <td class="px-4 py-3 text-right font-bold text-lg relative"
+                    [class.text-green-600]="row.solde >= 0 && !row.isInventory"
+                    [class.text-red-600]="row.solde < 0 && !row.isInventory" [class.text-green-800]="row.isInventory">
+                    {{ formatNumber(row.solde) }}
+
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-        </div>
+
+          <!-- Relevé Inventaire Summary -->
+          <div *ngIf="releveInventaireSummary" class="bg-emerald-100 border-t border-emerald-200">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-emerald-100">
+                  <tr>
+                    <th class="px-4 py-3 text-left font-semibold text-emerald-900 border-r border-emerald-200">Produits
+                    </th>
+                    <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Total
+                      Débit</th>
+                    <th class="px-4 py-3 text-right font-semibold text-emerald-900 border-r border-emerald-200">Total
+                      Crédit</th>
+                    <th class="px-4 py-3 text-right font-semibold text-emerald-900">Total Solde</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="bg-emerald-200 border-t-2 border-emerald-300">
+                    <td class="px-4 py-4 text-left border-r border-emerald-200 font-bold text-emerald-900">TOTAL GLOBAL
+                    </td>
+                    <td class="px-4 py-4 text-right border-r border-emerald-200 font-bold text-blue-600 text-lg">{{
+                      formatNumber(releveInventaireSummary.totalDebut) }}</td>
+                    <td class="px-4 py-4 text-right border-r border-emerald-200 font-bold text-red-600 text-lg">{{
+                      formatNumber(releveInventaireSummary.totalCredit) }}</td>
+                    <td class="px-4 py-4 text-right font-bold text-xl"
+                      [class.text-green-600]="releveInventaireSummary.totalSolde >= 0"
+                      [class.text-red-600]="releveInventaireSummary.totalSolde < 0">
+                      {{ formatNumber(releveInventaireSummary.totalSolde) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1010,8 +1082,7 @@
               <h2 class="text-xl font-bold text-blue-900">📊 Relevé Inventaire (Nouveau)</h2>
               <p class="text-sm text-blue-700">Première ligne = solde inventaire du relevé précédent</p>
             </div>
-            <button 
-              (click)="clearSecondaryReleve()" 
+            <button (click)="clearSecondaryReleve()"
               class="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm">
               Effacer
             </button>
@@ -1028,9 +1099,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let row of secondaryReleveRows; let i = index" 
-                  class="border-b border-gray-200"
-                  [class.bg-blue-50]="row.isInventory">
+              <tr *ngFor="let row of secondaryReleveRows; let i = index" class="border-b border-gray-200"
+                [class.bg-blue-50]="row.isInventory">
                 <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">{{ row.designation }}</td>
                 <td class="px-4 py-3 text-right border-r border-gray-200">{{ formatNumber(row.debut) }}</td>
                 <td class="px-4 py-3 text-right border-r border-gray-200">{{ formatNumber(row.credit) }}</td>
@@ -1041,128 +1111,7 @@
         </div>
       </div>
 
-      <!-- Credit Entries -->
-      <div *ngIf="creditEntries.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-        <div class="bg-orange-50 px-6 py-4 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-orange-900">Entrées de Crédit Ajoutées</h2>
-          <p class="text-sm text-orange-700">Crédits manuellement ajoutés par l'utilisateur</p>
-        </div>
-        
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="bg-orange-50">
-              <tr>
-                <th class="px-4 py-3 text-left font-semibold text-orange-900 border-r border-orange-200">Produit</th>
-                <th class="px-4 py-3 text-center font-semibold text-orange-900 border-r border-orange-200">Type</th>
-                <th class="px-4 py-3 text-right font-semibold text-orange-900 border-r border-orange-200">Montant</th>
-                <th class="px-4 py-3 text-left font-semibold text-orange-900 border-r border-orange-200">Description</th>
-                <th class="px-4 py-3 text-center font-semibold text-orange-900 border-r border-orange-200">Date</th>
-                <th class="px-4 py-3 text-center font-semibold text-orange-900">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let entry of creditEntries; let i = index" 
-                  class="border-b border-gray-200 hover:bg-gray-50"
-                  [class.bg-white]="i % 2 === 0"
-                  [class.bg-gray-50]="i % 2 === 1">
-                <td class="px-4 py-3 text-left border-r border-gray-200 font-medium">
-                  {{ getProductName(entry.productId) }}
-                </td>
-                <td class="px-4 py-3 text-center border-r border-gray-200">
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {{ getCreditTypeLabel(entry.type) }}
-                  </span>
-                </td>
-                <td class="px-4 py-3 text-right border-r border-gray-200 font-semibold text-red-600">{{ formatNumber(entry.amount) }} dt</td>
-                <td class="px-4 py-3 text-left border-r border-gray-200">{{ entry.description }}</td>
-                <td class="px-4 py-3 text-center border-r border-gray-200">{{ formatDate(entry.date) }}</td>
-                <td class="px-4 py-3 text-center">
-                  <button 
-                    (click)="removeCreditEntry(i)"
-                    class="text-red-600 hover:text-red-800 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <!-- Manual Entry Modal -->
-      <div *ngIf="isManualEntryModalOpen" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">
-              Ajouter un Débit/Crédit
-            </h3>
-            <p class="text-sm text-gray-600 mt-1">
-              L'entrée sera insérée après la ligne sélectionnée
-            </p>
-          </div>
-          
-          <form (ngSubmit)="saveManualEntry()" class="px-6 py-4 space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Type d'Entrée</label>
-              <select 
-                [(ngModel)]="newManualEntry.entryType" 
-                name="entryType"
-                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                <option value="DEBIT">Débit (Ajoute au solde)</option>
-                <option value="CREDIT">Crédit (Soustrait du solde)</option>
-              </select>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Montant (dt)</label>
-              <input 
-                type="number" 
-                [(ngModel)]="newManualEntry.amount" 
-                name="amount"
-                step="0.01"
-                min="0"
-                required
-                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-              <textarea 
-                [(ngModel)]="newManualEntry.description" 
-                name="description"
-                rows="3"
-                required
-                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
-              <input 
-                type="date" 
-                [(ngModel)]="newManualEntry.date" 
-                name="date"
-                required
-                class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            </div>
-            
-            <div class="flex justify-end space-x-3 pt-4">
-              <button 
-                type="button" 
-                (click)="hideManualEntryModal()"
-                class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                Annuler
-              </button>
-              <button 
-                type="submit"
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Ajouter
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
 
       <!-- Export Actions -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -1172,18 +1121,18 @@
             <p class="text-gray-600">Téléchargez le rapport au format Excel ou CSV</p>
           </div>
           <div class="flex space-x-3">
-            <button 
-              (click)="exportToExcel()" 
-              class="bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
+            <button (click)="exportToExcel()" class="bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                </path>
               </svg>Excel
             </button>
-            <button 
-              (click)="exportToCSV()" 
-              class="bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+            <button (click)="exportToCSV()" class="bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                </path>
               </svg>CSV
             </button>
           </div>
@@ -1192,9 +1141,12 @@
     </div>
 
     <!-- No Data Message -->
-    <div *ngIf="showReport && reconciliationData.length === 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+    <div *ngIf="showReport && reconciliationData.length === 0"
+      class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
       <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+        </path>
       </svg>
       <h3 class="text-lg font-semibold text-gray-900 mb-2">Aucune donnée trouvée</h3>
       <p class="text-gray-600">Aucun mouvement n'a été trouvé pour les critères sélectionnés.</p>
@@ -1238,21 +1190,19 @@
             </div>
           </div>
         </div>
-        <button 
-          (click)="closeWholesaleDialog()"
-          class="text-gray-400 hover:text-gray-600 transition-colors">
+        <button (click)="closeWholesaleDialog()" class="text-gray-400 hover:text-gray-600 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </button>
       </div>
     </div>
-    
+
     <div class="p-6 overflow-y-auto max-h-[70vh]">
       <!-- Wholesale Sales List -->
       <div *ngIf="selectedWholesaleSales.length > 0" class="space-y-4">
-        <div *ngFor="let sale of selectedWholesaleSales; let i = index" 
-             class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div *ngFor="let sale of selectedWholesaleSales; let i = index"
+          class="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center">
               <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
@@ -1279,7 +1229,7 @@
               </p>
             </div>
           </div>
-          
+
           <!-- Sale Details -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
@@ -1295,33 +1245,34 @@
               <p class="text-gray-900">{{ sale.itemDetails?.bundleSize || 'N/A' }}</p>
             </div>
           </div>
-          
+
           <!-- Wholesale Indicators -->
           <div class="mt-3 flex items-center space-x-2">
-            <span *ngIf="sale.itemDetails?.isWholesale" 
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <span *ngIf="sale.itemDetails?.isWholesale"
+              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
               GROS
             </span>
-            <span *ngIf="sale.itemDetails?.bundleSize" 
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+            <span *ngIf="sale.itemDetails?.bundleSize"
+              class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
               Bundle: {{ sale.itemDetails.bundleSize }}
             </span>
           </div>
         </div>
       </div>
-      
+
       <div *ngIf="selectedWholesaleSales.length === 0" class="text-center py-8">
         <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+          </path>
         </svg>
         <h3 class="text-lg font-semibold text-gray-900 mb-2">Aucune vente gros trouvée</h3>
         <p class="text-gray-600">Aucune vente gros n'a été trouvée pour ce produit.</p>
       </div>
     </div>
-    
+
     <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end">
-      <button 
-        (click)="closeWholesaleDialog()"
+      <button (click)="closeWholesaleDialog()"
         class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
         Fermer
       </button>
@@ -1333,10 +1284,7 @@
 <ng-container #dialogContainer></ng-container>
 
 <!-- Ticket Details Modal -->
-<app-ticket-details-modal 
-  *ngIf="showTicketDetailsModal" 
-  [ticket]="selectedTicket"
-  (closed)="closeTicketDetailsModal()" 
+<app-ticket-details-modal *ngIf="showTicketDetailsModal" [ticket]="selectedTicket" (closed)="closeTicketDetailsModal()"
   (printRequested)="onTicketDetailsPrintRequested($event)"
   (returnExchangeRequested)="onTicketDetailsReturnExchangeRequested($event)">
 </app-ticket-details-modal>

@@ -303,11 +303,11 @@ export class InventoryComponent implements OnInit, OnDestroy {
     return session.status === 'DRAFT' || this.authService.isAdmin();
   }
 
-  goHome(): void {
-    this.router.navigate(['/home']);
+  goToBalance(): void {
+    this.router.navigate(['/rapports/inventory-balance']);
   }
 
-  goToBalance(): void {
-    this.router.navigate(['/inventory/balance']);
+  goHome(): void {
+    this.router.navigate(['/home']);
   }
 }

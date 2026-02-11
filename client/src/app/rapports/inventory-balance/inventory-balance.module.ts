@@ -2,8 +2,13 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
+import { RouterModule, Routes } from '@angular/router';
 
 import { InventoryBalanceReportComponent } from './inventory-balance.component';
+
+const routes: Routes = [
+  { path: '', component: InventoryBalanceReportComponent }
+];
 
 @NgModule({
   declarations: [
@@ -12,7 +17,8 @@ import { InventoryBalanceReportComponent } from './inventory-balance.component';
   imports: [
     CommonModule,
     FormsModule,
-    HttpClientModule
+    HttpClientModule,
+    RouterModule.forChild(routes)
   ],
   exports: [
     InventoryBalanceReportComponent

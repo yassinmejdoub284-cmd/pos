@@ -37,6 +37,10 @@ const routes: Routes = [
     loadChildren: () => import('./sessions-history/sessions-history.module').then(m => m.SessionsHistoryModule)
   },
   { 
+    path: 'inventory-sales-reconciliation', 
+    loadChildren: () => import('./inventory-sales-reconciliation/inventory-sales-reconciliation.module').then(m => m.InventorySalesReconciliationModule)
+  },
+  { 
     path: 'inventory-balance', 
     loadChildren: () => import('./inventory-balance/inventory-balance.module').then(m => m.InventoryBalanceModule)
   }
