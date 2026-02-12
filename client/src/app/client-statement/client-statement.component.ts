@@ -108,7 +108,7 @@ export class ClientStatementComponent implements OnInit {
   formatAmount(amount: number): string {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
-      currency: 'DT'
+      currency: 'TND'
     }).format(amount);
   }
 
