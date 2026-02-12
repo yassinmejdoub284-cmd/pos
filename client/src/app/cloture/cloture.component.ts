@@ -24,12 +24,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
   loading = signal(false);
   error = signal('');
   // Depot selection removed; rely on visiting depot chosen at login
-  
+
   // Close session form - only withdrawal
   closeSessionForm = {
     retraitCentrale: ''
   };
-  
+
   // UI state
   showCloseForm = signal(false);
   showFundForm = signal(false);
@@ -41,7 +41,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     decaissement: { expenses: false, suppliers: false },
     alimentations: { expanded: false }
   });
-  
+
   // Tickets modal state
   showTicketsModal = signal(false);
   sessionTickets = signal<Array<{ id: number; amount: number; totalAmount?: number; createdAt?: string | Date; status?: string }>>([]);
@@ -54,7 +54,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     }
     return sum + t.amount;
   }, 0));
-  
+
   // Store Z report sales data for totalSalesTTC calculation
   private zReportSales = signal<Array<any>>([]);
 
@@ -121,7 +121,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
       this.showFlowsModal.set(true);
       this.loading.set(false);
     }).catch(error => {
-      this.error.set('Erreur lors du chargement des détails: ' + (error.error?.error || error.message || 'Erreur inconnue'));      
+      this.error.set('Erreur lors du chargement des détails: ' + (error.error?.error || error.message || 'Erreur inconnue'));
       this.loading.set(false);
     });
   }
@@ -146,6 +146,10 @@ export class ClotureComponent implements OnInit, OnDestroy {
     // Encaissements Crédit Clients (from server details)
     const clientPayments = ((session.summary as any)?.clientPaymentsDetails || []) as Array<any>;
     for (const p of clientPayments) {
+      const reasonLower = (p.reason || '').toLowerCase();
+      if (reasonLower.includes('solde de départ') || reasonLower.includes('solde de depart')) {
+        continue;
+      }
       rows.push({
         createdAt: p.createdAt,
         label: `Encaissement client · ${p.clientName || 'Client'}`,
@@ -203,7 +207,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     // Helper function to extract paid amount from partial payment notes
     const extractPaidAmount = (notes: string | null | undefined, defaultAmount: number): number => {
       if (!notes) return defaultAmount;
-      
+
       // Match pattern: "Paiement partiel: Xdt payé, reste Ydt" or "Paiement partiel: X dt payé, reste Y dt"
       const match = notes.match(/Paiement partiel:\s*([\d.]+)\s*dt?\s*payé/i);
       if (match && match[1]) {
@@ -212,7 +216,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
           return paidAmount;
         }
       }
-      
+
       return defaultAmount;
     };
 
@@ -225,11 +229,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
       if (e.categoryName) parts.push(e.categoryName);
       if (e.supplierName) parts.push(`Fournisseur: ${e.supplierName}`);
       const label = parts.length ? parts.join(' · ') : (e.reason || 'Dépense');
-      
+
       // Extract paid amount if partial payment, otherwise use full amount
       const defaultAmount = parseFloat(e.amount || 0) || 0;
       const displayAmount = extractPaidAmount(e.notes, defaultAmount);
-      
+
       rows.push({
         createdAt: e.createdAt,
         label,
@@ -278,7 +282,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
         .filter(sale => ['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase()))
         .map(sale => sale.id)
     );
-    
+
     // Build a set of expense IDs that are already shown in expensesDetails
     // This prevents double counting: expenses with cash movements are shown in expensesDetails,
     // and their movements should NOT be shown again in "autres sorties"
@@ -292,30 +296,30 @@ export class ClotureComponent implements OnInit, OnDestroy {
         expenseIdsInDetails.add(parseInt(match[1]));
       }
     });
-    
+
     for (const m of movements) {
       const reason = String(m.reason || '');
       const reasonLower = reason.toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
       const isRejected = reason.includes('[REJETÉ]');
       const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
-      
+
       // Check if this movement is already counted as an expense
       const expenseMatch = reason.match(/Dépense(?: approuvée)?\s*#(\d+)/i);
       const isExpenseMovement = expenseMatch && expenseIdsInDetails.has(parseInt(expenseMatch[1]));
-      
+
       // Check if this is a sortie that hasn't been categorized yet
       const isSortie = ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type);
       const isExpense = reasonLower.includes('dépense') || reasonLower.includes('depense');
       const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
       const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
       const isDeleted = reason.includes('[SUPPRIMÉ]');
-      
-      if (isSortie && amount > 0 && !isRejected && !isDeleted && !isFromCancelledTicket && 
-          !isExpenseMovement && !isExpense && !isSupplierPayment && !isRefund) {
+
+      if (isSortie && amount > 0 && !isRejected && !isDeleted && !isFromCancelledTicket &&
+        !isExpenseMovement && !isExpense && !isSupplierPayment && !isRefund) {
         // This is an uncategorized sortie (not an expense, supplier payment, or refund)
-        const label = reason || (m.type === 'DEPOT_COFFRE' ? 'Dépôt au coffre' : 
-                                 m.type === 'RETRAIT_CENTRALE' ? 'Retrait centrale' : 'Autre sortie');
+        const label = reason || (m.type === 'DEPOT_COFFRE' ? 'Dépôt au coffre' :
+          m.type === 'RETRAIT_CENTRALE' ? 'Retrait centrale' : 'Autre sortie');
         rows.push({
           createdAt: m.createdAt,
           label: label,
@@ -354,7 +358,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `flux_caisse_${new Date().toISOString().slice(0,10)}.csv`;
+    link.download = `flux_caisse_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -421,16 +425,16 @@ export class ClotureComponent implements OnInit, OnDestroy {
   creditAmount = computed(() => {
     const session = this.currentSession();
     if (!session) return 0;
-    
+
     // Calculate from credit sales details (ensures accuracy and consistency)
     const details = this.getCreditSalesDetails();
     const totalFromDetails = details.reduce((sum, credit) => sum + credit.amount, 0);
-    
+
     // If we have details and they sum to a value, use that
     if (details.length > 0 && totalFromDetails > 0) {
       return totalFromDetails;
     }
-    
+
     // Fallback to summary values if details aren't available yet
     const summary: any = session?.summary || {};
     const direct = parseFloat(summary.creditOutstanding || 0) || 0;
@@ -463,11 +467,11 @@ export class ClotureComponent implements OnInit, OnDestroy {
     sales.forEach(sale => {
       const paymentType = (sale.paymentType || '').toUpperCase();
       const status = (sale.status || '').toUpperCase();
-      
+
       // Only include active credit sales
       if (paymentType === 'CREDIT' && !['CANCELLED', 'REFUNDED'].includes(status)) {
         const saleTotal = parseFloat(sale.finalTotal || 0) || 0;
-        
+
         // The server calculates paidAmount as: finalTotal - DEBT transactions
         // For credit sales: paidAmount = finalTotal - outstandingDebt
         // So outstanding credit = finalTotal - paidAmount = outstandingDebt
@@ -475,12 +479,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
         // Use paidAmount if available (calculated by server from DEBT transactions)
         // Otherwise fall back to advancePayment
         const paidAmount = parseFloat(sale.paidAmount ?? sale.advancePayment ?? 0) || 0;
-        
+
         // Calculate outstanding credit: total sale amount minus what was paid
         // This matches the server calculation where outstanding = DEBT - PAYMENT
         // For display: outstanding = saleTotal - paidAmount
         const outstanding = Math.max(0, saleTotal - paidAmount);
-        
+
         // Only include if there's outstanding credit
         if (outstanding > 0) {
           let clientName = 'Client inconnu';
@@ -489,7 +493,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
             const lastName = sale.client.lastName || '';
             clientName = `${firstName} ${lastName}`.trim() || 'Client inconnu';
           }
-          
+
           creditSales.push({
             saleId: sale.id,
             clientName,
@@ -525,14 +529,24 @@ export class ClotureComponent implements OnInit, OnDestroy {
   recentClientPayments(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
     const details = (this.currentSession()?.summary as any)?.clientPaymentsDetails as Array<any> | undefined;
     if (details && details.length) {
-      return details.slice(0, 10).map(d => ({
-        createdAt: d.createdAt,
-        type: 'ENTREE',
-        reason: `Encaissement client · ${d.clientName || 'Client'}`,
-        amount: parseFloat(d.amount || 0) || 0
-      }));
+      return details
+        .filter(d => {
+          const reasonLower = (d.reason || '').toLowerCase();
+          return !reasonLower.includes('solde de départ') && !reasonLower.includes('solde de depart');
+        })
+        .slice(0, 10).map(d => ({
+          createdAt: d.createdAt,
+          type: 'ENTREE',
+          reason: `Encaissement client · ${d.clientName || 'Client'}`,
+          amount: parseFloat(d.amount || 0) || 0
+        }));
     }
-    return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && (((m.reason || '').toLowerCase().includes('crédit')) || ((m.reason || '').toLowerCase().includes('credit'))));
+    return this.getRecentMovements(10, (m: any) => {
+      const reasonLower = (m.reason || '').toLowerCase();
+      const hasCredit = reasonLower.includes('crédit') || reasonLower.includes('credit');
+      const isSoldeDepart = reasonLower.includes('solde de départ') || reasonLower.includes('solde de depart');
+      return m.type === 'ENTREE' && hasCredit && !isSoldeDepart;
+    });
   }
 
   recentOrderAdvances(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
@@ -559,7 +573,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     // Helper function to extract paid amount from partial payment notes
     const extractPaidAmount = (notes: string | null | undefined, defaultAmount: number): number => {
       if (!notes) return defaultAmount;
-      
+
       // Match pattern: "Paiement partiel: Xdt payé, reste Ydt" or "Paiement partiel: X dt payé, reste Y dt"
       const match = notes.match(/Paiement partiel:\s*([\d.]+)\s*dt?\s*payé/i);
       if (match && match[1]) {
@@ -568,7 +582,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
           return paidAmount;
         }
       }
-      
+
       return defaultAmount;
     };
 
@@ -635,10 +649,10 @@ export class ClotureComponent implements OnInit, OnDestroy {
     return this.getRecentMovements(10, (m: any) => {
       const reason = String(m.reason || '');
       const amount = parseFloat(m.amount || 0) || 0;
-      return m.type === 'SORTIE' && 
-             (reason.toLowerCase().includes('dépense') || reason.toLowerCase().includes('depense')) &&
-             !reason.includes('[REJETÉ]') && 
-             amount > 0;
+      return m.type === 'SORTIE' &&
+        (reason.toLowerCase().includes('dépense') || reason.toLowerCase().includes('depense')) &&
+        !reason.includes('[REJETÉ]') &&
+        amount > 0;
     });
   }
 
@@ -707,10 +721,10 @@ export class ClotureComponent implements OnInit, OnDestroy {
   recentCancelledTickets(): Array<{ createdAt: string; type: string; reason: string; amount: number; ticketId: number }> {
     const session = this.currentSession();
     if (!session) return [];
-    
+
     const zSales = this.zReportSales();
     const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
-    
+
     return sales
       .filter((sale: any) => {
         const status = (sale.status || '').toUpperCase();
@@ -733,14 +747,14 @@ export class ClotureComponent implements OnInit, OnDestroy {
   recentRefunds(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
     const movements = (this.currentSession()?.cashMovements || []) as any[];
     const sales = ((this.currentSession() as any)?.sales || []) as any[];
-    
+
     // Get cancelled/refunded ticket IDs
     const cancelledTicketIds = new Set(
       sales
         .filter(sale => ['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase()))
         .map(sale => sale.id)
     );
-    
+
     return movements
       .filter(m => {
         const reason = String(m.reason || '');
@@ -768,21 +782,21 @@ export class ClotureComponent implements OnInit, OnDestroy {
     if (sortieFromSummary > 0) {
       return sortieFromSummary;
     }
-    
+
     const movements = this.currentSession()?.cashMovements || [];
     return movements
       .filter(m => {
         const reason = String(m.reason || '');
         const reasonLower = reason.toLowerCase();
         const amount = parseFloat((m as any).amount || 0) || 0;
-        const isBonRetour = reasonLower.includes('bon de retour') || 
-                           reasonLower.includes('bon retour') ||
-                           reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
-        return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && 
-               amount > 0 && 
-               !reason.includes('[REJETÉ]') && 
-               !reason.includes('[SUPPRIMÉ]') &&
-               !isBonRetour;
+        const isBonRetour = reasonLower.includes('bon de retour') ||
+          reasonLower.includes('bon retour') ||
+          reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
+        return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) &&
+          amount > 0 &&
+          !reason.includes('[REJETÉ]') &&
+          !reason.includes('[SUPPRIMÉ]') &&
+          !isBonRetour;
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
@@ -790,10 +804,10 @@ export class ClotureComponent implements OnInit, OnDestroy {
   getCancelledTicketsTotal(): number {
     const session = this.currentSession();
     if (!session) return 0;
-    
+
     const zSales = this.zReportSales();
     const sales = zSales.length > 0 ? zSales : ((session as any)?.sales || []);
-    
+
     return sales.reduce((total: number, sale: any) => {
       const status = (sale.status || '').toUpperCase();
       if (status === 'CANCELLED' || status === 'REFUNDED') {
@@ -807,14 +821,14 @@ export class ClotureComponent implements OnInit, OnDestroy {
   getRefundsTotal(): number {
     const movements = this.currentSession()?.cashMovements || [];
     const sales = ((this.currentSession() as any)?.sales || []) as any[];
-    
+
     // Get cancelled/refunded ticket IDs
     const cancelledTicketIds = new Set(
       sales
         .filter(sale => ['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase()))
         .map(sale => sale.id)
     );
-    
+
     return movements
       .filter(m => {
         const reason = String(m.reason || '');
@@ -839,8 +853,22 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // New computed helpers
   getClientPaymentsTotal(): number {
-    const summary: any = this.currentSession()?.summary || {};
-    // Only use server-provided client payments total (standalone payments without saleId)
+    const session = this.currentSession();
+    if (!session) return 0;
+    const summary: any = session.summary || {};
+    const details = (summary.clientPaymentsDetails || []) as any[];
+
+    // If we have details, recalculate total excluding "Solde de départ"
+    if (details.length > 0) {
+      return details
+        .filter(p => {
+          const reasonLower = (p.reason || '').toLowerCase();
+          return !reasonLower.includes('solde de départ') && !reasonLower.includes('solde de depart');
+        })
+        .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    }
+
+    // Fallback if no details
     return parseFloat(summary.clientPaymentsTotal || 0) || 0;
   }
 
@@ -884,7 +912,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
         return total + paidAmount;
       }, 0);
     }
-    
+
     // Default to value from session summary if available (so user sees value before expanding)
     const summary = (this.currentSession() as any)?.summary;
     return parseFloat(summary?.cashFromSalesNetCredit || 0) || 0;
@@ -894,8 +922,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
   getCashFromSalesNetOfCredit(): number {
     // Request sales data if missing (but only once per session ID)
     const session = this.currentSession();
-    if (session && !(session as any)?.sales?.length && session.id && 
-        session.id !== this.requestedSalesDataForSessionId && !this.isLoadingSalesData) {
+    if (session && !(session as any)?.sales?.length && session.id &&
+      session.id !== this.requestedSalesDataForSessionId && !this.isLoadingSalesData) {
       this.requestedSalesDataForSessionId = session.id;
       setTimeout(() => {
         const currentSession = this.currentSession();
@@ -911,7 +939,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     // Helper function to extract paid amount from partial payment notes
     const extractPaidAmount = (notes: string | null | undefined, defaultAmount: number): number => {
       if (!notes) return defaultAmount;
-      
+
       // Match pattern: "Paiement partiel: Xdt payé, reste Ydt" or "Paiement partiel: X dt payé, reste Y dt"
       const match = notes.match(/Paiement partiel:\s*([\d.]+)\s*dt?\s*payé/i);
       if (match && match[1]) {
@@ -920,7 +948,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
           return paidAmount;
         }
       }
-      
+
       return defaultAmount;
     };
 
@@ -935,13 +963,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
       }, 0);
       if (totalFromDetails > 0) return totalFromDetails;
     }
-    
+
     // Fallback: Prefer server-provided total if available
     const fromSummary = parseFloat(summary.expensesTotal || 0) || 0;
     if (fromSummary > 0) {
       return fromSummary;
     }
-    
+
     // Final fallback: movements tagged as expenses or bon de retour (exclude rejected)
     const movements = this.currentSession()?.cashMovements || [];
     const totalFromMovements = movements
@@ -951,13 +979,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
         const amount = parseFloat((m as any).amount || 0) || 0;
         const isExpense = reasonLower.includes('dépense') || reasonLower.includes('depense');
         const isBonRetour = reasonLower.includes('bon de retour');
-        return m.type === 'SORTIE' && 
-               (isExpense || isBonRetour) &&
-               !reason.includes('[REJETÉ]') && 
-               amount > 0;
+        return m.type === 'SORTIE' &&
+          (isExpense || isBonRetour) &&
+          !reason.includes('[REJETÉ]') &&
+          amount > 0;
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
-    
+
     return totalFromMovements;
   }
 
@@ -976,9 +1004,24 @@ export class ClotureComponent implements OnInit, OnDestroy {
   // The server's expectedCash already accounts for all transactions correctly,
   // including excluding cancelled tickets, so we use it directly
   getSessionExpectedCash(): number {
-    const baseExpectedCash = parseFloat((this.currentSession()?.expectedCash as any) || 0) || 0;
-    // Don't subtract cancelled tickets - the server already handles this correctly
-    return baseExpectedCash;
+    const session = this.currentSession();
+    if (!session) return 0;
+
+    const baseExpectedCash = parseFloat((session.expectedCash as any) || 0) || 0;
+
+    // Exclude "Solde de départ" if they were included in the server's expected cash
+    // We do this by calculating the amount to exclude from client payments
+    const summary: any = session.summary || {};
+    const details = (summary.clientPaymentsDetails || []) as any[];
+    const excludedAmount = details
+      .filter(p => {
+        const reasonLower = (p.reason || '').toLowerCase();
+        return reasonLower.includes('solde de départ') || reasonLower.includes('solde de depart');
+      })
+      .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+
+    // Subtract cancelled tickets is already handled by the server
+    return baseExpectedCash - excludedAmount;
   }
 
   // Opening fund as computed signal for auto-updates
@@ -1025,7 +1068,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
+
   // Load Z report sales data for totalSalesTTC (called when session loads)
   private loadZReportSalesData(sessionId: number): void {
     this.sessionsService.getSessionReport(sessionId, 'Z').subscribe({
@@ -1045,27 +1088,27 @@ export class ClotureComponent implements OnInit, OnDestroy {
   loadCashSalesDetails(): void {
     const session = this.currentSession();
     if (!session || this.cashSalesLoading()) return;
-    
+
     // Prevent loading if already loaded for this session
     if (this.lastLoadCashSalesSessionId === session.id && this.cashSalesDetails().length > 0) {
       return; // Already have data for this session
     }
-    
+
     // Debounce rapid calls (e.g., from multiple checkbox changes)
     if (this.loadCashSalesTimeout) {
       clearTimeout(this.loadCashSalesTimeout);
     }
-    
+
     this.loadCashSalesTimeout = setTimeout(() => {
       this.loadCashSalesTimeout = null;
       this.performLoadCashSalesDetails();
     }, 100);
   }
-  
+
   private performLoadCashSalesDetails(): void {
     const session = this.currentSession();
     if (!session || this.cashSalesLoading()) return;
-    
+
     // Prevent multiple simultaneous calls
     this.cashSalesLoading.set(true);
     this.lastLoadCashSalesSessionId = session.id;
@@ -1079,12 +1122,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
           if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
             return false;
           }
-          
+
           const method = ((s.paymentMethod?.type || '') as string).toUpperCase();
           const paid = parseFloat(s.paidAmount ?? 0) || 0;
           const total = parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0;
           const hasCredit = total - paid > 0;
-          
+
           // Debug log for wholesale sales
           if (s.isWholesale) {
             console.log('Wholesale sale in closure:', {
@@ -1099,7 +1142,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
               totalAmount: s.totalAmount
             });
           }
-          
+
           // Include all cash-related tickets; we'll style struck for cancelled/refunded
           return (method === 'CASH' || paid > 0 || hasCredit);
         });
@@ -1122,20 +1165,20 @@ export class ClotureComponent implements OnInit, OnDestroy {
           if (tb !== ta) return tb - ta;
           return (b.id || 0) - (a.id || 0);
         });
-        
+
         // Check if cash sales data actually changed before updating
         const newCashSalesSnapshot = JSON.stringify({
           len: rows.length,
           total: rows.reduce((sum: number, r: any) => sum + (r.totalAmount || 0), 0),
           lastId: rows.length ? rows[0].id : null
         });
-        
+
         // Only update if cash sales data changed
         if (this.lastCashSalesSnapshot !== newCashSalesSnapshot) {
           this.cashSalesDetails.set(rows);
           this.lastCashSalesSnapshot = newCashSalesSnapshot;
         }
-        
+
         this.cashSalesLoading.set(false);
       },
       error: () => {
@@ -1177,17 +1220,17 @@ export class ClotureComponent implements OnInit, OnDestroy {
       detail.click();
     }
   }
-  
+
   // Fund form
   fundForm = {
     amount: ''
   };
-  
+
   // Adjust balance form
   adjustForm = {
     newBalance: ''
   };
-  
+
 
   constructor(
     private sessionsService: SessionsService,
@@ -1199,7 +1242,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     private depotsService: DepotsService,
     private ticketCounterService: TicketCounterService,
     private salesService: SalesService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.settings$ = this.settingsService.getSettings();
@@ -1227,12 +1270,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
     if (this.isRefreshing) return;
     this.isRefreshing = true;
     if (!silent) this.loading.set(true);
-    
+
     // Get depot ID for isolation (no user linkage)
     const userDepotId = this.authService.currentUser()?.depotId;
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
-    
+
     // Debug logging
     console.log('[Cloture] Loading session:', {
       userDepotId,
@@ -1240,14 +1283,14 @@ export class ClotureComponent implements OnInit, OnDestroy {
       currentDepotId,
       user: this.authService.currentUser()
     });
-    
+
     if (!currentDepotId) {
       this.error.set('Aucun dépôt sélectionné. Veuillez sélectionner un dépôt.');
       this.loading.set(false);
       this.isRefreshing = false;
       return;
     }
-    
+
     // Load active session for closure
     this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({
       next: (session) => {
@@ -1264,7 +1307,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
           this.currentSession.set(session);
           this.lastSessionSnapshot = snapshot;
         }
-        
+
         // Reset requested flag when session changes
         if (session && this.requestedSalesDataForSessionId !== session.id) {
           this.requestedSalesDataForSessionId = null;
@@ -1272,20 +1315,20 @@ export class ClotureComponent implements OnInit, OnDestroy {
           this.lastLoadCashSalesSessionId = null; // Reset cash sales session tracking
           this.zReportSales.set([]); // Reset Z report sales when session changes
         }
-        
+
         // Only load sales data if session ID changed or if we don't have sales data yet
         if (session) {
           const currentSession = this.currentSession();
           const hasSalesData = (currentSession as any)?.sales?.length > 0;
-          const needsSalesData = !currentSession || 
+          const needsSalesData = !currentSession ||
             !hasSalesData ||
             currentSession.id !== session.id;
-          
+
           // Only load if we actually need it and haven't already loaded it
           // Auto-loading of session sales data and cash details removed to improve performance.
           // These are now loaded on demand (e.g., when expanding sections or opening modals).
         }
-        
+
         if (!silent) this.loading.set(false);
         this.isRefreshing = false;
       },
@@ -1302,7 +1345,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     if (this.isRefreshing) return;
     this.isRefreshing = true;
     if (!silent) this.loading.set(true);
-    
+
     this.sessionsService.getSessionById(sessionId).subscribe({
       next: (session) => {
         // Build a compact snapshot to detect meaningful changes
@@ -1318,7 +1361,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
           this.currentSession.set(session);
           this.lastSessionSnapshot = snapshot;
         }
-        
+
         // Reset requested flag when session changes
         if (session && this.requestedSalesDataForSessionId !== session.id) {
           this.requestedSalesDataForSessionId = null;
@@ -1326,19 +1369,19 @@ export class ClotureComponent implements OnInit, OnDestroy {
           this.lastLoadCashSalesSessionId = null; // Reset cash sales session tracking
           this.zReportSales.set([]); // Reset Z report sales when session changes
         }
-        
+
         // Only load sales data if session ID changed or if we don't have sales data yet
         if (session) {
           const currentSession = this.currentSession();
           const hasSalesData = (currentSession as any)?.sales?.length > 0;
-          const needsSalesData = !currentSession || 
+          const needsSalesData = !currentSession ||
             !hasSalesData ||
             currentSession.id !== session.id;
-          
+
           // Only load if we actually need it and haven't already loaded it
           // Auto-loading of heavy data removed from polling/refresh logic
         }
-        
+
         if (!silent) this.loading.set(false);
         this.isRefreshing = false;
       },
@@ -1355,7 +1398,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
   private loadSessionSalesData(sessionId: number): void {
     // Prevent multiple simultaneous calls
     if (this.isLoadingSalesData) return;
-    
+
     this.isLoadingSalesData = true;
     this.sessionsService.getSessionReport(sessionId, 'X').subscribe({
       next: (report: any) => {
@@ -1363,14 +1406,14 @@ export class ClotureComponent implements OnInit, OnDestroy {
         if (currentSession && report?.session) {
           // Always update session with sales data, regardless of snapshot changes
           const sales = report.session.sales || [];
-          
+
           // Check if sales data actually changed before updating
           const newSalesSnapshot = JSON.stringify({
             len: sales.length,
             lastId: sales.length ? sales[sales.length - 1].id : null,
             lastUpdated: sales.length ? sales[sales.length - 1].updatedAt || sales[sales.length - 1].createdAt : null
           });
-          
+
           // Only update if sales data changed
           if (this.lastSalesSnapshot !== newSalesSnapshot) {
             const updatedSession = {
@@ -1393,12 +1436,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   autoOpenSession(openingFund: number = 0): void {
     this.loading.set(true);
-    
+
     // Get depot ID for isolation (no user linkage)
     const userDepotId = this.authService.currentUser()?.depotId;
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
-    
+
     // If a session is already open for this depot, do not attempt to auto-open
     this.sessionsService.getActiveSessionByDepot(1, currentDepotId).subscribe({
       next: (active) => {
@@ -1408,7 +1451,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
           this.error.set('');
           return;
         }
-        
+
         // Build payload: include openingFund only if it is a meaningful positive value
         const payload: any = {
           posId: 1,
@@ -1418,7 +1461,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
         if (Number.isFinite(openingFund) && openingFund > 0) {
           payload.openingFund = openingFund;
         }
-        
+
         this.sessionsService.openSessionByDepot(payload).subscribe({
           next: (session) => {
             this.currentSession.set(session);
@@ -1460,7 +1503,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   // Depot choosing removed
 
-  
+
 
 
   closeSession(): void {
@@ -1472,9 +1515,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
     // Simple closure - just log withdrawal and print daily extract
     const withdrawalAmount = parseFloat(this.closeSessionForm.retraitCentrale) || 0;
-    
+
     this.loading.set(true);
-    
+
     // Get session-specific extract and company settings, then print
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
@@ -1489,12 +1532,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
               city: sessionReport.session?.depot?.city || 'Tunis, Tunisie',
               phone: sessionReport.session?.depot?.phone || '+216 71 123 456'
             };
-            
+
             // Add opening fund from current session to the session report
             if (sessionReport.session && this.currentSession()) {
               sessionReport.session.openingFund = this.currentSession()?.openingFund || 0;
             }
-            
+
             // Print the comprehensive session extract with real company data
             this.printService.printDailyExtractWithWithdrawal(sessionReport, companyData, withdrawalAmount);
           },
@@ -1504,14 +1547,14 @@ export class ClotureComponent implements OnInit, OnDestroy {
             this.printService.printDailyExtractWithWithdrawal(sessionReport, undefined, withdrawalAmount);
           }
         });
-        
+
         // Ensure we have valid countedCash value
         const countedCash = sessionReport.summary?.expectedCash || 0;
-        
+
         // Close the session (simple closure)
         // Calculate remaining balance for next session's opening fund
         const remainingBalance = countedCash - withdrawalAmount;
-        
+
         this.sessionsService.closeSession(session.id, {
           countedCash: countedCash,
           fonds: remainingBalance, // Use remaining balance as opening fund for next session
@@ -1522,13 +1565,13 @@ export class ClotureComponent implements OnInit, OnDestroy {
             this.showCloseForm.set(false);
             this.loading.set(false);
             this.error.set('');
-            
+
             // Reset ticket counter after successful session closure
             this.ticketCounterService.resetTicketCounter();
-            
+
             // Automatically open new session with the remaining balance
             this.autoOpenSession(resp.remainingBalance || 0);
-            
+
             // Always return to caisse after closure
             setTimeout(() => {
               this.goToRegister();
@@ -1579,12 +1622,12 @@ export class ClotureComponent implements OnInit, OnDestroy {
               city: sessionReport.session?.depot?.city || 'Tunis, Tunisie',
               phone: sessionReport.session?.depot?.phone || '+216 71 123 456'
             };
-            
+
             // Add opening fund from current session to the session report
             if (sessionReport.session && this.currentSession()) {
               sessionReport.session.openingFund = this.currentSession()?.openingFund || 0;
             }
-            
+
             this.printService.printDetailedSessionReport(sessionReport, companyData);
             this.loading.set(false);
           },
@@ -1658,7 +1701,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   addDigit(digit: string): void {
     const current = this.closeSessionForm.retraitCentrale.toString();
-    
+
     if (digit === '.') {
       // Only allow one decimal point
       if (!current.includes('.')) {
@@ -1692,7 +1735,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     }
 
     this.loading.set(true);
-    
+
     // Add cash movement for funding
     this.sessionsService.addCashMovement(session.id, {
       type: 'ENTREE',
@@ -1716,7 +1759,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   addFundDigit(digit: string): void {
     const current = this.fundForm.amount.toString();
-    
+
     if (digit === '.') {
       // Only allow one decimal point
       if (!current.includes('.')) {
@@ -1755,7 +1798,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     }
 
     this.loading.set(true);
-    
+
     // Add cash movement for balance adjustment
     this.sessionsService.addCashMovement(session.id, {
       type: delta > 0 ? 'ENTREE' : 'SORTIE',
@@ -1779,7 +1822,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
 
   addAdjustDigit(digit: string): void {
     const current = this.adjustForm.newBalance.toString();
-    
+
     if (digit === '.') {
       // Only allow one decimal point
       if (!current.includes('.')) {
@@ -1807,7 +1850,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     }
 
     this.loading.set(true);
-    
+
     // Get session report data
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
@@ -1842,7 +1885,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
-        
+
         const link = document.createElement('a');
         link.href = url;
         link.download = `session_${session.id}_${new Date().toISOString().split('T')[0]}.json`;
@@ -1850,7 +1893,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        
+
         this.loading.set(false);
         this.error.set('');
       },

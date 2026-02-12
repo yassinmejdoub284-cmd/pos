@@ -2181,7 +2181,19 @@ async function calculateSessionSummary(sessionId) {
         },
         // Exclude client returns (Bon de retour) from cash encaissements
         // Returns reduce debt (PAYMENT type) but do not bring in cash
-        notes: { not: { contains: 'Bon de retour' } }
+        // Also exclude initial balance definitions (Solde de départ)
+        // Exclude client returns (Bon de retour) and initial balances (Solde de départ)
+        // CRITICAL: Handle NULL notes correctly to avoid excluding regular payments
+        OR: [
+          { notes: null },
+          {
+            AND: [
+              { notes: { not: { contains: 'Bon de retour' } } },
+              { notes: { not: { contains: 'Solde de départ' } } },
+              { notes: { not: { contains: 'Solde de depart' } } }
+            ]
+          }
+        ]
       },
       include: {
         client: { select: { id: true, firstName: true, lastName: true } }
@@ -2199,6 +2211,7 @@ async function calculateSessionSummary(sessionId) {
     clientPaymentsDetails = standalonePayments.map(p => ({
       id: p.id,
       amount: parseFloat(p.amount || 0),
+      reason: p.notes || `Encaissement client · ${p.client ? `${p.client.firstName} ${p.client.lastName}`.trim() : 'Client'}`,
       clientId: p.client?.id || null,
       clientName: p.client ? `${p.client.firstName} ${p.client.lastName}`.trim() : 'Client',
       createdAt: p.createdAt,

@@ -43,7 +43,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   loading = signal(false);
   loadingDetails = signal(false);
   error = signal('');
-  
+
   // Dropdown states
   showFamilyDropdown = false;
   showArticleDropdown = false;
@@ -64,7 +64,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     decaissement: { expenses: false, suppliers: false },
     alimentations: { expanded: false }
   });
-  
+
   // Tickets modal state
   showTicketsModal = signal(false);
   sessionTickets = signal<Array<{ id: number; amount: number; totalAmount?: number; createdAt?: string | Date }>>([]);
@@ -82,8 +82,8 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   releveDateTo = '';
   releveEntries = signal<ReleveEntry[]>([]);
   releveTitle = signal('');
-  
-  
+
+
   // Expense details modal state
   showExpenseDetailsModal = signal(false);
   expenseDetails = signal<Array<{ id: number; amount: number; reason: string; createdAt: string; categoryName?: string; supplierName?: string; notes?: string }>>([]);
@@ -120,12 +120,12 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   closeSessionForm = {
     retraitCentrale: ''
   };
-  
+
   // Fund form
   fundForm = {
     amount: ''
   };
-  
+
   // Adjust balance form
   adjustForm = {
     newBalance: ''
@@ -153,7 +153,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   initializeDefaultDateRange(): void {
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
+
     // Format dates as YYYY-MM-DD for date inputs
     this.releveDateFrom = firstDayOfMonth.toISOString().split('T')[0];
     this.releveDateTo = today.toISOString().split('T')[0];
@@ -177,7 +177,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
   loadRecentSessions(limit: number, after?: () => void): void {
 
-    this.sessionsService.getSessions({ 
+    this.sessionsService.getSessions({
       limit: limit
     }).subscribe({
       next: (sessions: any) => {
@@ -193,13 +193,13 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           .slice(0, limit);
 
 
-         this.sessions.set(sorted);
-         // Auto-select first session if none selected and sessions exist
-         if (sorted.length > 0 && !this.selectedSession()) {
-           this.selectSession(sorted[0]);
-         }
-         this.loading.set(false);
-         if (after) after();
+        this.sessions.set(sorted);
+        // Auto-select first session if none selected and sessions exist
+        if (sorted.length > 0 && !this.selectedSession()) {
+          this.selectSession(sorted[0]);
+        }
+        this.loading.set(false);
+        if (after) after();
       },
       error: (error) => {
         console.error('Error loading recent sessions:', error);
@@ -257,14 +257,14 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   printX(session: SessionCaisse): void {
     this.sessionsService.getSessionReport(session.id, 'X', 'html').subscribe({
       next: (data) => this.printService.printXReport(data),
-      error: () => {}
+      error: () => { }
     });
   }
 
   printZ(session: SessionCaisse): void {
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (data) => this.printService.printZReport(data),
-      error: () => {}
+      error: () => { }
     });
   }
 
@@ -285,7 +285,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       this.showFlowsModal.set(true);
       this.loading.set(false);
     }).catch(error => {
-      this.error.set('Erreur lors du chargement des détails: ' + (error.error?.error || error.message || 'Erreur inconnue'));      
+      this.error.set('Erreur lors du chargement des détails: ' + (error.error?.error || error.message || 'Erreur inconnue'));
       this.loading.set(false);
     });
   }
@@ -310,6 +310,11 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     // Encaissements Crédit Clients (from server details)
     const clientPayments = ((session.summary as any)?.clientPaymentsDetails || []) as Array<any>;
     for (const p of clientPayments) {
+      const reasonLower = (p.reason || '').toLowerCase();
+      // Exclude initial balances (Solde de départ)
+      if (reasonLower.includes('solde de départ') || reasonLower.includes('solde de depart')) {
+        continue;
+      }
       rows.push({
         createdAt: p.createdAt,
         label: `Encaissement client · ${p.clientName || 'Client'}`,
@@ -344,13 +349,13 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       const totalAmount = typeof t.totalAmount === 'number' ? t.totalAmount : parseFloat(String(t.totalAmount || 0)) || 0;
       const paidAmount = typeof t.paidAmount === 'number' ? t.paidAmount : parseFloat(String(t.paidAmount || 0)) || 0;
       const remainingBalance = totalAmount - paidAmount;
-      
+
       // Double-check: exclude credit tickets even if they somehow got into cashSalesDetails
       if (paymentType === 'CREDIT') continue; // Explicit credit sale
       if (remainingBalance > 0.001) continue; // Has outstanding balance = credit sale
       if (paymentMethod !== 'CASH' && paymentType !== 'COMPTANT') continue;
       if (paidAmount <= 0) continue;
-      
+
       rows.push({
         createdAt: new Date(this.selectedSession()!.openedAt).toISOString(),
         label: `Ticket N°${t.id}`,
@@ -370,6 +375,20 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     const session = this.selectedSession();
     if (!session) return [];
 
+    // Helper function to extract paid amount from partial payment notes
+    const extractPaidAmount = (notes: string | null | undefined, defaultAmount: number): number => {
+      if (!notes) return defaultAmount;
+      // Match pattern: "Paiement partiel: Xdt payé, reste Ydt" or "Paiement partiel: X dt payé, reste Y dt"
+      const match = notes.match(/Paiement partiel:\s*([\d.]+)\s*dt?\s*payé/i);
+      if (match && match[1]) {
+        const paidAmount = parseFloat(match[1]);
+        if (!isNaN(paidAmount) && paidAmount > 0) {
+          return paidAmount;
+        }
+      }
+      return defaultAmount;
+    };
+
     const rows: Array<{ createdAt: string; label: string; amount: number }> = [];
 
     // Dépenses (use server details first)
@@ -379,37 +398,97 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       if (e.categoryName) parts.push(e.categoryName);
       if (e.supplierName) parts.push(`Fournisseur: ${e.supplierName}`);
       const label = parts.length ? parts.join(' · ') : (e.reason || 'Dépense');
+
+      // Extract paid amount if partial payment, otherwise use full amount
+      const defaultAmount = parseFloat(e.amount || 0) || 0;
+      const displayAmount = extractPaidAmount(e.notes, defaultAmount);
+
       rows.push({
         createdAt: e.createdAt,
         label,
-        amount: parseFloat(e.amount || 0) || 0
+        amount: displayAmount
       });
     }
 
-    // Règlements fournisseur (from cash movements)
+    // Règlements fournisseur (from cash movements) - exclude rejected and deleted
     const movements = (session.cashMovements || []) as Array<any>;
     for (const m of movements) {
-      const reasonLower = (m.reason || '').toLowerCase();
+      const reason = String(m.reason || '');
+      const reasonLower = reason.toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
       const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
-      if (m.type === 'SORTIE' && isSupplierPayment && amount > 0) {
+      // Exclude rejected and deleted movements
+      if (m.type === 'SORTIE' && isSupplierPayment && amount > 0 && !reason.includes('[REJETÉ]') && !reason.includes('[SUPPRIMÉ]')) {
         rows.push({
           createdAt: m.createdAt,
-          label: (m.reason || 'Règlement fournisseur').replace(/#\d+\s*\(FOURN:\d+\)/i, '').trim(),
+          label: reason.replace(/#\d+\s*\(FOURN:\d+\)/i, '').trim(),
           amount: amount
         });
       }
     }
 
-    // Remboursements (from cash movements)
+    // Remboursements (from cash movements) - exclude rejected and deleted
     for (const m of movements) {
-      const reasonLower = (m.reason || '').toLowerCase();
+      const reason = String(m.reason || '');
+      const reasonLower = reason.toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
       const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
-      if (m.type === 'SORTIE' && isRefund && amount > 0) {
+      // Exclude rejected and deleted movements
+      if (m.type === 'SORTIE' && isRefund && amount > 0 && !reason.includes('[REJETÉ]') && !reason.includes('[SUPPRIMÉ]')) {
         rows.push({
           createdAt: m.createdAt,
-          label: m.reason || 'Remboursement',
+          label: reason || 'Remboursement',
+          amount: amount
+        });
+      }
+    }
+
+    // Other sorties (not categorized as expenses, supplier payments, or refunds)
+    // This includes: retraits, dépôts au coffre, and other SORTIE movements
+    const sales = ((session as any)?.sales || []) as any[];
+    const cancelledTicketIds = new Set(
+      sales
+        .filter(sale => ['CANCELLED', 'REFUNDED'].includes((sale.status || '').toUpperCase()))
+        .map(sale => sale.id)
+    );
+
+    // Build a set of expense IDs that are already shown in expensesDetails
+    const expenseIdsInDetails = new Set<number>();
+    const expenseRegex = /#(\d+)/;
+    expenses.forEach(e => {
+      const label = (e.categoryName || '') + (e.supplierName || '') + (e.reason || '');
+      const match = label.match(expenseRegex);
+      if (match && match[1]) {
+        expenseIdsInDetails.add(parseInt(match[1]));
+      }
+    });
+
+    for (const m of movements) {
+      const reason = String(m.reason || '');
+      const reasonLower = reason.toLowerCase();
+      const amount = parseFloat(m.amount || 0) || 0;
+      const isRejected = reason.includes('[REJETÉ]');
+      const isFromCancelledTicket = m.ticketId && cancelledTicketIds.has(m.ticketId);
+
+      // Check if this movement is already counted as an expense
+      const expenseMatch = reason.match(/Dépense(?: approuvée)?\s*#(\d+)/i);
+      const isExpenseMovement = expenseMatch && expenseIdsInDetails.has(parseInt(expenseMatch[1]));
+
+      // Check if this is a sortie that hasn't been categorized yet
+      const isSortie = ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type);
+      const isExpense = reasonLower.includes('dépense') || reasonLower.includes('depense');
+      const isSupplierPayment = reasonLower.includes('règlement fournisseur') || reasonLower.includes('reglement fournisseur');
+      const isRefund = reasonLower.includes('remboursement') || reasonLower.includes('bon de retour');
+      const isDeleted = reason.includes('[SUPPRIMÉ]');
+
+      if (isSortie && amount > 0 && !isRejected && !isDeleted && !isFromCancelledTicket &&
+        !isExpenseMovement && !isExpense && !isSupplierPayment && !isRefund) {
+        // This is an uncategorized sortie (not an expense, supplier payment, or refund)
+        const label = reason || (m.type === 'DEPOT_COFFRE' ? 'Dépôt au coffre' :
+          m.type === 'RETRAIT_CENTRALE' ? 'Retrait centrale' : 'Autre sortie');
+        rows.push({
+          createdAt: m.createdAt,
+          label: label,
           amount: amount
         });
       }
@@ -445,7 +524,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `flux_caisse_${new Date().toISOString().slice(0,10)}.csv`;
+    link.download = `flux_caisse_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -501,7 +580,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   getCreditAmount(): number {
     const session = this.selectedSession();
     if (!session) return 0;
-    
+
     const summary: any = session?.summary || {};
     // Use creditSalesTotal (total credit sales) if available
     // This represents the total amount of credit sales (sum of all DEBT transactions)
@@ -511,14 +590,14 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         return creditFromSummary;
       }
     }
-    
+
     // Fallback: calculate from sales array (same as cloture component)
     const sales = ((session as any)?.sales || []) as any[];
     if (sales.length > 0) {
       return sales.reduce((total: number, sale: any) => {
         const paymentType = (sale.paymentType || sale.paymentMethod?.type || '').toUpperCase();
         const status = (sale.status || '').toUpperCase();
-        
+
         // Only include active credit sales
         if (paymentType === 'CREDIT' && !['CANCELLED', 'REFUNDED'].includes(status)) {
           const finalTotal = parseFloat(sale.finalTotal || 0) || 0;
@@ -527,7 +606,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         return total;
       }, 0);
     }
-    
+
     // Final fallback: calculate from salesByPayment if available
     const credit = (summary.salesByPayment?.CREDIT?.amount) || 0;
     return parseFloat(credit) || 0;
@@ -720,21 +799,21 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     if (sortieFromSummary > 0) {
       return sortieFromSummary;
     }
-    
+
     const movements = session?.cashMovements || [];
     return movements
       .filter(m => {
         const reason = String(m.reason || '');
         const reasonLower = reason.toLowerCase();
         const amount = parseFloat((m as any).amount || 0) || 0;
-        const isBonRetour = reasonLower.includes('bon de retour') || 
-                           reasonLower.includes('bon retour') ||
-                           reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
-        return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && 
-               amount > 0 && 
-               !reason.includes('[REJETÉ]') && 
-               !reason.includes('[SUPPRIMÉ]') &&
-               !isBonRetour;
+        const isBonRetour = reasonLower.includes('bon de retour') ||
+          reasonLower.includes('bon retour') ||
+          reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
+        return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) &&
+          amount > 0 &&
+          !reason.includes('[REJETÉ]') &&
+          !reason.includes('[SUPPRIMÉ]') &&
+          !isBonRetour;
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
   }
@@ -814,10 +893,10 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     // Same formula as cloture component
     const session = this.selectedSession();
     if (!session) return 0;
-    
+
     // Get sales data from session
     const sales = ((session as any)?.sales || []) as any[];
-    
+
     // Sum up all paid amounts (cash portions of sales), excluding canceled tickets and cadeau tickets
     return sales.reduce((total: number, sale: any) => {
       const status = (sale.status || '').toUpperCase();
@@ -872,11 +951,11 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
     // Group sales by user
     const userSalesMap = new Map<string, number>();
-    
+
     sales.forEach((sale: any) => {
       const userName = sale.user ? `${sale.user.firstName} ${sale.user.lastName}` : 'Utilisateur inconnu';
       const saleAmount = parseFloat(sale.finalTotal || sale.total || 0) || 0;
-      
+
       if (userSalesMap.has(userName)) {
         userSalesMap.set(userName, userSalesMap.get(userName)! + saleAmount);
       } else {
@@ -973,13 +1052,13 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
             if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
               return false;
             }
-            
+
             const paymentMethod = (s.paymentMethod || '').toUpperCase();
             const paymentType = ((s as any).paymentType || '').toUpperCase();
             const totalAmount = typeof s.totalAmount === 'number' ? s.totalAmount : parseFloat(String(s.totalAmount || 0)) || 0;
             const paidAmount = typeof s.paidAmount === 'number' ? s.paidAmount : parseFloat(String(s.paidAmount || 0)) || 0;
             const remainingBalance = totalAmount - paidAmount;
-            
+
             // Exclude if:
             // 1. paymentMethod is not CASH
             // 2. paymentType is CREDIT (explicit credit sale)
@@ -989,7 +1068,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
             if (paymentType === 'CREDIT') return false; // Explicit credit sale
             if (remainingBalance > 0.001) return false; // Has outstanding balance = credit sale
             if (paidAmount <= 0) return false;
-            
+
             return true;
           })
           .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -1060,9 +1139,9 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   // New print methods for family and article grouping
   printWithFamily(session: SessionCaisse, format: 'A4' | '80mm' = 'A4'): void {
     if (!session) return;
-    
+
     this.showFamilyDropdown = false; // Close dropdown after selection
-    
+
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
         this.settingsService.getSettings().subscribe({
@@ -1091,9 +1170,9 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
   printByArticle(session: SessionCaisse, format: 'A4' | '80mm' = 'A4'): void {
     if (!session) return;
-    
+
     this.showArticleDropdown = false; // Close dropdown after selection
-    
+
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
         this.settingsService.getSettings().subscribe({
@@ -1255,7 +1334,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
   addDigit(digit: string): void {
     const current = this.closeSessionForm.retraitCentrale.toString();
-    
+
     if (digit === '.') {
       // Only allow one decimal point
       if (!current.includes('.')) {
@@ -1289,7 +1368,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     }
 
     this.loading.set(true);
-    
+
     // Add cash movement for funding
     this.sessionsService.addCashMovement(session.id, {
       type: 'ENTREE',
@@ -1313,7 +1392,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
   addFundDigit(digit: string): void {
     const current = this.fundForm.amount.toString();
-    
+
     if (digit === '.') {
       // Only allow one decimal point
       if (!current.includes('.')) {
@@ -1352,7 +1431,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     }
 
     this.loading.set(true);
-    
+
     // Add cash movement for balance adjustment
     this.sessionsService.addCashMovement(session.id, {
       type: delta > 0 ? 'ENTREE' : 'SORTIE',
@@ -1376,7 +1455,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
   addAdjustDigit(digit: string): void {
     const current = this.adjustForm.newBalance.toString();
-    
+
     if (digit === '.') {
       // Only allow one decimal point
       if (!current.includes('.')) {
@@ -1404,7 +1483,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     }
 
     this.loading.set(true);
-    
+
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
         const exportData = {
@@ -1436,7 +1515,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
-        
+
         const link = document.createElement('a');
         link.href = url;
         link.download = `session_${session.id}_${new Date().toISOString().split('T')[0]}.json`;
@@ -1444,7 +1523,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        
+
         this.loading.set(false);
         this.error.set('');
       },
@@ -1463,7 +1542,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
     this.showFamilyDropdown = false;
     this.loading.set(true);
-    
+
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
         const sales: any[] = (sessionReport?.session?.sales || []) as any[];
@@ -1483,15 +1562,15 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
               const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
               const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
               const lineDiscount: number = parseFloat(String(it.discount ?? 0)) || 0;
-              
+
               if (!familyArticleTotals[familyName]) {
                 familyArticleTotals[familyName] = {};
               }
-              
+
               if (!familyArticleTotals[familyName][productName]) {
                 familyArticleTotals[familyName][productName] = { quantity: 0, total: 0, discount: 0 };
               }
-              
+
               familyArticleTotals[familyName][productName].quantity += qty;
               familyArticleTotals[familyName][productName].total += lineTotal;
               familyArticleTotals[familyName][productName].discount += lineDiscount;
@@ -1540,7 +1619,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
-        
+
         const link = document.createElement('a');
         link.href = url;
         link.download = `session_${session.id}_par_famille_${new Date().toISOString().split('T')[0]}.json`;
@@ -1548,7 +1627,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        
+
         this.loading.set(false);
         this.error.set('');
       },
@@ -1567,15 +1646,15 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
     this.showArticleDropdown = false;
     this.loading.set(true);
-    
+
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
         const sales: any[] = (sessionReport?.session?.sales || []) as any[];
-        const articleMap: Record<string, { 
-          nom: string; 
-          famille: string; 
-          quantite: number; 
-          total: number; 
+        const articleMap: Record<string, {
+          nom: string;
+          famille: string;
+          quantite: number;
+          total: number;
           remise: number;
           productId?: number;
         }> = {};
@@ -1595,9 +1674,9 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
               const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
               const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
               const lineDiscount: number = parseFloat(String(it.discount ?? 0)) || 0;
-              
+
               const key = `${productName}_${productId || ''}`;
-              
+
               if (!articleMap[key]) {
                 articleMap[key] = {
                   nom: productName,
@@ -1608,7 +1687,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
                   productId: productId
                 };
               }
-              
+
               articleMap[key].quantite += qty;
               articleMap[key].total += lineTotal;
               articleMap[key].remise += lineDiscount;
@@ -1645,7 +1724,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
-        
+
         const link = document.createElement('a');
         link.href = url;
         link.download = `session_${session.id}_par_article_${new Date().toISOString().split('T')[0]}.json`;
@@ -1653,7 +1732,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        
+
         this.loading.set(false);
         this.error.set('');
       },
@@ -1682,8 +1761,8 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     }
 
     // Check if sessions already have summary data
-    const sessionsNeedingSummary = sessions.filter(session => 
-      !session.summary || 
+    const sessionsNeedingSummary = sessions.filter(session =>
+      !session.summary ||
       (session.summary.totalSales === 0 && session.summary.expectedCash === 0)
     );
 
@@ -1696,7 +1775,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
 
     // Load summary for sessions that need it using forkJoin for better performance
-    const summaryObservables = sessionsNeedingSummary.map(session => 
+    const summaryObservables = sessionsNeedingSummary.map(session =>
       this.sessionsService.getSessionReport(session.id, 'Z').pipe(
         tap(report => console.log(`Loaded summary for session ${session.id}:`, report)),
         catchError(error => {
@@ -1721,7 +1800,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           }
           return session;
         });
-        
+
         this.sessions.set(updatedSessions);
         if (after) after();
       },
@@ -1785,7 +1864,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     // Parse date-only strings and set time to start/end of day
     const fromDate = new Date(this.releveDateFrom + 'T00:00:00');
     const toDate = new Date(this.releveDateTo + 'T23:59:59');
-    
+
     this.releveTitle.set(`Période du ${fromDate.toLocaleDateString('fr-FR')} au ${toDate.toLocaleDateString('fr-FR')}`);
     this.generateReleveEntries(fromDate, toDate);
     this.closeDateRangeModal();
@@ -1795,7 +1874,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   private generateReleveEntries(fromDate: Date, toDate: Date, sessionId?: number): void {
     const entries: ReleveEntry[] = [];
     let runningBalance = 0;
-    
+
 
     // Ensure dates are valid Date objects
     const validFromDate = fromDate instanceof Date ? fromDate : new Date(fromDate);
@@ -1808,7 +1887,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     }
 
 
-    
+
     // Fetch session summaries with aggregated sales and expenses data
     const sessionSummariesQuery = this.sessionsService.getSessionSummaries({
       startDate: validFromDate.toISOString().split('T')[0],
@@ -1818,7 +1897,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     sessionSummariesQuery.subscribe({
       next: (sessionsWithSummaries) => {
 
-        
+
         // Filter sessions by the specific sessionId if provided
         const sessionsInRange = sessionsWithSummaries.filter(session => {
           return (!sessionId || session.id === sessionId);
@@ -1867,7 +1946,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     if (sessionsInRange.length > 0) {
       initialBalance = parseFloat((sessionsInRange[0].openingFund as any) || 0) || 0;
     }
-    
+
     // Add "Solde initial" entry at the beginning
     let currentBalance = initialBalance;
     if (sessionsInRange.length > 0) {
@@ -1881,10 +1960,10 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         sessionId: firstSession.id
       });
     }
-    
+
     // Collect all entries first, then sort by date (no session grouping)
     const allEntries: Array<{ date: Date; designation: string; debit: number; credit: number; sessionId?: number }> = [];
-    
+
     sessionsInRange.forEach(session => {
       // Add detailed sales for this session
       const sessionSales = sales.filter(sale => sale.sessionId === session.id);
@@ -2000,11 +2079,11 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   private processReleveDataWithSummaries(sessionsInRange: SessionCaisse[], entries: ReleveEntry[], runningBalance: number, fromDate: Date, toDate: Date): void {
     // Calculate session balances first to determine the initial balance
     const sessionBalances: Map<number, number> = new Map();
-    
+
     // First pass: Calculate final balance for each session
     sessionsInRange.forEach((session, index) => {
       let sessionBalance = 0;
-      
+
       // Determine starting balance: use previous session's balance, or session's openingFund for first session
       if (index === 0) {
         // First session uses its own openingFund
@@ -2014,26 +2093,26 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         const previousSession = sessionsInRange[index - 1];
         sessionBalance = sessionBalances.get(previousSession.id) || 0;
       }
-      
+
       // Add cash sales from summary
       if (session.salesSummary?.cashSales) {
-        const cashSales = typeof session.salesSummary.cashSales === 'number' 
-          ? session.salesSummary.cashSales 
+        const cashSales = typeof session.salesSummary.cashSales === 'number'
+          ? session.salesSummary.cashSales
           : parseFloat(String(session.salesSummary.cashSales)) || 0;
         sessionBalance += cashSales;
       }
-      
+
       // Process all cash movements in chronological order
       if (session.cashMovements) {
-        const sortedMovements = [...session.cashMovements].sort((a, b) => 
+        const sortedMovements = [...session.cashMovements].sort((a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
-        
+
         sortedMovements.forEach(movement => {
           const reasonLower = (movement.reason || '').toLowerCase();
           const isExpenseMovement = reasonLower.includes('dépense') || reasonLower.includes('depense');
           const amount = parseFloat(String(movement.amount || 0)) || 0;
-          
+
           if (movement.type === 'ENTREE') {
             sessionBalance += amount;
           } else if (movement.type === 'SORTIE') {
@@ -2048,17 +2127,17 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           }
         });
       }
-      
+
       sessionBalances.set(session.id, sessionBalance);
     });
-    
+
     // Determine initial balance: use first session's opening fund (starting balance for the period)
     let initialBalance = 0;
     if (sessionsInRange.length > 0) {
       // Use the first session's opening fund as the initial balance
       initialBalance = parseFloat((sessionsInRange[0].openingFund as any) || 0) || 0;
     }
-    
+
     // Add "Solde initial" entry at the beginning
     let currentBalance = initialBalance;
     if (sessionsInRange.length > 0) {
@@ -2072,16 +2151,16 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         sessionId: firstSession.id
       });
     }
-    
+
     // Second pass: Generate entries for all sessions in chronological order (no session grouping)
     // Collect all entries first, then sort by date
     const allEntries: Array<{ date: Date; designation: string; debit: number; credit: number; sessionId?: number }> = [];
-    
+
     sessionsInRange.forEach((session) => {
       // Add sales entries from session summary
       if (session.salesSummary?.cashSales) {
-        const cashSales = typeof session.salesSummary.cashSales === 'number' 
-          ? session.salesSummary.cashSales 
+        const cashSales = typeof session.salesSummary.cashSales === 'number'
+          ? session.salesSummary.cashSales
           : parseFloat(String(session.salesSummary.cashSales)) || 0;
         if (cashSales > 0) {
           allEntries.push({
@@ -2221,8 +2300,8 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     // Get all sessions in the date range
     const sessionsInRange = this.sessions().filter(session => {
       const sessionDate = new Date(session.openedAt);
-      return sessionDate >= validFromDate && sessionDate <= validToDate && 
-             (!sessionId || session.id === sessionId);
+      return sessionDate >= validFromDate && sessionDate <= validToDate &&
+        (!sessionId || session.id === sessionId);
     });
 
     // Sort sessions by opening date
@@ -2232,7 +2311,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     const sessionIds = sessionsInRange.map(s => s.id);
 
 
-    
+
     // Fetch both sales and expenses in parallel
     const salesQuery = this.salesService.getSales({});
     const expensesQuery = this.expenseService.getExpenses({
@@ -2249,7 +2328,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
         const sessionSales = data.sales.filter(sale => sessionIds.includes(sale.sessionId || 0));
 
-        
+
         if (sessionSales.length > 0 || data.expenses.length > 0) {
 
           this.processReleveData(sessionsInRange, sessionSales, entries, runningBalance, validFromDate, validToDate, data.expenses);
@@ -2272,7 +2351,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     if (sessionsInRange.length > 0) {
       initialBalance = parseFloat((sessionsInRange[0].openingFund as any) || 0) || 0;
     }
-    
+
     // Add "Solde initial" entry at the beginning
     let currentBalance = initialBalance;
     if (sessionsInRange.length > 0) {
@@ -2286,10 +2365,10 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         sessionId: firstSession.id
       });
     }
-    
+
     // Collect all entries first, then sort by date (no session grouping)
     const allEntries: Array<{ date: Date; designation: string; debit: number; credit: number; sessionId?: number }> = [];
-    
+
     sessionsInRange.forEach(session => {
       // Sales from summary (fallback)
       if ((session as any).summary?.cashSales) {
@@ -2400,7 +2479,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         // Get expenses from the session summary (this is where the backend puts them)
         const summary = report?.summary as any;
         const summaryExpenses = summary?.expensesDetails || [];
-        
+
 
 
 
@@ -2410,10 +2489,10 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           const expenseIdMatch = designation.match(/#(\d+)/);
           if (expenseIdMatch) {
             const expenseId = parseInt(expenseIdMatch[1], 10);
-            
+
             // Find the specific expense by ID
             const expense = summaryExpenses.find((exp: any) => exp.id === expenseId);
-            
+
             if (expense) {
               expensesToShow = [{
                 id: expense.id,
@@ -2443,18 +2522,18 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
             // Fallback: extract expense info from cash movements
             const session = sessionId ? this.sessions().find(s => s.id === sessionId) : this.selectedSession();
             if (session?.cashMovements) {
-              const expenseMovements = session.cashMovements.filter(movement => 
-                movement.reason && 
+              const expenseMovements = session.cashMovements.filter(movement =>
+                movement.reason &&
                 (movement.reason.includes('Dépense') || movement.reason.includes('depense'))
               );
-              
 
-              
+
+
               expensesToShow = expenseMovements.map((movement: any) => {
                 // Extract expense ID from reason like "Dépense approuvée #26: ..."
                 const expenseIdMatch = movement.reason.match(/#(\d+)/);
                 const expenseId = expenseIdMatch ? parseInt(expenseIdMatch[1], 10) : movement.id;
-                
+
                 return {
                   id: expenseId,
                   amount: movement.amount,
@@ -2466,7 +2545,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
                 };
               });
             }
-            
+
             // If still no expenses found, try to fetch directly from expenses API
             if (expensesToShow.length === 0) {
 
@@ -2500,7 +2579,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     // Calculate date range for the session
     const sessionStart = new Date(session.openedAt);
     const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
-    
+
     // Fetch expenses directly from the expenses API
     this.expenseService.getExpenses({
       startDate: sessionStart.toISOString().split('T')[0],
@@ -2510,14 +2589,14 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       next: (expensesResponse: any) => {
 
         const expenses = expensesResponse.expenses || expensesResponse || [];
-        
+
         // Filter for cash expenses only
-        const cashExpenses = expenses.filter((expense: any) => 
+        const cashExpenses = expenses.filter((expense: any) =>
           expense.paymentType === 'CASH' && expense.isApproved
         );
-        
 
-        
+
+
         const expensesToShow = cashExpenses.map((expense: any) => ({
           id: expense.id,
           amount: expense.amount,
@@ -2527,7 +2606,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           supplierName: expense.supplier?.name || 'Non spécifié',
           notes: expense.notes || ''
         }));
-        
+
 
         this.expenseDetails.set(expensesToShow);
         this.expenseDetailsTitle.set(designation);
@@ -2558,7 +2637,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       next: (report) => {
 
         const sales = (report?.session?.sales || []) as Array<any>;
-        
+
         const creditSales = sales.filter((sale: any) => {
           const status = (sale.status || '').toUpperCase();
           if (['CANCELLED', 'REFUNDED'].includes(status)) {
@@ -2574,11 +2653,11 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           const saleTotal = parseFloat(sale.finalTotal || 0) || 0;
           const paidAmount = parseFloat(sale.paidAmount ?? sale.advancePayment ?? 0) || 0;
           const outstanding = Math.max(0, saleTotal - paidAmount);
-          
-          const clientName = sale.client 
+
+          const clientName = sale.client
             ? `${sale.client.firstName || ''} ${sale.client.lastName || ''}`.trim() || 'Client inconnu'
             : 'Client inconnu';
-          
+
           return {
             id: sale.id,
             saleId: sale.id,
@@ -2592,7 +2671,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         }).filter(sale => sale.amount > 0);
 
         // Sort by date (newest first)
-        creditSalesDetailsList.sort((a, b) => 
+        creditSalesDetailsList.sort((a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
@@ -2620,9 +2699,9 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   }
 
   // Group entries by session
-  getSessionGroups(): Array<{sessionId: number; entries: ReleveEntry[]}> {
+  getSessionGroups(): Array<{ sessionId: number; entries: ReleveEntry[] }> {
     const groups = new Map<number, ReleveEntry[]>();
-    
+
     this.releveEntries().forEach(entry => {
       const sessionId = entry.sessionId || 0;
       if (!groups.has(sessionId)) {
@@ -2630,7 +2709,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       }
       groups.get(sessionId)!.push(entry);
     });
-    
+
     // Convert to array and sort by session ID
     return Array.from(groups.entries())
       .map(([sessionId, entries]) => ({ sessionId, entries }))
@@ -2692,7 +2771,7 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   debugSalesData(): void {
 
     const session = this.selectedSession();
-    
+
     if (!session) {
 
       return;
@@ -2708,10 +2787,10 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       next: (data) => {
 
 
-        
+
         const sessionSales = data.sales.filter(sale => sale.sessionId === session.id);
 
-        
+
         sessionSales.forEach(sale => {
           console.log(`Sale ${sale.id}:`, {
             id: sale.id,
@@ -2727,14 +2806,14 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         // Check expenses for this session period
         const sessionStart = new Date(session.openedAt);
         const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
-        
+
         const sessionExpenses = data.expenses.filter(expense => {
           const expenseDate = new Date(expense.date);
           return expenseDate >= sessionStart && expenseDate <= sessionEnd;
         });
-        
 
-        
+
+
         sessionExpenses.forEach(expense => {
           console.log(`Expense ${expense.id}:`, {
             id: expense.id,

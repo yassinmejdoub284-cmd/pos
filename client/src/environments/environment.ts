@@ -1,9 +1,9 @@
-//  export const environment = {
-//    production: false,
-//   apiUrl: 'https://localhost:3255/api',
-//      socketUrl: 'https://localhost:3255',
-//      enableRealtime: false
-//   };                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+export const environment = {
+  production: false,
+  apiUrl: 'https://localhost:3255/api',
+  socketUrl: 'https://localhost:3255',
+  enableRealtime: false
+};
 
 // DEVELOPMENT ENVIRONMENT - This file is used in development mode
 
@@ -15,12 +15,12 @@
 //   enableRealtime: false
 // };
 
-export const environment = {
-  production: false,
-  apiUrl: 'https://192.168.1.22:3255/api',
-  socketUrl: 'https://192.168.1.22:3255',
-  enableRealtime: false
-};
+// export const environment = {
+//   production: false,
+//   apiUrl: 'https://192.168.1.22:3255/api',
+//   socketUrl: 'https://192.168.1.22:3255',
+//   enableRealtime: false
+// };
 
 // export const environment = {
 //   production: false,
