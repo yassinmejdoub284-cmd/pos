@@ -56,6 +56,20 @@ export class AdminHomeComponent implements OnInit {
   supplierCreditChartData = signal<ChartConfiguration['data']>({ datasets: [], labels: [] });
   clientCreditChartData = signal<ChartConfiguration['data']>({ datasets: [], labels: [] });
 
+  // Collapsible states
+  showSupplierDetails = signal(false);
+  showClientDetails = signal(false);
+  expandedRevenueDepots = signal<Set<number>>(new Set());
+  expandedExpenseDepots = signal<Set<number>>(new Set());
+
+  // Detailed lists
+  suppliersList = signal<Array<{ name: string; debt: number; depotName: string }>>([]);
+  clientsList = signal<Array<{ name: string; debt: number; depotName: string }>>([]);
+  
+  // Sales details by depot
+  salesByDepot = signal<Map<number, Array<{ date: string; ticketNumber: string; amount: number; items: number }>>>(new Map());
+  expensesByDepot = signal<Map<number, Array<{ date: string; category: string; amount: number; description: string }>>>(new Map());
+
   // Chart Options
   barChartOptions: ChartConfiguration['options'] = {
     responsive: true,
@@ -96,7 +110,12 @@ export class AdminHomeComponent implements OnInit {
       this.router.navigate(['/unauthorized']);
       return;
     }
+    
     this.loadDashboardData();
+  }
+
+  ngOnDestroy(): void {
+    // Component cleanup if needed
   }
 
   setTimeFilter(filter: 'today' | 'month' | 'year'): void {
@@ -107,6 +126,10 @@ export class AdminHomeComponent implements OnInit {
   loadDashboardData(): void {
     this.loading.set(true);
     this.error.set(null);
+
+    // Temporarily clear visiting depot for this request only
+    const savedVisitingDepotId = sessionStorage.getItem('visitingDepotId');
+    sessionStorage.removeItem('visitingDepotId');
 
     const filter = this.timeFilter();
     const now = new Date();
@@ -124,7 +147,7 @@ export class AdminHomeComponent implements OnInit {
     const startDateStr = startDate.toISOString();
 
     forkJoin({
-      sales: this.salesService.getSales({ startDate: startDateStr, status: 'COMPLETED' }),
+      sales: this.salesService.getSales({ startDate: startDateStr, status: 'COMPLETED', limit: 10000 }),
       depots: this.depotsService.list(),
       suppliers: this.suppliersService.list(),
       // We still fetch expenses for reference or drill-down if needed, but main stat comes from cashFlow
@@ -134,13 +157,23 @@ export class AdminHomeComponent implements OnInit {
       clients: this.clientsService.getClients(1, 1000, '', '', true) // Fetch active clients to calculate current debt
     }).subscribe({
       next: (data: any) => {
-        // We'll process data and handle product fetching inside processData
-        this.processData(data.sales, data.depots, data.suppliers, data.expenses, data.cashFlow, data.clients?.clients || []);
+        const clientsList = data.clients?.clients || data.clients || [];
+        this.processData(data.sales, data.depots, data.suppliers, data.expenses, data.cashFlow, clientsList);
+        
+        // Restore visiting depot after data is loaded
+        if (savedVisitingDepotId) {
+          sessionStorage.setItem('visitingDepotId', savedVisitingDepotId);
+        }
       },
       error: (err) => {
         console.error('Dashboard load error', err);
         this.error.set('Erreur lors du chargement des données. Veuillez réessayer.');
         this.loading.set(false);
+        
+        // Restore visiting depot even on error
+        if (savedVisitingDepotId) {
+          sessionStorage.setItem('visitingDepotId', savedVisitingDepotId);
+        }
       }
     });
   }
@@ -148,7 +181,6 @@ export class AdminHomeComponent implements OnInit {
   async processData(sales: any[], depots: any[], suppliers: any[], expenses: any[], cashFlow: any[] = [], clients: any[] = []) {
     try {
       // 1. Map Depots
-      console.log('Depots loaded:', depots);
       const depotMap = new Map(depots.map((d: any) => [d.id, d]));
 
       const isWarehouseLike = (d: any) => {
@@ -169,18 +201,37 @@ export class AdminHomeComponent implements OnInit {
         revenueByBoutique.push({ depotId: d.id, depotName: d.name, revenue: 0 });
       });
 
-      // Fill from sales
+      // Fill from sales - gather all sales regardless of depot type
       let totalRevenue = 0;
+      const salesDetailsByDepot = new Map<number, Array<{ date: string; ticketNumber: string; amount: number; items: number }>>();
+      
       sales.forEach(sale => {
         const depot = depotMap.get(sale.depotId);
-        if (depot && (depot.type === 'SHOP' || depot.type === 'BRANCH')) {
-          const entry = revenueByBoutique.find(r => r.depotId === sale.depotId);
-          if (entry) {
-            entry.revenue += parseFloat(sale.finalTotal || 0);
+        if (depot) {
+          let entry = revenueByBoutique.find(r => r.depotId === sale.depotId);
+          if (!entry) {
+            // Add depot if not already in list
+            entry = { depotId: sale.depotId, depotName: depot.name, revenue: 0 };
+            revenueByBoutique.push(entry);
           }
+          entry.revenue += parseFloat(sale.finalTotal || 0);
           totalRevenue += parseFloat(sale.finalTotal || 0);
+          
+          // Store sale details
+          if (!salesDetailsByDepot.has(sale.depotId)) {
+            salesDetailsByDepot.set(sale.depotId, []);
+          }
+          salesDetailsByDepot.get(sale.depotId)!.push({
+            date: new Date(sale.createdAt).toLocaleDateString('fr-FR'),
+            ticketNumber: sale.dailyTicketNumber || sale.id.toString(),
+            amount: parseFloat(sale.finalTotal || 0),
+            items: sale.items?.length || 0
+          });
         }
       });
+      
+      this.salesByDepot.set(salesDetailsByDepot);
+      
       // Sort by revenue desc
       revenueByBoutique.sort((a, b) => b.revenue - a.revenue);
 
@@ -193,6 +244,7 @@ export class AdminHomeComponent implements OnInit {
       });
 
       let totalExpenses = 0;
+      const expensesDetailsByDepot = new Map<number, Array<{ date: string; category: string; amount: number; description: string }>>();
 
       // Use CashFlow data (Sortie Caisse) as the source of truth for expenses
       if (cashFlow && cashFlow.length > 0) {
@@ -205,10 +257,24 @@ export class AdminHomeComponent implements OnInit {
             totalExpenses += parseFloat(cf.totalOutflow || 0);
           }
         });
-      } else {
-        // Fallback to legacy expense behavior if no cash flow data (or if desired to mix, but usually we prefer one source)
-        // For now, we strictly use cash flow as per user request to include "Sortie Caisse"
       }
+      
+      // Store expense details from the expenses array
+      expenses.forEach((exp: any) => {
+        if (exp.depotId) {
+          if (!expensesDetailsByDepot.has(exp.depotId)) {
+            expensesDetailsByDepot.set(exp.depotId, []);
+          }
+          expensesDetailsByDepot.get(exp.depotId)!.push({
+            date: new Date(exp.date || exp.createdAt).toLocaleDateString('fr-FR'),
+            category: exp.category?.name || 'Non catégorisé',
+            amount: parseFloat(exp.amount || 0),
+            description: exp.description || exp.notes || ''
+          });
+        }
+      });
+      
+      this.expensesByDepot.set(expensesDetailsByDepot);
 
       expensesByBoutique.sort((a, b) => b.totalExpense - a.totalExpense);
 
@@ -226,19 +292,33 @@ export class AdminHomeComponent implements OnInit {
       };
 
       let totalSupplierCredit = 0;
+      const suppliersWithDebt: Array<{ name: string; debt: number; depotName: string }> = [];
 
       suppliers.forEach((sup: any) => {
         const debt = parseFloat(sup.currentDebt || 0);
         if (debt > 0) {
           totalSupplierCredit += debt;
+          const depot = sup.depotId ? depotMap.get(sup.depotId) : null;
+          const depotName = depot ? depot.name : 'Non assigné';
+          
+          suppliersWithDebt.push({
+            name: sup.name,
+            debt: debt,
+            depotName: depotName
+          });
+
           if (sup.depotId) {
-            const depot = depotMap.get(sup.depotId);
-            getCreditEntry(sup.depotId, depot ? depot.name : 'Unknown Depot').totalCredit += debt;
+            getCreditEntry(sup.depotId, depotName).totalCredit += debt;
           } else {
             getCreditEntry('unassigned', 'Non assigné').totalCredit += debt;
           }
         }
       });
+      
+      // Sort suppliers by debt descending
+      suppliersWithDebt.sort((a, b) => b.debt - a.debt);
+      this.suppliersList.set(suppliersWithDebt);
+      
       supplierCreditByDepot.sort((a, b) => b.totalCredit - a.totalCredit);
 
       // --- Section 5: Client Credit ---
@@ -253,18 +333,33 @@ export class AdminHomeComponent implements OnInit {
       };
 
       let totalClientCredit = 0;
+      const clientsWithDebt: Array<{ name: string; debt: number; depotName: string }> = [];
+
       clients.forEach((cli: any) => {
         const debt = parseFloat(cli.currentDebt || 0);
         if (debt > 0) {
           totalClientCredit += debt;
+          const depot = cli.depotId ? depotMap.get(cli.depotId) : null;
+          const depotName = depot ? depot.name : 'Non assigné';
+          
+          clientsWithDebt.push({
+            name: `${cli.firstName || ''} ${cli.lastName || ''}`.trim() || cli.code || 'Client',
+            debt: debt,
+            depotName: depotName
+          });
+
           if (cli.depotId) {
-            const depot = depotMap.get(cli.depotId);
-            getClientCreditEntry(cli.depotId, depot ? depot.name : 'Unknown Depot').totalCredit += debt;
+            getClientCreditEntry(cli.depotId, depotName).totalCredit += debt;
           } else {
             getClientCreditEntry('unassigned', 'Non assigné').totalCredit += debt;
           }
         }
       });
+      
+      // Sort clients by debt descending
+      clientsWithDebt.sort((a, b) => b.debt - a.debt);
+      this.clientsList.set(clientsWithDebt);
+      
       clientCreditByDepot.sort((a, b) => b.totalCredit - a.totalCredit);
 
 
@@ -426,5 +521,33 @@ export class AdminHomeComponent implements OnInit {
 
   goToCaisse(): void {
     this.router.navigate(['/caisse']);
+  }
+
+  toggleRevenueDepot(depotId: number): void {
+    const expanded = new Set(this.expandedRevenueDepots());
+    if (expanded.has(depotId)) {
+      expanded.delete(depotId);
+    } else {
+      expanded.add(depotId);
+    }
+    this.expandedRevenueDepots.set(expanded);
+  }
+
+  toggleExpenseDepot(depotId: number): void {
+    const expanded = new Set(this.expandedExpenseDepots());
+    if (expanded.has(depotId)) {
+      expanded.delete(depotId);
+    } else {
+      expanded.add(depotId);
+    }
+    this.expandedExpenseDepots.set(expanded);
+  }
+
+  isRevenueDepotExpanded(depotId: number): boolean {
+    return this.expandedRevenueDepots().has(depotId);
+  }
+
+  isExpenseDepotExpanded(depotId: number): boolean {
+    return this.expandedExpenseDepots().has(depotId);
   }
 }

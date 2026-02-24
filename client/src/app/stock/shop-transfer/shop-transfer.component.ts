@@ -107,7 +107,6 @@ export class ShopTransferComponent implements OnInit, OnDestroy {
 
     this.stockUpdateSubscription = this.socketService.on('stock_updated').subscribe((data: any) => {
       if (data.productId && this.currentDepot && this.currentDepot.id === depotId) {
-        console.log('Stock updated via socket, refreshing inventory:', data);
         setTimeout(() => {
           this.loadAdditionalData(depotId, true);
         }, 500);
@@ -207,7 +206,6 @@ export class ShopTransferComponent implements OnInit, OnDestroy {
         const stillMissingIds = missingProductIds.filter(id => !allProducts.find(p => p.id === id));
         
         if (stillMissingIds.length > 0) {
-          console.log(`Fetching ${stillMissingIds.length} missing products:`, stillMissingIds);
           
           // Fetch missing products in parallel
           const missingProductsPromises = stillMissingIds.map(async (missingId: number) => {

@@ -476,17 +476,7 @@ export class HistoriqueComponent implements OnInit {
       return;
     }
 
-    // Debug logging
-    console.log('Applying filters:', {
-      totalSales: this.sales.length,
-      searchQuery: this.searchQuery,
-      selectedStatus: this.selectedStatus,
-      selectedPaymentMethod: this.selectedPaymentMethod,
-      selectedSaleType: this.selectedSaleType,
-      startDate: this.startDate,
-      endDate: this.endDate
-    });
-
+   
     this.filteredSales = this.sales.filter(sale => {
       // Search query
       if (this.searchQuery && this.searchQuery.trim()) {
@@ -553,11 +543,6 @@ export class HistoriqueComponent implements OnInit {
     this.totalItems = this.filteredSales.length;
     this.updateGroupedSales();
     
-    console.log('Filter result:', {
-      originalCount: this.sales.length,
-      filteredCount: this.filteredSales.length,
-      totalItems: this.totalItems
-    });
   }
 
   clearFilters(): void {
@@ -990,7 +975,6 @@ export class HistoriqueComponent implements OnInit {
       console.error('openCancelTicketModal: No ticket provided');
       return;
     }
-    console.log('Opening cancel modal for ticket:', ticket);
     const st = (ticket as any)?.status ? String((ticket as any).status).toUpperCase() : '';
     if (st === 'CANCELLED' || st === 'REFUNDED') {
       this.showAlertMessage('Ticket déjà annulé', 'info');
@@ -998,7 +982,6 @@ export class HistoriqueComponent implements OnInit {
     }
     this.ticketToCancel = ticket;
     this.showCancelTicketModal = true;
-    console.log('Cancel modal opened, ticketToCancel:', this.ticketToCancel);
   }
 
   closeCancelTicketModal(): void {
@@ -1012,7 +995,6 @@ export class HistoriqueComponent implements OnInit {
       this.showAlertMessage('Erreur: Aucun ticket sélectionné', 'error');
       return;
     }
-    console.log('Confirming cancellation for ticket:', this.ticketToCancel.id);
     this.cancelTicket(this.ticketToCancel);
   }
 
@@ -1028,12 +1010,10 @@ export class HistoriqueComponent implements OnInit {
       return;
     }
     
-    console.log('Cancelling ticket:', ticket.id);
     this.http.put(`${environment.apiUrl}/sales/${ticket.id}/status`, { status: 'CANCELLED' }, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     }).subscribe({
       next: (response) => {
-        console.log('Ticket cancelled successfully:', response);
         this.showAlertMessage('Ticket annulé', 'success');
         this.loadSales();
         this.closeCancelTicketModal();

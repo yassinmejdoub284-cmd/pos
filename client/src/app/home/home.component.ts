@@ -798,7 +798,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   loadCompanyDetails(): void {
     const user = this.currentUser();
-    console.log('HomeComponent: Current User:', user);
 
     // Strategy 0: Check for admin visiting depot ID in session storage
     const visitingDepotId = sessionStorage.getItem('visitingDepotId') || localStorage.getItem('visitingDepotId');
@@ -806,32 +805,23 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     // Strategy 1: User has direct company assignment AND no visiting depot override
     if (user && user.companyId && !visitingDepotId) {
-      console.log('HomeComponent: User has direct company ID:', user.companyId);
       this.fetchAndSetCompany(user.companyId);
     }
     // Strategy 2: User has depot assignment (or visiting depot), resolve company from depot
     else if (effectiveDepotId) {
-      console.log('HomeComponent: Resolving company from Effective Depot ID:', effectiveDepotId);
       this.depotsService.get(effectiveDepotId).subscribe({
         next: (depot: any) => {
-          console.log('HomeComponent: Loaded Depot:', depot);
           if (depot && depot.companyId) {
-            console.log('HomeComponent: Found Company ID from Depot:', depot.companyId);
             this.fetchAndSetCompany(depot.companyId);
           } else if (depot && depot.company) {
             // In case the backend returns the full company object nested
-            console.log('HomeComponent: Found Company object in Depot:', depot.company);
             this.setCompanyData(depot.company);
-          } else {
-            console.log('HomeComponent: Depot exists but has no company assigned.');
           }
         },
         error: (err) => {
           console.error('HomeComponent: Error loading users depot:', err);
         }
       });
-    } else {
-      console.log('HomeComponent: No company ID or Depot ID found for user.');
     }
   }
 
@@ -848,7 +838,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private setCompanyData(company: any): void {
     if (company) {
-      console.log('HomeComponent: Setting Company Data:', company);
       this.companyName.set(company.raisonSociale);
       if (company.logoUrl) {
         this.companyLogo.set(company.logoUrl);

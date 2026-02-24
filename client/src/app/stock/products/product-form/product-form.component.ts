@@ -495,7 +495,6 @@ export class ProductFormComponent implements OnInit, OnChanges {
           
           if (selectedDepot && selectedDepot.type !== 'SHOP') {
             // For non-SHOP depots (MAIN, BRANCH, WAREHOUSE), use ProduitDeCaisse
-            console.log('Creating produit de caisse for non-SHOP depot:', selectedDepot.type);
             
             const produitData = {
               name: formData.name,
@@ -573,7 +572,6 @@ export class ProductFormComponent implements OnInit, OnChanges {
             });
           } else {
             // For SHOP depots, use Product table
-            console.log('Creating product for SHOP depot');
             this.productsService.createProduct(formData).subscribe({
               next: (product) => {
                 this.loading.set(false);

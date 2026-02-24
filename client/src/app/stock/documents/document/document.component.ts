@@ -666,11 +666,6 @@ export class DocumentComponent implements OnInit, OnDestroy {
           this.produitsDeCaisseCache.set(produit.id, produit);
         });
       }
-
-      console.log('Product caches loaded:', {
-        products: this.productsCache.size,
-        produitsDeCaisse: this.produitsDeCaisseCache.size
-      });
     } catch (error) {
       console.error('Error loading product caches:', error);
     }

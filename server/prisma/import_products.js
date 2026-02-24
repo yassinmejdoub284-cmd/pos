@@ -26,8 +26,6 @@ async function main() {
             throw new Error('Format JSON invalide : La racine doit être un objet { "products": [] } ou un tableau.');
         }
 
-        console.log(`📊 Trouvé ${productsToImport.length} produits à importer.`);
-
         // 2. Initialisation des caches (pour éviter les requêtes répétitives)
         const familiesCache = new Map();
 
@@ -35,8 +33,6 @@ async function main() {
         let defaultDepot = await prisma.depot.findFirst({ where: { isActive: true } });
         if (!defaultDepot) {
             console.warn('⚠️ Aucun dépôt actif trouvé. Les produits ne seront assignés à aucun dépôt par défaut.');
-        } else {
-            console.log(`✅ Dépôt par défaut : ${defaultDepot.name} (ID: ${defaultDepot.id})`);
         }
 
         let successCount = 0;
@@ -56,7 +52,6 @@ async function main() {
                         });
 
                         if (!family) {
-                            console.log(`➕ Création de la famille : ${categoryName}`);
                             family = await prisma.productFamily.create({
                                 data: { name: categoryName }
                             });

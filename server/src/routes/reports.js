@@ -616,18 +616,6 @@ router.get('/daily-extracts', async (req, res) => {
         const totalExpenses = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0);
 
 
-        
-        // Additional debug for today's data
-        if (index === 0) {
-
-          if (sales.length > 0) {
-            console.log(`Today's first sale:`, {
-              id: sales[0].id,
-              createdAt: sales[0].createdAt,
-              finalTotal: sales[0].finalTotal
-            });
-          }
-        }
 
         // Group by families
         const familyMap = new Map();
@@ -1192,11 +1180,6 @@ router.get('/daily-extracts/:date', async (req, res) => {
         orderBy: { createdAt: 'desc' },
         take: 5
       });
-      console.log(`Recent sales in depot ${targetDepotId}:`, allSales.map(s => ({ 
-        id: s.id, 
-        date: s.createdAt.toISOString().split('T')[0], 
-        amount: s.finalTotal 
-      })));
     }
 
     // Get expenses for the day
@@ -1529,15 +1512,24 @@ router.get('/daily-monthly', authenticateToken, async (req, res) => {
         ]
       },
       select: {
-        id: true
+        id: true,
+        closedAt: true,
+        openedAt: true,
+        status: true
       }
     });
 
     const sessionIds = activeSessions.map(s => s.id);
+    
+    // Create a map for quick session lookup
+    const sessionMap = new Map(activeSessions.map(s => [s.id, s]));
 
     // Get sales data from sessions
+    // Match the session summary calculation: exclude only REFUNDED, CANCELLED, CADEAU, PENDING_ADMIN
     const salesWhere = {
-      status: 'COMPLETED',
+      status: {
+        notIn: ['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN']
+      },
       depotId: targetDepotId,
       sessionId: {
         in: sessionIds
@@ -1556,22 +1548,36 @@ router.get('/daily-monthly', authenticateToken, async (req, res) => {
       }
     });
 
-    // Group by date and depot
+    // Group by date, depot, and session
     const groupedData = {};
     
     sales.forEach(sale => {
-      const saleDate = new Date(sale.createdAt);
+      // Use session's closing date (or opening date if still open) instead of sale creation date
+      // This ensures all sales from a session are counted on the same day
+      const session = sessionMap.get(sale.sessionId);
+      let saleDate;
+      
+      if (session) {
+        // Use the session's closing date if closed, otherwise use current date
+        saleDate = session.closedAt ? new Date(session.closedAt) : new Date();
+      } else {
+        // Fallback to sale creation date if session not found
+        saleDate = new Date(sale.createdAt);
+      }
+      
       const dateKey = reportType === 'monthly' 
         ? `${saleDate.getFullYear()}-${String(saleDate.getMonth() + 1).padStart(2, '0')}`
         : saleDate.toISOString().split('T')[0];
       
       const depotKey = sale.depot?.name || 'Inconnu';
-      const key = `${dateKey}_${depotKey}`;
+      const sessionKey = sale.sessionId || 0;
+      const key = `${dateKey}_${depotKey}_${sessionKey}`;
       
       if (!groupedData[key]) {
         groupedData[key] = {
           date: dateKey,
           depotName: depotKey,
+          sessionId: sessionKey,
           caVente: 0,
           prixAchat: 0,
           resultat: 0

@@ -1,5 +1,13 @@
 header {
+  position: -webkit-sticky; /* For Safari */
+  position: sticky;
+  top: 0;
   transition: all 0.3s ease;
+  /* Force hardware acceleration for better mobile performance */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 button {

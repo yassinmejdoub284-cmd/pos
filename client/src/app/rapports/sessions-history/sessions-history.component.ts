@@ -89,6 +89,12 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   expenseDetails = signal<Array<{ id: number; amount: number; reason: string; createdAt: string; categoryName?: string; supplierName?: string; notes?: string }>>([]);
   expenseDetailsTitle = signal('');
 
+  // Edit withdrawal modal state
+  showEditWithdrawalModal = signal(false);
+  editWithdrawalForm = {
+    amount: ''
+  };
+
   // Credit sales details modal state
   showCreditSalesDetailsModal = signal(false);
   creditSalesDetails = signal<Array<{ id: number; saleId: number; amount: number; saleTotal: number; paidAmount: number; clientName: string; createdAt: string; ticketNumber?: number | string }>>([]);
@@ -809,7 +815,8 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
         const isBonRetour = reasonLower.includes('bon de retour') ||
           reasonLower.includes('bon retour') ||
           reasonLower.match(/dépense\s*#\d+:\s*bon\s*(de\s*)?retour/i);
-        return ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) &&
+        // Exclude RETRAIT_CENTRALE from décaissement - withdrawals are not expenses
+        return ['SORTIE', 'DEPOT_COFFRE'].includes(m.type) &&
           amount > 0 &&
           !reason.includes('[REJETÉ]') &&
           !reason.includes('[SUPPRIMÉ]') &&
@@ -2767,67 +2774,80 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     document.body.removeChild(link);
   }
 
-  // Debug method to check sales and expenses data
-  debugSalesData(): void {
-
+  // Edit withdrawal methods
+  openEditWithdrawalModal(): void {
     const session = this.selectedSession();
+    if (!session) return;
+    
+    const currentWithdrawal = this.getTotalWithdrawnAmount();
+    this.editWithdrawalForm.amount = currentWithdrawal.toString();
+    this.showEditWithdrawalModal.set(true);
+  }
 
+  closeEditWithdrawalModal(): void {
+    this.showEditWithdrawalModal.set(false);
+    this.editWithdrawalForm.amount = '';
+  }
+
+  addEditWithdrawalDigit(digit: string): void {
+    const current = this.editWithdrawalForm.amount.toString();
+
+    if (digit === '.') {
+      if (!current.includes('.')) {
+        this.editWithdrawalForm.amount = current + '.';
+      }
+    } else {
+      if (current === '0' || current === '') {
+        this.editWithdrawalForm.amount = digit;
+      } else {
+        this.editWithdrawalForm.amount = current + digit;
+      }
+    }
+  }
+
+  clearEditWithdrawalAmount(): void {
+    this.editWithdrawalForm.amount = '';
+  }
+
+  saveWithdrawalAmount(): void {
+    const session = this.selectedSession();
     if (!session) {
-
+      this.error.set('Aucune session sélectionnée');
       return;
     }
 
-    const salesQuery = this.salesService.getSales({});
-    const expensesQuery = this.expenseService.getExpenses({});
+    const newAmount = parseFloat(this.editWithdrawalForm.amount) || 0;
+    const currentAmount = this.getTotalWithdrawnAmount();
+    const delta = newAmount - currentAmount;
 
-    forkJoin({
-      sales: salesQuery,
-      expenses: expensesQuery
-    }).subscribe({
-      next: (data) => {
+    if (Math.abs(delta) < 0.001) {
+      this.closeEditWithdrawalModal();
+      return;
+    }
 
+    this.loading.set(true);
 
+    // Use correction endpoint for closed sessions (admin only)
+    const movementData: CashMovementRequest = {
+      type: (delta > 0 ? 'SORTIE' : 'ENTREE') as 'ENTREE' | 'SORTIE',
+      amount: Math.abs(delta),
+      reason: `Correction retrait: ${delta > 0 ? '+' : ''}${delta.toFixed(3)} DT (Ancien: ${currentAmount.toFixed(3)}, Nouveau: ${newAmount.toFixed(3)})`
+    };
 
-        const sessionSales = data.sales.filter(sale => sale.sessionId === session.id);
+    const request = session.status === 'CLOSED' 
+      ? this.sessionsService.addCashMovementCorrection(session.id, movementData)
+      : this.sessionsService.addCashMovement(session.id, movementData);
 
-
-        sessionSales.forEach(sale => {
-          console.log(`Sale ${sale.id}:`, {
-            id: sale.id,
-            sessionId: sale.sessionId,
-            finalTotal: sale.finalTotal,
-            status: sale.status,
-            paymentMethod: sale.paymentMethod,
-            dailyTicketNumber: sale.dailyTicketNumber,
-            createdAt: sale.createdAt
-          });
-        });
-
-        // Check expenses for this session period
-        const sessionStart = new Date(session.openedAt);
-        const sessionEnd = session.closedAt ? new Date(session.closedAt) : new Date();
-
-        const sessionExpenses = data.expenses.filter(expense => {
-          const expenseDate = new Date(expense.date);
-          return expenseDate >= sessionStart && expenseDate <= sessionEnd;
-        });
-
-
-
-        sessionExpenses.forEach(expense => {
-          console.log(`Expense ${expense.id}:`, {
-            id: expense.id,
-            amount: expense.amount,
-            description: expense.description,
-            category: expense.category?.name,
-            paymentType: expense.paymentType,
-            isPaid: expense.isPaid,
-            date: expense.date
-          });
-        });
+    request.subscribe({
+      next: () => {
+        this.closeEditWithdrawalModal();
+        this.loading.set(false);
+        this.error.set('');
+        this.refreshDetails(session);
       },
       error: (error) => {
-        console.error('Error fetching sales/expenses for debug:', error);
+        this.error.set('Erreur lors de la correction: ' + (error.error?.error || error.message || 'Erreur inconnue'));
+        this.loading.set(false);
       }
     });
   }

@@ -1,7 +1,7 @@
 <div class="min-h-screen bg-gradient-to-br from-amber-50 via-blue-50 to-purple-50 p-4">
   <!-- Home Button - Top Right -->
   <div class="fixed top-6 right-6 z-40">
-    <a routerLink="/home"
+    <a routerLink="/rapports"
       class="w-12 h-12 bg-blue-400 text-white rounded-full shadow-2xl transition-all duration-300 transform flex items-center justify-center"
       title="Accueil">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -19,13 +19,6 @@
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Dashboard</h1>
         <p class="text-gray-600">Tableau de bord avec indicateurs clés</p>
       </div>
-      <button (click)="goBack()" 
-        class="bg-gradient-to-r from-gray-400 to-gray-500 text-white px-4 py-2 rounded-lg transition-all flex items-center space-x-2 shadow-lg">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-        </svg>
-        <span>Retour</span>
-      </button>
     </div>
 
     <!-- Loading State -->

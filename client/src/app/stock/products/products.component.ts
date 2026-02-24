@@ -203,18 +203,10 @@ export class ProductsComponent implements OnInit {
         return;
       }
       
-      console.log('Loading products for depot:', { 
-        selectedDepotId: this.selectedDepotId, 
-        depotName: selectedDepot.name,
-        depotType: selectedDepot.type
-      });
-      
       if (selectedDepot.type === 'SHOP') {
-        console.log('Using Product table for SHOP depot');
         // For SHOP depots, use Product table
         this.productsService.getProducts(this.selectedDepotId).subscribe({
           next: (products) => {
-            console.log(`Loaded ${products.length} products from Product table`);
             // Transform depotAssignments to assignedDepots for all products
             this.allProducts = products.map(product => {
               if (product.depotAssignments && product.depotAssignments.length > 0 && !product.assignedDepots) {
@@ -235,7 +227,6 @@ export class ProductsComponent implements OnInit {
         });
       } else {
         // For non-SHOP depots (MAIN, BRANCH, WAREHOUSE), use ProduitDeCaisse table
-        console.log('Using ProduitDeCaisse table for non-SHOP depot (type:', selectedDepot.type, ')');
         this.produitsDeCaisseService.getProduitsDeCaisse(this.selectedDepotId!).subscribe({
           next: (produits) => {
             // Transform ProduitDeCaisse to Product format for compatibility

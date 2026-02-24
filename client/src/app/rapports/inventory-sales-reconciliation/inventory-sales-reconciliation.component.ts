@@ -2204,12 +2204,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     const cashClosures = await this.getCashClosuresDetails();
     for (const closure of cashClosures) {
       const closureDate = new Date(closure.createdAt || closure.date);
-      console.log(`🔍 Cash Withdrawal #${closure.sessionNumber}:`, {
-        createdAt: closure.createdAt,
-        date: closure.date,
-        finalDate: closureDate,
-        designation: `Retrait Caisse #${closure.sessionNumber} - ${closure.date.toLocaleDateString()}`
-      });
+
       
       addTransactionIfNotDuplicate({
         id: `retrait_${closure.id}`,
@@ -2318,14 +2313,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     
     // 5. Lignes CRÉDIT - Remises avec numéros de caisse (pas de doublons)
     const discounts = await this.getDiscountsDetails();
-    console.log('🔍 Processing Discounts:', discounts.map(d => ({
-      id: d.id,
-      designation: d.isSaleLevelDiscount ? `Remise Globale - Ticket #${d.ticketNumber}` : `Remise ${d.productName} - Ticket #${d.ticketNumber}`,
-      amount: d.amount,
-      isGratuiteSale: d.isGratuiteSale,
-      isSaleLevelDiscount: d.isSaleLevelDiscount
-    })));
-    
+
     for (const discount of discounts) {
       // Skip if this is a gratuité sale (already processed in global ecarts)
       if (discount.isGratuiteSale) {
@@ -2476,14 +2464,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       return a.designation.localeCompare(b.designation);
     });
     
-    // Debug: Log the sorted order
-    console.log('📊 Sorted Transactions Order:', allTransactions.map(t => ({
-      designation: t.designation,
-      date: t.date,
-      createdAt: t.createdAt,
-      type: t.type
-    })));
-    
+
     // Add sorted transactions to releveRows after inventory
     releveRows.push(...allTransactions);
     
@@ -2492,18 +2473,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
     // Log summary of documents & inventories gathered
     const dateFrom = new Date(this.startDate);
     const dateTo = new Date(this.endDate);
-    console.log('📊 Documents & Inventories Gathered:', {
-      dateRange: `${dateFrom.toLocaleDateString()} - ${dateTo.toLocaleDateString()}`,
-      stockEntries: stockEntries.length,
-      cashClosures: cashClosures.length,
-      expenses: expenses.length,
-      globalEcarts: globalEcarts.length,
-      discounts: discounts.length,
-      stockReturns: stockReturns.length,
 
-      inventoryData: inventoryData?.length || 0,
-      totalTransactions: allTransactions.length
-    });
 
     // Display each transaction with its date/time
 
@@ -2954,12 +2924,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
       for (const [ticketNumber, ticketSales] of allGratuitSalesByTicket) {
         const totalGratuitAmount = ticketSales.reduce((sum, sale) => sum + (Number(sale.itemDetails?.total) || 0), 0);
         const totalGratuitQuantity = ticketSales.reduce((sum, sale) => sum + (Number(sale.itemDetails?.quantity) || 0), 0);
-        
-        console.log(`🎁 Processing Gratuité Globale for Ticket #${ticketNumber}:`, {
-          sales: ticketSales.length,
-          amount: totalGratuitAmount,
-          quantity: totalGratuitQuantity
-        });
+
         
         ecarts.push({
           id: `gratuite_ticket_${ticketNumber}`,
@@ -3321,16 +3286,7 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
         
         // Get the full session with items
         const fullSession = await firstValueFrom(this.inventoryService.getSession(latestSession.id));
-        
-        // Debug log to show which session is being used
-        console.log('🔍 Inventory Session Debug:', {
-          sessionId: latestSession.id,
-          status: latestSession.status,
-          postedAt: latestSession.postedAt,
-          closedAt: latestSession.closedAt,
-          createdAt: latestSession.createdAt,
-          itemsCount: fullSession?.items?.length || 0
-        });
+
         
         return fullSession;
       }
@@ -3369,15 +3325,6 @@ export class InventorySalesReconciliationComponent implements OnInit, AfterViewI
           console.error(`Error getting session ${session.id}:`, err);
         }
       }
-      
-      console.log('📊 All Posted Inventory Sessions:', fullSessions.map(s => ({
-        id: s.id,
-        numero: s.numero,
-        postedAt: s.postedAt,
-        closedAt: s.closedAt,
-        createdAt: s.createdAt,
-        itemsCount: s.items?.length || 0
-      })));
       
       return fullSessions;
     } catch (err) {

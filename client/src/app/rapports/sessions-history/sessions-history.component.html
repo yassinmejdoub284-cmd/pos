@@ -46,7 +46,7 @@
       <div class="bg-white rounded-xl sm:rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100">
         <!-- Session Navigation Header -->
         <div class="p-4 sm:p-6 border-b border-slate-100">
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center justify-between mb-4 max-md:flex-col gap-3">
             <!-- Navigation Arrows -->
             <div class="flex items-center gap-2">
                <button (click)="navigateToPreviousSession()" 
@@ -97,15 +97,22 @@
             
             <!-- Action Buttons -->
             <div class="flex flex-wrap items-center gap-2">
-               <!-- Total Withdrawn Amount Display -->
+               <!-- Total Withdrawn Amount Display with Edit Button -->
                <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/25">
                  <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
                  </svg>
-                 <div class="text-xs sm:text-sm">
+                 <div class="text-xs sm:text-sm flex-1 flex gap-2 items-center">
                    <div class="font-medium">Retiré</div>
                    <div class="text-xs opacity-90">{{getTotalWithdrawnAmount() | number:'1.3-3'}} DT</div>
                  </div>
+                 <button (click)="openEditWithdrawalModal()" 
+                         class="p-1 hover:bg-white/20 rounded transition-colors"
+                         title="Modifier le montant retiré">
+                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                   </svg>
+                 </button>
                </div>
                <!-- Print with Family Dropdown -->
                <div class="relative" #familyDropdown>
@@ -1030,14 +1037,6 @@
               <p class="text-slate-600 mt-1">{{releveTitle()}}</p>
             </div>
             <div class="flex items-center gap-2">
-              <button (click)="debugSalesData()" 
-                      title="Debug sales data"
-                      class="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg transition-colors duration-200 select-none hover:bg-orange-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span class="hidden sm:inline">Debug</span>
-              </button>
               <button (click)="exportReleveCaisse()" 
                       title="Exporter le relevé"
                       class="flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-lg transition-colors duration-200 select-none hover:bg-emerald-600">
@@ -1106,3 +1105,56 @@
       </div>
     </div>
   </div>
+
+
+<!-- Edit Withdrawal Modal -->
+<div *ngIf="showEditWithdrawalModal()" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-xl font-bold text-gray-900">Modifier le Retrait</h3>
+      <button (click)="closeEditWithdrawalModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="space-y-4">
+      <!-- Current Amount Display -->
+      <div class="bg-gray-50 rounded-lg p-4">
+        <div class="text-sm text-gray-600 mb-1">Montant actuel</div>
+        <div class="text-2xl font-bold text-gray-900">{{getTotalWithdrawnAmount() | number:'1.3-3'}} DT</div>
+      </div>
+
+      <!-- New Amount Input -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Nouveau montant</label>
+        <input type="text" 
+               [(ngModel)]="editWithdrawalForm.amount"
+               class="w-full px-4 py-3 text-2xl font-bold text-center border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+               placeholder="0.000"
+               readonly>
+      </div>
+
+      <!-- Numeric Keypad -->
+      <div class="grid grid-cols-3 gap-2">
+        <button *ngFor="let digit of ['1','2','3','4','5','6','7','8','9']" 
+                (click)="addEditWithdrawalDigit(digit)"
+                class="py-4 text-xl font-semibold bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+          {{digit}}
+        </button>
+        <button (click)="addEditWithdrawalDigit('.')"
+                class="py-4 text-xl font-semibold bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+          .
+        </button>
+        <button (click)="addEditWithdrawalDigit('0')"
+                class="py-4 text-xl font-semibold bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+          0
+        </button>
+        <button (click)="clearEditWithdrawalAmount()"
+                class="py-4 text-xl font-semibold bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors">
+          C
+        </button>
+      </div>
+
+      <!-- Action Buttons -->

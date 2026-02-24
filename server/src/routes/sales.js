@@ -138,15 +138,6 @@ router.post('/', async (req, res) => {
           ? (item.bundleQuantity || item.quantity) * item.bundleSize
           : item.quantity;
 
-        console.log('Deducting inventory for sale:', {
-          productId: item.productId,
-          productName: item.productName,
-          userDepotId: userDepotId,
-          isWholesale: isWholesale && item.isWholesale,
-          bundleQuantity: item.bundleQuantity,
-          bundleSize: item.bundleSize,
-          actualQuantityToDeduct: actualQuantityToDeduct
-        });
 
         // Get current inventory quantity first
         const currentInventory = await tx.inventory.findFirst({
@@ -160,12 +151,6 @@ router.post('/', async (req, res) => {
           // Calculate new quantity (can be negative)
           const newQuantity = parseFloat(currentInventory.quantity) - actualQuantityToDeduct;
 
-          console.log('Updating inventory:', {
-            productId: item.productId,
-            currentQuantity: parseFloat(currentInventory.quantity),
-            quantityToDeduct: actualQuantityToDeduct,
-            newQuantity: newQuantity
-          });
 
           await tx.inventory.updateMany({
             where: {
@@ -177,12 +162,6 @@ router.post('/', async (req, res) => {
             }
           });
         } else {
-          // If no inventory record exists, create one with negative quantity
-          console.log('Creating new inventory record with negative quantity:', {
-            productId: item.productId,
-            depotId: targetDepotId,
-            quantity: -actualQuantityToDeduct
-          });
 
           await tx.inventory.create({
             data: {
@@ -982,7 +961,6 @@ router.put('/gift/:id/approve', async (req, res) => {
       const saleIdStr = String(parseInt(id));
       const wasPending = giftSale.status === 'PENDING_ADMIN';
 
-      console.log(`[gift approve] Processing sale ${saleIdStr}, wasPending: ${wasPending}, items: ${giftSale.items.length}, depotId: ${targetDepotId}`);
 
       // Get existing stock movements for this specific sale (only if already CADEAU)
       let existingMovements = [];
@@ -994,7 +972,6 @@ router.put('/gift/:id/approve', async (req, res) => {
             reference: saleIdStr
           }
         });
-        console.log(`[gift approve] Found ${existingMovements.length} existing movements for sale ${saleIdStr}`);
       }
 
       // Remove stock for each item
@@ -1011,12 +988,10 @@ router.put('/gift/:id/approve', async (req, res) => {
               );
 
               if (hasMovement) {
-                console.log(`[gift approve] Skipping productId ${itemProductId} - movement already exists`);
                 continue;
               }
             }
 
-            console.log(`[gift approve] Deducting stock for productId ${itemProductId}, quantity ${itemQuantity}`);
 
             // Get current inventory
             const currentInventory = await tx.inventory.findFirst({
@@ -1031,7 +1006,6 @@ router.put('/gift/:id/approve', async (req, res) => {
               const oldQuantity = parseFloat(currentInventory.quantity);
               const newQuantity = oldQuantity - itemQuantity;
 
-              console.log(`[gift approve] Updating inventory: ${oldQuantity} -> ${newQuantity}`);
 
               // Update inventory
               await tx.inventory.updateMany({
@@ -1044,7 +1018,6 @@ router.put('/gift/:id/approve', async (req, res) => {
                 }
               });
             } else {
-              console.log(`[gift approve] Creating new inventory record with quantity -${itemQuantity}`);
 
               // If no inventory record exists, create one with negative quantity
               await tx.inventory.create({
@@ -1069,7 +1042,6 @@ router.put('/gift/:id/approve', async (req, res) => {
               }
             });
 
-            console.log(`[gift approve] Stock movement created for productId ${itemProductId}`);
           }
         } catch (itemError) {
           console.error(`[gift approve] Error processing productId=${item.productId}:`, itemError);
@@ -1381,9 +1353,12 @@ router.get('/', authenticateToken, async (req, res) => {
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
 
     // Determine which depot to use: requested > visiting > user's depot
-    let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-    if ((req.user?.role === 'ADMIN' || req.user?.role === 'SUPER_ADMIN') && !depotId && !visitingDepotHeader) {
-      targetDepotId = null;
+    // For ADMIN/SUPER_ADMIN: if no depot specified, show ALL depots (targetDepotId = null)
+    let targetDepotId;
+    if (req.user?.role === 'ADMIN' || req.user?.role === 'SUPER_ADMIN') {
+      targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || null);
+    } else {
+      targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
     }
 
     // For non-admin users, check depot access
@@ -1933,16 +1908,6 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
   try {
     const { items, total, discount, finalTotal, paymentMethodId, clientId, amountPaid, paymentType, advancePayment, advancePaymentMethod } = req.body;
 
-    // Debug log for wholesale sales
-    console.log('Wholesale sale received:', {
-      paymentType,
-      paymentMethodId,
-      amountPaid,
-      clientId,
-      advancePayment,
-      advancePaymentMethod
-    });
-
     // Validate required fields
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Wholesale sale must have at least one item' });
@@ -2041,14 +2006,6 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
         }
       });
 
-      // Debug log for created sale
-      console.log('Wholesale sale created:', {
-        id: newSale.id,
-        paymentType: newSale.paymentType,
-        paymentMethodId: newSale.paymentMethodId,
-        amountPaid,
-        clientId: newSale.clientId
-      });
 
       for (const item of items) {
         // Calculate margin for wholesale items
@@ -2108,14 +2065,6 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
         }
         const actualQuantityToDeduct = bundleQuantity * bundleSize;
 
-        console.log('Deducting inventory for wholesale sale:', {
-          productId: item.productId,
-          productName: item.productName,
-          userDepotId: userDepotId,
-          bundleQuantity: item.bundleQuantity,
-          bundleSize: item.bundleSize,
-          actualQuantityToDeduct: actualQuantityToDeduct
-        });
 
         // Get current inventory quantity first
         const currentInventory = await tx.inventory.findFirst({
@@ -2129,12 +2078,6 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
           // Calculate new quantity (can be negative)
           const newQuantity = parseFloat(currentInventory.quantity) - actualQuantityToDeduct;
 
-          console.log('Updating wholesale inventory:', {
-            productId: item.productId,
-            currentQuantity: parseFloat(currentInventory.quantity),
-            quantityToDeduct: actualQuantityToDeduct,
-            newQuantity: newQuantity
-          });
 
           await tx.inventory.updateMany({
             where: {
@@ -2146,12 +2089,6 @@ router.post('/wholesale', authenticateToken, async (req, res) => {
             }
           });
         } else {
-          // If no inventory record exists, create one with negative quantity
-          console.log('Creating new wholesale inventory record with negative quantity:', {
-            productId: item.productId,
-            depotId: userDepotId,
-            quantity: -actualQuantityToDeduct
-          });
 
           await tx.inventory.create({
             data: {
@@ -2345,12 +2282,7 @@ router.post('/return', authenticateToken, async (req, res) => {
         const productId = parseInt(item.productId);
         const quantity = parseFloat(item.quantity) || 0;
 
-        if (!productId || quantity <= 0) {
-          console.log(`[return-sale] Skipping invalid item: productId=${productId}, quantity=${quantity}`);
-          continue;
-        }
 
-        console.log(`[return-sale] Processing return for product ${productId}, quantity: ${quantity}, depot: ${targetDepotId}`);
 
         // Update inventory directly - ADD to stock for returns
         const inventory = await tx.inventory.findUnique({
@@ -2364,7 +2296,6 @@ router.post('/return', authenticateToken, async (req, res) => {
             where: { id: inventory.id },
             data: { quantity: newQuantity }
           });
-          console.log(`[return-sale] Updated inventory for product ${productId}: ${currentQuantity} -> ${newQuantity}`);
         } else {
           // Create new inventory record if it doesn't exist
           await tx.inventory.create({
@@ -2374,7 +2305,6 @@ router.post('/return', authenticateToken, async (req, res) => {
               quantity: quantity
             }
           });
-          console.log(`[return-sale] Created new inventory for product ${productId}: ${quantity}`);
         }
 
         // Create stock movement
@@ -2391,7 +2321,6 @@ router.post('/return', authenticateToken, async (req, res) => {
           }
         });
 
-        console.log(`[return-sale] Stock movement created for product ${productId}`);
       }
 
       const refundAmount = parseFloat(finalTotal) || 0;
@@ -2588,25 +2517,14 @@ router.post('/wholesale', async (req, res) => {
 
         if (existingInventory) {
           const newQuantity = existingInventory.quantity - actualQuantityToDeduct;
-          console.log('Updating wholesale inventory:', {
-            productId: item.productId,
-            depotId: userDepotId,
-            oldQuantity: existingInventory.quantity,
-            quantityToDeduct: actualQuantityToDeduct,
-            newQuantity: newQuantity
-          });
+
 
           await tx.inventory.update({
             where: { id: existingInventory.id },
             data: { quantity: newQuantity }
           });
         } else {
-          // Create new inventory record with negative quantity
-          console.log('Creating new wholesale inventory record with negative quantity:', {
-            productId: item.productId,
-            depotId: userDepotId,
-            quantity: -actualQuantityToDeduct
-          });
+    
 
           await tx.inventory.create({
             data: {

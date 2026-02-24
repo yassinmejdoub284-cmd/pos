@@ -357,7 +357,6 @@ export class PrintService {
     // In web mode, we cannot actually open the cash drawer via ESC/POS commands
     // Opening a print window would just show a blank tab, so we skip it
     // The cash drawer can only be opened in desktop/Tauri mode
-    console.log('Cash drawer command skipped in web mode (not available)');
   }
 
 

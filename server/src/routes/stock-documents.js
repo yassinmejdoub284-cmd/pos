@@ -944,16 +944,6 @@ router.post('/entry', authenticateToken, async (req, res) => {
   try {
     const { depotId, supplierId, items, notes, payCash, isReturn } = req.body;
 
-    console.log('[stock-documents/entry] Request received:', {
-      depotId,
-      supplierId,
-      itemsCount: items?.length,
-      hasNotes: !!notes,
-      payCash,
-      isReturn,
-      userId: req.user?.id,
-      userRole: req.user?.role
-    });
 
     // Validate required fields
     if (!depotId) {
@@ -2013,14 +2003,6 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Document non trouvé' });
     }
 
-    console.log('Document found:', {
-      id: document.id,
-      status: document.status,
-      destinataireId: document.destinataireId,
-      requestedDepotId: parseInt(depotId),
-      emetteurType: document.emetteur?.type,
-      itemsCount: document.items?.length
-    });
 
     if (document.destinataireId !== parseInt(depotId)) {
 
@@ -2098,11 +2080,6 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
           const addingQuantity = parseFloat(item.quantity) || 0;
           const newQuantity = currentQuantity + addingQuantity;
 
-          console.log('Updating existing inventory:', {
-            currentQuantity: currentQuantity,
-            adding: addingQuantity,
-            newQuantity: newQuantity
-          });
           await tx.inventory.update({
             where: { id: inventory.id },
             data: {
@@ -2111,11 +2088,7 @@ router.post('/:id/receive', authenticateToken, async (req, res) => {
           });
         } else {
           const newQuantity = parseFloat(item.quantity) || 0;
-          console.log('Creating new inventory entry:', {
-            depotId: parseInt(depotId),
-            productId: item.productId,
-            quantity: newQuantity
-          });
+
           await tx.inventory.create({
             data: {
               depotId: parseInt(depotId),
@@ -2205,13 +2178,6 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Document non trouvé' });
     }
 
-    console.log('Document found:', {
-      id: document.id,
-      status: document.status,
-      type: document.type,
-      destinataireId: document.destinataireId,
-      itemsCount: document.items?.length
-    });
 
     if (document.status !== 'SENT') {
 
@@ -2259,12 +2225,6 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
 
       for (const item of itemsToProcess) {
 
-        console.log('Processing item:', {
-          productId: item.productId,
-          parentProductId: item.parentProductId,
-          famille: item.famille,
-          quantity: item.quantity
-        });
 
         // Check for product depot link first
         let targetProductId = item.productId;
@@ -2415,11 +2375,6 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
           const addingQuantity = groupedItem.quantity;
           const newQuantity = currentQuantity + addingQuantity;
 
-          console.log('Updating existing inventory:', {
-            currentQuantity: currentQuantity,
-            adding: addingQuantity,
-            newQuantity: newQuantity
-          });
           await tx.inventory.update({
             where: { id: inventory.id },
             data: {
@@ -2427,11 +2382,6 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
             }
           });
         } else {
-          console.log('Creating new inventory entry:', {
-            depotId: parseInt(depotId),
-            productId: productId,
-            quantity: groupedItem.quantity
-          });
           await tx.inventory.create({
             data: {
               depotId: parseInt(depotId),
@@ -2784,7 +2734,6 @@ router.post('/', authenticateToken, async (req, res) => {
 
         // Skip inventory operations if product is in ProduitDeCaisse (not supported yet)
         if (!productExists) {
-          console.log(`Skipping inventory operations for product ${productId} (ProduitDeCaisse)`);
           continue;
         }
 
@@ -2799,15 +2748,6 @@ router.post('/', authenticateToken, async (req, res) => {
           throw new Error(`Invalid depot ID: ${effectiveDepotId}`);
         }
 
-        console.log('Processing inventory update:', {
-          productId,
-          quantity,
-          depotIdInt,
-          type,
-          effectiveDepotId,
-          originalDepotId: depotId,
-          fromDepotId
-        });
 
         if (type === 'BON_ENTREE_DEPOT') {
           // Add to inventory
@@ -3778,13 +3718,6 @@ router.post('/return', authenticateToken, async (req, res) => {
   try {
     const { depotId, clientId, supplierId, items, notes } = req.body;
 
-    console.log('[stock-documents/return] Return request:', {
-      depotId,
-      clientId,
-      supplierId,
-      itemsCount: items?.length,
-      userId: req.user?.id
-    });
 
     // Validate required fields
     if (!depotId) {
@@ -4010,15 +3943,6 @@ router.post('/return', authenticateToken, async (req, res) => {
           }
         });
       }
-
-      console.log(`[stock-documents/return] ${isClientReturn ? 'Client' : 'Supplier'} return created:`, {
-        documentId: doc.id,
-        numero: doc.numero,
-        clientId: clientIdInt,
-        supplierId: supplierIdInt,
-        totalValue: totalReturnValue,
-        itemCount: items.length
-      });
 
       return doc;
     });

@@ -185,6 +185,11 @@ export class SessionsService {
     return this.http.post<CashMovement>(`${this.API_URL}/${sessionId}/movements`, movement, this.getRequestOptions());
   }
 
+  // Add correction to closed session (admin only)
+  addCashMovementCorrection(sessionId: number, movement: CashMovementRequest): Observable<CashMovement> {
+    return this.http.post<CashMovement>(`${this.API_URL}/${sessionId}/movements/correction`, movement, this.getRequestOptions());
+  }
+
   // Get session summary
   getSessionSummary(sessionId: number): Observable<SessionSummary> {
     return this.http.get<SessionSummary>(`${this.API_URL}/${sessionId}/summary`, this.getRequestOptions());

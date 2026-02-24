@@ -164,15 +164,6 @@ export class LoginComponent implements OnInit, OnDestroy {
       loginData.depotId = Number(this.selectedDepotId);
     }
 
-
-    
-    console.log('Login attempt:', { 
-      hasPin: !!loginData.pin, 
-      hasToken: !!loginData.token, 
-      hasDepotId: !!loginData.depotId,
-      depotId: loginData.depotId 
-    });
-
     this.authService.login(loginData).subscribe({
       next: async (response) => {
 

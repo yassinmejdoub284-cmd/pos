@@ -3054,16 +3054,6 @@ export class CaisseComponent implements OnInit, OnDestroy {
       paymentType: this.salePaymentType
     };
 
-    // Debug log for wholesale sales
-    if (this.isWholesaleSale()) {
-      console.log('Wholesale sale data:', {
-        paymentType: this.salePaymentType,
-        paymentMethodId: saleData.paymentMethodId,
-        amountPaid: saleData.amountPaid,
-        isWholesale: saleData.isWholesale
-      });
-    }
-
     this.salesService.createSale(saleData).subscribe({
       next: (savedSale: any) => {
         const loyaltyEarned = savedSale?.loyaltyPointsEarned || 0;

@@ -64,9 +64,6 @@ router.get('/', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: `Dépôt avec ID ${targetDepotId} introuvable` });
     }
 
-    console.log(`[produits-de-caisse] Fetching products for depot: ${depot.name} (ID: ${targetDepotId}, Type: ${depot.type})`);
-
-
     // Filter produits by depot - ALWAYS filter for isolation
     const produits = await prisma.produitDeCaisse.findMany({
       where: {
@@ -99,8 +96,6 @@ router.get('/', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    console.log(`[produits-de-caisse] Found ${produits.length} active produits for depot ${targetDepotId}`);
-    
     // Parse productIds from JSON string to array and add assignedDepots computed field
     const produitsWithParsedIds = produits.map(produit => ({
       ...produit,
@@ -109,8 +104,6 @@ router.get('/', authenticateToken, async (req, res) => {
       familleName: produit.famille?.name || null
     }));
 
-    console.log(`[produits-de-caisse] Returning ${produitsWithParsedIds.length} produits for depot ${targetDepotId}`);
-    
     res.json(produitsWithParsedIds);
   } catch (error) {
     console.error('Error fetching produits de caisse:', error);

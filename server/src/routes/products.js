@@ -1468,13 +1468,7 @@ router.post('/transfer', authenticateToken, async (req, res) => {
 
     // Validate required fields
     if (!sourceProductId || !targetProductId || quantity === undefined || quantity === null || conversionRatio === undefined || conversionRatio === null || !depotId) {
-      console.log('Missing fields:', {
-        sourceProductId,
-        targetProductId,
-        quantity,
-        conversionRatio,
-        depotId
-      });
+     
       return res.status(400).json({ 
         error: 'Tous les champs sont requis',
         received: {
@@ -1640,18 +1634,6 @@ router.post('/transfer', authenticateToken, async (req, res) => {
           userId: req.user.id
         }
       });
-
-      console.log('Transfer saved:', {
-        outMovementId: outMovement.id,
-        inMovementId: inMovement.id,
-        sourceProduct: sourceProduct.name,
-        targetProduct: targetProduct.name,
-        sourceQuantity,
-        targetQuantity,
-        ratio,
-        depotId: depotIdInt,
-        userId: req.user.id
-      });
     });
 
     await logAudit(req.user.id, 'products', parseInt(sourceProductId), 'TRANSFER', null, {
@@ -1723,15 +1705,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
   try {
     const { sourceProductId, transfers, depotId } = req.body;
 
-    console.log('Received transfer-multiple request:', {
-      sourceProductId,
-      depotId,
-      transfersCount: transfers?.length,
-      transfers: transfers
-    });
-    
-    console.log('Extracting target product IDs:', transfers.map(t => t.targetProductId));
-
     if (!sourceProductId || !transfers || !Array.isArray(transfers) || transfers.length === 0 || !depotId) {
       return res.status(400).json({ 
         error: 'Tous les champs sont requis et transfers doit être un tableau non vide',
@@ -1777,11 +1750,9 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
       });
     }
 
-    console.log('Looking for target products with IDs:', uniqueTargetIds);
     const targetProducts = await prisma.product.findMany({
       where: { id: { in: uniqueTargetIds } }
     });
-    console.log('Found target products:', targetProducts.map(p => ({ id: p.id, name: p.name })));
 
     if (targetProducts.length !== uniqueTargetIds.length) {
       const foundIds = targetProducts.map(p => p.id);
@@ -1812,12 +1783,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
 
     const sourceQuantity = parseFloat(firstTransfer.quantity);
 
-    console.log('Source quantity from first transfer:', {
-      firstTransfer,
-      sourceQuantity,
-      sourceQuantityType: typeof sourceQuantity
-    });
-
     if (isNaN(sourceQuantity) || sourceQuantity <= 0) {
       return res.status(400).json({ 
         error: 'La quantité source doit être positive',
@@ -1827,7 +1792,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
     }
 
     totalSourceQuantity = sourceQuantity;
-    console.log('Total source quantity set to:', totalSourceQuantity);
 
     for (const transfer of transfers) {
       if (!transfer || !transfer.targetProductId || transfer.quantity === undefined || transfer.quantity === null || transfer.conversionRatio === undefined || transfer.conversionRatio === null) {
@@ -1844,13 +1808,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
       const transferSourceQuantity = parseFloat(transfer.quantity);
       const ratio = parseFloat(transfer.conversionRatio);
       
-      console.log('Processing transfer:', {
-        targetProductId,
-        transferSourceQuantity,
-        ratio,
-        sourceQuantity,
-        willUseSourceQuantity: sourceQuantity
-      });
 
       if (isNaN(targetProductId) || targetProductId <= 0) {
         return res.status(400).json({ 
@@ -1893,13 +1850,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
 
       const targetQuantity = parseFloat((sourceQuantity * ratio).toFixed(3));
 
-      console.log('Calculating target quantity:', {
-        targetProductId,
-        targetProductName: targetProduct.name,
-        sourceQuantity,
-        ratio,
-        calculatedTargetQuantity: targetQuantity
-      });
 
       if (!isFinite(targetQuantity) || targetQuantity < 0) {
         return res.status(400).json({ error: `Quantité calculée invalide pour le produit ${targetProduct.name}` });
@@ -1911,13 +1861,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
         sourceQuantity,
         ratio,
         targetQuantity
-      });
-      
-      console.log('Added to transferDetails:', {
-        targetProductId,
-        targetQuantity,
-        sourceQuantity,
-        ratio
       });
     }
 
@@ -1943,20 +1886,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
       where: {
         productId: sourceProductIdInt
       }
-    });
-
-    console.log('Source inventory check:', {
-      depotId: depotIdInt,
-      productId: sourceProductIdInt,
-      found: !!sourceInventory,
-      quantity: sourceInventory?.quantity,
-      quantityType: typeof sourceInventory?.quantity,
-      totalSourceQuantity,
-      allInventoriesForProduct: allInventories.map(inv => ({
-        depotId: inv.depotId,
-        quantity: inv.quantity,
-        quantityString: inv.quantity?.toString()
-      }))
     });
 
     let currentSourceQuantity = 0;
@@ -1993,29 +1922,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
         console.error('Error parsing quantity:', parseError, 'raw value:', quantityValue);
         currentSourceQuantity = 0;
       }
-      
-      console.log('Parsed quantity:', {
-        raw: quantityValue,
-        rawString: String(quantityValue),
-        rawJSON: JSON.stringify(quantityValue),
-        type: typeof quantityValue,
-        constructor: quantityValue?.constructor?.name,
-        parsed: currentSourceQuantity,
-        isNaN: isNaN(currentSourceQuantity),
-        isFinite: isFinite(currentSourceQuantity)
-      });
-    }
-
-    if (!sourceInventory) {
-      console.log('No inventory record found for product', sourceProductIdInt, 'in depot', depotIdInt);
-      console.log('Will allow transfer and create inventory record with negative quantity');
-    } else {
-      console.log('Inventory found:', {
-        inventoryId: sourceInventory.id,
-        quantity: sourceInventory.quantity,
-        currentSourceQuantity,
-        totalSourceQuantity
-      });
     }
 
     if (sourceInventory) {
@@ -2027,13 +1933,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
         currentSourceQuantity = 0;
       }
       
-      console.log('Stock validation:', {
-        currentSourceQuantity,
-        totalSourceQuantity,
-        hasEnough: currentSourceQuantity >= totalSourceQuantity,
-        comparison: `${currentSourceQuantity} >= ${totalSourceQuantity} = ${currentSourceQuantity >= totalSourceQuantity}`
-      });
-
       if (currentSourceQuantity < totalSourceQuantity) {
         const totalStockInAllDepots = allInventories.reduce((sum, inv) => {
           const qty = parseFloat(inv.quantity?.toString() || '0') || 0;
@@ -2065,15 +1964,7 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
           console.warn('Stock available in other depots, but allowing transfer anyway');
         }
 
-        console.log('Allowing transfer with insufficient stock (will create/update negative inventory)');
-      } else {
-        console.log('Stock validation passed:', {
-          currentSourceQuantity,
-          totalSourceQuantity
-        });
       }
-    } else {
-      console.log('No inventory record exists, allowing transfer (will create negative inventory if needed)');
     }
 
     const results = await prisma.$transaction(async (tx) => {
@@ -2093,26 +1984,14 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
         }
         
         const newSourceQuantity = currentSourceQty - totalSourceQuantity;
-        console.log('Updating source inventory:', {
-          inventoryId: sourceInventory.id,
-          currentQuantity: currentSourceQty,
-          totalSourceQuantity,
-          newQuantity: newSourceQuantity
-        });
+       
         const updatedSource = await tx.inventory.update({
           where: { id: sourceInventory.id },
           data: { quantity: newSourceQuantity }
         });
-        console.log('Source inventory updated:', {
-          id: updatedSource.id,
-          quantity: updatedSource.quantity?.toString()
-        });
+       
       } else {
-        console.log('Creating new source inventory with negative quantity:', {
-          depotId: depotIdInt,
-          productId: sourceProductIdInt,
-          quantity: -totalSourceQuantity
-        });
+        
         const createdSource = await tx.inventory.create({
           data: {
             depotId: depotIdInt,
@@ -2120,10 +1999,7 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
             quantity: -totalSourceQuantity
           }
         });
-        console.log('Source inventory created:', {
-          id: createdSource.id,
-          quantity: createdSource.quantity?.toString()
-        });
+        
       }
 
       const targetProductsList = transferDetails.map(d => d.targetProductName).join(', ');
@@ -2145,15 +2021,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
 
       for (const detail of transferDetails) {
         try {
-          console.log('Processing transfer detail:', {
-            targetProductId: detail.targetProductId,
-            targetProductName: detail.targetProductName,
-            sourceQuantity: detail.sourceQuantity,
-            ratio: detail.ratio,
-            targetQuantity: detail.targetQuantity,
-            targetQuantityType: typeof detail.targetQuantity,
-            depotId: depotIdInt
-          });
 
           const targetInventory = await tx.inventory.findUnique({
             where: {
@@ -2162,12 +2029,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
                 productId: detail.targetProductId
               }
             }
-          });
-
-          console.log('Target inventory lookup result:', {
-            found: !!targetInventory,
-            targetProductId: detail.targetProductId,
-            depotId: depotIdInt
           });
 
           const targetQtyToAdd = parseFloat(detail.targetQuantity);
@@ -2192,31 +2053,14 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
             }
             
             const newTargetQuantity = parseFloat((currentTargetQty + targetQtyToAdd).toFixed(3));
-            
-            console.log('Updating target inventory:', {
-              targetProductId: detail.targetProductId,
-              inventoryId: targetInventory.id,
-              currentQuantity: currentTargetQty,
-              addingQuantity: targetQtyToAdd,
-              newQuantity: newTargetQuantity
-            });
+          
             
             const updatedTarget = await tx.inventory.update({
               where: { id: targetInventory.id },
               data: { quantity: newTargetQuantity }
             });
             
-            console.log('Target inventory updated successfully:', {
-              id: updatedTarget.id,
-              quantity: updatedTarget.quantity?.toString(),
-              quantityType: typeof updatedTarget.quantity
-            });
           } else {
-            console.log('Creating new target inventory:', {
-              depotId: depotIdInt,
-              targetProductId: detail.targetProductId,
-              quantity: targetQtyToAdd
-            });
             
             const createdTarget = await tx.inventory.create({
               data: {
@@ -2226,11 +2070,6 @@ router.post('/transfer-multiple', authenticateToken, async (req, res) => {
               }
             });
             
-            console.log('Target inventory created successfully:', {
-              id: createdTarget.id,
-              quantity: createdTarget.quantity?.toString(),
-              quantityType: typeof createdTarget.quantity
-            });
           }
         } catch (detailError) {
           console.error(`Error processing transfer detail for product ${detail.targetProductId}:`, detailError);
@@ -2550,14 +2389,7 @@ router.get('/transfer-history', authenticateToken, async (req, res) => {
     const endIndex = startIndex + limitNum;
     const paginatedHistory = transferHistory.slice(startIndex, endIndex);
 
-    console.log('Transfer history grouped:', {
-      totalGroups: transferHistory.length,
-      paginatedCount: paginatedHistory.length,
-      sampleItem: paginatedHistory[0] ? {
-        id: paginatedHistory[0].id,
-        targetProductsCount: paginatedHistory[0].targetProducts?.length || 0
-      } : null
-    });
+    
 
     res.json({
       data: paginatedHistory,

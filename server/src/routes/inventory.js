@@ -550,14 +550,6 @@ router.patch('/sessions/:sessionId/items/:itemId', authenticateToken, async (req
     const itemId = parseInt(req.params.itemId);
     const { countedQuantity, reason, notes } = req.body;
 
-    console.log('Updating inventory item count:', {
-      sessionId,
-      itemId,
-      countedQuantity,
-      reason,
-      notes,
-      userId: req.user.id
-    });
 
     // Validate session exists and is in correct status
     const session = await prisma.inventorySession.findUnique({
@@ -591,14 +583,6 @@ router.patch('/sessions/:sessionId/items/:itemId', authenticateToken, async (req
       console.error('Inventory item not found:', { itemId, sessionId, itemExists: !!item });
       return res.status(404).json({ error: 'Inventory item not found' });
     }
-
-    console.log('Found inventory item:', {
-      itemId: item.id,
-      productId: item.productId,
-      productName: item.product.name,
-      theoreticalQuantity: item.theoreticalQuantity,
-      currentCountedQuantity: item.countedQuantity
-    });
 
     // Calculate écart
     const oldEcartQuantity = item.ecartQuantity ? parseFloat(item.ecartQuantity) : 0;
@@ -708,13 +692,6 @@ router.patch('/sessions/:sessionId/items/:itemId', authenticateToken, async (req
       return updatedItem;
     });
 
-    console.log('Successfully updated inventory item:', {
-      itemId: result.id,
-      countedQuantity: result.countedQuantity,
-      ecartQuantity: result.ecartQuantity,
-      ecartValue: result.ecartValue
-    });
-
     await logAudit(req.user.id, 'inventory_items', itemId, 'UPDATE', item, result);
 
     res.json(result);
@@ -730,11 +707,6 @@ router.delete('/sessions/:sessionId/items/:itemId', authenticateToken, async (re
     const sessionId = parseInt(req.params.sessionId);
     const itemId = parseInt(req.params.itemId);
 
-    console.log('Deleting inventory item:', {
-      sessionId,
-      itemId,
-      userId: req.user.id
-    });
 
     // Validate session exists and is in correct status
     const session = await prisma.inventorySession.findUnique({
@@ -828,10 +800,6 @@ router.delete('/sessions/:sessionId/items/:itemId', authenticateToken, async (re
 
     await logAudit(req.user.id, 'inventory_items', itemId, 'DELETE', item, null);
 
-    console.log('Successfully deleted inventory item:', {
-      itemId: result.id,
-      productId: result.productId
-    });
 
     res.json({ message: 'Inventory item deleted successfully', item: result });
   } catch (error) {
@@ -864,8 +832,6 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Inventory session not found' });
     }
 
-    console.log(`Attempting to post session ${sessionId}, current status: ${session.status}`);
-
     // Allow posting from any status - auto-close if not already closed or posted
     if (session.status === 'POSTED') {
       return res.status(400).json({ 
@@ -884,24 +850,6 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
 
     // Auto-close session if it's not already closed
     let sessionToPost = session;
-    if (session.status !== 'CLOSED') {
-      console.log(`Auto-closing session ${sessionId} from status ${session.status}`);
-      sessionToPost = await prisma.inventorySession.update({
-        where: { id: sessionId },
-        data: {
-          status: 'CLOSED',
-          closedBy: req.user.id,
-          closedAt: new Date()
-        },
-        include: {
-          items: {
-            include: {
-              product: true
-            }
-          }
-        }
-      });
-    }
 
     // Calculate totals - calculate ecart for all items if not already calculated
     let totalEcartValue = 0;
@@ -1059,8 +1007,6 @@ router.post('/sessions/:id/post', authenticateToken, async (req, res) => {
       
       // Ensure countedQuantity is a valid number
       const newStockQuantity = isNaN(countedQuantity) ? 0 : Math.max(0, countedQuantity);
-      
-      console.log(`Updating stock for product ${productId}: ${newStockQuantity} (counted: ${countedQty}, theoretical: ${theoreticalQty})`);
       
       // Prepare inventory update/create
       const existingInventory = inventoryMap.get(productId);

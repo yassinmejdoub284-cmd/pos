@@ -40,7 +40,6 @@ async function main() {
       }
     }
 
-    console.log('✅ Nettoyage terminé avec succès.');
 
   } catch (error) {
     console.error('❌ Erreur lors du nettoyage :', error);

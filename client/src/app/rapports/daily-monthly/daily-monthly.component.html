@@ -1,216 +1,288 @@
-<div class="min-h-screen bg-gradient-to-br from-amber-50 via-blue-50 to-purple-50 p-4">
-  <!-- Home Button - Top Right -->
-  <div class="fixed top-6 right-6 z-40">
-    <a routerLink="/home"
-      class="w-12 h-12 bg-blue-400 text-white rounded-full shadow-2xl transition-all duration-300 transform flex items-center justify-center"
-      title="Accueil">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-        </path>
-      </svg>
-    </a>
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4">
+  <!-- Header with Home Button -->
+  <div class="max-w-[1600px] mx-auto mb-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-1">Rapport Journalier / Mensuel</h1>
+        <p class="text-gray-600">Analyse des ventes par session et période</p>
+      </div>
+      <a routerLink="/rapports"
+        class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm">
+        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+          </path>
+        </svg>
+      </a>
+    </div>
   </div>
 
-  <div class="max-w-7xl mx-auto">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Rapport Journalier / Mensuel</h1>
-        <p class="text-gray-600">Analyse des ventes, achats et résultats par période</p>
-      </div>
-      <button (click)="goBack()" 
-        class="bg-gradient-to-r from-gray-400 to-gray-500 text-white px-4 py-2 rounded-lg transition-all flex items-center space-x-2 shadow-lg">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-        </svg>
-        <span>Retour</span>
-      </button>
-    </div>
-
-    <!-- Filters -->
-    <div class="bg-white/90 rounded-xl border border-gray-200 p-6 mb-6 shadow-lg">
-      <h2 class="text-xl font-bold text-gray-800 mb-4">Filtres</h2>
-      
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+  <div class="max-w-[1600px] mx-auto">
+    <!-- Filters Card -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4 shadow-sm">
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
         <!-- Date Range -->
         <div>
-          <label class="block text-sm text-gray-600 mb-1">Du</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Date début</label>
           <input type="date" [value]="startDate" (change)="onStartDateChange($event)"
-            class="w-full bg-white/80 border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:border-blue-400">
+            class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
         </div>
         
         <div>
-          <label class="block text-sm text-gray-600 mb-1">Au</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Date fin</label>
           <input type="date" [value]="endDate" (change)="onEndDateChange($event)"
-            class="w-full bg-white/80 border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:border-blue-400">
+            class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
         </div>
 
         <!-- Site -->
         <div>
-          <label class="block text-sm text-gray-600 mb-1">Site</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Site</label>
           <select [(ngModel)]="filters.depotId" (change)="onFiltersChange()"
-            class="w-full bg-white/80 border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:border-blue-400">
+            class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
             <option *ngFor="let depot of depots" [value]="depot.id">{{ depot.name }}</option>
           </select>
         </div>
 
         <!-- Report Type -->
         <div>
-          <label class="block text-sm text-gray-600 mb-1">Type de rapport</label>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Type</label>
           <select [(ngModel)]="filters.reportType" (change)="onFiltersChange()"
-            class="w-full bg-white/80 border border-gray-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:border-blue-400">
+            class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
             <option value="daily">Journalier</option>
             <option value="monthly">Mensuel</option>
           </select>
         </div>
-      </div>
 
-      <div class="flex justify-end space-x-3">
-        <button (click)="toggleChart()" 
-          class="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-4 py-2 rounded-lg transition-all flex items-center space-x-2 shadow-lg">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-          </svg>
-          <span>{{ showChart ? 'Masquer Graphique' : 'Afficher Graphique' }}</span>
-        </button>
-        
-        <button (click)="printA4()" 
-          class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg transition-all flex items-center space-x-2 shadow-lg">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-          </svg>
-          <span>Imprimer A4</span>
-        </button>
-        
-        <button (click)="print80mm()" 
-          class="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-lg transition-all flex items-center space-x-2 shadow-lg">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-          </svg>
-          <span>Imprimer 80mm</span>
-        </button>
-        
-        <button (click)="exportToExcel()" 
-          class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg transition-all flex items-center space-x-2 shadow-lg">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          <span>Exporter Excel</span>
-        </button>
+        <!-- Action Buttons -->
+        <div class="col-span-2 flex items-end space-x-2">
+          <button (click)="printA4()" 
+            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all flex items-center justify-center space-x-1.5 text-sm font-medium shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+            </svg>
+            <span>A4</span>
+          </button>
+          
+          <button (click)="print80mm()" 
+            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg transition-all flex items-center justify-center space-x-1.5 text-sm font-medium shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+            </svg>
+            <span>80mm</span>
+          </button>
+          
+          <button (click)="exportToExcel()" 
+            class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg transition-all flex items-center justify-center space-x-1.5 text-sm font-medium shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <span>CSV</span>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Loading State -->
-    <div *ngIf="loading" class="flex items-center justify-center py-12">
+    <div *ngIf="loading" class="flex items-center justify-center py-20">
       <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-        <p class="text-gray-600">Chargement du rapport...</p>
+        <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+        <p class="text-gray-600 font-medium">Chargement des données...</p>
       </div>
     </div>
 
     <!-- Error State -->
-    <div *ngIf="error" class="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg mb-6">
-      {{ error }}
-    </div>
-
-    <!-- Chart Section -->
-    <div *ngIf="showChart && !loading && !error && reports.length > 0" class="bg-white/90 rounded-xl border border-gray-200 p-6 mb-6 shadow-lg">
-      <h3 class="text-xl font-bold text-gray-800 mb-4">Graphique des Tendances</h3>
-      <div class="relative h-96">
-        <canvas #chartCanvas></canvas>
-      </div>
-    </div>
-
-    <!-- Report Results -->
-    <div *ngIf="!loading && !error" class="bg-white/90 rounded-xl border border-gray-200 shadow-lg overflow-hidden">
-      <!-- Summary Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 border-b border-gray-200">
-        <div class="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-blue-600 text-sm font-medium">CA Vente Total</p>
-              <p class="text-2xl font-bold text-blue-800">{{ getTotalCA() | number:'1.3-3' }} dt</p>
-            </div>
-            <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-orange-600 text-sm font-medium">Prix Achat Total</p>
-              <p class="text-2xl font-bold text-orange-800">{{ getTotalAchat() | number:'1.3-3' }} dt</p>
-            </div>
-            <div class="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-green-600 text-sm font-medium">Résultat Total</p>
-              <p class="text-2xl font-bold text-green-800">{{ getTotalResultat() | number:'1.3-3' }} dt</p>
-            </div>
-            <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Report Table -->
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Site</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA Vente</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Prix Achat</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Résultat</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr *ngFor="let report of reports">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {{ report.date | date:'dd/MM/yyyy' }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ report.depotName }}
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                {{ report.caVente | number:'1.3-3' }} dt
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                {{ report.prixAchat | number:'1.3-3' }} dt
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-right"
-                  [class]="report.resultat >= 0 ? 'text-green-600' : 'text-red-600'">
-                {{ report.resultat | number:'1.3-3' }} dt
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Empty State -->
-      <div *ngIf="reports.length === 0" class="text-center py-12">
-        <svg class="w-24 h-24 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+    <div *ngIf="error" class="bg-red-50 border-l-4 border-red-500 text-red-800 px-4 py-3 rounded-lg mb-4 shadow-sm">
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
         </svg>
-        <h3 class="text-xl font-semibold text-gray-600 mb-2">Aucune donnée trouvée</h3>
-        <p class="text-gray-500">Aucun rapport disponible pour la période sélectionnée</p>
+        <span class="font-medium">{{ error }}</span>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div *ngIf="!loading && !error" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Left Column: Summary Cards + Chart -->
+      <div class="lg:col-span-1 space-y-4">
+        <!-- Summary Cards -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2">
+            <h3 class="text-white font-semibold text-sm">Résumé de la période</h3>
+          </div>
+          
+          <div class="p-3 grid grid-cols-2 gap-2">
+            <!-- CA Vente -->
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200">
+              <div class="flex items-center justify-between mb-0.5">
+                <span class="text-[10px] font-medium text-blue-700">CA Vente</span>
+                <div class="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+                  <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                  </svg>
+                </div>
+              </div>
+              <p class="text-base font-bold text-blue-900">
+                {{ getTotalCA() | number:'1.0-0' }} <span class="text-[10px] text-blue-600 font-normal">DT</span>
+              </p>
+            </div>
+
+            <!-- Prix Achat -->
+            <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-2 border border-orange-200">
+              <div class="flex items-center justify-between mb-0.5">
+                <span class="text-[10px] font-medium text-orange-700">Prix Achat</span>
+                <div class="w-5 h-5 bg-orange-600 rounded flex items-center justify-center">
+                  <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                  </svg>
+                </div>
+              </div>
+              <p class="text-base font-bold text-orange-900">
+                {{ getTotalAchat() | number:'1.0-0' }} <span class="text-[10px] text-orange-600 font-normal">DT</span>
+              </p>
+            </div>
+
+            <!-- Résultat -->
+            <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-2 border border-emerald-200">
+              <div class="flex items-center justify-between mb-0.5">
+                <span class="text-[10px] font-medium text-emerald-700">Résultat</span>
+                <div class="w-5 h-5 bg-emerald-600 rounded flex items-center justify-center">
+                  <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                  </svg>
+                </div>
+              </div>
+              <p class="text-base font-bold text-emerald-900">
+                {{ getTotalResultat() | number:'1.0-0' }} <span class="text-[10px] text-emerald-600 font-normal">DT</span>
+              </p>
+            </div>
+
+            <!-- Marge -->
+            <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-2 border border-indigo-200">
+              <div class="flex items-center justify-between mb-0.5">
+                <span class="text-[10px] font-medium text-indigo-700">Marge</span>
+                <div class="w-5 h-5 bg-indigo-600 rounded flex items-center justify-center">
+                  <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                </div>
+              </div>
+              <p class="text-base font-bold text-indigo-900">
+                {{ getTotalMarginPercentage() | number:'1.1-1' }}<span class="text-[10px] text-indigo-600 font-normal">%</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart Card -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2">
+            <h3 class="text-white font-semibold text-sm">Graphique des tendances</h3>
+          </div>
+          <div class="p-3">
+            <div class="relative h-48">
+              <canvas #chartCanvas></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Data Table -->
+      <div class="lg:col-span-2">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-slate-700 to-slate-800 px-4 py-3 flex items-center justify-between">
+            <h3 class="text-white font-semibold text-sm">Détail par session</h3>
+            <span class="text-white/80 text-xs">{{ reports.length }} session(s)</span>
+          </div>
+
+          <div class="overflow-x-auto max-h-[calc(100vh-200px)] overflow-y-auto">
+            <table class="w-full">
+              <thead class="bg-slate-50 sticky top-0 z-10">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">Date</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">Site</th>
+                  <th class="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">Session</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">CA Vente</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">Prix Achat</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">Résultat</th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">Marge</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-slate-100">
+                <ng-container *ngFor="let dateGroup of reportsByDate; let isFirst = first">
+                  <!-- Date header row with totals -->
+                  <tr class="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors">
+                    <td class="px-4 py-3 text-sm font-bold text-slate-900" colspan="3">
+                      <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span>{{ dateGroup.date | date:'EEEE dd MMMM yyyy':'':'fr' }}</span>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-sm font-bold text-slate-900 text-right">
+                      {{ dateGroup.totals.caVente | number:'1.3-3' }}
+                    </td>
+                    <td class="px-4 py-3 text-sm font-bold text-slate-900 text-right">
+                      {{ dateGroup.totals.prixAchat | number:'1.3-3' }}
+                    </td>
+                    <td class="px-4 py-3 text-sm font-bold text-right"
+                        [class]="dateGroup.totals.resultat >= 0 ? 'text-emerald-700' : 'text-red-700'">
+                      {{ dateGroup.totals.resultat | number:'1.3-3' }}
+                    </td>
+                    <td class="px-4 py-3 text-sm font-bold text-right text-indigo-700">
+                      {{ getMarginPercentage(dateGroup.totals.resultat, dateGroup.totals.caVente) | number:'1.1-1' }}%
+                    </td>
+                  </tr>
+                  
+                  <!-- Individual session rows -->
+                  <tr *ngFor="let report of dateGroup.reports; let isLast = last" 
+                      class="hover:bg-slate-50 transition-colors"
+                      [class.border-b-2]="isLast"
+                      [class.border-slate-300]="isLast">
+                    <td class="px-4 py-2.5 whitespace-nowrap text-sm text-slate-500 pl-10">
+                      <span class="text-slate-400">└</span>
+                    </td>
+                    <td class="px-4 py-2.5 whitespace-nowrap text-sm text-slate-700">
+                      {{ report.depotName }}
+                    </td>
+                    <td class="px-4 py-2.5 whitespace-nowrap text-center">
+                      <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                        #{{ report.sessionId }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-2.5 whitespace-nowrap text-sm text-slate-900 text-right font-medium">
+                      {{ report.caVente | number:'1.3-3' }}
+                    </td>
+                    <td class="px-4 py-2.5 whitespace-nowrap text-sm text-slate-700 text-right">
+                      {{ report.prixAchat | number:'1.3-3' }}
+                    </td>
+                    <td class="px-4 py-2.5 whitespace-nowrap text-sm font-semibold text-right"
+                        [class]="report.resultat >= 0 ? 'text-emerald-600' : 'text-red-600'">
+                      {{ report.resultat | number:'1.3-3' }}
+                    </td>
+                    <td class="px-4 py-2.5 whitespace-nowrap text-sm text-right">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                            [class]="getMarginPercentage(report.resultat, report.caVente) >= 30 ? 'bg-emerald-100 text-emerald-800' : 
+                                     getMarginPercentage(report.resultat, report.caVente) >= 15 ? 'bg-yellow-100 text-yellow-800' : 
+                                     'bg-red-100 text-red-800'">
+                        {{ getMarginPercentage(report.resultat, report.caVente) | number:'1.1-1' }}%
+                      </span>
+                    </td>
+                  </tr>
+                </ng-container>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty State -->
+          <div *ngIf="reports.length === 0" class="text-center py-16">
+            <svg class="w-20 h-20 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            <h3 class="text-lg font-semibold text-slate-600 mb-2">Aucune donnée disponible</h3>
+            <p class="text-slate-500 text-sm">Aucun rapport trouvé pour la période sélectionnée</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>

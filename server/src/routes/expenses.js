@@ -191,9 +191,12 @@ router.get('/', authenticateToken, async (req, res) => {
     const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
 
     // Determine which depot to use: requested > visiting > user's depot
-    let targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-    if ((req.user?.role === 'ADMIN' || req.user?.role === 'SUPER_ADMIN') && !depotId && !visitingDepotHeader) {
-      targetDepotId = null;
+    // For ADMIN/SUPER_ADMIN: if no depot specified, show ALL depots (targetDepotId = null)
+    let targetDepotId;
+    if (req.user?.role === 'ADMIN' || req.user?.role === 'SUPER_ADMIN') {
+      targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || null);
+    } else {
+      targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
     }
 
     // For non-admin users, check depot access

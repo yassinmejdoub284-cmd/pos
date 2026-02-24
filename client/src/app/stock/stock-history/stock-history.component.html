@@ -20,40 +20,6 @@
           </div>
         </div>
         
-        <!-- Debug buttons (remove in production) -->
-        <div class="flex items-center space-x-2">
-          <button 
-            (click)="forceDesktopMode()"
-            class="px-3 py-1 text-xs bg-blue-500 text-white rounded cursor-pointer"
-            title="Force Desktop Mode">
-            Desktop
-          </button>
-          <button 
-            (click)="forceWebMode()"
-            class="px-3 py-1 text-xs bg-green-500 text-white rounded cursor-pointer"
-            title="Force Web Mode">
-            Web
-          </button>
-          <button 
-            (click)="testPrint()"
-            class="px-3 py-1 text-xs bg-purple-500 text-white rounded cursor-pointer"
-            title="Test Print">
-            Test Print
-          </button>
-          <button 
-            (click)="checkTauriStatus()"
-            class="px-3 py-1 text-xs bg-orange-500 text-white rounded cursor-pointer"
-            title="Check Tauri Status">
-            Check Tauri
-          </button>
-          <button 
-            (click)="testSimpleClick()"
-            class="px-3 py-1 text-xs bg-red-500 text-white rounded cursor-pointer"
-            title="Simple Test">
-            Test Click
-          </button>
-        </div>
-        
         <div class="flex items-center space-x-4">
           <!-- Depot selector for admin -->
           <div *ngIf="isAdmin && !selectedDepot" class="flex items-center space-x-2">

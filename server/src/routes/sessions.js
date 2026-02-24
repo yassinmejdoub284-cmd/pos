@@ -586,6 +586,72 @@ router.post('/:id/movements', authenticateToken, async (req, res) => {
   }
 });
 
+// Admin-only: Add correction to closed session
+router.post('/:id/movements/correction', authenticateToken, async (req, res) => {
+  try {
+    // Only admins can correct closed sessions
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Accès refusé: Admin uniquement' });
+    }
+
+    const { id } = req.params;
+    const { type, amount, reason, ticketId } = req.body;
+
+    if (!type || !amount || !reason) {
+      return res.status(400).json({ error: 'Type, montant et motif sont requis' });
+    }
+
+    // Find session (can be closed)
+    const session = await prisma.sessionCaisse.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'Session non trouvée' });
+    }
+
+    // Create correction movement
+    const movement = await prisma.cashMovement.create({
+      data: {
+        sessionId: parseInt(id),
+        type: type,
+        amount: parseFloat(amount),
+        reason: `[CORRECTION ADMIN] ${reason}`,
+        ticketId: ticketId ? parseInt(ticketId) : null,
+        createdById: req.user.id
+      }
+    });
+
+    // Update expected cash even for closed sessions
+    await updateExpectedCash(parseInt(id));
+
+    await logAudit(req.user?.id, 'cash_movements', movement.id, 'CREATE', null, {
+      sessionId: movement.sessionId,
+      type: movement.type,
+      amount: movement.amount,
+      reason: movement.reason,
+      correction: true
+    });
+
+    // Emit socket notification
+    if (req.app.get('io')) {
+      req.app.get('io').emit('cash_movement_corrected', {
+        sessionId: movement.sessionId,
+        movementId: movement.id,
+        type: movement.type,
+        amount: movement.amount,
+        reason: movement.reason,
+        createdAt: movement.createdAt
+      });
+    }
+
+    res.status(201).json(movement);
+  } catch (error) {
+    console.error('Error adding correction movement:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get session summary
 router.get('/:id/summary', authenticateToken, async (req, res) => {
   try {
@@ -715,30 +781,6 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
     // For regular closures, we use the calculated variance
     const finalVariance = isAdminCorrection ? originalVariance : originalVariance;
 
-    // Debug logging
-    console.log('Session Close Debug:', {
-      sessionId: parseInt(id),
-      countedCash: parseFloat(countedCash),
-      originalExpectedCash: parseFloat(summary.expectedCash),
-      finalExpectedCash: isAdminCorrection ? parseFloat(countedCash) : parseFloat(summary.expectedCash),
-      calculatedVariance: originalVariance,
-      finalVariance: finalVariance,
-      isAdminCorrection,
-      fondsForNextSession: isAdminCorrection ? parseFloat(countedCash) : fonds,
-      sessionData: {
-        openingFund: session.openingFund,
-        currentExpectedCash: session.expectedCash,
-        currentCountedCash: session.countedCash,
-        currentOriginalCountedCash: session.originalCountedCash
-      },
-      summaryData: {
-        cashSales: summary.cashSales,
-        entree: summary.entree,
-        sortie: summary.sortie,
-        totalSales: summary.totalSales
-      }
-    });
-
     // Check variance threshold (but we will still require approval for all closures)
     const settings = await getClotureSettings();
     const varianceExceedsThreshold = Math.abs(finalVariance) > settings.varianceThreshold;
@@ -815,14 +857,7 @@ router.post('/:id/close', authenticateToken, async (req, res) => {
 
         // Debug logging
         const soldeAfterCloture = reopenSnapshot ? parseFloat(reopenSnapshot.newExpectedCash) : parseFloat(summary.expectedCash);
-        console.log('Admin Correction Debug:', {
-          reopenSnapshot,
-          withdrawalAttempt,
-          actuallyReceived,
-          missingAmount,
-          soldeAfterCloture,
-          expectedNewBalance: soldeAfterCloture + missingAmount
-        });
+
 
         // The missing amount will be added to the current open session below
       }
@@ -1663,19 +1698,7 @@ router.post('/:id/reopen', authenticateToken, async (req, res) => {
         }
       });
 
-      console.log('Session Reopen Debug:', {
-        sessionId: parseInt(id),
-        oldExpectedCash: session.expectedCash,
-        newExpectedCash: summary.expectedCash,
-        currentCountedCash: session.countedCash,
-        currentOriginalCountedCash: session.originalCountedCash,
-        summaryData: {
-          cashSales: summary.cashSales,
-          entree: summary.entree,
-          sortie: summary.sortie,
-          totalSales: summary.totalSales
-        }
-      });
+      
 
       // Reopen session
       const reopenedSession = await tx.sessionCaisse.update({
@@ -1873,7 +1896,8 @@ async function calculateSessionSummary(sessionId) {
       reasonLower.includes('encaissement crédit') || reasonLower.includes('encaissement credit') ||
       reasonLower.includes('règlement crédit') || reasonLower.includes('reglement credit');
     const shouldExclude = (isFromCancelledTicket && !isReturnRefund) || isCanceledTicketRefund || isClientCreditPayment || isBonRetour;
-    const isValid = ['SORTIE', 'DEPOT_COFFRE', 'RETRAIT_CENTRALE'].includes(m.type) && !isRejected && !isDeleted && !shouldExclude && amount > 0;
+    // Exclude RETRAIT_CENTRALE from sortie - withdrawals are not expenses/décaissement
+    const isValid = ['SORTIE', 'DEPOT_COFFRE'].includes(m.type) && !isRejected && !isDeleted && !shouldExclude && amount > 0;
     return isValid;
   });
 

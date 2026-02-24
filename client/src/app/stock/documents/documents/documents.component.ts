@@ -313,10 +313,6 @@ export class DocumentsListComponent implements OnInit {
         });
       }
 
-      console.log('Product caches loaded:', {
-        products: this.productsCache.size,
-        produitsDeCaisse: this.produitsDeCaisseCache.size
-      });
     } catch (error) {
       console.error('Error loading product caches:', error);
     }

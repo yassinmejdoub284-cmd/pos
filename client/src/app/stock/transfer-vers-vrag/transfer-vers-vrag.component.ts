@@ -286,7 +286,6 @@ export class TransferVersVragComponent implements OnInit {
       depotId: currentDepotId
     };
 
-    console.log('Sending transfer payload:', JSON.stringify(transferPayload, null, 2));
 
     this.productsService.transferProductMultiple(transferPayload).subscribe({
       next: async (response) => {

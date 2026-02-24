@@ -1128,21 +1128,6 @@ export class ClotureComponent implements OnInit, OnDestroy {
           const total = parseFloat((s.finalTotal ?? s.totalAmount ?? 0) as any) || 0;
           const hasCredit = total - paid > 0;
 
-          // Debug log for wholesale sales
-          if (s.isWholesale) {
-            console.log('Wholesale sale in closure:', {
-              id: s.id,
-              paymentType: s.paymentType,
-              method: method,
-              paid: paid,
-              total: total,
-              hasCredit: hasCredit,
-              paidAmount: s.paidAmount,
-              finalTotal: s.finalTotal,
-              totalAmount: s.totalAmount
-            });
-          }
-
           // Include all cash-related tickets; we'll style struck for cancelled/refunded
           return (method === 'CASH' || paid > 0 || hasCredit);
         });
@@ -1275,14 +1260,6 @@ export class ClotureComponent implements OnInit, OnDestroy {
     const userDepotId = this.authService.currentUser()?.depotId;
     const visitingDepotId = sessionStorage.getItem('visitingDepotId');
     const currentDepotId = visitingDepotId ? parseInt(visitingDepotId) : (userDepotId || 0);
-
-    // Debug logging
-    console.log('[Cloture] Loading session:', {
-      userDepotId,
-      visitingDepotId,
-      currentDepotId,
-      user: this.authService.currentUser()
-    });
 
     if (!currentDepotId) {
       this.error.set('Aucun dépôt sélectionné. Veuillez sélectionner un dépôt.');

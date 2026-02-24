@@ -6,7 +6,6 @@ const inputFile = path.join(__dirname, 'public', 'favicons', 'android-chrome-512
 const outputDir = path.join(__dirname, 'public', 'favicons');
 
 async function generateIcons() {
-    console.log('Generating PWA icons with Jimp...');
 
     try {
         const image = await Jimp.read(inputFile);
@@ -18,13 +17,11 @@ async function generateIcons() {
             try {
                 const resized = image.clone().resize(size, size);
                 await resized.writeAsync(outputFile);
-                console.log(`✓ Generated ${fileName}`);
             } catch (err) {
                 console.error(`✗ Failed to generate ${fileName}:`, err.message);
             }
         }
 
-        console.log('\nAll icons generated successfully!');
     } catch (err) {
         console.error('Error loading source image:', err.message);
         process.exit(1);

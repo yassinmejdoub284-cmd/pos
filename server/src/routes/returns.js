@@ -141,13 +141,6 @@ async function processReturn(tx, request, items, userId) {
       if (returnType === 'RETURN' && originalSale) {
         try {
 
-
-          console.log(`[returns.process] Available sale items:`, originalSale.items.map(i => ({ 
-            id: i.id, 
-            productId: i.productId ?? i.id,
-            unitPrice: i.unitPrice,
-            quantity: i.quantity
-          })));
           
           // Try to find the sale item by productId - try multiple matching strategies
           let saleItem = originalSale.items.find((item) => {

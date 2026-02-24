@@ -1,9 +1,10 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, inject, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import * as Chart from 'chart.js/auto';
 import { PrintService } from '../../core/services/print.service';
+import { DepotsService } from '../../core/services/depots.service';
 
 interface DailyMonthlyReport {
   date: string;
@@ -11,6 +12,7 @@ interface DailyMonthlyReport {
   prixAchat: number;
   resultat: number;
   depotName: string;
+  sessionId?: number;
 }
 
 interface ReportFilters {
@@ -25,14 +27,14 @@ interface ReportFilters {
   templateUrl: './daily-monthly.component.html',
   standalone: false
 })
-export class DailyMonthlyComponent implements OnInit, AfterViewInit {
+export class DailyMonthlyComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('chartCanvas', { static: false }) chartCanvas!: ElementRef<HTMLCanvasElement>;
   
   loading = false;
   error = '';
   reports: DailyMonthlyReport[] = [];
+  reportsByDate: Array<{ date: string; reports: DailyMonthlyReport[]; totals: { caVente: number; prixAchat: number; resultat: number } }> = [];
   chart: Chart.Chart | null = null;
-  showChart = false;
   startDate: string = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   endDate: string = new Date().toISOString().split('T')[0];
   filters: ReportFilters = {
@@ -42,19 +44,14 @@ export class DailyMonthlyComponent implements OnInit, AfterViewInit {
     reportType: 'daily'
   };
   
-  depots = [
-    { id: 'all', name: 'Tous' },
-    { id: '1', name: 'Pt Vte Sfax' },
-    { id: '2', name: 'Pt Vte Tunis' },
-    { id: '3', name: 'Atelier' },
-    { id: '4', name: 'Dépôt Tunis' }
-  ];
+  depots: Array<{ id: string; name: string }> = [];
 
   private readonly printService = inject(PrintService);
 
   constructor(
     private router: Router,
-    private http: HttpClient
+    private http: HttpClient,
+    private depotsService: DepotsService
   ) {}
 
   ngOnInit(): void {
@@ -62,11 +59,38 @@ export class DailyMonthlyComponent implements OnInit, AfterViewInit {
     this.filters.startDate = this.startDate;
     this.filters.endDate = this.endDate;
     
+    // Load depots dynamically
+    this.depotsService.list().subscribe({
+      next: (depots) => {
+        this.depots = [
+          { id: 'all', name: 'Tous' },
+          ...depots.map(d => ({ id: d.id.toString(), name: d.name }))
+        ];
+      },
+      error: (error) => {
+        console.error('Error loading depots:', error);
+        // Fallback to empty array if loading fails
+        this.depots = [{ id: 'all', name: 'Tous' }];
+      }
+    });
+    
     this.loadReports();
   }
 
   ngAfterViewInit(): void {
-    // Chart will be initialized after data is loaded
+    // Chart will be initialized after data is loaded in loadReports()
+    // If data is already loaded, create chart now
+    if (this.reports.length > 0 && this.chartCanvas) {
+      setTimeout(() => this.createChart(), 150);
+    }
+  }
+
+  ngOnDestroy(): void {
+    // Clean up chart on component destroy
+    if (this.chart) {
+      this.chart.destroy();
+      this.chart = null;
+    }
   }
 
   loadReports(): void {
@@ -84,9 +108,15 @@ export class DailyMonthlyComponent implements OnInit, AfterViewInit {
       .subscribe({
         next: (data) => {
           this.reports = data;
+          this.processReportsByDate(); // Process and cache the grouped data
           this.loading = false;
           if (this.reports.length > 0) {
-            this.createChart();
+            // Delay chart creation to ensure canvas is rendered
+            setTimeout(() => {
+              if (this.chartCanvas) {
+                this.createChart();
+              }
+            }, 150);
           }
         },
         error: (error) => {
@@ -135,23 +165,88 @@ export class DailyMonthlyComponent implements OnInit, AfterViewInit {
     return this.reports.reduce((sum, report) => sum + report.resultat, 0);
   }
 
-  toggleChart(): void {
-    this.showChart = !this.showChart;
-    if (this.showChart && this.reports.length > 0) {
-      setTimeout(() => this.createChart(), 100);
-    }
+  getMarginPercentage(resultat: number, caVente: number): number {
+    return caVente > 0 ? (resultat / caVente) * 100 : 0;
+  }
+
+  getTotalMarginPercentage(): number {
+    const totalCA = this.getTotalCA();
+    return totalCA > 0 ? (this.getTotalResultat() / totalCA) * 100 : 0;
+  }
+
+  // Process and cache reports grouped by date with pre-calculated totals
+  processReportsByDate(): void {
+    const grouped = new Map<string, DailyMonthlyReport[]>();
+    
+    this.reports.forEach(report => {
+      if (!grouped.has(report.date)) {
+        grouped.set(report.date, []);
+      }
+      grouped.get(report.date)!.push(report);
+    });
+    
+    // Convert to array with pre-calculated totals and sort by date
+    this.reportsByDate = Array.from(grouped.entries())
+      .map(([date, reports]) => {
+        const totals = {
+          caVente: reports.reduce((sum, r) => sum + r.caVente, 0),
+          prixAchat: reports.reduce((sum, r) => sum + r.prixAchat, 0),
+          resultat: reports.reduce((sum, r) => sum + r.resultat, 0)
+        };
+        return { date, reports, totals };
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }
+
+  // Group reports by date for display (deprecated - use reportsByDate instead)
+  getReportsByDate(): Array<{ date: string; reports: DailyMonthlyReport[] }> {
+    const grouped = new Map<string, DailyMonthlyReport[]>();
+    
+    this.reports.forEach(report => {
+      if (!grouped.has(report.date)) {
+        grouped.set(report.date, []);
+      }
+      grouped.get(report.date)!.push(report);
+    });
+    
+    // Convert to array and sort by date
+    return Array.from(grouped.entries())
+      .map(([date, reports]) => ({ date, reports }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }
+
+  // Get totals for a specific date
+  getDateTotals(reports: DailyMonthlyReport[]): { caVente: number; prixAchat: number; resultat: number } {
+    return {
+      caVente: reports.reduce((sum, r) => sum + r.caVente, 0),
+      prixAchat: reports.reduce((sum, r) => sum + r.prixAchat, 0),
+      resultat: reports.reduce((sum, r) => sum + r.resultat, 0)
+    };
   }
 
   createChart(): void {
-    if (!this.chartCanvas || this.reports.length === 0) return;
+    if (!this.chartCanvas || this.reports.length === 0) {
+      console.warn('Chart canvas not available or no data');
+      return;
+    }
+
+    const canvas = this.chartCanvas.nativeElement;
+    if (!canvas) {
+      console.warn('Canvas element not found');
+      return;
+    }
 
     // Destroy existing chart
     if (this.chart) {
       this.chart.destroy();
+      this.chart = null;
     }
 
-    const ctx = this.chartCanvas.nativeElement.getContext('2d');
-    if (!ctx) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.warn('Could not get canvas context');
+      return;
+    }
 
     const labels = this.reports.map(r => {
       const date = new Date(r.date);

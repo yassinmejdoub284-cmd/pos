@@ -140,14 +140,12 @@ router.post('/retour-article', authenticateToken, async (req, res) => {
             const currentQuantity = parseFloat(inventory.quantity) || 0;
             const newQuantity = currentQuantity + quantity;
             
-            console.log(`[retour-article] Product ${productId}: Adding ${quantity} to stock (current: ${currentQuantity}, new: ${newQuantity})`);
             
             await tx.inventory.update({
               where: { id: inventory.id },
               data: { quantity: newQuantity }
             });
           } else {
-            console.log(`[retour-article] Product ${productId}: Creating new inventory with quantity ${quantity}`);
             await tx.inventory.create({
               data: {
                 depotId: targetDepotId,

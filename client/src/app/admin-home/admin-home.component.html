@@ -1,4 +1,4 @@
-<div class="min-h-screen bg-gray-50 font-sans text-gray-900">
+<div class="min-h-screen bg-gray-50 font-sans text-gray-900 overflow-x-hidden">
 
   <!-- Loading State -->
   <div *ngIf="loading()" class="fixed inset-0 bg-white/80 z-50 flex items-center justify-center backdrop-blur-sm">
@@ -29,36 +29,40 @@
   </div>
 
   <!-- Top Navigation Bar -->
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm will-change-transform">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-16">
-        <div class="flex items-center space-x-4">
-          <button (click)="goToHome()"
-            class="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-indigo-600 transition-colors"
-            title="Retour à l'accueil">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-          </button>
-          <h1 class="text-xl font-bold text-gray-800 tracking-tight">Tableau de Bord Admin</h1>
-        </div>
+      <div class="flex justify-between items-center h-14">
+        <h1 class="text-lg font-bold text-gray-800">Tableau de Bord Admin</h1>
 
-        <!-- Time Filters -->
-        <div class="flex bg-gray-100 p-1 rounded-lg">
+        <!-- Continue Button -->
+        <button (click)="goToHome()"
+          class="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 active:scale-95">
+          <span class="text-xs font-semibold">Continuer</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Time Filters -->
+    <div class="border-t border-gray-100 bg-gray-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        <div class="flex bg-white p-0.5 rounded-md shadow-sm w-fit">
           <button (click)="setTimeFilter('today')"
-            [class]="timeFilter() === 'today' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-            class="px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-1">
-            <span>Aujourd'hui</span>
+            [class]="timeFilter() === 'today' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+            class="px-3 py-1 rounded text-xs font-medium transition-all duration-200">
+            Aujourd'hui
           </button>
           <button (click)="setTimeFilter('month')"
-            [class]="timeFilter() === 'month' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-            class="px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-1">
-            <span>Ce Mois</span>
+            [class]="timeFilter() === 'month' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+            class="px-3 py-1 rounded text-xs font-medium transition-all duration-200">
+            Ce Mois
           </button>
           <button (click)="setTimeFilter('year')"
-            [class]="timeFilter() === 'year' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-            class="px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-1">
-            <span>Cette Année</span>
+            [class]="timeFilter() === 'year' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+            class="px-3 py-1 rounded text-xs font-medium transition-all duration-200">
+            Cette Année
           </button>
         </div>
       </div>
@@ -68,72 +72,58 @@
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <!-- Revenue -->
       <div
-        class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+        class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 flex flex-col justify-between hover:shadow-md transition-shadow">
         <div>
-          <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Chiffre d'Affaire Total</p>
-          <h3 class="text-2xl font-bold text-gray-900 mt-2">{{ formatCurrency(stats().totalRevenue) }}</h3>
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Chiffre d'Affaire Total</p>
+          <h3 class="text-lg font-bold text-gray-900 mt-1">{{ formatCurrency(stats().totalRevenue) }}</h3>
         </div>
-        <div class="mt-4 flex items-center text-sm text-green-600 bg-green-50 w-fit px-2 py-1 rounded">
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="mt-2 flex items-center text-xs text-green-600 bg-green-50 w-fit px-1.5 py-0.5 rounded">
+          <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
           </svg>
-          <span class="font-medium">Revenu GLOBAL</span>
+          <span class="font-medium">Revenu</span>
         </div>
       </div>
 
       <!-- Expenses -->
       <div
-        class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
+        class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 flex flex-col justify-between hover:shadow-md transition-shadow">
         <div>
-          <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Dépenses Totales</p>
-          <h3 class="text-2xl font-bold text-gray-900 mt-2">{{ formatCurrency(stats().totalExpenses) }}</h3>
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Dépenses Totales</p>
+          <h3 class="text-lg font-bold text-gray-900 mt-1">{{ formatCurrency(stats().totalExpenses) }}</h3>
         </div>
-        <div class="mt-4 flex items-center text-sm text-red-600 bg-red-50 w-fit px-2 py-1 rounded">
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="mt-2 flex items-center text-xs text-red-600 bg-red-50 w-fit px-1.5 py-0.5 rounded">
+          <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
           </svg>
           <span class="font-medium">Sorties</span>
         </div>
       </div>
 
-      <!-- Net -->
-      <div
-        class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
-        <div>
-          <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Résultat Net</p>
-          <h3 class="text-2xl font-bold mt-2" [ngClass]="stats().totalNet >= 0 ? 'text-indigo-600' : 'text-red-600'">
-            {{ formatCurrency(stats().totalNet) }}
-          </h3>
-        </div>
-        <div class="mt-4 text-xs text-gray-400">
-          (Revenus - Dépenses)
-        </div>
-      </div>
-
       <!-- Supplier Credit -->
       <div
-        class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition-shadow border-l-4 border-l-orange-400">
+        class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 flex flex-col justify-between hover:shadow-md transition-shadow border-l-4 border-l-orange-400">
         <div>
-          <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Solde Crédit Fournisseur</p>
-          <h3 class="text-2xl font-bold text-orange-600 mt-2">{{ formatCurrency(stats().totalSupplierCredit) }}</h3>
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Crédit Fournisseur</p>
+          <h3 class="text-lg font-bold text-orange-600 mt-1">{{ formatCurrency(stats().totalSupplierCredit) }}</h3>
         </div>
-        <div class="mt-4 text-xs text-gray-400">
-          Total dettes fournisseurs
+        <div class="mt-2 text-xs text-gray-400">
+          Dettes fournisseurs
         </div>
       </div>
 
       <!-- Client Credit -->
       <div
-        class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition-shadow border-l-4 border-l-blue-400">
+        class="bg-white rounded-lg shadow-sm border border-gray-100 p-3 flex flex-col justify-between hover:shadow-md transition-shadow border-l-4 border-l-blue-400">
         <div>
-          <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Solde Crédit Client</p>
-          <h3 class="text-2xl font-bold text-blue-600 mt-2">{{ formatCurrency(stats().totalClientCredit) }}</h3>
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Crédit Client</p>
+          <h3 class="text-lg font-bold text-blue-600 mt-1">{{ formatCurrency(stats().totalClientCredit) }}</h3>
         </div>
-        <div class="mt-4 text-xs text-gray-400">
-          Total dettes clients
+        <div class="mt-2 text-xs text-gray-400">
+          Dettes clients
         </div>
       </div>
     </div>
@@ -149,7 +139,7 @@
             Revenus par Boutique (Ventes)
           </h2>
         </div>
-        <div class="h-64 relative">
+        <div class="h-48 relative">
           <canvas baseChart [data]="revenueByBoutiqueChartData()" [options]="barChartOptions" [type]="'bar'">
           </canvas>
         </div>
@@ -166,9 +156,45 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr *ngFor="let item of stats().revenueByBoutique" class="hover:bg-gray-50">
-                  <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.depotName }}</td>
+                  <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <button (click)="toggleRevenueDepot(item.depotId)" 
+                      class="flex items-center space-x-2 hover:text-green-600 transition-colors w-full text-left">
+                      <svg class="w-3 h-3 transition-transform" [class.rotate-90]="isRevenueDepotExpanded(item.depotId)" 
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span>{{ item.depotName }}</span>
+                    </button>
+                  </td>
                   <td class="px-3 py-2 whitespace-nowrap text-sm text-right text-gray-900 font-bold">{{
                     formatCurrency(item.revenue) }}</td>
+                </tr>
+                <tr *ngFor="let item of stats().revenueByBoutique">
+                  <td colspan="2" class="px-0 py-0" *ngIf="isRevenueDepotExpanded(item.depotId) && salesByDepot().get(item.depotId)">
+                    <div class="bg-gray-50 px-6 py-3">
+                      <div class="text-xs font-semibold text-gray-600 mb-2">Détails des ventes ({{ salesByDepot().get(item.depotId)?.length || 0 }})</div>
+                      <div class="max-h-40 overflow-y-auto">
+                        <table class="min-w-full text-xs">
+                          <thead class="bg-gray-100 sticky top-0">
+                            <tr>
+                              <th class="px-2 py-1 text-left text-gray-600">Date</th>
+                              <th class="px-2 py-1 text-left text-gray-600">Ticket</th>
+                              <th class="px-2 py-1 text-center text-gray-600">Articles</th>
+                              <th class="px-2 py-1 text-right text-gray-600">Montant</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-gray-200">
+                            <tr *ngFor="let sale of salesByDepot().get(item.depotId)" class="hover:bg-white">
+                              <td class="px-2 py-1 text-gray-700">{{ sale.date }}</td>
+                              <td class="px-2 py-1 text-gray-700">{{ sale.ticketNumber }}</td>
+                              <td class="px-2 py-1 text-center text-gray-600">{{ sale.items }}</td>
+                              <td class="px-2 py-1 text-right text-green-600 font-semibold">{{ formatCurrency(sale.amount) }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </td>
                 </tr>
                 <tr *ngIf="stats().revenueByBoutique.length === 0">
                   <td colspan="2" class="px-3 py-4 text-center text-sm text-gray-500 italic">Aucune donnée de vente pour
@@ -191,7 +217,7 @@
             Basé sur l'origine des produits
           </div>
         </div>
-        <div class="h-64 relative">
+        <div class="h-48 relative">
           <canvas baseChart [data]="revenueByDepotChartData()" [options]="barChartOptions" [type]="'bar'">
           </canvas>
         </div>
@@ -237,7 +263,7 @@
             Dépenses par Boutique/Dépôt
           </h2>
         </div>
-        <div class="h-64 relative">
+        <div class="h-48 relative">
           <canvas baseChart [data]="expensesByBoutiqueChartData()" [options]="barChartOptions" [type]="'bar'">
           </canvas>
         </div>
@@ -254,9 +280,45 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr *ngFor="let item of stats().expensesByBoutique" class="hover:bg-gray-50">
-                  <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.depotName }}</td>
+                  <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <button (click)="toggleExpenseDepot(item.depotId)" 
+                      class="flex items-center space-x-2 hover:text-red-600 transition-colors w-full text-left">
+                      <svg class="w-3 h-3 transition-transform" [class.rotate-90]="isExpenseDepotExpanded(item.depotId)" 
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span>{{ item.depotName }}</span>
+                    </button>
+                  </td>
                   <td class="px-3 py-2 whitespace-nowrap text-sm text-right text-red-600 font-bold">{{
                     formatCurrency(item.totalExpense) }}</td>
+                </tr>
+                <tr *ngFor="let item of stats().expensesByBoutique">
+                  <td colspan="2" class="px-0 py-0" *ngIf="isExpenseDepotExpanded(item.depotId) && expensesByDepot().get(item.depotId)">
+                    <div class="bg-gray-50 px-6 py-3">
+                      <div class="text-xs font-semibold text-gray-600 mb-2">Détails des dépenses ({{ expensesByDepot().get(item.depotId)?.length || 0 }})</div>
+                      <div class="max-h-40 overflow-y-auto">
+                        <table class="min-w-full text-xs">
+                          <thead class="bg-gray-100 sticky top-0">
+                            <tr>
+                              <th class="px-2 py-1 text-left text-gray-600">Date</th>
+                              <th class="px-2 py-1 text-left text-gray-600">Catégorie</th>
+                              <th class="px-2 py-1 text-left text-gray-600">Description</th>
+                              <th class="px-2 py-1 text-right text-gray-600">Montant</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-gray-200">
+                            <tr *ngFor="let expense of expensesByDepot().get(item.depotId)" class="hover:bg-white">
+                              <td class="px-2 py-1 text-gray-700">{{ expense.date }}</td>
+                              <td class="px-2 py-1 text-gray-700">{{ expense.category }}</td>
+                              <td class="px-2 py-1 text-gray-600 truncate max-w-xs">{{ expense.description || '-' }}</td>
+                              <td class="px-2 py-1 text-right text-red-600 font-semibold">{{ formatCurrency(expense.amount) }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </td>
                 </tr>
                 <tr *ngIf="stats().expensesByBoutique.length === 0 || stats().totalExpenses === 0">
                   <td colspan="2" class="px-3 py-4 text-center text-sm text-gray-500 italic">Aucune dépense pour cette
@@ -276,7 +338,7 @@
             Répartition Crédit Fournisseur
           </h2>
         </div>
-        <div class="h-64 relative flex justify-center">
+        <div class="h-48 relative flex justify-center">
           <canvas baseChart [data]="supplierCreditChartData()" [options]="pieChartOptions" [type]="'pie'">
           </canvas>
         </div>
@@ -305,6 +367,36 @@
               </tbody>
             </table>
           </div>
+          
+          <!-- Collapsible Supplier Details -->
+          <div *ngIf="suppliersList().length > 0" class="mt-4 border-t border-gray-200 pt-4">
+            <button (click)="showSupplierDetails.set(!showSupplierDetails())"
+              class="flex items-center justify-between w-full text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors">
+              <span>Détails par fournisseur ({{ suppliersList().length }})</span>
+              <svg class="w-4 h-4 transition-transform" [class.rotate-180]="showSupplierDetails()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            <div *ngIf="showSupplierDetails()" class="mt-3 max-h-60 overflow-y-auto">
+              <table class="min-w-full divide-y divide-gray-200 text-xs">
+                <thead class="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th class="px-2 py-1.5 text-left font-medium text-gray-500">Fournisseur</th>
+                    <th class="px-2 py-1.5 text-left font-medium text-gray-500">Dépôt</th>
+                    <th class="px-2 py-1.5 text-right font-medium text-gray-500">Dette</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-100">
+                  <tr *ngFor="let supplier of suppliersList()" class="hover:bg-gray-50">
+                    <td class="px-2 py-1.5 text-gray-900">{{ supplier.name }}</td>
+                    <td class="px-2 py-1.5 text-gray-600">{{ supplier.depotName }}</td>
+                    <td class="px-2 py-1.5 text-right text-orange-600 font-semibold">{{ formatCurrency(supplier.debt) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -321,7 +413,7 @@
             Répartition Crédit Client
           </h2>
         </div>
-        <div class="h-64 relative flex justify-center">
+        <div class="h-48 relative flex justify-center">
           <canvas baseChart [data]="clientCreditChartData()" [options]="pieChartOptions" [type]="'pie'">
           </canvas>
         </div>
@@ -350,26 +442,40 @@
               </tbody>
             </table>
           </div>
+          
+          <!-- Collapsible Client Details -->
+          <div *ngIf="clientsList().length > 0" class="mt-4 border-t border-gray-200 pt-4">
+            <button (click)="showClientDetails.set(!showClientDetails())"
+              class="flex items-center justify-between w-full text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">
+              <span>Détails par client ({{ clientsList().length }})</span>
+              <svg class="w-4 h-4 transition-transform" [class.rotate-180]="showClientDetails()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            <div *ngIf="showClientDetails()" class="mt-3 max-h-60 overflow-y-auto">
+              <table class="min-w-full divide-y divide-gray-200 text-xs">
+                <thead class="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th class="px-2 py-1.5 text-left font-medium text-gray-500">Client</th>
+                    <th class="px-2 py-1.5 text-left font-medium text-gray-500">Dépôt</th>
+                    <th class="px-2 py-1.5 text-right font-medium text-gray-500">Dette</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-100">
+                  <tr *ngFor="let client of clientsList()" class="hover:bg-gray-50">
+                    <td class="px-2 py-1.5 text-gray-900">{{ client.name }}</td>
+                    <td class="px-2 py-1.5 text-gray-600">{{ client.depotName }}</td>
+                    <td class="px-2 py-1.5 text-right text-blue-600 font-semibold">{{ formatCurrency(client.debt) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
     </div>
 
   </main>
-
-  <!-- Floating Proceed Button -->
-  <div class="fixed bottom-8 right-8 z-40">
-    <button (click)="goToCaisse()"
-      class="flex items-center space-x-3 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-4 rounded-2xl shadow-2xl hover:shadow-indigo-200 transition-all duration-300 transform hover:-translate-y-1 group active:scale-95">
-      <div class="flex flex-col items-start">
-        <span class="text-xs font-medium text-indigo-100 uppercase tracking-widest">Terminer le récap</span>
-        <span class="text-lg font-bold">Accéder à la Caisse</span>
-      </div>
-      <div class="bg-white/20 p-2 rounded-xl group-hover:bg-white/30 transition-colors">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-        </svg>
-      </div>
-    </button>
-  </div>
 </div>
