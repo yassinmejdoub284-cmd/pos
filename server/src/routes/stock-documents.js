@@ -2601,7 +2601,7 @@ router.post('/', authenticateToken, async (req, res) => {
     let targetDestinataireId = destinationDepotId || depotId || visitingDepotId || userDepotId;
 
     // Define roles that can create documents for their depot
-    const privilegedRoles = ['ADMIN', 'MANAGER', 'CHEF_ATELIER'];
+    const privilegedRoles = ['ADMIN', 'MANAGER', 'CHEF_ATELIER', 'RESPONSABLE_MAGASIN'];
     const isPrivilegedUser = privilegedRoles.includes(req.user?.role);
 
     // For non-privileged users, validate depot access
@@ -2687,6 +2687,7 @@ router.post('/', authenticateToken, async (req, res) => {
               famille: (typeof item.famille === 'object' ? item.famille.name : item.famille) || 'SCAN',
               quantity: parseFloat(item.quantity),
               count: item.count || 1,
+              colisCount: item.colisCount || 1,
               prixUnitaire: item.prixUnitaire !== undefined ? parseFloat(item.prixUnitaire) : 0,
               tva: item.tva !== undefined ? parseFloat(item.tva) : 19,
               montantHT: item.montantHT !== undefined ? parseFloat(item.montantHT) : 0,

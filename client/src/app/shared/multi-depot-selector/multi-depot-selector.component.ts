@@ -15,7 +15,7 @@ import { Depot, DepotType } from '../../core/models/depot.model';
         Sélectionner les dépôts *
       </label>
       
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
         <div 
           *ngFor="let depot of filteredDepots" 
           (click)="toggleDepot(depot)"
@@ -23,7 +23,7 @@ import { Depot, DepotType } from '../../core/models/depot.model';
           class="cursor-pointer transition-all duration-200">
           
           <!-- Depot Logo -->
-          <div class="w-12 h-12 mx-auto mb-3 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
+          <div class="w-10 h-10 mx-auto mb-2 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
             <img 
               *ngIf="getDepotLogo(depot.id)" 
               [src]="getDepotLogo(depot.id)" 
@@ -32,26 +32,26 @@ import { Depot, DepotType } from '../../core/models/depot.model';
               (error)="onImageError($event)">
             <div 
               *ngIf="!getDepotLogo(depot.id)" 
-              class="w-full h-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+              [class]="getDepotIconBackgroundClasses(depot.type)">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="getDepotIcon(depot.type)"></path>
               </svg>
             </div>
           </div>
           
           <!-- Depot Info -->
           <div class="text-center">
-            <h3 class="font-semibold text-slate-800 text-sm">{{ depot.name }}</h3>
+            <h3 class="font-semibold text-slate-800 text-xs">{{ depot.name }}</h3>
             <p class="text-xs text-slate-500">{{ depot.code }}</p>
-            <span class="inline-block px-2 py-1 text-xs rounded-full mt-1"
+            <span class="inline-block px-1.5 py-0.5 text-xs rounded-full mt-1"
                   [class]="getTypeBadgeClasses(depot.type)">
               {{ getTypeLabel(depot.type) }}
             </span>
           </div>
           
           <!-- Selection Indicator -->
-          <div *ngIf="isDepotSelected(depot)" class="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div *ngIf="isDepotSelected(depot)" class="absolute top-1.5 right-1.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+            <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
           </div>
@@ -77,9 +77,9 @@ import { Depot, DepotType } from '../../core/models/depot.model';
                 (error)="onImageError($event)">
               <div 
                 *ngIf="!getDepotLogo(depot.id)" 
-                class="w-full h-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center">
+                [class]="getDepotIconBackgroundClasses(depot.type)">
                 <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="getDepotIcon(depot.type)"></path>
                 </svg>
               </div>
             </div>
@@ -211,7 +211,7 @@ export class MultiDepotSelectorComponent implements OnInit {
   }
 
   getDepotCardClasses(depot: Depot): string {
-    const baseClasses = 'relative p-4 rounded-xl border-2 transition-all duration-200';
+    const baseClasses = 'relative p-3 rounded-xl border-2 transition-all duration-200';
     const selectedClasses = this.isDepotSelected(depot) 
       ? 'border-green-500 bg-green-50 shadow-lg' 
       : 'border-slate-200 bg-white';
@@ -246,5 +246,25 @@ export class MultiDepotSelectorComponent implements OnInit {
   onImageError(event: Event): void {
     const target = event.target as HTMLImageElement;
     target.style.display = 'none';
+  }
+
+  getDepotIconBackgroundClasses(type: string): string {
+    const bgClasses: { [key: string]: string } = {
+      'MAIN': 'w-full h-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center',
+      'BRANCH': 'w-full h-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center',
+      'SHOP': 'w-full h-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center',
+      'WAREHOUSE': 'w-full h-full bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center'
+    };
+    return bgClasses[type] || 'w-full h-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center';
+  }
+
+  getDepotIcon(type: string): string {
+    const icons: { [key: string]: string } = {
+      'MAIN': 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', // Home/Main building
+      'BRANCH': 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', // Building
+      'SHOP': 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z', // Shopping bag
+      'WAREHOUSE': 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' // Warehouse/Box
+    };
+    return icons[type] || 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4';
   }
 }

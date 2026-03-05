@@ -299,6 +299,9 @@
                   <span class="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">
                     {{ group.children.length }} variante(s)
                   </span>
+                  <span *ngIf="group.totalColis > 0" class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
+                    {{ group.totalColis }} colis
+                  </span>
                 </div>
                 <div class="text-right">
                   <div class="text-xs font-medium text-amber-800">Total</div>
@@ -330,7 +333,7 @@
                     </div>
                     <div class="text-xs text-slate-500">
                       Qté: {{ child.quantity }} kg
-                      <span *ngIf="child.count > 1"> • {{ child.count }} pièce(s)</span>
+                      <span *ngIf="child.colisCount && child.colisCount > 0"> • {{ child.colisCount }} colis</span>
                     </div>
                   </div>
 

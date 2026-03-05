@@ -740,7 +740,9 @@
             "submodules": {
               "stock-achat": true,
               "stock-gestion": true,
-              "stock-produits": true
+              "stock-produits": true,
+              "stock-reception": true,
+              "stock-historique-docs": true
             }
           }
         },

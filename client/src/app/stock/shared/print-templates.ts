@@ -344,7 +344,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
       const parentName = item.famille || product.famille || 'Général';
       
       const qty = Number(item.quantity ?? 0) || 0; // kg
-      const cnt = Number(item.count ?? 1) || 0;
+      const cnt = Number(item.colisCount ?? item.count ?? 1) || 0;
       
       // Use item pricing if available, otherwise calculate from product
       let montantHT = Number(item.montantHT) || 0;
@@ -482,7 +482,7 @@ export function buildScanLikeDocumentHtmlFromDocument(document: StockDocument, s
       const parentName = item.famille || product.famille || 'Général';
       
       const qty = Number(item.quantity ?? 0) || 0; // kg
-      const cnt = Number(item.count ?? 1) || 0;
+      const cnt = Number(item.colisCount ?? item.count ?? 1) || 0;
       
       // Create unique group key based on parent product ID
       const groupKey = `${parentId}`;

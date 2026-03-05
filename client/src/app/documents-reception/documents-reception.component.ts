@@ -204,13 +204,15 @@ export class DocumentsReceptionComponent implements OnInit {
     const grouped = document.items.reduce((acc: any, item: any) => {
       const parentName = item.product?.famille?.name || item.famille || item.parentProductName || 'Produit';
       const childName = item.childProductName || item.product?.name || `Produit ${item.productId}`;
-      const productKey = `${item.productId}_${item.quantity}_${item.count}`;
+      const colisCount = item.colisCount || item.count || 1;
+      const productKey = `${item.productId}_${item.quantity}_${colisCount}`;
       
       if (!acc[parentName]) {
         acc[parentName] = {
           parentName,
           children: [],
-          totalQuantity: 0
+          totalQuantity: 0,
+          totalColis: 0
         };
       }
       
@@ -218,11 +220,13 @@ export class DocumentsReceptionComponent implements OnInit {
         ...item,
         childName,
         productKey,
+        colisCount,
         validated: this.validatedProducts.has(productKey)
       });
       
-      // Add to parent total quantity
+      // Add to parent total quantity and colis
       acc[parentName].totalQuantity += parseFloat(item.quantity) || 0;
+      acc[parentName].totalColis += colisCount;
       
       return acc;
     }, {});
@@ -270,11 +274,12 @@ export class DocumentsReceptionComponent implements OnInit {
     }
     
     // Get validated item IDs from validatedProducts Set
-    // validatedProducts contains keys like "productId_quantity_count"
+    // validatedProducts contains keys like "productId_quantity_colisCount"
     const validatedItemIds: number[] = [];
     if (doc.items && this.validatedProducts.size > 0) {
       doc.items.forEach((item: any) => {
-        const productKey = `${item.productId}_${item.quantity}_${item.count}`;
+        const colisCount = item.colisCount || item.count || 1;
+        const productKey = `${item.productId}_${item.quantity}_${colisCount}`;
         if (this.validatedProducts.has(productKey)) {
           validatedItemIds.push(item.id);
         }

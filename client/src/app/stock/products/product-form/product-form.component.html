@@ -99,7 +99,7 @@
         <!-- Depot Selection -->
         <div class="lg:col-span-2">
           <div *ngIf="isAdmin()">
-            <app-multi-depot-selector [selectedDepotIds]="selectedDepotIds()" [required]="true"
+            <app-multi-depot-selector [selectedDepotIds]="selectedDepotIds()" [allowedDepotTypes]="['MAIN', 'BRANCH', 'SHOP', 'WAREHOUSE']" [required]="true"
               (depotsSelected)="onDepotsSelected($event)">
             </app-multi-depot-selector>
           </div>
