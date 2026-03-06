@@ -1,1014 +1,1124 @@
 const express = require('express');
-const { prisma } = require('../lib/prisma');
+const { PrismaClient } = require('@prisma/client');
 const { authenticateToken } = require('../middleware/auth');
-const { sendPushToAll } = require('../lib/push');
-const { getDepotSettings } = require('../lib/settings');
-// PDF service removed - using HTML print instead
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const pdfParse = require('pdf-parse');
 
 const router = express.Router();
+const prisma = new PrismaClient();
 
-// Helper function to calculate HTVA and TVA from TTC
-function calculateHTVAAndTVA(prixTTC, tvaPercent) {
-  const prixHTVA = prixTTC / (1 + tvaPercent / 100);
-  const montantTVA = prixTTC - prixHTVA;
-  return {
-    prixHTVA: Math.round(prixHTVA * 100) / 100,
-    montantTVA: Math.round(montantTVA * 100) / 100
-  };
-}
-
-// Helper function to get next invoice number with atomic increment
-async function getNextInvoiceNumber(depotId) {
-  try {
-    // Use a more robust approach with timestamp + random component
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const timestamp = now.getTime().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-
-    // Format: FAC-YYMMDD-XXXXXX-XXX (e.g., FAC-250125-123456-789)
-    return `FAC-${year}${month}${day}-${timestamp}-${random}`;
-  } catch (error) {
-    console.error('Error generating invoice number:', error);
-    // Ultimate fallback
-    return `FAC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+// Configure multer for PDF uploads (memory storage for PDF parsing)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
   }
-}
+});
 
-// Get all invoices
+// GET /api/invoices - List all invoices
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, source } = req.query;
-    const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 20;
-    const offset = (pageNum - 1) * limitNum;
+    const { page = 1, limit = 10, status, clientId, startDate, endDate } = req.query;
+    const companyId = req.user.companyId;
 
-    // Enforce depot isolation - use user's depotId
-    const userDepotId = req.user?.depotId;
-    if (!userDepotId && req.user?.role !== 'ADMIN') {
-      return res.status(400).json({ error: 'User must be assigned to a depot to view invoices' });
+    const where = {
+      companyId: companyId
+    };
+
+    if (status) where.status = status;
+    if (clientId) where.clientId = parseInt(clientId);
+    if (startDate && endDate) {
+      where.createdAt = {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      };
     }
 
-    const where = {};
-    if (userDepotId) {
-      where.depotId = userDepotId;
-    }
-
-    // Validate enums to avoid Prisma enum errors
-    const allowedStatus = ['DRAFT', 'ISSUED', 'CANCELLED'];
-    const allowedSource = ['DAILY_EXTRACT', 'TICKET_REQUEST'];
-
-    if (typeof status === 'string' && allowedStatus.includes(status)) {
-      where.status = status;
-    } else {
-      // Exclude rows with invalid stored enum values
-      where.status = { in: allowedStatus };
-    }
-    if (typeof source === 'string' && allowedSource.includes(source)) {
-      where.source = source;
-    } else {
-      // Exclude rows with invalid stored enum values
-      where.source = { in: allowedSource };
-    }
-
-    const [invoices, total] = await Promise.all([
-      prisma.invoice.findMany({
-        where,
-        include: {
-          client: true,
-          createdBy: {
-            select: { firstName: true, lastName: true }
-          },
-          lines: {
-            include: {
-              product: {
-                include: {
-                  famille: true
-                }
-              }
-            }
+    const invoices = await prisma.stockDocument.findMany({
+      where,
+      include: {
+        client: true,
+        items: {
+          include: {
+            product: true
           }
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: offset,
-        take: limitNum
-      }),
-      prisma.invoice.count({ where })
-    ]);
+        }
+      },
+      orderBy: { numero: 'desc' },
+      skip: (page - 1) * limit,
+      take: parseInt(limit)
+    });
+
+    const total = await prisma.stockDocument.count({ where });
 
     res.json({
-      invoices,
+      success: true,
+      data: invoices,
       pagination: {
-        page: pageNum,
-        limit: limitNum,
+        page: parseInt(page),
+        limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / limitNum)
+        pages: Math.ceil(total / limit)
       }
     });
   } catch (error) {
     console.error('Error fetching invoices:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// Get invoice requests for current user (for cashiers to see their own requests)
-router.get('/requests', authenticateToken, async (req, res) => {
+// GET /api/invoices/latest-date - Get the latest invoice date
+router.get('/latest-date', authenticateToken, async (req, res) => {
   try {
-    // Guard against missing Prisma model (client not regenerated)
-    if (!prisma || !prisma.invoiceRequest || typeof prisma.invoiceRequest.findMany !== 'function') {
-      console.warn('Prisma model invoiceRequest is not available; returning empty list');
-      return res.json({ requests: [] });
+    const companyId = req.user.companyId;
+
+
+    // Get the latest invoice date from stock documents with type FACTURE
+    const latestStockDoc = await prisma.stockDocument.findFirst({
+      where: {
+        companyId: companyId,
+        type: 'FACTURE'
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        createdAt: true,
+        numero: true
+      }
+    });
+
+    if (!latestStockDoc) {
+      // No invoices found, return null to allow any date
+      return res.json({ 
+        success: true, 
+        data: { latestDate: null } 
+      });
     }
 
-    const requests = await prisma.invoiceRequest.findMany({
+    const latestDate = latestStockDoc.createdAt.toISOString().split('T')[0];
+
+    res.json({ 
+      success: true, 
+      data: { latestDate: latestDate } 
+    });
+  } catch (error) {
+    console.error('Error fetching latest invoice date:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// GET /api/invoices/:id - Get single invoice
+router.get('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.user.companyId;
+
+
+    // Validate that id is a valid integer
+    const invoiceId = parseInt(id);
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ success: false, message: 'Invalid invoice ID' });
+    }
+
+    const invoice = await prisma.stockDocument.findFirst({
       where: {
-        sale: {
-          userId: req.user.id // Only show requests for sales made by this user
-        }
+        id: invoiceId,
+        companyId: companyId,
+        type: 'FACTURE'
       },
       include: {
-        sale: {
+        client: true,
+        items: {
           include: {
-            items: {
-              include: {
-                product: {
-                  include: {
-                    famille: true
-                  }
-                }
-              }
-            },
+            product: true
+          }
+        }
+      }
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+
+    res.json({ success: true, data: invoice });
+  } catch (error) {
+    console.error('Error fetching invoice:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// POST /api/invoices - Create new invoice
+router.post('/', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.user.companyId;
+    const {
+      clientId,
+      notes,
+      items,
+      invoiceDate,
+      reference
+    } = req.body;
+
+    // Use sequential invoice number from reference field
+    let document;
+    
+    try {
+      // Create stock document with the sequential number from reference
+      document = await prisma.stockDocument.create({
+        data: {
+          numero: reference, // Use the sequential number passed from frontend
+          type: 'FACTURE',
+          status: 'PREPARED',
+          companyId: companyId,
+          clientId: clientId,
+          notes: notes,
+          createdAt: invoiceDate ? new Date(invoiceDate) : new Date()
+        }
+      });
+    } catch (error) {
+      if (error.code === 'P2002' && error.meta?.target?.includes('numero')) {
+        // If the sequential number already exists, generate a fallback
+        const timestamp = Date.now();
+        const randomSuffix = Math.floor(Math.random() * 10000);
+        const fallbackNumber = `FAC-${new Date().getFullYear()}-${timestamp}-${randomSuffix}`;
+        
+        document = await prisma.stockDocument.create({
+          data: {
+            numero: fallbackNumber,
+            type: 'FACTURE',
+            status: 'PREPARED',
+            companyId: companyId,
+            clientId: clientId,
+            notes: notes,
+            createdAt: invoiceDate ? new Date(invoiceDate) : new Date()
+          }
+        });
+      } else {
+        throw error;
+      }
+    }
+
+    // Create document items
+    let subtotalHT = 0;
+    let totalTVA = 0;
+    let totalTTC = 0;
+
+    for (const item of items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId }
+      });
+
+      if (!product) {
+        throw new Error(`Product with ID ${item.productId} not found`);
+      }
+
+      const montantHT = item.quantity * product.prix_vente_TTC / (1 + product.tva / 100);
+      const montantTVA = montantHT * (product.tva / 100);
+      const montantTTC = montantHT + montantTVA;
+
+      subtotalHT += montantHT;
+      totalTVA += montantTVA;
+      totalTTC += montantTTC;
+
+      await prisma.stockDocumentItem.create({
+        data: {
+          documentId: document.id,
+          productId: item.productId,
+          famille: product.familleId.toString(),
+          quantity: item.quantity,
+          montantHT: montantHT,
+          montantTTC: montantTTC,
+          montantTVA: montantTVA,
+          prixUnitaire: product.prix_vente_TTC,
+          tva: product.tva
+        }
+      });
+    }
+
+    // Update the stock document with invoice totals and status
+    const updatedDocument = await prisma.stockDocument.update({
+      where: { id: document.id },
+      data: {
+        status: 'COMPLETED'
+      },
+      include: {
+        client: true,
+        items: {
+          include: {
+            product: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json({ success: true, data: updatedDocument });
+  } catch (error) {
+    console.error('Error creating invoice:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/invoices/:id - Update invoice
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.user.companyId;
+    const updateData = req.body;
+
+    // Remove fields that shouldn't be updated directly
+    delete updateData.id;
+    delete updateData.invoiceNumber;
+    delete updateData.documentId;
+    delete updateData.companyId;
+    delete updateData.createdAt;
+
+    const invoice = await prisma.stockDocument.updateMany({
+      where: {
+        id: parseInt(id),
+        companyId: companyId
+      },
+      data: updateData
+    });
+
+    if (invoice.count === 0) {
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+
+    res.json({ success: true, message: 'Invoice updated successfully' });
+  } catch (error) {
+    console.error('Error updating invoice:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// DELETE /api/invoices/:id - Delete invoice
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.user.companyId;
+
+    // Check if invoice exists and belongs to company
+    const invoice = await prisma.stockDocument.findFirst({
+      where: {
+        id: parseInt(id),
+        companyId: companyId
+      }
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+
+    // Delete related records first
+    await prisma.stockDocumentPayment.deleteMany({
+      where: { invoiceId: parseInt(id) }
+    });
+
+    await prisma.stockDocument.delete({
+      where: { id: parseInt(id) }
+    });
+
+    // Delete the associated stock document
+    await prisma.stockDocumentItem.deleteMany({
+      where: { documentId: invoice.id }
+    });
+
+    await prisma.stockDocument.delete({
+      where: { id: invoice.id }
+    });
+
+    res.json({ success: true, message: 'Invoice deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting invoice:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// POST /api/invoices/:id/payments - Add payment to invoice
+router.post('/:id/payments', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.user.companyId;
+    const { amount, paymentMethod, bankId, referenceNumber, notes } = req.body;
+
+    // Get invoice
+    const invoice = await prisma.stockDocument.findFirst({
+      where: {
+        id: parseInt(id),
+        companyId: companyId
+      }
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+
+    // Create payment
+    const payment = await prisma.stockDocumentPayment.create({
+      data: {
+        invoiceId: parseInt(id),
+        amount: parseFloat(amount),
+        paymentMethod: paymentMethod,
+        bankId: bankId || null,
+        referenceNumber: referenceNumber,
+        notes: notes
+      }
+    });
+
+    // Update invoice paid amount
+    const totalPaid = await prisma.stockDocumentPayment.aggregate({
+      where: { invoiceId: parseInt(id) },
+      _sum: { amount: true }
+    });
+
+    const newPaidAmount = totalPaid._sum.amount || 0;
+    const newRemainingAmount = invoice.totalTTC - newPaidAmount;
+    const newStatus = newRemainingAmount <= 0 ? 'PAID' : invoice.status;
+
+    await prisma.stockDocument.update({
+      where: { id: parseInt(id) },
+      data: {
+        paidAmount: newPaidAmount,
+        remainingAmount: newRemainingAmount,
+        status: newStatus
+      }
+    });
+
+    res.status(201).json({ success: true, data: payment });
+  } catch (error) {
+    console.error('Error adding payment:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// GET /api/invoices/extracts - Get invoice extracts/reports
+router.get('/extracts', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.user.companyId;
+    const { startDate, endDate } = req.query;
+
+    const where = { companyId };
+    if (startDate && endDate) {
+      where.extractDate = {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      };
+    }
+
+    const extracts = await prisma.stockDocumentExtract.findMany({
+      where,
+      include: {
+        invoice: {
+          include: {
             client: true
+          }
+        }
+      },
+      orderBy: { extractDate: 'desc' }
+    });
+
+    res.json({ success: true, data: extracts });
+  } catch (error) {
+    console.error('Error fetching extracts:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// POST /api/invoices/import-pdf - Parse PDF and return data directly (no draft creation)
+router.post('/import-pdf', authenticateToken, upload.single('pdf'), async (req, res) => {
+  try {
+    const companyId = req.user.companyId;
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No PDF file provided' });
+    }
+
+    // Parse PDF content
+    const pdfData = await pdfParse(Buffer.from(req.file.buffer));
+    const text = pdfData.text;
+
+    console.log('=== PDF EXTRACTED TEXT ===');
+    console.log('Text length:', text.length);
+    console.log('First 1000 characters:', text.substring(0, 1000));
+    console.log('=== END PDF TEXT ===');
+
+    // Extract table data from PDF text
+    const tableData = extractTableFromText(text);
+
+    // Process PDF data into invoice lines
+    const invoiceLines = processPDFDataToInvoiceLines(tableData);
+
+    // Calculate totals
+    const totals = calculateInvoiceTotals(invoiceLines);
+
+    // Return parsed data directly without creating draft
+    res.json({
+      success: true,
+      data: {
+        filename: req.file.originalname,
+        extractedDate: tableData.extractedDate,
+        items: invoiceLines,
+        totals: {
+          subtotalHT: totals.subtotalHTVA,
+          totalTVA: totals.totalTVA,
+          totalTTC: totals.totalTTC
+        },
+        isExtraitJournaliere: tableData.isExtraitJournaliere || false
+      }
+    });
+  } catch (error) {
+    console.error('Error importing PDF:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de l\'analyse du PDF',
+      error: error.message 
+    });
+  }
+});
+
+// POST /api/invoices/create-from-import - Create invoice from imported data
+router.post('/create-from-import', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.user.companyId;
+    const { clientId, items, notes, invoiceDate } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'No items provided' });
+    }
+
+    // Generate invoice number
+    const invoiceCount = await prisma.stockDocument.count({
+      where: { 
+        type: 'FACTURE',
+        companyId: companyId
+      }
+    });
+    const sequentialNumber = String(invoiceCount + 1).padStart(6, '0');
+    const invoiceNumber = `FAC-${sequentialNumber}`;
+
+    // Create stock document
+    const document = await prisma.stockDocument.create({
+      data: {
+        numero: invoiceNumber,
+        type: 'FACTURE',
+        status: 'COMPLETED',
+        companyId: companyId,
+        clientId: clientId || null,
+        notes: notes || 'Importé depuis PDF',
+        createdAt: invoiceDate ? new Date(invoiceDate) : new Date()
+      }
+    });
+
+    // Create document items
+    for (const item of items) {
+      // Find or create product family
+      let famille = await prisma.productFamily.findFirst({
+        where: {
+          name: item.familleName || 'Marchandise',
+          companyId: companyId
+        }
+      });
+
+      if (!famille) {
+        famille = await prisma.productFamily.create({
+          data: {
+            name: item.familleName || 'Marchandise',
+            description: `Famille pour ${item.familleName || 'Marchandise'}`,
+            color: '#3b82f6',
+            companyId: companyId
+          }
+        });
+      }
+
+      // Find or create product
+      let product = await prisma.product.findFirst({
+        where: {
+          name: item.productName,
+          familleId: famille.id,
+          companyId: companyId
+        }
+      });
+
+      if (!product) {
+        product = await prisma.product.create({
+          data: {
+            name: item.productName,
+            prix_vente_TTC: item.prixVenteTTC,
+            tva: item.tvaPercent,
+            designation_legale: item.productName,
+            companyId: companyId,
+            familleId: famille.id
+          }
+        });
+      }
+
+      // Create document item
+      await prisma.stockDocumentItem.create({
+        data: {
+          documentId: document.id,
+          productId: product.id,
+          famille: item.familleName || 'Marchandise',
+          quantity: item.quantity,
+          montantHT: item.prixVenteHTVA * item.quantity,
+          montantTTC: item.sousTotalTTC,
+          montantTVA: item.montantTVA * item.quantity,
+          prixUnitaire: item.prixVenteTTC,
+          tva: item.tvaPercent
+        }
+      });
+    }
+
+    // Reload document with items
+    const invoiceWithItems = await prisma.stockDocument.findUnique({
+      where: { id: document.id },
+      include: {
+        client: true,
+        items: {
+          include: {
+            product: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json({ success: true, data: invoiceWithItems });
+  } catch (error) {
+    console.error('Error creating invoice from import:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de la création de la facture',
+      error: error.message 
+    });
+  }
+});
+
+// GET /api/invoices/drafts - Get temporary invoice drafts
+router.get('/drafts', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.user.companyId;
+
+    const drafts = await prisma.tempInvoiceDraft.findMany({
+      where: { companyId },
+      include: {
+        client: true,
+        lines: {
+          include: {
+            product: true
           }
         }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json({ requests });
+    res.json({ success: true, data: drafts });
   } catch (error) {
-    console.error('Error getting invoice requests:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching drafts:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// Get next invoice number suggestion
-router.get('/next-number', authenticateToken, async (req, res) => {
+// POST /api/invoices/drafts/:id/convert - Convert draft to real invoice
+router.post('/drafts/:id/convert', authenticateToken, async (req, res) => {
   try {
-    const userDepotId = req.user?.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot' });
-    }
-    const nextNumber = await getNextInvoiceNumber(userDepotId);
-    res.json({ nextInvoiceNumber: nextNumber });
-  } catch (error) {
-    console.error('Error getting next invoice number:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+    const { id } = req.params;
+    const companyId = req.user.companyId;
 
-// Get invoice by ID (must be after specific routes)
-router.get('/:id', authenticateToken, async (req, res) => {
-  try {
-    const invoiceId = parseInt(req.params.id);
-    if (isNaN(invoiceId)) {
-      return res.status(400).json({ error: 'Invalid invoice ID' });
-    }
-
-    const { depotId } = req.query;
-    // Enforce depot isolation - use user's depot, visiting depot, or provided depot
-    const userDepotId = req.user?.depotId;
-    const visitingDepotHeader = req.headers['x-depot-id'];
-    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    const targetDepotId = depotId ? parseInt(depotId) : (visitingDepotId || userDepotId);
-
-    // For non-admin users, check depot access
-    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
-      return res.status(403).json({ error: 'Access denied: Cannot access other depot invoices' });
-    }
-
-    const invoice = await prisma.invoice.findFirst({
+    const draft = await prisma.tempInvoiceDraft.findFirst({
       where: {
-        id: invoiceId,
-        ...(targetDepotId ? { depotId: targetDepotId } : (req.user?.role === 'ADMIN' ? {} : { depotId: userDepotId }))
+        id: parseInt(id),
+        companyId: companyId
       },
       include: {
-        client: true,
-        createdBy: {
-          select: { firstName: true, lastName: true }
-        },
-        lines: {
-          include: {
-            product: {
-              include: {
-                famille: true
-              }
-            }
-          }
-        }
+        lines: true
       }
     });
 
-    if (!invoice) {
-      return res.status(404).json({ error: 'Invoice not found' });
+    if (!draft) {
+      return res.status(404).json({ success: false, message: 'Draft not found' });
     }
 
-    res.json(invoice);
-  } catch (error) {
-    console.error('Error fetching invoice:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+    // Generate invoice number using the same pattern as other documents
+    const invoiceCount = await prisma.stockDocument.count({
+      where: { 
+        type: 'FACTURE',
+        companyId: companyId
+      }
+    });
+    const sequentialNumber = String(invoiceCount + 1).padStart(6, '0');
+    const invoiceNumber = `FAC-${sequentialNumber}`;
 
-// Create invoice directly
-router.post('/', authenticateToken, async (req, res) => {
-  try {
-    const {
-      clientId,
-      items,
-      totalAmount,
-      status = 'DRAFT',
-      companyId
-    } = req.body;
-
-    // Validate required fields
-    if (!clientId || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        error: 'Client ID and items are required'
-      });
-    }
-
-    // Get client information
-    const client = await prisma.client.findUnique({
-      where: { id: parseInt(clientId) }
+    // Create stock document
+    const document = await prisma.stockDocument.create({
+      data: {
+        numero: invoiceNumber,
+        type: 'FACTURE',
+        status: 'PREPARED',
+        companyId: companyId,
+        clientId: draft.clientId,
+        notes: draft.notes
+      }
     });
 
-    if (!client) {
-      return res.status(404).json({ error: 'Client not found' });
-    }
-
-    // Enforce depot isolation - use user's depotId
-    const userDepotId = req.user?.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to create invoices' });
-    }
-
-    // Get next invoice number
-    const invoiceNumber = await getNextInvoiceNumber(userDepotId);
-
-    // Determine issuing company info
-    const depot = await prisma.depot.findUnique({ where: { id: userDepotId } });
-    const appSettings = getDepotSettings(userDepotId);
-    const company = companyId
-      ? await prisma.company.findUnique({ where: { id: Number(companyId) } })
-      : null;
-
-    // Calculate totals
-    let subtotalHTVA = 0;
-    let totalTVA = 0;
-    let totalTTC = 0;
-
-    const invoiceLines = [];
-
-    for (const item of items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-        include: { famille: true }
+    // Create document items from draft lines
+    for (const line of draft.lines) {
+      // First, find or create a product family
+      let famille = await prisma.productFamily.findFirst({
+        where: {
+          name: line.familleName || 'Marchandise'
+        }
       });
 
-      if (!product) continue;
-
-      const { prixHTVA, montantTVA } = calculateHTVAAndTVA(
-        item.unitPrice,
-        parseFloat(product.tva)
-      );
-
-      const sousTotalTTC = item.quantity * item.unitPrice;
-      const sousTotalHTVA = item.quantity * prixHTVA;
-      const sousTotalTVA = item.quantity * montantTVA;
-
-      subtotalHTVA += sousTotalHTVA;
-      totalTVA += sousTotalTVA;
-      totalTTC += sousTotalTTC;
-
-      invoiceLines.push({
-        productId: product.id,
-        familleName: product.famille.name,
-        productName: product.name,
-        legalDesignation: product.designation_legale,
-        unite: product.unite,
-        quantity: item.quantity,
-        prixVenteTTC: item.unitPrice,
-        prixVenteHTVA: prixHTVA,
-        tvaPercent: parseFloat(product.tva),
-        montantTVA: montantTVA,
-        sousTotalTTC: sousTotalTTC
-      });
-    }
-
-    // Create invoice with retry logic for uniqueness
-    let invoice;
-    let attempts = 0;
-    const maxAttempts = 3;
-
-    while (attempts < maxAttempts) {
-      try {
-        invoice = await prisma.invoice.create({
+      if (!famille) {
+        // Create a new product family if it doesn't exist
+        famille = await prisma.productFamily.create({
           data: {
-            invoiceNumber,
-            status: status,
-            source: 'TICKET_REQUEST',
-            issueDate: new Date(),
-            companyName: company?.raisonSociale || appSettings?.companyName || depot.name,
-            companyAddress: company?.adresse || depot.address,
-            companyMatricule: company?.matriculeFiscal || appSettings?.companyMatricule,
-            customerName: `${client.firstName} ${client.lastName}`,
-            customerAddress: client.address,
-            customerMatricule: client.matricule,
-            subtotalHTVA,
-            totalTVA,
-            totalTTC,
-            depotId: userDepotId,
-            clientId: client.id,
-            companyId: company?.id || null,
-            createdById: req.user.id,
-            lines: {
-              create: invoiceLines
-            }
-          },
-          include: {
-            client: true,
-            createdBy: {
-              select: { firstName: true, lastName: true }
-            },
-            lines: {
-              include: {
-                product: {
-                  include: {
-                    famille: true
-                  }
-                }
-              }
+            name: line.familleName || 'Marchandise',
+            description: `Famille pour ${line.familleName || 'Marchandise'}`,
+            color: '#3b82f6',
+            company: {
+              connect: { id: companyId }
             }
           }
         });
-        break; // Success, exit the retry loop
-      } catch (error) {
-        if (error.code === 'P2002' && error.meta?.target === 'invoices_invoice_number_key') {
-          attempts++;
-          if (attempts >= maxAttempts) {
-            throw new Error('Failed to create invoice after multiple attempts due to duplicate invoice numbers');
-          }
-          // Generate a new invoice number and try again
-          invoiceNumber = await getNextInvoiceNumber(userDepotId);
-
-        } else {
-          throw error; // Re-throw non-uniqueness errors
-        }
       }
-    }
 
-    // Add additional fields that the frontend expects
-    invoice.numero = invoice.invoiceNumber;
-    invoice.createdAt = invoice.issueDate;
-
-    // Send push notification for new invoice
-    try {
-      await sendPushToAll({
-        title: 'Nouvelle Facture',
-        body: `Facture ${invoice.invoiceNumber} - ${invoice.totalAmount} DT par ${req.user.firstName} ${req.user.lastName}`,
-        data: { type: 'INVOICE', id: invoice.id, depotId: invoice.depotId }
-      });
-    } catch (e) {
-      console.warn('[invoices.create] Failed to send push notification:', e);
-    }
-
-    res.status(201).json(invoice);
-  } catch (error) {
-    console.error('Error creating invoice:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Create invoice from daily extract
-router.post('/from-extract', authenticateToken, async (req, res) => {
-  try {
-    const {
-      date,
-      invoiceNumber,
-      customerInfo,
-      lines,
-      notes,
-      companyId
-    } = req.body;
-
-    // Validate invoice number uniqueness
-    const existingInvoice = await prisma.invoice.findFirst({
-      where: { invoiceNumber }
-    });
-
-    if (existingInvoice) {
-      return res.status(400).json({
-        error: 'Numéro de facture déjà existant. Choisissez un autre.'
-      });
-    }
-
-    // Enforce depot isolation - use user's depotId
-    const userDepotId = req.user?.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to create invoices from daily extract' });
-    }
-
-    // Determine issuing company info
-    const appSettings = getDepotSettings(userDepotId);
-    const depot = await prisma.depot.findUnique({ where: { id: userDepotId } });
-    const company = companyId
-      ? await prisma.company.findUnique({ where: { id: Number(companyId) } })
-      : null;
-
-    // Calculate totals
-    let subtotalHTVA = 0;
-    let totalTVA = 0;
-    let totalTTC = 0;
-
-    const invoiceLines = [];
-
-    for (const line of lines) {
-      const product = await prisma.product.findUnique({
-        where: { id: line.productId },
-        include: { famille: true }
-      });
-
-      if (!product) continue;
-
-      const { prixHTVA, montantTVA } = calculateHTVAAndTVA(
-        line.prixVenteTTC,
-        parseFloat(product.tva)
-      );
-
-      const sousTotalTTC = line.quantity * line.prixVenteTTC;
-      const sousTotalHTVA = line.quantity * prixHTVA;
-      const sousTotalTVA = line.quantity * montantTVA;
-
-      subtotalHTVA += sousTotalHTVA;
-      totalTVA += sousTotalTVA;
-      totalTTC += sousTotalTTC;
-
-      invoiceLines.push({
-        productId: product.id,
-        familleName: product.famille.name,
-        productName: product.name,
-        legalDesignation: product.designation_legale,
-        unite: product.unite,
-        quantity: line.quantity,
-        prixVenteTTC: line.prixVenteTTC,
-        prixVenteHTVA: prixHTVA,
-        tvaPercent: parseFloat(product.tva),
-        montantTVA: montantTVA,
-        sousTotalTTC: sousTotalTTC
-      });
-    }
-
-    // Create invoice
-    const invoice = await prisma.invoice.create({
-      data: {
-        invoiceNumber,
-        status: 'ISSUED',
-        source: 'DAILY_EXTRACT',
-        issueDate: new Date(date),
-        companyName: company?.raisonSociale || appSettings?.companyName || depot.name,
-        companyAddress: company?.adresse || depot.address,
-        companyMatricule: company?.matriculeFiscal || appSettings?.companyMatricule,
-        customerName: customerInfo.name,
-        customerAddress: customerInfo.address,
-        customerMatricule: customerInfo.matricule,
-        subtotalHTVA,
-        totalTVA,
-        totalTTC,
-        depotId: userDepotId,
-        clientId: customerInfo.clientId || null,
-        companyId: company?.id || null,
-        createdById: req.user.id,
-        notes,
-        lines: {
-          create: invoiceLines
+      // Then, create or find a product for this line
+      let product = await prisma.product.findFirst({
+        where: {
+          name: line.productName,
+          familleId: famille.id
         }
-      },
-      include: {
-        lines: {
-          include: {
-            product: {
-              include: {
-                famille: true
-              }
+      });
+
+      if (!product) {
+        // Create a new product if it doesn't exist
+        product = await prisma.product.create({
+          data: {
+            name: line.productName,
+            prix_vente_TTC: line.prixVenteTTC,
+            tva: line.tvaPercent,
+            designation_legale: line.productName,
+            company: {
+              connect: { id: companyId }
+            },
+            famille: {
+              connect: { id: famille.id }
             }
           }
-        }
+        });
       }
+
+      await prisma.stockDocumentItem.create({
+        data: {
+          document: {
+            connect: { id: document.id }
+          },
+          product: {
+            connect: { id: product.id }
+          },
+          famille: line.familleName || 'Marchandise',
+          quantity: line.quantity,
+          montantHT: line.prixVenteHTVA,
+          montantTTC: line.sousTotalTTC,
+          montantTVA: line.montantTVA,
+          prixUnitaire: line.prixVenteTTC,
+          tva: line.tvaPercent
+        }
+      });
+    }
+
+    // Delete the draft
+    await prisma.tempInvoiceDraft.delete({
+      where: { id: parseInt(id) }
     });
 
-    res.status(201).json(invoice);
+    res.json({ success: true, data: document });
   } catch (error) {
-    console.error('Error creating invoice from extract:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error converting draft:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// Create invoice request from ticket
-router.post('/request-from-ticket', authenticateToken, async (req, res) => {
+// Delete a draft
+router.delete('/drafts/:id', authenticateToken, async (req, res) => {
   try {
-    const { saleId, requestNotes } = req.body;
+    const { id } = req.params;
+    const companyId = req.user.companyId;
 
-    // Enforce depot isolation - use user's depotId
-    const userDepotId = req.user?.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to create invoice requests' });
-    }
-
-    // Verify sale exists and belongs to user's depot
-    const sale = await prisma.sale.findFirst({
+    const draft = await prisma.tempInvoiceDraft.findFirst({
       where: {
-        id: saleId,
-        depotId: userDepotId,
-        status: 'COMPLETED'
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                famille: true
-              }
-            }
-          }
-        },
-        client: true
+        id: parseInt(id),
+        companyId: companyId
       }
     });
 
-    if (!sale) {
-      return res.status(404).json({ error: 'Sale not found or not completed' });
+    if (!draft) {
+      return res.status(404).json({ success: false, message: 'Draft not found' });
     }
 
-    // Check if invoice request already exists for this sale
-    const existingRequest = await prisma.invoiceRequest.findFirst({
-      where: { saleId }
+    // Delete the draft and its lines
+    await prisma.tempInvoiceDraft.delete({
+      where: { id: parseInt(id) }
     });
 
-    if (existingRequest) {
-      return res.status(400).json({
-        error: 'Une demande de facture existe déjà pour ce ticket'
-      });
-    }
-
-    // Create invoice request
-    const invoiceRequest = await prisma.invoiceRequest.create({
-      data: {
-        saleId,
-        requestedById: req.user.id,
-        requestNotes,
-        status: 'PENDING'
-      },
-      include: {
-        sale: {
-          include: {
-            items: {
-              include: {
-                product: {
-                  include: {
-                    famille: true
-                  }
-                }
-              }
-            },
-            client: true
-          }
-        },
-        requestedBy: {
-          select: { firstName: true, lastName: true }
-        }
-      }
-    });
-
-    res.status(201).json(invoiceRequest);
+    res.json({ success: true, message: 'Draft deleted successfully' });
   } catch (error) {
-    console.error('Error creating invoice request:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error deleting draft:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
-
-// Get invoice requests (for admin approval)
-router.get('/requests/pending', authenticateToken, async (req, res) => {
-  try {
-
-    if (!prisma || !prisma.invoiceRequest || typeof prisma.invoiceRequest.findMany !== 'function') {
-      console.warn('Prisma model invoiceRequest is not available; returning empty list');
-      return res.json([]);
-    }
-
-    const requests = await prisma.invoiceRequest.findMany({
-      where: { status: 'PENDING' },
-      include: {
-        sale: {
-          include: {
-            items: {
-              include: {
-                product: {
-                  include: {
-                    famille: true
-                  }
-                }
-              }
-            },
-            client: true,
-            depot: true
-          }
-        },
-        requestedBy: {
-          select: { firstName: true, lastName: true }
-        }
-      },
-      orderBy: { createdAt: 'asc' }
-    });
-
-
-    res.json(requests);
-  } catch (error) {
-    console.error('Error fetching invoice requests:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Approve invoice request
-router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
-  try {
-
-    const { invoiceNumber } = req.body;
-    const requestId = parseInt(req.params.id);
-    if (isNaN(requestId)) {
-      return res.status(400).json({ error: 'Invalid request ID' });
-    }
-    if (!prisma || !prisma.invoiceRequest) {
-      return res.status(503).json({ error: 'Invoice request model unavailable' });
-    }
-
-    // Validate invoice number uniqueness
-    const existingInvoice = await prisma.invoice.findFirst({
-      where: { invoiceNumber }
-    });
-
-    if (existingInvoice) {
-      return res.status(400).json({
-        error: 'Numéro de facture déjà existant. Choisissez un autre.'
-      });
-    }
-
-    // Get the request
-    const invoiceRequest = await prisma.invoiceRequest.findUnique({
-      where: { id: requestId },
-      include: {
-        sale: {
-          include: {
-            items: {
-              include: {
-                product: {
-                  include: {
-                    famille: true
-                  }
-                }
-              }
-            },
-            client: true,
-            depot: true
-          }
-        }
-      }
-    });
-
-    if (!invoiceRequest || invoiceRequest.status !== 'PENDING') {
-      return res.status(404).json({ error: 'Request not found or not pending' });
-    }
-
-    // Get app settings for company info (fallback)
-    const appSettings = getDepotSettings(invoiceRequest.sale.depotId);
-
-    // Calculate totals
-    let subtotalHTVA = 0;
-    let totalTVA = 0;
-    let totalTTC = 0;
-
-    const invoiceLines = [];
-
-    for (const item of invoiceRequest.sale.items) {
-      const { prixHTVA, montantTVA } = calculateHTVAAndTVA(
-        parseFloat(item.unitPrice),
-        parseFloat(item.product.tva)
-      );
-
-      const sousTotalTTC = parseFloat(item.total);
-      const sousTotalHTVA = item.quantity * prixHTVA;
-      const sousTotalTVA = item.quantity * montantTVA;
-
-      subtotalHTVA += sousTotalHTVA;
-      totalTVA += sousTotalTVA;
-      totalTTC += sousTotalTTC;
-
-      invoiceLines.push({
-        productId: item.product.id,
-        familleName: item.product.famille.name,
-        productName: item.product.name,
-        legalDesignation: item.product.designation_legale,
-        unite: item.product.unite,
-        quantity: item.quantity,
-        prixVenteTTC: parseFloat(item.unitPrice),
-        prixVenteHTVA: prixHTVA,
-        tvaPercent: parseFloat(item.product.tva),
-        montantTVA: montantTVA,
-        sousTotalTTC: sousTotalTTC
-      });
-    }
-
-    // Create invoice
-    const invoice = await prisma.invoice.create({
-      data: {
-        invoiceNumber,
-        status: 'ISSUED',
-        source: 'TICKET_REQUEST',
-        issueDate: new Date(),
-        companyName: appSettings?.companyName || invoiceRequest.sale.depot.name,
-        companyAddress: invoiceRequest.sale.depot.address,
-        companyMatricule: appSettings?.companyMatricule,
-        customerName: invoiceRequest.sale.client
-          ? `${invoiceRequest.sale.client.firstName} ${invoiceRequest.sale.client.lastName}`
-          : 'Client anonyme',
-        customerAddress: invoiceRequest.sale.client?.address,
-        customerMatricule: invoiceRequest.sale.client?.matricule,
-        subtotalHTVA,
-        totalTVA,
-        totalTTC,
-        depotId: invoiceRequest.sale.depotId,
-        clientId: invoiceRequest.sale.clientId,
-        companyId: null,
-        createdById: req.user.id,
-        saleId: invoiceRequest.saleId,
-        lines: {
-          create: invoiceLines
-        }
-      }
-    });
-
-    // Update request status
-    await prisma.invoiceRequest.update({
-      where: { id: requestId },
-      data: {
-        status: 'APPROVED',
-        approvedById: req.user.id,
-        approvedAt: new Date(),
-        invoiceId: invoice.id,
-        invoiceNumber
-      }
-    });
-
-    res.json({
-      message: 'Invoice request approved and invoice created',
-      invoice: {
-        id: invoice.id,
-        invoiceNumber: invoice.invoiceNumber
-      }
-    });
-  } catch (error) {
-    console.error('Error approving invoice request:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Reject invoice request
-router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
-  try {
-
-    const { rejectionReason } = req.body;
-    const requestId = parseInt(req.params.id);
-    if (isNaN(requestId)) {
-      return res.status(400).json({ error: 'Invalid request ID' });
-    }
-    if (!prisma || !prisma.invoiceRequest) {
-      return res.status(503).json({ error: 'Invoice request model unavailable' });
-    }
-
-    const invoiceRequest = await prisma.invoiceRequest.findUnique({
-      where: { id: requestId }
-    });
-
-    if (!invoiceRequest || invoiceRequest.status !== 'PENDING') {
-      return res.status(404).json({ error: 'Request not found or not pending' });
-    }
-
-    await prisma.invoiceRequest.update({
-      where: { id: requestId },
-      data: {
-        status: 'REJECTED',
-        approvedById: req.user.id,
-        approvedAt: new Date(),
-        rejectionReason
-      }
-    });
-
-    res.json({ message: 'Invoice request rejected' });
-  } catch (error) {
-    console.error('Error rejecting invoice request:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Mark invoice as printed
-router.patch('/:id/mark-printed', authenticateToken, async (req, res) => {
-  try {
-    const invoiceId = parseInt(req.params.id);
-    if (isNaN(invoiceId)) {
-      return res.status(400).json({ error: 'Invalid invoice ID' });
-    }
-
-    // Enforce depot isolation
-    const userDepotId = req.user?.depotId;
-    const visitingDepotHeader = req.headers['x-depot-id'];
-    const visitingDepotId = visitingDepotHeader ? parseInt(visitingDepotHeader) : null;
-    const targetDepotId = visitingDepotId || userDepotId;
-
-    // For non-admin users, check depot access
-    if (req.user?.role !== 'ADMIN' && targetDepotId && userDepotId && targetDepotId !== userDepotId) {
-      return res.status(403).json({ error: 'Access denied: Cannot access other depot invoices' });
-    }
-
-    const invoice = await prisma.invoice.findFirst({
-      where: {
-        id: invoiceId,
-        ...(targetDepotId ? { depotId: targetDepotId } : (req.user?.role === 'ADMIN' ? {} : { depotId: userDepotId }))
-      }
-    });
-
-    if (!invoice) {
-      return res.status(404).json({ error: 'Invoice not found' });
-    }
-
-    // Update the invoice to mark it as printed
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: { printedAt: new Date() }
-    });
-
-    res.json({ success: true, invoice: updatedInvoice });
-  } catch (error) {
-    console.error('Error marking invoice as printed:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Temporary Invoice Draft Routes
 
 /**
- * Create a temporary invoice draft from PDF data
+ * Parse "Extrait Journalière" PDF format
+ * Categories are ALL-CAPS headers, each followed by product lines:
+ *   PRODUCT NAME  qty  unit_price DT  total DT
  */
-router.post('/temp-draft', authenticateToken, async (req, res) => {
-  try {
-    const { pdfData, customerInfo, invoiceDate, notes, sourceFilename } = req.body;
+function parseExtraitJournaliere(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-    if (!pdfData || !customerInfo || !invoiceDate) {
-      return res.status(400).json({
-        error: 'Données manquantes: pdfData, customerInfo et invoiceDate sont requis'
+  let extractedDate = null;
+  const dateMatch = text.match(/(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/);
+  if (dateMatch) extractedDate = dateMatch[1];
+
+  const rows = [];
+  let currentCategory = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Skip financial summary block
+    if (/RÉSUMÉ FINANCIER/i.test(line)) break;
+
+    // Skip column header line
+    if (/^Article\s+Qty\s+Unit Price\s+Total$/i.test(line)) continue;
+
+    // Skip "Total CATEGORY x.xxx DT" lines
+    if (/^Total\s+.+?\s+[\d\.,]+\s*DT\s*$/i.test(line)) {
+      currentCategory = null;
+      continue;
+    }
+
+    // Detect ALL-CAPS category header (no decimal numbers)
+    if (/^[A-Z0-9\s\-\/]+$/.test(line) && !/\d{1,3}\.\d{3}/.test(line) && line.length > 1) {
+      currentCategory = line.trim();
+      continue;
+    }
+
+    // Parse product line: NAME  qty  unit_price DT  total DT
+    const m = line.match(/^(.+?)\s+([\d\.,]+)\s+([\d\.,]+)\s*DT\s+([\d\.,]+)\s*DT\s*$/);
+    if (m) {
+      rows.push({
+        rawData: {
+          'Article':    m[1].trim(),
+          'Famille':    currentCategory || 'Marchandise',
+          'Qty':        m[2].replace(',', '.'),
+          'Unit Price': m[3].replace(',', '.'),
+          'Total':      m[4].replace(',', '.')
+        }
       });
     }
+  }
 
-    // Enforce depot isolation - use user's depotId
-    const userDepotId = req.user?.depotId;
-    if (!userDepotId) {
-      return res.status(400).json({ error: 'User must be assigned to a depot to create invoice drafts' });
+  const totalTTC = rows.reduce((s, r) => s + parseFloat(r.rawData['Total'] || 0), 0);
+  return {
+    headers: ['Article', 'Famille', 'Qty', 'Unit Price', 'Total'],
+    rows,
+    extractedDate,
+    totalHT:  Math.round(totalTTC / 1.19 * 100) / 100,
+    totalTVA: Math.round((totalTTC - totalTTC / 1.19) * 100) / 100,
+    totalTTC: Math.round(totalTTC * 100) / 100,
+    isExtraitJournaliere: true
+  };
+}
+
+/**
+ * Parse concatenated row data from PDF format (legacy fallback)
+ * Format: "Article + Qty + Unit Price + Total"
+ * Example: "JUS 1L FRUIT LOCAL379,000 TND333,000 TND"
+ */
+function parseConcatenatedRow(line) {
+  // Pattern: Article + Qty + Unit Price + Total
+  // Examples:
+  // "CHAHRAZED 350 GR AM1.0008.000 DT8.000 DT" → Article="CHAHRAZED 350 GR AM", Qty=1.000, Unit Price=8.000, Total=8.000
+  // "CHAHRAZED 800 GR AM1.00015.000 DT15.000 DT" → Article="CHAHRAZED 800 GR AM", Qty=1.000, Unit Price=15.000, Total=15.000
+  
+  console.log('Parsing line:', line);
+  
+  // Strategy: Look for " DT" markers which indicate price values
+  // Pattern: [Product Name][Qty][Unit Price] DT[Total] DT
+  
+  // Find all occurrences of numbers followed by " DT"
+  const dtMatches = [...line.matchAll(/(\d+(?:[.,]\d+)?)\s*DT/gi)];
+  
+  if (dtMatches.length >= 2) {
+    // Last two " DT" values are Unit Price and Total
+    const totalMatch = dtMatches[dtMatches.length - 1];
+    const unitPriceMatch = dtMatches[dtMatches.length - 2];
+    
+    const total = totalMatch[1].replace(',', '.');
+    const unitPrice = unitPriceMatch[1].replace(',', '.');
+    
+    // Everything before the unit price match is product name + quantity
+    const beforePrices = line.substring(0, unitPriceMatch.index);
+    
+    // Find the last number before the unit price (this is the quantity)
+    const qtyMatch = beforePrices.match(/(\d+(?:[.,]\d+)?)\s*$/);
+    let qty = '1';
+    let article = beforePrices.trim();
+    
+    if (qtyMatch) {
+      qty = qtyMatch[1].replace(',', '.');
+      // Remove the quantity from the article name
+      article = beforePrices.substring(0, qtyMatch.index).trim();
     }
-
-    // Get next invoice number
-    let invoiceNumber;
-    try {
-      invoiceNumber = await getNextInvoiceNumber(userDepotId);
-    } catch (error) {
-      // If no series available, use temporary number
-      const now = new Date();
-      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-      const timeStr = now.getTime().toString().slice(-4);
-      invoiceNumber = `DRAFT-${dateStr}-${timeStr}`;
-    }
-
-    // Process PDF data into invoice lines
-    const invoiceLines = processPDFDataToInvoiceLines(pdfData);
-
-    // Calculate totals
-    const totals = calculateInvoiceTotals(invoiceLines);
-
-    // Create temporary invoice draft
-    const tempDraft = {
-      id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      invoiceNumber,
-      customerId: customerInfo.customerId,
-      customerName: customerInfo.customerName,
-      customerAddress: customerInfo.customerAddress,
-      customerMatricule: customerInfo.customerMatricule,
-      date: invoiceDate,
-      notes: notes || '',
-      lines: invoiceLines,
-      totals,
-      status: invoiceNumber.startsWith('DRAFT-') ? 'Needs Number' : 'Numbered',
-      sourceFilename,
-      createdAt: new Date().toISOString(),
-      isTemporary: true
+    
+    console.log('Parsed with DT markers:', { article, qty, unitPrice, total });
+    
+    return {
+      'Article': article,
+      'Qty': qty,
+      'Unit Price': unitPrice,
+      'Total': total
     };
-
-    // TODO: Store in database or temporary storage
-    // For now, we'll return the draft object
-    // In a real implementation, you'd save this to a temp_drafts table
-
-    res.json(tempDraft);
-
-  } catch (error) {
-    console.error('Error creating temp invoice draft:', error);
-    res.status(500).json({
-      error: 'Erreur lors de la création du brouillon temporaire'
-    });
   }
-});
-
-/**
- * Get all temporary invoice drafts
- */
-router.get('/temp-drafts', authenticateToken, async (req, res) => {
-  try {
-    // TODO: Fetch from database
-    // For now, return empty array
-    res.json([]);
-  } catch (error) {
-    console.error('Error fetching temp drafts:', error);
-    res.status(500).json({
-      error: 'Erreur lors de la récupération des brouillons'
-    });
+  
+  // Fallback: Find all numbers in the line and work backwards
+  const numbers = line.match(/\d+(?:,\d+)*(?:\.\d+)?/g);
+  
+  if (!numbers || numbers.length < 2) {
+    return {
+      'Article': line,
+      'Qty': '1',
+      'Unit Price': '0',
+      'Total': '0'
+    };
   }
-});
-
-/**
- * Delete a temporary invoice draft
- */
-router.delete('/temp-drafts/:draftId', authenticateToken, async (req, res) => {
-  try {
-    const { draftId } = req.params;
-
-    // TODO: Delete from database
-    // For now, just return success
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting temp draft:', error);
-    res.status(500).json({
-      error: 'Erreur lors de la suppression du brouillon'
-    });
+  
+  // The last two numbers are typically Unit Price and Total
+  let total = numbers[numbers.length - 1];
+  let unitPrice = numbers[numbers.length - 2];
+  let qty = '1';
+  
+  // Extract quantity - it's the number before the unit price
+  if (numbers.length >= 3) {
+    qty = numbers[numbers.length - 3];
   }
-});
-
-/**
- * Finalize a temporary invoice draft (convert to real invoice)
- */
-router.post('/finalize-draft', authenticateToken, async (req, res) => {
-  try {
-    const { draftId } = req.body;
-
-    if (!draftId) {
-      return res.status(400).json({
-        error: 'ID du brouillon requis'
-      });
+  
+  // Extract article name by removing the last 3 numbers and cleaning up
+  let article = line;
+  for (let i = numbers.length - 1; i >= Math.max(0, numbers.length - 3); i--) {
+    const lastIndex = article.lastIndexOf(numbers[i]);
+    if (lastIndex !== -1) {
+      article = article.substring(0, lastIndex) + article.substring(lastIndex + numbers[i].length);
     }
-
-    // TODO: Implement actual finalization logic
-    // This would typically:
-    // 1. Fetch the temp draft from database
-    // 2. Create a real invoice with the draft data
-    // 3. Assign proper invoice number if needed
-    // 4. Create invoice lines
-    // 5. Update stock if needed
-    // 6. Delete the temp draft
-    // 7. Return the created invoice
-
-    // For now, simulate success
-
-
-    res.json({
-      success: true,
-      message: 'Brouillon finalisé avec succès',
-      invoiceId: `INV-${Date.now()}`
-    });
-
-  } catch (error) {
-    console.error('Error finalizing draft:', error);
-    res.status(500).json({
-      error: 'Erreur lors de la finalisation du brouillon'
-    });
   }
-});
+  
+  // Clean up article name
+  article = article.replace(/\s*TND\s*/gi, ' ').replace(/\s*DT\s*/gi, ' ').trim();
+  article = article.replace(/\s+/g, ' ').replace(/,\s*$/, '').trim();
+  
+  console.log('Parsed with fallback:', { article, qty, unitPrice, total });
+  
+  // Parse numbers (remove commas and convert to float)
+  const qtyValue = parseFloat(qty.replace(/,/g, '.'));
+  const unitPriceValue = parseFloat(unitPrice.replace(/,/g, '.'));
+  const totalValue = parseFloat(total.replace(/,/g, '.'));
+  
+  return {
+    'Article': article,
+    'Qty': qtyValue.toString(),
+    'Unit Price': unitPriceValue.toString(),
+    'Total': totalValue.toString()
+  };
+}
+
+// Helper to format an integer with thousands separators like 31,990
+function formatThousands(n) {
+  const s = Math.round(n).toString();
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+/**
+ * Extract table data from PDF text
+ */
+function extractTableFromText(text) {
+  console.log('=== EXTRACTING TABLE DATA ===');
+
+  // Detect Extrait Journalière format and use dedicated parser
+  if (/EXTRAIT JOURNALI[EÈ]RE/i.test(text)) {
+    console.log('Detected Extrait Journalière format — using dedicated parser');
+    return parseExtraitJournaliere(text);
+  }
+  
+  const lines = text.split('\n').filter(line => line.trim());
+  console.log('Total lines found:', lines.length);
+  
+  // Find table headers - look for the specific ERP-POS format
+  const headerPatterns = [
+    /produit/i, /famille/i, /qté/i, /qty/i, /quantité/i,
+    /prix/i, /unitaire/i, /total/i, /montant/i
+  ];
+
+  let headers = [];
+  let dataRows = [];
+  let extractedDate = null;
+
+  // Try to find headers - look for the specific ERP-POS table format
+  for (let i = 0; i < Math.min(30, lines.length); i++) {
+    const line = lines[i].trim();
+    console.log(`Line ${i}:`, line);
+    
+    // Check for the actual header format: "Article", "Qty", "Unit Price", "Total"
+    if (line.includes('Article') && line.includes('Qty') && line.includes('Unit Price') && line.includes('Total')) {
+      console.log('Found actual header line:', line);
+      // The headers are concatenated without spaces, so we'll use fixed column positions
+      headers = ['Article', 'Qty', 'Unit Price', 'Total'];
+      dataRows = lines.slice(i + 1);
+      break;
+    }
+    
+    // Also check for French headers as fallback
+    if (line.includes('Produit') && line.includes('Famille') && line.includes('Qté')) {
+      console.log('Found French header line');
+      const words = line.split(/\s{2,}|\t+/).filter(word => word.trim());
+      headers = words;
+      dataRows = lines.slice(i + 1);
+      break;
+    }
+    
+    // Alternative: look for lines with multiple expected column names
+    const words = line.split(/\s+/);
+    const headerCount = words.filter(word => 
+      headerPatterns.some(pattern => pattern.test(word))
+    ).length;
+
+    if (headerCount >= 3) {
+      console.log('Found header line with', headerCount, 'matching patterns');
+      headers = words;
+      dataRows = lines.slice(i + 1);
+      break;
+    }
+  }
+
+  console.log('Headers found:', headers);
+  console.log('Data rows count:', dataRows.length);
+
+  // If no headers found, try to extract from first few lines
+  if (headers.length === 0) {
+    console.log('No headers found, using first line as headers');
+    const firstLine = lines[0];
+    headers = firstLine.split(/\s+/).slice(0, 8); // Limit to 8 columns
+    dataRows = lines.slice(1);
+  }
+
+  // Extract date from text
+  const dateMatch = text.match(/(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/);
+  if (dateMatch) {
+    extractedDate = dateMatch[1];
+    console.log('Extracted date:', extractedDate);
+  }
+
+  // Process data rows - look for lines with numbers (prices/quantities)
+  const rows = dataRows
+    .filter(line => {
+      const trimmed = line.trim();
+      // Keep lines that have numbers and aren't separator lines
+      return trimmed && 
+             !trimmed.match(/^\s*[-=]+\s*$/) && 
+             !trimmed.includes('Total') &&
+             /\d/.test(trimmed); // Must contain at least one digit
+    })
+    .slice(0, 50) // Limit to 50 rows
+    .map((line, index) => {
+      console.log(`Processing row ${index}:`, line);
+      
+      // Custom parser for concatenated format: "Article + Qty + Unit Price + Total"
+      const rowData = parseConcatenatedRow(line);
+      
+      console.log('Row data:', rowData);
+      return {
+        rawData: rowData
+      };
+    });
+
+  console.log('Processed rows:', rows.length);
+
+  // Calculate totals if possible
+  let totalHT = 0;
+  let totalTVA = 0;
+  let totalTTC = 0;
+
+  try {
+    rows.forEach((row, index) => {
+      console.log(`Calculating totals for row ${index}:`, row.rawData);
+      
+      // Try different possible column names for prices and quantities
+      // Match actual format: "Article", "Qty", "Unit Price", "Total"
+      const ttcValue = parseFloat(
+        row.rawData['Total'] || 
+        row.rawData['total'] || 
+        row.rawData['TOTAL'] ||
+        '0'
+      );
+      
+      const unitPriceValue = parseFloat(
+        row.rawData['Unit Price'] || 
+        row.rawData['unit price'] || 
+        row.rawData['UnitPrice'] ||
+        row.rawData['unitprice'] ||
+        '0'
+      );
+      
+      const qtyValue = parseFloat(
+        row.rawData['Qty'] || 
+        row.rawData['qty'] || 
+        row.rawData['QTY'] ||
+        '1'
+      );
+      
+      console.log(`Row ${index} values - TTC: ${ttcValue}, UnitPrice: ${unitPriceValue}, Qty: ${qtyValue}`);
+      
+      if (ttcValue > 0) {
+        // In ERP-POS format, Total is already the line total (quantity * unit price)
+        totalTTC += ttcValue;
+        // Calculate HT from TTC (assuming 19% VAT)
+        const htValue = ttcValue / 1.19;
+        totalHT += htValue;
+        totalTVA += ttcValue - htValue;
+      } else if (unitPriceValue > 0 && qtyValue > 0) {
+        // If we have unit price and quantity, calculate total
+        const calculatedTotal = unitPriceValue * qtyValue;
+        totalTTC += calculatedTotal;
+        const htValue = calculatedTotal / 1.19;
+        totalHT += htValue;
+        totalTVA += calculatedTotal - htValue;
+      }
+    });
+  } catch (error) {
+    console.error('Error calculating totals:', error);
+  }
+
+  console.log('Final totals - HT:', totalHT, 'TVA:', totalTVA, 'TTC:', totalTTC);
+  console.log('=== END TABLE EXTRACTION ===');
+
+  return {
+    headers: headers.filter(h => h.trim()),
+    rows,
+    extractedDate,
+    totalHT: Math.round(totalHT * 100) / 100,
+    totalTVA: Math.round(totalTVA * 100) / 100,
+    totalTTC: Math.round(totalTTC * 100) / 100
+  };
+}
 
 /**
  * Process PDF data into invoice lines
@@ -1018,45 +1128,70 @@ function processPDFDataToInvoiceLines(pdfData) {
 
   pdfData.rows.forEach((row, index) => {
     // Skip rows with zero or missing quantity
-    const quantity = parseFloat(row.rawData['Quantité'] || row.rawData['quantite'] || row.rawData['qty'] || '0');
+    const quantity = parseFloat(
+      row.rawData['Qty'] || 
+      row.rawData['qty'] || 
+      row.rawData['QTY'] ||
+      '0'
+    );
     if (quantity <= 0) return;
 
-    const article = row.rawData['Article'] || row.rawData['article'] || row.rawData['designation'] || `Article ${index + 1}`;
-    const designationLegale = row.rawData['Désignation légale'] || row.rawData['designation_legale'] || article;
-    const famille = row.rawData['Famille'] || row.rawData['famille'] || 'Général';
+    // Match actual format: "Article", "Qty", "Unit Price", "Total"
+    const productName = row.rawData['Article'] || row.rawData['article'] || `Article ${index + 1}`;
+    const famille = row.rawData['Famille'] || row.rawData['famille'] || 'Marchandise';
+    const designationLegale = productName; // Use product name as legal designation
+    
+    // Extract prices from actual format (values are in millimes: e.g., 14,000 => 14000)
+    const prixUnitaireMm = parseFloat(
+      row.rawData['Unit Price'] || 
+      row.rawData['unit price'] || 
+      row.rawData['UnitPrice'] ||
+      row.rawData['unitprice'] ||
+      '0'
+    );
+    
+    const totalTTCMm = parseFloat(
+      row.rawData['Total'] || 
+      row.rawData['total'] || 
+      row.rawData['TOTAL'] ||
+      '0'
+    );
 
-    // Extract prices
-    const prixTTC = parseFloat(row.rawData['PV TTC'] || row.rawData['prix_ttc'] || row.rawData['ttc'] || '0');
-    const prixHTVA = parseFloat(row.rawData['PV HTVA'] || row.rawData['prix_htva'] || row.rawData['htva'] || '0');
-    const tvaPercent = parseFloat(row.rawData['TVA %'] || row.rawData['tva_percent'] || row.rawData['tva'] || '19');
+    // PDF prices are already in TND — no millimes conversion needed
+    // Determine final unit price and line total
+    let finalUnitTND = prixUnitaireMm;   // already TND
+    let sousTotalTNDTTC = totalTTCMm;    // already TND
 
-    // Calculate missing values
-    let finalPrixTTC = prixTTC;
-    let finalPrixHTVA = prixHTVA;
-    let finalTvaPercent = tvaPercent;
-
-    if (prixTTC && !prixHTVA) {
-      finalPrixHTVA = prixTTC / (1 + tvaPercent / 100);
-    } else if (prixHTVA && !prixTTC) {
-      finalPrixTTC = prixHTVA * (1 + tvaPercent / 100);
-    } else if (!prixTTC && !prixHTVA) {
-      // Skip this line if no price information
+    if (prixUnitaireMm > 0 && totalTTCMm === 0) {
+      // Have unit price, no total — calculate total
+      sousTotalTNDTTC = prixUnitaireMm * quantity;
+    } else if (totalTTCMm > 0 && prixUnitaireMm === 0) {
+      // Have total, no unit price — derive unit price
+      finalUnitTND = totalTTCMm / (quantity || 1);
+    } else if (totalTTCMm > 0 && prixUnitaireMm > 0) {
+      // Both present — trust the total, derive unit price from it
+      sousTotalTNDTTC = totalTTCMm;
+      finalUnitTND = totalTTCMm / (quantity || 1);
+    } else {
+      // No price info — skip
       return;
     }
 
-    const montantTVA = finalPrixTTC - finalPrixHTVA;
-    const sousTotalTTC = finalPrixTTC * quantity;
+    // Calculate HT and TVA (assuming 19% VAT)
+    const tvaPercent = 19;
+    const finalPrixHTVA = sousTotalTNDTTC / (1 + tvaPercent / 100);
+    const montantTVA = sousTotalTNDTTC - finalPrixHTVA;
 
     lines.push({
-      productName: article,
+      productName: productName,
       familleName: famille,
       legalDesignation: designationLegale,
       quantity,
       prixVenteHTVA: Math.round(finalPrixHTVA * 100) / 100,
-      prixVenteTTC: Math.round(finalPrixTTC * 100) / 100,
-      tvaPercent: finalTvaPercent,
+      prixVenteTTC: Math.round(finalUnitTND * 100) / 100,
+      tvaPercent: tvaPercent,
       montantTVA: Math.round(montantTVA * 100) / 100,
-      sousTotalTTC: Math.round(sousTotalTTC * 100) / 100
+      sousTotalTTC: Math.round(sousTotalTNDTTC * 100) / 100
     });
   });
 

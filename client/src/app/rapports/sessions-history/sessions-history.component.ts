@@ -1493,52 +1493,348 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
 
     this.sessionsService.getSessionReport(session.id, 'Z').subscribe({
       next: (sessionReport) => {
-        const exportData = {
-          sessionInfo: {
-            id: session.id,
-            openedAt: session.openedAt,
-            user: session.user,
-            depot: sessionReport.session?.depot,
-            openingFund: session.openingFund
+        this.settingsService.getSettings().subscribe({
+          next: (settings) => {
+            this.generateSessionPDF(session, sessionReport, settings);
+            this.loading.set(false);
+            this.error.set('');
           },
-          summary: {
-            totalSales: sessionReport.summary?.totalSales || 0,
-            totalTickets: sessionReport.summary?.totalTickets || 0,
-            expectedCash: sessionReport.summary?.expectedCash || 0,
-            creditAmount: this.getCreditAmount(),
-            clientPaymentsTotal: this.getClientPaymentsTotal(),
-            totalOrderAdvances: this.getTotalOrderAdvances(),
-            expensesTotal: this.getExpensesTotal(),
-            supplierPaymentsTotal: this.getSupplierPaymentsTotal(),
-            cashFromSales: this.getCashFromSalesNetOfCredit()
-          },
-          sales: sessionReport.session?.sales || [],
-          cashMovements: sessionReport.session?.cashMovements || [],
-          families: sessionReport.families || [],
-          exportDate: new Date().toISOString(),
-          exportType: 'session_closure'
-        };
-
-        const dataStr = JSON.stringify(exportData, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `session_${session.id}_${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        this.loading.set(false);
-        this.error.set('');
+          error: () => {
+            this.generateSessionPDF(session, sessionReport, null);
+            this.loading.set(false);
+            this.error.set('');
+          }
+        });
       },
       error: (error) => {
         this.error.set('Erreur lors de l\'export des données: ' + (error.error?.error || error.message || 'Erreur inconnue'));
         this.loading.set(false);
       }
     });
+  }
+
+  private generateSessionPDF(session: SessionCaisse, sessionReport: any, settings: AppSettings | null): void {
+    const sales = (sessionReport?.session?.sales || []) as any[];
+    const closedDate = new Date();
+    const formatDateNoYearWithTime = (date: Date) => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${day}/${month} ${hours}:${minutes}`;
+    };
+    const closingTime = formatDateNoYearWithTime(closedDate);
+
+    // Build family grouping from session sales (exclude cancelled/refunded)
+    const familyArticleTotals: Record<string, Record<string, { quantity: number; total: number }>> = {};
+
+    if (sales.length) {
+      for (const sale of sales) {
+        const status = (sale.status || '').toUpperCase();
+        if (status === 'CANCELLED' || status === 'REFUNDED') continue;
+
+        const items: any[] = (sale.items || []) as any[];
+        for (const it of items) {
+          const productName: string = (it.productName || it.name || 'Produit').toString();
+          const familyName: string = (it.product?.famille?.name || it.product?.family?.name || it.familyName || 'Sans famille').toString();
+          const qty: number = parseFloat(String(it.quantity ?? it.qty ?? 0)) || 0;
+          const lineTotal: number = parseFloat(String(it.total ?? it.revenue ?? it.amount ?? 0)) || 0;
+
+          if (!familyArticleTotals[familyName]) {
+            familyArticleTotals[familyName] = {};
+          }
+
+          if (!familyArticleTotals[familyName][productName]) {
+            familyArticleTotals[familyName][productName] = { quantity: 0, total: 0 };
+          }
+
+          familyArticleTotals[familyName][productName].quantity += qty;
+          familyArticleTotals[familyName][productName].total += lineTotal;
+        }
+      }
+    }
+
+    // Sort families alphabetically
+    const sortedFamilies = Object.keys(familyArticleTotals).sort();
+    let totalArticleSales = 0;
+
+    let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>EXTRAIT JOURNALIÈRE - ${closingTime}</title>
+        <style>
+            @page {
+                size: A4;
+                margin: 0.5cm;
+            }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            body { 
+                font-family: 'Arial', sans-serif; 
+                margin: 0; 
+                padding: 8px; 
+                font-size: 12px;
+                line-height: 1.2;
+                width: 100%;
+                min-height: 100vh;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #000;
+                padding-bottom: 10px;
+            }
+            .title {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+            .date {
+                font-size: 12px;
+            }
+            .family-section {
+                margin-bottom: 15px;
+            }
+            .family-title {
+                font-weight: bold;
+                font-size: 14px;
+                margin-bottom: 5px;
+                text-transform: uppercase;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 5px;
+            }
+            th, td {
+                border: 1px solid #000;
+                padding: 3px 5px;
+                text-align: left;
+                font-size: 11px;
+            }
+            th {
+                background-color: #f0f0f0;
+                font-weight: bold;
+                text-align: center;
+                font-size: 11px;
+            }
+            .article-col {
+                width: 40%;
+            }
+            .qty-col {
+                width: 15%;
+                text-align: right;
+            }
+            .unit-price-col {
+                width: 20%;
+                text-align: right;
+            }
+            .total-col {
+                width: 25%;
+                text-align: right;
+            }
+            .family-total {
+                font-weight: bold;
+                background-color: #f8f8f8;
+                font-size: 11px;
+            }
+            .financial-summary {
+                margin-top: 20px;
+                border: 2px solid #000;
+                padding: 10px;
+            }
+            .financial-summary h3 {
+                text-align: center;
+                margin: 0 0 10px 0;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            .financial-summary table {
+                width: 100%;
+                border: none;
+            }
+            .financial-summary td {
+                border: none;
+                padding: 2px 5px;
+                font-size: 11px;
+            }
+            .financial-summary .label {
+                text-align: left;
+            }
+            .financial-summary .amount {
+                text-align: right;
+                font-weight: bold;
+            }
+            .separator {
+                border-top: 1px solid #000;
+                margin: 5px 0;
+            }
+            @media print {
+                @page {
+                    size: A4 !important;
+                    margin: 0.5cm !important;
+                }
+                * {
+                    -webkit-print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                }
+                body { 
+                    font-size: 12px !important;
+                    padding: 8px !important;
+                    margin: 0 !important;
+                    width: 100% !important;
+                    min-height: 100vh !important;
+                    transform: scale(1) !important;
+                }
+                html {
+                    width: 100% !important;
+                    height: 100% !important;
+                }
+                th, td {
+                    padding: 3px 5px !important;
+                    font-size: 11px !important;
+                }
+                .title {
+                    font-size: 18px !important;
+                }
+                table {
+                    width: 100% !important;
+                    page-break-inside: avoid !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="title">EXTRAIT JOURNALIÈRE</div>
+            <div class="date">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+        </div>`;
+
+    // Generate family sections
+    for (const familyName of sortedFamilies) {
+      const articles = familyArticleTotals[familyName];
+      const sortedArticles = Object.keys(articles).sort();
+      let familyTotal = 0;
+
+      html += `
+        <div class="family-section">
+            <div class="family-title">${familyName}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="article-col">Article</th>
+                        <th class="qty-col">Qty</th>
+                        <th class="unit-price-col">Unit Price</th>
+                        <th class="total-col">Total</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+      for (const articleName of sortedArticles) {
+        const articleData = articles[articleName];
+        const unitPrice = articleData.quantity > 0 ? articleData.total / articleData.quantity : 0;
+        familyTotal += articleData.total;
+        totalArticleSales += articleData.total;
+
+        html += `
+                    <tr>
+                        <td class="article-col">${articleName}</td>
+                        <td class="qty-col">${articleData.quantity.toFixed(3)}</td>
+                        <td class="unit-price-col">${unitPrice.toFixed(3)} DT</td>
+                        <td class="total-col">${articleData.total.toFixed(3)} DT</td>
+                    </tr>`;
+      }
+
+      html += `
+                    <tr class="family-total">
+                        <td class="article-col">Total ${familyName}</td>
+                        <td class="qty-col"></td>
+                        <td class="unit-price-col"></td>
+                        <td class="total-col">${familyTotal.toFixed(3)} DT</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>`;
+    }
+
+    // Financial summary
+    const summary = sessionReport.summary || {};
+    const openingFund = parseFloat((session.openingFund as any) || 0) || 0;
+    const totalSales = parseFloat(summary.totalSales || 0) || 0;
+    const expectedCash = parseFloat(summary.expectedCash || 0) || 0;
+    const creditAmount = this.getCreditAmount();
+    const clientPayments = this.getClientPaymentsTotal();
+    const orderAdvances = this.getTotalOrderAdvances();
+    const expenses = this.getExpensesTotal();
+    const supplierPayments = this.getSupplierPaymentsTotal();
+    const totalWithdrawn = this.getTotalWithdrawnAmount();
+
+    html += `
+        <div class="financial-summary">
+            <h3>RÉSUMÉ FINANCIER</h3>
+            <table>
+                <tr>
+                    <td class="label">Fonds d'ouverture:</td>
+                    <td class="amount">${openingFund.toFixed(3)} DT</td>
+                </tr>
+                <tr>
+                    <td class="label">Total des ventes:</td>
+                    <td class="amount">${totalSales.toFixed(3)} DT</td>
+                </tr>
+                <tr>
+                    <td class="label">Ventes à crédit:</td>
+                    <td class="amount">${creditAmount.toFixed(3)} DT</td>
+                </tr>
+                <tr>
+                    <td class="label">Encaissements clients:</td>
+                    <td class="amount">${clientPayments.toFixed(3)} DT</td>
+                </tr>
+                <tr>
+                    <td class="label">Acomptes commandes:</td>
+                    <td class="amount">${orderAdvances.toFixed(3)} DT</td>
+                </tr>
+                <tr>
+                    <td class="label">Dépenses:</td>
+                    <td class="amount">${expenses.toFixed(3)} DT</td>
+                </tr>
+                <tr>
+                    <td class="label">Règlements fournisseurs:</td>
+                    <td class="amount">${supplierPayments.toFixed(3)} DT</td>
+                </tr>
+                <tr>
+                    <td class="label">Retraits effectués:</td>
+                    <td class="amount">${totalWithdrawn.toFixed(3)} DT</td>
+                </tr>
+                <tr class="separator">
+                    <td colspan="2"></td>
+                </tr>
+                <tr>
+                    <td class="label"><strong>Espèces attendues en caisse:</strong></td>
+                    <td class="amount"><strong>${expectedCash.toFixed(3)} DT</strong></td>
+                </tr>
+            </table>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+    </body>
+    </html>`;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } else {
+      this.error.set('Impossible d\'ouvrir la fenêtre d\'impression. Veuillez autoriser les pop-ups.');
+    }
   }
 
   exportSessionDataByFamily(session: SessionCaisse): void {

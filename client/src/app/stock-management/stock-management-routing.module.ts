@@ -23,6 +23,10 @@ const routes: Routes = [
   { 
     path: 'import-entry/:depotId', 
     loadChildren: () => import('./import-entry/import-entry.module').then(m => m.ImportEntryModule)
+  },
+  { 
+    path: 'pdf-import/:depotId', 
+    loadChildren: () => import('./pdf-import/pdf-import.module').then(m => m.PdfImportModule)
   }
 ];
 
