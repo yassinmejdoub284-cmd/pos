@@ -2156,7 +2156,7 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
   try {
 
     const documentId = parseInt(req.params.id);
-    const { depotId, validatedItemIds } = req.body;
+    const { depotId, validatedItems } = req.body;
 
 
 
@@ -2198,26 +2198,85 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Dépôt cible non trouvé' });
     }
 
-    // Determine the correct entry document type based on depot type
-    // SHOP depots use BON_ENTREE_MAGASIN, others use BON_ENTREE_DEPOT
-    const entryDocumentType = targetDepot.type === 'SHOP' ? 'BON_ENTREE_MAGASIN' : 'BON_ENTREE_DEPOT';
 
 
-    // Filter items to only include validated ones if validatedItemIds is provided
-    let itemsToProcess = document.items;
-    if (validatedItemIds && Array.isArray(validatedItemIds) && validatedItemIds.length > 0) {
-      itemsToProcess = document.items.filter(item => validatedItemIds.includes(item.id));
-
-    } else {
-
+    // Process items based on validatedItems array
+    // validatedItems is [{ id, quantity }]
+    const qtyMap = new Map();
+    if (validatedItems && Array.isArray(validatedItems)) {
+      validatedItems.forEach(vi => {
+        const id = Number(vi.id);
+        if (!isNaN(id)) {
+          qtyMap.set(id, vi.quantity);
+        }
+      });
     }
+
+    let itemsToProcess = document.items.filter(item => qtyMap.has(Number(item.id)));
 
     if (itemsToProcess.length === 0) {
       return res.status(400).json({ error: 'Aucun produit validé à approuver' });
     }
 
     await prisma.$transaction(async (tx) => {
+      // 1. Update quantities in the document first if they changed
+      for (const item of itemsToProcess) {
+        const newQty = qtyMap.get(item.id);
+        const oldQty = parseFloat(item.quantity) || 0;
+        
+        if (Math.abs(newQty - oldQty) > 0.001) { // Use a small epsilon for float comparison
+          // Update the item quantity in the document
+          await tx.stockDocumentItem.update({
+            where: { id: item.id },
+            data: { quantity: newQty }
+          });
+          
+          // If it's a transfer or outgoing, refund the difference to source
+          const isSourceAffected = ['BON_EXPEDITION', 'BON_TRANSFERT', 'BON_SORTIE'].includes(document.type);
+          if (isSourceAffected && document.emetteurId) {
+            const diff = oldQty - newQty; // If sent 10, got 9 -> diff = +1 (add back to source)
+            
+            const sourceInventory = await tx.inventory.findFirst({
+              where: {
+                depotId: document.emetteurId,
+                productId: item.productId
+              }
+            });
 
+            if (sourceInventory) {
+              await tx.inventory.update({
+                where: { id: sourceInventory.id },
+                data: { quantity: { increment: diff } }
+              });
+            } else {
+              // Create inventory if it doesn't exist, with the difference
+              await tx.inventory.create({
+                data: {
+                  depotId: document.emetteurId,
+                  productId: item.productId,
+                  quantity: diff
+                }
+              });
+            }
+            
+            // Log correction movement for source
+            await tx.stockMovement.create({
+              data: {
+                productId: item.productId,
+                depotId: document.emetteurId,
+                quantity: diff,
+                type: 'IN', // Incoming to source (refund)
+                reason: `CORRECTION_RECEPTION: reçu ${newQty} au lieu de ${oldQty}`,
+                reference: document.numero,
+                userId: req.user.id
+              }
+            });
+          }
+          
+          // Update local item object for subsequent grouping
+          item.quantity = newQty;
+        }
+      }
 
 
       // Group items by parent product to consolidate quantities
@@ -2407,12 +2466,14 @@ router.post('/:id/approve-receipt', authenticateToken, async (req, res) => {
         });
       }
 
-      // Update document status and type to ensure it's counted as an entry document
+      // Update document status
       await tx.stockDocument.update({
         where: { id: documentId },
         data: {
           status: 'RECEIVED',
-          type: entryDocumentType, // Change type to entry document type so it's counted in Total Entrées
+          // Note: We no longer change the document type here. 
+          // A Transfer should remain a Transfer for audit trail purposes.
+          // Reports should count RECEIVED transfers as entries.
           statusHistory: {
             create: {
               status: 'RECEIVED',

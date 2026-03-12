@@ -17,11 +17,10 @@ export class DocumentsReceptionComponent implements OnInit {
   error = '';
 
   documents = signal<StockDocument[]>([]);
-  filtered = computed(() => {
-    const list = this.documents();
-    // Show all destinataire documents (all statuses)
-    return list;
-  });
+  filtered = computed(() => this.documents());
+
+  // View state
+  view = signal<'pending' | 'history'>('pending');
 
   // Depot scoping
   currentDepotId: number | null = null;
@@ -36,6 +35,11 @@ export class DocumentsReceptionComponent implements OnInit {
   validatedProducts = new Set<string>();
   groupedProducts = signal<any[]>([]);
 
+  // Numpad state
+  showNumpad = false;
+  numpadValue = '';
+  numpadTarget: any = null;
+
   constructor(
     private stockDocs: StockDocumentsService,
     private auth: AuthService,
@@ -49,7 +53,7 @@ export class DocumentsReceptionComponent implements OnInit {
     const user = this.auth.currentUser();
     this.isAdmin = (user?.role === 'ADMIN');
 
-    // Prefer session depot when available
+    // Prefer session depot when available as a fallback
     const session = this.sessionsService.currentSession?.();
     if (session?.depotId) {
       this.currentDepotId = session.depotId;
@@ -57,14 +61,21 @@ export class DocumentsReceptionComponent implements OnInit {
       this.currentDepotId = user?.depotId ?? null;
     }
 
-    // Check if depotId is provided in route params
+    // Check if depotId is provided in route params - this takes precedence
     this.route.params.subscribe(params => {
       const depotIdFromRoute = params['depotId'];
       if (depotIdFromRoute && !isNaN(Number(depotIdFromRoute))) {
         this.currentDepotId = Number(depotIdFromRoute);
-
+        // Mark as manual selection so session changes don't override it immediately
+        this.manualDepotSelection = true;
+        
         // Load documents with the depot ID from route
         this.loadDocuments();
+      } else if (this.currentDepotId) {
+        // If no route param but we have a fallback ID, load it once
+        if (this.documents().length === 0 && !this.loading) {
+          this.loadDocuments();
+        }
       }
     });
 
@@ -79,6 +90,7 @@ export class DocumentsReceptionComponent implements OnInit {
     // Watch for session depot changes
     this.sessionsService.currentSession$?.subscribe({
       next: (sess: any) => {
+        // Only update if not a manual/route selection and we have a new session depot
         if (!this.manualDepotSelection && sess?.depotId && this.currentDepotId !== sess.depotId) {
           this.currentDepotId = sess.depotId;
           this.loadDocuments();
@@ -86,9 +98,8 @@ export class DocumentsReceptionComponent implements OnInit {
       }
     });
 
-    // Load documents only if no depot ID from route (fallback)
-    // The route params subscription will handle loading when depot ID is in URL
-    if (!this.currentDepotId) {
+    // Final fallback: if nothing else triggered a load but we have a depot
+    if (this.currentDepotId && this.documents().length === 0 && !this.loading) {
       this.loadDocuments();
     }
   }
@@ -105,24 +116,26 @@ export class DocumentsReceptionComponent implements OnInit {
   }
 
   loadDocuments(): void {
+    if (!this.currentDepotId) {
+      this.documents.set([]);
+      return;
+    }
+
     this.loading = true;
     this.error = '';
-    const depotId = this.getScopedDepotId();
+    const depotId = this.currentDepotId;
+    const status = this.view() === 'pending' ? 'SENT' : 'RECEIVED';
 
-    // Load all document types (filter statuses client-side)
-    this.stockDocs.getDocuments(1, 50, undefined, undefined, depotId, undefined, undefined, false, true).subscribe({
+    // Fetch documents specifically for this depot and status
+    this.stockDocs.getDocuments(1, 50, undefined, status, depotId, undefined, undefined, false, true).subscribe({
       next: (res) => {
         const data = Array.isArray(res) ? res : (res?.data ?? []);
-
-        const selectedDepotName = this.getCurrentDepotName();
-        // Filter for documents destined to this depot (all types)
+        
+        // Final sanity check filtering
         const filteredData = data.filter((doc: any) => {
-          const byId = doc?.destinataireId === depotId || doc?.destinataire?.id === depotId;
-          const byName = !!selectedDepotName && (doc?.destinataire?.name === selectedDepotName);
-          // Only show documents that need action (SENT) and have items
-          const isPending = doc.status === 'SENT';
+          const isCorrectStatus = doc.status === status;
           const hasItems = doc.items && doc.items.length > 0;
-          return (byId || byName) && isPending && hasItems;
+          return isCorrectStatus && hasItems;
         });
 
         this.documents.set(filteredData);
@@ -133,6 +146,11 @@ export class DocumentsReceptionComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  setView(newView: 'pending' | 'history'): void {
+    this.view.set(newView);
+    this.loadDocuments();
   }
 
   openDepotSelector(): void {
@@ -221,17 +239,76 @@ export class DocumentsReceptionComponent implements OnInit {
         childName,
         productKey,
         colisCount,
+        receivedQuantity: item.receivedQuantity || item.quantity,
         validated: this.validatedProducts.has(productKey)
       });
       
       // Add to parent total quantity and colis
-      acc[parentName].totalQuantity += parseFloat(item.quantity) || 0;
+      acc[parentName].totalQuantity += parseFloat(item.receivedQuantity || item.quantity) || 0;
       acc[parentName].totalColis += colisCount;
       
       return acc;
     }, {});
 
     this.groupedProducts.set(Object.values(grouped));
+  }
+
+  updateHistory(doc: StockDocument): void {
+    const depotId = this.currentDepotId;
+    if (!depotId) return;
+
+    // Prepare items for update
+    const items: any[] = [];
+    this.groupedProducts().forEach(group => {
+      group.children.forEach((child: any) => {
+        items.push({
+          ...child,
+          quantity: child.receivedQuantity // Send the modified quantity as the new source of truth
+        });
+      });
+    });
+
+    this.loading = true;
+    this.stockDocs.updateDocument(doc.id, { items }).subscribe({
+      next: () => {
+        this.loading = false;
+        this.closeDetailsModal();
+        this.loadDocuments();
+        // Show success message or something?
+      },
+      error: (err) => {
+        this.loading = false;
+        this.error = err?.error?.error || 'Erreur lors de la mise à jour';
+      }
+    });
+  }
+
+  onQuantityChange(child: any, newQty: any): void {
+    const qty = this.parseQty(newQty);
+    
+    // Update the source of truth (the actual item in the selected document)
+    // Child is a copy created by updateGroupedProducts, so we must find the original
+    const doc = this.selectedDocument();
+    if (doc?.items) {
+      const originalItem = doc.items.find((i: any) => i.id === child.id);
+      if (originalItem) {
+        (originalItem as any).receivedQuantity = qty;
+      }
+    }
+
+    // Maintain validation state
+    if (!this.validatedProducts.has(child.productKey)) {
+      this.validatedProducts.add(child.productKey);
+    }
+    
+    // Recalculate everything to update Totals and UI
+    this.updateGroupedProducts();
+  }
+
+  private parseQty(val: any): number {
+    if (val === null || val === undefined || val === '') return 0;
+    const parsed = parseFloat(String(val).replace(',', '.'));
+    return isNaN(parsed) ? 0 : parsed;
   }
 
   toggleProductValidation(child: any): void {
@@ -243,6 +320,40 @@ export class DocumentsReceptionComponent implements OnInit {
     }
     // Update the grouped products to reflect the change
     this.updateGroupedProducts();
+  }
+
+  // Numpad methods
+  openNumpad(child: any): void {
+    this.numpadTarget = child;
+    this.numpadValue = child.receivedQuantity?.toString() || '';
+    this.showNumpad = true;
+  }
+
+  onNumpadClick(key: string): void {
+    if (key === '.') {
+      if (!this.numpadValue.includes('.')) {
+        this.numpadValue += '.';
+      }
+    } else {
+      this.numpadValue += key;
+    }
+  }
+
+  clearNumpad(): void {
+    this.numpadValue = '';
+  }
+
+  confirmNumpad(): void {
+    if (this.numpadTarget) {
+      this.onQuantityChange(this.numpadTarget, this.numpadValue);
+    }
+    this.closeNumpad();
+  }
+
+  closeNumpad(): void {
+    this.showNumpad = false;
+    this.numpadTarget = null;
+    this.numpadValue = '';
   }
 
   getValidatedCount(): number {
@@ -273,27 +384,27 @@ export class DocumentsReceptionComponent implements OnInit {
       return;
     }
     
-    // Get validated item IDs from validatedProducts Set
-    // validatedProducts contains keys like "productId_quantity_colisCount"
-    const validatedItemIds: number[] = [];
-    if (doc.items && this.validatedProducts.size > 0) {
-      doc.items.forEach((item: any) => {
-        const colisCount = item.colisCount || item.count || 1;
-        const productKey = `${item.productId}_${item.quantity}_${colisCount}`;
-        if (this.validatedProducts.has(productKey)) {
-          validatedItemIds.push(item.id);
+    // Get validated items with their potentially modified quantities
+    const validatedItems: any[] = [];
+    this.groupedProducts().forEach(group => {
+      group.children.forEach((child: any) => {
+        if (child.validated) {
+          validatedItems.push({
+            id: child.id,
+            quantity: child.receivedQuantity
+          });
         }
       });
-    }
+    });
     
     // Require at least one validated product
-    if (validatedItemIds.length === 0) {
+    if (validatedItems.length === 0) {
       this.error = 'Veuillez valider au moins un produit avant d\'approuver le document. Cliquez sur chaque produit pour le valider.';
       return;
     }
     
     this.loading = true;
-    this.stockDocs.approveReceipt(doc.id, depotId, validatedItemIds).subscribe({
+    this.stockDocs.approveReceipt(doc.id, depotId, validatedItems).subscribe({
       next: (updated) => {
         this.loading = false;
         // Clear validated products

@@ -144,10 +144,10 @@ export class StockDocumentsService {
     );
   }
 
-  approveReceipt(documentId: number, depotId: number, validatedItemIds?: number[]): Observable<StockDocument> {
+  approveReceipt(documentId: number, depotId: number, validatedItems?: any[]): Observable<StockDocument> {
     return this.http.post<StockDocument>(`${this.apiUrl}/${documentId}/approve-receipt`, {
       depotId,
-      validatedItemIds: validatedItemIds || []
+      validatedItems: validatedItems || []
     }).pipe(
       catchError((error) => throwError(() => error))
     );

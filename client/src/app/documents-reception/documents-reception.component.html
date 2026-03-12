@@ -10,10 +10,10 @@
         </div>
         <div>
           <h1 class="text-xl md:text-2xl font-bold text-slate-800">
-            Réception des documents
+            {{ view() === 'pending' ? 'Réception des documents' : 'Historique des réceptions' }}
           </h1>
           <p class="text-sm md:text-base text-slate-600 mt-1">
-            Documents en attente d'approbation pour <span class="font-semibold text-blue-600">{{ getCurrentDepotName() }}</span>
+            {{ view() === 'pending' ? 'Documents en attente d\'approbation' : 'Documents déjà réceptionnés' }} pour <span class="font-semibold text-blue-600">{{ getCurrentDepotName() }}</span>
           </p>
         </div>
       </div>
@@ -44,6 +44,18 @@
           <span class="sm:hidden">🔄</span>
         </button>
       </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex border-b border-slate-200 mt-6">
+      <button (click)="setView('pending')" 
+              [class]="'px-6 py-3 font-medium transition-all ' + (view() === 'pending' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700')">
+        En attente
+      </button>
+      <button (click)="setView('history')" 
+              [class]="'px-6 py-3 font-medium transition-all ' + (view() === 'history' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700')">
+        Historique
+      </button>
     </div>
   </div>
 
@@ -89,11 +101,17 @@
               {{ getDocumentTypeLabel(d.type) }}
             </span>
           </div>
-          <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+          <span *ngIf="d.status === 'SENT'" class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700 border border-amber-200">
             <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
             En attente d'approbation
+          </span>
+          <span *ngIf="d.status === 'RECEIVED'" class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            Réceptionné
           </span>
         </div>
       </div>
@@ -161,18 +179,17 @@
           </svg>
           Détails
         </button>
-        <button (click)="approve(d)" 
-                [disabled]="d.status !== 'SENT'"
-                class="flex-1 px-4 py-3 rounded-xl font-medium"
-                [class.bg-emerald-500]="d.status === 'SENT'"
-                [class.text-white]="d.status === 'SENT'"
-                [class.bg-slate-200]="d.status !== 'SENT'"
-                [class.text-slate-500]="d.status !== 'SENT'">
+        <button *ngIf="d.status === 'SENT'" (click)="approve(d)" 
+                class="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl font-medium">
           <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
           </svg>
-          {{ d.status === 'SENT' ? 'Approuver' : 'Non approuvable (statut: ' + d.status + ')' }}
+          Approuver
         </button>
+        <div *ngIf="d.status === 'RECEIVED'" 
+             class="flex-1 px-4 py-3 bg-slate-100 text-slate-500 rounded-xl font-medium text-center border border-slate-200">
+          Déjà réceptionné
+        </div>
       </div>
     </div>
   </div>
@@ -325,15 +342,26 @@
                     <span *ngIf="!child.validated" class="text-xs text-slate-500">{{ i + 1 }}</span>
                   </div>
 
-                  <!-- Product Info -->
-                  <div class="flex-1">
-                    <div [class]="'font-medium text-sm ' + 
-                                  (child.validated ? 'text-emerald-700 line-through' : 'text-slate-700')">
+                  <!-- Product Info (Click to open Numpad) -->
+                  <div class="flex-1 min-w-0" (click)="openNumpad(child); $event.stopPropagation()">
+                    <div [class]="'font-medium text-sm truncate ' + 
+                                  (child.validated ? 'text-emerald-700' : 'text-slate-700')">
                       {{ child.childName }}
                     </div>
-                    <div class="text-xs text-slate-500">
-                      Qté: {{ child.quantity }} kg
-                      <span *ngIf="child.colisCount && child.colisCount > 0"> • {{ child.colisCount }} colis</span>
+                    <div class="flex items-center gap-3 mt-1">
+                      <div class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                        Envoyé: <span class="font-bold">{{ child.quantity }}</span> kg
+                      </div>
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] font-medium text-blue-600">Reçu:</span>
+                        <div class="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded px-2 py-1 cursor-pointer hover:bg-blue-100 transition-colors">
+                          <span class="text-xs font-bold text-blue-700">{{ child.receivedQuantity }}</span>
+                          <span class="text-[10px] text-slate-400">kg</span>
+                          <svg class="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                          </svg>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -376,7 +404,10 @@
                   class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium border border-slate-200">
             Fermer
           </button>
-          <button (click)="approve(selectedDocument()!)" 
+          
+          <!-- Approve Button (for SENT docs) -->
+          <button *ngIf="selectedDocument()?.status === 'SENT'"
+                  (click)="approve(selectedDocument()!)" 
                   [disabled]="getValidatedCount() === 0"
                   [class]="'flex-1 px-4 py-2.5 rounded-lg font-medium ' + 
                            (getValidatedCount() === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-emerald-500 text-white')">
@@ -385,7 +416,74 @@
             </svg>
             Approuver le document {{ getValidatedCount() > 0 ? '(' + getValidatedCount() + ' validé' + (getValidatedCount() > 1 ? 's' : '') + ')' : '' }}
           </button>
+
+          <!-- Update Button (for RECEIVED docs / History) -->
+          <button *ngIf="selectedDocument()?.status === 'RECEIVED'"
+                  (click)="updateHistory(selectedDocument()!)" 
+                  class="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium shadow-md hover:bg-blue-700">
+            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Mettre à jour les quantités
+          </button>
         </div>
+      </div>
+    </div>
+  </div>
+  <!-- Numpad Modal -->
+  <div *ngIf="showNumpad" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 animate-in zoom-in duration-200">
+      <!-- Numpad Header -->
+      <div class="bg-slate-50 p-6 border-b border-slate-100">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Modifier Quantité</span>
+          <button (click)="closeNumpad()" class="text-slate-400 hover:text-slate-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="text-slate-800 font-medium text-sm mb-4 truncate">{{ numpadTarget?.childName }}</div>
+        
+        <!-- Display area -->
+        <div class="bg-white rounded-2xl border-2 border-blue-100 p-4 shadow-inner">
+          <div class="flex items-baseline justify-end gap-2">
+            <span class="text-4xl font-black text-blue-600 tabular-nums">{{ numpadValue || '0' }}</span>
+            <span class="text-lg font-bold text-slate-400">kg</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Keys Grid -->
+      <div class="p-6 bg-white">
+        <div class="grid grid-cols-3 gap-3">
+          <!-- 1-9 Keys -->
+          <button *ngFor="let n of ['1','2','3','4','5','6','7','8','9']" 
+                  (click)="onNumpadClick(n)"
+                  class="h-16 rounded-2xl bg-slate-50 text-2xl font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 active:scale-95 transition-all outline-none border border-transparent hover:border-blue-100">
+            {{ n }}
+          </button>
+
+          <!-- Bottom Row -->
+          <button (click)="onNumpadClick('.')"
+                  class="h-16 rounded-2xl bg-slate-50 text-2xl font-bold text-slate-700 hover:bg-blue-50 active:scale-95 transition-all outline-none">
+            .
+          </button>
+          <button (click)="onNumpadClick('0')"
+                  class="h-16 rounded-2xl bg-slate-50 text-2xl font-bold text-slate-700 hover:bg-blue-50 active:scale-95 transition-all outline-none">
+            0
+          </button>
+          <button (click)="clearNumpad()"
+                  class="h-16 rounded-2xl bg-red-50 text-2xl font-bold text-red-500 hover:bg-red-100 active:scale-95 transition-all outline-none">
+            C
+          </button>
+        </div>
+
+        <!-- Confirm Button -->
+        <button (click)="confirmNumpad()" 
+                class="w-full mt-6 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl text-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:scale-[1.02] active:scale-95 transition-all">
+          Valider
+        </button>
       </div>
     </div>
   </div>
