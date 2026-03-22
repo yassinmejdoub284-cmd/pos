@@ -39,8 +39,12 @@ interface ClientSummary {
 })
 export class ClientStatementComponent implements OnInit {
   clientSummaries: ClientSummary[] = [];
+  filteredClientSummaries: ClientSummary[] = [];
   loading = false;
   isAdmin = false;
+  searchQuery = '';
+  selectedLetter: string | null = null;
+  alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   // Filters
   filters = {
@@ -77,6 +81,8 @@ export class ClientStatementComponent implements OnInit {
     this.http.get<ClientSummary[]>(url).subscribe({
       next: (summaries) => {
         this.clientSummaries = summaries;
+        this.filteredClientSummaries = summaries;
+        this.applySearch();
         this.loading = false;
       },
       error: (error) => {
@@ -84,6 +90,45 @@ export class ClientStatementComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  onSearchChange(): void {
+    this.applySearch();
+  }
+
+  applySearch(): void {
+    let filtered = this.clientSummaries;
+
+    // Apply letter filter
+    if (this.selectedLetter) {
+      filtered = filtered.filter(client => {
+        const fullName = this.getClientFullName(client);
+        return fullName.charAt(0).toUpperCase() === this.selectedLetter;
+      });
+    }
+
+    // Apply search filter
+    if (this.searchQuery.trim()) {
+      const query = this.searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(client => {
+        const fullName = this.getClientFullName(client).toLowerCase();
+        const code = client.code.toLowerCase();
+        
+        return fullName.includes(query) || code.includes(query);
+      });
+    }
+
+    this.filteredClientSummaries = filtered;
+  }
+
+  filterByLetter(letter: string): void {
+    this.selectedLetter = letter;
+    this.applySearch();
+  }
+
+  clearLetterFilter(): void {
+    this.selectedLetter = null;
+    this.applySearch();
   }
 
   onClientChange(): void {
@@ -102,6 +147,8 @@ export class ClientStatementComponent implements OnInit {
       startDate: '',
       endDate: ''
     };
+    this.searchQuery = '';
+    this.selectedLetter = null;
     this.loadClientSummaries();
   }
 

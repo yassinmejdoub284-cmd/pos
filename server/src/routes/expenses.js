@@ -436,9 +436,9 @@ router.post('/', authenticateToken, async (req, res) => {
           categoryId: parseInt(categoryId),
           depotId: finalDepotId,
           userId: req.user?.id,
-          date: date ? new Date(date) : new Date(),
+          date: date ? new Date(date + 'T' + new Date().toTimeString().split(' ')[0]) : new Date(),
           paymentType: paymentType || 'CASH',
-          collectionDate: collectionDate ? new Date(collectionDate) : new Date(),
+          collectionDate: collectionDate ? new Date(collectionDate + 'T' + new Date().toTimeString().split(' ')[0]) : new Date(),
           notes,
           receiptUrl,
           isApproved: isAutoApproved,
@@ -472,7 +472,7 @@ router.post('/', authenticateToken, async (req, res) => {
       // Create cash movement immediately if payment is made now (payNow = true) and payment type is CASH
       try {
         const shouldCreateCashMovement = (paymentType || 'CASH').toUpperCase() === 'CASH' &&
-          (req.body.payNow !== false); // Default to true if not specified
+          (req.body.payNow === true); // Only create cash movement if explicitly true
 
         if (shouldCreateCashMovement) {
           // Find active session for the depot (not just user)

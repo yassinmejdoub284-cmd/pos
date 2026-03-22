@@ -43,22 +43,22 @@ router.get('/', authenticateToken, async (req, res) => {
       };
     }
 
-    const invoices = await prisma.stockDocument.findMany({
+    const invoices = await prisma.invoice.findMany({
       where,
       include: {
         client: true,
-        items: {
+        lines: {
           include: {
             product: true
           }
         }
       },
-      orderBy: { numero: 'desc' },
+      orderBy: { invoiceNumber: 'desc' },
       skip: (page - 1) * limit,
       take: parseInt(limit)
     });
 
-    const total = await prisma.stockDocument.count({ where });
+    const total = await prisma.invoice.count({ where });
 
     res.json({
       success: true,
@@ -72,6 +72,39 @@ router.get('/', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching invoices:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// GET /api/invoices/requests/pending - Get pending invoice requests
+router.get('/requests/pending', authenticateToken, async (req, res) => {
+  try {
+    const companyId = req.user.companyId;
+
+    // Get pending invoice requests (you can adjust the query based on your schema)
+    const pendingRequests = await prisma.stockDocument.findMany({
+      where: {
+        companyId: companyId,
+        type: 'FACTURE',
+        status: 'PREPARED'
+      },
+      include: {
+        client: true,
+        items: {
+          include: {
+            product: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ 
+      success: true, 
+      data: pendingRequests 
+    });
+  } catch (error) {
+    console.error('Error fetching pending invoice requests:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

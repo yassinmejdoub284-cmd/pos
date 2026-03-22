@@ -90,6 +90,11 @@ router.post('/', authenticateToken, (req, res, next) => {
   try {
     const { supplierId, amount, notes, paymentMethod } = req.body;
     
+    console.log('=== SUPPLIER PAYMENT DEBUG ===');
+    console.log('Raw req.body:', req.body);
+    console.log('Amount received:', amount, 'Type:', typeof amount);
+    console.log('Amount as Number:', Number(amount));
+    
     if (!supplierId || !amount) {
       return res.status(400).json({ error: 'Fournisseur et montant sont requis' });
     }
@@ -174,11 +179,21 @@ router.post('/', authenticateToken, (req, res, next) => {
     }
 
     const payment = await prisma.$transaction(async (tx) => {
-      // Create the payment with a provisional amount; we'll correct it after computing appliedAmount
+      // Create the payment - store the full amount requested
+      const originalAmount = Number(amount);
+      let normalizedAmount;
+      if (method === 'CREDIT' && originalAmount < 0) {
+        // For credit entries, preserve negative amount to indicate debt
+        normalizedAmount = originalAmount;
+      } else {
+        // For regular payments, use the full requested amount
+        normalizedAmount = Math.abs(originalAmount);
+      }
+
       const supplierPayment = await tx.supplierPayment.create({
         data: {
           supplierId: Number(supplierId),
-          amount: Number(amount),
+          amount: normalizedAmount,
           notes: notes?.trim() || 'Règlement fournisseur',
           paymentMethod: method,
           userId: req.user.id,
@@ -186,64 +201,14 @@ router.post('/', authenticateToken, (req, res, next) => {
         }
       });
 
-      // Mark related expenses as paid if the payment covers them
-      const supplier = await tx.supplier.findUnique({
-        where: { id: Number(supplierId) },
-        include: {
-          expenses: {
-            where: { isPaid: false },
-            orderBy: { date: 'asc' }
-          }
-        }
-      });
-
-      let appliedAmount = 0;
-      if (supplier) {
-        let remainingPayment = Math.abs(Number(amount));
-        
-        for (const expense of supplier.expenses) {
-          if (remainingPayment <= 0) break;
-          
-          const expenseAmount = Math.abs(parseFloat(expense.amount));
-          const paymentForThisExpense = Math.min(remainingPayment, expenseAmount);
-          
-          await tx.expense.update({
-            where: { id: expense.id },
-            data: {
-              isPaid: paymentForThisExpense >= expenseAmount,
-              paidAt: paymentForThisExpense >= expenseAmount ? new Date() : null,
-              paidBy: req.user.id
-            }
-          });
-          
-          appliedAmount += paymentForThisExpense;
-          remainingPayment -= paymentForThisExpense;
-        }
-      }
-
-      // After computing how much was actually applied, normalize the stored supplier payment amount
-      // We store supplier payments as POSITIVE to indicate debit (money going out)
-      // For CREDIT payments (negative amounts), preserve the negative sign to indicate credit/debt
-      const originalAmount = Number(amount);
-      let normalizedApplied;
-      if (method === 'CREDIT' && originalAmount < 0) {
-        // For credit entries, preserve negative amount to indicate debt
-        normalizedApplied = originalAmount;
-      } else {
-        // For regular payments, use positive amount
-        normalizedApplied = appliedAmount > 0 ? appliedAmount : Math.abs(originalAmount);
-      }
-      await tx.supplierPayment.update({
-        where: { id: supplierPayment.id },
-        data: { amount: normalizedApplied }
-      });
+      // DO NOT automatically mark expenses as paid
+      // Payments and expenses should remain separate transactions
+      // The statement will show both and calculate the balance
 
       // If cash payment, create cash movement sortie for debit payments only
       // Credit payments should NOT create cash movements
-      if (method === 'CASH' && normalizedApplied > 0) {
-        // Only withdraw the portion that actually matches unpaid supplier expenses.
-        // If none matched (no pending expenses), fallback to the requested amount.
-        const amt = normalizedApplied;
+      if (method === 'CASH' && normalizedAmount > 0) {
+        const amt = normalizedAmount;
         if (amt > 0) {
           // Check if a cash movement already exists for this supplier payment to prevent duplicates
           const existingMovement = await tx.cashMovement.findFirst({

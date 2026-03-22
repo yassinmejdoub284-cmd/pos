@@ -60,10 +60,14 @@ interface ClientSummary {
 export class ClientStatementComponent implements OnInit {
   clients: Client[] = [];
   clientSummaries: ClientSummary[] = [];
+  filteredClients: ClientSummary[] = [];
   selectedClient: Client | null = null;
   statement: ClientStatement | null = null;
   loading = false;
   showSummary = true;
+  searchQuery = '';
+  selectedLetter: string | null = null;
+  alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   // Ticket Dialog
   showTicketDialog = false;
@@ -99,6 +103,7 @@ export class ClientStatementComponent implements OnInit {
     this.http.get<ClientSummary[]>(url).subscribe({
       next: (summaries) => {
         this.clientSummaries = summaries;
+        this.filterClients();
         this.loading = false;
       },
       error: (error) => {
@@ -106,6 +111,45 @@ export class ClientStatementComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  onSearchChange(): void {
+    this.filterClients();
+  }
+
+  filterClients(): void {
+    let filtered = this.clientSummaries;
+
+    // Apply letter filter
+    if (this.selectedLetter) {
+      filtered = filtered.filter(client => {
+        const fullName = this.getClientFullName(client);
+        return fullName.charAt(0).toUpperCase() === this.selectedLetter;
+      });
+    }
+
+    // Apply search filter
+    if (this.searchQuery.trim()) {
+      const query = this.searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(client => 
+        this.getClientFullName(client).toLowerCase().includes(query) ||
+        client.code?.toLowerCase().includes(query) ||
+        (client as any).phone?.toLowerCase().includes(query) ||
+        (client as any).email?.toLowerCase().includes(query)
+      );
+    }
+
+    this.filteredClients = filtered;
+  }
+
+  filterByLetter(letter: string): void {
+    this.selectedLetter = letter;
+    this.filterClients();
+  }
+
+  clearLetterFilter(): void {
+    this.selectedLetter = null;
+    this.filterClients();
   }
 
   loadStatement(): void {
@@ -153,9 +197,12 @@ export class ClientStatementComponent implements OnInit {
       startDate: '',
       endDate: ''
     };
+    this.searchQuery = '';
+    this.selectedLetter = null;
     this.statement = null;
     this.selectedClient = null;
     this.showSummary = true;
+    this.filterClients();
   }
 
   backToSummary(): void {

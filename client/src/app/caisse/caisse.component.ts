@@ -6938,6 +6938,29 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.showSupplierActionsModal = false;
     this.supplierResults = [];
     this.selectedSupplierForAction = null;
+    this.supplierAction = null;
+    
+    // Reset payment form
+    this.showSupplierPaymentForm = false;
+    this.supplierPaymentAmount = '';
+    this.supplierPaymentMethod = 'CASH';
+    this.supplierPaymentNotes = '';
+    this.remainingCashAfterSupplier = null;
+    
+    // Reset expense form
+    this.showExpenseForm = false;
+    this.expenseTotalAmount = '';
+    this.expensePaidAmount = '';
+    this.expenseDescription = '';
+    this.expenseNotes = '';
+    this.expensePaymentType = 'CASH';
+    this.expensePayNow = true;
+    this.expenseStep = 'category';
+    this.selectedExpenseCategory = null;
+    this.expenseSupplierId = undefined;
+    this.remainingCashAfterExpense = null;
+    this.editingExpenseField = null;
+    this.currentInput = '';
   }
 
   loadSuppliersForQuickActions(): void {
@@ -7030,8 +7053,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
       this.expensePaymentType = 'CASH';
       this.expenseNotes = '';
       this.expenseSupplierId = this.selectedSupplierForAction.id;
-      this.expensePayNow = true;
+      this.expensePayNow = false; // Default to credit (unchecked)
       this.expenseCollectionDate = new Date().toISOString().split('T')[0];
+      this.editingExpenseField = 'total'; // Auto-focus on total amount
+      this.currentInput = '';
       this.loadExpenseCategories();
       this.updateRemainingCashExpense();
     }
@@ -7092,16 +7117,31 @@ export class CaisseComponent implements OnInit, OnDestroy {
     if (!this.selectedSupplierForAction) return;
     const amount = Number(this.expenseTotalAmount || 0);
     if (amount <= 0) { this.showAlertMessage('Montant invalide', 'error'); return; }
+    
+    // Determine if expense is paid based on the checkbox
+    const isPaid = this.expensePayNow;
+    const paidAmount = isPaid ? Number(this.expensePaidAmount || amount) : 0;
+    
+    // Get current date in YYYY-MM-DD format (local timezone)
+    const now = new Date();
+    const dateStr = now.getFullYear() + '-' + 
+                    String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(now.getDate()).padStart(2, '0');
+    
     const payload: any = {
       amount,
       description: this.expenseDescription || 'Dépense fournisseur (caisse)',
       categoryId: 1, // default/misc category; adjust as needed
       supplierId: this.selectedSupplierForAction.id,
       depotId: this.currentShopDepotId,
-      date: new Date().toISOString(),
-      paymentType: this.expensePaymentType,
-      collectionDate: new Date().toISOString(),
-      notes: this.expenseNotes || ''
+      date: dateStr,
+      paymentType: 'CASH', // Always CASH for supplier expenses from caisse
+      collectionDate: dateStr,
+      notes: this.expenseNotes || '',
+      isPaid: paidAmount >= amount, // Fully paid if paid amount equals or exceeds total
+      isAdvance: paidAmount > 0 && paidAmount < amount, // Partial payment
+      payNow: paidAmount > 0, // Only create cash movement if actually paying something
+      paidAmount: paidAmount
     };
     this.submittingSupplierAction = true;
     this.expenseService.createExpense(payload).subscribe({
@@ -7150,7 +7190,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   loadPendingInvoiceRequests(): void {
     this.http.get(`${environment.apiUrl}/invoices/requests/pending`).subscribe({
       next: (response: any) => {
-        this.invoiceRequests = response || [];
+        this.invoiceRequests = response.data || [];
         // Update fast lookup set
         this.pendingInvoiceRequestsSet.clear();
         this.invoiceRequests.forEach(req => {
@@ -7648,20 +7688,25 @@ export class CaisseComponent implements OnInit, OnDestroy {
     this.expensePayNow = payNow;
 
     if (payNow && !wasPayNow) {
-      // When switching TO "Maintenant", sync paid amount with total amount only if paid is empty
-      // This allows preserving manually entered paid amount
+      // When checking "Payé", sync paid amount with total amount only if paid is empty
       if (!this.expensePaidAmount || this.expensePaidAmount === '') {
         const totalAmount = this.expenseTotalAmount || '';
         this.expensePaidAmount = totalAmount;
       }
     } else if (!payNow && wasPayNow) {
-      // When switching to "Plus Tard", clear paid amount only if it was auto-synced
-      // Check if paid amount equals total amount (likely auto-synced)
-      if (this.expensePaidAmount === this.expenseTotalAmount) {
-        this.expensePaidAmount = '';
-      }
-      // Otherwise keep the manually entered paid amount
+      // When unchecking "Payé", clear paid amount
+      this.expensePaidAmount = '';
     }
+    
+    // Auto-focus on total amount
+    this.editingExpenseField = 'total';
+    this.currentInput = this.expenseTotalAmount;
+    this.updateRemainingCashExpense();
+  }
+
+  onExpensePaidCheckChange(): void {
+    // This is called by the checkbox change event
+    this.setExpensePayNow(this.expensePayNow);
   }
 
   // Expense flow methods

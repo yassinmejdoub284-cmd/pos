@@ -22,8 +22,12 @@ import {
 export class SupplierStatementComponent implements OnInit {
   suppliers: Supplier[] = [];
   supplierSummaries: SupplierSummary[] = [];
+  filteredSuppliers: SupplierSummary[] = [];
   loading = false;
   isAdmin = false;
+  searchQuery = '';
+  selectedLetter: string | null = null;
+  alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   // Filters
   filters = {
@@ -63,6 +67,7 @@ export class SupplierStatementComponent implements OnInit {
     this.supplierService.getSupplierSummaries(this.filters.startDate, this.filters.endDate).subscribe({
       next: (summaries) => {
         this.supplierSummaries = summaries;
+        this.filterSuppliers();
         this.loading = false;
       },
       error: (error) => {
@@ -70,6 +75,44 @@ export class SupplierStatementComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  onSearchChange(): void {
+    this.filterSuppliers();
+  }
+
+  filterSuppliers(): void {
+    let filtered = this.supplierSummaries;
+
+    // Apply letter filter
+    if (this.selectedLetter) {
+      filtered = filtered.filter(supplier => {
+        return supplier.name?.charAt(0).toUpperCase() === this.selectedLetter;
+      });
+    }
+
+    // Apply search filter
+    if (this.searchQuery.trim()) {
+      const query = this.searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(supplier => 
+        supplier.name?.toLowerCase().includes(query) ||
+        (supplier as any).phone?.toLowerCase().includes(query) ||
+        (supplier as any).email?.toLowerCase().includes(query) ||
+        (supplier as any).address?.toLowerCase().includes(query)
+      );
+    }
+
+    this.filteredSuppliers = filtered;
+  }
+
+  filterByLetter(letter: string): void {
+    this.selectedLetter = letter;
+    this.filterSuppliers();
+  }
+
+  clearLetterFilter(): void {
+    this.selectedLetter = null;
+    this.filterSuppliers();
   }
 
   onSupplierChange(): void {
@@ -88,6 +131,9 @@ export class SupplierStatementComponent implements OnInit {
       startDate: '',
       endDate: ''
     };
+    this.searchQuery = '';
+    this.selectedLetter = null;
+    this.filterSuppliers();
   }
 
   formatAmount(amount: number): string {

@@ -6,6 +6,7 @@ import { combineLatest } from 'rxjs';
 import { SupplierService } from '../../core/services/supplier.service';
 import { PrintService } from '../../core/services/print.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ExpenseService } from '../../core/services/expense.service';
 import {
   Supplier,
   SupplierStatement,
@@ -24,6 +25,16 @@ export class SupplierStatementDetailComponent implements OnInit {
   loading = false;
   isAdmin = false;
 
+  // Alert/notification system
+  alertMessage = '';
+  alertType: 'success' | 'error' | 'info' = 'info';
+  showAlert = false;
+
+  // Confirmation dialog
+  showConfirmDialog = false;
+  confirmMessage = '';
+  confirmAction: (() => void) | null = null;
+
   // Filters
   filters = {
     supplierId: null as number | null,
@@ -36,7 +47,8 @@ export class SupplierStatementDetailComponent implements OnInit {
     public router: Router,
     private supplierService: SupplierService,
     private printService: PrintService,
-    private authService: AuthService
+    private authService: AuthService,
+    private expenseService: ExpenseService
   ) { }
 
   ngOnInit(): void {
@@ -96,7 +108,7 @@ export class SupplierStatementDetailComponent implements OnInit {
       error: (error) => {
         console.error('Error loading statement:', error);
         this.loading = false;
-        alert('Erreur lors du chargement du relevé');
+        this.showAlertMessage('Erreur lors du chargement du relevé', 'error');
         // Navigate back to summary if error
         this.router.navigate(['/supplier-statement']);
       }
@@ -162,14 +174,14 @@ export class SupplierStatementDetailComponent implements OnInit {
           this.router.navigate(['/stock/documents/bon-entree/edit', bonId]);
         }
       } else {
-        alert(`Détails de ${item.reference}`);
+        this.showAlertMessage(`Détails de ${item.reference}`, 'info');
       }
     }
   }
 
   printStatementA4(): void {
     if (!this.statement || !this.selectedSupplier) {
-      alert('Aucun relevé à imprimer');
+      this.showAlertMessage('Aucun relevé à imprimer', 'error');
       return;
     }
 
@@ -178,7 +190,7 @@ export class SupplierStatementDetailComponent implements OnInit {
 
   printStatementThermal(): void {
     if (!this.statement || !this.selectedSupplier) {
-      alert('Aucun relevé à imprimer');
+      this.showAlertMessage('Aucun relevé à imprimer', 'error');
       return;
     }
 
@@ -187,7 +199,7 @@ export class SupplierStatementDetailComponent implements OnInit {
 
   private printThermalStatement(): void {
     if (!this.statement || !this.selectedSupplier) {
-      alert('Aucun relevé à imprimer');
+      this.showAlertMessage('Aucun relevé à imprimer', 'error');
       return;
     }
 
@@ -200,20 +212,20 @@ export class SupplierStatementDetailComponent implements OnInit {
 
     this.printService.printPlainText(text).catch(error => {
       console.error('Error printing statement:', error);
-      alert('Erreur lors de l\'impression: ' + (error.message || 'Erreur inconnue'));
+      this.showAlertMessage('Erreur lors de l\'impression: ' + (error.message || 'Erreur inconnue'), 'error');
     });
   }
 
   private openPrintWindow(): void {
     if (!this.statement || !this.selectedSupplier) {
-      alert('Aucun relevé à imprimer');
+      this.showAlertMessage('Aucun relevé à imprimer', 'error');
       return;
     }
 
     const html = this.buildA4Html();
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('Impossible d\'ouvrir la fenêtre d\'impression. Vérifiez le bloqueur de pop-ups.');
+      this.showAlertMessage('Impossible d\'ouvrir la fenêtre d\'impression. Vérifiez le bloqueur de pop-ups.', 'error');
       return;
     }
     printWindow.document.open();
@@ -330,7 +342,7 @@ export class SupplierStatementDetailComponent implements OnInit {
 
   exportStatement(): void {
     if (!this.statement || !this.selectedSupplier) {
-      alert('Aucun relevé à exporter');
+      this.showAlertMessage('Aucun relevé à exporter', 'error');
       return;
     }
 
@@ -372,16 +384,73 @@ export class SupplierStatementDetailComponent implements OnInit {
   }
 
   canDeleteOperation(item: SupplierStatementItem): boolean {
-    // Only allow deletion of certain operation types
-    return item.type === 'payment' || item.type === 'expense';
+    // Only allow deletion of payments and expenses
+    return item.type === 'payment' || item.type === 'expense' || item.type === 'paid' || item.type === 'unpaid' || item.type === 'advance';
   }
 
   deleteOperation(item: SupplierStatementItem): void {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer cette opération: ${item.reference}?`)) {
-      return;
-    }
+    this.confirmMessage = `Êtes-vous sûr de vouloir supprimer cette opération: ${item.reference}?`;
+    this.confirmAction = () => {
+      this.loading = true;
 
-    // Implement deletion logic here
-    alert('Fonctionnalité de suppression à implémenter');
+      if (item.type === 'payment') {
+        // Delete supplier payment
+        this.supplierService.deleteSupplierPayment(item.id).subscribe({
+          next: () => {
+            this.showAlertMessage('Paiement supprimé avec succès', 'success');
+            this.loadStatement(); // Reload the statement
+          },
+          error: (error) => {
+            console.error('Error deleting payment:', error);
+            this.showAlertMessage('Erreur lors de la suppression du paiement', 'error');
+            this.loading = false;
+          }
+        });
+      } else if (item.type === 'expense' || item.type === 'paid' || item.type === 'unpaid' || item.type === 'advance') {
+        // Delete expense
+        const expenseId = item.expenseId || item.id;
+        this.expenseService.deleteExpense(expenseId).subscribe({
+          next: () => {
+            this.showAlertMessage('Dépense supprimée avec succès', 'success');
+            this.loadStatement(); // Reload the statement
+          },
+          error: (error) => {
+            console.error('Error deleting expense:', error);
+            this.showAlertMessage('Erreur lors de la suppression de la dépense', 'error');
+            this.loading = false;
+          }
+        });
+      } else {
+        this.showAlertMessage('Type d\'opération non supporté pour la suppression', 'error');
+        this.loading = false;
+      }
+    };
+    this.showConfirmDialog = true;
+  }
+
+  showAlertMessage(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+    this.alertMessage = message;
+    this.alertType = type;
+    this.showAlert = true;
+    setTimeout(() => {
+      this.hideAlert();
+    }, 5000);
+  }
+
+  hideAlert(): void {
+    this.showAlert = false;
+  }
+
+  confirmDialogAction(): void {
+    if (this.confirmAction) {
+      this.confirmAction();
+    }
+    this.showConfirmDialog = false;
+    this.confirmAction = null;
+  }
+
+  cancelDialogAction(): void {
+    this.showConfirmDialog = false;
+    this.confirmAction = null;
   }
 }

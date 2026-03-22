@@ -4594,34 +4594,6 @@
           <div class="grid grid-cols-1 md:grid-cols-5 gap-8 items-start">
             <!-- Left: Form -->
             <div class="space-y-6 md:col-span-3">
-              <!-- Remaining cash badge (top right on desktop) -->
-              <div class="flex justify-end">
-                <div *ngIf="remainingCashAfterExpense !== null && expensePaymentType === 'CASH'"
-                  class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-semibold">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Reste caisse: {{ remainingCashAfterExpense | number:'1.3-3' }} dt
-                </div>
-              </div>
-              <!-- Payment Timing -->
-              <div>
-                <label class="block text-sm font-bold text-indigo-700 mb-3">Quand ?</label>
-                <div class="grid grid-cols-2 gap-3">
-                  <button (click)="setExpensePayNow(true)"
-                    [class]="'flex items-center justify-center space-x-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 transform' + (expensePayNow ? ' bg-gradient-to-r from-purple-100 to-pink-100 border-purple-400 text-purple-700 shadow-md' : ' bg-white/70 border-indigo-200 text-indigo-600')">
-                    <span class="text-2xl">💸</span>
-                    <span class="text-sm font-bold">Maintenant</span>
-                  </button>
-                  <button (click)="setExpensePayNow(false)"
-                    [class]="'flex items-center justify-center space-x-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 transform' + (!expensePayNow ? ' bg-gradient-to-r from-purple-100 to-pink-100 border-purple-400 text-purple-700 shadow-md' : ' bg-white/70 border-indigo-200 text-indigo-600')">
-                    <span class="text-2xl">📅</span>
-                    <span class="text-sm font-bold">Crédit</span>
-                  </button>
-                </div>
-              </div>
-
               <!-- Total Amount -->
               <div>
                 <label class="block text-sm font-bold text-indigo-700 mb-2">Montant Total (DT)</label>
@@ -4633,8 +4605,20 @@
                 </div>
               </div>
 
-              <!-- Amount Paid -->
-              <div>
+              <!-- Paid Checkbox -->
+              <div class="flex items-center gap-3 p-4 bg-purple-50 rounded-xl border border-purple-200">
+                <input type="checkbox" 
+                       id="expensePaidCheck"
+                       [(ngModel)]="expensePayNow"
+                       (change)="onExpensePaidCheckChange()"
+                       class="w-5 h-5 text-purple-600 border-purple-300 rounded focus:ring-purple-500">
+                <label for="expensePaidCheck" class="text-sm font-semibold text-purple-700 cursor-pointer">
+                  Payé (cocher si vous avez payé une partie ou la totalité)
+                </label>
+              </div>
+
+              <!-- Amount Paid (only if checked) -->
+              <div *ngIf="expensePayNow">
                 <label class="block text-sm font-bold text-indigo-700 mb-2">Montant Payé (DT)</label>
                 <div class="relative">
                   <input type="text" [(ngModel)]="expensePaidAmount"
@@ -4650,13 +4634,17 @@
                     ✅ Entièrement payé
                   </span>
                 </div>
-              </div>
-
-              <!-- Collection Date (if not paying now) -->
-              <div *ngIf="!expensePayNow">
-                <label class="block text-sm font-bold text-indigo-700 mb-2">Date d'Encaissement</label>
-                <input title="Date d'Encaissement" type="date" [(ngModel)]="expenseCollectionDate"
-                  class="w-full px-4 py-3 bg-white/70 border-2 border-indigo-200 rounded-xl text-indigo-800 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all">
+                
+                <!-- Remaining cash badge (only for cash payments) -->
+                <div *ngIf="remainingCashAfterExpense !== null && expensePaymentType === 'CASH'" class="mt-3">
+                  <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-semibold">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Reste caisse: {{ remainingCashAfterExpense | number:'1.3-3' }} dt
+                  </div>
+                </div>
               </div>
             </div>
 
