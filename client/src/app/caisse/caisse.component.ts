@@ -1612,15 +1612,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
     const activeCart = this.getActiveCart();
     if (!activeCart) return;
 
-    // For client returns, use client-specific price if available
+    // For client returns, use the same effective price logic as regular sales
+    // This ensures wholesale (gros) clients get their correct prices for returns
     let effectiveUnitPrice = this.getEffectiveUnitPrice(product);
-    if (this.isClientReturnMode && this.returnClient) {
-      // Check if client has a specific price for this product
-      const clientPrice = this.clientPrices.get(product.id);
-      if (clientPrice && clientPrice > 0) {
-        effectiveUnitPrice = clientPrice;
-      }
-    }
 
     const existingItem = activeCart.items.find(item => item.product.id === product.id && !item.isWholesale);
 
@@ -6606,7 +6600,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   getEffectiveUnitPrice(product: any): number {
     // First check if there's a client-specific price (from client-gros)
     // This should match the logic in client-gros getWholesalePrice method
-    if (this.selectedClient) {
+    // Check both selectedClient (for regular sales) and returnClient (for returns)
+    const activeClient = this.selectedClient || this.returnClient;
+    if (activeClient) {
       // Check for direct product ID match
       if (this.clientPrices.has(product.id)) {
         return this.clientPrices.get(product.id)!;
@@ -6619,7 +6615,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
       }
     }
 
-    const isWholesaleContext = this.isWholesaleMode || (this.selectedClient?.clientType === 'WHOLESALE');
+    const isWholesaleContext = this.isWholesaleMode || (this.selectedClient?.clientType === 'WHOLESALE') || (this.returnClient?.clientType === 'WHOLESALE');
     if (isWholesaleContext) {
       return this.getWholesaleUnitPrice(product);
     }

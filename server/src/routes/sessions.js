@@ -2194,11 +2194,11 @@ async function calculateSessionSummary(sessionId) {
 
     // Get standalone payments (no saleId) - only those made during this session
     // These are payments made directly to clients' accounts during the session
+    // Filter by depot and time period (not by userId) to include all payments made during the session
     const standalonePayments = await prisma.clientDebtTransaction.findMany({
       where: {
         type: 'PAYMENT',
         saleId: null, // Only standalone payments (no saleId)
-        userId: session.userId, // Same user as session
         createdAt: {
           gte: sessionStart,
           lte: sessionEnd
@@ -2217,7 +2217,14 @@ async function calculateSessionSummary(sessionId) {
               { notes: { not: { contains: 'Solde de depart' } } }
             ]
           }
-        ]
+        ],
+        // Filter by depot to ensure depot isolation (match client's depot with session's depot)
+        client: {
+          OR: [
+            { depotId: session.depotId }, // Client belongs to session's depot
+            { depotId: null } // Or client has no depot assigned (shared clients)
+          ]
+        }
       },
       include: {
         client: { select: { id: true, firstName: true, lastName: true } }

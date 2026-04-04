@@ -33,8 +33,8 @@ export class BonRetourClientComponent implements OnInit {
     showDocumentDetails = false;
 
     selectedDepot: Depot | null = null;
-    selectedClient: Client | null = null;
-    clientPrices: any[] = [];
+    selectedClient = signal<Client | null>(null);
+    clientPrices = signal<any[]>([]);
     items: StockDocumentItem[] = [];
     notes = '';
 
@@ -42,6 +42,35 @@ export class BonRetourClientComponent implements OnInit {
 
     depots: Depot[] = [];
     clients: Client[] = [];
+    clientSearchQuery = signal<string>('');
+    clientLetterFilter = signal<string>(''); // Filter by first letter
+    filteredClients = computed(() => {
+        const all = this.clients;
+        const q = (this.clientSearchQuery() || '').toLowerCase();
+        const letter = this.clientLetterFilter();
+        
+        let result = all;
+        
+        // Filter by search query
+        if (q) {
+            result = result.filter((c) => 
+                (c.firstName || '').toLowerCase().includes(q) || 
+                (c.lastName || '').toLowerCase().includes(q) ||
+                (c.phone || '').toLowerCase().includes(q) ||
+                (c.code || '').toLowerCase().includes(q)
+            );
+        }
+        
+        // Filter by first letter
+        if (letter) {
+            result = result.filter((c) => 
+                (c.firstName || '').toUpperCase().startsWith(letter) ||
+                (c.lastName || '').toUpperCase().startsWith(letter)
+            );
+        }
+        
+        return result;
+    });
     products = signal<Product[]>([]);
     inventory = signal<any[]>([]);
     private searchQuery = signal<string>('');
@@ -49,12 +78,34 @@ export class BonRetourClientComponent implements OnInit {
         const all = this.products();
         const q = (this.searchQuery() || '').toLowerCase();
         const selected = this.selectedCategory();
+        const client = this.selectedClient(); // Get client from signal
+        const prices = this.clientPrices(); // Get prices from signal
+        
         let result = all;
         if (selected && selected !== 'Tous') {
             result = result.filter((p) => (p.famille?.name || '').toLowerCase() === selected.toLowerCase());
         }
-        if (!q) return result;
-        return result.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.barcode || '').toLowerCase().includes(q));
+        if (q) {
+            result = result.filter((p) => (p.name || '').toLowerCase().includes(q) || (p.barcode || '').toLowerCase().includes(q));
+        }
+
+        // Sort products: wholesale (gros) prices first when client is selected
+        if (client && prices.length > 0) {
+            // Create a copy to avoid mutating the original array
+            result = [...result].sort((a, b) => {
+                const aHasClientPrice = this.hasClientPrice(a);
+                const bHasClientPrice = this.hasClientPrice(b);
+                
+                // Products with client prices (gros) come FIRST
+                if (aHasClientPrice && !bHasClientPrice) return -1;
+                if (!aHasClientPrice && bHasClientPrice) return 1;
+                
+                // If both have or both don't have client prices, sort alphabetically
+                return (a.name || '').localeCompare(b.name || '');
+            });
+        }
+
+        return result;
     });
 
     showClientModal = false;
@@ -145,7 +196,13 @@ export class BonRetourClientComponent implements OnInit {
             ]);
 
             this.depots = depots || [];
-            this.clients = (clientsRes as any)?.clients || [];
+            
+            // Sort clients alphabetically by first name
+            const allClients = (clientsRes as any)?.clients || [];
+            this.clients = allClients.sort((a: any, b: any) => {
+                return (a.firstName || '').localeCompare(b.firstName || '');
+            });
+            
             if (products && products.length > 0) {
                 this.products.set(products || []);
                 const cats = Array.from(new Set(products.map((p: any) => p.famille?.name).filter(Boolean)));
@@ -194,9 +251,10 @@ export class BonRetourClientComponent implements OnInit {
                 }
                 this.document = doc;
                 this.selectedDepot = doc.emetteur || null;
-                this.selectedClient = (doc.client as unknown as Client) || null;
-                if (this.selectedClient) {
-                    this.loadClientPrices(this.selectedClient.id);
+                this.selectedClient.set((doc.client as unknown as Client) || null);
+                const client = this.selectedClient();
+                if (client) {
+                    this.loadClientPrices(client.id);
                 }
 
                 this.itemsArray.clear();
@@ -222,14 +280,16 @@ export class BonRetourClientComponent implements OnInit {
     loadClientPrices(clientId: number): void {
         this.clientsService.getClientProductPrices(clientId).subscribe({
             next: (prices: any[]) => {
-                this.clientPrices = prices || [];
+                this.clientPrices.set(prices || []);
             },
-            error: () => { }
+            error: () => { 
+                this.clientPrices.set([]);
+            }
         });
     }
 
     selectClient(client: Client): void {
-        this.selectedClient = client;
+        this.selectedClient.set(client);
         this.showClientModal = false;
         this.loadClientPrices(client.id);
     }
@@ -254,12 +314,8 @@ export class BonRetourClientComponent implements OnInit {
             this.selectedIndex = existingIndex;
             this.selectedField = 'quantity';
         } else {
-            // Get client price (tarif)
-            let price = product.prix_vente_TTC || 0;
-            const clientPrice = this.clientPrices.find(cp => cp.productId === product.id);
-            if (clientPrice) {
-                price = clientPrice.prix_vente_TTC;
-            }
+            // Get effective price (client-specific price if available)
+            let price = this.getEffectiveUnitPrice(product);
 
             const group = this.fb.group({
                 productId: [product.id, Validators.required],
@@ -275,12 +331,68 @@ export class BonRetourClientComponent implements OnInit {
         }
     }
 
+    // Get effective unit price for a product (matches caisse logic)
+    getEffectiveUnitPrice(product: any): number {
+        if (!product) return 0;
+
+        // First check if there's a client-specific price
+        const client = this.selectedClient();
+        const prices = this.clientPrices();
+        if (client && prices.length > 0) {
+            // Check for direct product ID match
+            const directPrice = prices.find(cp => cp.productId === product.id);
+            if (directPrice && directPrice.prix_vente_TTC) {
+                return Number(directPrice.prix_vente_TTC) || 0;
+            }
+
+            // Also check for parent product ID if this is a variant
+            const parentProductId = product.parentProductId;
+            if (parentProductId && parentProductId > 0) {
+                const parentPrice = prices.find(cp => cp.productId === parentProductId);
+                if (parentPrice && parentPrice.prix_vente_TTC) {
+                    return Number(parentPrice.prix_vente_TTC) || 0;
+                }
+            }
+        }
+
+        // Fallback to default price
+        return Number(product.prix_vente_TTC) || 0;
+    }
+
+    // Check if product has a client-specific (wholesale) price
+    hasClientPrice(product: any): boolean {
+        const client = this.selectedClient();
+        const prices = this.clientPrices();
+        if (!client || prices.length === 0) return false;
+
+        // Check for direct product ID match
+        const directPrice = prices.find(cp => cp.productId === product.id);
+        if (directPrice) return true;
+
+        // Also check for parent product ID if this is a variant
+        const parentProductId = product.parentProductId;
+        if (parentProductId && parentProductId > 0) {
+            const parentPrice = prices.find(cp => cp.productId === parentProductId);
+            if (parentPrice) return true;
+        }
+
+        return false;
+    }
+
+    // Check if a product ID in the cart has a client-specific price
+    hasClientPriceForItem(productId: number): boolean {
+        const product = this.products().find(p => p.id === productId);
+        if (!product) return false;
+        return this.hasClientPrice(product);
+    }
+
     removeItem(index: number): void {
         this.itemsArray.removeAt(index);
     }
 
     saveDocument(): void {
-        if (!this.selectedDepot || !this.selectedClient || this.itemsArray.length === 0) {
+        const client = this.selectedClient();
+        if (!this.selectedDepot || !client || this.itemsArray.length === 0) {
             this.error = 'Veuillez remplir tous les champs obligatoires (Dépôt, Client, Articles)';
             return;
         }
@@ -297,7 +409,7 @@ export class BonRetourClientComponent implements OnInit {
 
         const data = {
             depotId: this.selectedDepot.id,
-            clientId: this.selectedClient.id,
+            clientId: client.id,
             items,
             notes: this.notesCtrl.value
         };
