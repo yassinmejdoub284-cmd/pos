@@ -176,6 +176,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
   showPaymentPopup = false;
   showPaymentConfirmation = false;
   invoiceMode = false;
+  isProcessingPayment = false; // Prevent double-click on payment buttons
 
   // Payment type (Comptant/Crédit)
   salePaymentType: 'COMPTANT' | 'CREDIT' = 'COMPTANT';
@@ -2792,12 +2793,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   loadAllTemporarySales(): void {
-    this.salesService.getSales().subscribe({
+    this.salesService.getSales({ status: 'TEMPORARY' }).subscribe({
       next: (sales: any) => {
-        // Filter for temporary sales (both pending and completed)
-        this.allTemporarySales = sales.filter((sale: any) =>
-          sale.status === 'TEMPORARY' || sale.status === 'CMD_TERMINEE' || sale.isTemporary
-        );
+        // All returned sales will have status TEMPORARY
+        this.allTemporarySales = sales;
       },
       error: (error: any) => {
         console.error('Error loading temporary sales history:', error);
@@ -2984,6 +2983,12 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Main payment processing method
   private processPayment(shouldPrintReceipt: boolean, suppressAlert: boolean = false): void {
+    // Prevent double-click/double-processing
+    if (this.isProcessingPayment) {
+      return;
+    }
+    this.isProcessingPayment = true;
+
     const paymentMethodMap: { [key: string]: number } = {
       'cash': 1,
       'card': 2,
@@ -2992,7 +2997,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
     };
 
     const activeCart = this.getActiveCart();
-    if (!activeCart) return;
+    if (!activeCart) {
+      this.isProcessingPayment = false;
+      return;
+    }
 
     // For credit sales, preserve any entered advance payment and method
     // so they are recorded as advancePayment instead of clearing them.
@@ -3114,9 +3122,14 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
         // If an invoice request from cart was pending, create it now from the saved sale
         this.maybeCreateInvoiceForSale(savedSale?.id);
+
+        // Reset processing flag after successful payment
+        this.isProcessingPayment = false;
       },
       error: (error) => {
         this.showAlertMessage(error?.error?.error || 'Erreur lors de la sauvegarde de la vente. Veuillez réessayer.', 'error');
+        // Reset processing flag on error
+        this.isProcessingPayment = false;
       }
     });
   }
@@ -3654,9 +3667,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   loadExistingTemporarySales(): void {
-    this.salesService.getSales().subscribe({
+    this.salesService.getSales({ status: 'TEMPORARY' }).subscribe({
       next: (sales) => {
-        this.existingTemporarySales = sales.filter(sale => sale.status === 'TEMPORARY');
+        this.existingTemporarySales = sales;
         this.showExistingTemporarySalesPopup = true;
         // Auto-close popup if no more temporary sales
         if (this.existingTemporarySales.length === 0) {
@@ -4638,9 +4651,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   loadPendingTemporarySalesCount(): void {
-    this.salesService.getSales().subscribe({
+    this.salesService.getSales({ status: 'TEMPORARY' }).subscribe({
       next: (sales) => {
-        this.pendingTemporarySalesCount = sales.filter(sale => sale.status === 'TEMPORARY').length;
+        this.pendingTemporarySalesCount = sales.length;
       },
       error: (error) => {
         console.error('Error loading pending temporary sales count:', error);
@@ -5035,6 +5048,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Prevent double-click
+    if (this.isProcessingPayment) {
+      return;
+    }
+
     // Check if there's pending input that needs to be handled first
     if (this.currentInput && this.currentInput !== '0' && !this.lastEnteredValue) {
       this.showInputWarningModal = true;
@@ -5056,6 +5074,11 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   validateESPWithoutPrint(): void {
     if (this.isReturnMode) {
+      return;
+    }
+
+    // Prevent double-click
+    if (this.isProcessingPayment) {
       return;
     }
 

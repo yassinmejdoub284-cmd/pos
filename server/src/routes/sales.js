@@ -359,6 +359,7 @@ router.post('/temporary', async (req, res) => {
           userId: req.user?.id,
           clientId: clientId ? parseInt(clientId) : null,
           depotId: userDepotId,
+          sessionId: activeSession?.id || null, // Assign session ID so temporary sales appear in history
           status: 'TEMPORARY',
           expectedDate: new Date(`${expectedDate}T${expectedTime}`),
           notes: notes || '',
@@ -1426,10 +1427,8 @@ router.get('/', authenticateToken, async (req, res) => {
 
     if (paymentMethod) whereClause.paymentMethodId = parseInt(paymentMethod);
 
-    // Filter out TEMPORARY sales by default if they are not specifically requested
-    if (!status || status !== 'TEMPORARY') {
-      whereClause.status = { not: 'TEMPORARY' };
-    }
+    // Note: TEMPORARY sales are now included by default in history
+    // They can be filtered out by the frontend if needed
 
     // Support legacy sales without paymentType or other types
     // whereClause.paymentType = { in: ['COMPTANT', 'CREDIT'] };
