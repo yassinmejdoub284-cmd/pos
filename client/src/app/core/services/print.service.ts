@@ -4112,6 +4112,21 @@ export class PrintService {
       text += 'Date       Ref       Debit     Credit       Solde\n';
       text += '-'.repeat(LINE_WIDTH) + '\n';
 
+      // Add opening balance row if date filter is applied
+      if (startDate && statement.openingBalance !== undefined) {
+        const date = new Date(startDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+        const ref = 'Solde Init.'.padEnd(12);
+        const debit = ''.padStart(10);
+        const credit = ''.padStart(10);
+        const balanceValue = statement.openingBalance;
+        const balance = balanceValue < 0
+          ? Math.abs(balanceValue).toFixed(3).padStart(9) + '-'
+          : balanceValue.toFixed(3).padStart(10);
+
+        const line = date.padEnd(6) + ref + debit + credit + balance;
+        text += line.substring(0, LINE_WIDTH) + '\n';
+      }
+
       statement.statement.forEach((item: any) => {
         const date = new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
         const ref = (item.reference || '').substring(0, 12).padEnd(12);

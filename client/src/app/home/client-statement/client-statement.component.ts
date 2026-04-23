@@ -33,6 +33,7 @@ interface ClientStatement {
   totalDebit: number;
   totalCredit: number;
   currentBalance: number;
+  openingBalance: number;
 }
 
 interface ClientSummary {
@@ -281,15 +282,33 @@ export class ClientStatementComponent implements OnInit {
     if (!this.statement) return '';
 
     const headers = ['Date', 'Type', 'Référence', 'Description', 'Débit', 'Crédit', 'Solde'];
-    const rows = this.statement.statement.map(item => [
-      this.formatDate(item.date),
-      this.getTransactionTypeLabel(item.type),
-      item.reference,
-      item.description,
-      item.debit > 0 ? item.debit.toFixed(3) : '',
-      item.credit > 0 ? item.credit.toFixed(3) : '',
-      item.balance.toFixed(3)
-    ]);
+    const rows = [];
+
+    // Add opening balance row if date filter is applied
+    if (this.filters.startDate) {
+      rows.push([
+        this.formatDate(this.filters.startDate),
+        'Solde Initiale',
+        'Report à nouveau',
+        'Solde reporté de la période précédente',
+        '',
+        '',
+        this.statement.openingBalance.toFixed(3)
+      ]);
+    }
+
+    // Add transaction rows
+    this.statement.statement.forEach(item => {
+      rows.push([
+        this.formatDate(item.date),
+        this.getTransactionTypeLabel(item.type),
+        item.reference,
+        item.description,
+        item.debit > 0 ? item.debit.toFixed(3) : '',
+        item.credit > 0 ? item.credit.toFixed(3) : '',
+        item.balance.toFixed(3)
+      ]);
+    });
 
     const csvContent = [
       headers.join(','),

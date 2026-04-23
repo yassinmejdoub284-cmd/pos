@@ -62,6 +62,7 @@ export interface SupplierStatement {
   totalDebit: number;
   totalCredit: number;
   currentBalance: number;
+  openingBalance?: number;
 }
 
 export interface SupplierStatementItem {

@@ -30,6 +30,35 @@
       </div>
     </div>
 
+    <!-- Date Filters -->
+    <div class="bg-white rounded-lg shadow-md border border-blue-200/50 p-3 mb-3">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-0.5">Date début</label>
+          <input title="Date de début"
+            type="date" 
+            [(ngModel)]="filters.startDate"
+            (ngModelChange)="onDateChange()"
+            class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 focus:border-blue-400">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-0.5">Date fin</label>
+          <input title="Date de fin"
+            type="date" 
+            [(ngModel)]="filters.endDate"
+            (ngModelChange)="onDateChange()"
+            class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 focus:border-blue-400">
+        </div>
+        <div class="flex items-end">
+          <button title="Effacer les filtres"
+            (click)="clearFilters()"
+            class="w-full bg-gray-500 text-white px-2 py-1.5 text-xs rounded transition-colors hover:bg-gray-600">
+            Effacer
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <div *ngIf="loading" class="bg-white rounded-lg shadow-md border border-blue-200/50 p-6 text-center">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
@@ -47,7 +76,34 @@
         </div>
       </div>
       
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-2" *ngIf="filters.startDate && statement.openingBalance !== undefined">
+        <div class="bg-purple-50 p-2 rounded border border-purple-200">
+          <div class="text-xs font-medium text-purple-600">Solde Initiale</div>
+          <div class="text-lg font-bold" [class]="statement.openingBalance >= 0 ? 'text-purple-800' : 'text-red-800'">
+            {{ formatAmount(statement.openingBalance) }}
+          </div>
+        </div>
+        <div class="bg-green-50 p-2 rounded border border-green-200">
+          <div class="text-xs font-medium text-green-600">Total Débit</div>
+          <div class="text-lg font-bold text-green-800">{{ formatAmount(statement.totalDebit) }}</div>
+        </div>
+        <div class="bg-red-50 p-2 rounded border border-red-200">
+          <div class="text-xs font-medium text-red-600">Total Crédit</div>
+          <div class="text-lg font-bold text-red-800">{{ formatAmount(statement.totalCredit) }}</div>
+        </div>
+        <div class="bg-blue-50 p-2 rounded border border-blue-200">
+          <div class="text-xs font-medium text-blue-600">Solde Final</div>
+          <div class="text-lg font-bold" [class]="statement.currentBalance >= 0 ? 'text-green-800' : 'text-red-800'">
+            {{ formatAmount(statement.currentBalance) }}
+          </div>
+        </div>
+        <div class="bg-gray-50 p-2 rounded border border-gray-200">
+          <div class="text-xs font-medium text-gray-600">Nombre d'opérations</div>
+          <div class="text-lg font-bold text-gray-800">{{ statement.statement.length }}</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-2" *ngIf="!filters.startDate || statement.openingBalance === undefined">
         <div class="bg-green-50 p-2 rounded border border-green-200">
           <div class="text-xs font-medium text-green-600">Total Débit</div>
           <div class="text-lg font-bold text-green-800">{{ formatAmount(statement.totalDebit) }}</div>

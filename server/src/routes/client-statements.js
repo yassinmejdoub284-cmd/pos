@@ -70,10 +70,103 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Client non trouvé' });
     }
 
+    // Calculate opening balance (balance before startDate)
+    let openingBalance = 0;
+    if (startDate) {
+      const transactionsBeforeStart = await prisma.clientDebtTransaction.findMany({
+        where: {
+          clientId: parseInt(clientId),
+          createdAt: { lt: new Date(startDate) },
+          OR: [
+            { saleId: null },
+            {
+              sale: {
+                status: { notIn: ['CANCELLED', 'REFUNDED'] }
+              }
+            }
+          ]
+        },
+        select: {
+          amount: true,
+          type: true,
+          saleId: true
+        }
+      });
+
+      // Group by saleId to get sale totals
+      const salePaymentMapBefore = new Map();
+      const saleIdsBefore = new Set();
+      const standaloneRowsBefore = [];
+
+      for (const t of transactionsBeforeStart) {
+        const amount = parseFloat(t.amount);
+        if (t.saleId) {
+          saleIdsBefore.add(t.saleId);
+          if (!salePaymentMapBefore.has(t.saleId)) {
+            salePaymentMapBefore.set(t.saleId, { totalPayment: 0 });
+          }
+          if (t.type === 'PAYMENT') {
+            salePaymentMapBefore.get(t.saleId).totalPayment += amount;
+          }
+        } else {
+          standaloneRowsBefore.push({
+            debit: t.type === 'DEBT' ? amount : 0,
+            credit: t.type === 'PAYMENT' ? amount : 0
+          });
+        }
+      }
+
+      // Get sale totals
+      const saleRowsBefore = [];
+      if (saleIdsBefore.size > 0) {
+        const salesBefore = await prisma.sale.findMany({
+          where: {
+            id: { in: Array.from(saleIdsBefore) },
+            status: { notIn: ['CANCELLED', 'REFUNDED'] }
+          },
+          select: {
+            id: true,
+            finalTotal: true
+          }
+        });
+
+        for (const sale of salesBefore) {
+          const finalTotal = parseFloat(sale.finalTotal);
+          const totalPayment = salePaymentMapBefore.get(sale.id)?.totalPayment || 0;
+          
+          saleRowsBefore.push({
+            debit: finalTotal,
+            credit: 0
+          });
+
+          if (totalPayment > 0) {
+            saleRowsBefore.push({
+              debit: 0,
+              credit: totalPayment
+            });
+          }
+        }
+      }
+
+      const allRowsBefore = [...saleRowsBefore, ...standaloneRowsBefore];
+      allRowsBefore.forEach(r => {
+        openingBalance = openingBalance + r.debit - r.credit;
+      });
+    }
+
     // Prepare optional date filter
-    const dateFilter = (startDate && endDate)
-      ? { gte: new Date(startDate), lte: new Date(endDate) }
-      : undefined;
+    let dateFilter = undefined;
+    if (startDate || endDate) {
+      dateFilter = {};
+      if (startDate) {
+        dateFilter.gte = new Date(startDate);
+      }
+      if (endDate) {
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999); // Include the entire end date
+        dateFilter.lte = endDateTime;
+      }
+    }
 
     // Get all client debt transactions from ALL depots (no depot filtering)
     // Includes both DEBT (Débit - client owes) and PAYMENT (Crédit - reduces debt), with or without saleId
@@ -214,8 +307,8 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
 
     const rows = [...saleRows, ...standaloneRows];
 
-    // Calculate running balance (Solde = Débits - Crédits)
-    let balance = 0;
+    // Calculate running balance starting from opening balance
+    let balance = openingBalance;
     const statement = rows
       .sort((a, b) => new Date(a.date) - new Date(b.date))
       .map(r => {
@@ -228,7 +321,8 @@ router.get('/:clientId/statement', authenticateToken, async (req, res) => {
       statement,
       totalDebit: rows.reduce((sum, t) => sum + t.debit, 0),
       totalCredit: rows.reduce((sum, t) => sum + t.credit, 0),
-      currentBalance: balance
+      currentBalance: balance,
+      openingBalance: openingBalance
     });
   } catch (error) {
     console.error('Error fetching client statement:', error);

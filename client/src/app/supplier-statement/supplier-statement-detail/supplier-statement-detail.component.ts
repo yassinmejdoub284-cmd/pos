@@ -54,6 +54,10 @@ export class SupplierStatementDetailComponent implements OnInit {
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
 
+    // Set default end date to today
+    const today = new Date();
+    const defaultEndDate = today.toISOString().split('T')[0];
+
     // Combine route params and query params
     combineLatest([this.route.params, this.route.queryParams]).subscribe(([routeParams, queryParams]) => {
       const supplierId = routeParams['id'];
@@ -69,6 +73,9 @@ export class SupplierStatementDetailComponent implements OnInit {
       }
       if (queryParams['endDate']) {
         this.filters.endDate = queryParams['endDate'];
+      } else {
+        // Set default end date to today if not provided
+        this.filters.endDate = defaultEndDate;
       }
 
       // Load statement and check for print parameter
@@ -117,6 +124,18 @@ export class SupplierStatementDetailComponent implements OnInit {
 
   backToSummary(): void {
     this.router.navigate(['/supplier-statement']);
+  }
+
+  clearFilters(): void {
+    this.filters.startDate = '';
+    const today = new Date();
+    this.filters.endDate = today.toISOString().split('T')[0];
+    this.loadStatement();
+  }
+
+  onDateChange(): void {
+    // Auto-refresh when dates change
+    this.loadStatement();
   }
 
   formatDate(dateString: string): string {

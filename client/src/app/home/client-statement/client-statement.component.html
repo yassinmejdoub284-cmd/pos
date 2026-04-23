@@ -173,7 +173,13 @@
         </div>
       </div>
       
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+        <div class="bg-purple-50 p-2 rounded border border-purple-200">
+          <div class="text-xs font-medium text-purple-600">Solde Initiale</div>
+          <div class="text-lg font-bold" [class]="statement.openingBalance >= 0 ? 'text-purple-800' : 'text-red-800'">
+            {{ formatAmount(statement.openingBalance) }}
+          </div>
+        </div>
         <div class="bg-red-50 p-2 rounded border border-red-200">
           <div class="text-xs font-medium text-red-600">Total Débit</div>
           <div class="text-lg font-bold text-red-800">{{ formatAmount(statement.totalDebit) }}</div>
@@ -183,7 +189,7 @@
           <div class="text-lg font-bold text-green-800">{{ formatAmount(statement.totalCredit) }}</div>
         </div>
         <div class="bg-blue-50 p-2 rounded border border-blue-200">
-          <div class="text-xs font-medium text-blue-600">Solde Actuel</div>
+          <div class="text-xs font-medium text-blue-600">Solde Final</div>
           <div class="text-lg font-bold" [class]="statement.currentBalance >= 0 ? 'text-blue-800' : 'text-red-800'">
             {{ formatAmount(statement.currentBalance) }}
           </div>
@@ -226,6 +232,27 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
+            <!-- Opening Balance Row -->
+            <tr *ngIf="filters.startDate" class="bg-purple-50 font-semibold">
+              <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-800">
+                {{ formatDate(filters.startDate) | date:'dd/MM/yyyy' }}
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  Solde Initiale
+                </span>
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-800">
+                Report à nouveau
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-400">-</td>
+              <td class="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-400">-</td>
+              <td class="px-4 py-2 whitespace-nowrap text-sm text-right font-semibold" 
+                  [class]="statement.openingBalance >= 0 ? 'text-purple-600' : 'text-red-600'">
+                {{ formatAmount(statement.openingBalance) }}
+              </td>
+            </tr>
+            <!-- Transaction Rows -->
             <tr *ngFor="let item of statement.statement; let i = index" 
                 [class]="i % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-blue-50'">
               <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-800">

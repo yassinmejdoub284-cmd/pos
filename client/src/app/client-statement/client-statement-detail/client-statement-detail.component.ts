@@ -39,6 +39,7 @@ interface ClientStatement {
   totalDebit: number;
   totalCredit: number;
   currentBalance: number;
+  openingBalance: number;
 }
 
 @Component({
@@ -86,6 +87,10 @@ export class ClientStatementDetailComponent implements OnInit {
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
 
+    // Set default end date to today
+    const today = new Date();
+    const defaultEndDate = today.toISOString().split('T')[0];
+
     // Combine route params and query params
     combineLatest([this.route.params, this.route.queryParams]).subscribe(([routeParams, queryParams]) => {
       const clientId = routeParams['id'];
@@ -101,6 +106,9 @@ export class ClientStatementDetailComponent implements OnInit {
       }
       if (queryParams['endDate']) {
         this.filters.endDate = queryParams['endDate'];
+      } else {
+        // Set default end date to today if not provided
+        this.filters.endDate = defaultEndDate;
       }
 
       // Load statement and check for print parameter
@@ -157,6 +165,18 @@ export class ClientStatementDetailComponent implements OnInit {
 
   backToSummary(): void {
     this.router.navigate(['/client-statement']);
+  }
+
+  clearFilters(): void {
+    this.filters.startDate = '';
+    const today = new Date();
+    this.filters.endDate = today.toISOString().split('T')[0];
+    this.loadStatement();
+  }
+
+  onDateChange(): void {
+    // Auto-refresh when dates change
+    this.loadStatement();
   }
 
   formatDate(dateString: string): string {
@@ -302,6 +322,18 @@ export class ClientStatementDetailComponent implements OnInit {
     const periodStart = this.filters.startDate ? this.formatDate(this.filters.startDate) : 'Début';
     const periodEnd = this.filters.endDate ? this.formatDate(this.filters.endDate) : 'Aujourd\'hui';
 
+    // Build opening balance row if date filter is applied
+    const openingBalanceRow = this.filters.startDate && statement.openingBalance !== undefined ? `
+      <tr style="background: #f3e8ff; font-weight: 600;">
+        <td>${this.escapeHtml(new Date(this.filters.startDate).toLocaleDateString('fr-FR'))}</td>
+        <td><span class="badge" style="background: #e9d5ff; color: #6b21a8; border-color: #c084fc;">Solde Initiale</span></td>
+        <td>Report à nouveau</td>
+        <td class="num"></td>
+        <td class="num"></td>
+        <td class="num ${statement.openingBalance >= 0 ? 'balance-pos' : 'balance-neg'}">${this.formatNumber3(statement.openingBalance)}</td>
+      </tr>
+    ` : '';
+
     const rows = statement.statement.map(item => `
       <tr>
         <td>${this.escapeHtml(new Date(item.date).toLocaleDateString('fr-FR'))}</td>
@@ -312,6 +344,20 @@ export class ClientStatementDetailComponent implements OnInit {
         <td class="num ${item.balance >= 0 ? 'balance-pos' : 'balance-neg'}">${this.formatNumber3(item.balance)}</td>
       </tr>
     `).join('');
+
+    // Build summary cards - include opening balance if available
+    const summaryCards = this.filters.startDate && statement.openingBalance !== undefined ? `
+      <div class="card"><h4>Solde Initiale</h4><div class="val ${statement.openingBalance >= 0 ? 'balance-pos' : 'balance-neg'}">${this.formatNumber3(statement.openingBalance)}</div></div>
+      <div class="card"><h4>Total Débit</h4><div class="val debit">${this.formatNumber3(statement.totalDebit)}</div></div>
+      <div class="card"><h4>Total Crédit</h4><div class="val credit">${this.formatNumber3(statement.totalCredit)}</div></div>
+      <div class="card"><h4>Solde Final</h4><div class="val ${statement.currentBalance >= 0 ? 'balance-pos' : 'balance-neg'}">${this.formatNumber3(statement.currentBalance)}</div></div>
+    ` : `
+      <div class="card"><h4>Total Débit</h4><div class="val debit">${this.formatNumber3(statement.totalDebit)}</div></div>
+      <div class="card"><h4>Total Crédit</h4><div class="val credit">${this.formatNumber3(statement.totalCredit)}</div></div>
+      <div class="card"><h4>Solde Actuel</h4><div class="val ${statement.currentBalance >= 0 ? 'balance-pos' : 'balance-neg'}">${this.formatNumber3(statement.currentBalance)}</div></div>
+    `;
+
+    const summaryGridCols = this.filters.startDate && statement.openingBalance !== undefined ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)';
 
     return `<!doctype html>
 <html lang="fr">
@@ -327,7 +373,7 @@ export class ClientStatementDetailComponent implements OnInit {
     .muted { color: #64748b; font-size: 12px; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6mm; }
     .company { font-weight: 700; color: #b45309; letter-spacing: .3px; }
-    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 3mm 0 6mm; }
+    .summary { display: grid; grid-template-columns: ${summaryGridCols}; gap: 4mm; margin: 3mm 0 6mm; }
     .card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 4mm; background: #ffffff; }
     .card h4 { margin: 0; font-size: 12px; color: #334155; font-weight: 600; }
     .card .val { margin-top: 2mm; font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
@@ -366,9 +412,7 @@ export class ClientStatementDetailComponent implements OnInit {
     </div>
 
     <div class="summary">
-      <div class="card"><h4>Total Débit</h4><div class="val debit">${this.formatNumber3(statement.totalDebit)}</div></div>
-      <div class="card"><h4>Total Crédit</h4><div class="val credit">${this.formatNumber3(statement.totalCredit)}</div></div>
-      <div class="card"><h4>Solde Actuel</h4><div class="val ${statement.currentBalance >= 0 ? 'balance-pos' : 'balance-neg'}">${this.formatNumber3(statement.currentBalance)}</div></div>
+      ${summaryCards}
     </div>
 
     <table>
@@ -383,6 +427,7 @@ export class ClientStatementDetailComponent implements OnInit {
       </tr>
     </thead>
     <tbody>
+        ${openingBalanceRow}
         ${rows}
     </tbody>
     </table>
@@ -419,15 +464,33 @@ export class ClientStatementDetailComponent implements OnInit {
     if (!this.statement) return '';
 
     const headers = ['Date', 'Type', 'Référence', 'Description', 'Débit', 'Crédit', 'Solde'];
-    const rows = this.statement.statement.map(item => [
-      this.formatDate(item.date),
-      this.getTransactionTypeLabel(item.type),
-      item.reference,
-      item.description,
-      item.debit > 0 ? item.debit.toFixed(3) : '',
-      item.credit > 0 ? item.credit.toFixed(3) : '',
-      item.balance.toFixed(3)
-    ]);
+    const rows = [];
+
+    // Add opening balance row if date filter is applied
+    if (this.filters.startDate && this.statement.openingBalance !== undefined) {
+      rows.push([
+        this.formatDate(this.filters.startDate),
+        'Solde Initiale',
+        'Report à nouveau',
+        'Solde reporté de la période précédente',
+        '',
+        '',
+        this.statement.openingBalance.toFixed(3)
+      ]);
+    }
+
+    // Add transaction rows
+    this.statement.statement.forEach(item => {
+      rows.push([
+        this.formatDate(item.date),
+        this.getTransactionTypeLabel(item.type),
+        item.reference,
+        item.description,
+        item.debit > 0 ? item.debit.toFixed(3) : '',
+        item.credit > 0 ? item.credit.toFixed(3) : '',
+        item.balance.toFixed(3)
+      ]);
+    });
 
     const csvContent = [
       headers.join(','),
