@@ -1140,6 +1140,8 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       end.setHours(23, 59, 59, 999);
     }
 
+    // Opening balance will be calculated after all* data is fetched (see below)
+
     // Get ALL expenses for totalDebit/totalCredit calculation (filter by depotId only)
     const allExpensesWhere = {
       supplierId: parseInt(supplierId)
@@ -1167,13 +1169,14 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       supplierId: parseInt(supplierId)
     };
     if (hasDateFilter) {
-      if (start && end) {
-        expensesWhere.date = { gte: start, lte: end };
-      } else if (start) {
-        expensesWhere.date = { gte: start };
-      } else if (end) {
-        expensesWhere.date = { lte: end };
+      const dateCondition = {};
+      if (start) {
+        dateCondition.gte = start;
       }
+      if (end) {
+        dateCondition.lte = end;
+      }
+      expensesWhere.date = dateCondition;
     }
     if (targetDepotId) {
       expensesWhere.depotId = targetDepotId;
@@ -1250,19 +1253,13 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     });
 
     // Get period-filtered debt transactions for statement display
-    // Include all DEBT type transactions (initial balances) regardless of date
-    // Only filter PAYMENT type transactions by date range if dates are provided
+    // Apply date filter to both DEBT and PAYMENT type transactions
     const debtTransactionsWhere = {
       supplierId: parseInt(supplierId)
     };
     if (hasDateFilter) {
-      debtTransactionsWhere.OR = [
-        { type: 'DEBT' },
-        {
-          type: 'PAYMENT',
-          createdAt: start && end ? { gte: start, lte: end } : start ? { gte: start } : { lte: end }
-        }
-      ];
+      const dateFilter = start && end ? { gte: start, lte: end } : start ? { gte: start } : { lte: end };
+      debtTransactionsWhere.createdAt = dateFilter;
     }
     const debtTransactions = hasDateFilter ? await prisma.supplierDebtTransaction.findMany({
       where: debtTransactionsWhere,
@@ -1307,21 +1304,24 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     });
 
     // Get period-filtered bon d'entrée documents for statement display
-    // Always include ALL bon d'entrée for this supplier to show complete debt picture
-    // The date filter is applied at the transaction level, not at document level
-    // This ensures we see the debt (DEBIT) even if bon d'entrée was created before the date range
-    // Also check if payments reference bon d'entrée by ID to include them
+    // When date filter is applied, only show bon d'entrée created in the date range
+    const bonEntreeWhere = {
+      type: 'BON_ENTREE_DEPOT',
+      OR: [
+        { notes: { contains: `Supplier:${supplierId}` } },
+        // Also include bon d'entrée referenced in payments (in case notes format is different)
+        ...(bonEntreeIdsFromPayments.length > 0 ? [{ id: { in: bonEntreeIdsFromPayments } }] : [])
+      ]
+    };
+    
+    // Apply date filter to bon d'entrée documents (only createdAt, not updatedAt)
+    if (hasDateFilter) {
+      const dateFilter = start && end ? { gte: start, lte: end } : start ? { gte: start } : { lte: end };
+      bonEntreeWhere.createdAt = dateFilter;
+    }
+    
     const bonEntreeDocuments = await prisma.stockDocument.findMany({
-      where: {
-        type: 'BON_ENTREE_DEPOT',
-        OR: [
-          { notes: { contains: `Supplier:${supplierId}` } },
-          // Also include bon d'entrée referenced in payments (in case notes format is different)
-          ...(bonEntreeIdsFromPayments.length > 0 ? [{ id: { in: bonEntreeIdsFromPayments } }] : [])
-        ]
-        // No date restriction - include all bon d'entrée for this supplier
-        // The statement will show all debts (DEBIT) and payments in the period (CREDIT)
-      },
+      where: bonEntreeWhere,
       include: {
         items: true
       },
@@ -1342,33 +1342,15 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     });
 
     // Get period-filtered bon de retour documents for statement display
-    // Include documents created in the date range OR updated in the date range (only if dates are provided)
+    // Include documents created in the date range (only if dates are provided)
     const bonRetourWhere = {
       type: 'BON_EXPEDITION',
       notes: { contains: `Supplier:${supplierId}` },
       status: 'RECEIVED'
     };
     if (hasDateFilter) {
-      const dateConditions = [];
-      if (start && end) {
-        dateConditions.push(
-          { createdAt: { gte: start, lte: end } },
-          { updatedAt: { gte: start, lte: end } }
-        );
-      } else if (start) {
-        dateConditions.push(
-          { createdAt: { gte: start } },
-          { updatedAt: { gte: start } }
-        );
-      } else if (end) {
-        dateConditions.push(
-          { createdAt: { lte: end } },
-          { updatedAt: { lte: end } }
-        );
-      }
-      if (dateConditions.length > 0) {
-        bonRetourWhere.OR = dateConditions;
-      }
+      const dateFilter = start && end ? { gte: start, lte: end } : start ? { gte: start } : { lte: end };
+      bonRetourWhere.createdAt = dateFilter;
     }
     const bonRetourDocuments = hasDateFilter ? await prisma.stockDocument.findMany({
       where: bonRetourWhere,
@@ -1384,9 +1366,84 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
       bonEntreeMap.set(doc.id.toString(), doc.id.toString());
     });
 
-    // Calculate running balance
-    let balance = 0;
-    const statement = [];
+    // Calculate opening balance: the running balance at the last transaction before startDate.
+    // Uses the same all* data already fetched, applies identical dedup logic, then walks
+    // transactions chronologically and takes the balance at position -1 relative to start.
+    let openingBalance = 0;
+    if (start) {
+      // Build a flat list of ALL transactions (same dedup as display, but unfiltered by date)
+      const allTxForOpeningBalance = [
+        ...allBonEntreeDocuments.map(doc => ({
+          date: doc.createdAt,
+          credit: doc.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0) * (item.purchasePrice ? parseFloat(item.purchasePrice) : 0), 0),
+          debit: 0
+        })),
+        ...allBonRetourDocuments.map(doc => ({
+          date: doc.createdAt,
+          debit: doc.items.reduce((sum, item) => sum + Math.abs(parseFloat(item.quantity || 0)) * (item.purchasePrice ? parseFloat(item.purchasePrice) : 0), 0),
+          credit: 0
+        })),
+        ...allDebtTransactions
+          .filter(t => {
+            const notes = t.notes || '';
+            if (notes.includes('Bon de retour')) {
+              return !allBonRetourDocuments.some(doc => (doc.numero && notes.includes(doc.numero)) || notes.includes(`#${doc.id}`));
+            }
+            if (notes.includes("Bon d'entrée") || notes.includes("Bon d entrée")) {
+              if (t.type === 'PAYMENT') return true;
+              return !allBonEntreeDocuments.some(doc => (doc.numero && notes.includes(doc.numero)) || notes.includes(`#${doc.id}`));
+            }
+            return true;
+          })
+          .map(t => ({
+            date: t.createdAt,
+            credit: t.type === 'DEBT' ? parseFloat(t.amount) : 0,
+            debit: t.type === 'PAYMENT' ? parseFloat(t.amount) : 0
+          })),
+        ...allExpenses
+          .filter(expense => {
+            if (!expense.notes) return true;
+            if (expense.notes.includes('Bon de retour')) {
+              const m = expense.notes.match(/Bon de retour (BR-[-\d]+)/);
+              if (m && allBonRetourDocuments.some(doc => doc.numero === m[1])) return false;
+            }
+            const m2 = expense.notes.match(/Bon d'entrée #(\d+)|(BE-[-\d]+)/i);
+            if (m2) {
+              const id = m2[1], num = m2[2];
+              if (allBonEntreeDocuments.some(doc => (id && doc.id.toString() === id) || (num && doc.numero === num))) return false;
+            }
+            return true;
+          })
+          .map(expense => {
+            const amt = parseFloat(expense.amount);
+            if (expense.isPaid) return { date: expense.date, debit: amt, credit: amt };
+            return { date: expense.date, debit: 0, credit: amt };
+          }),
+        ...allPayments
+          .filter(payment => {
+            const notes = payment.notes || '';
+            const m1 = notes.match(/Bon d'entrée #(\d+)/);
+            const m2 = notes.match(/Bon d'entrée #(BE-[-\d]+)/i);
+            if (m1) return !allBonEntreeDocuments.some(doc => doc.id === parseInt(m1[1]));
+            if (m2) return !allBonEntreeDocuments.some(doc => doc.numero === m2[1]);
+            return true;
+          })
+          .map(payment => {
+            const raw = parseFloat(payment.amount);
+            const amt = Math.abs(raw);
+            const isCredit = raw < 0 || payment.paymentMethod === 'CREDIT';
+            return { date: payment.createdAt, debit: isCredit ? 0 : amt, credit: isCredit ? amt : 0 };
+          })
+      ].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      // Walk and track running balance; grab balance at the last entry before start
+      let runningBalance = 0;
+      for (const tx of allTxForOpeningBalance) {
+        if (new Date(tx.date) >= start) break;
+        runningBalance += tx.credit - tx.debit;
+      }
+      openingBalance = runningBalance;
+    }
 
     // Combine and sort all transactions (opposite of client statement)
     const allTransactions = [
@@ -1646,12 +1703,20 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
             description: notes || 'Règlement fournisseur'
           };
         })
-    ].sort((a, b) => new Date(a.date) - new Date(b.date));
+    ].filter(tx => {
+      if (!start && !end) return true;
+      const d = new Date(tx.date);
+      if (start && d < start) return false;
+      if (end && d > end) return false;
+      return true;
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Calculate running balance
+    // Calculate running balance starting from opening balance
     // - Crédit (bon d'entrée, crédit fournisseur, etc.) augmente la dette
     // - Débit (règlements) réduit la dette
-    // Balance = credit - debit
+    // Balance = openingBalance + credit - debit
+    let balance = openingBalance;
+    const statement = [];
     allTransactions.forEach(transaction => {
       balance += transaction.credit - transaction.debit;
       statement.push({
@@ -1793,16 +1858,23 @@ router.get('/:supplierId/statement', authenticateToken, async (req, res) => {
     const totalDebit = allTransactionsForTotals.reduce((sum, item) => sum + (item.debit || 0), 0);
     const totalCredit = allTransactionsForTotals.reduce((sum, item) => sum + (item.credit || 0), 0);
     
-    // Calculate currentBalance the same way as summary endpoint's currentDebt
-    // Use the same ledger entries logic
-    const currentBalance = allTransactionsForTotals.reduce((sum, entry) => sum + (entry.credit - entry.debit), 0);
+    // Calculate currentBalance
+    // If date filter is applied, use the last balance from the filtered statement
+    // Otherwise, calculate from all transactions
+    let currentBalance;
+    if (hasDateFilter && statement.length > 0) {
+      currentBalance = statement[statement.length - 1].balance;
+    } else {
+      currentBalance = allTransactionsForTotals.reduce((sum, entry) => sum + (entry.credit - entry.debit), 0);
+    }
 
     res.json({
       supplier,
       statement,
       totalDebit,
       totalCredit,
-      currentBalance
+      currentBalance,
+      openingBalance
     });
   } catch (error) {
     console.error('Error fetching supplier statement:', error);

@@ -746,6 +746,11 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.router.navigate(['/auth/login']);
   }
 
+  hardRefresh(): void {
+    // Force a hard refresh of the page
+    window.location.reload();
+  }
+
   async toggleFullscreen(): Promise<void> {
     try {
       await this.fullscreenService.toggleFullscreen();

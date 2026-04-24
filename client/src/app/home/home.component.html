@@ -74,10 +74,10 @@
         <!-- COMPACT LOGO SECTION -->
         <div class="flex items-center space-x-2 sm:space-x-3">
           <!-- Company Logo -->
-          <div class="relative">
+          <div class="relative cursor-pointer" (click)="hardRefresh()">
             <div class="w-auto h-8 sm:h-14 flex items-center justify-center overflow-hidden">
               <!-- Company Logo Image -->
-              <img *ngIf="companyLogo() && !logoLoadError()" title="Logo de la société" [src]="companyLogo()"
+              <img *ngIf="companyLogo() && !logoLoadError()" title="Logo de la société - Cliquer pour rafraîchir" [src]="companyLogo()"
                 [alt]="companyName() + ' Logo'" class="w-full h-full object-contain rounded-lg sm:rounded-xl"
                 (error)="onLogoError()">
               <!-- Fallback SVG Icon -->

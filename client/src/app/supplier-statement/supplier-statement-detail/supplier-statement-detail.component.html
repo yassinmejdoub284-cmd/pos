@@ -152,6 +152,28 @@
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
+            <!-- Opening Balance Row -->
+            <tr *ngIf="filters.startDate && statement.openingBalance !== undefined" class="bg-purple-50 font-semibold">
+              <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-800">
+                {{ filters.startDate | date:'dd/MM/yyyy' }}
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  Solde Initiale
+                </span>
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-800">
+                Report à nouveau
+              </td>
+              <td class="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-400">-</td>
+              <td class="px-4 py-2 whitespace-nowrap text-sm text-right text-gray-400">-</td>
+              <td class="px-4 py-2 whitespace-nowrap text-sm text-right font-semibold" 
+                  [class]="statement.openingBalance >= 0 ? 'text-purple-600' : 'text-red-600'">
+                {{ formatAmount(statement.openingBalance) }}
+              </td>
+              <td *ngIf="isAdmin" class="px-4 py-2 whitespace-nowrap text-center"></td>
+            </tr>
+            <!-- Transaction Rows -->
             <tr *ngFor="let item of statement.statement; let i = index" 
                 [class]="i % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-gray-50 hover:bg-blue-50'">
               <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-800">
