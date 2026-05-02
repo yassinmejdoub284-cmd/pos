@@ -328,19 +328,25 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       });
     }
 
-    // Acomptes / Avances sur commande (cash movements labeled accordingly)
+    // Acomptes / Règlements sur commande (cash movements labeled accordingly)
     const movements = (session.cashMovements || []) as Array<any>;
     for (const m of movements) {
       const reasonLower = (m.reason || '').toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
-      const isAdvance = reasonLower.startsWith('acompte commande')
+      const isOrderPayment = reasonLower.startsWith('acompte commande')
         || reasonLower.includes('acompte')
         || reasonLower.includes('avance')
-        || reasonLower.includes('advance');
-      if (m.type === 'ENTREE' && isAdvance && amount > 0) {
+        || reasonLower.includes('advance')
+        || reasonLower.includes('règlement commande')
+        || reasonLower.includes('reglement commande');
+      if (m.type === 'ENTREE' && isOrderPayment && amount > 0) {
+        let label = m.reason || 'Acompte commande';
+        if (reasonLower.includes('règlement') || reasonLower.includes('reglement')) {
+          label = m.reason || 'Paiement commande';
+        }
         rows.push({
           createdAt: m.createdAt,
-          label: m.reason || 'Acompte commande',
+          label: label,
           amount: amount
         });
       }
@@ -350,6 +356,10 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
     // CRITICAL: Only include CASH tickets - credit tickets are excluded because their payments are in "Encaissements Crédit Clients"
     // Note: cashSalesDetails() is already filtered to only include CASH tickets, but we double-check here
     for (const t of this.cashSalesDetails()) {
+      const status = (t.status || '').toUpperCase();
+      // Exclude temporary/order tickets as they are accounted for via acompte/règlement movements
+      if (status === 'TEMPORARY' || status === 'CMD_TERMINEE') continue;
+
       const paymentMethod = ((t as any).paymentMethod || '').toUpperCase();
       const paymentType = ((t as any).paymentType || '').toUpperCase();
       const totalAmount = typeof t.totalAmount === 'number' ? t.totalAmount : parseFloat(String(t.totalAmount || 0)) || 0;
@@ -652,7 +662,11 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
   }
 
   recentOrderAdvances(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
-    return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && ((m.reason || '').toLowerCase().startsWith('acompte')));
+    return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && (
+      (m.reason || '').toLowerCase().startsWith('acompte') ||
+      (m.reason || '').toLowerCase().includes('règlement commande') ||
+      (m.reason || '').toLowerCase().includes('reglement commande')
+    ));
   }
 
   // Funding (Alimentation de caisse)
@@ -889,7 +903,9 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
           reason.startsWith('acompte commande') ||
           reason.includes('acompte') ||
           reason.includes('avance') ||
-          reason.includes('advance')
+          reason.includes('advance') ||
+          reason.includes('règlement commande') ||
+          reason.includes('reglement commande')
         );
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
@@ -909,7 +925,8 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       const status = (sale.status || '').toUpperCase();
       // Exclude canceled, refunded, and cadeau tickets from encaissement
       // Cadeau tickets have amount = 0 and should only affect stock movements
-      if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
+      // TEMPORARY and CMD_TERMINEE are handled via cash movements
+      if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN' || status === 'TEMPORARY' || status === 'CMD_TERMINEE') {
         return total;
       }
       const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
@@ -1056,7 +1073,8 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
             const status = (s.status || '').toUpperCase();
             // Exclude canceled, refunded, and gift tickets (CADEAU) from cash sales
             // Gift tickets have amount = 0 and should not be counted in encaissement
-            if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
+            // TEMPORARY and CMD_TERMINEE are handled via cash movements
+            if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN' || status === 'TEMPORARY' || status === 'CMD_TERMINEE') {
               return false;
             }
 
@@ -2273,6 +2291,10 @@ export class SessionsHistoryComponent implements OnInit, OnDestroy {
       sessionSales
         .sort((a, b) => new Date(a.createdAt as any).getTime() - new Date(b.createdAt as any).getTime())
         .forEach(sale => {
+          const status = (sale.status || '').toUpperCase();
+          if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN' || status === 'TEMPORARY' || status === 'CMD_TERMINEE') {
+            return;
+          }
           const amount = parseFloat(String(sale.paidAmount ?? 0)) || 0;
           if (amount > 0) {
             allEntries.push({

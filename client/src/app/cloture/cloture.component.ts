@@ -162,14 +162,16 @@ export class ClotureComponent implements OnInit, OnDestroy {
     for (const m of movements) {
       const reasonLower = (m.reason || '').toLowerCase();
       const amount = parseFloat(m.amount || 0) || 0;
-      const isAdvance = reasonLower.startsWith('acompte commande')
+      const isOrderPayment = reasonLower.startsWith('acompte commande')
         || reasonLower.includes('acompte')
         || reasonLower.includes('avance')
-        || reasonLower.includes('advance');
-      if (m.type === 'ENTREE' && isAdvance && amount > 0) {
+        || reasonLower.includes('advance')
+        || reasonLower.includes('règlement commande')
+        || reasonLower.includes('reglement commande');
+      if (m.type === 'ENTREE' && isOrderPayment && amount > 0) {
         rows.push({
           createdAt: m.createdAt,
-          label: m.reason || 'Acompte commande',
+          label: m.reason || 'Paiement commande',
           amount: amount
         });
       }
@@ -550,7 +552,14 @@ export class ClotureComponent implements OnInit, OnDestroy {
   }
 
   recentOrderAdvances(): Array<{ createdAt: string; type: string; reason: string; amount: number }> {
-    return this.getRecentMovements(10, (m: any) => m.type === 'ENTREE' && ((m.reason || '').toLowerCase().startsWith('acompte')));
+    return this.getRecentMovements(10, (m: any) => {
+      const reasonLower = (m.reason || '').toLowerCase();
+      return m.type === 'ENTREE' && (
+        reasonLower.startsWith('acompte') ||
+        reasonLower.includes('règlement commande') ||
+        reasonLower.includes('reglement commande')
+      );
+    });
   }
 
   // Funding (Alimentation de caisse)
@@ -881,7 +890,9 @@ export class ClotureComponent implements OnInit, OnDestroy {
           reason.startsWith('acompte commande') ||
           reason.includes('acompte') ||
           reason.includes('avance') ||
-          reason.includes('advance')
+          reason.includes('advance') ||
+          reason.includes('règlement commande') ||
+          reason.includes('reglement commande')
         );
       })
       .reduce((sum, m) => sum + (parseFloat((m as any).amount) || 0), 0);
@@ -905,7 +916,7 @@ export class ClotureComponent implements OnInit, OnDestroy {
     if (cashDetails.length > 0) {
       return cashDetails.reduce((total: number, sale: any) => {
         const status = (sale.status || '').toUpperCase();
-        if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
+        if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN' || status === 'TEMPORARY' || status === 'CMD_TERMINEE') {
           return total;
         }
         const paidAmount = parseFloat(sale.paidAmount || 0) || 0;
@@ -1119,7 +1130,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
           const status = (s.status || '').toUpperCase();
           // Exclude canceled, refunded, and gift tickets (CADEAU) from cash sales
           // Gift tickets have amount = 0 and should not be counted in encaissement
-          if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN') {
+          // Also exclude TEMPORARY and CMD_TERMINEE (orders) as their payments are counted via cash movements (acomptes / règlements)
+          if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN' || status === 'TEMPORARY' || status === 'CMD_TERMINEE') {
             return false;
           }
 
