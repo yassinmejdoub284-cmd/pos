@@ -48,8 +48,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
   ticketsMoreFlag = false;
   ticketsTotal = computed(() => this.sessionTickets().reduce((sum, t) => {
     const status = ((t as any).status || '').toUpperCase();
-    // Exclude cancelled and refunded tickets from total
-    if (status === 'CANCELLED' || status === 'REFUNDED') {
+    // Exclude cancelled, refunded, temporary, and cadeau tickets from total
+    if (['CANCELLED', 'REFUNDED', 'TEMPORARY', 'CMD_TERMINEE', 'CADEAU', 'PENDING_ADMIN'].includes(status)) {
       return sum;
     }
     return sum + t.amount;
@@ -180,9 +180,8 @@ export class ClotureComponent implements OnInit, OnDestroy {
     // Espèces en Caisse: list each cash-paid ticket (paidAmount), excluding canceled, refunded, and gift tickets
     for (const t of this.cashSalesDetails()) {
       const status = (t.status || '').toUpperCase();
-      // Exclude canceled, refunded, and gift tickets (CADEAU) from encaissement
-      // Gift tickets have amount = 0 and should not be counted in encaissement
-      if ((status === 'CANCELLED' || status === 'REFUNDED' || status === 'CADEAU' || status === 'PENDING_ADMIN')) {
+      // Exclude non-finalized and special tickets from encaissement
+      if (['CANCELLED', 'REFUNDED', 'CADEAU', 'PENDING_ADMIN', 'TEMPORARY', 'CMD_TERMINEE'].includes(status)) {
         continue;
       }
       if ((t.paidAmount || 0) > 0) {

@@ -2358,18 +2358,30 @@ async function calculateSessionSummary(sessionId) {
     entree,
     sortie,
     salesByPayment,
-    totalSales: session.sales
-      .filter(s => !['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN'].includes((s.status || '').toUpperCase()))
-      .reduce((sum, sale) => sum + (parseFloat(sale.finalTotal) || 0), 0),
-    totalTickets: session.sales.filter(s => !['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN'].includes((s.status || '').toUpperCase())).length,
+    totalSales: cashFromSalesNetCredit,
+    totalTickets: session.sales.filter(s => !['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN', 'TEMPORARY', 'CMD_TERMINEE'].includes((s.status || '').toUpperCase())).length,
     userSummary: Array.from(
       session.sales.reduce((acc, sale) => {
         const status = (sale.status || '').toUpperCase();
-        if (['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN'].includes(status)) return acc;
+        if (['REFUNDED', 'CANCELLED', 'CADEAU', 'PENDING_ADMIN', 'TEMPORARY', 'CMD_TERMINEE'].includes(status)) return acc;
         const firstName = sale.user?.firstName || '';
         const lastName = sale.user?.lastName || '';
         const userName = (firstName + ' ' + lastName).trim() || 'Utilisateur inconnu';
-        acc.set(userName, (acc.get(userName) || 0) + (parseFloat(sale.finalTotal) || 0));
+
+        // Use paidAmount logic consistent with totalSales (excludes credit portion)
+        const paymentType = (sale.paymentType || '').toUpperCase();
+        const isCreditSale = paymentType === 'CREDIT';
+        let paidAmount = 0;
+
+        if (isCreditSale) {
+          const advancePayment = parseFloat(sale.advancePayment || 0) || 0;
+          const explicitPaidAmount = parseFloat(sale.paidAmount || 0) || 0;
+          paidAmount = explicitPaidAmount > 0 ? explicitPaidAmount : advancePayment;
+        } else {
+          paidAmount = parseFloat(sale.paidAmount ?? sale.finalTotal ?? 0) || 0;
+        }
+
+        acc.set(userName, (acc.get(userName) || 0) + paidAmount);
         return acc;
       }, new Map())
     ).map(([userName, totalSales]) => ({ userName, totalSales })).sort((a, b) => b.totalSales - a.totalSales),
@@ -2442,7 +2454,7 @@ async function generateZReport(sessionId, closureData = {}) {
   // Exclude cancelled/refunded sales from family breakdown
   const salesForFamilies = session.sales.filter(s => {
     const st = (s.status || '').toUpperCase();
-    return st !== 'CANCELLED' && st !== 'REFUNDED';
+    return !['CANCELLED', 'REFUNDED', 'TEMPORARY', 'CMD_TERMINEE', 'CADEAU', 'PENDING_ADMIN'].includes(st);
   });
 
   salesForFamilies.forEach(item => {
