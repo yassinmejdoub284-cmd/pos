@@ -10,7 +10,14 @@ $Desktop = Join-Path $Root "desktop"
 $Sidecar = Join-Path $Desktop "sidecar"
 
 $env:GENERATE_SOURCEMAP = "false"
-$env:NODE_ENV = "production"
+# NODE_ENV must NOT be "production" here. npm omits devDependencies when it is,
+# which silently strips @angular/cli (client) and prisma/pkg (server) from the
+# installs below -- the "@angular/cli failed to install" failure. The shipped
+# server gets NODE_ENV=production at RUNTIME from server/.env.offline; the
+# Angular production build comes from --configuration offline. Neither needs it
+# set here. Forced to "development" (not just left unset) so an inherited
+# machine-level NODE_ENV=production cannot poison the installs either.
+$env:NODE_ENV = "development"
 $env:CARGO_INCREMENTAL = "1"
 
 function Step($msg) {
