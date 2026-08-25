@@ -62,6 +62,33 @@ if (-not (Test-Path $ngPath)) {
     Write-Host "ERROR: Angular CLI not found. Trying manual install..." -ForegroundColor Red
     npm install @angular/cli@19.2.15 --save-dev --legacy-peer-deps --no-audit
     if (-not (Test-Path $ngPath)) {
+        # Dump enough state here to actually diagnose this instead of guessing --
+        # this exact check has failed multiple times for reasons that didn't
+        # reproduce locally, so surface everything relevant before throwing.
+        Write-Host "---- DIAGNOSTICS ----" -ForegroundColor Magenta
+        Write-Host "node: $(node -v)   npm: $(npm -v)"
+        $pkgCount = 0
+        if (Test-Path "node_modules") { $pkgCount = (Get-ChildItem node_modules -Directory -ErrorAction SilentlyContinue).Count }
+        Write-Host "node_modules top-level dir count: $pkgCount"
+        $cliDir = "node_modules\@angular\cli"
+        if (Test-Path $cliDir) {
+            Write-Host "node_modules/@angular/cli exists. Contents:"
+            Get-ChildItem $cliDir -ErrorAction SilentlyContinue | Select-Object Name | Format-Table -AutoSize | Out-String | Write-Host
+            $cliPkg = Join-Path $cliDir "package.json"
+            if (Test-Path $cliPkg) {
+                $cliVersion = (Get-Content $cliPkg -Raw | ConvertFrom-Json).version
+                Write-Host "@angular/cli installed version: $cliVersion"
+            }
+        } else {
+            Write-Host "node_modules/@angular/cli does NOT exist at all."
+        }
+        if (Test-Path "node_modules\.bin") {
+            Write-Host "node_modules/.bin contents matching ng*:"
+            Get-ChildItem "node_modules\.bin" -Filter "ng*" -ErrorAction SilentlyContinue | Select-Object Name | Format-Table -AutoSize | Out-String | Write-Host
+        } else {
+            Write-Host "node_modules/.bin does NOT exist at all."
+        }
+        Write-Host "---------------------" -ForegroundColor Magenta
         throw "@angular/cli failed to install - check network/npm registry"
     }
 }
