@@ -1,5 +1,5 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const { prisma } = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
@@ -7,7 +7,6 @@ const fs = require('fs');
 const pdfParse = require('pdf-parse');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Configure multer for PDF uploads (memory storage for PDF parsing)
 const upload = multer({

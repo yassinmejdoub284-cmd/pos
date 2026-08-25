@@ -7,10 +7,25 @@ edition = "2021"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
+serde      = { version = "1",    features = ["derive"] }
 serde_json = "1"
-tauri = { version = "2", features = ["webview-data-url"] }
-base64 = "0.22"
-winapi = { version = "0.3", features = ["winspool", "winbase", "handleapi", "minwinbase"] }
-chrono = { version = "0.4", features = ["serde"] }
-regex = "1.10"
+tauri      = { version = "2",    features = ["webview-data-url"] }
+base64     = "0.22"
+chrono     = { version = "0.4",  features = ["serde"] }
+regex      = "1.10"
+
+# Windows printer API
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = { version = "0.3", features = [
+  "winspool",
+  "winbase",
+  "handleapi",
+  "minwinbase"
+] }
+
+[profile.release]
+opt-level = "s"      # optimize for binary size (faster load, less disk/RAM footprint)
+lto = true            # link-time optimization: smaller, faster binary
+codegen-units = 1      # better optimization at the cost of compile time
+strip = true           # strip debug symbols
+panic = "abort"        # smaller binary, no unwinding tables

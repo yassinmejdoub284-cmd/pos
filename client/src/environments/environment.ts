@@ -2,7 +2,8 @@ export const environment = {
   production: false,
   apiUrl: 'https://localhost:3255/api',
   socketUrl: 'https://localhost:3255',
-  enableRealtime: false
+  enableRealtime: false,
+  enableServiceWorker: true
 };
 
 // DEVELOPMENT ENVIRONMENT - This file is used in development mode

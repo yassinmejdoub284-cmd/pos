@@ -24,7 +24,7 @@ export const appConfig: ApplicationConfig = {
     ),
     provideCharts(withDefaultRegisterables()),
     provideServiceWorker('custom-sw.js', {
-      enabled: true, // Enable in all environments for PWA testing
+      enabled: environment.enableServiceWorker,
       registrationStrategy: 'registerWhenStable:3000'
     }),
     { provide: LOCALE_ID, useValue: 'fr-FR' }

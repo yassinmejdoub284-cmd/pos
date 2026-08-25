@@ -1,0 +1,19 @@
+{
+  "pkg": {
+    "scripts": [
+      "src/**/*.js"
+    ],
+    "assets": [
+      "node_modules/@prisma/client/**/*",
+      "node_modules/.prisma/**/*",
+      "node_modules/prisma/**/*",
+      "node_modules/@prisma/engines/**/*",
+      "prisma/schema.sqlite.prisma",
+      "src/uploads/.gitkeep"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "../desktop/sidecar"
+  }
+}

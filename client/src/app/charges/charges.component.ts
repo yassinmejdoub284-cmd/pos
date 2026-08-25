@@ -459,7 +459,7 @@ export class ChargesComponent implements OnInit, AfterViewInit {
             borderWidth: 1,
             callbacks: {
               label: (context) => {
-                return `Dépenses: ${this.formatCurrency(context.parsed.y)}`;
+                return `Dépenses: ${this.formatCurrency(context.parsed.y ?? 0)}`;
               }
             }
           }

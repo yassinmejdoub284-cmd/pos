@@ -1,0 +1,55 @@
+name: Build offline desktop installer
+
+# Manual trigger from the Actions tab, or automatically whenever client/,
+# server/, desktop/ or the build script change on main.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "client/**"
+      - "server/**"
+      - "desktop/**"
+      - "build-offline.ps1"
+
+jobs:
+  build:
+    # windows-latest has no Smart App Control / Application Control policy,
+    # so the Rust/Tauri build-script executables that get blocked locally
+    # run here without issue.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "desktop/src-tauri -> target"
+
+      - name: Run full offline build
+        shell: pwsh
+        run: .\build-offline.ps1
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-patisserie-installer
+          path: desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: Upload pos-server.exe (for debugging without the installer)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-server-exe
+          path: desktop/resources/pos-server.exe
+          if-no-files-found: warn
