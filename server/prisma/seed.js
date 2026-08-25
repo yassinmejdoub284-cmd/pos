@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
 
 
-  // Create or update depots
+  // Create or update depots — Sfax only
   const depots = await Promise.all([
     prisma.depot.upsert({
       where: { code: 'SFX-MAIN' },
@@ -22,29 +22,16 @@ async function main() {
       }
     }),
     prisma.depot.upsert({
-      where: { code: 'TUN-BRANCH' },
+      where: { code: 'SHOP-SFX' },
       update: {},
       create: {
-        name: 'Dépôt Tunis',
-        code: 'TUN-BRANCH',
-        type: 'BRANCH',
-        address: '456 Avenue Habib Bourguiba',
-        city: 'Tunis',
-        phone: '+216 71 234 567',
-        email: 'tunis@patisserie.tn'
-      }
-    }),
-    prisma.depot.upsert({
-      where: { code: 'SHOP-CV' },
-      update: {},
-      create: {
-        name: 'Boutique Centre Ville',
-        code: 'SHOP-CV',
+        name: 'Boutique Sfax',
+        code: 'SHOP-SFX',
         type: 'SHOP',
         address: '789 Place de la République',
         city: 'Sfax',
         phone: '+216 74 345 678',
-        email: 'shop@patisserie.tn'
+        email: 'boutique@patisserie.tn'
       }
     })
   ]);
@@ -227,81 +214,21 @@ async function main() {
 
 
 
-  // Create or update demo users with different passwords
+  // Single admin user — PIN 1100
   const adminPassword = await bcrypt.hash('Admin2024!', 12);
-  const managerPassword = await bcrypt.hash('Manager2024!', 12);
-  const cashierPassword = await bcrypt.hash('Cashier2024!', 12);
-  const stockPassword = await bcrypt.hash('Stock2024!', 12);
-  
+
   const users = await Promise.all([
     prisma.user.upsert({
       where: { username: 'admin' },
-      update: { passwordHash: adminPassword, pin: '00010001' },
+      update: { passwordHash: adminPassword, pin: '1100', isActive: true },
       create: {
         username: 'admin',
         email: 'admin@patisserie.tn',
         passwordHash: adminPassword,
-        pin: '00010001',
+        pin: '1100',
         firstName: 'Admin',
-        lastName: 'Principal',
+        lastName: 'Number One',
         role: 'ADMIN',
-        depotId: depots[0].id
-      }
-    }),
-    prisma.user.upsert({
-      where: { username: 'manager_sfax' },
-      update: { 
-        username: 'manager',
-        email: 'manager@patisserie.tn',
-        passwordHash: managerPassword,
-        pin: '00020002'
-      },
-      create: {
-        username: 'manager',
-        email: 'manager@patisserie.tn',
-        passwordHash: managerPassword,
-        pin: '00020002',
-        firstName: 'Ahmed',
-        lastName: 'Ben Ali',
-        role: 'MANAGER',
-        depotId: depots[0].id
-      }
-    }),
-    prisma.user.upsert({
-      where: { username: 'cashier1' },
-      update: { 
-        username: 'cashier',
-        email: 'cashier@patisserie.tn',
-        passwordHash: cashierPassword,
-        pin: '00030003'
-      },
-      create: {
-        username: 'cashier',
-        email: 'cashier@patisserie.tn',
-        passwordHash: cashierPassword,
-        pin: '00030003',
-        firstName: 'Fatma',
-        lastName: 'Trabelsi',
-        role: 'CASHIER',
-        depotId: depots[2].id
-      }
-    }),
-    prisma.user.upsert({
-      where: { username: 'stock_manager' },
-      update: { 
-        username: 'stock',
-        email: 'stock@patisserie.tn',
-        passwordHash: stockPassword,
-        pin: '00040004'
-      },
-      create: {
-        username: 'stock',
-        email: 'stock@patisserie.tn',
-        passwordHash: stockPassword,
-        pin: '00040004',
-        firstName: 'Mohamed',
-        lastName: 'Hassan',
-        role: 'STOCK_MANAGER',
         depotId: depots[0].id
       }
     })
@@ -333,17 +260,12 @@ async function main() {
 
 
 
-  // Create or update inventory
+  // Create or update inventory for Sfax depots
   for (const depot of depots) {
     for (const product of products) {
-      let quantity = 0;
-      if (depot.code === 'SFX-MAIN') {
-        quantity = Math.floor(Math.random() * 200) + 50;
-      } else if (depot.code === 'TUN-BRANCH') {
-        quantity = Math.floor(Math.random() * 150) + 30;
-      } else {
-        quantity = Math.floor(Math.random() * 100) + 20;
-      }
+      const quantity = depot.code === 'SFX-MAIN'
+        ? Math.floor(Math.random() * 200) + 50
+        : Math.floor(Math.random() * 100) + 20;
 
       await prisma.inventory.upsert({
         where: {
@@ -352,99 +274,91 @@ async function main() {
             productId: product.id
           }
         },
-        update: {
-          quantity,
-          reservedQuantity: 0
-        },
-        create: {
-          depotId: depot.id,
-          productId: product.id,
-          quantity,
-          reservedQuantity: 0
-        }
+        update: { quantity, reservedQuantity: 0 },
+        create: { depotId: depot.id, productId: product.id, quantity, reservedQuantity: 0 }
       });
     }
   }
 
 
 
-  // Create sample expenses
+  // Sample expenses — all under admin user and Sfax depots
   const expenseData = [
     {
       amount: 150.00,
       description: 'Achat fournitures de bureau',
-      categoryId: expenseCategories[0].id, // Fournitures
-      depotId: depots[0].id, // SFX-MAIN
-      userId: users[1].id, // manager_sfax
+      categoryId: expenseCategories[0].id,
+      depotId: depots[0].id,
+      userId: users[0].id,
       date: new Date('2024-01-15'),
       notes: 'Papeterie et matériel de bureau'
     },
     {
       amount: 89.50,
       description: 'Facture électricité janvier',
-      categoryId: expenseCategories[1].id, // Électricité
-      depotId: depots[0].id, // SFX-MAIN
-      userId: users[1].id, // manager_sfax
+      categoryId: expenseCategories[1].id,
+      depotId: depots[0].id,
+      userId: users[0].id,
       date: new Date('2024-01-20'),
       notes: 'Consommation électrique du mois'
     },
     {
       amount: 45.00,
       description: 'Facture eau',
-      categoryId: expenseCategories[2].id, // Eau
-      depotId: depots[0].id, // SFX-MAIN
-      userId: users[1].id, // manager_sfax
+      categoryId: expenseCategories[2].id,
+      depotId: depots[0].id,
+      userId: users[0].id,
       date: new Date('2024-01-25'),
-      notes: 'Consommation d\'eau'
+      notes: "Consommation d'eau"
     },
     {
       amount: 1200.00,
-      description: 'Loyer boutique centre ville',
-      categoryId: expenseCategories[3].id, // Loyer
-      depotId: depots[2].id, // SHOP-CV
-      userId: users[2].id, // cashier1
+      description: 'Loyer boutique',
+      categoryId: expenseCategories[3].id,
+      depotId: depots[1].id,
+      userId: users[0].id,
       date: new Date('2024-01-01'),
       notes: 'Loyer mensuel boutique',
       isApproved: true,
-      approvedBy: users[0].id, // admin
+      approvedBy: users[0].id,
       approvedAt: new Date('2024-01-02')
     },
     {
       amount: 85.00,
       description: 'Frais de transport livraison',
-      categoryId: expenseCategories[5].id, // Transport
-      depotId: depots[0].id, // SFX-MAIN
-      userId: users[3].id, // stock_manager
+      categoryId: expenseCategories[5].id,
+      depotId: depots[0].id,
+      userId: users[0].id,
       date: new Date('2024-01-18'),
       notes: 'Carburant pour livraisons'
     },
     {
       amount: 35.00,
       description: 'Facture téléphone',
-      categoryId: expenseCategories[6].id, // Téléphone
-      depotId: depots[0].id, // SFX-MAIN
-      userId: users[1].id, // manager_sfax
+      categoryId: expenseCategories[6].id,
+      depotId: depots[0].id,
+      userId: users[0].id,
       date: new Date('2024-01-22'),
       notes: 'Forfait mobile professionnel'
     },
     {
       amount: 200.00,
       description: 'Assurance responsabilité civile',
-      categoryId: expenseCategories[7].id, // Assurance
-      depotId: depots[0].id, // SFX-MAIN
-      userId: users[1].id, // manager_sfax
+      categoryId: expenseCategories[7].id,
+      depotId: depots[0].id,
+      userId: users[0].id,
       date: new Date('2024-01-10'),
       notes: 'Assurance annuelle',
       isApproved: true,
-      approvedBy: users[0].id, // admin
+      approvedBy: users[0].id,
       approvedAt: new Date('2024-01-11')
     },
     {
       amount: 75.50,
       description: 'Maintenance équipement',
-      categoryId: expenseCategories[8].id, // Autre
-      depotId: depots[2].id, // SHOP-CV
-      userId: users[2].id, // cashier1
+      categoryId: expenseCategories[8].id,
+      depotId: depots[1].id,
+      userId: users[0].id,
       date: new Date('2024-01-28'),
       notes: 'Réparation four à pâtisserie'
     }

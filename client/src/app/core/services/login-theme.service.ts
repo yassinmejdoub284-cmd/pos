@@ -9,48 +9,23 @@ export interface LoginTheme {
   faviconUrl?: string;
 }
 
-const THEME_MAP: Record<string, LoginTheme> = {
-  '192.168.1.22:4201': {
-    companyId: 1,
-    logoUrl: '/logo_sfax.webp',
-    primaryColor: '#662c94',
-    secondaryColor: '#1E3A8A',
-    faviconUrl: '/favicon.ico'
-  },
-  '192.168.1.22:4200': {
-    companyId: 2,
-    logoUrl: '/logo_tunis.webp',
-    primaryColor: '#569797',
-    secondaryColor: '#7C2D12',
-    faviconUrl: '/favicon.ico'
-  }
-};
+// Single boutique Sfax — no multi-company routing needed
+const THEME_MAP: Record<string, LoginTheme> = {};
 
-// Direct mapping by companyId for cross-device persistence
-const COMPANY_THEME_MAP: Record<number, LoginTheme> = {
-  1: {
-    companyId: 1,
-    logoUrl: '/logo_sfax.webp',
-    primaryColor: '#662c94',
-    secondaryColor: '#1E3A8A',
-    faviconUrl: '/favicon.ico'
-  },
-  2: {
-    companyId: 2,
-    logoUrl: '/logo_tunis.webp',
-    primaryColor: '#569797',
-    secondaryColor: '#7C2D12',
-    faviconUrl: '/favicon.ico'
-  }
-};
-
-const DEFAULT_THEME: LoginTheme = {
-  companyId: 0,
-  logoUrl: '/logo_default.webp',
-  primaryColor: '#7289da',
-  secondaryColor: '#424549',
+const SFAX_THEME: LoginTheme = {
+  companyId: 1,
+  logoUrl: '/logo_sfax.webp',
+  primaryColor: '#662c94',
+  secondaryColor: '#1E3A8A',
   faviconUrl: '/favicon.ico'
 };
+
+// Direct mapping by companyId — only company 1 (Sfax)
+const COMPANY_THEME_MAP: Record<number, LoginTheme> = {
+  1: SFAX_THEME
+};
+
+const DEFAULT_THEME: LoginTheme = SFAX_THEME;
 
 @Injectable({ providedIn: 'root' })
 export class LoginThemeService {
@@ -63,21 +38,8 @@ export class LoginThemeService {
   }
 
   detectAndSetTheme(): void {
-    // Only use last selected company; allow depot-based override stored during login
-    // Prefer depot selection's company mapping if present
-    const storedCompanyIdRaw = localStorage.getItem('lastCompanyId') || '';
-    const storedCompanyId = Number(storedCompanyIdRaw);
-    
-    if (!Number.isNaN(storedCompanyId) && storedCompanyId > 0) {
-      const companyTheme = COMPANY_THEME_MAP[storedCompanyId];
-      if (companyTheme) {
-        this.themeSignal.set(companyTheme);
-        this.applyFaviconForLogin();
-        return;
-      }
-    }
-    // Fallback to default theme (logo_default.webp)
-    this.themeSignal.set(DEFAULT_THEME);
+    // Single boutique — always use Sfax theme
+    this.themeSignal.set(SFAX_THEME);
     this.applyFaviconForLogin();
   }
 

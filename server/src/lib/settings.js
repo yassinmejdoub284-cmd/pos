@@ -5,8 +5,8 @@ const SETTINGS_FILE = path.join(__dirname, '../../uploads/app-settings.json');
 
 function ensureDefaults(data = {}) {
   return {
-    companyName: data.companyName || '',
-    logoUrl: data.logoUrl || '',
+    companyName: data.companyName || 'Number One',
+    logoUrl: data.logoUrl || '/logo_sfax.webp',
     // Company details
     companyAddress: data.companyAddress || '',
     companyPhone: data.companyPhone || '',

@@ -93,47 +93,15 @@ export class OfflineService {
   }
 
   private setupOnlineOfflineListeners(): void {
+    // Desktop-only mode — no online sync, signal is always treated as local
+    // Listeners kept for API compatibility but auto-sync is disabled
     window.addEventListener('online', () => {
       this.isOnline.set(true);
-      this.processOfflineQueue();
+      // Online sync intentionally disabled — app is 100% local desktop
     });
 
     window.addEventListener('offline', () => {
       this.isOnline.set(false);
     });
-  }
-
-  private async processOfflineQueue(): Promise<void> {
-    if (!this.isOnline()) return;
-
-    const queue = await this.getOfflineQueue();
-    
-    for (const item of queue) {
-      try {
-        await this.processQueueItem(item);
-        await this.removeFromQueue(item.id!);
-      } catch (error) {
-        if (item.retryCount < item.maxRetries) {
-          await this.updateQueueRetry(item.id!, item.retryCount + 1);
-        } else {
-          await this.removeFromQueue(item.id!);
-        }
-      }
-    }
-  }
-
-  private async processQueueItem(item: OfflineQueue): Promise<void> {
-    const response = await fetch(item.endpoint, {
-      method: item.action === 'POST' ? 'POST' : 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-      },
-      body: JSON.stringify(item.data)
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
   }
 } 
