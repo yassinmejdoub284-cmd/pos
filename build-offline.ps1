@@ -51,7 +51,7 @@ Write-Host "Installing all client packages (3-5 minutes, ignore peer warnings)..
 # PowerShell treat every line npm writes to stderr (even harmless "npm warn"
 # lines) as a terminating error and abort the whole script immediately.
 # The $LASTEXITCODE check right below is what actually detects failure.
-npm install --force --no-audit --no-fund
+npm install --legacy-peer-deps --no-audit --no-fund
 if ($LASTEXITCODE -ne 0) {
     throw "Client npm install failed - see errors above"
 }
@@ -60,7 +60,7 @@ if ($LASTEXITCODE -ne 0) {
 $ngPath = "node_modules\.bin\ng.cmd"
 if (-not (Test-Path $ngPath)) {
     Write-Host "ERROR: Angular CLI not found. Trying manual install..." -ForegroundColor Red
-    npm install @angular/cli@19.2.15 --save-dev --force --no-audit
+    npm install @angular/cli@19.2.15 --save-dev --legacy-peer-deps --no-audit
     if (-not (Test-Path $ngPath)) {
         throw "@angular/cli failed to install - check network/npm registry"
     }
