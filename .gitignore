@@ -74,3 +74,6 @@ desktop/src-tauri/*.app
 desktop/src-tauri/*.dmg
 desktop/src-tauri/*.tar.gz
 desktop/src-tauri/*.zip
+
+# Generated per-build by build-offline.ps1 (contains a JWT secret)
+server/.env.offline
