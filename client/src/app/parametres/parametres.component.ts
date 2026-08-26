@@ -18,7 +18,7 @@ export class ParametresComponent implements OnInit {
   devicesConfigInput = '';
   availablePrinters: {name: string, isDefault: boolean}[] = [
     { name: 'POS-80', isDefault: false },
-    { name: 'POS-80C', isDefault: false }
+    { name: 'Xprinter XP-80', isDefault: false }
   ];
   loadingPrinters = false;
   
@@ -87,7 +87,7 @@ export class ParametresComponent implements OnInit {
       }
     },
     devicesConfig: {
-      printer: 'POS-80C',
+      printer: 'Xprinter XP-80',
       customPrinterName: '',
       enableDrawer: true,
       autoCut: true,
@@ -246,7 +246,7 @@ export class ParametresComponent implements OnInit {
         // Ensure devicesConfig exists with default values
         if (!this.settings.devicesConfig) {
           this.settings.devicesConfig = {
-            printer: 'POS-80C',
+            printer: 'Xprinter XP-80',
             customPrinterName: '',
             enableDrawer: true,
             autoCut: true,
@@ -502,7 +502,7 @@ export class ParametresComponent implements OnInit {
     // If no JSON input, ensure devicesConfig exists with current form values
     if (!this.settings.devicesConfig) {
       this.settings.devicesConfig = {
-        printer: 'POS-80C',
+        printer: 'Xprinter XP-80',
         customPrinterName: '',
         enableDrawer: true,
         autoCut: true,
@@ -560,8 +560,8 @@ export class ParametresComponent implements OnInit {
     
     // Get the printer name from settings
     const printerName = this.settings.devicesConfig?.printer === 'CUSTOM' 
-      ? this.settings.devicesConfig?.customPrinterName || 'POS-80C'
-      : this.settings.devicesConfig?.printer || 'POS-80C';
+      ? this.settings.devicesConfig?.customPrinterName || 'Xprinter XP-80'
+      : this.settings.devicesConfig?.printer || 'Xprinter XP-80';
 
     // Test the printer connection
     this.printService.testPrinter().then(success => {
@@ -589,7 +589,7 @@ export class ParametresComponent implements OnInit {
     if (!this.settings.devicesConfig) {
       this.settings.devicesConfig = {};
     }
-    this.settings.devicesConfig.printer = 'POS-80C';
+    this.settings.devicesConfig.printer = 'Xprinter XP-80';
     this.settings.devicesConfig.enableDrawer = true;
     this.settings.devicesConfig.autoCut = true;
     this.settings.devicesConfig.printLogo = true;

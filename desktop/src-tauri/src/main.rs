@@ -122,13 +122,13 @@ fn reload_site(app_handle: tauri::AppHandle) {
 
 #[tauri::command]
 fn print_text_direct(_app_handle: tauri::AppHandle, text: String) -> Result<(), String> {
-    send_raw_to_printer(Some("POS-80C"), text.as_bytes())
+    send_raw_to_printer(Some("Xprinter XP-80"), text.as_bytes())
 }
 
 #[tauri::command]
 fn print_html(_app_handle: tauri::AppHandle, html: String) -> Result<(), String> {
     let text = html_to_text(&html);
-    send_raw_to_printer(Some("POS-80C"), text.as_bytes())
+    send_raw_to_printer(Some("Xprinter XP-80"), text.as_bytes())
 }
 
 #[tauri::command]
@@ -160,7 +160,7 @@ fn print_raw_bytes(
 #[tauri::command]
 fn open_cash_drawer(_app_handle: tauri::AppHandle) -> Result<(), String> {
     let cmd = vec![0x1B, 0x70, 0x00, 0x19, 0xFA];
-    send_raw_to_printer(Some("POS-80C"), &cmd)
+    send_raw_to_printer(Some("Xprinter XP-80"), &cmd)
 }
 
 #[tauri::command]
@@ -216,7 +216,7 @@ fn send_raw_to_printer(printer_name: Option<&str>, data: &[u8]) -> Result<(), St
         let to_wide =
             |s: &str| OsStr::new(s).encode_wide().chain(once(0)).collect::<Vec<u16>>();
 
-        let printer = printer_name.unwrap_or("POS-80C");
+        let printer = printer_name.unwrap_or("Xprinter XP-80");
         let mut wide_printer = to_wide(printer);
         let open_ok = OpenPrinterW(
             wide_printer.as_mut_ptr() as LPWSTR,
