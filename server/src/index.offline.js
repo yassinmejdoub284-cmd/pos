@@ -41,4 +41,18 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('file:./')) 
 }
 
 // ── Now bootstrap the rest of the server (same as index.js) ─────────────────
+// First run: the SQLite file does not exist yet. Copy the template database
+// (schema + seed, admin PIN 1100) that ships beside the exe, otherwise every
+// query fails with 'The table main.users does not exist'.
+const dbTarget = String(process.env.DATABASE_URL || '').replace(/^file:/, '');
+if (dbTarget && !fs.existsSync(dbTarget)) {
+  const template = path.join(exeDir, 'pos_patisserie.template.db');
+  if (fs.existsSync(template)) {
+    fs.copyFileSync(template, dbTarget);
+    console.log('[offline] Created database from template:', dbTarget);
+  } else {
+    console.error('[offline] Template database not found at', template);
+  }
+}
+
 require('./index');

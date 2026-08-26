@@ -216,6 +216,26 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "Prisma client generated" -ForegroundColor Green
 
+# -- STEP 4b : Template SQLite database ---------------------------------------
+# A fresh install gets an empty .db and every query fails with
+# "The table main.users does not exist". Build a template here (schema + seed)
+# and ship it; index.offline.js copies it into place on first run.
+Step "4b/7  Building template SQLite database (schema + seed)"
+$TemplateDb = Join-Path $Server "pos_patisserie.template.db"
+Remove-Item $TemplateDb -Force -ErrorAction SilentlyContinue
+$savedDbUrl = $env:DATABASE_URL
+$env:DATABASE_URL = "file:$TemplateDb"
+npx prisma db push --schema=prisma/schema.sqlite.prisma --skip-generate --accept-data-loss
+if ($LASTEXITCODE -ne 0) { throw "prisma db push failed while building the template database" }
+Copy-Item (Join-Path $Server "prisma\seed.js") (Join-Path $Server "prisma\seed.mjs") -Force
+node prisma/seed.mjs
+$seedCode = $LASTEXITCODE
+Remove-Item (Join-Path $Server "prisma\seed.mjs") -Force -ErrorAction SilentlyContinue
+$env:DATABASE_URL = $savedDbUrl
+if ($seedCode -ne 0) { throw "Seeding the template database failed" }
+if (-not (Test-Path $TemplateDb)) { throw "Template database was not created" }
+Write-Host "Template database built (admin PIN 1100)" -ForegroundColor Green
+
 # -- STEP 5 : Bundle server -> pos-server.exe ---------------------------------
 Step "5/7  Bundling Express server with pkg"
 
@@ -274,6 +294,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $Resources "uploads") | Out
 New-Item -ItemType Directory -Force -Path (Join-Path $Resources "src\uploads") | Out-Null
 Copy-Item -Recurse -Force (Join-Path $Server "uploads\*")     (Join-Path $Resources "uploads")     -ErrorAction SilentlyContinue
 Copy-Item -Recurse -Force (Join-Path $Server "src\uploads\*") (Join-Path $Resources "src\uploads") -ErrorAction SilentlyContinue
+Copy-Item -Force (Join-Path $Server "pos_patisserie.template.db") (Join-Path $Resources "pos_patisserie.template.db")
 Write-Host "sharp native binaries copied ($imgCopied .node file(s))" -ForegroundColor Green
 Write-Host "Sidecar copied to desktop/resources" -ForegroundColor Green
 
