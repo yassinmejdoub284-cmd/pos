@@ -77,3 +77,8 @@ desktop/src-tauri/*.zip
 
 # Generated per-build by build-offline.ps1 (contains a JWT secret)
 server/.env.offline
+
+# local sidecar test builds
+server/test-server.exe
+server/test.db
+
