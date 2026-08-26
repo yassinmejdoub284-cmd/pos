@@ -223,10 +223,10 @@ New-Item -ItemType Directory -Force -Path $Sidecar | Out-Null
 
 $pkgCheck = Get-Command pkg -ErrorAction SilentlyContinue
 if ($pkgCheck) {
-    pkg src/index.offline.js --config pkg.config.json --target node18-win-x64 --output "$Sidecar\pos-server.exe" --compress GZip
+    npx --yes @yao-pkg/pkg src/index.offline.js --config pkg.config.json --target node22-win-x64 --output "$Sidecar\pos-server.exe" --compress GZip
 } else {
     Write-Host "pkg not found globally, using npx..." -ForegroundColor Yellow
-    npx pkg src/index.offline.js --config pkg.config.json --target node18-win-x64 --output "$Sidecar\pos-server.exe" --compress GZip
+    npx --yes @yao-pkg/pkg src/index.offline.js --config pkg.config.json --target node22-win-x64 --output "$Sidecar\pos-server.exe" --compress GZip
 }
 
 if ($LASTEXITCODE -ne 0) {

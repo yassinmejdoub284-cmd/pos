@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
-    "pkg": "^5.8.1",
+    "@yao-pkg/pkg": "^6.6.0",
     "prisma": "^6.15.0",
     "supertest": "^6.3.3",
     "vitest": "^1.0.4"

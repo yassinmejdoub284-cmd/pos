@@ -329,9 +329,7 @@ fn main() {
             wait_for_server(20_000);
 
             // 3. Always use local embedded server — 100% desktop/local mode
-            let webview_url = WebviewUrl::External(
-                tauri::Url::parse("http://localhost:3255").unwrap()
-            );
+            let webview_url = WebviewUrl::App("index.html".into());
 
             let win = tauri::WebviewWindowBuilder::new(app, "main", webview_url)
                 .title("PoS Number One")

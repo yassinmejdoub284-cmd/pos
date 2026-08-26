@@ -19,10 +19,10 @@
     "icon": [
       "../../client/public/favicon.ico"
     ],
-    "resources": [
-      "../resources/*",
-      "../app-config.json"
-    ],
+    "resources": {
+      "../resources/": "resources/",
+      "../app-config.json": "app-config.json"
+    },
     "windows": {
       "webviewInstallMode": {
         "type": "offlineInstaller"
