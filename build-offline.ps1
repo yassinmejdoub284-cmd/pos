@@ -260,12 +260,20 @@ if (-not (Test-Path $ImgSrc)) {
     throw "server/node_modules/@img not found - sharp native prebuild missing."
 }
 Write-Host "Copying sharp native binaries next to pos-server.exe..." -ForegroundColor Cyan
-Copy-Item -Recurse -Force $ImgSrc (Join-Path $Resources "@img")
-Copy-Item -Recurse -Force $SharpSrc (Join-Path $Resources "sharp")
-$imgCopied = (Get-ChildItem (Join-Path $Resources "@img") -Recurse -Filter "*.node" -ErrorAction SilentlyContinue).Count
+$ResNM = Join-Path $Resources "node_modules"
+New-Item -ItemType Directory -Force -Path $ResNM | Out-Null
+Copy-Item -Recurse -Force $ImgSrc (Join-Path $ResNM "@img")
+Copy-Item -Recurse -Force $SharpSrc (Join-Path $ResNM "sharp")
+$imgCopied = (Get-ChildItem (Join-Path $ResNM "@img") -Recurse -Filter "*.node" -ErrorAction SilentlyContinue).Count
 if ($imgCopied -lt 1) {
     throw "Copied @img but found no .node binary - sharp will fail at runtime."
 }
+# The server reads/writes these next to the exe (settings, roles, logos).
+# They live inside the pkg snapshot otherwise, which is read-only.
+New-Item -ItemType Directory -Force -Path (Join-Path $Resources "uploads") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $Resources "src\uploads") | Out-Null
+Copy-Item -Recurse -Force (Join-Path $Server "uploads\*")     (Join-Path $Resources "uploads")     -ErrorAction SilentlyContinue
+Copy-Item -Recurse -Force (Join-Path $Server "src\uploads\*") (Join-Path $Resources "src\uploads") -ErrorAction SilentlyContinue
 Write-Host "sharp native binaries copied ($imgCopied .node file(s))" -ForegroundColor Green
 Write-Host "Sidecar copied to desktop/resources" -ForegroundColor Green
 

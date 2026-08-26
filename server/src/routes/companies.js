@@ -116,7 +116,7 @@ router.delete('/:id/depots/:depotId', async (req, res) => {
 module.exports = router;
 
 // ---- File upload setup (company logos) ----
-const LOGOS_DIR = path.join(__dirname, '../../uploads/logos');
+const LOGOS_DIR = path.join((process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '../..')), 'uploads/logos');
 if (!fs.existsSync(LOGOS_DIR)) fs.mkdirSync(LOGOS_DIR, { recursive: true });
 
 const storage = multer.diskStorage({

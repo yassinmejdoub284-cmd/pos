@@ -1,5 +1,7 @@
 require('dotenv').config();
-const { PrismaClient } = require('@prisma/client');
+// pkg cannot resolve Node subpath imports ("#main-entry-point") used by
+// Prisma's generated default.js, so require the real entry point directly.
+const { PrismaClient } = require('.prisma/client/index.js');
 
 const globalForPrisma = globalThis;
 

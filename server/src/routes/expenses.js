@@ -10,7 +10,7 @@ const { getDepotSettings } = require('../lib/settings');
 const router = express.Router();
 
 // Settings fallback (file) - mirror settings route behavior
-const SETTINGS_FILE = path.join(__dirname, '../../uploads/app-settings.json');
+const SETTINGS_FILE = path.join((process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '../..')), 'uploads/app-settings.json');
 function readFileSettings() {
   try {
     if (fs.existsSync(SETTINGS_FILE)) {

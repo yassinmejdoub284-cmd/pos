@@ -9,7 +9,7 @@ const ImageOptimizer = require('../lib/image-optimizer');
 
 const router = express.Router();
 
-const USER_ROLES_FILE = path.join(__dirname, '../uploads/user-roles.json');
+const USER_ROLES_FILE = path.join((process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '../..')), 'src/uploads/user-roles.json');
 
 function readUserRoles() {
   try {

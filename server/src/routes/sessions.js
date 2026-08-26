@@ -11,7 +11,7 @@ const router = express.Router();
 // Helper function to read user roles from JSON file
 function readUserRoles() {
   try {
-    const rolesPath = path.join(__dirname, '../uploads/user-roles.json');
+    const rolesPath = path.join((process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '../..')), 'src/uploads/user-roles.json');
     if (fs.existsSync(rolesPath)) {
       return JSON.parse(fs.readFileSync(rolesPath, 'utf8'));
     }

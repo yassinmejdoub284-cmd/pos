@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const SETTINGS_FILE = path.join(__dirname, '../../uploads/app-settings.json');
+const SETTINGS_FILE = path.join((process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '../..')), 'uploads/app-settings.json');
 
 function ensureDefaults(data = {}) {
   return {

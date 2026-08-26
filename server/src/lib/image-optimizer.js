@@ -1,4 +1,19 @@
-const sharp = require('sharp');
+// sharp's native binary cannot load from inside a pkg snapshot, and requiring
+// it at module load took the whole server down. Load it lazily, and in a pkg
+// build load it from the copy on disk beside the executable (build-offline.ps1
+// puts sharp and @img under resources/node_modules).
+let _sharp = null;
+function sharp(input) {
+  if (!_sharp) {
+    if (process.pkg) {
+      const p_ = require('path');
+      _sharp = require(p_.join(p_.dirname(process.execPath), 'node_modules', 'sharp'));
+    } else {
+      _sharp = require('sharp');
+    }
+  }
+  return _sharp(input);
+}
 const path = require('path');
 const fs = require('fs');
 

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { prisma } = require('../lib/prisma');
-const ROLES_FILE = path.join(__dirname, '../../uploads/user-defined-roles.json');
+const ROLES_FILE = path.join((process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '../..')), 'uploads/user-defined-roles.json');
 
 function readDefinedRoles() {
   try {
@@ -20,8 +20,8 @@ function writeDefinedRoles(arr) {
 
 const router = express.Router();
 
-const SETTINGS_FILE = path.join(__dirname, '../../uploads/app-settings.json');
-const LOGOS_DIR = path.join(__dirname, '../../uploads/logos');
+const SETTINGS_FILE = path.join((process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '../..')), 'uploads/app-settings.json');
+const LOGOS_DIR = path.join((process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '../..')), 'uploads/logos');
 
 // Ensure logos directory exists
 if (!fs.existsSync(LOGOS_DIR)) {
