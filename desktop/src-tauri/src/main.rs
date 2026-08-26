@@ -8,6 +8,13 @@ use std::{
     time::Duration,
 };
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+// Spawn the sidecar without opening a console window.
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
 use serde::Deserialize;
 use tauri::{App, Manager, WebviewUrl};
 
@@ -71,14 +78,19 @@ fn start_backend_server(app_handle: &tauri::AppHandle) -> Option<Child> {
     println!("[Tauri] Starting backend: {:?}", server_exe);
     println!("[Tauri] DATABASE_URL={}", db_url);
 
-    let child = Command::new(&server_exe)
-        .env("DATABASE_URL", &db_url)
+    let mut cmd = Command::new(&server_exe);
+    cmd.env("DATABASE_URL", &db_url)
         .env("JWT_SECRET",   "pos-patisserie-offline-secret-key-2024")
         .env("PORT",         "3255")
         .env("NODE_ENV",     "production")
         .env("LOG_LEVEL",    "warn")
-        .current_dir(&server_dir)
-        .spawn();
+        .current_dir(&server_dir);
+
+    // Without this the sidecar opens a visible console window beside the app.
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let child = cmd.spawn();
 
     match child {
         Ok(c) => { println!("[Tauri] Backend started (PID {})", c.id()); Some(c) }

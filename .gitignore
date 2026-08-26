@@ -82,3 +82,10 @@ server/.env.offline
 server/test-server.exe
 server/test.db
 
+
+# local logo backups
+_logo_backup/
+
+server/pos_patisserie.db
+server/pos_patisserie.template.db
+
