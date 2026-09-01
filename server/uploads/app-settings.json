@@ -1,7 +1,7 @@
 {
   "1": {
     "companyName": "",
-    "logoUrl": "http://localhost:3255/uploads/logos/logo-number-one.png",
+    "logoUrl": "http://localhost:3255/uploads/logos/logo-samurai-food.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -121,7 +121,7 @@
   },
   "2": {
     "companyName": "BOUTIQUE SFAX",
-    "logoUrl": "http://localhost:3255/uploads/logos/logo-number-one.png",
+    "logoUrl": "http://localhost:3255/uploads/logos/logo-samurai-food.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -176,7 +176,7 @@
   },
   "3": {
     "companyName": "",
-    "logoUrl": "http://localhost:3255/uploads/logos/logo-number-one.png",
+    "logoUrl": "http://localhost:3255/uploads/logos/logo-samurai-food.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -296,7 +296,7 @@
   },
   "4": {
     "companyName": "",
-    "logoUrl": "http://localhost:3255/uploads/logos/logo-number-one.png",
+    "logoUrl": "http://localhost:3255/uploads/logos/logo-samurai-food.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -416,7 +416,7 @@
   },
   "default": {
     "companyName": "SOCIÉTÉ PATISSERIE HENTETI",
-    "logoUrl": "http://localhost:3255/uploads/logos/logo-number-one.png",
+    "logoUrl": "http://localhost:3255/uploads/logos/logo-samurai-food.png",
     "companyAddress": "123 Avenue Habib Bourguiba, Tunis 1000",
     "companyPhone": "+216 71 123 456",
     "companyEmail": "contact@henteti-group.tn",
