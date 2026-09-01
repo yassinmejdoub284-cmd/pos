@@ -68,7 +68,7 @@ export class ParametresComponent implements OnInit {
       showClientInfo: true,
       showPaymentMethod: true,
       showDiscountDetails: true,
-      doubleImpression: false
+      doubleImpression: true
     },
     // Document display settings
     documentDisplaySettings: {
@@ -234,12 +234,12 @@ export class ParametresComponent implements OnInit {
             showClientInfo: true,
             showPaymentMethod: true,
             showDiscountDetails: true,
-            doubleImpression: false
+            doubleImpression: true
           };
         } else {
           // Ensure doubleImpression exists in printSettings
           if (this.settings.printSettings.doubleImpression === undefined) {
-            this.settings.printSettings.doubleImpression = false;
+            this.settings.printSettings.doubleImpression = true;
           }
         }
         

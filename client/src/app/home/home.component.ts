@@ -293,6 +293,18 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadSettings(); // Loads default settings first
     this.loadCompanyDetails(); // Overrides with company specific details if available
 
+    // Nom et logo mis a jour en direct des qu'ils sont sauvegardes dans
+    // Parametres > Entreprise, sans avoir a recharger l'application.
+    this.settingsService.settingsChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(settings => {
+        if (!settings) return;
+        this.companyName.set(settings.companyName || 'SoluMove PoS');
+        this.companyLogo.set(settings.logoUrl ? this.settingsService.getAbsoluteLogoUrl(settings.logoUrl) : '');
+        this.logoLoadError.set(false);
+        this.cdr.markForCheck();
+      });
+
     // Update time every minute - optimized with proper cleanup
     this.timeInterval = setInterval(() => {
       this.currentTime.set(new Date());

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface AppSettings {
@@ -137,26 +137,76 @@ export class SettingsService {
     ? 'https://patisserie.solumove.net' 
     : environment.apiUrl.replace('/api', '');
 
+  /** Cle de cache navigateur pour la marque (nom + logo). */
+  private static readonly BRANDING_KEY = 'app_branding';
+
+  /** Derniers parametres connus : toute page abonnee se met a jour toute seule. */
+  private readonly settingsSubject = new BehaviorSubject<AppSettings | null>(null);
+
   constructor(private http: HttpClient) {}
 
-  getSettings(): Observable<AppSettings> {
-    return this.http.get<AppSettings>(this.API_URL);
+  /** Flux des parametres : emet a chaque chargement et a chaque sauvegarde. */
+  get settingsChanges(): Observable<AppSettings | null> {
+    return this.settingsSubject.asObservable();
   }
 
+  getSettings(): Observable<AppSettings> {
+    return this.http.get<AppSettings>(this.API_URL).pipe(
+      tap(settings => this.publish(settings))
+    );
+  }
+
+  /** Derniers parametres charges, sans requete reseau. */
   getSettingsSync(): AppSettings | null {
-    // This is a simplified synchronous version - in a real app you'd want to cache settings
-    // For now, return null to use defaults
-    return null;
+    return this.settingsSubject.value;
   }
 
   updateSettings(settings: Partial<AppSettings>): Observable<AppSettings> {
-    return this.http.put<AppSettings>(this.API_URL, settings);
+    return this.http.put<AppSettings>(this.API_URL, settings).pipe(
+      // La sauvegarde renvoie les parametres a jour : on les rediffuse aussitot
+      // pour que l'en-tete, les tickets et le login suivent sans rechargement.
+      tap(saved => this.publish(saved))
+    );
   }
 
   uploadLogo(file: File): Observable<{ logoUrl: string }> {
     const formData = new FormData();
     formData.append('logo', file);
-    return this.http.post<{ logoUrl: string }>(`${this.API_URL}/logo`, formData);
+    return this.http.post<{ logoUrl: string }>(`${this.API_URL}/logo`, formData).pipe(
+      tap(res => {
+        const current = this.settingsSubject.value;
+        if (current && res?.logoUrl) {
+          this.publish({ ...current, logoUrl: res.logoUrl });
+        }
+      })
+    );
+  }
+
+  /** Diffuse les parametres et memorise la marque pour l'ecran de connexion. */
+  private publish(settings: AppSettings): void {
+    this.settingsSubject.next(settings);
+    try {
+      localStorage.setItem(SettingsService.BRANDING_KEY, JSON.stringify({
+        companyName: settings?.companyName || '',
+        logoUrl: this.getAbsoluteLogoUrl(settings?.logoUrl)
+      }));
+    } catch {
+      // localStorage indisponible : la marque par defaut sera utilisee.
+    }
+  }
+
+  /**
+   * Marque memorisee, lisible AVANT connexion.
+   * L'ecran de login ne peut pas appeler /api/settings (route authentifiee),
+   * on relit donc ce que la derniere session a enregistre.
+   */
+  static readBranding(): { companyName: string; logoUrl: string } | null {
+    try {
+      const raw = localStorage.getItem(SettingsService.BRANDING_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   }
 
   /**

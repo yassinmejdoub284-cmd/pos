@@ -1,8 +1,10 @@
 import { inject, Injectable, signal, Signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { SettingsService } from './settings.service';
 
 export interface LoginTheme {
   companyId: number;
+  companyName: string;
   logoUrl: string;
   primaryColor: string;
   secondaryColor: string;
@@ -14,6 +16,7 @@ const THEME_MAP: Record<string, LoginTheme> = {};
 
 const SFAX_THEME: LoginTheme = {
   companyId: 1,
+  companyName: 'SoluMove PoS',
   logoUrl: '/logo_sfax.webp',
   primaryColor: '#662c94',
   secondaryColor: '#1E3A8A',
@@ -38,8 +41,16 @@ export class LoginThemeService {
   }
 
   detectAndSetTheme(): void {
-    // Single boutique — always use Sfax theme
-    this.themeSignal.set(SFAX_THEME);
+    // Le nom et le logo saisis dans Parametres > Entreprise priment sur le
+    // theme par defaut. L'ecran de login ne pouvant pas interroger
+    // /api/settings (route authentifiee), on relit la marque memorisee par
+    // la derniere session ouverte sur ce poste.
+    const branding = SettingsService.readBranding();
+    this.themeSignal.set({
+      ...SFAX_THEME,
+      companyName: branding?.companyName || SFAX_THEME.companyName,
+      logoUrl: branding?.logoUrl || SFAX_THEME.logoUrl
+    });
     this.applyFaviconForLogin();
   }
 

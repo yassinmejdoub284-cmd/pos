@@ -420,7 +420,9 @@ export class PrintService {
   printSaleReceipt(sale: Sale, options?: { openPreviewOnly?: boolean }): void {
     this.settingsService.getSettings().subscribe({
       next: async (settings) => {
-        const doublePrint = settings?.printSettings?.doubleImpression || false;
+        // Double impression TOUJOURS active : 1 ticket client + 1 ticket cuisine.
+        // Volontairement non configurable (exigence fast-food).
+        const doublePrint = true;
 
         // Check if desktop version is enabled
         if (settings?.isDesktopVersion) {
@@ -430,11 +432,11 @@ export class PrintService {
           try {
             await this.printPlainTextDesktop(text);
 
-            // Double print if enabled
+            // Deuxieme exemplaire : ticket CUISINE, sans prix, pour la preparation.
             if (doublePrint) {
-              // Small delay between prints
+              const kitchenText = this.buildKitchenTicketText(sale, settings);
               setTimeout(async () => {
-                await this.printPlainTextDesktop(text);
+                await this.printPlainTextDesktop(kitchenText);
               }, 500);
             }
           } catch (error) {
@@ -1470,6 +1472,62 @@ export class PrintService {
   }
 
 
+  /** Largeur utile d'un ticket 80mm en police A. */
+  private readonly TICKET_WIDTH = 48;
+
+  /** Une ligne "libelle .......... valeur" alignee sur la largeur du ticket. */
+  private padLine(left: string, right: string, width = this.TICKET_WIDTH): string {
+    const l = (left || '').toString();
+    const r = (right || '').toString();
+    const space = width - l.length - r.length;
+    return space > 0 ? l + ' '.repeat(space) + r : (l + ' ' + r).slice(0, width);
+  }
+
+  /** Trait plein sur toute la largeur du ticket. */
+  private rule(ch: string = '-', width = this.TICKET_WIDTH): string {
+    return ch.repeat(width) + '\n';
+  }
+
+  /**
+   * Ticket CUISINE : produits et quantites uniquement, aucun prix.
+   * Imprime en deuxieme exemplaire pour la preparation de la commande.
+   */
+  buildKitchenTicketText(sale: Sale, settings: AppSettings | null): string {
+    const ESC = '\x1B';
+    const centerAlign = ESC + '\x61\x01';
+    const leftAlign   = ESC + '\x61\x00';
+    const boldOn      = ESC + '\x45\x01';
+    const boldOff     = ESC + '\x45\x00';
+    const normalSize  = ESC + '\x21\x00';
+    const bigSize     = ESC + '\x21\x10'; // double hauteur : lisible en cuisine
+
+    const createdAt = new Date(sale.createdAt);
+    const time = createdAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    let text = '';
+    text += this.rule('=');
+    text += centerAlign + bigSize + boldOn + 'CUISINE' + boldOff + normalSize + '\n';
+    text += this.rule('=');
+    text += leftAlign + this.padLine(`Ticket: #${this.getTicketNumberForPrint(sale)}`, `Heure: ${time}`) + '\n';
+    text += this.rule('-');
+
+    let totalUnits = 0;
+    (sale.items || []).forEach(item => {
+      const name = this.sanitizeForThermalPrinter((item.productName || '').toString());
+      const qty = Number(item.quantity || 0);
+      totalUnits += qty;
+      const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
+      // Quantite en gros caracteres, puis le nom du produit.
+      text += leftAlign + bigSize + `${qtyFormatted.padStart(2, ' ')}  ${name}` + normalSize + '\n';
+    });
+
+    text += this.rule('-');
+    text += leftAlign + this.padLine('Total articles', totalUnits % 1 === 0 ? totalUnits.toString() : totalUnits.toFixed(2)) + '\n';
+    text += this.rule('=');
+    text += '\n';
+    return text;
+  }
+
   buildSaleReceiptText(sale: Sale, settings: AppSettings | null): string {
     const createdAt = new Date(sale.createdAt);
     const isWholesale = this.isWholesaleSale(sale);
@@ -1519,15 +1577,18 @@ export class PrintService {
     text += noTopMargin + noBottomMargin + monospaceFont;
 
     // Header
-    text += '================================\n';
+    text += this.rule('=');
 
-    // ASCII Art Logo "HD" - centered and smaller
-    text += centerAlign + '  _   _ _____  \n';
-    text += centerAlign + ' | | | |  __ \\ \n';
-    text += centerAlign + ' | |_| | |  | |\n';
-    text += centerAlign + ' |  _  | |  | |\n';
-    text += centerAlign + ' | | | | |__| |\n';
-    text += centerAlign + ' |_| |_|_____/ \n\n';
+    // Logo : respecte le reglage "Afficher le logo" (Parametres > Impression).
+    // Une imprimante thermique ne peut pas rendre l'image, on imprime donc le
+    // nom de la societe en gros a la place.
+    if (settings?.printSettings?.showLogo !== false) {
+      const logoLine = this.sanitizeForThermalPrinter(settings?.companyName || '');
+      if (logoLine) {
+        text += centerAlign + ESC + '\x21\x30' + logoLine + normalSize + '\n';
+      }
+    }
+    text += '\n';
 
     // Company name (double bold and centered) - sanitized for thermal printer
     // Company name (double bold and centered) - sanitized for thermal printer
@@ -1547,7 +1608,7 @@ export class PrintService {
       }
     }
 
-    text += centerAlign + '================================\n\n';
+    text += centerAlign + this.rule('=') + '\n';
 
     // Sale info
     text += `Date: ${date}     Heure: ${time}\n`;
@@ -1577,7 +1638,7 @@ export class PrintService {
 
     // Items header
     text += leftAlign + boldOn + 'Articles' + boldOff + '\n';
-    text += '--------------------------------------------\n';
+    text += this.rule('-');
 
     // Items - sanitized for thermal printer
     (sale.items || []).forEach(item => {
@@ -1594,25 +1655,23 @@ export class PrintService {
         // Format quantity: show as integer if whole number, otherwise 2 decimals
         const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
 
-        text += `${name} ${qtyFormatted}\n`;
-        text += `${qtyFormatted} × ${unit.toFixed(2)} dt Gros\n`;
+        text += `${name}\n`;
+        text += this.padLine(`  ${qtyFormatted} x ${unit.toFixed(2)} Gros`, `${total.toFixed(2)} dt`) + '\n';
         if (bundleQty > 0 && bundleSize > 0) {
-          text += `Lot: ${bundleQty} × ${bundleSize} = ${totalUnits} unités\n`;
+          text += `  Lot: ${bundleQty} x ${bundleSize} = ${totalUnits} u.\n`;
         }
-        text += `${total.toFixed(2)} dt\n`;
       } else {
         // Regular item format
         // Format quantity: show as integer if whole number, otherwise 2 decimals
         const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
 
         text += `${name}\n`;
-        text += `${qtyFormatted} × ${unit.toFixed(2)} dt\n`;
-        text += `${total.toFixed(2)} dt\n`;
+        text += this.padLine(`  ${qtyFormatted} x ${unit.toFixed(2)}`, `${total.toFixed(2)} dt`) + '\n';
       }
       text += '\n';
     });
 
-    text += '--------------------------------------------\n\n';
+    text += this.rule('-') + '\n';
 
     // Totals
     const discount = Number(sale.discount || 0);
@@ -1620,11 +1679,13 @@ export class PrintService {
     // Use finalTotal from database as TOTAL
     const total = Number(sale.finalTotal || subtotal - discount);
 
-    text += leftAlign + `Sous-total: ${subtotal.toFixed(2)} dt\n`;
+    text += leftAlign + this.padLine('Sous-total', `${subtotal.toFixed(2)} dt`) + '\n';
     if (discount > 0) {
-      text += leftAlign + `Remise: -${discount.toFixed(2)} dt\n`;
+      if (settings?.printSettings?.showDiscountDetails !== false) {
+      text += leftAlign + this.padLine('Remise', `-${discount.toFixed(2)} dt`) + '\n';
     }
-    text += leftAlign + boldOn + `TOTAL A PAYER: ${total.toFixed(2)} dt` + boldOff + '\n';
+    }
+    text += leftAlign + boldOn + this.padLine('TOTAL A PAYER', `${total.toFixed(2)} dt`) + boldOff + '\n';
 
     // Advance payment (acompte) and remaining balance for temporary sales
     const advancePayment = sale.advancePayment !== undefined && sale.advancePayment !== null ? Number(sale.advancePayment) : 0;
@@ -1640,31 +1701,31 @@ export class PrintService {
       }
     }
 
-    text += '--------------------------------------------\n';
+    text += this.rule('-');
 
     // Payment section
-    text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
+    const showPay = settings?.printSettings?.showPaymentMethod !== false;
+    if (showPay) text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
 
-    // Payment type
-    const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
-    text += leftAlign + `Type de paiement: ${paymentTypeText}\n`;
-
-    // Payment method
-    if (sale.paymentMethod) {
-      text += leftAlign + `Méthode: ${this.sanitizeForThermalPrinter(sale.paymentMethod.name)}\n`;
-    } else if (sale.status === 'TEMPORARY') {
-      text += leftAlign + `Méthode: —\n`;
+    // Type et methode de paiement : masques si le reglage est decoche.
+    if (showPay) {
+      const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
+      text += leftAlign + this.padLine('Type', this.sanitizeForThermalPrinter(paymentTypeText)) + '\n';
+      if (sale.paymentMethod) {
+        text += leftAlign + this.padLine('Methode', this.sanitizeForThermalPrinter(sale.paymentMethod.name)) + '\n';
+      } else if (sale.status === 'TEMPORARY') {
+        text += leftAlign + this.padLine('Methode', '-') + '\n';
+      }
     }
 
-    text += '=========================================\n';
+    text += this.rule('=');
 
     // Custom thank you message from settings - sanitized for thermal printer
     const thankYouMessage = this.sanitizeForThermalPrinter(settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!');
     text += centerAlign + thankYouMessage + '\n\n\n\n\n\n';
 
-    // Paper cut command
-    text += ESC + '\x69'; // Full cut
-    text += ESC + '\x64\x01'; // Feed 6 lines before cutting
+    // La coupe et l'avance papier sont ajoutees cote Rust (build_receipt),
+    // sinon le ticket etait coupe deux fois.
 
     // Open cash drawer for cash payments (espèces) - same logic for web and desktop
     const isCashPayment = sale.paymentType === 'COMPTANT' ||
@@ -1702,15 +1763,18 @@ export class PrintService {
     text += noTopMargin + noBottomMargin + monospaceFont;
 
     // Header
-    text += '================================\n';
+    text += this.rule('=');
 
-    // ASCII Art Logo "HD" - centered and smaller
-    text += centerAlign + '  _   _ _____  \n';
-    text += centerAlign + ' | | | |  __ \\ \n';
-    text += centerAlign + ' | |_| | |  | |\n';
-    text += centerAlign + ' |  _  | |  | |\n';
-    text += centerAlign + ' | | | | |__| |\n';
-    text += centerAlign + ' |_| |_|_____/ \n\n';
+    // Logo : respecte le reglage "Afficher le logo" (Parametres > Impression).
+    // Une imprimante thermique ne peut pas rendre l'image, on imprime donc le
+    // nom de la societe en gros a la place.
+    if (settings?.printSettings?.showLogo !== false) {
+      const logoLine = this.sanitizeForThermalPrinter(settings?.companyName || '');
+      if (logoLine) {
+        text += centerAlign + ESC + '\x21\x30' + logoLine + normalSize + '\n';
+      }
+    }
+    text += '\n';
 
     // Company name (double bold and centered) - sanitized for thermal printer
     // Company name (double bold and centered) - sanitized for thermal printer
@@ -1730,7 +1794,7 @@ export class PrintService {
       }
     }
 
-    text += centerAlign + '================================\n\n';
+    text += centerAlign + this.rule('=') + '\n';
 
     // Numéro de Ticket
     text += leftAlign + 'Numéro de Ticket\n';
@@ -1770,7 +1834,7 @@ export class PrintService {
 
     // Items header
     text += leftAlign + boldOn + 'Articles' + boldOff + '\n';
-    text += '--------------------------------------------\n';
+    text += this.rule('-');
 
     // Items - sanitized for thermal printer
     (sale.items || []).forEach(item => {
@@ -1787,26 +1851,25 @@ export class PrintService {
         // Format quantity: show as integer if whole number, otherwise 2 decimals
         const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
 
-        text += `${name} ${qtyFormatted}\n`;
-        text += `${qtyFormatted} × ${unit.toFixed(2)} dt Gros\n`;
+        text += `${name}\n`;
+        text += this.padLine(`  ${qtyFormatted} x ${unit.toFixed(2)} Gros`, `${total.toFixed(2)} dt`) + '\n';
         if (bundleQty > 0 && bundleSize > 0) {
-          text += `Lot: ${bundleQty} × ${bundleSize} = ${totalUnits} unités\n`;
+          text += `  Lot: ${bundleQty} x ${bundleSize} = ${totalUnits} u.\n`;
         }
-        text += `${total.toFixed(2)} dt\n`;
       } else {
         // Regular item format (shouldn't happen in wholesale sale, but just in case)
         const qtyFormatted = qty % 1 === 0 ? qty.toString() : qty.toFixed(2);
         text += `${name}\n`;
-        text += `${qtyFormatted} × ${unit.toFixed(2)} dt\n`;
-        text += `${total.toFixed(2)} dt\n`;
+        text += this.padLine(`  ${qtyFormatted} x ${unit.toFixed(2)}`, `${total.toFixed(2)} dt`) + '\n';
       }
       text += '\n';
     });
 
-    text += '--------------------------------------------\n\n';
+    text += this.rule('-') + '\n';
 
     // Payment section
-    text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
+    const showPay = settings?.printSettings?.showPaymentMethod !== false;
+    if (showPay) text += leftAlign + boldOn + 'Paiement' + boldOff + '\n';
 
     // Payment type
     const paymentTypeText = this.getPaymentTypeTextForPrint(sale.paymentType || 'COMPTANT', sale.status);
@@ -1834,21 +1897,22 @@ export class PrintService {
     // Use finalTotal from database as TOTAL
     const total = Number(sale.finalTotal || subtotal - discount);
 
-    text += leftAlign + `Sous-total: ${subtotal.toFixed(2)} dt\n`;
+    text += leftAlign + this.padLine('Sous-total', `${subtotal.toFixed(2)} dt`) + '\n';
     if (discount > 0) {
-      text += leftAlign + `Remise: -${discount.toFixed(2)} dt\n`;
+      if (settings?.printSettings?.showDiscountDetails !== false) {
+      text += leftAlign + this.padLine('Remise', `-${discount.toFixed(2)} dt`) + '\n';
+    }
     }
     text += leftAlign + boldOn + `Total: ${total.toFixed(2)} dt` + boldOff + '\n';
 
-    text += '=========================================\n';
+    text += this.rule('=');
 
     // Custom thank you message from settings - sanitized for thermal printer
     const thankYouMessage = this.sanitizeForThermalPrinter(settings?.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!');
     text += centerAlign + thankYouMessage + '\n\n\n\n\n\n';
 
-    // Paper cut command
-    text += ESC + '\x69'; // Full cut
-    text += ESC + '\x64\x01'; // Feed 6 lines before cutting
+    // La coupe et l'avance papier sont ajoutees cote Rust (build_receipt),
+    // sinon le ticket etait coupe deux fois.
 
     // Open cash drawer for cash payments (espèces) - same logic for web and desktop
     const isCashPayment = sale.paymentType === 'COMPTANT' ||

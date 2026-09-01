@@ -134,6 +134,8 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   // Theme getters for template bindings
   get themeLogoUrl(): string { return this.loginThemeService.theme().logoUrl; }
+  /** Nom de la societe saisi dans Parametres > Entreprise. */
+  get themeCompanyName(): string { return this.loginThemeService.theme().companyName; }
   get primaryColor(): string { return this.loginThemeService.theme().primaryColor; }
   get secondaryColor(): string { return this.loginThemeService.theme().secondaryColor; }
 

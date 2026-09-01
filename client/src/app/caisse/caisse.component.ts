@@ -221,7 +221,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   // Settings
   maxDiscountPercent: number = 50; // Default value
-  allowNegativeStock: boolean = false;
+  // Fast-food : le stock negatif est autorise par defaut, donc l'alerte de
+  // stock insuffisant ne s'affiche plus et la vente n'est jamais bloquee.
+  allowNegativeStock: boolean = true;
 
   // Drag and Drop
   private destroy$ = new Subject<void>();
@@ -3987,7 +3989,8 @@ export class CaisseComponent implements OnInit, OnDestroy {
         if (settings?.maxDiscountPercent) {
           this.maxDiscountPercent = settings.maxDiscountPercent;
         }
-        this.allowNegativeStock = !!settings?.allowNegativeStock;
+        // Reste a true sauf si le reglage vaut explicitement false.
+        this.allowNegativeStock = settings?.allowNegativeStock !== false;
       },
       error: (error) => {
         console.error('Error loading settings:', error);

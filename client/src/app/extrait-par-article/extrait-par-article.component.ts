@@ -56,6 +56,10 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
   depotId: string | null = null;
   depot: Depot | null = null;
   sessions: SessionCaisse[] = [];
+  /** Depots selectionnables dans l'en-tete. */
+  depots: Depot[] = [];
+  /** Nombre de clotures chargees (etait fige a 10). */
+  sessionLimit = 100;
   extracts: SessionExtract[] = [];
   currentSessionIndex = 0;
   loading = false;
@@ -97,6 +101,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
       this.depotId = params.get('depotId');
       if (this.depotId) {
 
+        this.loadDepots();
         this.loadDepot();
       } else {
         // If no depotId is provided, redirect to home
@@ -111,6 +116,41 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /** Alimente le selecteur de depot de l'en-tete. */
+  loadDepots(): void {
+    this.depotsService.list()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (depots) => { this.depots = depots || []; },
+        error: () => { this.depots = []; }
+      });
+  }
+
+  /** Changement de depot : on recharge l'extrait sur la meme route. */
+  onDepotChange(newDepotId: string | number): void {
+    const id = String(newDepotId);
+    if (!id || id === this.depotId) return;
+    this.currentSessionIndex = 0;
+    this.router.navigate(['/extrait-par-article', id]);
+  }
+
+  /** Selection directe d'une cloture dans la liste. */
+  onSessionChange(index: string | number): void {
+    const i = Number(index);
+    if (!isNaN(i) && i >= 0 && i < this.extracts.length) {
+      this.currentSessionIndex = i;
+    }
+  }
+
+  /** Libelle lisible d'une cloture pour le selecteur. */
+  sessionLabel(extract: SessionExtract, index: number): string {
+    const d = extract.date ? new Date(extract.date) : null;
+    const when = d && !isNaN(d.getTime())
+      ? d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      : 'date inconnue';
+    return `Cloture #${extract.sessionId} - ${when}`;
   }
 
   loadDepot(): void {
@@ -236,7 +276,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
     // First, get all sessions for this depot
     this.sessionsService.getSessions({
       depotId: depotIdNum,
-      limit: 10
+      limit: this.sessionLimit
     })
       .pipe(takeUntil(this.destroy$))
       .subscribe({

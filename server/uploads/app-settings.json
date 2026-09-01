@@ -1,7 +1,7 @@
 {
   "1": {
     "companyName": "",
-    "logoUrl": "",
+    "logoUrl": "http://localhost:3255/uploads/logos/logo-number-one.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -58,7 +58,7 @@
       "showClientInfo": true,
       "showPaymentMethod": true,
       "showDiscountDetails": true,
-      "doubleImpression": false
+      "doubleImpression": true
     },
     "documentTypeDefaults": {
       "livraison": {
@@ -121,7 +121,7 @@
   },
   "2": {
     "companyName": "BOUTIQUE SFAX",
-    "logoUrl": "",
+    "logoUrl": "http://localhost:3255/uploads/logos/logo-number-one.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -170,12 +170,13 @@
       "showCompanyDetails": true,
       "showClientInfo": true,
       "showPaymentMethod": true,
-      "showDiscountDetails": true
+      "showDiscountDetails": true,
+      "doubleImpression": true
     }
   },
   "3": {
     "companyName": "",
-    "logoUrl": "",
+    "logoUrl": "http://localhost:3255/uploads/logos/logo-number-one.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -232,7 +233,7 @@
       "showClientInfo": true,
       "showPaymentMethod": true,
       "showDiscountDetails": true,
-      "doubleImpression": false
+      "doubleImpression": true
     },
     "documentTypeDefaults": {
       "livraison": {
@@ -295,7 +296,7 @@
   },
   "4": {
     "companyName": "",
-    "logoUrl": "",
+    "logoUrl": "http://localhost:3255/uploads/logos/logo-number-one.png",
     "companyAddress": "",
     "companyPhone": "",
     "companyEmail": "",
@@ -352,7 +353,7 @@
       "showClientInfo": true,
       "showPaymentMethod": true,
       "showDiscountDetails": true,
-      "doubleImpression": false
+      "doubleImpression": true
     },
     "documentTypeDefaults": {
       "livraison": {
@@ -415,7 +416,7 @@
   },
   "default": {
     "companyName": "SOCIÉTÉ PATISSERIE HENTETI",
-    "logoUrl": "http://localhost:3255/uploads/logos/logo-1758581466191-195514327.png",
+    "logoUrl": "http://localhost:3255/uploads/logos/logo-number-one.png",
     "companyAddress": "123 Avenue Habib Bourguiba, Tunis 1000",
     "companyPhone": "+216 71 123 456",
     "companyEmail": "contact@henteti-group.tn",
@@ -478,7 +479,7 @@
       "showClientInfo": true,
       "showPaymentMethod": true,
       "showDiscountDetails": true,
-      "doubleImpression": false
+      "doubleImpression": true
     },
     "documentTypeDefaults": {
       "livraison": {

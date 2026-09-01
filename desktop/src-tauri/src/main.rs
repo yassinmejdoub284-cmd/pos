@@ -132,15 +132,25 @@ fn reload_site(app_handle: tauri::AppHandle) {
     }
 }
 
+/// Assemble un document ESC/POS complet : init + page de codes + texte encode
+/// + avance papier + coupe partielle.
+fn build_receipt(text: &str) -> Vec<u8> {
+    let mut data = escpos_prefix();
+    data.extend_from_slice(&to_cp1252(text));
+    data.extend_from_slice(b"\n\n\n\n");
+    data.extend_from_slice(&[0x1D, 0x56, 0x42, 0x00]); // GS V B 0 = coupe partielle
+    data
+}
+
 #[tauri::command]
 fn print_text_direct(_app_handle: tauri::AppHandle, text: String) -> Result<(), String> {
-    send_raw_to_printer(Some("Xprinter XP-80"), text.as_bytes())
+    send_raw_to_printer(Some("Xprinter XP-80"), &build_receipt(&text))
 }
 
 #[tauri::command]
 fn print_html(_app_handle: tauri::AppHandle, html: String) -> Result<(), String> {
     let text = html_to_text(&html);
-    send_raw_to_printer(Some("Xprinter XP-80"), text.as_bytes())
+    send_raw_to_printer(Some("Xprinter XP-80"), &build_receipt(&text))
 }
 
 #[tauri::command]
@@ -300,30 +310,65 @@ fn js_escape(s: &str) -> String {
 
 fn html_to_text(html: &str) -> String {
     let mut t = html.to_string();
-    t = regex::Regex::new(r"<style[^>]*>.*?</style>")
-        .unwrap()
-        .replace_all(&t, "")
-        .to_string();
-    t = regex::Regex::new(r"<script[^>]*>.*?</script>")
-        .unwrap()
-        .replace_all(&t, "")
-        .to_string();
-    t = regex::Regex::new(r"<[^>]*>")
-        .unwrap()
-        .replace_all(&t, "")
-        .to_string();
-    t = t
-        .replace("&amp;",  "&")
-        .replace("&lt;",   "<")
-        .replace("&gt;",   ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;",  "'")
-        .replace("&nbsp;", " ");
-    t = regex::Regex::new(r"\s+")
-        .unwrap()
-        .replace_all(&t, " ")
-        .to_string();
+    // Enlever le contenu non imprimable.
+    t = regex::Regex::new(r"(?is)<style[^>]*>.*?</style>").unwrap().replace_all(&t, "").to_string();
+    t = regex::Regex::new(r"(?is)<script[^>]*>.*?</script>").unwrap().replace_all(&t, "").to_string();
+
+    // Les balises de bloc deviennent des sauts de ligne : sans ca le ticket
+    // sortait en un seul paragraphe au lieu d'un tableau aligne.
+    t = regex::Regex::new(r"(?i)<br\s*/?>").unwrap().replace_all(&t, "\n").to_string();
+    t = regex::Regex::new(r"(?i)</(p|div|tr|li|h[1-6]|table|thead|tbody)>").unwrap().replace_all(&t, "\n").to_string();
+    // Les cellules d'une meme ligne sont separees par une tabulation.
+    t = regex::Regex::new(r"(?i)</(td|th)>").unwrap().replace_all(&t, "\t").to_string();
+    t = regex::Regex::new(r"(?i)<hr\s*/?>").unwrap().replace_all(&t, "\n--------------------------------\n").to_string();
+
+    // Retirer les balises restantes.
+    t = regex::Regex::new(r"<[^>]*>").unwrap().replace_all(&t, "").to_string();
+
+    // Entites HTML les plus courantes (les accents arrivaient en &#233; etc).
+    t = t.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<")
+         .replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'")
+         .replace("&apos;", "'").replace("&euro;", "EUR").replace("&pound;", "GBP");
+    // Entites numeriques : &#233; -> e accent aigu.
+    let num = regex::Regex::new(r"&#(\d+);").unwrap();
+    t = num.replace_all(&t, |c: &regex::Captures| {
+        c[1].parse::<u32>().ok().and_then(char::from_u32).map(|ch| ch.to_string()).unwrap_or_default()
+    }).to_string();
+
+    // Espaces horizontaux uniquement : on NE touche PAS aux \n.
+    t = regex::Regex::new(r"[ \t]+").unwrap().replace_all(&t, " ").to_string();
+    t = regex::Regex::new(r" *\n *").unwrap().replace_all(&t, "\n").to_string();
+    t = regex::Regex::new(r"\n{3,}").unwrap().replace_all(&t, "\n\n").to_string();
     t.trim().to_string()
+}
+
+/// Convertit le texte en CP1252 pour l'imprimante thermique.
+/// En UTF-8 brut les accents et symboles sortaient en caracteres parasites
+/// (le fameux GBP a la place d'un accent).
+fn to_cp1252(s: &str) -> Vec<u8> {
+    let mut out = Vec::with_capacity(s.len());
+    for ch in s.chars() {
+        let b: u8 = match ch {
+            '\u{20AC}' => 0x80, '\u{201A}' => 0x82, '\u{0192}' => 0x83, '\u{201E}' => 0x84,
+            '\u{2026}' => 0x85, '\u{2020}' => 0x86, '\u{2021}' => 0x87, '\u{02C6}' => 0x88,
+            '\u{2030}' => 0x89, '\u{0160}' => 0x8A, '\u{2039}' => 0x8B, '\u{0152}' => 0x8C,
+            '\u{017D}' => 0x8E, '\u{2018}' => 0x27, '\u{2019}' => 0x27, '\u{201C}' => 0x22,
+            '\u{201D}' => 0x22, '\u{2022}' => 0x2A, '\u{2013}' => 0x2D, '\u{2014}' => 0x2D,
+            '\u{02DC}' => 0x98, '\u{2122}' => 0x99, '\u{0161}' => 0x9A, '\u{203A}' => 0x9B,
+            '\u{0153}' => 0x9C, '\u{017E}' => 0x9E, '\u{0178}' => 0x9F,
+            '\n' => b'\n', '\r' => b'\r', '\t' => b'\t',
+            c if (c as u32) < 0x100 => c as u32 as u8,
+            _ => b'?',
+        };
+        out.push(b);
+    }
+    out
+}
+
+/// Initialise l'imprimante et selectionne la page de codes CP1252.
+fn escpos_prefix() -> Vec<u8> {
+    // ESC @ = reset, ESC t 16 = page de codes WPC1252
+    vec![0x1B, 0x40, 0x1B, 0x74, 16]
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
