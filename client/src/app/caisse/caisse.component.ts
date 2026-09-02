@@ -5338,6 +5338,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
   }
 
   showStockWarning(product: Product, quantity: number, currentStock: number): void {
+    // Alerte de stock insuffisant supprimee : en fast-food la vente ne doit
+    // jamais etre interrompue. Le stock peut devenir negatif sans avertir.
+    return;
 
     // First close any existing modals that might interfere
     this.showProductModal = false;

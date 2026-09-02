@@ -66,7 +66,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   // Settings
   appSettings = signal<AppSettings | null>(null);
-  companyName = signal('SoluMove PoS');
+  companyName = signal('Samurai Food');
   companyLogo = signal('');
   logoLoadError = signal(false);
 
@@ -299,7 +299,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(settings => {
         if (!settings) return;
-        this.companyName.set(settings.companyName || 'SoluMove PoS');
+        this.companyName.set(settings.companyName || 'Samurai Food');
         this.companyLogo.set(settings.logoUrl ? this.settingsService.getAbsoluteLogoUrl(settings.logoUrl) : '');
         this.logoLoadError.set(false);
         this.cdr.markForCheck();
@@ -802,7 +802,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       if (settings) {
         this.appSettings.set(settings);
 
-        this.companyName.set(settings.companyName || 'SoluMove PoS');
+        this.companyName.set(settings.companyName || 'Samurai Food');
         this.companyLogo.set(settings.logoUrl ? this.settingsService.getAbsoluteLogoUrl(settings.logoUrl) : '');
         this.logoLoadError.set(false); // Reset error state when loading new settings
         // Invalidate cached actions so filtering re-evaluates with fresh settings

@@ -674,7 +674,7 @@ export class PrintService {
     // Use companyData if available (passed from method args if any, but generateESCReport sig uses settings)
     // Actually generateESCReport only takes settings. Let's rely on settings first.
     // However, the caller usually passes settings. If settings has companyName, use it.
-    const companyName = settings?.companyName || 'PATISSERIE MODERNE';
+    const companyName = settings?.companyName || 'Samurai Food';
     const companyAddress = settings?.companyAddress || '';
     const companyPhone = settings?.companyPhone || '';
 
@@ -1391,7 +1391,7 @@ export class PrintService {
       `;
     }
 
-    const companyName = settings?.companyName || 'PATISSERIE MODERNE';
+    const companyName = settings?.companyName || 'Samurai Food';
     const companyAddress = settings?.companyAddress || '';
     const companyPhone = settings?.companyPhone || '';
 
@@ -1592,7 +1592,7 @@ export class PrintService {
 
     // Company name (double bold and centered) - sanitized for thermal printer
     // Company name (double bold and centered) - sanitized for thermal printer
-    const resolvedCompanyName = settings?.companyName || 'PATISSERIE MODERNE';
+    const resolvedCompanyName = settings?.companyName || 'Samurai Food';
     text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
 
     // Company details (centered) - sanitized for thermal printer
@@ -1778,7 +1778,7 @@ export class PrintService {
 
     // Company name (double bold and centered) - sanitized for thermal printer
     // Company name (double bold and centered) - sanitized for thermal printer
-    const resolvedCompanyName = settings?.companyName || 'PATISSERIE MODERNE';
+    const resolvedCompanyName = settings?.companyName || 'Samurai Food';
     text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
 
     // Company details (centered) - sanitized for thermal printer
@@ -2302,7 +2302,7 @@ export class PrintService {
       `;
     }
 
-    const companyName = settings?.companyName || 'PATISSERIE MODERNE';
+    const companyName = settings?.companyName || 'Samurai Food';
     const companyAddress = settings?.companyAddress || '';
     const companyPhone = settings?.companyPhone || '';
 
@@ -2418,7 +2418,7 @@ export class PrintService {
 
     // Company name (double bold and centered)
     // Company name (double bold and centered)
-    const resolvedCompanyName = settings?.companyName || 'PATISSERIE MODERNE';
+    const resolvedCompanyName = settings?.companyName || 'Samurai Food';
     text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
     text += '\n'; // Add spacing after company name
 

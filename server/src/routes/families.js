@@ -169,12 +169,33 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Famille non trouvée' });
     }
     
+    // familleId est obligatoire sur Product : on ne peut pas "detacher" un
+    // produit. Pour supprimer une famille non vide il faut donc indiquer la
+    // famille de destination via ?moveTo=<id>. Les produits sont deplaces,
+    // jamais supprimes.
+    const moveTo = req.query.moveTo ? parseInt(req.query.moveTo) : null;
+
     if (family._count.products > 0) {
-      return res.status(400).json({ 
-        error: `Impossible de supprimer cette famille car elle contient ${family._count.products} produit(s)` 
+      if (!moveTo) {
+        return res.status(400).json({
+          error: `Cette famille contient ${family._count.products} produit(s). Indiquez la famille de destination.`,
+          productCount: family._count.products,
+          needsMoveTo: true
+        });
+      }
+      if (moveTo === familyId) {
+        return res.status(400).json({ error: 'La famille de destination doit etre differente.' });
+      }
+      const target = await prisma.productFamily.findUnique({ where: { id: moveTo } });
+      if (!target) {
+        return res.status(400).json({ error: 'Famille de destination introuvable.' });
+      }
+      await prisma.product.updateMany({
+        where: { familleId: familyId },
+        data: { familleId: moveTo }
       });
     }
-    
+
     await prisma.productFamily.delete({
       where: { id: familyId }
     });

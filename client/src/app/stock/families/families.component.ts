@@ -102,14 +102,37 @@ export class FamiliesComponent implements OnInit {
   }
 
   deleteFamily(family: ProductFamily): void {
-    // Prevent deletion if the family still has products
-    if ((family as any)._count?.products && (family as any)._count.products > 0) {
-      this.error = 'Impossible de supprimer cette famille: elle contient encore des produits. Veuillez d\'abord déplacer ou supprimer ces produits.';
+    const productCount = Number((family as any)._count?.products || 0);
+
+    // Une famille qui contient encore des produits peut etre supprimee :
+    // les produits ne sont pas effaces, ils se retrouvent simplement sans
+    // famille et restent modifiables depuis la fiche produit.
+    let moveTo: number | null = null;
+    if (productCount > 0) {
+      const others = (this.families || []).filter(f => f.id !== family.id);
+      if (others.length === 0) {
+        this.error = `Impossible: "${family.name}" contient ${productCount} produit(s) et c'est la seule famille. Creez d'abord une autre famille.`;
+        return;
+      }
+      const liste = others.map(f => `${f.id} - ${f.name}`).join('\n');
+      const saisie = prompt(
+        `La famille "${family.name}" contient ${productCount} produit(s).\n` +
+        `Ils seront DEPLACES (jamais supprimes) vers une autre famille.\n\n` +
+        `Saisissez le numero de la famille de destination :\n\n${liste}`
+      );
+      if (!saisie) return;
+      const cible = Number(saisie.trim());
+      if (!others.some(f => f.id === cible)) {
+        this.error = 'Numero de famille invalide.';
+        return;
+      }
+      moveTo = cible;
+    } else if (!confirm(`Etes-vous sur de vouloir supprimer la famille "${family.name}" ?`)) {
       return;
     }
 
-    if (confirm(`Êtes-vous sûr de vouloir supprimer la famille "${family.name}" ?`)) {
-      this.familiesService.deleteFamily(family.id).subscribe({
+    {
+      this.familiesService.deleteFamily(family.id, moveTo).subscribe({
         next: () => {
           this.loadFamilies();
         },

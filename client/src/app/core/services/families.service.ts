@@ -28,8 +28,13 @@ export class FamiliesService {
     return this.http.put<ProductFamily>(`${this.apiUrl}/${id}`, family);
   }
 
-  deleteFamily(id: number): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
+  /**
+   * Supprime une famille. Si elle contient des produits, moveTo indique la
+   * famille vers laquelle ils sont deplaces (ils ne sont jamais supprimes).
+   */
+  deleteFamily(id: number, moveTo?: number | null): Observable<{ message: string }> {
+    const url = moveTo ? `${this.apiUrl}/${id}?moveTo=${moveTo}` : `${this.apiUrl}/${id}`;
+    return this.http.delete<{ message: string }>(url);
   }
 
   uploadFamilyPhoto(id: number, file: File): Observable<{ message: string; imageUrl: string; family: ProductFamily }> {

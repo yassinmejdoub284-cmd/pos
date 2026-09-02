@@ -1,6 +1,6 @@
 {
   "1": {
-    "companyName": "",
+    "companyName": "Samurai Food",
     "logoUrl": "http://localhost:3255/uploads/logos/logo-samurai-food.png",
     "companyAddress": "",
     "companyPhone": "",
@@ -120,7 +120,7 @@
     "roleAccessConfig": {}
   },
   "2": {
-    "companyName": "BOUTIQUE SFAX",
+    "companyName": "Samurai Food",
     "logoUrl": "http://localhost:3255/uploads/logos/logo-samurai-food.png",
     "companyAddress": "",
     "companyPhone": "",
@@ -175,7 +175,7 @@
     }
   },
   "3": {
-    "companyName": "",
+    "companyName": "Samurai Food",
     "logoUrl": "http://localhost:3255/uploads/logos/logo-samurai-food.png",
     "companyAddress": "",
     "companyPhone": "",
@@ -295,7 +295,7 @@
     "roleAccessConfig": {}
   },
   "4": {
-    "companyName": "",
+    "companyName": "Samurai Food",
     "logoUrl": "http://localhost:3255/uploads/logos/logo-samurai-food.png",
     "companyAddress": "",
     "companyPhone": "",
@@ -415,7 +415,7 @@
     "roleAccessConfig": {}
   },
   "default": {
-    "companyName": "SOCIÉTÉ PATISSERIE HENTETI",
+    "companyName": "Samurai Food",
     "logoUrl": "http://localhost:3255/uploads/logos/logo-samurai-food.png",
     "companyAddress": "123 Avenue Habib Bourguiba, Tunis 1000",
     "companyPhone": "+216 71 123 456",

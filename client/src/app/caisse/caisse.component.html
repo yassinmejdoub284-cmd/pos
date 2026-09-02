@@ -124,11 +124,7 @@
               class="bg-gradient-to-r from-red-400 to-red-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md">
               GROS
             </div>
-            <div
-              class="bg-gradient-to-r from-purple-400 to-purple-500 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-md"
-              title="Shop Depot ID: {{ currentShopDepotId }}">
-              {{ currentShopName }}
-            </div>
+            <!-- Nom du depot masque en caisse (demande client) -->
             <div *ngIf="lastValidatedSale" (click)="openLastSaleMenu()"
               class="mr-2 bg-green-100 text-green-800 px-2 py-1 rounded-lg text-xs font-bold shadow-md border border-green-200 cursor-pointer"
               title="Dernière vente validée - cliquer pour options">
@@ -3209,7 +3205,8 @@
   </div>
 
   <!-- Stock Warning Modal -->
-  <div *ngIf="showStockWarningModal === true && stockWarningProduct !== null"
+  <!-- Alerte "Stock Insuffisant" desactivee : la vente ne doit jamais etre bloquee -->
+  <div *ngIf="false"
     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-xl border-2 border-orange-400 max-w-lg w-full shadow-2xl">
       <!-- Modal Header -->

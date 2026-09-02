@@ -16,7 +16,7 @@ const THEME_MAP: Record<string, LoginTheme> = {};
 
 const SFAX_THEME: LoginTheme = {
   companyId: 1,
-  companyName: 'SoluMove PoS',
+  companyName: 'Samurai Food',
   logoUrl: '/logo_sfax.webp',
   primaryColor: '#662c94',
   secondaryColor: '#1E3A8A',

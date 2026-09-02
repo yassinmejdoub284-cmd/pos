@@ -389,7 +389,7 @@ fn main() {
             let webview_url = WebviewUrl::App("index.html".into());
 
             let win = tauri::WebviewWindowBuilder::new(app, "main", webview_url)
-                .title("PoS Number One")
+                .title("Samurai Food")
                 .inner_size(1366.0, 768.0)
                 .resizable(true)
                 .visible(true)
