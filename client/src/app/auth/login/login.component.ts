@@ -133,7 +133,22 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   // Theme getters for template bindings
-  get themeLogoUrl(): string { return this.loginThemeService.theme().logoUrl; }
+  /** Vrai si le logo memorise n'a pas pu etre charge (fichier absent, URL morte). */
+  logoFailed = false;
+
+  /** Logo embarque dans l'application, toujours disponible hors ligne. */
+  private readonly fallbackLogo = '/logo_sfax.webp';
+
+  get themeLogoUrl(): string {
+    if (this.logoFailed) return this.fallbackLogo;
+    return this.loginThemeService.theme().logoUrl || this.fallbackLogo;
+  }
+
+  /** Bascule sur le logo embarque des que l'image distante echoue. */
+  onLogoError(): void {
+    if (!this.logoFailed) this.logoFailed = true;
+  }
+
   /** Nom de la societe saisi dans Parametres > Entreprise. */
   get themeCompanyName(): string { return this.loginThemeService.theme().companyName; }
   get primaryColor(): string { return this.loginThemeService.theme().primaryColor; }

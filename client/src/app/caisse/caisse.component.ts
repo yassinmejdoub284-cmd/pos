@@ -5318,14 +5318,9 @@ export class CaisseComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Check if adding this product would result in negative stock
-    if (currentStock < requestedQuantity && !product.name.toLowerCase().includes('vrac')) {
-      if (!this.allowNegativeStock) {
-        this.showStockWarning(product, requestedQuantity, currentStock);
-        return; // Don't add the product yet - wait for user confirmation
-      }
-      // If negative stock is allowed, continue without showing the dialog
-    }
+    // Le stock negatif n'interrompt jamais la vente : aucun controle ici.
+    // (Le blocage precedent renvoyait sans rien ajouter une fois l'alerte
+    // supprimee, ce qui rendait le clic sur un produit sans effet.)
 
     // Always default to quantity mode when selecting a new product
     // User must explicitly click PRIX button to enter price mode
@@ -5381,16 +5376,7 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
   confirmProductModal(): void {
     if (this.selectedProduct && this.productModalQuantity > 0) {
-      const currentStock = this.getShopStock(this.selectedProduct.id);
-
-      // Check if adding this quantity would result in negative stock
-      if (currentStock < this.productModalQuantity) {
-        if (!this.allowNegativeStock) {
-          this.showStockWarning(this.selectedProduct, this.productModalQuantity, currentStock);
-          // Don't return - allow the user to proceed after seeing the warning
-        }
-      }
-
+      // Aucun controle de stock : la quantite saisie est toujours acceptee.
       this.addProductToReceiptWithQuantity(this.selectedProduct, this.productModalQuantity);
       this.closeProductModal();
     }
