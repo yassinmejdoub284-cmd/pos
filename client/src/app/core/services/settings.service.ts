@@ -50,6 +50,10 @@ export interface AppSettings {
       companySlogan: string;
       footerMessage: string;
     };
+    /** Nom imprime en tete de ticket (vide = nom de societe de l'application). */
+    receiptCompanyName?: string;
+    /** Ligne facultative sous le nom : point de vente, depot, succursale... */
+    receiptDepotName?: string;
     showCompanyDetails: boolean;
     showClientInfo: boolean;
     showPaymentMethod: boolean;

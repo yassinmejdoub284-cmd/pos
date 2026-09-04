@@ -68,7 +68,9 @@ export class ParametresComponent implements OnInit {
       showClientInfo: true,
       showPaymentMethod: true,
       showDiscountDetails: true,
-      doubleImpression: true
+      doubleImpression: true,
+      receiptCompanyName: '',
+      receiptDepotName: ''
     },
     // Document display settings
     documentDisplaySettings: {
@@ -234,7 +236,9 @@ export class ParametresComponent implements OnInit {
             showClientInfo: true,
             showPaymentMethod: true,
             showDiscountDetails: true,
-            doubleImpression: true
+            doubleImpression: true,
+      receiptCompanyName: '',
+      receiptDepotName: ''
           };
         } else {
           // Ensure doubleImpression exists in printSettings

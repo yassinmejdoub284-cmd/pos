@@ -1579,21 +1579,28 @@ export class PrintService {
     // Header
     text += this.rule('=');
 
-    // Logo : respecte le reglage "Afficher le logo" (Parametres > Impression).
-    // Une imprimante thermique ne peut pas rendre l'image, on imprime donc le
-    // nom de la societe en gros a la place.
-    if (settings?.printSettings?.showLogo !== false) {
-      const logoLine = this.sanitizeForThermalPrinter(settings?.companyName || '');
-      if (logoLine) {
-        text += centerAlign + ESC + '\x21\x30' + logoLine + normalSize + '\n';
-      }
-    }
-    text += '\n';
+    // En-tete du ticket. Les libelles viennent de Parametres > Impression et
+    // sont independants du nom de societe de l'application : une seule caisse
+    // peut ainsi imprimer un nom commercial different.
+    // - receiptCompanyName : remplace le nom de societe (sinon companyName)
+    // - receiptDepotName   : ligne facultative, imprimee seulement si remplie
+    const headerName = this.sanitizeForThermalPrinter(
+      settings?.printSettings?.receiptCompanyName || settings?.companyName || 'Samurai Food'
+    );
+    const headerDepot = this.sanitizeForThermalPrinter(
+      settings?.printSettings?.receiptDepotName || ''
+    );
 
-    // Company name (double bold and centered) - sanitized for thermal printer
-    // Company name (double bold and centered) - sanitized for thermal printer
-    const resolvedCompanyName = settings?.companyName || 'Samurai Food';
-    text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
+    if (settings?.printSettings?.showLogo !== false && headerName) {
+      // Nom en double hauteur a la place de l'image (impossible en thermique).
+      text += centerAlign + ESC + '\x21\x30' + headerName + normalSize + '\n';
+    } else if (headerName) {
+      text += centerAlign + boldOn + headerName + boldOff + '\n';
+    }
+
+    if (headerDepot) {
+      text += centerAlign + headerDepot + '\n';
+    }
 
     // Company details (centered) - sanitized for thermal printer
     if (settings?.printSettings?.showCompanyDetails !== false) {
@@ -1765,21 +1772,28 @@ export class PrintService {
     // Header
     text += this.rule('=');
 
-    // Logo : respecte le reglage "Afficher le logo" (Parametres > Impression).
-    // Une imprimante thermique ne peut pas rendre l'image, on imprime donc le
-    // nom de la societe en gros a la place.
-    if (settings?.printSettings?.showLogo !== false) {
-      const logoLine = this.sanitizeForThermalPrinter(settings?.companyName || '');
-      if (logoLine) {
-        text += centerAlign + ESC + '\x21\x30' + logoLine + normalSize + '\n';
-      }
-    }
-    text += '\n';
+    // En-tete du ticket. Les libelles viennent de Parametres > Impression et
+    // sont independants du nom de societe de l'application : une seule caisse
+    // peut ainsi imprimer un nom commercial different.
+    // - receiptCompanyName : remplace le nom de societe (sinon companyName)
+    // - receiptDepotName   : ligne facultative, imprimee seulement si remplie
+    const headerName = this.sanitizeForThermalPrinter(
+      settings?.printSettings?.receiptCompanyName || settings?.companyName || 'Samurai Food'
+    );
+    const headerDepot = this.sanitizeForThermalPrinter(
+      settings?.printSettings?.receiptDepotName || ''
+    );
 
-    // Company name (double bold and centered) - sanitized for thermal printer
-    // Company name (double bold and centered) - sanitized for thermal printer
-    const resolvedCompanyName = settings?.companyName || 'Samurai Food';
-    text += centerAlign + boldOn + boldOn + this.sanitizeForThermalPrinter(resolvedCompanyName) + boldOff + boldOff + normalSize + '\n';
+    if (settings?.printSettings?.showLogo !== false && headerName) {
+      // Nom en double hauteur a la place de l'image (impossible en thermique).
+      text += centerAlign + ESC + '\x21\x30' + headerName + normalSize + '\n';
+    } else if (headerName) {
+      text += centerAlign + boldOn + headerName + boldOff + '\n';
+    }
+
+    if (headerDepot) {
+      text += centerAlign + headerDepot + '\n';
+    }
 
     // Company details (centered) - sanitized for thermal printer
     if (settings?.printSettings?.showCompanyDetails !== false) {
