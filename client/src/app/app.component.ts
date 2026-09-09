@@ -11,7 +11,7 @@ import { LoadingOverlayComponent } from './shared/loading-overlay/loading-overla
   styleUrl: './app.component.css'
 })
 export class AppComponent implements OnInit {
-  title = 'pos-patisserie';
+  title = 'Samurai Food';
 
   constructor(
     private authService: AuthService,

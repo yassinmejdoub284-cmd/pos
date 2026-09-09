@@ -52,7 +52,7 @@ export class AccessRoleConfigComponent implements OnInit, OnDestroy {
       { id: 'stock-historique', label: 'Historique du stock', description: 'Archives et analyses des transactions de stock', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0' },
       { id: 'stock-ventes-livraisons', label: 'Ventes et Livraisons', description: 'Génération de ventes et livraisons', icon: 'M9 12l2 2 4-4' },
       { id: 'stock-produits-stock', label: 'Produits de Stock', description: 'Sous-produits de stock', icon: 'M6 6h12v12H6zM9 9h6v6H9z' },
-      { id: 'stock-produits', label: 'Produits', description: 'Gestion des produits pâtisserie', icon: 'M8 8h8M6 12h12M10 16h4' },
+      { id: 'stock-produits', label: 'Produits', description: 'Gestion des produits', icon: 'M8 8h8M6 12h12M10 16h4' },
       { id: 'stock-vente-gros', label: 'Produits en Gros', description: 'Fardeaux & marges', icon: 'M12 6l6 6-6 6-6-6 6-6z' },
       { id: 'stock-gros-config', label: 'Configuration Gros', description: 'Règles et tarifs en gros', icon: 'M3 7h18M3 12h18M3 17h18' }
     ]},

@@ -55,7 +55,7 @@ function ensureDefaults(data = {}) {
       customTexts: {
         thankYouMessage: data.printSettings?.customTexts?.thankYouMessage || 'Merci de votre visite!',
         receiptTitle: data.printSettings?.customTexts?.receiptTitle || 'REÇU DE VENTE',
-        companySlogan: data.printSettings?.customTexts?.companySlogan || 'Votre pâtisserie de confiance',
+        companySlogan: data.printSettings?.customTexts?.companySlogan || '',
         footerMessage: data.printSettings?.customTexts?.footerMessage || 'Merci pour votre fidélité'
       },
       // En-tete des tickets de caisse, saisi dans Parametres > Impression.

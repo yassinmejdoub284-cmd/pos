@@ -40,7 +40,8 @@ export class CountComponent implements OnInit, OnDestroy {
   // Caisse-like interface
   allProducts: Product[] = [];
   filteredProducts: Product[] = [];
-  productCategories: string[] = ['Tous', 'Pâtisserie', 'Viennoiserie', 'Boulangerie', 'Boissons', 'Vrac', 'Pâtisserie Tunisienne', 'Jus et Smoothies'];
+  // Familles reelles des produits charges : plus de liste codee en dur.
+  productCategories: string[] = ['Tous'];
   selectedCategory: string = 'Tous';
   
   // Stock products filtering
@@ -173,6 +174,14 @@ export class CountComponent implements OnInit, OnDestroy {
     this.productsService.getProducts(depotId).pipe(takeUntil(this.destroy$)).subscribe({
       next: (products) => {
         this.allProducts = products;
+        // Construit la liste des familles a partir des produits reellement presents.
+        const familles = Array.from(new Set(
+          products.map(p => p.famille?.name).filter((n): n is string => !!n)
+        )).sort((a, b) => a.localeCompare(b, 'fr'));
+        this.productCategories = ['Tous', ...familles];
+        if (!this.productCategories.includes(this.selectedCategory)) {
+          this.selectedCategory = 'Tous';
+        }
         this.applyProductFiltering();
         // Backfill prices for existing count items after products load
         this.countItems = this.countItems.map(ci => {

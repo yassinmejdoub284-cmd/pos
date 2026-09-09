@@ -98,7 +98,7 @@ async function getMockUserFromToken(token) {
     const mockUser = {
       id: 1,
       username: role.toLowerCase(),
-      email: `${role.toLowerCase()}@patisserie.com`,
+      email: `${role.toLowerCase()}@samuraifood.tn`,
       firstName: role.charAt(0) + role.slice(1).toLowerCase(),
       lastName: 'User',
       role: role,
@@ -122,7 +122,7 @@ async function getDefaultMockUser() {
   return {
     id: 1,
     username: 'admin',
-    email: 'admin@patisserie.com',
+    email: 'admin@samuraifood.tn',
     firstName: 'Admin',
     lastName: 'User',
     role: 'ADMIN',

@@ -208,7 +208,7 @@ export class ExtraitParArticleComponent implements OnInit, OnDestroy {
       const mockUser = {
         id: 1,
         username: 'admin',
-        email: 'admin@patisserie.com',
+        email: 'admin@samuraifood.tn',
         firstName: 'Admin',
         lastName: 'User',
         role: 'ADMIN' as const,

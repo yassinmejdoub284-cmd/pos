@@ -678,18 +678,10 @@ export class EntryComponent implements OnInit {
       switch (category) {
         case 'Tous':
           return `${baseClass} bg-blue-500 text-white border-blue-600 shadow-blue-200`;
-        case 'Pâtisserie':
-          return `${baseClass} bg-pink-500 text-white border-pink-600 shadow-pink-200`;
-        case 'Viennoiserie':
-          return `${baseClass} bg-amber-500 text-white border-amber-600 shadow-amber-200`;
-        case 'Boulangerie':
-          return `${baseClass} bg-orange-500 text-white border-orange-600 shadow-orange-200`;
         case 'Boissons':
           return `${baseClass} bg-cyan-500 text-white border-cyan-600 shadow-cyan-200`;
         case 'Vrac':
           return `${baseClass} bg-green-500 text-white border-green-600 shadow-green-200`;
-        case 'Pâtisserie Tunisienne':
-          return `${baseClass} bg-purple-500 text-white border-purple-600 shadow-purple-200`;
         case 'Jus et Smoothies':
           return `${baseClass} bg-emerald-500 text-white border-emerald-600 shadow-emerald-200`;
         default:
@@ -700,18 +692,10 @@ export class EntryComponent implements OnInit {
       switch (category) {
         case 'Tous':
           return `${baseClass} bg-blue-50 text-blue-700 border-blue-200`;
-        case 'Pâtisserie':
-          return `${baseClass} bg-pink-50 text-pink-700 border-pink-200`;
-        case 'Viennoiserie':
-          return `${baseClass} bg-amber-50 text-amber-700 border-amber-200`;
-        case 'Boulangerie':
-          return `${baseClass} bg-orange-50 text-orange-700 border-orange-200`;
         case 'Boissons':
           return `${baseClass} bg-cyan-50 text-cyan-700 border-cyan-200`;
         case 'Vrac':
           return `${baseClass} bg-green-50 text-green-700 border-green-200`;
-        case 'Pâtisserie Tunisienne':
-          return `${baseClass} bg-purple-50 text-purple-700 border-purple-200`;
         case 'Jus et Smoothies':
           return `${baseClass} bg-emerald-50 text-emerald-700 border-emerald-200`;
         default:

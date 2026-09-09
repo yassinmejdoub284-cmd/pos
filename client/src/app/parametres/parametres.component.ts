@@ -61,7 +61,7 @@ export class ParametresComponent implements OnInit {
       customTexts: {
         thankYouMessage: 'Merci de votre visite!',
         receiptTitle: 'REÇU DE VENTE',
-        companySlogan: 'Votre pâtisserie de confiance',
+        companySlogan: '',
         footerMessage: 'Merci pour votre fidélité'
       },
       showCompanyDetails: true,
@@ -229,7 +229,7 @@ export class ParametresComponent implements OnInit {
             customTexts: {
               thankYouMessage: 'Merci de votre visite!',
               receiptTitle: 'REÇU DE VENTE',
-              companySlogan: 'Votre pâtisserie de confiance',
+              companySlogan: '',
               footerMessage: 'Merci pour votre fidélité'
             },
             showCompanyDetails: true,

@@ -3224,10 +3224,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
 
     const now = new Date();
     return {
-      storeName: 'PÂTISSERIE DELICE',
-      address: '123 Rue des Gourmandises',
-      city: 'Tunis, Tunisie',
-      phone: 'Tél: +216 XX XXX XXX',
+      storeName: this.companyHeader.name,
+      address: this.companyHeader.address,
+      city: this.companyHeader.city,
+      phone: this.companyHeader.phone,
       date: now.toLocaleDateString('fr-FR'),
       time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
       items: activeCart.items,
@@ -3986,6 +3986,21 @@ export class CaisseComponent implements OnInit, OnDestroy {
   /** Parametres de l'entreprise, utilises pour l'en-tete des factures imprimees. */
   appSettings: any = null;
 
+  /**
+   * En-tete d'entreprise pour tous les documents imprimes depuis la caisse.
+   * Source unique : Parametres > Entreprise (et Parametres > Impression pour
+   * le nom imprime). Aucune valeur codee en dur.
+   */
+  get companyHeader(): { name: string; address: string; city: string; phone: string } {
+    const st = this.appSettings;
+    return {
+      name: st?.printSettings?.receiptCompanyName || st?.companyName || 'Samurai Food',
+      address: st?.companyAddress || '',
+      city: st?.companyCity || '',
+      phone: st?.companyPhone ? `Tel: ${st.companyPhone}` : ''
+    };
+  }
+
   loadSettings(): void {
     this.settingsService.getSettings().subscribe({
       next: (settings) => {
@@ -4742,10 +4757,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
               <div class=\"muted\">Client: ${customer}</div>
             </div>
             <div style=\"text-align:right\">
-              <div style=\"font-weight:700\">${'PÂTISSERIE DELICE'}</div>
-              <div class=\"muted\">123 Rue des Gourmandises</div>
-              <div class=\"muted\">Tunis, Tunisie</div>
-              <div class=\"muted\">Tél: +216 XX XXX XXX</div>
+              <div style=\"font-weight:700\">${this.companyHeader.name}</div>
+              <div class=\"muted\">${this.companyHeader.address}</div>
+              <div class=\"muted\">${this.companyHeader.city}</div>
+              <div class=\"muted\">${this.companyHeader.phone}</div>
             </div>
           </div>
           <table>
@@ -5478,10 +5493,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
               <div class="muted">Client: ${customer}</div>
             </div>
             <div style="text-align:right">
-              <div style="font-weight:700">${'PÂTISSERIE DELICE'}</div>
-              <div class="muted">123 Rue des Gourmandises</div>
-              <div class="muted">Tunis, Tunisie</div>
-              <div class="muted">Tél: +216 XX XXX XXX</div>
+              <div style="font-weight:700">${this.companyHeader.name}</div>
+              <div class="muted">${this.companyHeader.address}</div>
+              <div class="muted">${this.companyHeader.city}</div>
+              <div class="muted">${this.companyHeader.phone}</div>
             </div>
           </div>
           <table>
@@ -5519,10 +5534,10 @@ export class CaisseComponent implements OnInit, OnDestroy {
   generateLastReceiptData(): any {
     const now = new Date();
     return {
-      storeName: 'PÂTISSERIE DELICE',
-      address: '123 Rue des Gourmandises',
-      city: 'Tunis, Tunisie',
-      phone: 'Tél: +216 XX XXX XXX',
+      storeName: this.companyHeader.name,
+      address: this.companyHeader.address,
+      city: this.companyHeader.city,
+      phone: this.companyHeader.phone,
       date: now.toLocaleDateString('fr-FR'),
       time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
       items: this.lastValidatedSale.receiptItems,
