@@ -294,6 +294,12 @@ New-Item -ItemType Directory -Force -Path (Join-Path $Resources "uploads") | Out
 New-Item -ItemType Directory -Force -Path (Join-Path $Resources "src\uploads") | Out-Null
 Copy-Item -Recurse -Force (Join-Path $Server "uploads\*")     (Join-Path $Resources "uploads")     -ErrorAction SilentlyContinue
 Copy-Item -Recurse -Force (Join-Path $Server "src\uploads\*") (Join-Path $Resources "src\uploads") -ErrorAction SilentlyContinue
+# Identifiant de build : le serveur le compare a installed-build.txt et,
+# s'ils different, archive les donnees puis repart d'une base vierge.
+$buildId = (Get-Date -Format "yyyyMMdd-HHmmss")
+try { $sha = (git -C $Root rev-parse --short HEAD 2>$null); if ($sha) { $buildId = "$buildId-$sha" } } catch {}
+[System.IO.File]::WriteAllText((Join-Path $Resources "build-id.txt"), $buildId, (New-Object System.Text.UTF8Encoding($false)))
+Write-Host "Build ID : $buildId" -ForegroundColor Green
 Copy-Item -Force (Join-Path $Server "pos_patisserie.template.db") (Join-Path $Resources "pos_patisserie.template.db")
 Write-Host "sharp native binaries copied ($imgCopied .node file(s))" -ForegroundColor Green
 Write-Host "Sidecar copied to desktop/resources" -ForegroundColor Green

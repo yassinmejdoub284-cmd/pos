@@ -111,12 +111,57 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    await prisma.depot.delete({ where: { id: parseInt(id) } });
-    res.json({ success: true });
+    const depotId = parseInt(req.params.id);
+    const depot = await prisma.depot.findUnique({ where: { id: depotId } });
+    if (!depot) return res.status(404).json({ error: 'Depot introuvable' });
+
+    // Un depot porte des ventes, des sessions de caisse, du stock... Les
+    // supprimer effacerait l'historique comptable. On ne supprime donc
+    // definitivement qu'un depot vierge ; sinon on le desactive (il disparait
+    // des listes mais toutes les donnees restent consultables).
+    const [sales, sessions, inventory, movements, users, clients] = await Promise.all([
+      prisma.sale.count({ where: { depotId } }),
+      prisma.sessionCaisse.count({ where: { depotId } }),
+      prisma.inventory.count({ where: { depotId } }),
+      prisma.stockMovement.count({ where: { depotId } }),
+      prisma.userDepot.count({ where: { depotId } }),
+      prisma.client.count({ where: { depotId } })
+    ]);
+    const used = sales + sessions + inventory + movements + users + clients;
+
+    if (used > 0) {
+      const updated = await prisma.depot.update({
+        where: { id: depotId },
+        data: { isActive: false }
+      });
+      return res.json({
+        success: true,
+        deactivated: true,
+        depot: updated,
+        counts: { sales, sessions, inventory, movements, users, clients },
+        message: `Depot desactive : il contient ${sales} vente(s), ${sessions} session(s) et ${inventory} ligne(s) de stock. Les donnees sont conservees.`
+      });
+    }
+
+    await prisma.depot.delete({ where: { id: depotId } });
+    res.json({ success: true, deactivated: false, message: 'Depot supprime definitivement.' });
   } catch (error) {
     console.error('Error deleting depot:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Erreur lors de la suppression du depot' });
+  }
+});
+
+// Reactive un depot desactive.
+router.post('/:id/reactivate', authenticateToken, async (req, res) => {
+  try {
+    const depot = await prisma.depot.update({
+      where: { id: parseInt(req.params.id) },
+      data: { isActive: true }
+    });
+    res.json({ success: true, depot });
+  } catch (error) {
+    console.error('Error reactivating depot:', error);
+    res.status(500).json({ error: 'Erreur lors de la reactivation du depot' });
   }
 });
 

@@ -7,6 +7,7 @@ import { AccessRoleConfigComponent } from './sections/access/access-role-config.
 import { RoleCreateComponent } from './sections/access/role-create.component';
 import { CompanyListComponent } from './sections/companies/company-list.component';
 import { CompanyDetailComponent } from './sections/companies/company-detail.component';
+import { DepotsManagerComponent } from './sections/depots/depots-manager.component';
 
 const routes: Routes = [
   { path: '', component: ParametresOverviewComponent },
@@ -24,6 +25,7 @@ const routes: Routes = [
   { path: 'access/new', component: RoleCreateComponent },
   { path: 'access/new/:id', component: RoleCreateComponent },
   { path: 'access/:role', component: AccessRoleConfigComponent },
+  { path: 'depots', component: DepotsManagerComponent },
   { path: 'entreprises', component: CompanyListComponent },
   { path: 'entreprises/new', component: CompanyDetailComponent },
   { path: 'entreprises/:id', component: CompanyDetailComponent }

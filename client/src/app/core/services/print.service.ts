@@ -1593,7 +1593,8 @@ export class PrintService {
 
     if (settings?.printSettings?.showLogo !== false && headerName) {
       // Nom en double hauteur a la place de l'image (impossible en thermique).
-      text += centerAlign + ESC + '\x21\x30' + headerName + normalSize + '\n';
+      // ESC ! 0x38 = double largeur + double hauteur + gras.
+      text += centerAlign + boldOn + ESC + '\x21\x38' + headerName + normalSize + boldOff + '\n';
     } else if (headerName) {
       text += centerAlign + boldOn + headerName + boldOff + '\n';
     }
@@ -1786,7 +1787,8 @@ export class PrintService {
 
     if (settings?.printSettings?.showLogo !== false && headerName) {
       // Nom en double hauteur a la place de l'image (impossible en thermique).
-      text += centerAlign + ESC + '\x21\x30' + headerName + normalSize + '\n';
+      // ESC ! 0x38 = double largeur + double hauteur + gras.
+      text += centerAlign + boldOn + ESC + '\x21\x38' + headerName + normalSize + boldOff + '\n';
     } else if (headerName) {
       text += centerAlign + boldOn + headerName + boldOff + '\n';
     }

@@ -780,3 +780,25 @@ body {
   font-size: inherit !important;
   color: inherit !important;
 }
+
+/* Filigrane du logo, visible sur toutes les pages de l'application.
+   position: fixed pour rester centre au defilement, pointer-events: none
+   pour ne jamais bloquer un clic, opacite faible pour ne pas gener la
+   lecture. Masque a l'impression. */
+.app-watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(60vw, 60vh);
+  max-width: 700px;
+  opacity: 0.06;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  z-index: 40;
+}
+
+@media print {
+  .app-watermark { display: none !important; }
+}

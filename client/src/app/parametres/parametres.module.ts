@@ -11,6 +11,7 @@ import { AccessRoleConfigComponent } from './sections/access/access-role-config.
 import { RoleCreateComponent } from './sections/access/role-create.component';
 import { CompanyListComponent } from './sections/companies/company-list.component';
 import { CompanyDetailComponent } from './sections/companies/company-detail.component';
+import { DepotsManagerComponent } from './sections/depots/depots-manager.component';
 
 @NgModule({
   declarations: [ParametresComponent, ParametresOverviewComponent, AccessRoleSelectionComponent, AccessRoleConfigComponent, RoleCreateComponent],
@@ -20,7 +21,8 @@ import { CompanyDetailComponent } from './sections/companies/company-detail.comp
     RouterModule,
     ParametresRoutingModule,
     CompanyListComponent,
-    CompanyDetailComponent
+    CompanyDetailComponent,
+    DepotsManagerComponent
   ]
 })
 export class ParametresModule { }

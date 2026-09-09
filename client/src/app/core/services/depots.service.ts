@@ -37,8 +37,20 @@ export class DepotsService {
     );
   }
 
-  delete(id: number): Observable<{ success: boolean }> {
-    return this.http.delete<{ success: boolean }>(`${this.apiUrl}/${id}`).pipe(
+  /**
+   * Supprime un depot. Le serveur ne supprime definitivement qu'un depot
+   * vierge ; s'il contient des ventes, sessions ou stock il est desactive et
+   * la reponse porte deactivated=true avec le detail.
+   */
+  delete(id: number): Observable<{ success: boolean; deactivated?: boolean; message?: string; counts?: any }> {
+    return this.http.delete<{ success: boolean; deactivated?: boolean; message?: string; counts?: any }>(`${this.apiUrl}/${id}`).pipe(
+      catchError((error) => throwError(() => error))
+    );
+  }
+
+  /** Remet en service un depot desactive. */
+  reactivate(id: number): Observable<{ success: boolean; depot: Depot }> {
+    return this.http.post<{ success: boolean; depot: Depot }>(`${this.apiUrl}/${id}/reactivate`, {}).pipe(
       catchError((error) => throwError(() => error))
     );
   }

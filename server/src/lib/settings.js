@@ -5,7 +5,7 @@ const SETTINGS_FILE = path.join((process.pkg ? path.dirname(process.execPath) : 
 
 function ensureDefaults(data = {}) {
   return {
-    companyName: data.companyName || 'Number One',
+    companyName: data.companyName || 'Samurai Food',
     logoUrl: data.logoUrl || '/logo_sfax.webp',
     // Company details
     companyAddress: data.companyAddress || '',
@@ -55,11 +55,15 @@ function ensureDefaults(data = {}) {
         companySlogan: data.printSettings?.customTexts?.companySlogan || 'Votre pâtisserie de confiance',
         footerMessage: data.printSettings?.customTexts?.footerMessage || 'Merci pour votre fidélité'
       },
+      // En-tete des tickets de caisse, saisi dans Parametres > Impression.
+      // Sans ces deux lignes, ensureDefaults les effacait a chaque sauvegarde.
+      receiptCompanyName: typeof data.printSettings?.receiptCompanyName === 'string' ? data.printSettings.receiptCompanyName : '',
+      receiptDepotName: typeof data.printSettings?.receiptDepotName === 'string' ? data.printSettings.receiptDepotName : '',
       showCompanyDetails: typeof data.printSettings?.showCompanyDetails === 'boolean' ? data.printSettings.showCompanyDetails : true,
       showClientInfo: typeof data.printSettings?.showClientInfo === 'boolean' ? data.printSettings.showClientInfo : true,
       showPaymentMethod: typeof data.printSettings?.showPaymentMethod === 'boolean' ? data.printSettings.showPaymentMethod : true,
       showDiscountDetails: typeof data.printSettings?.showDiscountDetails === 'boolean' ? data.printSettings.showDiscountDetails : true,
-      doubleImpression: typeof data.printSettings?.doubleImpression === 'boolean' ? data.printSettings.doubleImpression : false
+      doubleImpression: typeof data.printSettings?.doubleImpression === 'boolean' ? data.printSettings.doubleImpression : true
     },
     // Document type defaults
     documentTypeDefaults: data.documentTypeDefaults || {

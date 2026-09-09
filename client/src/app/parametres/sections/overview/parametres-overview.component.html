@@ -36,6 +36,20 @@
           </div>
           <div class="text-sm text-gray-600">Info juridique, fiscalité, logos</div>
         </button>
+        <button (click)="navigate('depots')" aria-label="Dépôts"
+          class="p-4 rounded-xl border bg-gradient-to-br from-white to-cyan-50 border-cyan-200 text-left focus:ring-2 focus:ring-cyan-400 focus:outline-none transition-transform">
+          <div class="flex items-center gap-3 mb-1">
+            <span
+              class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-cyan-100 text-cyan-700 border border-cyan-200">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-6 9 6v11a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1V9z" />
+              </svg>
+            </span>
+            <div class="text-lg font-semibold text-gray-800">Dépôts</div>
+          </div>
+          <div class="text-sm text-gray-600">Créer, renommer, désactiver ou supprimer</div>
+        </button>
         <button (click)="navigate('fidelite')" aria-label="Fidélité"
           class="p-4 rounded-xl border bg-gradient-to-br from-white to-emerald-50 border-emerald-200 text-left focus:ring-2 focus:ring-emerald-400 focus:outline-none transition-transform">
           <div class="flex items-center gap-3 mb-1">
