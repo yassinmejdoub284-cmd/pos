@@ -1489,6 +1489,68 @@ export class PrintService {
   }
 
   /**
+   * En-tete commun a tous les tickets de caisse (80 mm / 48 colonnes).
+   * Le nom de l'entreprise est imprime CENTRE, en GRAS, en double largeur et
+   * double hauteur, avec double frappe pour un noir plus dense.
+   * Au-dela de 24 caracteres la double largeur ne tient pas sur 48 colonnes :
+   * on retombe alors sur la double hauteur seule pour eviter la troncature.
+   * Le nom du depot est facultatif : imprime seulement s'il est renseigne.
+   */
+  private buildTicketHeader(settings: AppSettings | null): string {
+    const ESC = '\x1B';
+    const centerAlign  = ESC + '\x61\x01';
+    const leftAlign    = ESC + '\x61\x00';
+    const boldOn       = ESC + '\x45\x01';
+    const boldOff      = ESC + '\x45\x00';
+    const dblStrikeOn  = ESC + '\x47\x01'; // double frappe : caracteres plus noirs
+    const dblStrikeOff = ESC + '\x47\x00';
+    const normalSize   = ESC + '\x21\x00';
+    const sizeXL       = ESC + '\x21\x38'; // double largeur + double hauteur + gras
+    const sizeL        = ESC + '\x21\x18'; // double hauteur + gras
+    const sizeM        = ESC + '\x21\x08'; // gras (hauteur normale)
+
+    // Libelles saisis dans Parametres > Impression, independants du nom de
+    // societe de l'application : une caisse peut imprimer un nom different.
+    const headerName = this.sanitizeForThermalPrinter(
+      settings?.printSettings?.receiptCompanyName || settings?.companyName || 'Samurai Food'
+    );
+    const headerDepot = this.sanitizeForThermalPrinter(
+      settings?.printSettings?.receiptDepotName || ''
+    );
+
+    let text = '';
+    text += this.rule('=');
+
+    if (headerName) {
+      const size = headerName.length <= 24 ? sizeXL : sizeL;
+      text += centerAlign + dblStrikeOn + boldOn + size
+            + headerName
+            + normalSize + boldOff + dblStrikeOff + '\n';
+    }
+
+    if (headerDepot) {
+      text += centerAlign + boldOn + sizeL + headerDepot + normalSize + boldOff + '\n';
+    }
+
+    // Coordonnees : centrees et en gras, hauteur normale.
+    if (settings?.printSettings?.showCompanyDetails !== false) {
+      if (settings?.companyAddress) {
+        text += centerAlign + sizeM + this.sanitizeForThermalPrinter(settings.companyAddress) + normalSize + '\n';
+      }
+      if (settings?.companyPhone) {
+        text += centerAlign + sizeM + this.sanitizeForThermalPrinter(settings.companyPhone) + normalSize + '\n';
+      }
+      if (settings?.companyEmail) {
+        text += centerAlign + sizeM + this.sanitizeForThermalPrinter(settings.companyEmail) + normalSize + '\n';
+      }
+    }
+
+    // Retour a gauche : sans cela toutes les lignes suivantes restent centrees.
+    text += leftAlign + this.rule('=');
+    return text;
+  }
+
+  /**
    * Ticket CUISINE : produits et quantites uniquement, aucun prix.
    * Imprime en deuxieme exemplaire pour la preparation de la commande.
    */
@@ -1576,48 +1638,7 @@ export class PrintService {
     // Eliminate margins and set monospace font
     text += noTopMargin + noBottomMargin + monospaceFont;
 
-    // Header
-    text += this.rule('=');
-
-    // En-tete du ticket. Les libelles viennent de Parametres > Impression et
-    // sont independants du nom de societe de l'application : une seule caisse
-    // peut ainsi imprimer un nom commercial different.
-    // - receiptCompanyName : remplace le nom de societe (sinon companyName)
-    // - receiptDepotName   : ligne facultative, imprimee seulement si remplie
-    const headerName = this.sanitizeForThermalPrinter(
-      settings?.printSettings?.receiptCompanyName || settings?.companyName || 'Samurai Food'
-    );
-    const headerDepot = this.sanitizeForThermalPrinter(
-      settings?.printSettings?.receiptDepotName || ''
-    );
-
-    if (settings?.printSettings?.showLogo !== false && headerName) {
-      // Nom en double hauteur a la place de l'image (impossible en thermique).
-      // ESC ! 0x38 = double largeur + double hauteur + gras.
-      text += centerAlign + boldOn + ESC + '\x21\x38' + headerName + normalSize + boldOff + '\n';
-    } else if (headerName) {
-      text += centerAlign + boldOn + headerName + boldOff + '\n';
-    }
-
-    if (headerDepot) {
-      text += centerAlign + headerDepot + '\n';
-    }
-
-    // Company details (centered) - sanitized for thermal printer
-    if (settings?.printSettings?.showCompanyDetails !== false) {
-      if (settings?.companyAddress) {
-        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyAddress) + '\n';
-      }
-      if (settings?.companyPhone) {
-        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyPhone) + '\n';
-      }
-      if (settings?.companyEmail) {
-        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyEmail) + '\n';
-      }
-    }
-
-    // Retour a gauche : sans cela toutes les lignes suivantes restaient centrees.
-    text += leftAlign + this.rule('=');
+    text += this.buildTicketHeader(settings);
 
     // Sale info
     text += `Date: ${date}     Heure: ${time}\n`;
@@ -1771,47 +1792,7 @@ export class PrintService {
     // Eliminate margins and set monospace font
     text += noTopMargin + noBottomMargin + monospaceFont;
 
-    // Header
-    text += this.rule('=');
-
-    // En-tete du ticket. Les libelles viennent de Parametres > Impression et
-    // sont independants du nom de societe de l'application : une seule caisse
-    // peut ainsi imprimer un nom commercial different.
-    // - receiptCompanyName : remplace le nom de societe (sinon companyName)
-    // - receiptDepotName   : ligne facultative, imprimee seulement si remplie
-    const headerName = this.sanitizeForThermalPrinter(
-      settings?.printSettings?.receiptCompanyName || settings?.companyName || 'Samurai Food'
-    );
-    const headerDepot = this.sanitizeForThermalPrinter(
-      settings?.printSettings?.receiptDepotName || ''
-    );
-
-    if (settings?.printSettings?.showLogo !== false && headerName) {
-      // Nom en double hauteur a la place de l'image (impossible en thermique).
-      // ESC ! 0x38 = double largeur + double hauteur + gras.
-      text += centerAlign + boldOn + ESC + '\x21\x38' + headerName + normalSize + boldOff + '\n';
-    } else if (headerName) {
-      text += centerAlign + boldOn + headerName + boldOff + '\n';
-    }
-
-    if (headerDepot) {
-      text += centerAlign + headerDepot + '\n';
-    }
-
-    // Company details (centered) - sanitized for thermal printer
-    if (settings?.printSettings?.showCompanyDetails !== false) {
-      if (settings?.companyAddress) {
-        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyAddress) + '\n';
-      }
-      if (settings?.companyPhone) {
-        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyPhone) + '\n';
-      }
-      if (settings?.companyEmail) {
-        text += centerAlign + this.sanitizeForThermalPrinter(settings.companyEmail) + '\n';
-      }
-    }
-
-    text += leftAlign + this.rule('=');
+    text += this.buildTicketHeader(settings);
 
     // Numéro de Ticket
     text += leftAlign + 'Numéro de Ticket\n';
